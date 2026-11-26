@@ -764,7 +764,7 @@ const treeHandlers = [
     const running = rows.scans.some((s) => s.status === 'running')
     const at = nowIso()
     const s: Scan = { run_id: newId('run'), target_id: n.id, status: running ? 'queued' : 'running', trigger: 'manual', requested_by: me.email, mode: v.deep ? 'deep' : 'surface',
-      queued_at: at, started_at: running ? null : at, ended_at: null, waiting_for: null, stop_reason: null, error: null, counts: null }
+      queued_at: at, started_at: running ? null : at, ended_at: null, waiting_for: null, stop_reason: null, error: null, counts: null, web_steps: [] }
     treeRows.update((r) => ({ ...r, scans: [s, ...r.scans] }))
     audit('exposure.scan', n.value, `${s.mode} scan ${s.status}`)
     return HttpResponse.json(s, { status: 202 })

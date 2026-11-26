@@ -151,6 +151,17 @@ type IssueDetail struct {
 	Description string   `json:"description"`
 	Solution    string   `json:"solution"`
 	Evidence    []string `json:"evidence"`
+	// ZAP is, on an issue of the zap engine, ZAP's own rating of the alert and the pass that raised it (contract.ts IssueZap); nil on
+	// every other engine and on a ZAP issue stored before it was kept.
+	ZAP *IssueZAP `json:"zap,omitempty"`
+}
+
+// IssueZAP is ZAP's rating of an alert: Risk high, medium, low or info; Confidence low, medium, high or confirmed; Pass passive (the
+// baseline read it in the pages) or active (an attack request of the active scan showed it).
+type IssueZAP struct {
+	Risk       string `json:"risk"`
+	Confidence string `json:"confidence"`
+	Pass       string `json:"pass"`
 }
 
 // IssueCVE is a CVE an issue names, with its score when the catalogue has one (nil: not scored yet).
@@ -196,6 +207,7 @@ type scanSummary struct {
 	Found      *Counts         `json:"found,omitempty"`  // the numbers of what this scan itself found
 	Checks     []CheckRow      `json:"checks,omitempty"`
 	NotChecked []NotCheckedRow `json:"not_checked,omitempty"`
+	WebSteps   []WebStep       `json:"web_steps,omitempty"` // the two ZAP passes, written as they go
 }
 
 // ScanView is one scan of a target: its shared run, with the exposure facts (contract.ts Scan).
@@ -213,6 +225,7 @@ type ScanView struct {
 	StopReason  *string     `json:"stop_reason"`
 	Error       *string     `json:"error"`
 	Counts      *ScanCounts `json:"counts"`
+	WebSteps    []WebStep   `json:"web_steps"`
 }
 
 // The modes of a scan (exp_scan.mode).
@@ -427,6 +440,7 @@ func scanScanView(sc scanner) (ScanView, error) {
 	if v.Status == "done" || v.Status == "partial" {
 		v.Counts = sum.Counts
 	}
+	v.WebSteps = webStepsOf(sum.WebSteps, v.Status)
 	return v, nil
 }
 
@@ -557,4 +571,22 @@ func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, err
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+// webStepsOf is the web steps of a scan as the run page reads them: a step still "running" in a run that ended was cut by its end
+// (a Stop, a restart, an error), so it reads as the run's own end.
+func webStepsOf(in []WebStep, status string) []WebStep {
+	out := make([]WebStep, 0, len(in))
+	for _, w := range in {
+		if w.State == WebRunning {
+			switch status {
+			case "stopped", "stopping":
+				w.State = WebStopped
+			case "failed":
+				w.State = WebFailed
+			}
+		}
+		out = append(out, w)
+	}
+	return out
 }

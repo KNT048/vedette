@@ -46,9 +46,12 @@ function ScansTable({ node, scans }: { node: TargetNode; scans: Scan[] }) {
 function Result({ s }: { s: Scan }) {
   const { t } = useTranslation('exposure')
   const c = s.counts
+  // A scheduled run reads the pages without attacking them: the box's own line says so, so the run does not look incomplete.
+  const webNote = s.web_steps.find((w) => w.step === 'zap_active' && w.state === 'skipped')?.note
   return (
     <span className="grid gap-0.5 text-meta">
       {c ? <span>{t('run.result', { services: c.services, newServices: c.new_services, closed: c.closed_services, issues: c.issues, newIssues: c.new_issues })}</span> : null}
+      {webNote ? <span className="text-muted">{webNote}</span> : null}
       {s.waiting_for ? <span className="text-muted">{t('run.waitingFor', { what: s.waiting_for })}</span> : null}
       {s.error || s.stop_reason ? <span className={s.status === 'failed' ? 'text-danger' : 'text-muted'}>{s.error ?? s.stop_reason}</span> : null}
       {!c && !s.waiting_for && !s.error && !s.stop_reason ? <span className="text-muted">—</span> : null}

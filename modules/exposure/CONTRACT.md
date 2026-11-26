@@ -110,6 +110,26 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-20** Exploited CVEs of a service are matched at scan time through findings' matcher (`Config.Matcher`).
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.
 - **INV-24** ZAP runs passive (baseline, GET only) on services that answered HTTP on a target that passed this run's gate.
+- **INV-24a** ZAP's **active** scan (`ActiveWebScanner`, host `zap.active`) runs after the passive baseline, only on the pages that
+  baseline read in this run, and only in a scan a person started (Scan now, Run once now) of a target whose testing terms are
+  accepted, read again right before each page (`ModeNow`). A scheduled scan keeps the passive baseline only and says so in one line
+  ("Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.") on the scan and
+  on its web steps. The disruptive rules of the host's rule split (denial of service, data-changing checks, SQL injection's boolean
+  and UNION payloads, the hosting provider's metadata service) and form posting run only on the box's own proven public IP (an IP
+  target that is not typed, the page on exactly that address) when the run's mode allows the disruptive checks (`runMode`: a
+  person's scan, the terms include them, the gateway not in 100.64.0.0/10); a domain's page, on hosting or a CDN, gets the active
+  scan without them, and the scan says so. ZAP is held to the page's origin by its context (one include path, anchored to scheme,
+  host and port) and by the host's network fence. Bounds: 21 minutes a page (the host's own 20: spider 2 minutes, depth 5, 20
+  children a node; active rules 12 minutes, 2 a rule, 2 threads, 100 ms between requests; a 2 GiB container), 60 minutes for the
+  active pass of a scan (a page starts only while a whole page still fits; the rest are named as not attacked). Every page is in
+  the probe log before ZAP attacks it. A page that reached the 12 minutes keeps what it found and says it was cut short. A
+  stopped scan stops ZAP on the host (`zap.stop`: the container removed and proven gone before it answers). Active alerts are
+  issues of the `zap` engine apart from the exploited CVEs, one per alert and site (an alert both passes report is one issue), with
+  ZAP's risk, confidence and pass in `detail.zap`; an active alert goes "gone" only when the active scan looked at its page again,
+  never because a scheduled scan read the page. The run's web steps (`zap_passive`, `zap_active`: state, pages done and total,
+  alerts, cut short, disruptive, note) are written into the scan's summary as they go (`Scan.web_steps`). Tests:
+  `zapactive_test.go` (`TestZapActive_*`), `cmd/vedette/exposureweb_test.go` (`TestExposureWeb_Active*`,
+  `TestExposureWeb_AStoppedScanStopsZAPOnTheHost`).
 - **INV-25** Greenbone (OpenVAS) is optional and off by default; it runs as its own unmodified project beside Vedette and is
   driven over GMP. Each address has a time cap (INV-25a).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common

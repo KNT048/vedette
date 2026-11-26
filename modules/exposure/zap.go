@@ -73,9 +73,11 @@ type WebProbeLog interface {
 	RecordWebProbe(ctx context.Context, p WebProbe) error
 }
 
-// WebScan is what one baseline run produced: ZAP's JSON report as it was written.
+// WebScan is what one run produced: ZAP's JSON report as it was written. CutShort (active scan only) says the active scan reached its
+// time limit before it finished: the report holds what it found until then.
 type WebScan struct {
-	Report []byte
+	Report   []byte
+	CutShort bool
 }
 
 // Limits of the passive web scan (INV-24).
@@ -128,6 +130,8 @@ type WebFindingRow struct {
 	// zaprules.go: Group is "fix" or "hardening" by content/zap/vedette-baseline.conf; Software the versions ZAP read.
 	Group    string        `json:"group"`
 	Software []WebSoftware `json:"software"`
+	// Pass is "active" for an alert of ZAP's active scan (an attack request showed it), "" for one of the passive baseline.
+	Pass string `json:"pass,omitempty"`
 }
 
 var (
@@ -323,6 +327,9 @@ func plainText(s string, n int) string {
 // cleanWebRow is the one check a web finding passes before it is stored (INV-10, INV-24); ok is false for a row that is not one.
 func cleanWebRow(r WebFindingRow) (WebFindingRow, bool) {
 	r.Name, r.PluginID = plainText(r.Name, maxWebName), field(r.PluginID, 12)
+	if r.Pass != passActive {
+		r.Pass = ""
+	}
 	r.Description, r.Solution = plainText(r.Description, maxWebText), plainText(r.Solution, maxWebText)
 	if r.Name == "" || r.PluginID == "" || !slices.Contains(zapRisks, r.Risk) || !slices.Contains(zapConfidences[1:], r.Confidence) {
 		return WebFindingRow{}, false
@@ -629,6 +636,18 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	var scanned []string
 	alerts := 0
 	steps := stepsOf(ctx) // INV-30: each page ZAP is asked for is a call of the ZAP step
+	wstep := WebStep{Step: WebStepPassive, State: WebRunning, PagesTotal: len(pages)}
+	if st.User == SystemUser && st.Mode.Full { // the active pass waits for a person: said on the run, so a scheduled run does not look incomplete
+		wstep.Note = notActiveScheduled
+	}
+	s.webStepSet(ctx, wstep)
+	okPages, failedPages := 0, 0
+	defer func() {
+		if wstep.State == WebRunning { // stopped while ZAP ran
+			wstep.State = WebStopped
+		}
+		s.webStepSet(ctx, wstep)
+	}()
 	for i, page := range pages {
 		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil { // LEGAL §3: logged before ZAP starts
 			if ctx.Err() != nil {
@@ -648,19 +667,25 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
 			switch {
 			case perr == nil:
-				c.WebFindings = append(c.WebFindings, rows...)
+				c.WebFindings = mergeWebRows(c.WebFindings, rows)
 				c.WebPages = append(c.WebPages, page.URL)
+				c.webOK = append(c.webOK, page)
 				scanned, alerts = append(scanned, page.URL), alerts+len(rows)
+				okPages++
 				steps.end(StepZAP, callRan, len(rows), s.clock())
 			case errors.Is(perr, ErrNoPage): // ZAP ran and found no page there
 				c.WebPages = append(c.WebPages, page.URL)
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebNoPage, maxLineText)})
+				okPages++
 				steps.end(StepZAP, callEmpty, 0, s.clock())
 			default:
 				s.cfg.Log.ErrorContext(ctx, "exposure: unreadable ZAP report", "target", st.Value, "page", page.URL, "error", perr)
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebUnread, maxLineText)})
+				failedPages++
 				steps.end(StepZAP, callFailed, 0, s.clock())
 			}
+			wstep.PagesDone, wstep.Alerts = wstep.PagesDone+1, alerts
+			s.webStepSet(ctx, wstep)
 			continue
 		}
 		var un *Unavailable
@@ -671,7 +696,12 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		case errors.As(err, &skip), errors.As(err, &un): // ZAP did not run there (unavailable, not running): not a run of the step
 			steps.end(StepZAP, callSkipped, 0, s.clock())
 		default:
+			failedPages++
 			steps.end(StepZAP, callFailed, 0, s.clock())
+		}
+		wstep.PagesDone++
+		if errors.As(err, &un) {
+			wstep.Note = clipText("Did not run: "+un.Reason, maxLineText)
 		}
 		switch {
 		case errors.As(err, &un):
@@ -690,6 +720,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		}
 		break
 	}
+	wstep.State = webStepEnd(okPages, failedPages, len(pages)-wstep.PagesDone)
 	if len(skipped) > 0 {
 		urls := make([]string, len(skipped))
 		for i, p := range skipped {

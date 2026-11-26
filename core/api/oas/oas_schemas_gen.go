@@ -50578,6 +50578,9 @@ type ExposureDeleteExposureTreeIDTermsOKLastScan struct {
 	Trigger    ExposureDeleteExposureTreeIDTermsOKLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -50645,6 +50648,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetWaitingFor() NilString 
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetWebSteps() []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetCounts(val NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) {
 	s.Counts = val
@@ -50708,6 +50716,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetTrigger(val ExposureDel
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetWebSteps(val []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposureDeleteExposureTreeIDTermsOKLastScanCounts struct {
@@ -50948,6 +50961,222 @@ func (s *ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) UnmarshalText(data 
 		return nil
 	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent:
 		*s = ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState `json:"state"`
+	Step  ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetState() ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) GetStep() ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetState(val ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) SetStep(val ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState = "running"
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone    ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState = "done"
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState = "partial"
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed  ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState = "failed"
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState = "stopped"
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState values.
+func (ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) AllValues() []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState {
+	return []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState{
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning,
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone,
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial,
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed,
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped,
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState(data) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep = "zap_passive"
+	ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive  ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep values.
+func (ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) AllValues() []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep {
+	return []ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep{
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive,
+		ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep(data) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -60482,6 +60711,9 @@ type ExposureGetExposureTreeIDIssuesOKItemsItemDetail struct {
 	// Where it was seen: URLs or lines of the engine's output.
 	Evidence []string `json:"evidence"`
 	Solution string   `json:"solution"`
+	// Engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and
+	// on alerts stored before it was kept.
+	Zap OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap `json:"zap"`
 }
 
 // GetDescription returns the value of Description.
@@ -60499,6 +60731,11 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetSolution() string 
 	return s.Solution
 }
 
+// GetZap returns the value of Zap.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetZap() OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap {
+	return s.Zap
+}
+
 // SetDescription sets the value of Description.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetDescription(val string) {
 	s.Description = val
@@ -60512,6 +60749,206 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetEvidence(val []str
 // SetSolution sets the value of Solution.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetSolution(val string) {
 	s.Solution = val
+}
+
+// SetZap sets the value of Zap.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetZap(val OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) {
+	s.Zap = val
+}
+
+// Engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and
+// on alerts stored before it was kept.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap struct {
+	// How sure ZAP is of it.
+	Confidence ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence `json:"confidence"`
+	// Passive: the baseline read it in the pages; active: an attack request of the active scan showed it.
+	Pass ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass `json:"pass"`
+	// ZAP's risk of the alert.
+	Risk ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk `json:"risk"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetConfidence() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence {
+	return s.Confidence
+}
+
+// GetPass returns the value of Pass.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetPass() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass {
+	return s.Pass
+}
+
+// GetRisk returns the value of Risk.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetRisk() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk {
+	return s.Risk
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetConfidence(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) {
+	s.Confidence = val
+}
+
+// SetPass sets the value of Pass.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetPass(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) {
+	s.Pass = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetRisk(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) {
+	s.Risk = val
+}
+
+// How sure ZAP is of it.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "confirmed"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh      ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium    ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow       ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "low"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence{
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Passive: the baseline read it in the pages; active: an attack request of the active scan showed it.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass = "passive"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive  ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass = "active"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass{
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// ZAP's risk of the alert.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh   ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow    ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "low"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo   ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "info"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk{
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposureGetExposureTreeIDIssuesOKItemsItemEngine string
@@ -61298,6 +61735,9 @@ type ExposureGetExposureTreeIDOKLastScan struct {
 	Trigger    ExposureGetExposureTreeIDOKLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposureGetExposureTreeIDOKLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -61365,6 +61805,11 @@ func (s *ExposureGetExposureTreeIDOKLastScan) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetWebSteps() []ExposureGetExposureTreeIDOKLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposureGetExposureTreeIDOKLastScan) SetCounts(val NilExposureGetExposureTreeIDOKLastScanCounts) {
 	s.Counts = val
@@ -61428,6 +61873,11 @@ func (s *ExposureGetExposureTreeIDOKLastScan) SetTrigger(val ExposureGetExposure
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposureGetExposureTreeIDOKLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetWebSteps(val []ExposureGetExposureTreeIDOKLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposureGetExposureTreeIDOKLastScanCounts struct {
@@ -61668,6 +62118,222 @@ func (s *ExposureGetExposureTreeIDOKLastScanTrigger) UnmarshalText(data []byte) 
 		return nil
 	case ExposureGetExposureTreeIDOKLastScanTriggerEvent:
 		*s = ExposureGetExposureTreeIDOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposureGetExposureTreeIDOKLastScanWebStepsItemState `json:"state"`
+	Step  ExposureGetExposureTreeIDOKLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetState() ExposureGetExposureTreeIDOKLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) GetStep() ExposureGetExposureTreeIDOKLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetState(val ExposureGetExposureTreeIDOKLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) SetStep(val ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposureGetExposureTreeIDOKLastScanWebStepsItemState string
+
+const (
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning ExposureGetExposureTreeIDOKLastScanWebStepsItemState = "running"
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone    ExposureGetExposureTreeIDOKLastScanWebStepsItemState = "done"
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial ExposureGetExposureTreeIDOKLastScanWebStepsItemState = "partial"
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed  ExposureGetExposureTreeIDOKLastScanWebStepsItemState = "failed"
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped ExposureGetExposureTreeIDOKLastScanWebStepsItemState = "stopped"
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped ExposureGetExposureTreeIDOKLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKLastScanWebStepsItemState values.
+func (ExposureGetExposureTreeIDOKLastScanWebStepsItemState) AllValues() []ExposureGetExposureTreeIDOKLastScanWebStepsItemState {
+	return []ExposureGetExposureTreeIDOKLastScanWebStepsItemState{
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning,
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone,
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial,
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed,
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped,
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKLastScanWebStepsItemState(data) {
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKLastScanWebStepsItemStep string
+
+const (
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive ExposureGetExposureTreeIDOKLastScanWebStepsItemStep = "zap_passive"
+	ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive  ExposureGetExposureTreeIDOKLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKLastScanWebStepsItemStep values.
+func (ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) AllValues() []ExposureGetExposureTreeIDOKLastScanWebStepsItemStep {
+	return []ExposureGetExposureTreeIDOKLastScanWebStepsItemStep{
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive,
+		ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKLastScanWebStepsItemStep(data) {
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -62323,6 +62989,9 @@ type ExposureGetExposureTreeIDScansOKItemsItem struct {
 	Trigger    ExposureGetExposureTreeIDScansOKItemsItemTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -62390,6 +63059,11 @@ func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetWebSteps() []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetCounts(val NilExposureGetExposureTreeIDScansOKItemsItemCounts) {
 	s.Counts = val
@@ -62453,6 +63127,11 @@ func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetTrigger(val ExposureGetEx
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetWebSteps(val []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposureGetExposureTreeIDScansOKItemsItemCounts struct {
@@ -62693,6 +63372,222 @@ func (s *ExposureGetExposureTreeIDScansOKItemsItemTrigger) UnmarshalText(data []
 		return nil
 	case ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent:
 		*s = ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState `json:"state"`
+	Step  ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetState() ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) GetStep() ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetState(val ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) SetStep(val ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState string
+
+const (
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState = "running"
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone    ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState = "done"
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState = "partial"
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed  ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState = "failed"
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState = "stopped"
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState values.
+func (ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) AllValues() []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState {
+	return []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState{
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning,
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone,
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial,
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed,
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped,
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState(data) {
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep string
+
+const (
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep = "zap_passive"
+	ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive  ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep values.
+func (ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) AllValues() []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep {
+	return []ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep{
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive,
+		ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep(data) {
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -63837,6 +64732,9 @@ type ExposureGetExposureTreeOKItemsItemLastScan struct {
 	Trigger    ExposureGetExposureTreeOKItemsItemLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -63904,6 +64802,11 @@ func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetWebSteps() []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetCounts(val NilExposureGetExposureTreeOKItemsItemLastScanCounts) {
 	s.Counts = val
@@ -63967,6 +64870,11 @@ func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetTrigger(val ExposureGetE
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetWebSteps(val []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposureGetExposureTreeOKItemsItemLastScanCounts struct {
@@ -64207,6 +65115,222 @@ func (s *ExposureGetExposureTreeOKItemsItemLastScanTrigger) UnmarshalText(data [
 		return nil
 	case ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent:
 		*s = ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState `json:"state"`
+	Step  ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetState() ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) GetStep() ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetState(val ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) SetStep(val ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState string
+
+const (
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState = "running"
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone    ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState = "done"
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState = "partial"
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed  ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState = "failed"
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState = "stopped"
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState values.
+func (ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) AllValues() []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState {
+	return []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState{
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning,
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone,
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial,
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed,
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped,
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState(data) {
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep string
+
+const (
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep = "zap_passive"
+	ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive  ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep values.
+func (ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) AllValues() []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep {
+	return []ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep{
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive,
+		ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep(data) {
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65378,6 +66502,9 @@ type ExposurePatchExposureTreeIDOKLastScan struct {
 	Trigger    ExposurePatchExposureTreeIDOKLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposurePatchExposureTreeIDOKLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -65445,6 +66572,11 @@ func (s *ExposurePatchExposureTreeIDOKLastScan) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetWebSteps() []ExposurePatchExposureTreeIDOKLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposurePatchExposureTreeIDOKLastScan) SetCounts(val NilExposurePatchExposureTreeIDOKLastScanCounts) {
 	s.Counts = val
@@ -65508,6 +66640,11 @@ func (s *ExposurePatchExposureTreeIDOKLastScan) SetTrigger(val ExposurePatchExpo
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposurePatchExposureTreeIDOKLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetWebSteps(val []ExposurePatchExposureTreeIDOKLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposurePatchExposureTreeIDOKLastScanCounts struct {
@@ -65748,6 +66885,222 @@ func (s *ExposurePatchExposureTreeIDOKLastScanTrigger) UnmarshalText(data []byte
 		return nil
 	case ExposurePatchExposureTreeIDOKLastScanTriggerEvent:
 		*s = ExposurePatchExposureTreeIDOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposurePatchExposureTreeIDOKLastScanWebStepsItemState `json:"state"`
+	Step  ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetState() ExposurePatchExposureTreeIDOKLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) GetStep() ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetState(val ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) SetStep(val ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposurePatchExposureTreeIDOKLastScanWebStepsItemState string
+
+const (
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning ExposurePatchExposureTreeIDOKLastScanWebStepsItemState = "running"
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone    ExposurePatchExposureTreeIDOKLastScanWebStepsItemState = "done"
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial ExposurePatchExposureTreeIDOKLastScanWebStepsItemState = "partial"
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed  ExposurePatchExposureTreeIDOKLastScanWebStepsItemState = "failed"
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped ExposurePatchExposureTreeIDOKLastScanWebStepsItemState = "stopped"
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped ExposurePatchExposureTreeIDOKLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKLastScanWebStepsItemState values.
+func (ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) AllValues() []ExposurePatchExposureTreeIDOKLastScanWebStepsItemState {
+	return []ExposurePatchExposureTreeIDOKLastScanWebStepsItemState{
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning,
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone,
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial,
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed,
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped,
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKLastScanWebStepsItemState(data) {
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep string
+
+const (
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep = "zap_passive"
+	ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive  ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep values.
+func (ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) AllValues() []ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep {
+	return []ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep{
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive,
+		ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep(data) {
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74216,6 +75569,9 @@ type ExposurePostExposureTreeCreatedLastScan struct {
 	Trigger    ExposurePostExposureTreeCreatedLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposurePostExposureTreeCreatedLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -74283,6 +75639,11 @@ func (s *ExposurePostExposureTreeCreatedLastScan) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetWebSteps() []ExposurePostExposureTreeCreatedLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposurePostExposureTreeCreatedLastScan) SetCounts(val NilExposurePostExposureTreeCreatedLastScanCounts) {
 	s.Counts = val
@@ -74346,6 +75707,11 @@ func (s *ExposurePostExposureTreeCreatedLastScan) SetTrigger(val ExposurePostExp
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposurePostExposureTreeCreatedLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetWebSteps(val []ExposurePostExposureTreeCreatedLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposurePostExposureTreeCreatedLastScanCounts struct {
@@ -74586,6 +75952,222 @@ func (s *ExposurePostExposureTreeCreatedLastScanTrigger) UnmarshalText(data []by
 		return nil
 	case ExposurePostExposureTreeCreatedLastScanTriggerEvent:
 		*s = ExposurePostExposureTreeCreatedLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposurePostExposureTreeCreatedLastScanWebStepsItemState `json:"state"`
+	Step  ExposurePostExposureTreeCreatedLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetState() ExposurePostExposureTreeCreatedLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) GetStep() ExposurePostExposureTreeCreatedLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetState(val ExposurePostExposureTreeCreatedLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) SetStep(val ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposurePostExposureTreeCreatedLastScanWebStepsItemState string
+
+const (
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning ExposurePostExposureTreeCreatedLastScanWebStepsItemState = "running"
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone    ExposurePostExposureTreeCreatedLastScanWebStepsItemState = "done"
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial ExposurePostExposureTreeCreatedLastScanWebStepsItemState = "partial"
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed  ExposurePostExposureTreeCreatedLastScanWebStepsItemState = "failed"
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped ExposurePostExposureTreeCreatedLastScanWebStepsItemState = "stopped"
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped ExposurePostExposureTreeCreatedLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedLastScanWebStepsItemState values.
+func (ExposurePostExposureTreeCreatedLastScanWebStepsItemState) AllValues() []ExposurePostExposureTreeCreatedLastScanWebStepsItemState {
+	return []ExposurePostExposureTreeCreatedLastScanWebStepsItemState{
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning,
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone,
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial,
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed,
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped,
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedLastScanWebStepsItemState(data) {
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedLastScanWebStepsItemStep string
+
+const (
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive ExposurePostExposureTreeCreatedLastScanWebStepsItemStep = "zap_passive"
+	ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive  ExposurePostExposureTreeCreatedLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedLastScanWebStepsItemStep values.
+func (ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) AllValues() []ExposurePostExposureTreeCreatedLastScanWebStepsItemStep {
+	return []ExposurePostExposureTreeCreatedLastScanWebStepsItemStep{
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive,
+		ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedLastScanWebStepsItemStep(data) {
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -75227,6 +76809,9 @@ type ExposurePostExposureTreeIDScanAccepted struct {
 	Trigger    ExposurePostExposureTreeIDScanAcceptedTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposurePostExposureTreeIDScanAcceptedWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -75294,6 +76879,11 @@ func (s *ExposurePostExposureTreeIDScanAccepted) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetWebSteps() []ExposurePostExposureTreeIDScanAcceptedWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposurePostExposureTreeIDScanAccepted) SetCounts(val NilExposurePostExposureTreeIDScanAcceptedCounts) {
 	s.Counts = val
@@ -75357,6 +76947,11 @@ func (s *ExposurePostExposureTreeIDScanAccepted) SetTrigger(val ExposurePostExpo
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposurePostExposureTreeIDScanAccepted) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetWebSteps(val []ExposurePostExposureTreeIDScanAcceptedWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposurePostExposureTreeIDScanAcceptedCounts struct {
@@ -75597,6 +77192,222 @@ func (s *ExposurePostExposureTreeIDScanAcceptedTrigger) UnmarshalText(data []byt
 		return nil
 	case ExposurePostExposureTreeIDScanAcceptedTriggerEvent:
 		*s = ExposurePostExposureTreeIDScanAcceptedTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDScanAcceptedWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposurePostExposureTreeIDScanAcceptedWebStepsItemState `json:"state"`
+	Step  ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetState() ExposurePostExposureTreeIDScanAcceptedWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) GetStep() ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetState(val ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) SetStep(val ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposurePostExposureTreeIDScanAcceptedWebStepsItemState string
+
+const (
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning ExposurePostExposureTreeIDScanAcceptedWebStepsItemState = "running"
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone    ExposurePostExposureTreeIDScanAcceptedWebStepsItemState = "done"
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial ExposurePostExposureTreeIDScanAcceptedWebStepsItemState = "partial"
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed  ExposurePostExposureTreeIDScanAcceptedWebStepsItemState = "failed"
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped ExposurePostExposureTreeIDScanAcceptedWebStepsItemState = "stopped"
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped ExposurePostExposureTreeIDScanAcceptedWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDScanAcceptedWebStepsItemState values.
+func (ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) AllValues() []ExposurePostExposureTreeIDScanAcceptedWebStepsItemState {
+	return []ExposurePostExposureTreeIDScanAcceptedWebStepsItemState{
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning,
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone,
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial,
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed,
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped,
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDScanAcceptedWebStepsItemState(data) {
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep string
+
+const (
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep = "zap_passive"
+	ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive  ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep values.
+func (ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) AllValues() []ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep {
+	return []ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep{
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive,
+		ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep(data) {
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -76202,6 +78013,9 @@ type ExposurePostExposureTreeIDVerifyOKNodeLastScan struct {
 	Trigger    ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -76269,6 +78083,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetWaitingFor() NilStri
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetWebSteps() []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetCounts(val NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) {
 	s.Counts = val
@@ -76332,6 +78151,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetTrigger(val Exposure
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetWebSteps(val []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts struct {
@@ -76572,6 +78396,222 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) UnmarshalText(da
 		return nil
 	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent:
 		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState `json:"state"`
+	Step  ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetState() ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) GetStep() ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetState(val ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) SetStep(val ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState = "running"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone    ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState = "done"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState = "partial"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed  ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState = "failed"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState = "stopped"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState values.
+func (ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState {
+	return []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState{
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep = "zap_passive"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive  ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep values.
+func (ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep {
+	return []ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep{
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -79908,6 +81948,9 @@ type ExposurePutExposureTreeIDTermsOKLastScan struct {
 	Trigger    ExposurePutExposureTreeIDTermsOKLastScanTrigger `json:"trigger"`
 	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
 	WaitingFor NilString `json:"waiting_for"`
+	// The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan
+	// without web pages.
+	WebSteps []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem `json:"web_steps"`
 }
 
 // GetCounts returns the value of Counts.
@@ -79975,6 +82018,11 @@ func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetWaitingFor() NilString {
 	return s.WaitingFor
 }
 
+// GetWebSteps returns the value of WebSteps.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetWebSteps() []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem {
+	return s.WebSteps
+}
+
 // SetCounts sets the value of Counts.
 func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetCounts(val NilExposurePutExposureTreeIDTermsOKLastScanCounts) {
 	s.Counts = val
@@ -80038,6 +82086,11 @@ func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetTrigger(val ExposurePutExp
 // SetWaitingFor sets the value of WaitingFor.
 func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetWaitingFor(val NilString) {
 	s.WaitingFor = val
+}
+
+// SetWebSteps sets the value of WebSteps.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetWebSteps(val []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) {
+	s.WebSteps = val
 }
 
 type ExposurePutExposureTreeIDTermsOKLastScanCounts struct {
@@ -80278,6 +82331,222 @@ func (s *ExposurePutExposureTreeIDTermsOKLastScanTrigger) UnmarshalText(data []b
 		return nil
 	case ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent:
 		*s = ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem struct {
+	// Alerts kept so far, after Vedette's rule list.
+	Alerts int `json:"alerts"`
+	// Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is
+	// kept.
+	CutShort bool `json:"cut_short"`
+	// Active pass: the disruptive rules ran on a page (the box's own public IP only).
+	Disruptive bool `json:"disruptive"`
+	// Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run
+	// when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when
+	// none.
+	Note      string `json:"note"`
+	PagesDone int    `json:"pages_done"`
+	// The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages
+	// the passive pass read for the active one.
+	PagesTotal int `json:"pages_total"`
+	// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+	// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+	// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+	State ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState `json:"state"`
+	Step  ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep  `json:"step"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetAlerts() int {
+	return s.Alerts
+}
+
+// GetCutShort returns the value of CutShort.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetCutShort() bool {
+	return s.CutShort
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetNote() string {
+	return s.Note
+}
+
+// GetPagesDone returns the value of PagesDone.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetPagesDone() int {
+	return s.PagesDone
+}
+
+// GetPagesTotal returns the value of PagesTotal.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetPagesTotal() int {
+	return s.PagesTotal
+}
+
+// GetState returns the value of State.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetState() ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState {
+	return s.State
+}
+
+// GetStep returns the value of Step.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) GetStep() ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep {
+	return s.Step
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetAlerts(val int) {
+	s.Alerts = val
+}
+
+// SetCutShort sets the value of CutShort.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetCutShort(val bool) {
+	s.CutShort = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetPagesDone sets the value of PagesDone.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetPagesDone(val int) {
+	s.PagesDone = val
+}
+
+// SetPagesTotal sets the value of PagesTotal.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetPagesTotal(val int) {
+	s.PagesTotal = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetState(val ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) {
+	s.State = val
+}
+
+// SetStep sets the value of Step.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) SetStep(val ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) {
+	s.Step = val
+}
+
+// Running; done; partial: some pages failed or were left (the run's time for the active pass, a reason
+// that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP
+// ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan).
+type ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState string
+
+const (
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState = "running"
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone    ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState = "done"
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState = "partial"
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed  ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState = "failed"
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState = "stopped"
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState = "skipped"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState values.
+func (ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) AllValues() []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState {
+	return []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState{
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning,
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone,
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial,
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed,
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped,
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState(data) {
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep string
+
+const (
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep = "zap_passive"
+	ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive  ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep = "zap_active"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep values.
+func (ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) AllValues() []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep {
+	return []ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep{
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive,
+		ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep(data) {
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -207206,6 +209475,52 @@ func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Get() (v Exp
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Or(d ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap returns new OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap with value set to v.
+func NewOptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap(v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap {
+	return OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap is optional ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap.
+type OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap struct {
+	Value ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap was set.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Reset() {
+	var v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetTo(v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Get() (v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Or(d ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap {
 	if v, ok := o.Get(); ok {
 		return v
 	}

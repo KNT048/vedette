@@ -32718,6 +32718,74 @@
                                       }
                                     ],
                                     "description": "What the scan left; null until it ends done or partial"
+                                  },
+                                  "web_steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "step": {
+                                          "type": "string",
+                                          "enum": [
+                                            "zap_passive",
+                                            "zap_active"
+                                          ]
+                                        },
+                                        "state": {
+                                          "type": "string",
+                                          "enum": [
+                                            "running",
+                                            "done",
+                                            "partial",
+                                            "failed",
+                                            "stopped",
+                                            "skipped"
+                                          ],
+                                          "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                        },
+                                        "pages_done": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "pages_total": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991,
+                                          "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                        },
+                                        "alerts": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991,
+                                          "description": "Alerts kept so far, after Vedette's rule list"
+                                        },
+                                        "cut_short": {
+                                          "type": "boolean",
+                                          "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                        },
+                                        "disruptive": {
+                                          "type": "boolean",
+                                          "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                        },
+                                        "note": {
+                                          "type": "string",
+                                          "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                        }
+                                      },
+                                      "required": [
+                                        "step",
+                                        "state",
+                                        "pages_done",
+                                        "pages_total",
+                                        "alerts",
+                                        "cut_short",
+                                        "disruptive",
+                                        "note"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                                   }
                                 },
                                 "required": [
@@ -32733,7 +32801,8 @@
                                   "waiting_for",
                                   "stop_reason",
                                   "error",
-                                  "counts"
+                                  "counts",
+                                  "web_steps"
                                 ],
                                 "additionalProperties": false
                               },
@@ -33634,6 +33703,74 @@
                                 }
                               ],
                               "description": "What the scan left; null until it ends done or partial"
+                            },
+                            "web_steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "zap_passive",
+                                      "zap_active"
+                                    ]
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "running",
+                                      "done",
+                                      "partial",
+                                      "failed",
+                                      "stopped",
+                                      "skipped"
+                                    ],
+                                    "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                  },
+                                  "pages_done": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "pages_total": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                  },
+                                  "alerts": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "Alerts kept so far, after Vedette's rule list"
+                                  },
+                                  "cut_short": {
+                                    "type": "boolean",
+                                    "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                  },
+                                  "note": {
+                                    "type": "string",
+                                    "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                  }
+                                },
+                                "required": [
+                                  "step",
+                                  "state",
+                                  "pages_done",
+                                  "pages_total",
+                                  "alerts",
+                                  "cut_short",
+                                  "disruptive",
+                                  "note"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                             }
                           },
                           "required": [
@@ -33649,7 +33786,8 @@
                             "waiting_for",
                             "stop_reason",
                             "error",
-                            "counts"
+                            "counts",
+                            "web_steps"
                           ],
                           "additionalProperties": false
                         },
@@ -34425,6 +34563,74 @@
                                 }
                               ],
                               "description": "What the scan left; null until it ends done or partial"
+                            },
+                            "web_steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "zap_passive",
+                                      "zap_active"
+                                    ]
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "running",
+                                      "done",
+                                      "partial",
+                                      "failed",
+                                      "stopped",
+                                      "skipped"
+                                    ],
+                                    "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                  },
+                                  "pages_done": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "pages_total": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                  },
+                                  "alerts": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "Alerts kept so far, after Vedette's rule list"
+                                  },
+                                  "cut_short": {
+                                    "type": "boolean",
+                                    "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                  },
+                                  "note": {
+                                    "type": "string",
+                                    "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                  }
+                                },
+                                "required": [
+                                  "step",
+                                  "state",
+                                  "pages_done",
+                                  "pages_total",
+                                  "alerts",
+                                  "cut_short",
+                                  "disruptive",
+                                  "note"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                             }
                           },
                           "required": [
@@ -34440,7 +34646,8 @@
                             "waiting_for",
                             "stop_reason",
                             "error",
-                            "counts"
+                            "counts",
+                            "web_steps"
                           ],
                           "additionalProperties": false
                         },
@@ -35198,6 +35405,74 @@
                                 }
                               ],
                               "description": "What the scan left; null until it ends done or partial"
+                            },
+                            "web_steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "zap_passive",
+                                      "zap_active"
+                                    ]
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "running",
+                                      "done",
+                                      "partial",
+                                      "failed",
+                                      "stopped",
+                                      "skipped"
+                                    ],
+                                    "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                  },
+                                  "pages_done": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "pages_total": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                  },
+                                  "alerts": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "Alerts kept so far, after Vedette's rule list"
+                                  },
+                                  "cut_short": {
+                                    "type": "boolean",
+                                    "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                  },
+                                  "note": {
+                                    "type": "string",
+                                    "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                  }
+                                },
+                                "required": [
+                                  "step",
+                                  "state",
+                                  "pages_done",
+                                  "pages_total",
+                                  "alerts",
+                                  "cut_short",
+                                  "disruptive",
+                                  "note"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                             }
                           },
                           "required": [
@@ -35213,7 +35488,8 @@
                             "waiting_for",
                             "stop_reason",
                             "error",
-                            "counts"
+                            "counts",
+                            "web_steps"
                           ],
                           "additionalProperties": false
                         },
@@ -35711,6 +35987,46 @@
                                   "type": "string"
                                 },
                                 "description": "Where it was seen: URLs or lines of the engine's output"
+                              },
+                              "zap": {
+                                "type": "object",
+                                "properties": {
+                                  "risk": {
+                                    "type": "string",
+                                    "enum": [
+                                      "high",
+                                      "medium",
+                                      "low",
+                                      "info"
+                                    ],
+                                    "description": "ZAP's risk of the alert"
+                                  },
+                                  "confidence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "confirmed",
+                                      "high",
+                                      "medium",
+                                      "low"
+                                    ],
+                                    "description": "How sure ZAP is of it"
+                                  },
+                                  "pass": {
+                                    "type": "string",
+                                    "enum": [
+                                      "passive",
+                                      "active"
+                                    ],
+                                    "description": "passive: the baseline read it in the pages; active: an attack request of the active scan showed it"
+                                  }
+                                },
+                                "required": [
+                                  "risk",
+                                  "confidence",
+                                  "pass"
+                                ],
+                                "additionalProperties": false,
+                                "description": "engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and on alerts stored before it was kept"
                               }
                             },
                             "required": [
@@ -36025,6 +36341,74 @@
                         }
                       ],
                       "description": "What the scan left; null until it ends done or partial"
+                    },
+                    "web_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "zap_passive",
+                              "zap_active"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "running",
+                              "done",
+                              "partial",
+                              "failed",
+                              "stopped",
+                              "skipped"
+                            ],
+                            "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                          },
+                          "pages_done": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "pages_total": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                          },
+                          "alerts": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Alerts kept so far, after Vedette's rule list"
+                          },
+                          "cut_short": {
+                            "type": "boolean",
+                            "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                          },
+                          "disruptive": {
+                            "type": "boolean",
+                            "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                          },
+                          "note": {
+                            "type": "string",
+                            "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                          }
+                        },
+                        "required": [
+                          "step",
+                          "state",
+                          "pages_done",
+                          "pages_total",
+                          "alerts",
+                          "cut_short",
+                          "disruptive",
+                          "note"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                     }
                   },
                   "required": [
@@ -36040,7 +36424,8 @@
                     "waiting_for",
                     "stop_reason",
                     "error",
-                    "counts"
+                    "counts",
+                    "web_steps"
                   ],
                   "additionalProperties": false
                 }
@@ -36235,6 +36620,74 @@
                               }
                             ],
                             "description": "What the scan left; null until it ends done or partial"
+                          },
+                          "web_steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "step": {
+                                  "type": "string",
+                                  "enum": [
+                                    "zap_passive",
+                                    "zap_active"
+                                  ]
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "running",
+                                    "done",
+                                    "partial",
+                                    "failed",
+                                    "stopped",
+                                    "skipped"
+                                  ],
+                                  "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                },
+                                "pages_done": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "pages_total": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                },
+                                "alerts": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Alerts kept so far, after Vedette's rule list"
+                                },
+                                "cut_short": {
+                                  "type": "boolean",
+                                  "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                },
+                                "disruptive": {
+                                  "type": "boolean",
+                                  "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                },
+                                "note": {
+                                  "type": "string",
+                                  "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                }
+                              },
+                              "required": [
+                                "step",
+                                "state",
+                                "pages_done",
+                                "pages_total",
+                                "alerts",
+                                "cut_short",
+                                "disruptive",
+                                "note"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                           }
                         },
                         "required": [
@@ -36250,7 +36703,8 @@
                           "waiting_for",
                           "stop_reason",
                           "error",
-                          "counts"
+                          "counts",
+                          "web_steps"
                         ],
                         "additionalProperties": false
                       }
@@ -37078,6 +37532,74 @@
                                 }
                               ],
                               "description": "What the scan left; null until it ends done or partial"
+                            },
+                            "web_steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "zap_passive",
+                                      "zap_active"
+                                    ]
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "running",
+                                      "done",
+                                      "partial",
+                                      "failed",
+                                      "stopped",
+                                      "skipped"
+                                    ],
+                                    "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                  },
+                                  "pages_done": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "pages_total": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                  },
+                                  "alerts": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "Alerts kept so far, after Vedette's rule list"
+                                  },
+                                  "cut_short": {
+                                    "type": "boolean",
+                                    "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                  },
+                                  "note": {
+                                    "type": "string",
+                                    "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                  }
+                                },
+                                "required": [
+                                  "step",
+                                  "state",
+                                  "pages_done",
+                                  "pages_total",
+                                  "alerts",
+                                  "cut_short",
+                                  "disruptive",
+                                  "note"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                             }
                           },
                           "required": [
@@ -37093,7 +37615,8 @@
                             "waiting_for",
                             "stop_reason",
                             "error",
-                            "counts"
+                            "counts",
+                            "web_steps"
                           ],
                           "additionalProperties": false
                         },
@@ -37842,6 +38365,74 @@
                                 }
                               ],
                               "description": "What the scan left; null until it ends done or partial"
+                            },
+                            "web_steps": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "step": {
+                                    "type": "string",
+                                    "enum": [
+                                      "zap_passive",
+                                      "zap_active"
+                                    ]
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "running",
+                                      "done",
+                                      "partial",
+                                      "failed",
+                                      "stopped",
+                                      "skipped"
+                                    ],
+                                    "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                  },
+                                  "pages_done": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "pages_total": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                  },
+                                  "alerts": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "description": "Alerts kept so far, after Vedette's rule list"
+                                  },
+                                  "cut_short": {
+                                    "type": "boolean",
+                                    "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                  },
+                                  "note": {
+                                    "type": "string",
+                                    "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                  }
+                                },
+                                "required": [
+                                  "step",
+                                  "state",
+                                  "pages_done",
+                                  "pages_total",
+                                  "alerts",
+                                  "cut_short",
+                                  "disruptive",
+                                  "note"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                             }
                           },
                           "required": [
@@ -37857,7 +38448,8 @@
                             "waiting_for",
                             "stop_reason",
                             "error",
-                            "counts"
+                            "counts",
+                            "web_steps"
                           ],
                           "additionalProperties": false
                         },
@@ -38594,6 +39186,74 @@
                                     }
                                   ],
                                   "description": "What the scan left; null until it ends done or partial"
+                                },
+                                "web_steps": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "step": {
+                                        "type": "string",
+                                        "enum": [
+                                          "zap_passive",
+                                          "zap_active"
+                                        ]
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                        "enum": [
+                                          "running",
+                                          "done",
+                                          "partial",
+                                          "failed",
+                                          "stopped",
+                                          "skipped"
+                                        ],
+                                        "description": "running; done; partial: some pages failed or were left (the run's time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)"
+                                      },
+                                      "pages_done": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "pages_total": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 9007199254740991,
+                                        "description": "The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one"
+                                      },
+                                      "alerts": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 9007199254740991,
+                                        "description": "Alerts kept so far, after Vedette's rule list"
+                                      },
+                                      "cut_short": {
+                                        "type": "boolean",
+                                        "description": "Active pass: a page reached the active scan's time limit (12 minutes); what it found until then is kept"
+                                      },
+                                      "disruptive": {
+                                        "type": "boolean",
+                                        "description": "Active pass: the disruptive rules ran on a page (the box's own public IP only)"
+                                      },
+                                      "note": {
+                                        "type": "string",
+                                        "description": "Why the pass was skipped or did not finish, or what to know about it, e.g. \"Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.\"; \"\" when none"
+                                      }
+                                    },
+                                    "required": [
+                                      "step",
+                                      "state",
+                                      "pages_done",
+                                      "pages_total",
+                                      "alerts",
+                                      "cut_short",
+                                      "disruptive",
+                                      "note"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "description": "The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages"
                                 }
                               },
                               "required": [
@@ -38609,7 +39269,8 @@
                                 "waiting_for",
                                 "stop_reason",
                                 "error",
-                                "counts"
+                                "counts",
+                                "web_steps"
                               ],
                               "additionalProperties": false
                             },

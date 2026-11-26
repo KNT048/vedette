@@ -99975,9 +99975,17 @@ func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) encodeFields(e *jx.Encoder
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKLastScan = [13]string{
+var jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -99991,6 +99999,7 @@ var jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposureDeleteExposureTreeIDTermsOKLastScan from json.
@@ -100140,6 +100149,24 @@ func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -100151,7 +100178,7 @@ func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) Decode(d *jx.Decoder) erro
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -100508,6 +100535,305 @@ func (s ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) MarshalJSON() ([]byt
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem from json.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState as json.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState from json.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState(v) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateRunning
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateDone
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStatePartial
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateFailed
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateStopped
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep as json.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep from json.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep(v) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive
+	case ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -118595,12 +118921,19 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) encodeFields(e *jx.En
 		e.FieldStart("solution")
 		e.Str(s.Solution)
 	}
+	{
+		if s.Zap.Set {
+			e.FieldStart("zap")
+			s.Zap.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetail = [3]string{
+var jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetail = [4]string{
 	0: "description",
 	1: "evidence",
 	2: "solution",
+	3: "zap",
 }
 
 // Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetail from json.
@@ -118656,6 +118989,16 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"solution\"")
 			}
+		case "zap":
+			if err := func() error {
+				s.Zap.Reset()
+				if err := s.Zap.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zap\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -118708,6 +119051,258 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("confidence")
+		s.Confidence.Encode(e)
+	}
+	{
+		e.FieldStart("pass")
+		s.Pass.Encode(e)
+	}
+	{
+		e.FieldStart("risk")
+		s.Risk.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetailZap = [3]string{
+	0: "confidence",
+	1: "pass",
+	2: "risk",
+}
+
+// Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap from json.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "confidence":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Confidence.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"confidence\"")
+			}
+		case "pass":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Pass.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pass\"")
+			}
+		case "risk":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Risk.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"risk\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) {
+					name = jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetailZap[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence as json.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence from json.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence(v) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow
+	default:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass as json.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass from json.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass(v) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive
+	default:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk as json.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk from json.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk(v) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo
+	default:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -119898,9 +120493,17 @@ func (s *ExposureGetExposureTreeIDOKLastScan) encodeFields(e *jx.Encoder) {
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeIDOKLastScan = [13]string{
+var jsonFieldsNameOfExposureGetExposureTreeIDOKLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -119914,6 +120517,7 @@ var jsonFieldsNameOfExposureGetExposureTreeIDOKLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposureGetExposureTreeIDOKLastScan from json.
@@ -120063,6 +120667,24 @@ func (s *ExposureGetExposureTreeIDOKLastScan) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposureGetExposureTreeIDOKLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposureGetExposureTreeIDOKLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -120074,7 +120696,7 @@ func (s *ExposureGetExposureTreeIDOKLastScan) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -120431,6 +121053,305 @@ func (s ExposureGetExposureTreeIDOKLastScanTrigger) MarshalJSON() ([]byte, error
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTreeIDOKLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTreeIDOKLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposureGetExposureTreeIDOKLastScanWebStepsItem from json.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDOKLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTreeIDOKLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTreeIDOKLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposureGetExposureTreeIDOKLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDOKLastScanWebStepsItemState as json.
+func (s ExposureGetExposureTreeIDOKLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDOKLastScanWebStepsItemState from json.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDOKLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDOKLastScanWebStepsItemState(v) {
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateRunning
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateDone
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStatePartial
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateFailed
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateStopped
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDOKLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDOKLastScanWebStepsItemStep as json.
+func (s ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDOKLastScanWebStepsItemStep from json.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDOKLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDOKLastScanWebStepsItemStep(v) {
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapPassive
+	case ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposureGetExposureTreeIDOKLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -121938,9 +122859,17 @@ func (s *ExposureGetExposureTreeIDScansOKItemsItem) encodeFields(e *jx.Encoder) 
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeIDScansOKItemsItem = [13]string{
+var jsonFieldsNameOfExposureGetExposureTreeIDScansOKItemsItem = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -121954,6 +122883,7 @@ var jsonFieldsNameOfExposureGetExposureTreeIDScansOKItemsItem = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposureGetExposureTreeIDScansOKItemsItem from json.
@@ -122103,6 +123033,24 @@ func (s *ExposureGetExposureTreeIDScansOKItemsItem) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -122114,7 +123062,7 @@ func (s *ExposureGetExposureTreeIDScansOKItemsItem) Decode(d *jx.Decoder) error 
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -122471,6 +123419,305 @@ func (s ExposureGetExposureTreeIDScansOKItemsItemTrigger) MarshalJSON() ([]byte,
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTreeIDScansOKItemsItemTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTreeIDScansOKItemsItemWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem from json.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) {
+					name = jsonFieldsNameOfExposureGetExposureTreeIDScansOKItemsItemWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState as json.
+func (s ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState from json.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState(v) {
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateRunning
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateDone
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStatePartial
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateFailed
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateStopped
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStateSkipped
+	default:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep as json.
+func (s ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep from json.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep(v) {
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapPassive
+	case ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStepZapActive
+	default:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -124885,9 +126132,17 @@ func (s *ExposureGetExposureTreeOKItemsItemLastScan) encodeFields(e *jx.Encoder)
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeOKItemsItemLastScan = [13]string{
+var jsonFieldsNameOfExposureGetExposureTreeOKItemsItemLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -124901,6 +126156,7 @@ var jsonFieldsNameOfExposureGetExposureTreeOKItemsItemLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposureGetExposureTreeOKItemsItemLastScan from json.
@@ -125050,6 +126306,24 @@ func (s *ExposureGetExposureTreeOKItemsItemLastScan) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -125061,7 +126335,7 @@ func (s *ExposureGetExposureTreeOKItemsItemLastScan) Decode(d *jx.Decoder) error
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -125418,6 +126692,305 @@ func (s ExposureGetExposureTreeOKItemsItemLastScanTrigger) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTreeOKItemsItemLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTreeOKItemsItemLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem from json.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposureGetExposureTreeOKItemsItemLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState as json.
+func (s ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState from json.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState(v) {
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateRunning
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateDone
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStatePartial
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateFailed
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateStopped
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep as json.
+func (s ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep from json.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep(v) {
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapPassive
+	case ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -127764,9 +129337,17 @@ func (s *ExposurePatchExposureTreeIDOKLastScan) encodeFields(e *jx.Encoder) {
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposurePatchExposureTreeIDOKLastScan = [13]string{
+var jsonFieldsNameOfExposurePatchExposureTreeIDOKLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -127780,6 +129361,7 @@ var jsonFieldsNameOfExposurePatchExposureTreeIDOKLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposurePatchExposureTreeIDOKLastScan from json.
@@ -127929,6 +129511,24 @@ func (s *ExposurePatchExposureTreeIDOKLastScan) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposurePatchExposureTreeIDOKLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposurePatchExposureTreeIDOKLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -127940,7 +129540,7 @@ func (s *ExposurePatchExposureTreeIDOKLastScan) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128297,6 +129897,305 @@ func (s ExposurePatchExposureTreeIDOKLastScanTrigger) MarshalJSON() ([]byte, err
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePatchExposureTreeIDOKLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposurePatchExposureTreeIDOKLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposurePatchExposureTreeIDOKLastScanWebStepsItem from json.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePatchExposureTreeIDOKLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePatchExposureTreeIDOKLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePatchExposureTreeIDOKLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposurePatchExposureTreeIDOKLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePatchExposureTreeIDOKLastScanWebStepsItemState as json.
+func (s ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePatchExposureTreeIDOKLastScanWebStepsItemState from json.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePatchExposureTreeIDOKLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePatchExposureTreeIDOKLastScanWebStepsItemState(v) {
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateRunning
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateDone
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStatePartial
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateFailed
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateStopped
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep as json.
+func (s ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep from json.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep(v) {
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapPassive
+	case ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -143667,9 +145566,17 @@ func (s *ExposurePostExposureTreeCreatedLastScan) encodeFields(e *jx.Encoder) {
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTreeCreatedLastScan = [13]string{
+var jsonFieldsNameOfExposurePostExposureTreeCreatedLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -143683,6 +145590,7 @@ var jsonFieldsNameOfExposurePostExposureTreeCreatedLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposurePostExposureTreeCreatedLastScan from json.
@@ -143832,6 +145740,24 @@ func (s *ExposurePostExposureTreeCreatedLastScan) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposurePostExposureTreeCreatedLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposurePostExposureTreeCreatedLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -143843,7 +145769,7 @@ func (s *ExposurePostExposureTreeCreatedLastScan) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -144200,6 +146126,305 @@ func (s ExposurePostExposureTreeCreatedLastScanTrigger) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTreeCreatedLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposurePostExposureTreeCreatedLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposurePostExposureTreeCreatedLastScanWebStepsItem from json.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeCreatedLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePostExposureTreeCreatedLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePostExposureTreeCreatedLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposurePostExposureTreeCreatedLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTreeCreatedLastScanWebStepsItemState as json.
+func (s ExposurePostExposureTreeCreatedLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTreeCreatedLastScanWebStepsItemState from json.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeCreatedLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTreeCreatedLastScanWebStepsItemState(v) {
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateRunning
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateDone
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStatePartial
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateFailed
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateStopped
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTreeCreatedLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTreeCreatedLastScanWebStepsItemStep as json.
+func (s ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTreeCreatedLastScanWebStepsItemStep from json.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeCreatedLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTreeCreatedLastScanWebStepsItemStep(v) {
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapPassive
+	case ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposurePostExposureTreeCreatedLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -145601,9 +147826,17 @@ func (s *ExposurePostExposureTreeIDScanAccepted) encodeFields(e *jx.Encoder) {
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTreeIDScanAccepted = [13]string{
+var jsonFieldsNameOfExposurePostExposureTreeIDScanAccepted = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -145617,6 +147850,7 @@ var jsonFieldsNameOfExposurePostExposureTreeIDScanAccepted = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposurePostExposureTreeIDScanAccepted from json.
@@ -145766,6 +148000,24 @@ func (s *ExposurePostExposureTreeIDScanAccepted) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposurePostExposureTreeIDScanAcceptedWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposurePostExposureTreeIDScanAcceptedWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -145777,7 +148029,7 @@ func (s *ExposurePostExposureTreeIDScanAccepted) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -146134,6 +148386,305 @@ func (s ExposurePostExposureTreeIDScanAcceptedTrigger) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTreeIDScanAcceptedTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposurePostExposureTreeIDScanAcceptedWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposurePostExposureTreeIDScanAcceptedWebStepsItem from json.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeIDScanAcceptedWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePostExposureTreeIDScanAcceptedWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePostExposureTreeIDScanAcceptedWebStepsItem) {
+					name = jsonFieldsNameOfExposurePostExposureTreeIDScanAcceptedWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTreeIDScanAcceptedWebStepsItemState as json.
+func (s ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTreeIDScanAcceptedWebStepsItemState from json.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeIDScanAcceptedWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTreeIDScanAcceptedWebStepsItemState(v) {
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateRunning
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateDone
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStatePartial
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateFailed
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateStopped
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStateSkipped
+	default:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep as json.
+func (s ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep from json.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep(v) {
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapPassive
+	case ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStepZapActive
+	default:
+		*s = ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -147335,9 +149886,17 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) encodeFields(e *jx.Enco
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeLastScan = [13]string{
+var jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -147351,6 +149910,7 @@ var jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposurePostExposureTreeIDVerifyOKNodeLastScan from json.
@@ -147500,6 +150060,24 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) Decode(d *jx.Decoder) e
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -147511,7 +150089,7 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) Decode(d *jx.Decoder) e
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -147868,6 +150446,305 @@ func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem from json.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState as json.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState from json.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState(v) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateRunning
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateDone
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStatePartial
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateFailed
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateStopped
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep as json.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep from json.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep(v) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapPassive
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -154453,9 +157330,17 @@ func (s *ExposurePutExposureTreeIDTermsOKLastScan) encodeFields(e *jx.Encoder) {
 		e.FieldStart("waiting_for")
 		s.WaitingFor.Encode(e)
 	}
+	{
+		e.FieldStart("web_steps")
+		e.ArrStart()
+		for _, elem := range s.WebSteps {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTreeIDTermsOKLastScan = [13]string{
+var jsonFieldsNameOfExposurePutExposureTreeIDTermsOKLastScan = [14]string{
 	0:  "counts",
 	1:  "ended_at",
 	2:  "error",
@@ -154469,6 +157354,7 @@ var jsonFieldsNameOfExposurePutExposureTreeIDTermsOKLastScan = [13]string{
 	10: "target_id",
 	11: "trigger",
 	12: "waiting_for",
+	13: "web_steps",
 }
 
 // Decode decodes ExposurePutExposureTreeIDTermsOKLastScan from json.
@@ -154618,6 +157504,24 @@ func (s *ExposurePutExposureTreeIDTermsOKLastScan) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"waiting_for\"")
 			}
+		case "web_steps":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				s.WebSteps = make([]ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.WebSteps = append(s.WebSteps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"web_steps\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -154629,7 +157533,7 @@ func (s *ExposurePutExposureTreeIDTermsOKLastScan) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -154986,6 +157890,305 @@ func (s ExposurePutExposureTreeIDTermsOKLastScanTrigger) MarshalJSON() ([]byte, 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePutExposureTreeIDTermsOKLastScanTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("alerts")
+		e.Int(s.Alerts)
+	}
+	{
+		e.FieldStart("cut_short")
+		e.Bool(s.CutShort)
+	}
+	{
+		e.FieldStart("disruptive")
+		e.Bool(s.Disruptive)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("pages_done")
+		e.Int(s.PagesDone)
+	}
+	{
+		e.FieldStart("pages_total")
+		e.Int(s.PagesTotal)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposurePutExposureTreeIDTermsOKLastScanWebStepsItem = [8]string{
+	0: "alerts",
+	1: "cut_short",
+	2: "disruptive",
+	3: "note",
+	4: "pages_done",
+	5: "pages_total",
+	6: "state",
+	7: "step",
+}
+
+// Decode decodes ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem from json.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "alerts":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Alerts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alerts\"")
+			}
+		case "cut_short":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.CutShort = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cut_short\"")
+			}
+		case "disruptive":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Disruptive = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "pages_done":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_done\"")
+			}
+		case "pages_total":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.PagesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages_total\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "step":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b11111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) {
+					name = jsonFieldsNameOfExposurePutExposureTreeIDTermsOKLastScanWebStepsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState as json.
+func (s ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState from json.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState(v) {
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateRunning
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateDone
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStatePartial
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateFailed
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateStopped
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStateSkipped
+	default:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep as json.
+func (s ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep from json.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep(v) {
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapPassive
+	case ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStepZapActive
+	default:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanWebStepsItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -325691,6 +328894,39 @@ func (s OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) MarshalJSON(
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap as json.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap from json.
+func (o *OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

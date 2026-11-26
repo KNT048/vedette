@@ -174,3 +174,10 @@ describe('exposure screens: issues', () => {
     expect(within(table).getAllByRole('button', { name: /^Mark as handled: / })[0]).toBeDisabled()
   })
 })
+
+describe('exposure screens: the web checks of a scheduled scan', () => {
+  it('a scheduled run says that the active web checks run on Scan now, so it does not look incomplete', async () => {
+    renderApp('/exposure/xt-11?tab=scans')
+    expect(await screen.findByText('Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.')).toBeInTheDocument()
+  })
+})

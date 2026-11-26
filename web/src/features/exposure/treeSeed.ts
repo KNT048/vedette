@@ -83,8 +83,15 @@ const scan = (run_id: string, target_id: string, s: Partial<Scan> & { queuedDays
   const q = daysAgo(queuedDaysAgo)
   const end = new Date(Date.parse(q) + minutes * 60_000).toISOString()
   return { run_id, target_id, status: 'done', trigger: 'schedule', requested_by: 'system', mode: 'deep', queued_at: q, started_at: q, ended_at: end, waiting_for: null, stop_reason: null, error: null,
-    counts: { hosts: 0, services: 0, new_services: 0, closed_services: 0, issues: 0, new_issues: 0 }, ...rest }
+    counts: { hosts: 0, services: 0, new_services: 0, closed_services: 0, issues: 0, new_issues: 0 }, web_steps: [], ...rest }
 }
+
+/** The web steps of a scheduled deep scan: the passive pass ran, the active one waits for a person's Scan now. */
+const SCHEDULED_WEB = 'Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.'
+const scheduledWeb = (pages: number, alerts: number): Scan['web_steps'] => [
+  { step: 'zap_passive', state: 'done', pages_done: pages, pages_total: pages, alerts, cut_short: false, disruptive: false, note: SCHEDULED_WEB },
+  { step: 'zap_active', state: 'skipped', pages_done: 0, pages_total: pages, alerts: 0, cut_short: false, disruptive: false, note: SCHEDULED_WEB },
+]
 
 export function seedTreeRows(): TreeRows {
   const gitlab = svc('xs-12-1', TREE_BOX_IP, 10443, { name: 'https', product: 'nginx', cpe: 'cpe:/a:igor_sysoev:nginx', title: 'Sign in · GitLab', cert: cert(['git.example.com'], "Let's Encrypt E6", 47), is_web: true, ident: 'probed', first: 30, last: 1 })
@@ -148,7 +155,7 @@ export function seedTreeRows(): TreeRows {
         detail: { description: 'The administration page of a FortiGate answered on the box\'s public address.', solution: 'Allow administration only from the internal network or a VPN.', evidence: [`https://${TREE_BOX_IP}:11443/`] } }),
     ],
     scans: [
-      scan('run-x11-2', 'xt-11', { queuedDaysAgo: 1, minutes: 42, counts: { hosts: 5, services: 3, new_services: 0, closed_services: 0, issues: 2, new_issues: 1 } }),
+      scan('run-x11-2', 'xt-11', { queuedDaysAgo: 1, minutes: 42, counts: { hosts: 5, services: 3, new_services: 0, closed_services: 0, issues: 2, new_issues: 1 }, web_steps: scheduledWeb(2, 3) }),
       scan('run-x11-1', 'xt-11', { queuedDaysAgo: 12, minutes: 39, counts: { hosts: 5, services: 3, new_services: 0, closed_services: 1, issues: 1, new_issues: 0 } }),
       scan('run-x12-1', 'xt-12', { queuedDaysAgo: 1, minutes: 18, mode: 'surface', counts: { hosts: 0, services: 2, new_services: 0, closed_services: 0, issues: 2, new_issues: 0 } }),
       scan('run-x14-2', 'xt-14', { queuedDaysAgo: 0.2, minutes: 95, status: 'partial', trigger: 'manual', requested_by: ADMIN, error: 'OpenVAS did not finish within 90 minutes; the other steps are kept.', counts: { hosts: 0, services: 6, new_services: 1, closed_services: 0, issues: 2, new_issues: 0 } }),

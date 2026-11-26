@@ -374,6 +374,19 @@ export const ScanCounts = z.object({
   new_services: z.number().int(), closed_services: z.number().int(),
   issues: z.number().int().describe('Open issues after the scan'), new_issues: z.number().int(),
 })
+// The two ZAP passes of a scan as they go (the run page reads them): zap_passive, the baseline that reads the pages; zap_active, the
+// active scan that attacks them, only in a scan a person starts of a target whose testing terms are accepted.
+export const WebStepName = z.enum(['zap_passive', 'zap_active'])
+export const WebStepState = z.enum(['running', 'done', 'partial', 'failed', 'stopped', 'skipped'])
+export const WebStep = z.object({
+  step: WebStepName,
+  state: WebStepState.describe('running; done; partial: some pages failed or were left (the run\'s time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)'),
+  pages_done: z.number().int().min(0), pages_total: z.number().int().min(0).describe('The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one'),
+  alerts: z.number().int().min(0).describe('Alerts kept so far, after Vedette\'s rule list'),
+  cut_short: z.boolean().describe('Active pass: a page reached the active scan\'s time limit (12 minutes); what it found until then is kept'),
+  disruptive: z.boolean().describe('Active pass: the disruptive rules ran on a page (the box\'s own public IP only)'),
+  note: z.string().describe('Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when none'),
+})
 export const Scan = z.object({
   run_id: z.string().describe('The shared run: its steps, items and log are read there, and it is stopped there'),
   target_id: z.string(),
@@ -384,6 +397,7 @@ export const Scan = z.object({
   waiting_for: z.string().nullable().describe('Set only while status is waiting, e.g. "the scan window (opens 23:00)"'),
   stop_reason: z.string().nullable(), error: z.string().nullable(),
   counts: ScanCounts.nullable().describe('What the scan left; null until it ends done or partial'),
+  web_steps: z.array(WebStep).describe('The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages'),
 })
 
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
@@ -456,6 +470,11 @@ export const CveSeverity = z.object({
   band: SeverityBand, score: z.number().min(0).max(10), version: z.enum(['4.0', '3.1', '3.0', '2.0']), vector: z.string().min(1).max(200),
 }).describe('The CVSS base score the catalogue picks for the CVE and its band; null = "Not scored yet", never 0')
 export const IssueCve = z.object({ cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/), severity: CveSeverity.nullable() })
+export const IssueZap = z.object({
+  risk: z.enum(['high', 'medium', 'low', 'info']).describe('ZAP\'s risk of the alert'),
+  confidence: z.enum(['confirmed', 'high', 'medium', 'low']).describe('How sure ZAP is of it'),
+  pass: z.enum(['passive', 'active']).describe('passive: the baseline read it in the pages; active: an attack request of the active scan showed it'),
+})
 export const Issue = z.object({
   id: z.string(), target_id: z.string(),
   service_id: z.string().nullable().describe('The service it was found on; null when it is about the target as a whole'),
@@ -465,6 +484,7 @@ export const Issue = z.object({
   detail: z.object({
     description: z.string(), solution: z.string(),
     evidence: z.array(z.string()).describe('Where it was seen: URLs or lines of the engine\'s output'),
+    zap: IssueZap.optional().describe('engine zap: ZAP\'s own rating of the alert and the pass that raised it; missing on other engines and on alerts stored before it was kept'),
   }),
   state: IssueState.describe('open; gone: the last scan no longer reported it; handled: a person decided (resolution)'),
   resolution: Resolution.nullable().describe('Set only when state is handled'),

@@ -1,0 +1,56 @@
+# The active scan rules of the pinned ZAP image (ZAP 2.17.0, ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af),
+# as its API lists them (GET /JSON/ascan/view/scanners/): <id> TAB <quality> TAB <category> TAB <name>. Category: 0 information gathering,
+# 1 browser, 2 server, 3 miscellaneous, 4 injection. zapActiveRules must classify exactly these (TestZapActiveRulesCoverTheImage).
+0	release	0	Directory Browsing
+6	release	2	Path Traversal
+7	release	2	Remote File Inclusion
+10045	release	0	Source Code Disclosure - /WEB-INF Folder
+10047	release	3	HTTPS Content Available via HTTP
+10048	release	2	Remote Code Execution - Shell Shock
+10058	release	3	GET for POST
+10104	release	0	User Agent Fuzzer
+10106	release	3	HTTP Only Site
+20015	release	0	Heartbleed OpenSSL Vulnerability
+20017	release	0	Source Code Disclosure - CVE-2012-1823
+20018	release	0	Remote Code Execution - CVE-2012-1823
+20019	release	3	External Redirect
+30001	release	4	Buffer Overflow
+30002	release	4	Format String Error
+40003	release	4	CRLF Injection
+40008	release	4	Parameter Tampering
+40009	release	4	Server Side Include
+40012	release	4	Cross Site Scripting (Reflected)
+40014	release	4	Cross Site Scripting (Persistent)
+40016	release	4	Cross Site Scripting (Persistent) - Prime
+40017	release	4	Cross Site Scripting (Persistent) - Spider
+40018	release	4	SQL Injection
+40019	release	4	SQL Injection - MySQL (Time Based)
+40020	release	4	SQL Injection - Hypersonic SQL (Time Based)
+40021	release	4	SQL Injection - Oracle (Time Based)
+40022	release	4	SQL Injection - PostgreSQL (Time Based)
+40026	release	1	Cross Site Scripting (DOM Based)
+40027	release	4	SQL Injection - MsSQL (Time Based)
+40028	release	0	ELMAH Information Leak
+40029	release	0	Trace.axd Information Leak
+40032	release	0	.htaccess Information Leak
+40034	release	0	.env Information Leak
+40035	release	0	Hidden File Finder
+40042	release	0	Spring Actuator Information Leak
+40043	release	3	Log4Shell
+40044	release	3	Exponential Entity Expansion (Billion Laughs Attack)
+40045	release	4	Spring4Shell
+40048	release	4	Remote Code Execution (React2Shell)
+50000	release	3	Script Active Scan Rules
+90017	release	4	XSLT Injection
+90019	release	4	Server Side Code Injection
+90020	release	4	Remote OS Command Injection
+90021	release	4	XPath Injection
+90023	release	4	XML External Entity Attack
+90024	release	3	Generic Padding Oracle
+90026	beta	3	SOAP Action Spoofing
+90029	beta	3	SOAP XML Injection
+90034	release	4	Cloud Metadata Potentially Exposed
+90035	release	4	Server Side Template Injection
+90036	release	4	Server Side Template Injection (Blind)
+90037	release	4	Remote OS Command Injection (Time Based)
+100043	alpha	0	Swagger UI Secret & Vulnerability Detector

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan"
@@ -34,8 +35,12 @@ func greenboneProbeRequest(p exposure.GreenboneProbe) string {
 // RecordWebProbe writes the row of one page before zap.baseline is asked (exposure INV-24): the address and port ZAP is pinned to,
 // the tool and its options, the URL. It returns only once the row is written; exposure scans nothing when it fails.
 func (l exposureProbeLog) RecordWebProbe(ctx context.Context, p exposure.WebProbe) error {
+	kind := "passive"
+	if strings.HasPrefix(p.Tool, "ZAP active") { // the active pass: attack requests to the page's own address and port
+		kind = "active"
+	}
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
 		ID: p.ID, IP: p.IP, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Template: "exposure: " + p.Tool,
-		Request: fmt.Sprintf("planned: passive web scan of %s, ZAP pinned to %s:%d (no other address, no DNS)", p.URL, p.IP, p.Port),
+		Request: fmt.Sprintf("planned: %s web scan of %s, ZAP pinned to %s:%d (no other address, no DNS)", kind, p.URL, p.IP, p.Port),
 	}})
 }

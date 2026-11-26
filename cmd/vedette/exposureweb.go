@@ -31,8 +31,15 @@ type exposureWebScan struct {
 // zapHost is what the scan needs of the host client (*hostclient.Client).
 type zapHost interface {
 	ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requestID, actor string) (api.Run, error)
+	ZapActive(ctx context.Context, args api.ZapActiveArgs, requestID, actor string) (api.Run, error)
+	ZapStop(ctx context.Context, requestID, actor string) (api.Run, error)
 	DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error)
 }
+
+// zapStopWait bounds zap.stop after a run exposure gave up on: the host cancels it and removes its container before it answers.
+const zapStopWait = 3 * time.Minute
+
+var _ exposure.ActiveWebScanner = exposureWebScan{}
 
 // The reasons exposure shows after "Passive web scan (ZAP) did not run: ".
 const (
@@ -59,16 +66,25 @@ const (
 var hostActorRE = regexp.MustCompile(`^[a-zA-Z0-9_.@-]{1,54}$`)
 
 func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (exposure.WebScan, error) {
-	if w.host == nil {
-		return exposure.WebScan{}, &exposure.Unavailable{Reason: webNoHost}
-	}
+	return w.run(ctx, t, page, false)
+}
+
+// Active is exposure's ActiveWebScanner over zap.active: the same page, args and checks as Baseline, and the disruptive rules when the
+// step's mode allows them (exposure sets t.Mode.Disruptive only for the box's own proven IP in a person's scan). A run exposure gives
+// up on (its time, or the scan was stopped) is stopped on the host (zap.stop) before this returns, so no ZAP outlives its scan.
+func (w exposureWebScan) Active(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (exposure.WebScan, error) {
+	return w.run(ctx, t, page, true)
+}
+
+// zapArgsOf is the host args of one page of target t.
+func (w exposureWebScan) zapArgsOf(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (api.ZapBaselineArgs, error) {
 	args := api.ZapBaselineArgs{URL: page.URL, Host: page.Host, IP: page.IP.String(), Port: page.Port}
 	switch t.Kind {
 	case exposure.KindIP:
 		args.Kind = api.ZapKindIP
 		switch {
 		case t.Typed && (t.Domain == nil || t.Domain.Typed == nil): // a typed IP goes only with its proof, never as the box's own address
-			return exposure.WebScan{}, &exposure.Unavailable{Reason: orText(t.TypedWhy, webTypedNoScope)}
+			return args, &exposure.Unavailable{Reason: orText(t.TypedWhy, webTypedNoScope)}
 		case t.Typed:
 			s := t.Domain.Typed
 			args.TXTToken = t.Domain.Token
@@ -83,11 +99,23 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		}
 		tok, err := w.token(ctx, t.ID)
 		if err != nil {
-			return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the token of %s: %w", t.Value, err)
+			return args, fmt.Errorf("exposure web scan: reading the token of %s: %w", t.Value, err)
 		}
 		args.Kind, args.Domain, args.TXTToken = api.ZapKindDomain, t.Value, tok
 	default:
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: target kind %q", t.Kind)
+		return args, fmt.Errorf("exposure web scan: target kind %q", t.Kind)
+	}
+	return args, nil
+}
+
+// run is one ZAP run of one page on the host, the passive baseline or the active scan.
+func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage, active bool) (exposure.WebScan, error) {
+	if w.host == nil {
+		return exposure.WebScan{}, &exposure.Unavailable{Reason: webNoHost}
+	}
+	args, err := w.zapArgsOf(ctx, t, page)
+	if err != nil {
+		return exposure.WebScan{}, err
 	}
 	id, err := newUUID()
 	if err != nil {
@@ -97,11 +125,18 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 	if hostActorRE.MatchString(t.User) {
 		actor += ":" + t.User
 	}
-	run, err := w.host.ZapBaseline(ctx, args, id, actor)
+	var run api.Run
+	if active {
+		// The disruptive rules only for the box's own IP: the host refuses them on any other page as well.
+		run, err = w.host.ZapActive(ctx, api.ZapActiveArgs{ZapBaselineArgs: args, Disruptive: t.Mode.Disruptive && args.Kind == api.ZapKindIP && args.Typed == nil}, id, actor)
+	} else {
+		run, err = w.host.ZapBaseline(ctx, args, id, actor)
+	}
 	if err != nil {
 		var he *hostclient.Error
 		switch {
-		case ctx.Err() != nil: // exposure's 8 minutes, or the run was stopped: exposure tells them apart
+		case ctx.Err() != nil: // exposure's limit of the page, or the run was stopped: ZAP is stopped on the host, and exposure tells the two apart
+			w.stop(ctx, actor)
 			return exposure.WebScan{}, ctx.Err()
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
 			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "")): // an older host refuses a proof it does not know
@@ -124,13 +159,24 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		if msg != "" {
 			code += ": " + msg
 		}
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: zap.baseline %s: %s", run.Status, code)
+		return exposure.WebScan{}, fmt.Errorf("exposure web scan: %s %s: %s", run.Command, run.Status, code)
 	}
-	res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
-	if err != nil {
-		return exposure.WebScan{}, err
+	var reportID string
+	cut := false
+	if active {
+		res, err := hostclient.ResultOf[api.ZapActiveResult](run)
+		if err != nil {
+			return exposure.WebScan{}, err
+		}
+		reportID, cut = res.ReportID, res.CutShort
+	} else {
+		res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
+		if err != nil {
+			return exposure.WebScan{}, err
+		}
+		reportID = res.ReportID
 	}
-	body, _, err := w.host.DownloadZapReport(ctx, res.ReportID)
+	body, _, err := w.host.DownloadZapReport(ctx, reportID)
 	if err != nil {
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
@@ -140,7 +186,20 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 	if err != nil {
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
-	return exposure.WebScan{Report: b}, nil
+	return exposure.WebScan{Report: b, CutShort: cut}, nil
+}
+
+// stop stops the ZAP run of this scan on the host when exposure gave up on it (the scan was stopped, or the page's time ran out): the
+// host cancels the run and removes its container and fence before it answers. A failure is logged by the host and cleaned up by its
+// next run; it never holds the scan.
+func (w exposureWebScan) stop(ctx context.Context, actor string) {
+	id, err := newUUID()
+	if err != nil {
+		return
+	}
+	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), zapStopWait)
+	defer cancel()
+	_, _ = w.host.ZapStop(sctx, id, actor)
 }
 
 // provenPage says whether the target's proof is about the page's address: the proof is a sighting of the target's own IP, so it goes

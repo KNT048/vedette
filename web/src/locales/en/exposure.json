@@ -648,7 +648,9 @@
     "firstSeen": "First seen",
     "lastSeen": "Last seen",
     "key": "Check",
-    "evidence": "Where it was seen"
+    "evidence": "Where it was seen",
+    "zapRating": "ZAP's rating",
+    "zapValue": "{{risk}} risk, {{confidence}} confidence, found by the {{pass}} web scan"
   },
   "handle": {
     "title_one": "Mark the issue as handled",

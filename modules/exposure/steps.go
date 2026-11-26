@@ -145,10 +145,10 @@ func (l *stepLog) rows(runID, target string, now time.Time, end int, why string)
 			case cut && end == runPanicked:
 				outcome, at = StepFailed, now
 				text = map[string]string{StepNuclei: "the scan stopped because of an error on the box while the templates ran",
-					StepZAP: "the scan stopped because of an error on the box while ZAP ran"}[engine]
+					StepZAP: "the scan stopped because of an error on the box while ZAP ran", StepZAPActive: "the scan stopped because of an error on the box while ZAP's active scan ran"}[engine]
 			case cut:
 				outcome, at = StepStopped, now
-				text = map[string]string{StepNuclei: "stopped while the templates ran", StepZAP: "stopped while ZAP ran"}[engine] + whyNote(why)
+				text = map[string]string{StepNuclei: "stopped while the templates ran", StepZAP: "stopped while ZAP ran", StepZAPActive: "stopped while ZAP's active scan ran (its container was removed)"}[engine] + whyNote(why)
 			default:
 				switch {
 				case t.failed == 0:
@@ -169,6 +169,20 @@ func (l *stepLog) rows(runID, target string, now time.Time, end int, why string)
 }
 
 func stepText(engine, outcome string, t *stepTally) string {
+	if engine == StepZAPActive {
+		rules := "without the disruptive rules"
+		if t.deep {
+			rules = "with the disruptive rules"
+		}
+		total := t.ok + t.empty + t.failed
+		switch {
+		case outcome == StepFailed:
+			return "ZAP's active scan could not attack " + plural(t.failed, "page")
+		case outcome == StepPartial:
+			return fmt.Sprintf("ZAP's active scan attacked %d of %d pages %s, %s", t.ok, total, rules, plural(t.found, "alert"))
+		}
+		return fmt.Sprintf("ZAP's active scan attacked %s %s, %s", plural(t.ok, "page"), rules, plural(t.found, "alert"))
+	}
 	if engine == StepZAP {
 		total := t.ok + t.empty + t.failed
 		switch {

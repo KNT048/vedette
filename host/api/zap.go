@@ -6,6 +6,16 @@ package api
 // CmdZapBaseline is the name of the command.
 const CmdZapBaseline = "zap.baseline"
 
+// CmdZapActive is ZAP's active scan of one page (§6.15a): the same page, checks, fence and container as zap.baseline, with ZAP's
+// Automation Framework plan the host writes itself (one context anchored to the page's scheme, host and port, a bounded spider, the
+// active scan rules of the host's rule split). Disruptive turns on the rules that may crash a service or change data heavily, and
+// form posting; the host takes it only for the box's own IP (kind ip, not a typed IP).
+const CmdZapActive = "zap.active"
+
+// CmdZapStop stops the ZAP run (zap.baseline or zap.active) that runs now: its context is cancelled, the container removed and
+// proven gone, and the fence deleted, before the command answers.
+const CmdZapStop = "zap.stop"
+
 // Kinds of the target a page belongs to (exposure's target kinds).
 const (
 	ZapKindIP     = "ip"
@@ -39,6 +49,8 @@ const (
 	CodeZapReportTooLarge = "zap_report_too_large"
 	// CodeZapReportUnknown: GET /v1/zap/{id}/content of a report the host no longer keeps.
 	CodeZapReportUnknown = "zap_report_unknown"
+	// CodeZapStopped: zap.stop stopped this run; the container was removed.
+	CodeZapStopped = "zap_stopped"
 )
 
 // MaxZapReport is the largest report the host keeps and serves (exposure.MaxWebReport).
@@ -76,4 +88,27 @@ type ZapBaselineResult struct {
 	ReportID string `json:"report_id"`
 	Size     int64  `json:"size"`
 	ExitCode int    `json:"exit_code"`
+}
+
+// ZapActiveArgs are the args of zap.active: the page as in zap.baseline, and whether the disruptive rules run.
+type ZapActiveArgs struct {
+	ZapBaselineArgs
+	// Disruptive runs the disruptive rules of the rule split (denial of service, and checks that may change data heavily) and lets the
+	// spider post forms. Only for kind ip without Typed: the box's own public IP, proven by the host's own check right before the run.
+	Disruptive bool `json:"disruptive,omitempty"`
+}
+
+// ZapActiveResult is the result of a zap.active that produced a report: the Automation Framework's exit code (0 no error or
+// warning, 1 a job reported an error, 2 a warning) and the report as for zap.baseline. CutShort says the active scan reached its time
+// limit (or was ended by ZAP) before it finished: the report holds what it found until then.
+type ZapActiveResult struct {
+	ReportID string `json:"report_id"`
+	Size     int64  `json:"size"`
+	ExitCode int    `json:"exit_code"`
+	CutShort bool   `json:"cut_short"`
+}
+
+// ZapStopResult says whether zap.stop found a run and stopped it.
+type ZapStopResult struct {
+	Stopped bool `json:"stopped"`
 }

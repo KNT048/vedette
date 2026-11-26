@@ -21,6 +21,13 @@ function TermsText({ text, label }: { text: string; label: string }) {
   )
 }
 
+/** What the accepted terms do about the disruptive checks. Behind carrier-grade NAT (refused) they never run on the box's own IP and
+ *  cannot be accepted, so the line points to the warning instead of offering to accept again. */
+function disruptiveKey(included: boolean, refused: boolean) {
+  if (refused) return included ? 'terms.disruptiveHeldShared' : 'terms.withoutDisruptiveShared'
+  return included ? 'terms.withDisruptive' : 'terms.withoutDisruptive'
+}
+
 /**
  * S-EXP-2: the testing terms of a verified target, one screen and one button. Accepted once, every scan of the target is a deep scan
  * and a scan a person starts also runs the disruptive checks (scheduled scans never do). The text is the backend's (terms_notice).
@@ -42,7 +49,7 @@ export function TermsPanel({ node: target }: { node: TargetNode }) {
   return (
     <Panel className="grid max-w-3xl gap-3 p-4 text-sm">
       <p role="status" className="font-medium">
-        {target.deep && a ? t('terms.accepted', { by: a.by, time: fmtDateTime(a.at) }) + ' ' + t(a.disruptive ? 'terms.withDisruptive' : 'terms.withoutDisruptive')
+        {target.deep && a ? t('terms.accepted', { by: a.by, time: fmtDateTime(a.at) }) + ' ' + t(disruptiveKey(a.disruptive, refused))
           : a ? t('terms.changed') : t('terms.none')}
       </p>
       {/* accepted in full: the text they accepted is one click away; otherwise the current terms are what the person reads before accepting */}
@@ -51,8 +58,8 @@ export function TermsPanel({ node: target }: { node: TargetNode }) {
       {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} />
         : target.kind === 'ip' ? <InfoLine className="text-meta text-muted" topic={t('terms.cgnatTopic')} info={t('terms.cgnatLimitInfo')}>{t('terms.cgnatLimit')}</InfoLine> : null}
       <div className="flex flex-wrap items-center gap-3">
-        {!done ? (
-          <Button variant="primary" disabled={!!locked || refused || revoke.isPending} busy={accept.isPending} busyLabel={t('common:busy.saving')} title={locked}
+        {!done && !refused ? (
+          <Button variant="primary" disabled={!!locked || revoke.isPending} busy={accept.isPending} busyLabel={t('common:busy.saving')} title={locked}
             onClick={() => accept.mutate({ version: n.version }, { onSuccess: () => toast.success(t('terms.toastAccepted')), onError })}>
             {t('terms.accept')}
           </Button>

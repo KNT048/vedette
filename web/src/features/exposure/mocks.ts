@@ -702,8 +702,9 @@ const treeHandlers = [
     if (!n) return noNode()
     const me = currentUser()!
     if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then accept the testing terms.')
-    const b = await body<{ version?: string }>(request) // an older page's disruptive field is ignored: one acceptance includes them
-    if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
+    const b = await body<{ version?: string; disruptive?: boolean }>(request)
+    // an older page sends its tick: false asked for the deep scan without the disruptive checks, so it is asked to read the terms again
+    if (b.version !== TERMS_VERSION || b.disruptive === false) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
     const v = nodeView(n)
     if (v.proof.state !== 'proven' && v.proof.state !== 'covered' && v.proof.state !== 'not_current') return fail(409, 'not_verified', 'Prove ownership first; only then can the testing terms be accepted.')
     if (v.terms?.version === TERMS_VERSION && v.terms.disruptive) return HttpResponse.json(v)
@@ -1001,8 +1002,9 @@ export const handlers = [
     if (!t) return notFound()
     const me = currentUser()!
     if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
-    const b = await body<{ version?: string }>(request) // an older page's disruptive field is ignored: one acceptance includes them
-    if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
+    const b = await body<{ version?: string; disruptive?: boolean }>(request)
+    // an older page sends its tick: false asked for the deep scan without the disruptive checks, so it is asked to read the terms again
+    if (b.version !== TERMS_VERSION || b.disruptive === false) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
     const v = view(t)
     if (v.status === 'unverified') return fail(409, 'not_verified', 'Verify ownership first; only then can the testing terms be accepted.')
     if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} has expired. Verify it again first.`)

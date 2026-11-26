@@ -108,7 +108,8 @@ describe('exposure tree', () => {
     withTwoStep()
     const old = parsed(TargetNode, (await call('GET', '/exposure/tree/xt-11')).json)
     expect(old).toMatchObject({ deep: true, terms: { version: TERMS_KEPT_VERSIONS[0], disruptive: false } })
-    const again = parsed(TargetNode, (await call('PUT', '/exposure/tree/xt-11/terms', { version: TERMS_VERSION, disruptive: false })).json)
+    expect((await call('PUT', '/exposure/tree/xt-11/terms', { version: TERMS_VERSION, disruptive: false })).status).toBe(409) // an older page, tick off
+    const again = parsed(TargetNode, (await call('PUT', '/exposure/tree/xt-11/terms', { version: TERMS_VERSION })).json)
     expect(again).toMatchObject({ deep: true, terms: { version: TERMS_VERSION, disruptive: true } })
   })
 

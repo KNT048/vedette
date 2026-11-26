@@ -301,7 +301,7 @@ func TestTermsOne_APITakesTheVersionAlone(t *testing.T) {
 		t.Fatalf("accept: %d %v", code, b)
 	}
 	id2 := e.committedIP(ipB).ID
-	code, b = e.call("PUT", "/exposure/tree/"+id2+"/terms", "admin", `{"version":"`+TermsVersion+`","disruptive":false}`)
+	code, b = e.call("PUT", "/exposure/tree/"+id2+"/terms", "admin", `{"version":"`+TermsVersion+`","disruptive":true}`)
 	if terms, _ := b["terms"].(map[string]any); code != 200 || terms["disruptive"] != true || b["deep"] != true {
 		t.Fatalf("accept with the old tick field: %d %v", code, b)
 	}
@@ -331,4 +331,84 @@ func TestTermsOne_NoUserTextMentionsADisruptiveTick(t *testing.T) {
 			}
 		}
 	}
+}
+
+// review M2: the carrier-grade NAT check also runs when a scan of the box's own IP starts. An acceptance stored before the gateway
+// moved into 100.64.0.0/10 keeps the deep scan, but a person's scan drops the disruptive checks while the gateway is there; a gateway
+// that cannot be read drops them too (fail closed at scan time). A typed IP keeps what its terms allow.
+func TestTermsOne_CarrierGradeNATAtScanTimeDropsTheDisruptiveChecks(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.acceptTerms(id, true)
+	gw := &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}}
+	e.svc.cfg.Gateway = gw
+	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (ScanMode{Full: true}) {
+		t.Fatalf("mode behind carrier-grade NAT: %+v %v", m, err)
+	}
+	r := &modeRunner{}
+	e.svc.SetRunner(r)
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	gw.g, gw.err = GatewayDevice{}, fmt.Errorf("inventory not ready")
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	gw.g, gw.err = GatewayDevice{IP: netip.MustParseAddr("192.0.2.1")}, nil
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	want := []ScanMode{{Full: true}, {Full: true}, {Full: true, Disruptive: true}}
+	if fmt.Sprint(r.modes) != fmt.Sprint(want) {
+		t.Fatalf("modes = %+v, want %+v", r.modes, want)
+	}
+}
+
+// review L1: an older page sends the tick it showed; with the tick off it asked for the deep scan without the disruptive checks, so
+// it is not taken as an acceptance of them: 409 notice_changed, nothing stored. Absent or true is the one acceptance.
+func TestTermsOne_AnOlderPageWithTheTickOffIsAskedToReload(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	logs := logTo(e.env)
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	id := e.committedIP(ipA).ID
+	for _, path := range []string{"/exposure/targets/" + id + "/terms", "/exposure/tree/" + id + "/terms"} {
+		code, b := e.call("PUT", path, "admin", `{"version":"`+TermsVersion+`","disruptive":false}`)
+		if code != 409 || errCode(b) != "notice_changed" {
+			t.Fatalf("%s with the tick off: %d %v", path, code, b)
+		}
+	}
+	if v := e.target(id); v.Terms != nil {
+		t.Fatalf("stored: %+v", v.Terms)
+	}
+	if got := logs.refusals(); len(got) != 2 || got[0] != "notice_changed "+id {
+		t.Fatalf("logged refusals = %q", got)
+	}
+	if code, b := e.call("PUT", "/exposure/targets/"+id+"/terms", "admin", `{"version":"`+TermsVersion+`","disruptive":true}`); code != 200 || b["full_scan"] != true {
+		t.Fatalf("with the tick on: %d %v", code, b)
+	}
+}
+
+// review L5: an unverified IP is refused as not verified, even behind carrier-grade NAT.
+func TestTermsOne_AnUnverifiedIPIsNotVerifiedBeforeTheNATCheck(t *testing.T) {
+	t.Parallel()
+	w := newIPWorld(t)
+	w.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}}
+	w.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	d := w.addIP(ipC)
+	_, err := acceptOnce(w.env, termsAdmin, d.ID, TermsVersion)
+	wantAPI(t, err, 409, "not_verified")
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}}
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	e.advance(time.Minute)
+	e.fullAs(ipB)
+	e.advance(91 * 24 * time.Hour)
+	_, err = acceptOnce(e, termsAdmin, id, TermsVersion)
+	wantAPI(t, err, 409, "expired")
 }

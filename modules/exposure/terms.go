@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
@@ -104,7 +105,7 @@ func (s *Service) ModeNow(ctx context.Context, actor, id string) (ScanMode, erro
 	if err != nil || reason != "" {
 		return ScanMode{}, err
 	}
-	return boxMode(actor, t.mode()), nil
+	return s.runMode(ctx, actor, t), nil
 }
 
 // TermsNotice is the terms as the page shows them (contract.ts TermsNotice): the version and the text with the target in it (one
@@ -158,19 +159,54 @@ func (s *Service) sharedAddress(ctx context.Context, t Target) string {
 	if t.Typed { // not the address the box goes out through: its own warning, always shown
 		return typedWarning
 	}
-	if t.Kind != KindIP || s.cfg.Gateway == nil {
+	if t.Kind != KindIP {
 		return ""
 	}
-	g, err := s.cfg.Gateway.Gateway(ctx)
+	g, shared, err := s.sharedGateway(ctx)
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "exposure: reading the gateway for the testing terms", "err", err)
 		return ""
 	}
-	if !g.IP.IsValid() || !cgnat.Contains(g.IP.Unmap()) {
+	if !shared {
 		return ""
 	}
 	return fmt.Sprintf("This box reaches the Internet through carrier-grade NAT (its gateway %s is in 100.64.0.0/10), so %s is probably shared with your provider's other customers and its open ports are the provider's. "+
-		"The testing terms cannot be accepted for it: they include the disruptive checks, which would reach the provider's equipment.", g.IP, t.Value)
+		"The testing terms cannot be accepted for it: they include the disruptive checks, which would reach the provider's equipment.", g, t.Value)
+}
+
+// sharedGateway reads the box's default gateway and says whether it is in 100.64.0.0/10 (carrier-grade NAT). No Gateway wired: not
+// shared, no error.
+func (s *Service) sharedGateway(ctx context.Context) (netip.Addr, bool, error) {
+	if s.cfg.Gateway == nil {
+		return netip.Addr{}, false, nil
+	}
+	g, err := s.cfg.Gateway.Gateway(ctx)
+	if err != nil {
+		return netip.Addr{}, false, err
+	}
+	return g.IP, g.IP.IsValid() && cgnat.Contains(g.IP.Unmap()), nil
+}
+
+// runMode is the mode a scan of target t runs at when actor starts it now: what the terms allow (t.mode()), never the disruptive
+// checks in a scan the box runs by itself (boxMode), and never the disruptive checks on the box's own IP (not a typed one) while the
+// box's gateway is in 100.64.0.0/10 or cannot be read: the address is then probably the provider's, shared with its other customers.
+// The acceptance is refused in that case (sharedAddress); this covers an acceptance stored before the gateway moved there. Fail
+// closed at scan time: the deep scan runs as accepted, without the disruptive checks.
+func (s *Service) runMode(ctx context.Context, actor string, t Target) ScanMode {
+	m := boxMode(actor, t.mode())
+	if !m.Disruptive || t.Kind != KindIP || t.Typed {
+		return m
+	}
+	g, shared, err := s.sharedGateway(ctx)
+	switch {
+	case err != nil:
+		s.cfg.Log.WarnContext(ctx, "exposure: the gateway could not be read, so this scan runs without the disruptive checks", "target", t.Value, "err", err)
+		m.Disruptive = false
+	case shared:
+		s.cfg.Log.WarnContext(ctx, "exposure: the gateway is in 100.64.0.0/10, so this scan runs without the disruptive checks", "target", t.Value, "gateway", g.String())
+		m.Disruptive = false
+	}
+	return m
 }
 
 func errTermsChanged() *APIError {
@@ -217,6 +253,9 @@ func (s *Service) acceptTerms(ctx context.Context, who Actor, id, version string
 	if err != nil {
 		return TargetView{}, err
 	}
+	if err := termsStatus(t, s.clock()); err != nil { // before the gateway: an unverified or expired target says so first
+		return TargetView{}, err
+	}
 	if w := s.sharedAddress(ctx, t); w != "" && !t.Typed { // a typed IP shows its own warning and is accepted on purpose
 		return TargetView{}, apiErr(409, "shared_address", "%s", w)
 	}
@@ -226,11 +265,8 @@ func (s *Service) acceptTerms(ctx context.Context, who Actor, id, version string
 			return err
 		}
 		now := s.clock()
-		switch t.status(now) {
-		case statusUnverified:
-			return apiErr(409, "not_verified", "Verify ownership first; only then can the testing terms be accepted.")
-		case statusExpired:
-			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
+		if err := termsStatus(t, now); err != nil { // again inside the write: the proof may have lapsed meanwhile
+			return err
 		}
 		if t.Terms != nil && t.Terms.Version == TermsVersion && t.Terms.Disruptive {
 			return nil
@@ -258,6 +294,17 @@ func (s *Service) acceptTerms(ctx context.Context, who Actor, id, version string
 		return TargetView{}, fmt.Errorf("exposure: accepting the testing terms: %w", err)
 	}
 	return s.Target(ctx, id)
+}
+
+// termsStatus refuses the terms of a target that is not verified or whose proof expired.
+func termsStatus(t Target, now time.Time) error {
+	switch t.status(now) {
+	case statusUnverified:
+		return apiErr(409, "not_verified", "Verify ownership first; only then can the testing terms be accepted.")
+	case statusExpired:
+		return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
+	}
+	return nil
 }
 
 // auditDetailMax is core/audit's limit on a detail, in characters.

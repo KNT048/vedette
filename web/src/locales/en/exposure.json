@@ -351,6 +351,8 @@
     "changed": "The testing terms changed since they were accepted, so scans are back in the Scan now scope until an administrator accepts them again.",
     "accepted": "Accepted by {{by}}, {{time}}. Every scan of this target is a deep scan.",
     "withDisruptive": "Disruptive checks are included.",
+    "withoutDisruptiveShared": "Disruptive checks are not included, and they cannot be added while this box reaches the Internet through carrier-grade NAT (see the warning below).",
+    "disruptiveHeldShared": "Disruptive checks were included, but they do not run while this box reaches the Internet through carrier-grade NAT (see the warning below).",
     "withoutDisruptive": "Disruptive checks are not included: this is an acceptance of the earlier terms, made without them. Accept the testing terms again to include them.",
     "textLabel": "Testing terms",
     "accept": "Accept the testing terms",

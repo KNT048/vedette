@@ -486,8 +486,9 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
+	mode := s.runMode(ctx, user, fresh) // never the disruptive checks in a scan the box runs by itself, or behind carrier-grade NAT
 	s.runMu.Lock()
-	ex.mode = boxMode(user, fresh.mode()) // a scan the box runs by itself never runs the disruptive checks
+	ex.mode = mode
 	s.runMu.Unlock()
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE exp_scan SET mode = ? WHERE run_id = ?`, modeWord(ex.mode), x.ID())

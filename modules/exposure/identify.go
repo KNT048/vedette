@@ -104,6 +104,9 @@ type ServiceScan struct {
 	// Unfinished are the ports whose -sV batch timed out, printed nothing usable or was not started this run: not in Probed (this
 	// run never calls them closed), and the scanner reads them first next time.
 	Unfinished []int
+	// Refused: nmap got a closed reply (a TCP reset) on at least one port of the address, so the address answered this run even when
+	// no port was open.
+	Refused bool
 	// The NSE script results of a deep scan (ScanMode.Full): nmap's "default", "safe" and
 	// "vuln" scripts (and "dos", "brute" with the disruptive checks) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
@@ -297,14 +300,16 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 // can be trusted to have seen every open port there: it saw at least one, and it saw each port the runner found open on ip this run
 // (ports, before the step adds its own). A sweep that saw nothing, or missed a port that answered the runner minutes before, met an
 // address that stopped answering it (a firewall or IPS cutting in, a link going down): what it did not see says nothing.
-func sweepTrusted(ports []PortRow, got []ServiceRow, ip string) bool {
+// A sweep that saw no open port at all is trusted only when nmap got closed replies (TCP resets) there (refused): the address
+// answered it, it just has nothing open.
+func sweepTrusted(ports []PortRow, got []ServiceRow, ip string, refused bool) bool {
 	seen := map[int]bool{}
 	for _, r := range got {
 		if r.IP == ip {
 			seen[r.Port] = true
 		}
 	}
-	if len(seen) == 0 {
+	if len(seen) == 0 && !refused {
 		return false
 	}
 	for _, p := range ports {
@@ -396,7 +401,13 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			if c.Swept == nil {
 				c.Swept = map[string]bool{}
 			}
-			c.Swept[ip.String()] = len(unfinished) == 0 && sweepTrusted(c.Ports, got, ip.String())
+			c.Swept[ip.String()] = len(unfinished) == 0 && sweepTrusted(c.Ports, got, ip.String(), res.Refused)
+		}
+		if res.Refused { // a closed port answered: the address was reachable in this scan (coverage)
+			if c.Answered == nil {
+				c.Answered = map[string]bool{}
+			}
+			c.Answered[ip.String()] = true
 		}
 		if n := len(unfinished); n > 0 && !st.Mode.Full {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: fmt.Sprintf(notServicesUnfinished, plural(n, "port"))})

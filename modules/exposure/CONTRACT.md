@@ -102,13 +102,20 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-37** Results are rows (`exp_host`, `exp_address`, `exp_service`, `exp_issue`), never a document per scan. What changed is
   read from `first_seen`, `last_seen` and `state`.
 - **INV-8** The old per-day snapshot and diff endpoints answer 501.
-- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed, except after a trusted sweep: a
-  deep scan's nmap step that probed every TCP port of the address, finished every service batch, saw at least one open port and
-  saw every port the runner found open there this run (`sweepTrusted`) closes a port it did not see at once ("No longer seen";
-  first and last seen stay). A sweep that is not trusted (the address stopped answering it) checks only the fixed list; an
-  address that answered nothing at all this scan is not checked, so it never counts as a miss; a failed nmap step checks only the
-  fixed list. `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`, `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`,
-  `TestCoverage_AScanThatReachedNothingIsNotAMiss`.
+- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed (two scans in a row that probed it
+  must miss it), with two exceptions that close at once ("No longer seen"; first and last seen stay). (1) A trusted sweep: a deep
+  scan's nmap step that probed every TCP port of the address, saw every port the runner found open there this run and saw at least
+  one open port or got closed replies (`sweepTrusted`) closes a port of the runner's fixed list that the runner's connect also
+  missed this scan (two probes of this run missed it). A port outside the fixed list, or on an address the runner did not
+  port-scan, keeps the two-miss rule (two trusted sweeps in a row). A sweep that is not trusted checks only the fixed list; a failed
+  nmap step checks only the fixed list. (2) An address with nothing open: "nothing open" is a result when the address answered this
+  scan (a TCP reset to the runner's connect or to nmap, `Content.Answered`), and the scan counts as usual. When it answered nothing
+  at all (a lost NAT loopback, a firewall dropping the probes) the scan is not a miss (run item `checked_empty`), until the third
+  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`).
+  `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`, `TestCoverage_AnEmptySweepWithClosedRepliesCounts`,
+  `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`, `TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps`,
+  `TestCoverage_AScanThatReachedNothingIsNotAMiss`, `TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss`,
+  `TestCoverage_EmptyScansWithNoReplyCloseOnlyAfterThreeOverADay`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
   nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.
@@ -121,7 +128,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   scan ended: `matched` (results), `not_matched` (it scanned, no result), `not_run` (it never started scanning); a failure, a stop
   or results the domain fence discarded keep `no_response` (`TestGreenboneProbeRowSaysHowTheScanEnded`). An OpenVAS issue's
   description is Greenbone's own text of the result: the test's summary, the detection result on the host, insight, affected
-  software and impact, plain text, at most 1,500 characters; a result with none names the test
+  software and impact, plain text with its lines kept, at most 1,500 characters (`TestOpenVASDescriptionKeepsItsLines`); a result with none names the test
   (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.

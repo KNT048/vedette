@@ -303,3 +303,20 @@ func TestExposureDNSProbeRowFitsTheProbeLog(t *testing.T) {
 		t.Fatalf("rows %+v, %v", rows, err)
 	}
 }
+
+// The addresses that answered the runner's connect with a reset reach exposure as answered: with nothing open there, the scan still
+// counts as a look at the address.
+func TestExposureRunnerSaysWhichAddressesAnswered(t *testing.T) {
+	t.Parallel()
+	ip := netip.MustParseAddr("203.0.113.10")
+	f := &fakeSurface{res: surface.Result{Refused: []netip.Addr{ip}}}
+	r := &exposureRunner{on: func() bool { return true }, scan: f, scope: func(context.Context, string, netip.Addr) (bool, error) { return true, nil },
+		log: slog.New(slog.DiscardHandler), running: map[*int]context.CancelCauseFunc{}}
+	c, err := r.Scan(t.Context(), exposure.ScanTarget{ID: "xt-2", Kind: exposure.KindIP, Value: "203.0.113.10"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(c.Answered, map[string]bool{"203.0.113.10": true}) || len(c.Ports) != 0 {
+		t.Fatalf("answered %v, ports %v", c.Answered, c.Ports)
+	}
+}

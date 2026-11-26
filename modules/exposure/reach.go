@@ -11,9 +11,9 @@ import (
 const reachTimeout = 30 * time.Second
 
 // answered says something of the target answered this scan: an open port, a page, a certificate, an admin page, a service that
-// identification named, a page ZAP read, or a finding or finished check of an engine.
+// identification named, a page ZAP read, a finding or finished check of an engine, or a closed port's reset (Content.Answered).
 func answered(c Content) bool {
-	return len(c.Ports) > 0 || len(c.Certs) > 0 || len(c.AdminPanels) > 0 || len(c.Services) > 0 || len(c.WebPages) > 0 ||
+	return len(c.Ports) > 0 || len(c.Answered) > 0 || len(c.Certs) > 0 || len(c.AdminPanels) > 0 || len(c.Services) > 0 || len(c.WebPages) > 0 ||
 		len(c.WebFindings) > 0 || len(c.Greenbone) > 0 || len(c.TemplatesRan) > 0 || len(c.ScriptsRan) > 0
 }
 

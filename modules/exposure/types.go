@@ -355,6 +355,9 @@ type Content struct {
 	// have seen every open port there (sweepTrusted): true, a port open before that it did not see is no longer seen after that one
 	// scan; false, only the runner's fixed list counts as checked there (coverage), as for a scan whose nmap step failed (INV-22).
 	Swept map[string]bool `json:"-"`
+	// Answered is each address that replied to this scan's probes even where no port was open: the runner's TCP connect or nmap got
+	// a reset (a closed port) there. An address with no open port counts as missed by the scan only when it answered (coverage).
+	Answered map[string]bool `json:"-"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

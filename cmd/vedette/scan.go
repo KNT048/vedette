@@ -503,6 +503,12 @@ func contentOf(r surface.Result) exposure.Content {
 		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: text})
 	}
 	c.Unresolved = r.Unresolved   // exposure carries their previous rows forward and says so (INV-27)
+	for _, a := range r.Refused { // a closed port answered there: reachable even with nothing open (exposure coverage, INV-22)
+		if c.Answered == nil {
+			c.Answered = map[string]bool{}
+		}
+		c.Answered[a.Unmap().String()] = true
+	}
 	for _, h := range r.Skipped { // found and not probed: another target scans them, or the scope leaves them out
 		c.Listed = append(c.Listed, exposure.HostRow{Name: h.Name, Source: h.Source, CNAME: h.CNAME})
 	}

@@ -445,6 +445,8 @@ const (
 	// one by a run item of kind itemPort (coverage of one port) that the scan wrote for it. A scan whose service step failed, did not
 	// finish a port's batch, or ran before Probed existed is coverList and checks only the fixed list.
 	coverTop = "checked_top"
+	// coverEmpty: a port-scanned address where nothing was open and nothing replied this scan; it checks no port (coverage).
+	coverEmpty = "checked_empty"
 )
 
 // itemPort is the kind of a run item that says a coverTop scan probed one port outside the fixed list on an address (its subject is
@@ -483,14 +485,30 @@ func ipKey(s string) string {
 	return s
 }
 
+// coverResult is what coverage says of a scan: checked is which ports it probed on each address it reached (coverAll, coverList, coverTop,
+// coverWeb, or coverEmpty for an address with nothing open that did not answer), gone the addresses of the services open before that
+// left the domain, listed the addresses on which the runner TCP-connected the whole fixed list, settled the addresses whose
+// coverEmpty streak ended with this scan (emptyStreak).
+type coverResult struct {
+	checked map[string]string
+	gone    map[string]bool
+	listed  map[string]bool
+	settled map[string]bool
+}
+
 // coverage says, for each address this scan reached, which ports it probed there (coverAll, coverList, coverTop or coverWeb), and which
 // addresses of the services open before left the domain (gone: no name of the domain points at them any more). An IP target is
 // checked by every scan that wrote its rows; a domain scan port-scans the addresses its names point at that are scannable IP
 // targets (the gate the runner asked, ScannableIP) and the addresses its deep scan reached, and checks the others by name on 80 and
 // 443. An address the scan did not reach has no entry: the scan says nothing about its ports.
 //
+// A port-scanned address where nothing was open this scan (INV-22, INV-41): when it answered (Content.Answered: a TCP reset to the
+// runner or to nmap) "nothing open" is a result and the address is checked as usual. When it answered nothing at all, the scan may not
+// have reached it (a lost NAT loopback, a firewall dropping the probes): coverEmpty, which checks no port, until the third such scan
+// in a row at least 24 hours after the first (emptyStreak), which is checked as usual and closes what they all missed (settled).
+//
 // prevPorts are the services open before this scan, prevHosts the names and addresses the scans before left.
-func (s *Service) coverage(ctx context.Context, user string, t Target, c Content, prevPorts []PortRow, prevHosts []HostRow) (checked map[string]string, gone map[string]bool) {
+func (s *Service) coverage(ctx context.Context, user string, t Target, runID string, c Content, prevPorts []PortRow, prevHosts []HostRow) coverResult {
 	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
 	reported, deep, pointed := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, p := range c.Ports {
@@ -517,12 +535,22 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 		}
 		return coverList
 	}
-	checked, gone = map[string]string{}, map[string]bool{}
-	if t.Kind == KindIP {
-		if k := ipKey(t.Value); reported[k] { // fail safe: an address that answered nothing this scan says nothing of its ports
-			checked[k] = full(k)
+	out := coverResult{checked: map[string]string{}, gone: map[string]bool{}, listed: map[string]bool{}, settled: map[string]bool{}}
+	portScanned := func(k string) {
+		switch {
+		case reported[k] || c.Answered[k]:
+			out.checked[k] = full(k)
+		case s.emptyStreak(ctx, t.ID, runID, k):
+			out.checked[k], out.settled[k] = full(k), true
+		default:
+			out.checked[k] = coverEmpty
 		}
-		return checked, gone
+	}
+	if t.Kind == KindIP {
+		k := ipKey(t.Value)
+		out.listed[k] = true // the runner connects to the whole fixed list of an IP target
+		portScanned(k)
+		return out
 	}
 	box := func(k string) bool {
 		a, err := netip.ParseAddr(k)
@@ -533,16 +561,16 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 		return err == nil && ok
 	}
 	consider := func(k string, contacted bool) {
-		if _, done := checked[k]; done {
+		if _, done := out.checked[k]; done {
 			return
 		}
+		isBox := box(k)
 		switch {
-		case deep[k] || box(k):
-			if reported[k] { // fail safe: a port-scanned address that answered nothing this scan says nothing of its ports
-				checked[k] = full(k)
-			}
+		case deep[k] || isBox:
+			out.listed[k] = isBox // the runner port-scans only the domain's addresses that are scannable IP targets
+			portScanned(k)
 		case contacted || reported[k]:
-			checked[k] = coverWeb
+			out.checked[k] = coverWeb
 		}
 	}
 	for _, h := range c.Hosts {
@@ -557,10 +585,43 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 	}
 	for _, p := range prevPorts {
 		if k := ipKey(p.IP); !pointed[k] && moved(k, pointed, prevHosts, c.Hosts) {
-			gone[k] = true
+			out.gone[k] = true
 		}
 	}
-	return checked, gone
+	return out
+}
+
+// emptyStreakScans and emptyStreakSpan: the scan of an address that found nothing open and got no reply there closes what was open
+// only as the emptyStreakScans-th such scan in a row (counting itself), at least emptyStreakSpan after the first of them.
+const (
+	emptyStreakScans = 3
+	emptyStreakSpan  = 24 * time.Hour
+)
+
+// emptyStreak says this scan (run runID) of target is the emptyStreakScans-th or later scan in a row that found nothing open on ip and
+// got no reply there (run items coverEmpty since the newest scan that checked the address), at least emptyStreakSpan after the first
+// of them. A failure to read says no: the ports stay as they are.
+func (s *Service) emptyStreak(ctx context.Context, target, runID, ip string) bool {
+	var n int
+	var first, now sql.NullString
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `WITH runs AS (
+		SELECT r.started_at AS at, i.outcome AS outcome FROM core_run_item i JOIN core_run r ON r.id = i.run_id
+		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ? AND r.started_at IS NOT NULL
+			AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?) AND i.subject_kind = 'address' AND i.subject_id = ?
+			AND i.outcome IN (?, ?, ?, ?, ?))
+	SELECT count(*), min(at), (SELECT started_at FROM core_run WHERE id = ?) FROM runs
+	WHERE outcome = ? AND at > coalesce((SELECT max(at) FROM runs WHERE outcome <> ?), '')`,
+		ModuleID, RunKind, target, runID, runID, ip, coverAll, coverList, coverTop, coverWeb, coverEmpty, runID, coverEmpty, coverEmpty).Scan(&n, &first, &now)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: reading the scans that found nothing open", "target", target, "ip", ip, "error", err)
+		return false
+	}
+	if n+1 < emptyStreakScans || !first.Valid || !now.Valid {
+		return false
+	}
+	a, err1 := parseTS(first.String)
+	b, err2 := parseTS(now.String)
+	return err1 == nil && err2 == nil && b.Sub(a) >= emptyStreakSpan
 }
 
 // moved says an address left a domain: it had names in the previous observation, and each of them is in this scan with another

@@ -90,6 +90,7 @@ var sqlServerProducts = map[string]bool{"2016": true, "2017": true, "2019": true
 //     major is No (SQL Server 2022 is not SQL Server 2014), the same major is Unknown (the build does not say which service pack);
 //   - a configuration of a release's own product (microsoft:sql_server_2016 … _2025, aliases of Microsoft|SQL Server in
 //     content/catalog/products) with build ranges: a typed release other than that product's is No, the same one Unknown (a year is not a build);
+//     a build of another major is No (NVD's "sql_server_2025 before 17.0.1135.8" has no start, and a 2022 build 16.0.x is below it);
 //     a build of the product's major written with a service-pack minor ("13.2.5026.0", how SQL Server 2016 SP2's programs
 //     read) is Unknown, since NVD writes those builds as 13.0.x; any other build is left to the ranges.
 //
@@ -129,6 +130,8 @@ func sqlServerRelease(c CPE, r VersionRange, exact bool, ver string) (Tri, bool)
 	switch {
 	case product && pv.rel[0] == major && pv.rel[1] != 0:
 		return Unknown, true // a service pack's "13.2.5026.0" against NVD's 13.0.x ranges
+	case product && pv.rel[0] != major:
+		return No, true // a build of another release: SQL Server 2022's 16.0.1000.6 is not inside "sql_server_2025 before 17.0.1135.8"
 	case product:
 		return Unknown, false // the ranges decide
 	case pv.rel[0] != major:

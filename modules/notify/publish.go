@@ -187,6 +187,13 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 			}
 		}
 	}
+	triggers, err := loadTriggers(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if held, floor := triggers.holds(n); held { // the administrator turned this kind of alert off, or it is below its minimum (INV-31)
+		return markUnsent(ctx, tx, n.ID, UnsentTriggerOff, floor, "")
+	}
 	rules, err := loadRules(ctx, tx)
 	if err != nil {
 		return err

@@ -89140,6 +89140,34 @@ func (s *NotifyGetNotifyChannelsOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.Triggers == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Triggers {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "triggers",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -89317,6 +89345,100 @@ func (s *NotifyGetNotifyChannelsOKQuiet) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *NotifyGetNotifyChannelsOKTriggersItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.DefaultMin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "default_min",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ID.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Min.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "min",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyGetNotifyChannelsOKTriggersItemDefaultMin) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyGetNotifyChannelsOKTriggersItemID) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "vulnerability":
+		return nil
+	case "intrusion":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyGetNotifyChannelsOKTriggersItemMin) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *NotifyGetNotifyFindingsIDNoticesOK) Validate() error {
@@ -89657,6 +89779,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Validate() error {
 		return nil
 	case "unknown":
 		return nil
+	case "trigger_off":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -89989,6 +90113,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "line_left_out":
 		return nil
 	case "unknown":
+		return nil
+	case "trigger_off":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -90371,6 +90497,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 	case "line_left_out":
 		return nil
 	case "unknown":
+		return nil
+	case "trigger_off":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -91107,6 +91235,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "line_left_out":
 		return nil
 	case "unknown":
+		return nil
+	case "trigger_off":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -91978,6 +92108,8 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) Validate() error {
 		return nil
 	case "unknown":
 		return nil
+	case "trigger_off":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -92732,6 +92864,256 @@ func (s *NotifyPutNotifyRulesReqQuiet) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *NotifyPutNotifyTriggersOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Triggers == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Triggers {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "triggers",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *NotifyPutNotifyTriggersOKTriggersItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.DefaultMin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "default_min",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ID.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Min.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "min",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyPutNotifyTriggersOKTriggersItemDefaultMin) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyPutNotifyTriggersOKTriggersItemID) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "vulnerability":
+		return nil
+	case "intrusion":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyPutNotifyTriggersOKTriggersItemMin) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *NotifyPutNotifyTriggersReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Triggers == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Triggers)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Triggers {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "triggers",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *NotifyPutNotifyTriggersReqTriggersItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.ID.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Min.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "min",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyPutNotifyTriggersReqTriggersItemID) Validate() error {
+	switch s {
+	case "trap":
+		return nil
+	case "vulnerability":
+		return nil
+	case "intrusion":
+		return nil
+	case "bad_address":
+		return nil
+	case "log_anomaly":
+		return nil
+	case "unknown_device":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyPutNotifyTriggersReqTriggersItemMin) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ReportsGetReportsDefinitionOK) Validate() error {

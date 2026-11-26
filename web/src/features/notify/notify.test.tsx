@@ -1532,3 +1532,35 @@ describe('incident kinds', () => {
     expect(kindKey({ kind: 'intrusion', attempt: false })).toBe('incidents.kind.intrusion')
   })
 })
+
+describe('notify: alert triggers', () => {
+  it('the Settings tab lists each trigger with its default; a change is saved, audited and shown against its default', async () => {
+    renderApp('/settings/channels?tab=settings#triggers')
+    const main = await screen.findByRole('main')
+    const form = await within(main).findByRole('form', { name: 'Alert triggers' })
+    expect(within(form).getByRole('switch', { name: 'Decoy touched' })).toBeChecked()
+    const device = within(form).getByRole('switch', { name: 'New device seen' })
+    expect(device).not.toBeChecked()
+    expect(within(form).getByText(/busy office sees many new devices a day/)).toBeInTheDocument()
+    expect(within(form).getByRole('combobox', { name: 'Lowest severity that sends for Intrusion alert (IPS/IDS)' })).toHaveValue('high')
+    const minimum = within(form).getByRole('combobox', { name: 'Lowest severity that sends for New device seen' })
+    expect(minimum).toBeDisabled()
+    const save = within(form).getByRole('button', { name: 'Save alert triggers' })
+    expect(save).toBeDisabled()
+    expect(within(form).getByRole('button', { name: 'Back to defaults' })).toBeDisabled()
+
+    await userEvent.click(device)
+    await userEvent.selectOptions(minimum, 'high')
+    expect(within(form).getByText('Default: off')).toBeInTheDocument()
+    await userEvent.click(save)
+    await waitFor(() => expect(auditStore.get().some((a) => a.action === 'notify.triggers_save' && a.detail === 'new device seen: off -> on from high')).toBe(true))
+    await waitFor(() => expect(within(form).getByRole('switch', { name: 'New device seen' })).toBeChecked())
+  })
+
+  it('a link to one trigger (the fix link of a held-back alert) opens the Settings tab', async () => {
+    renderApp('/settings/channels?tab=settings#trigger-unknown_device')
+    const main = await screen.findByRole('main')
+    expect(await within(main).findByRole('form', { name: 'Alert triggers' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+  })
+})

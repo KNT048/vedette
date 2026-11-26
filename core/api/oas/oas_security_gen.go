@@ -331,6 +331,7 @@ var operationRolesSession = map[string][]string{
 	NotifyPostNotifyZaloResolveOperation:                     []string{},
 	NotifyPutNotifyChannelsTypeOperation:                     []string{},
 	NotifyPutNotifyRulesOperation:                            []string{},
+	NotifyPutNotifyTriggersOperation:                         []string{},
 	ReportsGetReportsDefinitionOperation:                     []string{},
 	ReportsGetReportsDocumentOperation:                       []string{},
 	ReportsGetReportsHistoryOperation:                        []string{},

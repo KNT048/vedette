@@ -1,0 +1,210 @@
+package notify_test
+
+import (
+	"database/sql"
+	"errors"
+	"reflect"
+	"testing"
+
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/modules/notify"
+)
+
+// openKind opens an incident of a kind at a severity and returns its id.
+func (e *env) openKind(kind notify.IncidentKind, source string, sev notify.Severity) string {
+	e.t.Helper()
+	id, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: kind, Source: source, Target: "t", Title: string(kind) + " from " + source, Severity: sev,
+		Link: "/incidents"})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return id
+}
+
+func (e *env) queued(id string) int {
+	e.t.Helper()
+	return e.count(`SELECT COUNT(*) FROM notify_pending WHERE notice_id = ?`, id)
+}
+
+func TestAlertTriggersDefaultsKeepTheNoiseOut(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	e.telegram(notify.Low)
+	v, err := e.svc.Channels(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"trap": "on low", "vulnerability": "on low", "intrusion": "on high", "bad_address": "on high", "log_anomaly": "on high", "unknown_device": "off medium"}
+	if len(v.Triggers) != len(want) {
+		t.Fatalf("triggers = %+v", v.Triggers)
+	}
+	for _, tr := range v.Triggers {
+		got := map[bool]string{true: "on", false: "off"}[tr.On] + " " + string(tr.Min)
+		if want[tr.ID] != got || tr.DefaultOn != tr.On || tr.DefaultMin != tr.Min {
+			t.Fatalf("trigger %s = %+v, want %s", tr.ID, tr, want[tr.ID])
+		}
+	}
+
+	dev := e.openKind(notify.IncidentUnknownDevice, "as-phone", notify.Medium)
+	wantReason(t, e.notSent(dev), notify.UnsentTriggerOff, "alerts of this kind are turned off in the alert settings")
+	ids := e.openKind(notify.IncidentIntrusion, "203.0.113.9", notify.Medium)
+	wantReason(t, e.notSent(ids), notify.UnsentTriggerOff, "it is medium, and the alert settings send this kind only from high")
+	if e.queued(dev)+e.queued(ids) != 0 {
+		t.Fatal("a held trigger was queued")
+	}
+	for _, id := range []string{e.openKind(notify.IncidentIntrusion, "203.0.113.10", notify.High), e.open("share", notify.Critical),
+		e.openKind(notify.IncidentBadAddress, "as-nas", notify.High), e.openKind("printer_jam", "as-printer", notify.Low)} {
+		if e.queued(id) != 1 {
+			t.Fatalf("incident %s was not queued", id)
+		}
+	}
+}
+
+func TestAlertTriggersChangeHoldsFromTheNextEventAndIsAudited(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	e.telegram(notify.Low)
+	before := e.openKind(notify.IncidentUnknownDevice, "as-1", notify.Medium)
+
+	out, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "unknown_device", On: true, Min: notify.High}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tr := range out {
+		if tr.ID == "unknown_device" && (!tr.On || tr.Min != notify.High || tr.DefaultOn) {
+			t.Fatalf("saved = %+v", tr)
+		}
+		if tr.ID == "trap" && (!tr.On || tr.Min != notify.Low) {
+			t.Fatalf("a trigger left out changed: %+v", tr)
+		}
+	}
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.triggers_save' AND detail = 'new device seen: off -> on from high'`); n != 1 {
+		t.Fatalf("audit rows = %d", n)
+	}
+	// the incident opened before keeps its decision; the next ones follow the new rule
+	wantReason(t, e.notSent(before), notify.UnsentTriggerOff, "turned off")
+	wantReason(t, e.notSent(e.openKind(notify.IncidentUnknownDevice, "as-2", notify.Medium)), notify.UnsentTriggerOff, "only from high")
+	if hi := e.openKind(notify.IncidentUnknownDevice, "as-3", notify.High); e.queued(hi) != 1 {
+		t.Fatal("a high new device was not queued after the trigger was turned on")
+	}
+
+	// saving the same rule again writes nothing and audits nothing
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "unknown_device", On: true, Min: notify.High}}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.triggers_save'`); n != 1 {
+		t.Fatalf("audit rows after a save that changed nothing = %d", n)
+	}
+	// the stored rule is read back by the next process
+	v, err := e.svc.Channels(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tr := range v.Triggers {
+		if tr.ID == "unknown_device" && (!tr.On || tr.Min != notify.High) {
+			t.Fatalf("stored = %+v", tr)
+		}
+	}
+}
+
+func TestAlertTriggersRefuseWhatIsNotARule(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	for name, in := range map[string][]notify.Trigger{
+		"unknown_trigger":   {{ID: "everything", On: true, Min: notify.Low}},
+		"duplicate_trigger": {{ID: "trap", On: true, Min: notify.Low}, {ID: "trap", On: false, Min: notify.Low}},
+		"bad_min":           {{ID: "trap", On: true, Min: notify.Info}},
+	} {
+		_, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", in)
+		var ae *apierr.Error
+		if !errors.As(err, &ae) || ae.Code != name {
+			t.Fatalf("%s: err = %v", name, err)
+		}
+	}
+	if n := e.count(`SELECT COUNT(*) FROM notify_setting WHERE key = 'triggers'`); n != 0 {
+		t.Fatalf("a refused save wrote %d rows", n)
+	}
+}
+
+func TestAlertTriggersHoldVulnerabilityNoticesButNotSendNow(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	e.telegram(notify.Low)
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "vulnerability", On: false, Min: notify.Low}}); err != nil {
+		t.Fatal(err)
+	}
+	n := notify.Notice{ID: "nt-f1-created", Kind: notify.KindVuln, Severity: notify.High, Product: "Photo Station", CVEs: []string{"CVE-2024-0001"},
+		Devices: []string{"nas"}, Title: "Photo Station on nas: exploited", Layer: 2, Link: "https://vedette.example/findings/f1"}
+	if err := e.svc.Publish(e.ctx(), n); err != nil {
+		t.Fatal(err)
+	}
+	if e.queued(n.ID) != 0 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id = ? AND unsent = 'trigger_off'`, n.ID) != 1 {
+		t.Fatal("a vulnerability notice of a trigger that is off was queued or not recorded")
+	}
+	n.ID, n.Forced = "nt-f2-created", true
+	if err := e.svc.Publish(e.ctx(), n); err != nil {
+		t.Fatal(err)
+	}
+	if e.queued(n.ID) != 1 {
+		t.Fatal("a notice a person asked to send was held by its trigger")
+	}
+}
+
+// Migration 0005 rebuilds notify_setting to allow the triggers key: the quiet-hours and grouping rows a box already has come through
+// unchanged, and the table still refuses a key it does not know.
+func TestMigrationKeepsTheStoredRulesAndAllowsTriggers(t *testing.T) {
+	ctx := t.Context()
+	db := storetest.New(t)
+	if err := store.MigrateTo(ctx, db, "notify", notify.Migrations, 4); err != nil {
+		t.Fatal(err)
+	}
+	rows := [][4]string{
+		{"grouping", `{"enabled":false,"window_min":240}`, "2026-11-20T08:00:00.000Z", "it@acme.example"},
+		{"quiet", `{"enabled":true,"from":"21:30","to":"07:00","allow_critical":false}`, "2026-11-21T09:15:30.250Z", "admin@acme.example"},
+	}
+	read := func() [][4]string {
+		t.Helper()
+		rs, err := db.Reader().QueryContext(ctx, `SELECT key, value, updated_at, updated_by FROM notify_setting ORDER BY key`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = rs.Close() }()
+		var out [][4]string
+		for rs.Next() {
+			var r [4]string
+			if err := rs.Scan(&r[0], &r[1], &r[2], &r[3]); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, r)
+		}
+		return out
+	}
+	put := func(r [4]string) error {
+		return db.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `INSERT INTO notify_setting (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?)`, r[0], r[1], r[2], r[3])
+			return err
+		})
+	}
+	for _, r := range rows {
+		if err := put(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := put([4]string{"triggers", `[]`, "2026-11-21T09:15:30.250Z", "it@acme.example"}); err == nil {
+		t.Fatal("before 0005 the table took a triggers row")
+	}
+	if err := store.Migrate(ctx, db, "notify", notify.Migrations); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); !reflect.DeepEqual(got, rows) {
+		t.Fatalf("rows after the migration = %v, want %v", got, rows)
+	}
+	if err := put([4]string{"triggers", `[{"id":"unknown_device","on":true,"min":"high"}]`, "2026-11-26T10:00:00.000Z", "it@acme.example"}); err != nil {
+		t.Fatalf("a triggers row after 0005: %v", err)
+	}
+	if err := put([4]string{"other", `{}`, "2026-11-26T10:00:00.000Z", "it@acme.example"}); err == nil {
+		t.Fatal("the table took a key it does not know")
+	}
+}

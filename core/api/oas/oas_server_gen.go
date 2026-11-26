@@ -2321,6 +2321,13 @@ type Handler interface {
 	//
 	// PUT /notify/rules
 	NotifyPutNotifyRules(ctx context.Context, req *NotifyPutNotifyRulesReq) (*NotifyPutNotifyRulesOK, error)
+	// NotifyPutNotifyTriggers implements notify_put_notify_triggers operation.
+	//
+	// Save which kinds of event send an alert and from which severity (a trigger left out keeps its rule);
+	// audited with each change. 400 unknown_trigger, duplicate_trigger or bad_min.
+	//
+	// PUT /notify/triggers
+	NotifyPutNotifyTriggers(ctx context.Context, req *NotifyPutNotifyTriggersReq) (*NotifyPutNotifyTriggersOK, error)
 	// ReportsGetReportsDefinition implements reports_get_reports_definition operation.
 	//
 	// The report definition: name, options, section switches, recipients and the key of its schedule.

@@ -78,7 +78,11 @@ func TestWiringIPSEventAtAnIgnoredDeviceIsNotCriticalOrAffected(t *testing.T) {
 	if n := s.count(`SELECT count(*) FROM notify_pending WHERE notice_id LIKE '%-raised-critical'`); n != 0 {
 		t.Error("a raise to critical was queued")
 	}
-	if n := len(s.queuedNotices()) - notices; n != 1 { // the intrusion incident's own notice, no rise of the finding
-		t.Errorf("%d notices queued, want 1 (the incident)", n)
+	// no rise of the finding, and the incident itself is below high, where the intrusion trigger sends from by default
+	if n := len(s.queuedNotices()) - notices; n != 0 {
+		t.Errorf("%d notices queued, want none", n)
+	}
+	if n := s.count(`SELECT count(*) FROM notify_incident WHERE kind = 'intrusion' AND severity <> 'critical' AND unsent = 'trigger_off'`); n != 1 {
+		t.Error("the intrusion incident does not say its trigger held it back")
 	}
 }

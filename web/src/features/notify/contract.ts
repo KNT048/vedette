@@ -57,15 +57,20 @@ export const EmailSignin = z.object({
 export const Quiet = z.object({ enabled: z.boolean(), from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), allow_critical: z.boolean() })
 export const Grouping = z.object({ enabled: z.boolean(), window_min: z.union([z.literal(15), z.literal(60), z.literal(240)]) })
 export const Rules = z.object({ quiet: Quiet, grouping: Grouping })
-export const ChannelsResponse = z.object({ channels: z.array(Channel), quiet: Quiet, grouping: Grouping, email_code_users: z.number().int().describe('Users who sign in with two-step email codes: they cannot sign in while the email channel is off or removed') })
+export const AlertTriggerId = z.enum(['trap', 'vulnerability', 'intrusion', 'bad_address', 'log_anomaly', 'unknown_device'])
+export const AlertTrigger = z.object({ id: AlertTriggerId, on: z.boolean().describe('Off: the event is still recorded (Incidents, the finding), but no message is sent'), min: RouteSeverity.describe('The lowest severity of this kind that sends a message') })
+export const AlertTriggerView = AlertTrigger.extend({ default_on: z.boolean(), default_min: RouteSeverity })
+export const AlertTriggers = z.object({ triggers: z.array(AlertTrigger).max(20) })
+export const AlertTriggersResponse = z.object({ triggers: z.array(AlertTriggerView) })
+export const ChannelsResponse = z.object({ channels: z.array(Channel), quiet: Quiet, grouping: Grouping, triggers: z.array(AlertTriggerView).describe('Which kinds of event send an alert, and from which severity'), email_code_users: z.number().int().describe('Users who sign in with two-step email codes: they cannot sign in while the email channel is off or removed') })
 
 export const IncidentKind = z.string().regex(/^[a-z0-9_]{1,40}$/).describe('What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device, intrusion are the ones with their own labels); a kind the app does not know is shown with a generic label')
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend') })
-export const NotSentReason = z.enum(['queued', 'quiet_hours', 'grouped', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'line_left_out', 'unknown'])
+export const NotSentReason = z.enum(['queued', 'quiet_hours', 'grouped', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'line_left_out', 'unknown', 'trigger_off'])
 export const NotSent = z.object({
-  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today\'s channels would take it'),
+  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today\'s channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there'),
   text: z.string().describe('One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only send high and above."'),
   channel: ChannelType.optional().describe('The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)'),
   until: iso.optional().describe('quiet_hours, grouped: when the held message goes out'),
@@ -173,4 +178,5 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/notify/telegram/approvers/{user_id}/code', summary: 'Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start', stories: ['S-RESP-2'], role: 'admin', params: z.object({ user_id: z.string() }), response: LinkApprover, example: { params: { user_id: 'u-op' } } },
   { method: 'post', path: '/notify/zalo/approvers/{user_id}/code', summary: 'Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead', stories: ['S-RESP-2'], role: 'admin', params: z.object({ user_id: z.string() }), response: LinkApprover, example: { params: { user_id: 'u-op' } } },
   { method: 'put', path: '/notify/rules', summary: 'Save quiet hours and batching rules', stories: ['S-NOT-1'], role: 'admin', body: Rules, response: Rules },
+  { method: 'put', path: '/notify/triggers', summary: 'Save which kinds of event send an alert and from which severity (a trigger left out keeps its rule); audited with each change. 400 unknown_trigger, duplicate_trigger or bad_min', stories: ['S-NOT-1'], role: 'admin', body: AlertTriggers, response: AlertTriggersResponse },
 ])

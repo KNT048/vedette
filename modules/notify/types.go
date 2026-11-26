@@ -75,10 +75,11 @@ type Rules struct {
 
 // ChannelsView is the answer of GET /notify/channels.
 type ChannelsView struct {
-	Channels       []Channel `json:"channels"`
-	Quiet          Quiet     `json:"quiet"`
-	Grouping       Grouping  `json:"grouping"`
-	EmailCodeUsers int       `json:"email_code_users"`
+	Channels       []Channel     `json:"channels"`
+	Quiet          Quiet         `json:"quiet"`
+	Grouping       Grouping      `json:"grouping"`
+	Triggers       []TriggerView `json:"triggers"`
+	EmailCodeUsers int           `json:"email_code_users"`
 }
 
 // SendView is one delivery attempt as the API shows it.
@@ -211,6 +212,7 @@ const (
 	UnsentFirstRun     NotSentReason = "first_run_summary"  // held by the first-run window (INV-23), told in the hourly summary
 	UnsentLineLeftOut  NotSentReason = "line_left_out"      // a vulnerability notice queued and sent, but its line was past what the message could hold
 	UnsentUnknown      NotSentReason = "unknown"            // opened before the reason was kept, and today's channels would take it
+	UnsentTriggerOff   NotSentReason = "trigger_off"        // its alert trigger is off, or it is below the trigger's minimum (INV-31)
 )
 
 // NotSent is the reason an incident has no message on any channel, in the customer's words (INV-24).

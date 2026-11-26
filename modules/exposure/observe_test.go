@@ -1,8 +1,13 @@
 package exposure
 
 import (
+	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/knt048/vedette/core/store"
 )
 
 // obs is one address of a verdicts input: open ports, the ports open before, and the coverage of an IP target's deep scan whose sweep
@@ -192,5 +197,53 @@ func TestVerdicts_TheLinesSayTheReason(t *testing.T) {
 		if len([]rune(l.row.Text)) > maxLineText {
 			t.Errorf("a line longer than a line may be: %q", l.row.Text)
 		}
+	}
+}
+
+// The verdicts of the runs before are read up to a bound, newest first, however many runs a target has; a clean sighting older than
+// the bound is still known (a row seen open over a clean path is never retired as the network's).
+func TestPriorVerdicts_AreBoundedAndKeepTheCleanSighting(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	port := portKey(ipA, 5060)
+	start := t0.Add(-400 * 24 * time.Hour)
+	add := func(i int, outcome string) string {
+		id := fmt.Sprintf("run-%04d", i)
+		at := store.FormatTS(start.Add(time.Duration(i) * 6 * time.Hour))
+		err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id, subject_label,
+				status, queued_at, started_at, ended_at, updated_at) VALUES (?, ?, ?, ?, 'External scan', 'manual', 'admin@acme.example', 'target', 'tgt', 'tgt', 'done', ?, ?, ?, ?)`,
+				id, ModuleID, RunKind, RunLane, at, at, at, at); err != nil {
+				return err
+			}
+			if outcome == "" {
+				return nil
+			}
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome) VALUES (?, 1, ?, ?, ?, ?)`,
+				id, itemVerdict, port, port, outcome)
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	add(0, verdictOpen)
+	for i := 1; i <= 300; i++ {
+		add(i, verdictNetwork)
+	}
+	now := add(301, "")
+	prior, err := priorVerdicts(e.ctx(), e.db.Reader(), "tgt", now, port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prior) > 101 {
+		t.Fatalf("%d verdicts read for one port, want a bounded number", len(prior))
+	}
+	if prior[0].outcome != verdictNetwork || prior[0].at != store.FormatTS(start.Add(300*6*time.Hour)) {
+		t.Fatalf("the newest verdict before: %+v", prior[0])
+	}
+	if !seenClean(prior) {
+		t.Fatal("the clean sighting of the first run is forgotten")
 	}
 }

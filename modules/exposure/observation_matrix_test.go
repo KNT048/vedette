@@ -482,6 +482,23 @@ var omRows = []omRow{
 		distinct: []int{80, 443},
 		want:     omWant{open: []int{22, 80, 443}},
 	},
+	{
+		// Rows stored before the vantage was checked: a real SSH server on 22, and 5060 that a SIP helper answered then. Now the
+		// network accepts 22 and 5060 for every address. The SSH server sends its own banner, which the never-routed address does
+		// not get, so 22 is the target's and stays; 5060 answers nothing of its own, so it was the network's and is retired.
+		name: "middlebox_proxy/stored_before_the_check/real_ssh_kept_and_phantom_sip_retired", kind: omTyped,
+		before: []omNet{omPath(omHost(omReset, 22), omSynAck, 5060)}, beforeNoPath: true,
+		now: omPath(omHost(omReset, 22), omSynAck, 22, 5060), distinct: []int{22},
+		want: omWant{open: []int{22}, notOpen: []int{5060}, run: corerun.Done},
+	},
+	{
+		// A light scan checks the hosting address by name on 80 and 443 only. The rows an earlier deep scan stored there on 22 and
+		// 8443 are outside what this scan may probe (no testing terms now, or the address waits for its turn at depth), so the
+		// re-check does not connect to them either, and nothing is said about them: they stay as they were.
+		name: "scope/hosting_open_before_on_other_ports/light_scan_rechecks_only_the_web_ports", kind: omDomain,
+		before: []omNet{omHost(omSilence, 22, 8443)}, beforeAll: true, now: omHost(omSilence, 80, 443),
+		want: omWant{open: []int{22, 8443}, run: corerun.Done, noLine: []string{"no answer at all"}},
+	},
 }
 
 // omFence is the Vedette host's fence for a typed IP: it gives the target's own token.

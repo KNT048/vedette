@@ -523,10 +523,12 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, runID str
 			}
 		}
 	}
-	full := func(ip string) string {
+	// settled: the address answered nothing and this scan ends an empty streak (emptyStreak). A finished sweep of every port that saw
+	// nothing there is not trusted (sweepTrusted) for the very reason the streak counts as a miss, so it covers every port then.
+	full := func(ip string, settled bool) string {
 		trusted, swept := c.Swept[ip]
 		switch {
-		case swept && !trusted: // this run's sweep of every port met an address that stopped answering it: the fixed list only
+		case swept && !trusted && !settled: // this run's sweep of every port met an address that stopped answering it: the fixed list only
 			return coverList
 		case deep[ip] || !partial:
 			return coverAll
@@ -539,9 +541,9 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, runID str
 	portScanned := func(k string) {
 		switch {
 		case reported[k] || c.Answered[k]:
-			out.checked[k] = full(k)
+			out.checked[k] = full(k, false)
 		case s.emptyStreak(ctx, t.ID, runID, k):
-			out.checked[k], out.settled[k] = full(k), true
+			out.checked[k], out.settled[k] = full(k, true), true
 		default:
 			out.checked[k] = coverEmpty
 		}

@@ -271,3 +271,59 @@ func TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps(t *testing.T) {
 		t.Fatalf("after two trusted sweeps in a row: %q", state())
 	}
 }
+
+// A scan that sees the port again ends a streak of scans with no reply: the empty scans after it count from that scan, so one empty
+// scan a day later, or two within a day, close nothing; the third one, a day after the first, does.
+func TestCoverage_AScanThatSeesThePortRestartsTheEmptyStreak(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ips := e.detect(ipA)
+	if _, err := e.commit(ips[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	scan := func(gap time.Duration, ports ...int) {
+		t.Helper()
+		e.advance(gap)
+		rows := []PortRow{}
+		for _, p := range ports {
+			rows = append(rows, PortRow{IP: ipA, Port: p, Service: "https", Ident: IdentProbed})
+		}
+		e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 1000, Probed: topThousand()}}
+		e.svc.SetRunner(&fakeRunner{content: Content{Ports: rows}})
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	open := func() int { return e.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND state = 'open'`, ipA) }
+	scan(0, 443)
+	scan(ScanEvery + time.Minute)
+	scan(ScanEvery + time.Minute)
+	scan(ScanEvery+time.Minute, 443)
+	scan(24 * time.Hour)
+	if n := open(); n != 1 {
+		t.Fatalf("the first empty scan after 443 was seen again: %d open", n)
+	}
+	scan(ScanEvery + time.Minute)
+	if n := open(); n != 1 {
+		t.Fatalf("the second empty scan after 443 was seen again: %d open", n)
+	}
+	scan(24 * time.Hour)
+	if n := open(); n != 0 {
+		t.Fatalf("the third empty scan, more than a day after the first: %d still open", n)
+	}
+}
+
+// A deep-scanned address whose last open port is outside the fixed list, behind a firewall that drops what is closed (no reset):
+// each sweep sees nothing and is not trusted, but the third such scan over a day still closes the port, like any other.
+func TestCoverage_EmptyDeepScansWithNoReplyCloseAPortOutsideTheList(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan(nil, swept(32400), nil)
+	for range 3 {
+		scan(nil, ServiceScan{Ports: 65535}, nil)
+		e.advance(12 * time.Hour)
+	}
+	if state(32400) != ServiceClosed {
+		t.Fatalf("32400 after three empty deep scans over a day with no reply: %s", state(32400))
+	}
+}

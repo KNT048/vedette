@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -123,6 +124,17 @@ type omWire struct {
 	ip      string
 	pathErr bool
 	nmapErr error
+	// A domain's scan: class is the kind of the name's address (ClassPublic: hosting; ClassBox: the box's own IP); allPorts makes
+	// the runner report every port of that address (it stands in for an earlier deep scan); dnsFails makes the name's lookup get no
+	// answer this time (the row is carried forward, nothing is sent to the address).
+	class    string
+	allPorts bool
+	dnsFails bool
+	// carryFlags: the row carried forward for a failed lookup keeps the scan before's flags (Contacted) as they were.
+	carryFlags bool
+	// distinct are the ports on which the target's answer (certificate, banner, HTTP response) differs from what a never-routed
+	// address gets through the same middlebox. The current ports cannot carry it: the network-path check sees only a connect.
+	distinct []int
 }
 
 func (w *omWire) answer(p omPhase, ip string, port int) omAnswer {
@@ -134,11 +146,29 @@ func (w *omWire) answer(p omPhase, ip string, port int) omAnswer {
 // Scan is the runner: a connect to the fixed list; a refused port marks the address as having answered (the real runner's Refused).
 func (w *omWire) Scan(_ context.Context, st ScanTarget) (Content, error) {
 	c := Content{}
-	if st.Kind == KindDomain { // one name on a hosting address, checked by name on 80 and 443
-		c.Hosts = []HostRow{{Name: "www." + st.Value, IP: w.ip, Source: "wordlist", IPs: []HostIP{{IP: w.ip, Family: "ipv4", Class: ClassPublic, Contacted: true}}}}
-		for _, port := range []int{80, 443} {
-			if w.answer(omRunner, w.ip, port) == omSynAck {
+	if st.Kind == KindDomain { // one name on one address: checked by name on 80 and 443, or port-scanned when it is the box's own IP
+		class := cmp.Or(w.class, ClassPublic)
+		name := "www." + st.Value
+		if w.dnsFails { // the lookup got no answer: nothing is sent; the real runner lists the name as unresolved, with no row
+			c.Unresolved = []string{name}
+			if w.carryFlags { // a runner that hands the scan before's row back, flags and all
+				c.Hosts = []HostRow{{Name: name, IP: w.ip, Source: "wordlist", LookupFailed: true, IPs: []HostIP{{IP: w.ip, Family: "ipv4", Class: class, Contacted: true}}}}
+			}
+			return c, nil
+		}
+		c.Hosts = []HostRow{{Name: name, IP: w.ip, Source: "wordlist", IPs: []HostIP{{IP: w.ip, Family: "ipv4", Class: class, Contacted: true}}}}
+		ports := []int{80, 443}
+		if class == ClassBox || w.allPorts {
+			ports = omPorts()
+		}
+		for _, port := range ports {
+			switch w.answer(omRunner, w.ip, port) {
+			case omSynAck:
 				c.Ports = append(c.Ports, PortRow{IP: w.ip, Port: port, Service: "http", Ident: IdentProbed})
+			case omReset:
+				if class == ClassBox {
+					c.Answered = map[string]bool{w.ip: true}
+				}
 			}
 		}
 		return c, nil
@@ -211,9 +241,10 @@ func (w *omWire) Probe(_ context.Context, ip netip.Addr, ports []int) (map[int]s
 type omKind int
 
 const (
-	omOwnIP  omKind = iota // the box's own public IP, which the box reaches from inside the network (NAT loopback)
-	omTyped                // a public IP the customer typed and proved (a VPS, a host elsewhere): reached over the Internet
-	omDomain               // a proved domain whose name points at a hosting address, checked by name (no testing terms)
+	omOwnIP       omKind = iota // the box's own public IP, which the box reaches from inside the network (NAT loopback)
+	omTyped                     // a public IP the customer typed and proved (a VPS, a host elsewhere): reached over the Internet
+	omDomain                    // a proved domain whose name points at a hosting address, checked by name (no testing terms)
+	omDomainOnBox               // a proved domain whose name points at the box's own IP (port-scanned there; no testing terms)
 )
 
 // omStep is the outcome a row wants of one step of the run.
@@ -230,6 +261,7 @@ type omWant struct {
 	absent  []int          // ports never stored
 	run     corerun.Status // the run's outcome
 	line    []string       // a "Not checked" line of the last scan contains each of these (case-insensitive)
+	noLine  []string       // no "Not checked" line of the last scan contains this (case-insensitive)
 	steps   []omStep
 }
 
@@ -245,6 +277,10 @@ type omRow struct {
 	gap          time.Duration // between the scans of now (default ScanEvery and a minute)
 	pathErr      bool
 	nmapErr      error
+	beforeAll    bool // the history scans report every port of a domain's address (an earlier deep scan stored them)
+	dnsFails     bool // the now scans get no answer to the name's lookup
+	carryFlags   bool // with dnsFails: the carried row keeps the scan before's flags
+	distinct     []int
 	want         omWant
 	// decision names the product rule the row's expectation changes; "" when the expectation follows the rules as written.
 	decision string
@@ -340,6 +376,37 @@ var omRows = []omRow{
 		want: omWant{open: []int{80, 443}, run: corerun.Partial, line: []string{ipB}},
 	},
 
+	// ---- when "no port answered this box" may be said ----
+	{
+		// A light scan (no testing terms now, or an address left out by the deep scan's cap this run) checks the hosting address by
+		// name on 80 and 443 only; the rows an earlier deep scan stored there are on 22 and 8443, which this scan never probed. Nothing
+		// it probed was open before, so nothing "did not answer".
+		name: "unanswered_line/hosting_open_before_on_other_ports/light_scan_probes_only_80_443", kind: omDomain,
+		before: []omNet{omHost(omSilence, 22, 8443)}, beforeAll: true, now: omHost(omSilence, 22, 8443),
+		want: omWant{open: []int{22, 8443}, run: corerun.Done, noLine: []string{"answered this box"}},
+	},
+	{
+		// The domain's name, on the box's own IP, got no DNS answer this time (the runner lists it as unresolved): nothing was sent to
+		// the address. That is a lookup failure, not a target that did not answer.
+		name: "unanswered_line/domain_on_box_ip_open_before/dns_no_answer_this_time", kind: omDomainOnBox,
+		before: []omNet{omHost(omReset, 22, 443)}, now: omHost(omReset, 22, 443), dnsFails: true,
+		want: omWant{open: []int{22, 443}, noLine: []string{"answered this box"}, line: []string{"lookup"}},
+	},
+	{
+		// The same on a hosting address, with the row handed back as the scan before stored it (contacted then): still no packet went
+		// to the address this time. Whether the line is said must not hang on a flag of a carried row.
+		name: "unanswered_line/hosting_open_before/dns_no_answer_row_carried_with_its_flags", kind: omDomain,
+		before: []omNet{omHost(omReset, 80, 443)}, now: omHost(omReset, 80, 443), dnsFails: true, carryFlags: true,
+		want: omWant{open: []int{80, 443}, noLine: []string{"answered this box"}, line: []string{"lookup"}},
+	},
+	{
+		// The rule the line exists for: an external host whose every port the box probed, open before, gave no answer at all while
+		// the box reached the Internet. The line is said and names what to do.
+		name: "unanswered_line/external_open_before/every_probed_port_silent", kind: omTyped,
+		before: []omNet{omHost(omSilence, 22, 443)}, now: omEverything(omSilence),
+		want: omWant{open: []int{22, 443}, run: corerun.Partial, line: []string{ipC}},
+	},
+
 	// ---- rate limiting or an IPS that drops the box after some requests ----
 	{
 		// The runner saw 22, 80 and 443; nmap's sweep then got answers from 22 only (an IPS cut in), and the ban was lifted before the
@@ -369,6 +436,22 @@ var omRows = []omRow{
 		before: []omNet{omPath(omHost(omReset, 22), omSynAck, 2000, 5060)}, beforeNoPath: true,
 		now:  omPath(omHost(omReset, 22), omSynAck, 2000, 5060),
 		want: omWant{open: []int{22}, notOpen: []int{2000, 5060}, run: corerun.Done},
+	},
+	{
+		// A transparent or SYN proxy on the path for 80 and 443 (a corporate web proxy, a firewall's web filter) accepts those ports
+		// for every destination, the never-routed address too. The target's real web services, stored over a clean path, go through
+		// the proxy all the same: the proxy is no evidence that they are gone, so their rows (and issues) must stay.
+		name: "middlebox_proxy/open_before/transparent_proxy_on_80_443_keeps_real_web_rows", kind: omTyped,
+		before: []omNet{omHost(omReset, 22, 80, 443)}, now: omPath(omHost(omReset, 22, 80, 443), omSynAck, 80, 443),
+		want: omWant{open: []int{22, 80, 443}},
+	},
+	{
+		// Through the same proxy, the target's real web service answers with its own certificate and pages; the never-routed address
+		// gets the proxy's own answer (an error page, a closed connection). Comparing the two tells the target's service from the
+		// proxy's, so a real web service is still found.
+		name: "middlebox_proxy/never_seen/real_web_service_told_apart_from_the_proxy", kind: omTyped,
+		now: omPath(omHost(omReset, 22, 443), omSynAck, 80, 443), distinct: []int{443},
+		want: omWant{open: []int{22, 443}, notOpen: []int{80}},
 	},
 	{
 		// The network-path check failed: 5060 may be the firewall's helper. The run cannot tell and says nothing.
@@ -424,11 +507,19 @@ func newOMEnv(t *testing.T, kind omKind) *omEnv {
 	case omDomain:
 		v := e.addVerifiedDomain()
 		o.id, o.ip = v.ID, ipB
+	case omDomainOnBox:
+		ips := e.detect(ipA)
+		if _, err := e.commit(ips[0].ID); err != nil {
+			t.Fatal(err)
+		}
+		v := e.addVerifiedDomain()
+		o.id, o.ip = v.ID, ipA
+		o.wire.class = ClassBox
 	}
 	if _, err := e.commit(o.id); err != nil {
 		t.Fatal(err)
 	}
-	if kind != omDomain {
+	if kind != omDomain && kind != omDomainOnBox {
 		e.acceptTerms(o.id, false)
 	}
 	o.wire.ip = o.ip
@@ -438,14 +529,22 @@ func newOMEnv(t *testing.T, kind omKind) *omEnv {
 	return o
 }
 
-// scan runs one deep scan of the target over n, with or without the network-path check.
-func (o *omEnv) scan(n omNet, path bool, pathErr bool, nmapErr error) ScanResult {
+// omScan is how one scan of a row runs.
+type omScan struct {
+	path, pathErr, allPorts, dnsFails, carryFlags bool
+	nmapErr                                       error
+	distinct                                      []int
+}
+
+// scan runs one scan of the target over n (the deep scan for an IP target).
+func (o *omEnv) scan(n omNet, how omScan) ScanResult {
 	o.t.Helper()
 	o.wire.mu.Lock()
-	o.wire.net, o.wire.pathErr, o.wire.nmapErr = n, pathErr, nmapErr
+	o.wire.net, o.wire.pathErr, o.wire.nmapErr = n, how.pathErr, how.nmapErr
+	o.wire.allPorts, o.wire.dnsFails, o.wire.carryFlags, o.wire.distinct = how.allPorts, how.dnsFails, how.carryFlags, how.distinct
 	o.wire.mu.Unlock()
 	o.svc.cfg.Path = nil
-	if path {
+	if how.path {
 		o.svc.cfg.Path = o.wire
 	}
 	r, err := o.svc.Scan(o.ctx(), "admin@acme.example", o.id)
@@ -474,7 +573,7 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
 	t.Helper()
 	o := newOMEnv(t, row.kind)
 	for _, b := range row.before {
-		o.scan(b, !row.beforeNoPath, false, nil)
+		o.scan(b, omScan{path: !row.beforeNoPath, allPorts: row.beforeAll})
 		o.advance(ScanEvery + time.Minute)
 	}
 	scans, gap := max(row.scans, 1), row.gap
@@ -486,7 +585,7 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
 		if i > 0 {
 			o.advance(gap)
 		}
-		r = o.scan(row.now, true, row.pathErr, row.nmapErr)
+		r = o.scan(row.now, omScan{path: true, pathErr: row.pathErr, nmapErr: row.nmapErr, dnsFails: row.dnsFails, carryFlags: row.carryFlags, distinct: row.distinct})
 	}
 	d := o.runDetail(o.ctx(), r.RunID)
 	var diff []string
@@ -532,6 +631,11 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
 		})
 		if !found {
 			diff = append(diff, fmt.Sprintf("no \"Not checked\" line contains %q; the lines: %q", row.want.line, lines))
+		}
+	}
+	for _, part := range row.want.noLine {
+		if i := slices.IndexFunc(r.NotChecked, func(n NotCheckedRow) bool { return strings.Contains(strings.ToLower(n.Text), strings.ToLower(part)) }); i >= 0 {
+			diff = append(diff, fmt.Sprintf("a \"Not checked\" line contains %q: %q", part, r.NotChecked[i].Text))
 		}
 	}
 	for _, w := range row.want.steps {

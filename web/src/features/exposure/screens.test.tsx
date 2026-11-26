@@ -86,8 +86,7 @@ describe('exposure screens: a target page', () => {
     const services = await screen.findByRole('table', { name: 'Services of example.com' })
     const smtp = within(services).getByText('198.51.100.21:25/tcp').closest('tr')!
     expect(smtp).toHaveTextContent('Not reached since 3 Nov 2026')
-    await userEvent.click(within(smtp).getByRole('button', { name: /Not reached since 3 Nov 2026/ }))
-    expect(await screen.findByText(/The last scans could not reach this port from the box\./)).toBeInTheDocument()
+    expect(within(smtp).getByRole('button', { name: /Not reached since 3 Nov 2026/ })).toHaveAccessibleDescription(/^The last scans could not reach this port from the box\./)
     const https = within(services).getByText('198.51.100.20:443/tcp').closest('tr')!
     expect(https).not.toHaveTextContent('Not reached')
     expect(within(services).getAllByText(/^Not reached since/)).toHaveLength(1)

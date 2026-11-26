@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { z } from 'zod'
 import { sessionStore, usersStore } from '@/mocks/stores'
 import { Issue, NOTICE_VERSION, Scan, TargetNode, TargetTree, TERMS_VERSION } from './contract'
+import { termsAcceptable } from './node'
 
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
 async function call(method: string, path: string, body?: unknown, role: keyof typeof USER = 'admin') {
@@ -117,5 +118,10 @@ describe('exposure tree', () => {
     expect((await call('POST', '/exposure/issues/reopen', { ids: ['xi-1', 'xi-2'] }, 'operator')).json).toEqual({ reopened: 1, skipped: 1 })
     expect((await issues()).find((i) => i.id === 'xi-1')).toMatchObject({ state: 'open', resolution: null, resolved_by: null })
     expect((await call('POST', '/exposure/issues/reopen', { ids: ['xi-1'] }, 'viewer')).status).toBe(403)
+  })
+  it('the testing terms can be accepted while the proof holds, the box\'s own IP it does not go out through now included', () => {
+    const at = (state: z.infer<typeof TargetNode>['proof']['state']) => termsAcceptable({ proof: { state } } as Pick<z.infer<typeof TargetNode>, 'proof'>)
+    expect(['proven', 'covered', 'not_current'].map((s) => at(s as never))).toEqual([true, true, true])
+    expect(['missing', 'expired'].map((s) => at(s as never))).toEqual([false, false])
   })
 })

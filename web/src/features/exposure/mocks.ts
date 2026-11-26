@@ -702,7 +702,7 @@ const treeHandlers = [
     const b = await body<{ version?: string; disruptive?: boolean }>(request)
     if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
     const v = nodeView(n)
-    if (v.proof.state !== 'proven' && v.proof.state !== 'covered') return fail(409, 'not_verified', 'Prove ownership first; only then can the testing terms be accepted.')
+    if (v.proof.state !== 'proven' && v.proof.state !== 'covered' && v.proof.state !== 'not_current') return fail(409, 'not_verified', 'Prove ownership first; only then can the testing terms be accepted.')
     const disruptive = b.disruptive === true
     const at = nowIso()
     const next = patchNode(n.id, (x) => ({

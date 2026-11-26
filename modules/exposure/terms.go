@@ -210,15 +210,8 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		case statusExpired:
 			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
 		}
-		if t.Kind == KindIP && !t.Typed { // paused: the box no longer goes out through it, so it is not shown to be the box's own now
-			c, err := s.loadChecks(ctx, tx)
-			if err != nil {
-				return err
-			}
-			if c.paused(t) {
-				return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Its testing terms can be accepted once the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
-			}
-		}
+		// The box's own IP it does not go out through now keeps its proof for ValidDays from its last sighting (INV-4) and is scanned in
+		// that time, so its terms can be accepted in that time too; past it the IP is expired (above).
 		if t.Terms.current() && t.Terms.Disruptive == disruptive {
 			return nil
 		}

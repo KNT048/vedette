@@ -1826,12 +1826,12 @@ func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, re
 // Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds
 // denial-of-service, password-guessing, default-password checks and exploit checks that send more than
 // a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409
-// notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or
-// ip_not_current (an IP the box does not go out through now); 409 shared_address for disruptive on an
-// IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this
-// target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment
-// when the target has none of the current sentence. Accepting what is accepted changes nothing.
-// Audited (exposure.terms_accept, with the flag).
+// notice_changed when version is not the current terms_notice.version; 409 not_verified or expired
+// (the box's own IP it does not go out through now can accept them while its 90-day proof holds); 409
+// shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or
+// withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason).
+// Also records the Scan now commitment when the target has none of the current sentence. Accepting
+// what is accepted changes nothing. Audited (exposure.terms_accept, with the flag).
 //
 // PUT /exposure/targets/{id}/terms
 func (UnimplementedHandler) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *ExposurePutExposureTargetsIDTermsReq, params ExposurePutExposureTargetsIDTermsParams) (r *ExposurePutExposureTargetsIDTermsOK, _ error) {

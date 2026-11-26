@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/input'
 import { useCan } from '@/lib/session'
 import { useAcceptTerms, useRevokeTerms } from './api'
 import { InfoLine } from '@/components/common/InfoLine'
-import { proven } from './node'
+import { termsAcceptable } from './node'
 import type { TargetNode } from './types'
 import { fmtDateTime } from '@/lib/format'
 
@@ -26,7 +26,7 @@ export function TermsPanel({ node: target }: { node: TargetNode }) {
   const a = target.terms
   const [disruptive, setDisruptive] = useState(target.deep && a ? a.disruptive : false)
   const lines = n.text.split('\n')
-  const verified = proven(target)
+  const verified = termsAcceptable(target)
   const changed = !target.deep || a?.disruptive !== disruptive
   const locked = !can ? t('common:needRole', { role: t('common:role.admin') }) : !verified ? t('terms.needVerified') : undefined
   const onError = (e: unknown) => toast.error(e instanceof Error ? e.message : String(e))

@@ -17,6 +17,10 @@ export function depths(items: Pick<TargetNode, 'id' | 'parent_id'>[]): Map<strin
 /** The ownership proof holds, by the node's own proof or an ancestor's. */
 export const proven = (n: Pick<TargetNode, 'proof'>) => n.proof.state === 'proven' || n.proof.state === 'covered'
 
+/** The testing terms can be accepted while the proof holds: proven, covered, or the box's own IP it does not go out through now (its
+ *  proof holds 90 days from the last sighting and it is scanned in that time). */
+export const termsAcceptable = (n: Pick<TargetNode, 'proof'>) => proven(n) || n.proof.state === 'not_current'
+
 /** A person has something to do on the Ownership tab: prove the node, or put its proof back. */
 export const needsProof = (n: Pick<TargetNode, 'proof'>) => n.proof.state === 'missing' || n.proof.state === 'expired'
 

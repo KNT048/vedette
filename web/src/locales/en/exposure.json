@@ -360,6 +360,7 @@
     "who": "Only an administrator with two-step sign-in can accept them; who and when go in the audit log. Withdrawing is always possible.",
     "needVerified": "Verify ownership first; only then can the testing terms be accepted.",
     "cgnatLimit": "If your router gets its address from your provider's shared range, ask your provider before accepting.",
+    "otherLine": "The box does not go out through {{ip}} now: the deep scan can be accepted, the disruptive checks once the box uses {{ip}} again.",
     "cgnatLimitInfo": "Vedette can tell carrier-grade NAT only when this box's own gateway is in 100.64.0.0/10; it cannot see your router's outside address.",
     "cgnatTopic": "Carrier-grade NAT",
     "stops": "Withdrawing them, or taking the disruptive checks out, stops a scan of this target that is running at the higher level.",

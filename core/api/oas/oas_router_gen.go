@@ -15646,7 +15646,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											return r, true
 										case "PUT":
 											r.name = ExposurePutExposureTargetsIDTermsOperation
-											r.summary = "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (an IP the box does not go out through now); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)"
+											r.summary = "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired (the box's own IP it does not go out through now can accept them while its 90-day proof holds; 409 ip_not_current for the disruptive tick on it); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)"
 											r.operationID = "exposure_put_exposure_targets_id_terms"
 											r.operationGroup = ""
 											r.pathPattern = "/exposure/targets/{id}/terms"
@@ -15972,7 +15972,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											return r, true
 										case "PUT":
 											r.name = ExposurePutExposureTreeIDTermsOperation
-											r.summary = "Accept the testing terms of a proven or covered node: its scans are then deep scans; disruptive adds the disruptive checks. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified; 409 shared_address for disruptive behind carrier-grade NAT. Records the scan confirmation too when the node has none of the current sentence. Audited"
+											r.summary = "Accept the testing terms of a node whose proof holds (proven, covered, or the box's own IP it does not go out through now): its scans are then deep scans; disruptive adds the disruptive checks. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified or expired; 409 shared_address for disruptive behind carrier-grade NAT; 409 ip_not_current for disruptive on the box's own IP it does not go out through now. Records the scan confirmation too when the node has none of the current sentence. Audited"
 											r.operationID = "exposure_put_exposure_tree_id_terms"
 											r.operationGroup = ""
 											r.pathPattern = "/exposure/tree/{id}/terms"

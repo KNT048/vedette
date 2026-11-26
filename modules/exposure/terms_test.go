@@ -264,8 +264,9 @@ func TestTerms_CarrierGradeNAT(t *testing.T) {
 	}
 }
 
-// review r1 L2: a paused IP (the latest full check did not see it) cannot accept the terms.
-func TestTerms_PausedIPCannotAccept(t *testing.T) {
+// The box's own IP it does not go out through now (the latest full check saw another one) keeps its proof for its 90 days and is
+// scanned in that time; the testing terms can be accepted in that time too, as for a domain whose last check missed its record.
+func TestTerms_NotCurrentIPInsideItsProofCanAccept(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.committedIP(ipA).ID
@@ -275,8 +276,45 @@ func TestTerms_PausedIPCannotAccept(t *testing.T) {
 		t.Fatal("not paused")
 	}
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
-	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	v, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	if err != nil {
+		t.Fatalf("terms refused inside the proof: %v", err)
+	}
+	if !v.FullScan {
+		t.Fatalf("view = %+v", v)
+	}
+}
+
+// The disruptive tick needs the line in use: the carrier-grade NAT check reads the box's current gateway, which belongs to another line
+// while the box does not go out through this IP, so the tick is refused then (fail closed) and the deep scan without it is not.
+func TestTerms_NotCurrentIPRefusesTheDisruptiveTick(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.advance(time.Minute)
+	e.fullAs(ipB)
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, true)
 	wantAPI(t, err, 409, "ip_not_current")
+	if v := e.target(id); v.FullScan {
+		t.Fatalf("a refused tick accepted the terms: %+v", v)
+	}
+	if v := e.acceptTerms(id, false); !v.FullScan {
+		t.Fatalf("deep scan without the tick refused: %+v", v)
+	}
+}
+
+// Once the 90 days of the last sighting have passed, the IP is expired and its terms cannot be accepted.
+func TestTerms_NotCurrentIPPastItsProofCannotAccept(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.advance(time.Minute)
+	e.fullAs(ipB)
+	e.advance(91 * 24 * time.Hour)
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	wantAPI(t, err, 409, "expired")
 }
 
 // review r2 M1: a withdrawal committed while the scan's gate runs (the full public-IP check) is seen when the run registers: the run

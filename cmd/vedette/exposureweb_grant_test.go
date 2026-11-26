@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -82,5 +83,41 @@ func TestExposureWeb_TheHostsRefusalOfTheDisruptiveRulesIsSaid(t *testing.T) {
 			t.Errorf("%s: %q %v", code, got.DisruptiveRefused, err)
 		}
 		seen[got.DisruptiveRefused] = true
+	}
+}
+
+// A person whose e-mail is outside the host's actor alphabet (a "+" tag, a long address) still presses as a person: the grant and the
+// zap.active runs of the scan carry the same person label, one the host accepts as a person's (exposure:<label>, never the bare
+// "exposure" the host refuses a grant for), and two such people get two labels.
+func TestExposureWeb_APersonOutsideTheActorAlphabetStillGetsAGrant(t *testing.T) {
+	t.Parallel()
+	hostActor := regexp.MustCompile(`^[a-zA-Z0-9_.@:-]{1,64}$`)
+	const grant = "0123456789abcdef0123456789abcdef"
+	ok := api.Run{Command: api.CmdZapAuthorize, Status: api.StatusSucceeded}
+	ok.Result, _ = json.Marshal(api.ZapAuthorizeResult{Grant: grant})
+	run := zapRun(t, api.StatusSucceeded, "", nil)
+	run.Command = api.CmdZapActive
+	run.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: "0123456789abcdef0123456789abcdef", Size: 11})
+	labels := map[string]string{}
+	for _, user := range []string{"admin+scans@example.com", "a.very.long.mailbox.name.of.the.security.team@subdomain.example.com"} {
+		h := &authorizingZapHost{fakeZapHost: &fakeZapHost{run: run, report: []byte(`{"site":[]}`)}, auth: ok}
+		w := exposureWebScan{host: h}
+		if _, err := w.GrantDisruptive(t.Context(), user, netip.MustParseAddr("93.184.216.34")); err != nil {
+			t.Fatal(err)
+		}
+		ipT := webIPTarget
+		ipT.User, ipT.Mode, ipT.Grant = user, exposure.ScanMode{Full: true, Disruptive: true}, grant
+		if _, err := w.Active(t.Context(), ipT, webIPPage); err != nil {
+			t.Fatal(err)
+		}
+		label := h.actors[0]
+		who, isPerson := strings.CutPrefix(label, "exposure:")
+		if !isPerson || who == "" || strings.EqualFold(who, "system") || !hostActor.MatchString(label) || h.actor != label {
+			t.Fatalf("%s: grant asked as %q, its run labelled %q", user, label, h.actor)
+		}
+		labels[label] = user
+	}
+	if len(labels) != 2 {
+		t.Fatalf("two people share one label: %q", labels)
 	}
 }

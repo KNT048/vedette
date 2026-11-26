@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -304,5 +307,28 @@ func TestTermsOne_APITakesTheVersionAlone(t *testing.T) {
 	}
 	if n, _ := b["terms_notice"].(map[string]any); n == nil || n["disruptive"] != nil {
 		t.Fatalf("the notice still has a separate tick sentence: %v", b["terms_notice"])
+	}
+}
+
+// The disruptive checks are part of the testing terms, not a separate tick: no text a person reads (the privacy and legal
+// documents, the third-party notices, the screens' English text) may still say they run only "when ticked".
+func TestTermsOne_NoUserTextMentionsADisruptiveTick(t *testing.T) {
+	t.Parallel()
+	tick := regexp.MustCompile(`(?i)disruptive tick|disruptive checks (are )?(also )?ticked`)
+	files := []string{"../../PRIVACY.md", "../../TERMS.md", "../../THIRD_PARTY_NOTICES.md", "../../docs/LEGAL.md", "../../docs/cookbook/05-external-exposure-scan.md"}
+	locales, err := filepath.Glob("../../web/src/locales/en/*.json")
+	if err != nil || len(locales) == 0 {
+		t.Fatalf("locales: %v %v", locales, err)
+	}
+	for _, f := range append(files, locales...) {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(b), "\n") {
+			if m := tick.FindString(line); m != "" {
+				t.Errorf("%s:%d still says %q: the disruptive checks are part of the accepted testing terms", f, i+1, m)
+			}
+		}
 	}
 }

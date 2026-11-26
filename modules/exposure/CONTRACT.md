@@ -106,55 +106,68 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-37** Results are rows (`exp_host`, `exp_address`, `exp_service`, `exp_issue`), never a document per scan. What changed is
   read from `first_seen`, `last_seen` and `state`.
 - **INV-8** The old per-day snapshot and diff endpoints answer 501.
-- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed (two scans in a row that probed it
-  must miss it), with two exceptions that close at once ("No longer seen"; first and last seen stay). (1) A trusted sweep: a deep
-  scan's nmap step that probed every TCP port of the address, saw every port the runner found open there this run and saw at least
-  one open port or got closed replies (`sweepTrusted`) closes a port of the runner's fixed list that the runner's connect also
-  missed this scan (two probes of this run missed it). A port outside the fixed list, or on an address the runner did not
-  port-scan, keeps the two-miss rule (two trusted sweeps in a row). A sweep that is not trusted checks only the fixed list; a failed
-  nmap step checks only the fixed list. (2) An address with nothing open: "nothing open" is a result when the address answered this
-  scan (a TCP reset to the runner's connect or to nmap, `Content.Answered`), and the scan counts as usual. When it answered nothing
-  at all (a lost NAT loopback, a firewall dropping the probes) the scan is not a miss (run item `checked_empty`), until the third
-  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`).
-  (3) Right before the results are written, the ports open before that this scan did not see, on the addresses it port-scanned
-  (an IP target, a domain's swept or own-box addresses; not an address that stopped answering), get one more TCP connect
-  (`recheckMissed`, `PortProber`: cmd/vedette's liveness check, at most 8 addresses and 32 ports each). A port that accepts it is
-  not a miss (`Content.Answering`); a reset leaves the rules above as they are; no answer at all (a firewall or WAF that blocks the
-  box drops its packets while other ports still answer, so the runner and a trusted sweep both miss the port) is not a miss
-  (`Content.Silent`, run item `silent_port`) until the third such scan in a row at least 24 hours after the first (`silentStreak`),
-  which closes it. A port that accepted the re-check (run item `answered_port` / `still_open`) starts that count again, and neither
-  such a scan nor a silent one is the scan before that missed the port for the two-miss rule (`previousCheck`). The run's log and a
-  "Not checked" line of kind `silent_ports` say so (it also says a port the owner closed is marked closed after three scans over a
-  day; past 6 ports it counts the rest, so it stays within a line's 300 characters). No prober, a failed check or a port past the bounds: the rules above.
-  `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`, `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`,
-  `TestSilentPorts_AResetClosesAndAnAnswerKeeps`, `TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain`,
-  `TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore`, `TestSilentPorts_ManySilentPortsKeepTheirLine`. (3) An address
-  that stopped answering during the scan (INV-42: a port seen open earlier in the run no longer accepted a TCP connection before
-  the results were written) is not a miss of any port: its run item is `stopped_answering`, which checks no port and does not count
-  in `emptyStreak` (a router that lost its NAT loopback may answer with resets on its unforwarded ports, which (1) and (2) would
-  take as an answer). `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`,
-  `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`, `TestCoverage_AnEmptySweepWithClosedRepliesCounts`,
-  `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`, `TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps`,
-  `TestCoverage_AScanThatReachedNothingIsNotAMiss`, `TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss`,
-  `TestCoverage_EmptyScansWithNoReplyCloseOnlyAfterThreeOverADay`.
+- **INV-22** A stored port is opened, kept, closed or retired only from the verdict this scan gave it (INV-45), never from one
+  probe: "No longer seen" keeps first and last seen. `open` opens or keeps it. `closed` (missed while the address answered, no sign
+  of the network) closes it at once when two probes of this run missed it (the runner's connect and a trusted sweep of every TCP
+  port, `sweepTrusted`, on a port of the fixed list; or one of them and a reset to the re-check), else only when the newest scan
+  before that gave the port a verdict found it closed too (a scan that did not probe the port gives it none: a failed or untrusted
+  sweep checks only the fixed list, a default scan only the ports its service step probed, `Content.Probed`). `filtered` (no answer
+  at all to the re-check while the address answered on other ports: a firewall or WAF dropping the box) closes it only as the third
+  filtered scan in a row since it was last seen, at least 24 hours after the first. `unreached`, `lost` and `unknown` never close
+  it: it stays as it was, and once it was last seen more than 30 days ago it is no longer listed ("not reached for 30 days": not
+  counted as closed by the target, no alert, said in the save step). `network` retires it (no longer listed, its issues gone, not
+  counted as closed) only when no scan ever saw it open over a path the network-path check found clean (INV-44); otherwise it is
+  kept. Right before the results are written, the ports open before that this scan did not see, on the addresses it probed (an IP
+  target, a domain's swept, own-box or by-name addresses; not an address that stopped answering, nor a name whose lookup got no
+  answer), get one more TCP connect (`recheckMissed`, `PortProber`: cmd/vedette's liveness check, at most 8 addresses and 32 ports
+  each): what each got is a probe of the run. The scans before are read from the run items of kind `verdict` only; items of runs
+  older than the model are ignored, which only delays a close. `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`,
+  `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`, `TestSilentPorts_AResetClosesAndAnAnswerKeeps`,
+  `TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain`, `TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore`,
+  `TestSilentPorts_ASweepMissAndAResetOfTheRecheckCloseAtOnce`, `TestSilentPorts_ManySilentPortsKeepTheirLine`,
+  `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`, `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`,
+  `TestCoverage_AnEmptySweepWithClosedRepliesCounts`, `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`,
+  `TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps`, `TestCoverage_AScanThatReachedNothingIsNotAMiss`,
+  `TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss`, `TestCoverage_EmptyScansWithNoReplyNeverCloseAndRetireAfterThirtyDays`,
+  `TestCoverage_EmptyDeepScansWithNoReplyKeepAPortOutsideTheList`, `TestVerdicts_FilteredStreakAndCleanSighting`.
 - **INV-44** A port answered by the box's own network is not the target's. Some networks answer a TCP connect on a few ports for any
-  destination (a firewall's SIP or SCCP helper on 5060 or 2000, a transparent or SYN proxy), so every target would show them open.
-  Each port a scan step finds open (the runner's connect, nmap's discovery and service scan of an IP or of a domain's address) is
-  checked once a run (`Config.Path`, `PathChecker`; cmd/vedette: a plain TCP connect, closed at once, to 192.0.2.1, 198.51.100.1 and
-  203.0.113.1, the never-routed RFC 5737 ranges; two of the three answering means the network answers). Such a port is left out of
-  the results before any engine step: no service, admin page, certificate or script result, no template, ZAP or OpenVAS job; it is
-  neither seen nor missed for INV-22 (`closeVanished` skips it, its run item `path_port` / `answered_by_network` makes
-  `previousCheck` skip the run for it). The run's log says which ports, once each, and the target's "Not checked" lines get one line
-  of kind `network_path` ("Ports 2000 and 5060 are answered by your own network …, so they were left out of the results."). No
-  check wired, or a check that fails: the ports stay as found. A row an earlier scan stored open for such a port (before the check
-  existed, or when it failed) is retired by the scan whose check flagged that port on that address: state `closed` ("No longer
-  seen"), its issues gone as for any closed service, not counted in the run's closed services; the save step and the run's log say
-  "Ports 2000 and 5060 of <ip> are no longer listed: they are answered by your own network, not by <ip>." A port the network
-  answered on another address only, or a check that failed or did not run, retires nothing; the same port seen open later from a
-  clean network is a new open service. `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`,
-  `TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired`, `TestNetworkPath_NoCheckKeepsTheOpenPorts`,
-  `TestNetworkPath_ManyPortsKeepTheirLine` (past 6 ports and 3 addresses the line counts the rest); cmd/vedette
-  `TestExposurePathConnectsOnlyToNeverRoutedAddresses`.
+  destination: a firewall's SIP or SCCP helper on 5060 or 2000 or a transparent or SYN proxy accepts it, an egress filter (an ISP
+  blocking 25) refuses it. The vantage of each run is calibrated (`Config.Path`, `PathChecker`; cmd/vedette `exposurePath`: a plain
+  TCP connect, closed at once, to 192.0.2.1, 198.51.100.1 and 203.0.113.1, the never-routed RFC 5737 ranges; what two of the three
+  get is the network's answer: accepted, refused or nothing): at the start of the run for the fixed list and the ports open before,
+  then for each port a scan step finds open, each port once a run. A port the network accepts for every address is the target's
+  only when the target's own answer differs from what a never-routed address gets through the same network (`SameAsPath`: for a web
+  or TLS port of the fixed list, the TLS certificate, else the status, Server header and title of GET /; any other port is not
+  read): a real web service behind a transparent proxy is still found. Otherwise the port is left out of the results before any
+  engine step (no service, admin page, certificate or script result, no template, ZAP or OpenVAS job) and its verdict is `network`.
+  A reset the network gives for every address is not the target's either: the port's verdict is `network`, and the runner's and the
+  sweep's resets no longer show the address answered. The run's log says which ports, once each, and the target's "Not checked"
+  lines get one line per address of kind `network_path` ("Ports 2000 and 5060 are answered by your own network …, so they were left
+  out of the results."; "Port 25 is refused by your own network for every address …"). No check wired: the ports stay as found, seen
+  over a path that was not checked (`open_unchecked`). A check that fails: the ports stay as found, their verdict is `unknown`, the
+  run is partly done and a `network_path` line says the box could not tell. A row stored open for a `network` port is retired only
+  when no scan saw it open over a checked clean path (a row stored before the check existed, or the network's own port); a row a
+  clean scan saw is kept, so a proxy or a SIP helper added later never makes real services and their issues disappear. The save step
+  and the run's log say "Ports 2000 and 5060 of <ip> are no longer listed: they are answered by your own network, not by <ip>."
+  `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`, `TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired`,
+  `TestNetworkPath_NoCheckKeepsTheOpenPorts`, `TestNetworkPath_ManyPortsKeepTheirLine`, `TestVerdicts_ATargetsOwnAnswerThroughAProxyIsOpen`;
+  cmd/vedette `TestExposurePathConnectsOnlyToNeverRoutedAddresses`, `TestExposurePathComparesTheTargetsAnswerWithTheNetworks`.
+- **INV-45** One observation model for an external scan (`observe.go`): every probe source records what it got in the run's probe
+  log (the runner, nmap's sweep, the liveness checks of INV-42, the re-check of INV-22, the calibration of INV-44), and one pure
+  function, `verdicts`, gives each address and port of the run (a port open before, or open now) one verdict: `open`, `closed`,
+  `filtered`, `unreached` (nothing of the address answered, or the box's own IP reached through NAT loopback flipped to resets on
+  every port with nothing open: the router answers for itself), `lost` (answered earlier in the run, then stopped), `network` or
+  `unknown` (the calibration failed, or a probe step failed or was cut), and each address a rollup (reachable, unreached, lost) with
+  a reason: the loopback vantage (the box's own public IP, while it is the box's current egress address) or a block in front of the
+  target. Every consumer reads the verdict only: the rows (INV-22), the engines (the open ports; a lost port gets no engine), the
+  run's outcome (partly done when a port open before is `filtered`, or any port is `lost`, `unreached` or `unknown`, or a step
+  failed or was cut, such as a deep sweep that missed ports the runner saw moments before; failed `unreachable` when the box is
+  offline, INV-41) and the customer's words: one function (`vantageLines`) writes one line per address and fact from the reason,
+  the NAT-loopback hint only for the loopback vantage, "allow this box's public IP <ip> during [deep] scans" otherwise, and the
+  run's log and its reason use the same text. The verdicts are the run's items of kind `verdict` (subject `ip:port`, outcome the
+  verdict, `open_unchecked` for an open port whose path was not checked). The 26 rows of `TestObservationMatrix` (and its guard,
+  every done step has a note) are the cases: a new vantage case is a new row first. `TestVerdicts_OneVerdictPerAddressAndPort`,
+  `TestVerdicts_ProbesThatMissedAClosedPort`, `TestVerdicts_TheLinesSayTheReason`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
   nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.
@@ -169,22 +182,20 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   domain's addresses (scannable, but not the box's). When no port of the target answers
   any more, the later engine steps are skipped with that note. nuclei's own sign counts too: a port where at least half of 20 or
   more templates got no answer (only connection errors, skipped after nuclei gave the address up, or lines about another address)
-  makes the template step partly done. Such a run, and a run whose engine image
+  makes the template step partly done (inside a domain's address step, that step). Such a run, and a run whose engine image
   is not on the box yet (INV-24, INV-25), ends partly done (`core/run` `Partial`, its first problem as the reason), never done.
   `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`, `TestLiveness_APortThatStopsAnsweringMakesTheStepIncomplete`, `TestLiveness_NucleiErrorsOnAPortThatStoppedAnsweringMakeItIncomplete`,
   `TestLiveness_TheNATLoopbackHintIsOnlyForTheBoxsOwnIP`, `cmd/vedette` `TestExposureLivenessConnectsAndSendsNothing`. The
   disruptive step of a domain whose own-box address stopped answering says so ("Not run on <ip>. Results incomplete: …"), never
   "No open port was found" nor that no address is the box's own (`TestDisruptive_ADomainWhoseOwnAddressStoppedAnsweringSaysSo`).
-  A scan to which no port of a target with open ports answered at all (nothing open, no reset from any address, no port of the
-  re-check of INV-22 (3) answering, no address that stopped answering during the scan) ends partly done the same way, with one
-  "Not checked" line of kind `unanswered`: "No port of <target> answered this box. If the site has a WAF or firewall, allow this
-  box's public IP <ip> during deep scans." (the box's own public IP gets the NAT-loopback hint instead). Its results are written and
-  it is not a miss of any port (INV-22 (2), (3) keep holding, so three silent scans over a day may still close them). Only the open
-  ports on addresses the scan asked count (an IP target's own, a domain's addresses port-scanned or checked by name): the rows of a
-  name whose lookup got no answer this time are kept (INV-27) and say nothing (`TestUnanswered_PortsOfANameNotLookedUpSayNothing`).
-  `TestUnanswered_NoPortOfTheBoxsOwnIPAnsweredEndsPartlyDone`, `TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP`,
-  `TestUnanswered_ResetsAreAnAnswer`, `TestUnanswered_OnlyRowsOfTheNetworkSayNothing` (rows of ports the network answers, retired by
-  the same scan, are not open ports of the target).
+  A scan to which no port of an address with open ports answered at all (its verdict `unreached`, INV-45) ends partly done the same
+  way, with one "Not checked" line of kind `unanswered` per address: "No port of <ip> (<names>) answered this box. If the site has a
+  WAF or firewall, allow this box's public IP <ip> during deep scans." (the box's own public IP gets the NAT-loopback hint instead).
+  Its results are written and it is not a miss of any port (INV-22). It is said only of an address this run resolved and probed on a
+  port stored open there, while the box reached the Internet: the rows of a name whose lookup got no answer this time are kept
+  (INV-27) and say nothing, whatever flags its carried row has, and a light scan that probes a hosting address on 80 and 443 says
+  nothing of its other ports (`TestUnanswered_PortsOfANameNotLookedUpSayNothing`). `TestUnanswered_NoPortOfTheBoxsOwnIPAnsweredEndsPartlyDone`,
+  `TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP`, `TestUnanswered_ResetsAreAnAnswer`, `TestUnanswered_OnlyRowsOfTheNetworkSayNothing`.
 - **INV-43** The deep scan runs its light checks before its heavy ones, so a ban or an overloaded firewall costs only the last
   steps (`scanPlan`, the one source of the order the run page shows): the runner, nmap's sweep of every TCP port with service
   identification and the reviewed safe scripts (`external_full`; the later steps need the ports and the services), the templates,

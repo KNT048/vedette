@@ -11,7 +11,7 @@ Vedette is free, open-source software for a small or mid-size office. It runs on
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/KNT048/vedette/actions/workflows/ci.yml/badge.svg)](https://github.com/KNT048/vedette/actions/workflows/ci.yml)
-[![Releases](https://img.shields.io/badge/release-0.9%20public%20beta-orange.svg)](https://github.com/KNT048/vedette/releases)
+[![Releases](https://img.shields.io/badge/release-0.1.9%20public%20beta-orange.svg)](https://github.com/KNT048/vedette/releases)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-home-dark.png">
@@ -39,7 +39,7 @@ What it does **not** do: it does not sit in the network path, block traffic or r
 **1. Install.** Take `install.sh` from the newest [release](https://github.com/KNT048/vedette/releases) and run it as root:
 
 ```sh
-VERSION=0.9.0    # the newest release on the Releases page
+VERSION=0.1.9    # the newest release on the Releases page
 curl -fsSLO https://github.com/KNT048/vedette/releases/download/v$VERSION/install.sh
 sudo sh install.sh
 ```
@@ -79,7 +79,7 @@ Small machine, or you would rather set it up yourself on Docker or Podman? [Inst
 
 ## Status
 
-Vedette is in **public beta**. 0.9 is the first release for everyday use in a real office; it is published on the beta channel while we collect feedback before 1.0, so please [open an issue](https://github.com/KNT048/vedette/issues) for anything that looks wrong. A machine installed from 0.9 (or an earlier 0.1.x test release) updates in place from **Settings › Updates**: every release is signed, and you can roll back to the previous version with one click.
+Vedette is in **public beta**. 0.1.9 is the first release for everyday use in a real office; it is published on the beta channel while we collect feedback before 1.0, so please [open an issue](https://github.com/KNT048/vedette/issues) for anything that looks wrong. A machine installed from 0.1.9 (or an earlier 0.1.x test release) updates in place from **Settings › Updates**: every release is signed, and you can roll back to the previous version with one click.
 
 ## What leaves your machine
 

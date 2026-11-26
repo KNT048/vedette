@@ -273,12 +273,14 @@ type fakePreparer struct {
 	fakeWeb
 	mu    sync.Mutex
 	asked int
+	calls chan struct{} // one value per call
 }
 
 func (f *fakePreparer) PrepareImage(context.Context) error {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.asked++
+	f.mu.Unlock()
+	f.calls <- struct{}{}
 	return nil
 }
 
@@ -289,7 +291,7 @@ func (f *fakePreparer) count() int { f.mu.Lock(); defer f.mu.Unlock(); return f.
 func TestEngineImage_TheModuleOnFetchesTheImages(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	p := &fakePreparer{}
+	p := &fakePreparer{calls: make(chan struct{}, 4)}
 	e.svc.cfg.Web = p
 	e.svc.ModuleSwitched(false)
 	e.svc.PrepareEngines(e.ctx())
@@ -297,21 +299,14 @@ func TestEngineImage_TheModuleOnFetchesTheImages(t *testing.T) {
 		t.Fatalf("the image was fetched with the module off: %d", p.count())
 	}
 	e.svc.ModuleSwitched(true)
-	waitUntil(t, func() bool { return p.count() == 1 })
+	select { // the switch fetches in the background
+	case <-p.calls:
+	case <-time.After(5 * time.Second):
+		t.Fatal("switching the module on fetched nothing")
+	}
 	e.svc.PrepareEngines(e.ctx())
 	if p.count() != 2 {
 		t.Fatalf("the start with the module on fetched %d times", p.count()-1)
-	}
-}
-
-func waitUntil(t *testing.T, ok func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for !ok() {
-		if time.Now().After(deadline) {
-			t.Fatal("timed out")
-		}
-		time.Sleep(5 * time.Millisecond)
 	}
 }
 

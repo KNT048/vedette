@@ -13,7 +13,7 @@ import (
 // closed one (refused) is not. It dials only the asked address and ports, and never a private address.
 func TestExposureLivenessConnectsAndSendsNothing(t *testing.T) {
 	t.Parallel()
-	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestExposureLivenessConnectsAndSendsNothing(t *testing.T) {
 	}()
 	open := ln.Addr().(*net.TCPAddr).Port
 	closed := func() int { // a port nothing listens on
-		l, err := net.Listen("tcp4", "127.0.0.1:0")
+		l, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
 		}

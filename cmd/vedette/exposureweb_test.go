@@ -329,11 +329,12 @@ type preparingZapHost struct {
 	*fakeZapHost
 	prepared int
 	status   api.Status
+	err      error
 }
 
 func (p *preparingZapHost) ZapPrepare(context.Context, string, string) (api.Run, error) {
 	p.prepared++
-	return api.Run{Command: api.CmdZapPrepare, Status: p.status}, nil
+	return api.Run{Command: api.CmdZapPrepare, Status: p.status}, p.err
 }
 
 // The ZAP image is fetched ahead of the first scan through zap.prepare; a run that finds it still downloading is "not ready yet"
@@ -348,6 +349,10 @@ func TestExposureWeb_TheImageIsFetchedAheadAndAPendingOneIsSaid(t *testing.T) {
 	h.status = api.StatusFailed
 	if err := w.PrepareImage(t.Context()); err == nil {
 		t.Fatal("a failed zap.prepare was not said")
+	}
+	h.status, h.err = api.StatusSucceeded, errors.New("the host socket is gone")
+	if err := w.PrepareImage(t.Context()); err == nil {
+		t.Fatal("an unreachable host was not said")
 	}
 	if err := (exposureWebScan{}).PrepareImage(t.Context()); err != nil {
 		t.Fatalf("no host: %v", err)

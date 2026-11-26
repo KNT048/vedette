@@ -34,15 +34,18 @@ const (
 	stepSurface     = "Ports, names and services"
 	stepNameNuclei  = "Templates (nuclei)"
 	stepNameZAP     = "Passive web scan (ZAP)"
+	stepNameZAPAct  = "Active web scan (ZAP)"
 	stepNameOpenVAS = "OpenVAS"
 )
 
 // The engine steps of an external scan as Settings › Scanning shows them (INV-30): nuclei (the safe and the deep templates), ZAP
 // (the passive web scan) and OpenVAS.
 const (
-	StepNuclei  = "nuclei"
-	StepZAP     = "zap"
-	StepOpenVAS = "openvas"
+	StepNuclei = "nuclei"
+	StepZAP    = "zap"
+	// StepZAPActive is ZAP's active scan, after the passive one, only in a scan a person starts (INV-24).
+	StepZAPActive = "zap_active"
+	StepOpenVAS   = "openvas"
 )
 
 // How a step of a run ended, as Settings › Scanning's last_run.outcome names it.
@@ -53,9 +56,9 @@ const (
 	StepStopped = "stopped"
 )
 
-var stepEngines = []string{StepNuclei, StepZAP, StepOpenVAS}
+var stepEngines = []string{StepNuclei, StepZAP, StepZAPActive, StepOpenVAS}
 
-var stepNames = map[string]string{StepNuclei: stepNameNuclei, StepZAP: stepNameZAP, StepOpenVAS: stepNameOpenVAS}
+var stepNames = map[string]string{StepNuclei: stepNameNuclei, StepZAP: stepNameZAP, StepZAPActive: stepNameZAPAct, StepOpenVAS: stepNameOpenVAS}
 
 var stepStatus = map[string]corerun.Status{StepOK: corerun.Done, StepPartial: corerun.Partial, StepFailed: corerun.Failed, StepStopped: corerun.Stopped}
 
@@ -609,6 +612,12 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 	if err == nil {
 		steps.close(StepZAP)
 		rs.settle(ctx, stepKeyZAP, content, "web")
+		rs.start(ctx, stepKeyZAPActive)
+		content, err = s.webActive(ctx, st, content) // INV-24: the active scan of those pages, in a person's scan of an accepted target (the terms' mode, not the by-name scope)
+	}
+	if err == nil {
+		steps.close(StepZAPActive)
+		rs.settle(ctx, stepKeyZAPActive, content, "web_active")
 	}
 	return content, deep, err
 }
@@ -695,7 +704,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	cov := s.coverage(wctx, user, t, runID, c, prevPorts, prevHosts)
 	checked := cov.checked
 	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID),
-		checked: checked, gone: cov.gone, listed: cov.listed, settled: cov.settled, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
+		checked: checked, gone: cov.gone, listed: cov.listed, settled: cov.settled, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP) || steps.ran(StepZAPActive), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		var err error

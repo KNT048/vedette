@@ -334,6 +334,14 @@ type Content struct {
 	// WebPages are the pages ZAP scanned this run (it answered for them): a ZAP alert of another page that no longer comes is not
 	// "gone", since ZAP did not look there.
 	WebPages []string `json:"-"`
+	// WebActivePages are the pages ZAP's active scan finished on this run (it answered for them, not cut short): an alert of the
+	// active rules is "gone" only from a page the active scan looked at again, never because a scheduled scan read the page passively.
+	WebActivePages []string `json:"-"`
+	// WebDisruptivePages are those of WebActivePages whose active scan ran the disruptive rules: an alert of a disruptive rule is
+	// "gone" only from one of these (a pass without them did not run its rule).
+	WebDisruptivePages []string `json:"-"`
+	// webOK are the pages the passive web scan of this run read (a report with the page in it): the active pass takes these.
+	webOK []WebPage
 	// TemplatesRan are the "ip:port|template" of the templates that ran to the end this run and found nothing (TemplatesCovered);
 	// ScriptsRan the addresses whose deep nmap step ran its scripts to the end. An issue of those engines elsewhere is not "gone":
 	// they did not look there.

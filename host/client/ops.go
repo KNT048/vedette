@@ -265,6 +265,36 @@ func (c *Client) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requ
 	return run, err
 }
 
+// ZapActive runs zap.active and follows the run until it ends, read again every two seconds like ZapBaseline: succeeded with an
+// api.ZapActiveResult, or refused or failed with its code. ctx bounds the wait only: a caller that gives up stops the run with ZapStop.
+func (c *Client) ZapActive(ctx context.Context, args api.ZapActiveArgs, requestID, actor string) (api.Run, error) {
+	run, err := c.Run(ctx, api.CmdZapActive, args, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return run, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	return run, err
+}
+
+// ZapStop runs zap.stop and follows it to its end: the ZAP run of args.RequestID (baseline or active) is stopped and its container
+// removed and proven gone before it answers; a run that has not started yet will refuse to.
+func (c *Client) ZapStop(ctx context.Context, args api.ZapStopArgs, requestID, actor string) (api.Run, error) {
+	run, err := c.Run(ctx, api.CmdZapStop, args, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return run, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	return run, err
+}
+
 // Greenbone runs one of the OpenVAS commands (api.CmdGreenboneUp with api.GreenboneUpArgs, api.CmdGreenboneDown or
 // api.CmdGreenboneSyncFeed with nil) and follows the run until it ends, read again every two seconds like ZapBaseline. ctx bounds
 // the wait only: the run goes on at the host until its own limit, or until greenbone.down stops it.

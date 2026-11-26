@@ -175,6 +175,7 @@ function IssueDialog({ issue: i, where, onClose, onHandle, onReopen, reopening }
               { label: t('issues.firstSeen'), value: fmtDateTime(i.first_seen) },
               { label: t('issues.lastSeen'), value: fmtDateTime(i.last_seen) },
               { label: t('issues.key'), value: <span className="font-mono text-meta [overflow-wrap:anywhere]">{i.key}</span> },
+              ...(i.detail.zap ? [{ label: t('issues.zapRating'), value: t('issues.zapValue', { risk: i.detail.zap.risk, confidence: i.detail.zap.confidence, pass: i.detail.zap.pass }) }] : []),
             ]} />
             {i.detail.evidence.length ? (
               <div className="grid gap-1">

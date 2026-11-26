@@ -700,7 +700,11 @@ func (e scanningEngines) zap(ctx context.Context) (core.EngineStatus, error) {
 	if err != nil {
 		return s, err
 	}
-	s.Last = last
+	active, err := e.externalRun(ctx, exposure.StepZAPActive) // the active pass runs after the passive one in a person's Scan now
+	if err != nil {
+		return s, err
+	}
+	s.Last = later(last, active)
 	if !s.Enabled {
 		return s, nil
 	}

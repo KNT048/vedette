@@ -5,6 +5,7 @@ All notable changes to Vedette are recorded here. Format: [Keep a Changelog](htt
 ## [Unreleased]
 
 ### Added
+- External targets: a Scan now of a target whose testing terms are accepted runs ZAP's active web scan after the passive one, on the same pages: SQL injection, cross-site scripting, path traversal and other attack checks, bounded in time and rate, with the disruptive rules only on the box's own IP. Scheduled scans keep the passive web scan and say so. Issues show ZAP's risk and confidence; the active web scan is a step of the run page.
 - A backup downloaded with a password carries the box's decryption key inside its encryption, so restoring it on a new box keeps every saved secret and two-step sign-in, with no separate key file. A backup downloaded without a password still never holds the key.
 
 ### Changed

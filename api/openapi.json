@@ -35711,6 +35711,50 @@
                                   "type": "string"
                                 },
                                 "description": "Where it was seen: URLs or lines of the engine's output"
+                              },
+                              "zap": {
+                                "description": "engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and on alerts stored before it was kept",
+                                "type": "object",
+                                "properties": {
+                                  "risk": {
+                                    "type": "string",
+                                    "enum": [
+                                      "high",
+                                      "medium",
+                                      "low",
+                                      "info"
+                                    ],
+                                    "description": "ZAP's risk of the alert"
+                                  },
+                                  "confidence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "confirmed",
+                                      "high",
+                                      "medium",
+                                      "low"
+                                    ],
+                                    "description": "How sure ZAP is of it"
+                                  },
+                                  "pass": {
+                                    "type": "string",
+                                    "enum": [
+                                      "passive",
+                                      "active"
+                                    ],
+                                    "description": "passive: the baseline read it in the pages; active: an attack request of the active scan showed it"
+                                  },
+                                  "disruptive": {
+                                    "description": "Active only: a rule that runs only with the disruptive checks (the box's own public IP) found it, so only a later active scan with them closes it; missing when not",
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "risk",
+                                  "confidence",
+                                  "pass"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [

@@ -328,7 +328,7 @@ func isZapPodmanArgv(args []string) bool {
 // with its work folder under this state directory.
 func validatePodmanIn(stateDir string) func([]string) error {
 	return func(args []string) error {
-		if isZapRunArgv(stateDir, args) || isGreenbonePodmanArgv(args) { // OpenVAS: greenbone.go
+		if isZapRunArgv(stateDir, args) || isZapActiveArgv(stateDir, args) || isGreenbonePodmanArgv(args) { // OpenVAS: greenbone.go
 			return nil
 		}
 		return validatePodman(args)
@@ -453,7 +453,7 @@ func (o *Ops) cmdZapBaseline() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			return o.zapBaseline(ctx, rc.Log, p)
+			return o.zapRun(ctx, rc.Log, p, zapPass{req: rc.RequestID})
 		},
 	})
 }
@@ -489,20 +489,47 @@ func (o *Ops) zapStep(ctx context.Context, name string, stdin io.Reader, args ..
 
 func (o *Ops) zapDir() string { return o.stateFile("zap") }
 
+// zapPass is what one run does: the passive baseline (zap.baseline), or the active scan (zap.active) with or without the disruptive
+// rules.
+type zapPass struct {
+	active     bool
+	disruptive bool
+	req        string // the request id of the run (RunContext.RequestID): zap.stop names it
+}
+
 func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (any, error) {
+	return o.zapRun(ctx, logf, p, zapPass{})
+}
+
+// zapRun is one run of ZAP on one page, the passive baseline or the active scan: every fence below is the same for both.
+func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zapPass) (any, error) {
+	limit, what := zapPageLimit, "passive web scan"
+	if pass.active {
+		limit, what = zapActivePageLimit, "active web scan"
+	}
 	o.zapMu.Lock()
+	if _, ok := o.zapStopped[pass.req]; ok && pass.req != "" { // zap.stop came before this run: it never starts
+		delete(o.zapStopped, pass.req)
+		o.zapMu.Unlock()
+		return nil, refuse409(api.CodeZapStopped, "The "+what+" was stopped before it started; ZAP was not started.")
+	}
 	if o.zapBusy {
 		o.zapMu.Unlock()
-		return nil, refuse409(api.CodeBusy, "A passive web scan is already running on this box.")
+		return nil, refuse409(api.CodeBusy, "A web scan (ZAP) is already running on this box.")
 	}
-	o.zapBusy = true
+	ctx, stop := context.WithCancelCause(ctx)
+	done := make(chan struct{})
+	o.zapBusy, o.zapStop, o.zapDone, o.zapReq = true, func() { stop(errZapStopped) }, done, pass.req
 	o.zapMu.Unlock()
+	// Last: once the cleanup below is over, the run is no longer busy and zap.stop's wait ends.
 	defer func() {
 		o.zapMu.Lock()
-		o.zapBusy = false
+		o.zapBusy, o.zapStop, o.zapDone, o.zapReq = false, nil, nil, ""
 		o.zapMu.Unlock()
+		stop(nil)
+		close(done)
 	}()
-	ctx, cancel := context.WithTimeout(ctx, zapPageLimit)
+	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 
 	if ref := o.zapImageReady(ctx); ref != nil {
@@ -535,26 +562,43 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 	if err := os.Chown(wrk, o.zapOwner(), o.zapOwner()); err != nil {
 		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
-	logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
-	res, code, err := o.zx()(ctx, binPodman, nil, p.runArgv(wrk)...)
-	slow := ctx.Err() != nil
+	argv := p.runArgv(wrk)
+	if pass.active {
+		// The plan is the host's own text, readable by the container's zap user (the folder is its; the file is root's, 0644).
+		if err := os.WriteFile(filepath.Join(wrk, zapPlanName), []byte(zapActivePlan(p, pass.disruptive)), 0o644); err != nil { //nolint:gosec // ZAP's user reads it in the container
+			return nil, fail(api.CodeZapFailed, "The host could not write the plan of the active web scan.")
+		}
+		argv = p.activeArgv(wrk)
+		rules := "the disruptive rules off"
+		if pass.disruptive {
+			rules = "the disruptive rules on (the box's own IP)"
+		}
+		logf("active web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + fmt.Sprintf(" (ZAP active scan: spider %d minutes, depth %d; active rules %d minutes at most, %d threads, %d ms between requests; %s)",
+			zapSpiderMinutes, zapSpiderDepth, zapActiveMinutes, zapThreadsPerHost, zapDelayMs, rules))
+	} else {
+		logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
+	}
+	res, code, err := o.zx()(ctx, binPodman, nil, argv...)
+	stopped, slow := errors.Is(context.Cause(ctx), errZapStopped), ctx.Err() != nil
 	switch {
+	case stopped:
+		return nil, fail(api.CodeZapStopped, "The "+what+" was stopped; ZAP's container was removed.")
 	case slow:
-		return nil, fail(api.CodeZapTimedOut, "ZAP did not finish within the host's time limit of 7 minutes for a page.")
+		return nil, fail(api.CodeZapTimedOut, fmt.Sprintf("ZAP did not finish within the host's time limit of %d minutes for a page.", int(limit/time.Minute)))
 	case err != nil:
-		o.log.ErrorContext(ctx, "zap.baseline: podman run could not run", "error", err.Error())
+		o.log.ErrorContext(ctx, "zap: podman run could not run", "error", err.Error())
 		return nil, fail(api.CodeZapFailed, "The host could not start ZAP.")
 	case code < 0 || code > 2:
 		logf("ZAP ended with exit code " + strconv.Itoa(code))
 		// the box log carries ZAP's (or podman's) own last words: the page sends the reader there (n39)
-		o.log.ErrorContext(ctx, "zap.baseline: ZAP ended without a report", "exit_code", code, "stderr", lastLines(res.Stderr, 10, 2000),
+		o.log.ErrorContext(ctx, "zap: ZAP ended without a report", "exit_code", code, "stderr", lastLines(res.Stderr, 10, 2000),
 			"stdout", lastLines(res.Stdout, 10, 2000), "truncated", res.Truncated, "zap_out", zapOutTail(wrk))
 		msg := "ZAP ended without a report (exit code " + strconv.Itoa(code) + ")."
 		switch {
-		case code == 3: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start
+		case code == 3 && !pass.active: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start
 			msg = "ZAP ended without a report (exit code 3): it could not reach the page from this box, found no page there, or could not start."
 		case code == 137:
-			msg = "ZAP was stopped, most likely because it reached the 1 GiB memory limit (exit code 137)."
+			msg = "ZAP was stopped, most likely because it reached its memory limit (exit code 137)."
 		case code >= zapNoRun && code <= zapNoRun+2:
 			msg = "Podman could not start the ZAP container (exit code " + strconv.Itoa(code) + ")."
 		}
@@ -565,6 +609,13 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		return nil, ferr
 	}
 	logf("ZAP finished with exit code " + strconv.Itoa(code) + "; report " + strconv.FormatInt(size, 10) + " bytes")
+	if pass.active {
+		cut := zapCutShort(res.Stdout)
+		if cut {
+			logf(fmt.Sprintf("the active scan reached its limit of %d minutes: the report holds what it found until then", zapActiveMinutes))
+		}
+		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs()}, nil
+	}
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil
 }
 
@@ -588,7 +639,7 @@ func (o *Ops) zapImageReady(ctx context.Context) error {
 	o.zapMu.Lock()
 	defer o.zapMu.Unlock()
 	if o.zapPulling {
-		return refuse409(api.CodeZapPulling, "The ZAP image (about 1.2 GB) is being downloaded; the passive web scan runs once it is on this box.")
+		return refuse409(api.CodeZapPulling, "The ZAP image (about 1.2 GB) is being downloaded; the web scan runs once it is on this box.")
 	}
 	last := o.zapPullErr
 	o.zapPulling, o.zapPullErr = true, ""
@@ -596,7 +647,7 @@ func (o *Ops) zapImageReady(ctx context.Context) error {
 	if last != "" {
 		return refuse409(api.CodeZapPullFailed, "The last download of the ZAP image failed ("+last+"); the host is trying again now.")
 	}
-	return refuse409(api.CodeZapPulling, "The ZAP image (about 1.2 GB) is not on this box yet; the host started its download, and the passive web scan runs once it is there.")
+	return refuse409(api.CodeZapPulling, "The ZAP image (about 1.2 GB) is not on this box yet; the host started its download, and the web scan runs once it is there.")
 }
 
 // zapPull downloads the image by its digest (podman checks it) and checks the effect. It runs beside the command, on the process's

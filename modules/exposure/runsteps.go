@@ -27,9 +27,12 @@ const (
 	stepKeyServices = "services" // nmap -sV on the open ports, with nmap's scripts in a deep scan
 	stepKeyNuclei   = StepNuclei
 	stepKeyZAP      = StepZAP
-	stepKeySave     = "save" // the comparison with the exploited CVEs, then the rows written
-	stepKeyOpenVAS  = StepOpenVAS
-	stepKeyWaiting  = "waiting" // a domain's addresses left for the next scans (the deep scan's cap)
+	// stepKeyZAPActive is ZAP's active scan (INV-24a), right after the passive one, in a deep scan's plan only: skipped with why in a
+	// scheduled scan, its note says the pages attacked, the rules, the alerts and a page cut short at its limit.
+	stepKeyZAPActive = StepZAPActive
+	stepKeySave      = "save" // the comparison with the exploited CVEs, then the rows written
+	stepKeyOpenVAS   = StepOpenVAS
+	stepKeyWaiting   = "waiting" // a domain's addresses left for the next scans (the deep scan's cap)
 )
 
 // The names of the steps that are not engine steps. The engine steps keep their names (stepNames), which Settings › Scanning reads.
@@ -69,7 +72,11 @@ func scanPlan(k Kind, m ScanMode) (head, tail []stepDef) {
 		}
 		head = []stepDef{{stepKeySurface, stepNameSurfaceIP}, {stepKeyPorts, ports}, {stepKeyServices, services}}
 	}
-	tail = []stepDef{{stepKeyNuclei, stepNameNuclei}, {stepKeyZAP, stepNameZAP}, {stepKeySave, stepNameSave}, {stepKeyOpenVAS, stepNameOpenVAS}}
+	tail = []stepDef{{stepKeyNuclei, stepNameNuclei}, {stepKeyZAP, stepNameZAP}}
+	if m.Full {
+		tail = append(tail, stepDef{stepKeyZAPActive, stepNameZAPAct})
+	}
+	tail = append(tail, stepDef{stepKeySave, stepNameSave}, stepDef{stepKeyOpenVAS, stepNameOpenVAS})
 	return head, tail
 }
 

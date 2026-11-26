@@ -151,6 +151,20 @@ type IssueDetail struct {
 	Description string   `json:"description"`
 	Solution    string   `json:"solution"`
 	Evidence    []string `json:"evidence"`
+	// ZAP is, on an issue of the zap engine, ZAP's own rating of the alert and the pass that raised it (contract.ts IssueZap); nil on
+	// every other engine and on a ZAP issue stored before it was kept.
+	ZAP *IssueZAP `json:"zap,omitempty"`
+}
+
+// IssueZAP is ZAP's rating of an alert: Risk high, medium, low or info; Confidence low, medium, high or confirmed; Pass passive (the
+// baseline read it in the pages) or active (an attack request of the active scan showed it).
+type IssueZAP struct {
+	Risk       string `json:"risk"`
+	Confidence string `json:"confidence"`
+	Pass       string `json:"pass"`
+	// Disruptive: an active alert of a rule that runs only with the disruptive rules (the box's own IP), found by a pass that ran them;
+	// only another such pass closes the issue.
+	Disruptive bool `json:"disruptive,omitempty"`
 }
 
 // IssueCVE is a CVE an issue names, with its score when the catalogue has one (nil: not scored yet).

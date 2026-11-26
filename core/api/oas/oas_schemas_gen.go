@@ -60482,6 +60482,9 @@ type ExposureGetExposureTreeIDIssuesOKItemsItemDetail struct {
 	// Where it was seen: URLs or lines of the engine's output.
 	Evidence []string `json:"evidence"`
 	Solution string   `json:"solution"`
+	// Engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and
+	// on alerts stored before it was kept.
+	Zap OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap `json:"zap"`
 }
 
 // GetDescription returns the value of Description.
@@ -60499,6 +60502,11 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetSolution() string 
 	return s.Solution
 }
 
+// GetZap returns the value of Zap.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetZap() OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap {
+	return s.Zap
+}
+
 // SetDescription sets the value of Description.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetDescription(val string) {
 	s.Description = val
@@ -60512,6 +60520,219 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetEvidence(val []str
 // SetSolution sets the value of Solution.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetSolution(val string) {
 	s.Solution = val
+}
+
+// SetZap sets the value of Zap.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetZap(val OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) {
+	s.Zap = val
+}
+
+// Engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and
+// on alerts stored before it was kept.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap struct {
+	// How sure ZAP is of it.
+	Confidence ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence `json:"confidence"`
+	// Active only: a rule that runs only with the disruptive checks (the box's own public IP) found it, so
+	// only a later active scan with them closes it; missing when not.
+	Disruptive OptBool `json:"disruptive"`
+	// Passive: the baseline read it in the pages; active: an attack request of the active scan showed it.
+	Pass ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass `json:"pass"`
+	// ZAP's risk of the alert.
+	Risk ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk `json:"risk"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetConfidence() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence {
+	return s.Confidence
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetDisruptive() OptBool {
+	return s.Disruptive
+}
+
+// GetPass returns the value of Pass.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetPass() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass {
+	return s.Pass
+}
+
+// GetRisk returns the value of Risk.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetRisk() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk {
+	return s.Risk
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetConfidence(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) {
+	s.Confidence = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetDisruptive(val OptBool) {
+	s.Disruptive = val
+}
+
+// SetPass sets the value of Pass.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetPass(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) {
+	s.Pass = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetRisk(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) {
+	s.Risk = val
+}
+
+// How sure ZAP is of it.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "confirmed"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh      ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium    ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow       ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence = "low"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence{
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceConfirmed
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidenceLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Passive: the baseline read it in the pages; active: an attack request of the active scan showed it.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass = "passive"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive  ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass = "active"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass{
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassPassive
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPassActive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// ZAP's risk of the alert.
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh   ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow    ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "low"
+	ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo   ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk = "info"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk{
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow,
+		ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRisk(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskLow
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapRiskInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposureGetExposureTreeIDIssuesOKItemsItemEngine string
@@ -207206,6 +207427,52 @@ func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Get() (v Exp
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Or(d ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap returns new OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap with value set to v.
+func NewOptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap(v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap {
+	return OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap is optional ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap.
+type OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap struct {
+	Value ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap was set.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Reset() {
+	var v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetTo(v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Get() (v ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Or(d ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap {
 	if v, ok := o.Get(); ok {
 		return v
 	}

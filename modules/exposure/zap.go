@@ -73,9 +73,15 @@ type WebProbeLog interface {
 	RecordWebProbe(ctx context.Context, p WebProbe) error
 }
 
-// WebScan is what one baseline run produced: ZAP's JSON report as it was written.
+// WebScan is what one run produced: ZAP's JSON report as it was written. CutShort (active scan only) says the active scan reached its
+// time limit before it finished: the report holds what it found until then.
 type WebScan struct {
-	Report []byte
+	Report   []byte
+	CutShort bool
+	// DisruptiveRules (active scan only) are the ZAP plugin ids the host runs only with the disruptive rules, or more strongly with
+	// them (its rule split): an alert of one of them in a pass with the disruptive rules is closed only by another such pass. Empty
+	// (an older host): every alert of a pass with the disruptive rules counts as one of them.
+	DisruptiveRules []string
 }
 
 // Limits of the passive web scan (INV-24).
@@ -128,6 +134,11 @@ type WebFindingRow struct {
 	// zaprules.go: Group is "fix" or "hardening" by content/zap/vedette-baseline.conf; Software the versions ZAP read.
 	Group    string        `json:"group"`
 	Software []WebSoftware `json:"software"`
+	// Pass is "active" for an alert of ZAP's active scan (an attack request showed it), "" for one of the passive baseline.
+	Pass string `json:"pass,omitempty"`
+	// Disruptive (active only) says the alert came from a rule that runs only with the disruptive rules (WebScan.DisruptiveRules) in
+	// a pass that ran them: only another such pass closes its issue.
+	Disruptive bool `json:"disruptive,omitempty"`
 }
 
 var (
@@ -323,6 +334,9 @@ func plainText(s string, n int) string {
 // cleanWebRow is the one check a web finding passes before it is stored (INV-10, INV-24); ok is false for a row that is not one.
 func cleanWebRow(r WebFindingRow) (WebFindingRow, bool) {
 	r.Name, r.PluginID = plainText(r.Name, maxWebName), field(r.PluginID, 12)
+	if r.Pass != passActive {
+		r.Pass, r.Disruptive = "", false
+	}
 	r.Description, r.Solution = plainText(r.Description, maxWebText), plainText(r.Solution, maxWebText)
 	if r.Name == "" || r.PluginID == "" || !slices.Contains(zapRisks, r.Risk) || !slices.Contains(zapConfidences[1:], r.Confidence) {
 		return WebFindingRow{}, false
@@ -650,8 +664,9 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
 			switch {
 			case perr == nil:
-				c.WebFindings = append(c.WebFindings, rows...)
+				c.WebFindings = mergeWebRows(c.WebFindings, rows)
 				c.WebPages = append(c.WebPages, page.URL)
+				c.webOK = append(c.webOK, page)
 				scanned, alerts = append(scanned, page.URL), alerts+len(rows)
 				steps.end(StepZAP, callRan, len(rows), s.clock())
 			case errors.Is(perr, ErrNoPage): // ZAP ran and found no page there

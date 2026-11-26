@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -26,6 +27,27 @@ type fakeZapHost struct {
 	got      api.ZapBaselineArgs
 	actor    string
 	reportID string
+	active   []api.ZapActiveArgs // the zap.active calls
+	block    bool                // zap.active waits until its context ends
+	stops    []string            // the request ids zap.stop named
+	reqs     []string            // the request ids of the zap.active calls
+}
+
+func (f *fakeZapHost) ZapActive(ctx context.Context, args api.ZapActiveArgs, req, actor string) (api.Run, error) {
+	f.active, f.actor, f.reqs = append(f.active, args), actor, append(f.reqs, req)
+	if f.block {
+		<-ctx.Done()
+		return api.Run{}, ctx.Err()
+	}
+	return f.run, f.err
+}
+
+func (f *fakeZapHost) ZapStop(ctx context.Context, args api.ZapStopArgs, _, _ string) (api.Run, error) {
+	if ctx.Err() != nil {
+		return api.Run{}, ctx.Err() // a stop sent on the scan's own ended context would never reach the host
+	}
+	f.stops = append(f.stops, args.RequestID)
+	return api.Run{Status: api.StatusSucceeded}, nil
 }
 
 func (f *fakeZapHost) ZapBaseline(_ context.Context, args api.ZapBaselineArgs, _, actor string) (api.Run, error) {
@@ -247,5 +269,57 @@ func TestDomainErr_AnOlderScanContainerSaysUpdateTheBox(t *testing.T) {
 	u, ok := domainErr(&sensoractive.DomainRefusedError{Reason: domainfence.InvalidJob}, d, "93.184.216.34")
 	if !ok || !strings.Contains(u.Reason, "Update the box") {
 		t.Fatalf("%+v %v", u, ok)
+	}
+}
+
+// zap.active gets the page's args and the disruptive rules only for the box's own IP; a domain's page (a CDN or hosting address) never
+// carries them, whatever the step's mode. ZAP's cut-short flag comes back to exposure.
+func TestExposureWeb_ActiveSendsTheDisruptiveRulesOnlyForTheBoxsOwnIP(t *testing.T) {
+	t.Parallel()
+	const rid = "0123456789abcdef0123456789abcdef"
+	ok := func() *fakeZapHost {
+		r := zapRun(t, api.StatusSucceeded, "", nil)
+		r.Command = api.CmdZapActive
+		r.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: rid, Size: 11, CutShort: true, DisruptiveRules: []int{7, 40018}})
+		return &fakeZapHost{run: r, report: []byte(`{"site":[]}`)}
+	}
+	deep := exposure.ScanMode{Full: true, Disruptive: true}
+	ipT, domT := webIPTarget, webDomTarget
+	ipT.Mode, domT.Mode = deep, deep
+	h := ok()
+	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
+	got, err := w.Active(t.Context(), ipT, webIPPage)
+	if err != nil || !got.CutShort || h.reportID != rid || !slices.Equal(got.DisruptiveRules, []string{"7", "40018"}) {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if len(h.active) != 1 || !h.active[0].Disruptive || h.active[0].URL != webIPPage.URL || h.active[0].Kind != api.ZapKindIP {
+		t.Fatalf("own IP: %+v", h.active)
+	}
+	ipT.Mode.Disruptive = false
+	if _, err := w.Active(t.Context(), ipT, webIPPage); err != nil || h.active[1].Disruptive {
+		t.Fatalf("own IP without the disruptive checks: %+v %v", h.active, err)
+	}
+	h2 := ok()
+	w.host = h2
+	if _, err := w.Active(t.Context(), domT, webDomPage); err != nil || len(h2.active) != 1 || h2.active[0].Disruptive || h2.active[0].Kind != api.ZapKindDomain {
+		t.Fatalf("a domain's page: %+v %v", h2.active, err)
+	}
+}
+
+// A scan stopped while ZAP runs stops ZAP on the host: exposure's context ends, the adapter sends zap.stop (on a context of its own,
+// since the scan's has ended) naming the request of its own zap.active, before it returns.
+func TestExposureWeb_AStoppedScanStopsZAPOnTheHost(t *testing.T) {
+	t.Parallel()
+	h := &fakeZapHost{block: true}
+	w := exposureWebScan{host: h}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		_, err := w.Active(ctx, webIPTarget, webIPPage)
+		done <- err
+	}()
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) || len(h.stops) != 1 || len(h.reqs) != 1 || h.stops[0] != h.reqs[0] || h.stops[0] == "" {
+		t.Fatalf("%v, stops %q of runs %q", err, h.stops, h.reqs)
 	}
 }

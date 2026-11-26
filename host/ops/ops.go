@@ -230,10 +230,15 @@ type Ops struct {
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
 
-	// zap.baseline (zap.go): zapMu guards one run at a time (zapBusy) and the background pull of the image (zapPulling, and the
-	// reason the last pull failed). zapExec replaces the runner in internal tests.
+	// zap.baseline and zap.active (zap.go): zapMu guards one run at a time (zapBusy), the stop of the run that runs (zapStop ends
+	// it, zapDone is closed once its cleanup is over, zapReq names it), the stops of runs not started yet and the background pull of the image (zapPulling, and the reason the last pull
+	// failed). zapExec replaces the runner in internal tests.
 	zapMu      sync.Mutex
 	zapBusy    bool
+	zapStop    context.CancelFunc
+	zapDone    chan struct{}
+	zapReq     string               // the request id of the run that runs now
+	zapStopped map[string]time.Time // zap.stop of a run that had not started: its request id, until when it is kept
 	zapPulling bool
 	zapPullErr string
 	zapExec    zapExecFn
@@ -400,7 +405,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
-		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
+		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdZapActive(), o.cmdZapStop(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
 		o.cmdBoxAgentCheck(),
 		o.cmdGreenboneUp(), o.cmdGreenboneDown(), o.cmdGreenboneSyncFeed(),
 	}

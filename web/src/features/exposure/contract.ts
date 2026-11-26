@@ -456,6 +456,12 @@ export const CveSeverity = z.object({
   band: SeverityBand, score: z.number().min(0).max(10), version: z.enum(['4.0', '3.1', '3.0', '2.0']), vector: z.string().min(1).max(200),
 }).describe('The CVSS base score the catalogue picks for the CVE and its band; null = "Not scored yet", never 0')
 export const IssueCve = z.object({ cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/), severity: CveSeverity.nullable() })
+export const IssueZap = z.object({
+  risk: z.enum(['high', 'medium', 'low', 'info']).describe('ZAP\'s risk of the alert'),
+  confidence: z.enum(['confirmed', 'high', 'medium', 'low']).describe('How sure ZAP is of it'),
+  pass: z.enum(['passive', 'active']).describe('passive: the baseline read it in the pages; active: an attack request of the active scan showed it'),
+  disruptive: z.boolean().optional().describe('Active only: a rule that runs only with the disruptive checks (the box\'s own public IP) found it, so only a later active scan with them closes it; missing when not'),
+})
 export const Issue = z.object({
   id: z.string(), target_id: z.string(),
   service_id: z.string().nullable().describe('The service it was found on; null when it is about the target as a whole'),
@@ -465,6 +471,7 @@ export const Issue = z.object({
   detail: z.object({
     description: z.string(), solution: z.string(),
     evidence: z.array(z.string()).describe('Where it was seen: URLs or lines of the engine\'s output'),
+    zap: IssueZap.optional().describe('engine zap: ZAP\'s own rating of the alert and the pass that raised it; missing on other engines and on alerts stored before it was kept'),
   }),
   state: IssueState.describe('open; gone: the last scan no longer reported it; handled: a person decided (resolution)'),
   resolution: Resolution.nullable().describe('Set only when state is handled'),

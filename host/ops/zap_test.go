@@ -310,6 +310,9 @@ type zapWorld struct {
 	ctr        string // the container vedette-zap: "" none, "ours" (carries the label), "foreign"
 	rmCode     int    // exit code of podman rm (-1: it did not answer within its bound)
 	leaveCtr   bool   // the run's container survives podman run (the client was killed at the limit)
+	runOut     []byte // what podman run prints on stdout
+	plan       string // the plan of the last active run, as the container would read it
+	runArgv    []string
 }
 
 const zapOurNet = `[{"name":"vedette-zap","id":"ab","driver":"bridge","network_interface":"vedette-zap0","created":"2026-11-14T10:00:00Z","subnets":[{"subnet":"10.89.3.0/24","gateway":"10.89.3.1"}],"ipv6_enabled":false,"internal":false,"dns_enabled":false,"labels":{"io.vedette.owner":"vedette-host"},"ipam_options":{"driver":"host-local"}}]`
@@ -456,10 +459,21 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 		if w.runStarted != nil {
 			w.runStarted <- struct{}{}
 		}
-		if w.runGate != nil {
-			<-w.runGate
-		}
 		wrk, _ := strings.CutSuffix(args[slices.Index(args, "--volume")+1], ":/zap/wrk:rw,nosuid,nodev,noexec")
+		plan, _ := os.ReadFile(filepath.Join(wrk, zapPlanName)) //nolint:gosec // the test's own work folder
+		w.mu.Lock()
+		w.plan, w.runArgv = string(plan), slices.Clone(args)
+		if w.leaveCtr { // the container runs while podman run does
+			w.ctr = "ours"
+		}
+		w.mu.Unlock()
+		if w.runGate != nil {
+			select { // podman run is killed when its context ends; the container it started may stay (leaveCtr)
+			case <-w.runGate:
+			case <-ctx.Done():
+				return vexec.Result{}, -1, ctx.Err()
+			}
+		}
 		if w.leaveCtr {
 			w.mu.Lock()
 			w.ctr = "ours"
@@ -476,7 +490,7 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 				w.t.Error(err)
 			}
 		}
-		return vexec.Result{}, w.runCode, nil
+		return vexec.Result{Stdout: w.runOut}, w.runCode, nil
 	}
 	w.t.Errorf("unexpected call %s", line)
 	return vexec.Result{}, -1, errors.New("unexpected")

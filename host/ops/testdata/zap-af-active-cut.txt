@@ -1,0 +1,128 @@
+Found Java version 17.0.21
+Available memory: 11352 MB
+Using JVM args: -Xmx1g
+387 [main] INFO  org.parosproxy.paros.Constant - Copying default configuration to /home/zap/.ZAP/config.xml
+479 [main] INFO  org.parosproxy.paros.Constant - Creating directory /home/zap/.ZAP/session
+479 [main] INFO  org.parosproxy.paros.Constant - Creating directory /home/zap/.ZAP/dirbuster
+479 [main] INFO  org.parosproxy.paros.Constant - Creating directory /home/zap/.ZAP/fuzzers
+480 [main] INFO  org.parosproxy.paros.Constant - Creating directory /home/zap/.ZAP/plugin
+Job passiveScan-config set disableAllRules = true
+Job passiveScan-config set scanOnlyInScope = true
+Job spider set context = page
+Job spider set url = http://93.184.216.34:8443/
+Job spider set maxDuration = 2
+Job spider set maxDepth = 5
+Job spider set maxChildren = 20
+Job spider set threadCount = 2
+Job spider set processForm = true
+Job spider set postForm = false
+Job spider set acceptCookies = true
+Job activeScan set context = page
+Job activeScan set maxRuleDurationInMins = 2
+Job activeScan set maxScanDurationInMins = 1
+Job activeScan set threadPerHost = 2
+Job activeScan set delayInMs = 1,500
+Job activeScan set maxAlertsPerRule = 10
+Job activeScan set addQueryParam = false
+Job activeScan set injectPluginIdInHeader = false
+Job activeScan set scanHeadersAllRequests = false
+Job activeScan set handleAntiCSRFTokens = true
+Job activeScan set defaultStrength = medium
+Job activeScan set defaultThreshold = off
+Job report set template = traditional-json
+Job report set reportDir = /zap/wrk
+Job report set reportFile = out.json
+Job passiveScan-config started
+Job passiveScan-config finished, time taken: 00:00:00
+Job spider started
+Job spider requesting URL http://93.184.216.34:8443/
+Job spider found 8 URLs
+Job spider finished, time taken: 00:00:00
+Job activeScan started
+Job activeScan set default strength to MEDIUM
+Job activeScan set default threshold to OFF
+Job activeScan set rule 0 strength to MEDIUM
+Job activeScan set rule 0 threshold to MEDIUM
+Job activeScan set rule 6 strength to MEDIUM
+Job activeScan set rule 6 threshold to MEDIUM
+Job activeScan set rule 7 strength to MEDIUM
+Job activeScan set rule 7 threshold to MEDIUM
+Job activeScan set rule 10045 strength to MEDIUM
+Job activeScan set rule 10045 threshold to MEDIUM
+Job activeScan set rule 10047 strength to MEDIUM
+Job activeScan set rule 10047 threshold to MEDIUM
+Job activeScan set rule 10048 strength to MEDIUM
+Job activeScan set rule 10048 threshold to MEDIUM
+Job activeScan set rule 10058 strength to MEDIUM
+Job activeScan set rule 10058 threshold to MEDIUM
+Job activeScan set rule 10104 strength to MEDIUM
+Job activeScan set rule 10104 threshold to MEDIUM
+Job activeScan set rule 10106 strength to MEDIUM
+Job activeScan set rule 10106 threshold to MEDIUM
+Job activeScan set rule 20017 strength to MEDIUM
+Job activeScan set rule 20017 threshold to MEDIUM
+Job activeScan set rule 20018 strength to MEDIUM
+Job activeScan set rule 20018 threshold to MEDIUM
+Job activeScan set rule 20019 strength to MEDIUM
+Job activeScan set rule 20019 threshold to MEDIUM
+Job activeScan set rule 40003 strength to MEDIUM
+Job activeScan set rule 40003 threshold to MEDIUM
+Job activeScan set rule 40008 strength to MEDIUM
+Job activeScan set rule 40008 threshold to MEDIUM
+Job activeScan set rule 40009 strength to MEDIUM
+Job activeScan set rule 40009 threshold to MEDIUM
+Job activeScan set rule 40012 strength to MEDIUM
+Job activeScan set rule 40012 threshold to MEDIUM
+Job activeScan set rule 40018 strength to LOW
+Job activeScan set rule 40018 threshold to MEDIUM
+Job activeScan set rule 40019 strength to MEDIUM
+Job activeScan set rule 40019 threshold to MEDIUM
+Job activeScan set rule 40020 strength to MEDIUM
+Job activeScan set rule 40020 threshold to MEDIUM
+Job activeScan set rule 40021 strength to MEDIUM
+Job activeScan set rule 40021 threshold to MEDIUM
+Job activeScan set rule 40022 strength to MEDIUM
+Job activeScan set rule 40022 threshold to MEDIUM
+Job activeScan set rule 40027 strength to MEDIUM
+Job activeScan set rule 40027 threshold to MEDIUM
+Job activeScan set rule 40028 strength to MEDIUM
+Job activeScan set rule 40028 threshold to MEDIUM
+Job activeScan set rule 40029 strength to MEDIUM
+Job activeScan set rule 40029 threshold to MEDIUM
+Job activeScan set rule 40032 strength to MEDIUM
+Job activeScan set rule 40032 threshold to MEDIUM
+Job activeScan set rule 40034 strength to MEDIUM
+Job activeScan set rule 40034 threshold to MEDIUM
+Job activeScan set rule 40035 strength to MEDIUM
+Job activeScan set rule 40035 threshold to MEDIUM
+Job activeScan set rule 40042 strength to MEDIUM
+Job activeScan set rule 40042 threshold to MEDIUM
+Job activeScan set rule 40045 strength to MEDIUM
+Job activeScan set rule 40045 threshold to MEDIUM
+Job activeScan set rule 40048 strength to MEDIUM
+Job activeScan set rule 40048 threshold to MEDIUM
+Job activeScan set rule 90017 strength to MEDIUM
+Job activeScan set rule 90017 threshold to MEDIUM
+Job activeScan set rule 90019 strength to MEDIUM
+Job activeScan set rule 90019 threshold to MEDIUM
+Job activeScan set rule 90020 strength to MEDIUM
+Job activeScan set rule 90020 threshold to MEDIUM
+Job activeScan set rule 90021 strength to MEDIUM
+Job activeScan set rule 90021 threshold to MEDIUM
+Job activeScan set rule 90023 strength to MEDIUM
+Job activeScan set rule 90023 threshold to MEDIUM
+Job activeScan set rule 90024 strength to MEDIUM
+Job activeScan set rule 90024 threshold to MEDIUM
+Job activeScan set rule 90029 strength to MEDIUM
+Job activeScan set rule 90029 threshold to MEDIUM
+Job activeScan set rule 90035 strength to MEDIUM
+Job activeScan set rule 90035 threshold to MEDIUM
+Job activeScan set rule 90036 strength to MEDIUM
+Job activeScan set rule 90036 threshold to MEDIUM
+Job activeScan set rule 90037 strength to MEDIUM
+Job activeScan set rule 90037 threshold to MEDIUM
+Job activeScan finished, time taken: 00:01:00
+Job report started
+Job report generated report /zap/wrk/out.json
+Job report finished, time taken: 00:00:00
+Automation plan succeeded!

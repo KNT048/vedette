@@ -366,6 +366,7 @@ var contractRoutes = map[string][]string{
 		"POST /notify/zalo/resolve",
 		"PUT /notify/channels/{type}",
 		"PUT /notify/rules",
+		"PUT /notify/triggers",
 	},
 	"reports": {
 		"GET /reports/definition",

@@ -1814,15 +1814,12 @@ func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *tes
 	t.Parallel()
 	e, h := gbEnv(t)
 	e.enable()
-	ips := e.detect(ipA)
-	if _, err := e.commit(ips[0].ID); err != nil {
-		t.Fatal(err)
-	}
-	e.acceptTerms(ips[0].ID, false)
+	e.twoLines(ipA, ipB) // the box now goes out through its other line B; A is still inside its days and the lines overlapped
+	id := e.detectedID(ipA)
+	e.acceptTerms(id, false)
 	e.advance(ScanEvery)
-	e.fullAs(ipB) // the box now goes out through another IP; A is still inside its days
 	e.svc.SetRunner(&fakeRunner{content: gbOpen()})
-	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", id)
 	if err != nil {
 		t.Fatalf("the surface scan of an IP inside its days: %v", err)
 	}
@@ -1834,8 +1831,27 @@ func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *tes
 	h.gvm.cmds = nil
 	h.gvm.mu.Unlock()
 	e.advance(ValidDays * 24 * time.Hour)
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || h.gvm.seen("create_target") {
+		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
+	}
+}
+
+// An address the provider took back (last seen before the box's current egress address was first seen) gets no OpenVAS scan: the
+// lines never overlapped, so it may be someone else's now. Its other steps keep their own sighting (nothing without it).
+func TestContract_INV25_OpenVASNeverScansAReplacedAddress(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	ips := e.detect(ipA)
+	if _, err := e.commit(ips[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(ips[0].ID, false)
+	e.advance(ScanEvery)
+	e.fullAs(ipB) // B is new: A was never seen while B was in use
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }

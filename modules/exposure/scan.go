@@ -315,7 +315,23 @@ func (s *Service) OwnIPProof(ctx context.Context, actor string, ip netip.Addr) (
 	if reason != "" {
 		return time.Time{}, false, nil
 	}
-	return t.ownProof(s.clock()), true, nil
+	at, err := s.executorProof(ctx, t)
+	return at, true, err
+}
+
+// executorProof is the proof of t the executors get (egressNow.proofOf: the latest sighting of an IP the box found, while it overlaps
+// the box's current egress address); zero for none.
+func (s *Service) executorProof(ctx context.Context, t Target) (time.Time, error) {
+	if !boxEgress(t) {
+		return time.Time{}, nil
+	}
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("exposure: reading the box's addresses: %w", err)
+	}
+	now := s.clock()
+	at, _, _ := egressNowOf(all, now).proofOf(t, now)
+	return at, nil
 }
 
 // countsOf computes the numbers of what one scan found (INV-8); certs_expiring counts the certificates that

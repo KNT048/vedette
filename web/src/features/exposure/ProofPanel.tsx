@@ -151,6 +151,7 @@ function BoxIpState({ node }: { node: TargetNode }) {
     <>
       {p.state === 'not_current' ? <InfoLine className="max-w-3xl text-sm text-warn" topic={t('verify.pausedChip')} info={t('verify.pausedInfo')}>{t('verify.paused', { time: fmtDateTime(p.verified_at) })}</InfoLine>
         : p.state === 'expired' ? <InfoLine className="max-w-3xl text-sm text-danger" topic={t('proof.state.expired')} info={t('verify.ipExpiredInfo')}>{t('verify.ipExpired')}</InfoLine> : null}
+      {p.replaced ? <p className="max-w-3xl text-sm text-warn" data-testid="proof-replaced">{t('verify.replaced', { ip: p.replaced.by, date: fmtDate(p.replaced.at) })}</p> : null}
       <KeyValue items={[
         { label: t('verify.ipStatus'), value: state },
         { label: t('verify.verifiedOn'), value: fmtDateTime(p.verified_at) },

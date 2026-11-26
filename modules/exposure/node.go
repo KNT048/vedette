@@ -63,6 +63,14 @@ type ProofView struct {
 	LastCheck   *Check     `json:"last_check"`
 	DNS         *DNSProof  `json:"dns"`
 	File        *FileProof `json:"file"`
+	Replaced    *Replaced  `json:"replaced"`
+}
+
+// Replaced says that an IP the box found was replaced: By, the box's current egress address, was first seen At, after this
+// address was last seen.
+type Replaced struct {
+	By string `json:"by"`
+	At string `json:"at"`
 }
 
 // ConsentView is an accepted text of a node: the scan confirmation or the testing terms (contract.ts Consent).
@@ -121,6 +129,7 @@ type nodeRead struct {
 	checks checks
 	last   map[string]ScanView
 	counts map[string]NodeCounts
+	egress egressNow // the box's current egress address, for the replaced line of an IP the box found
 }
 
 func (s *Service) readNodes(ctx context.Context, q querier) (nodeRead, error) {
@@ -140,7 +149,7 @@ func (s *Service) readNodes(ctx context.Context, q querier) (nodeRead, error) {
 	if err != nil {
 		return nodeRead{}, err
 	}
-	r := nodeRead{all: all, byID: make(map[string]Target, len(all)), checks: c, last: last, counts: counts}
+	r := nodeRead{all: all, byID: make(map[string]Target, len(all)), checks: c, last: last, counts: counts, egress: egressNowOf(all, s.clock())}
 	for _, t := range all {
 		r.byID[t.ID] = t
 	}
@@ -303,6 +312,9 @@ func proofOf(t Target, r nodeRead, now time.Time) ProofView {
 		p.State = ProofNotCurrent
 	default:
 		p.State = ProofProven
+	}
+	if p.State == ProofProven || p.State == ProofNotCurrent {
+		_, p.Replaced, _ = r.egress.proofOf(t, now)
 	}
 	switch t.Kind {
 	case KindIP:

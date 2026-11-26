@@ -6,19 +6,35 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/egressip"
+	"github.com/knt048/vedette/core/store"
 )
 
 // The proof that the box's own IP rests on, for the executors' own-IP fences (the scan worker, the host's ZAP fence): the latest
 // sighting of the address as the box's egress. An address the box no longer goes out through keeps it for ValidDays, and the
 // executors accept a job on it instead of needing a sighting right before they scan.
 
+// twoLines makes the box go out through a and b alternately, as behind a router that balances two Internet lines: a is seen (and
+// committed), then b is seen for the first time, then a again, then b. It returns when a was last seen; b is the current egress.
+func (e *env) twoLines(a, b string) (aLast time.Time) {
+	e.t.Helper()
+	e.committedIP(a)
+	e.advance(time.Hour)
+	e.fullAs(b) // b's first sighting
+	e.advance(time.Hour)
+	e.fullAs(a)
+	aLast = e.clock.Now()
+	e.advance(time.Hour)
+	e.fullAs(b) // the box goes out through b now
+	return aLast
+}
+
+// Two lines in use at the same time (a's latest sighting is after b, the current egress, was first seen): a keeps its proof, the
+// latest sighting, for its 90 days.
 func TestOwnIPProofIsTheLatestSightingWhileTheBoxUsesAnotherLine(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.committedIP(ipA)
-	seen := e.clock.Now()
+	seen := e.twoLines(ipA, ipB)
 	e.advance(3 * 24 * time.Hour)
-	e.fullAs(ipB) // the box goes out through its other line now
 	at, ok, err := e.svc.OwnIPProof(e.ctx(), "admin@acme.example", netip.MustParseAddr(ipA))
 	if err != nil || !ok || !at.Equal(seen) {
 		t.Fatalf("proof %v %v %v, want the sighting at %v", at, ok, err, seen)
@@ -26,9 +42,57 @@ func TestOwnIPProofIsTheLatestSightingWhileTheBoxUsesAnotherLine(t *testing.T) {
 	if ok, err := e.svc.ScannableIP(e.ctx(), "admin@acme.example", netip.MustParseAddr(ipA)); err != nil || !ok {
 		t.Fatalf("ScannableIP %v %v", ok, err)
 	}
+	if p := e.node(e.detectedID(ipA)).Proof; p.Replaced != nil {
+		t.Fatalf("an address of a line still in use is shown replaced: %+v", p.Replaced)
+	}
 	e.advance(ValidDays * 24 * time.Hour) // past its days: no proof, no yes
 	if at, ok, err := e.svc.OwnIPProof(e.ctx(), "admin@acme.example", netip.MustParseAddr(ipA)); err != nil || ok || !at.IsZero() {
 		t.Fatalf("an expired proof: %v %v %v", at, ok, err)
+	}
+}
+
+// A dynamic address the provider took back: a was last seen before b, the box's current egress, was first seen, so the lines never
+// overlapped and a may belong to someone else now. The gate keeps it inside its 90 days as before, but no proof is sent: the
+// executors scan it only if they see the box go out through it themselves. Its page says it was replaced, by what and when.
+func TestOwnIPProofOfAReplacedAddressIsNone(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.committedIP(ipA)
+	e.advance(24 * time.Hour)
+	e.fullAs(ipB) // the provider gave the box b; a is not seen again
+	bFirst := e.clock.Now()
+	e.advance(time.Hour)
+	at, ok, err := e.svc.OwnIPProof(e.ctx(), "admin@acme.example", netip.MustParseAddr(ipA))
+	if err != nil || !ok || !at.IsZero() {
+		t.Fatalf("proof %v %v %v of a replaced address, want none (the gate still says yes)", at, ok, err)
+	}
+	r := e.node(e.detectedID(ipA)).Proof.Replaced
+	if r == nil || r.By != ipB || r.At != store.FormatTS(bFirst) {
+		t.Fatalf("replaced %+v, want by %s at %v", r, ipB, bFirst)
+	}
+	if p := e.node(e.detectedID(ipB)).Proof; p.Replaced != nil {
+		t.Fatalf("the current egress shown replaced: %+v", p.Replaced)
+	}
+	// a is seen again later (the provider gave it back, or the second line came up): it is not replaced any more, and keeps its proof
+	// after the box goes back to b
+	e.advance(time.Hour)
+	e.fullAs(ipA)
+	aAgain := e.clock.Now()
+	e.advance(time.Hour)
+	e.fullAs(ipB)
+	if at, ok, err := e.svc.OwnIPProof(e.ctx(), "admin@acme.example", netip.MustParseAddr(ipA)); err != nil || !ok || !at.Equal(aAgain) {
+		t.Fatalf("proof %v %v %v after a was seen again, want %v", at, ok, err, aAgain)
+	}
+	if p := e.node(e.detectedID(ipA)).Proof; p.Replaced != nil {
+		t.Fatalf("seen again, still shown replaced: %+v", p.Replaced)
+	}
+}
+
+// When the box's records cannot say which address it goes out through (no sighting of any of its addresses holds), no proof is sent.
+func TestOwnIPProofNeedsTheCurrentEgress(t *testing.T) {
+	t.Parallel()
+	if _, _, ok := (egressNow{}).proofOf(Target{Kind: KindIP, Method: methodBoxEgress, Value: ipA, VerifiedAt: time.Now()}, time.Now()); ok {
+		t.Fatal("a proof with no current egress known")
 	}
 }
 
@@ -53,15 +117,10 @@ func TestOwnIPProofIsNeverTheProofOfATypedIP(t *testing.T) {
 func TestTheWebStepOfAProvenIPCarriesItsProof(t *testing.T) {
 	t.Parallel()
 	e := stepsEnv(t)
-	ips := e.detect(ipA)
-	if _, err := e.commit(ips[0].ID); err != nil {
-		t.Fatal(err)
-	}
-	seen := e.clock.Now()
+	seen := e.twoLines(ipA, ipB)
 	e.advance(ScanEvery)
-	e.fullAs(ipB)
 	e.svc.SetRunner(&fakeRunner{content: gbOpen()})
-	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err != nil {
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", e.detectedID(ipA)); err != nil {
 		t.Fatal(err)
 	}
 	web, _ := e.svc.cfg.Web.(*fakeWeb)

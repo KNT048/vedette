@@ -466,6 +466,20 @@ function ancestorsOf(n: StoredNode, all: StoredNode[]): StoredNode[] {
   return out
 }
 
+/** The overlap rule of the proof the scan engines get (exposure INV-13): an IP the box found that was last seen before the box's current
+ *  egress address was first seen was replaced (the two never overlapped); null while it overlaps, for the current address and for
+ *  every other node. */
+function replacedOf(n: StoredNode, all: StoredNode[], state: ProofState): Proof['replaced'] {
+  const box = (x: StoredNode) => x.kind === 'ip' && x.origin === 'box' && x.method === 'box_egress' && !!x.verified_at
+  if (!box(n) || (state !== 'proven' && state !== 'not_current')) return null
+  const lines = all.filter(box)
+  const latest = Math.max(...lines.map((x) => Date.parse(x.verified_at!)))
+  const current = lines.filter((x) => Date.parse(x.verified_at!) === latest)
+  if (current.some((x) => x.id === n.id)) return null
+  const newest = current.reduce((a, b) => (Date.parse(b.created_at) > Date.parse(a.created_at) ? b : a))
+  return Date.parse(n.verified_at!) > Date.parse(newest.created_at) ? null : { by: newest.value, at: newest.created_at }
+}
+
 function nodeProof(n: StoredNode, all: StoredNode[]): Proof {
   const own = ownProof(n)
   const cover = own === 'proven' ? undefined : ancestorsOf(n, all).find((a) => ownProof(a) === 'proven')
@@ -485,6 +499,7 @@ function nodeProof(n: StoredNode, all: StoredNode[]): Proof {
       content: n.token,
       ptr_domains: all.filter((x) => x.kind === 'domain' && ownProof(x) === 'proven').map((x) => x.value),
     } : null,
+    replaced: replacedOf(n, all, state),
   }
 }
 

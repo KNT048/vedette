@@ -341,6 +341,10 @@ export const FileProof = z.object({
   content: z.string().describe('The token: the whole content of /.well-known/vedette-verify.txt'),
   ptr_domains: z.array(z.string()).describe('Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the IP, proves it too'),
 })
+export const Replaced = z.object({
+  by: z.string().describe("The box's current egress address"),
+  at: z.iso.datetime().describe('When the box was first seen going out through it'),
+})
 export const Proof = z.object({
   state: ProofState.describe('proven: this node\'s own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed'),
   method: VerifyMethod.nullable().describe('How this node proves itself; null when covered by an ancestor or not proven yet'),
@@ -351,6 +355,7 @@ export const Proof = z.object({
   last_check: ProofCheck.nullable(),
   dns: DnsProof.nullable().describe('Domain not covered by an ancestor: where its TXT record goes; null otherwise'),
   file: FileProof.nullable().describe('IP typed in by a person: where its proof file goes; null otherwise'),
+  replaced: Replaced.nullable().describe("An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"),
 })
 
 export const Consent = z.object({

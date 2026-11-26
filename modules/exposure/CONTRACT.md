@@ -43,7 +43,13 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   clock: `TestOwnIPProofOfASightingDatedInTheFutureIsNone`), sensor-active sends it with each nmap and
   nuclei job (`proven_at`), the web step with each ZAP page (`ScanTarget.ProvenAt`), and the scan container and vedette-host accept
   the address while it holds (`egressip.ProofHolds`, the same 90 days and 5 minutes of clock slack: `TestOwnProofWindowIsValidDays`),
-  else they ask for a sighting of their own as before. OpenVAS's own-IP check (`gbOwnNow`) is the same gate
+  else they ask for a sighting of their own as before. **Overlap rule** (`egressnow.go`): the proof is sent only while the address's
+  latest sighting is after the first sighting (`created_at`) of the box's current egress address (the box_egress IP(s) of the latest
+  sighting overall), i.e. the two lines were in use at the same time; an address last seen before that was replaced (a dynamic
+  address the provider took back): no proof, the executors scan it only if they see the box go out through it, and its node's
+  `proof.replaced` says by which address and since when (the Ownership tab shows one line). Seen again later, it is not replaced. When
+  the current egress cannot be told (no datable sighting, one stored ahead of the clock) no proof is sent (fail closed). An address that
+  comes back after its proof expired, its target kept, counts from its first sighting ever. OpenVAS's own-IP check (`gbOwnNow`) is the same gate
   (`TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow`). The Shodan check needs it current (INV-21).
 - **INV-32** A domain is proved by its own TXT token (`vedette-verify=<token>`) on the name, on `_vedette-verify.<name>`, on a
   parent name up to the registered domain, or by a verified ancestor target (`core/domainfence`). Proof is checked with

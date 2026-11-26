@@ -63,3 +63,35 @@ func TestTrapTestAlertTakesThePathOfTheRealOne(t *testing.T) {
 		t.Fatalf("no channel on: %+v %v", got, err)
 	}
 }
+
+// The alert trigger of a decoy touch decides whether the real alert is sent at all (INV-31): a test alert does not claim a path the real
+// one would not take. With the trigger off every channel is skipped and says why; with a minimum above the alert, the same.
+func TestTrapTestAlertFollowsTheTrapTrigger(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	e.telegram(notify.Low)
+	touch := notify.TrapHit{ID: "hit-1", Kind: "service", Service: "ssh", SrcIP: "192.0.2.2", Label: "SSH", Decoy: "FILES-SRV-02"}
+	scan := notify.TrapHit{ID: "hit-2", Kind: "scan", SrcIP: "192.0.2.2", Label: "Port scan across 2 decoy IPs", Decoy: "A, B"}
+
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: false, Min: notify.Low}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.SendTrapTest(e.ctx(), touch)
+	if err != nil || len(got) != 1 || got[0].OK || !got[0].Skipped || !strings.Contains(got[0].Detail, "turned off in the alert settings") {
+		t.Fatalf("trigger off: %+v %v", got, err)
+	}
+	if n := len(e.net.to("api.telegram.org")); n != 0 {
+		t.Fatalf("a test alert was sent while the real one is turned off: %d calls", n)
+	}
+
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: true, Min: notify.Critical}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = e.svc.SendTrapTest(e.ctx(), scan) // a scan alone is high
+	if err != nil || len(got) != 1 || got[0].OK || !got[0].Skipped || !strings.Contains(got[0].Detail, "only from critical") {
+		t.Fatalf("below the trigger's minimum: %+v %v", got, err)
+	}
+	if got, err = e.svc.SendTrapTest(e.ctx(), touch); err != nil || len(got) != 1 || !got[0].OK {
+		t.Fatalf("a critical touch at a trigger from critical: %+v %v", got, err)
+	}
+}

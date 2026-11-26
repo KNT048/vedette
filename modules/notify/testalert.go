@@ -27,8 +27,9 @@ const testAlertNote = "This is a test a person started in Vedette: nobody touche
 
 // SendTrapTest sends the alert a real hit on a trap would send, marked Test, to every channel that is on, now, and says what each did
 // (honeypot "Test trap", "Test scan", "Test token"): the person sees the whole path from the trap to their phone work. It follows the
-// channels' choice of what to send (a channel that would not take the real alert is skipped and says why) and says when quiet hours
-// would hold the real one; it opens no incident, writes no history row and counts nowhere. The source address is the box's own.
+// channels' choice of what to send (a channel that would not take the real alert is skipped and says why; every channel is, when the
+// trap's alert trigger holds the real one back) and says when quiet hours would hold the real one; it opens no incident, writes no
+// history row and counts nowhere. The source address is the box's own.
 // No channel on: an empty list.
 func (s *Service) SendTrapTest(ctx context.Context, hit TrapHit) ([]TestDelivery, error) {
 	if strings.TrimSpace(hit.SrcIP) == "" {
@@ -56,6 +57,18 @@ func (s *Service) SendTrapTest(ctx context.Context, hit TrapHit) ([]TestDelivery
 	if err != nil {
 		return nil, err
 	}
+	triggers, err := loadTriggers(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	// The trap trigger decides whether the real alert goes to any channel (INV-31): when it holds the real one, no channel takes the test.
+	held := ""
+	if hold, floor := triggers.holds(Notice{Kind: KindIncident, IncidentKind: string(in.Kind), Severity: in.Severity}); hold {
+		held = "Not sent: alerts of this kind are turned off in the alert settings, so a real one would not be sent either."
+		if floor != "" {
+			held = fmt.Sprintf("Not sent: this alert is %s, and the alert settings send this kind only from %s, so a real one would not be sent either.", in.Severity, floor)
+		}
+	}
 	what := in.What
 	now := s.now().In(s.loc(ctx))
 	if rules.Quiet.Active(now) && (in.Severity != Critical || !rules.Quiet.AllowCritical) {
@@ -67,6 +80,10 @@ func (s *Service) SendTrapTest(ctx context.Context, hit TrapHit) ([]TestDelivery
 	var wg sync.WaitGroup
 	for i, t := range types {
 		out[i].Channel = t
+		if held != "" {
+			out[i].Skipped, out[i].Detail = true, held
+			continue
+		}
 		c, err := loadChannel(ctx, db, t)
 		if err != nil {
 			out[i].Detail = "The channel could not be read."

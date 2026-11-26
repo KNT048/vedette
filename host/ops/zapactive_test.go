@@ -281,11 +281,11 @@ func TestZapActive_StopKillsZAP(t *testing.T) {
 // (ZAP's own output, recorded from the pinned image).
 func TestZapActive_ACutShortRunKeepsWhatItFound(t *testing.T) {
 	t.Parallel()
-	cut, err := os.ReadFile("testdata/zap-af-active-cut.out")
+	cut, err := os.ReadFile("testdata/zap-af-active-cut.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
-	done, err := os.ReadFile("testdata/zap-af-active-done.out")
+	done, err := os.ReadFile("testdata/zap-af-active-done.txt")
 	if err != nil {
 		t.Fatal(err)
 	}

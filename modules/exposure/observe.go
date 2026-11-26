@@ -39,7 +39,7 @@ import (
 //	| filtered   | no answer at all (no reset) to the re-check while the address answered elsewhere            | closed by the third such scan over a day |
 //	| unreached  | nothing of the address answered, or every port flipped to resets through NAT loopback      | kept ("not reached since"); 30 days: no longer listed |
 //	| lost       | answered earlier in the run, then stopped                                                  | kept, as unreached                     |
-//	| network    | the network answers the port for every address (syn-ack or reset), same answer as there     | kept; a syn-ack one retired when no run saw it over a checked clean path |
+//	| network    | the network answers the port for every address (syn-ack or reset), same answer as there     | kept; a syn-ack one retired when this run read its answer as the network's and no run saw it over a clean path |
 //	| unknown    | the calibration failed, or a probe step failed or was cut                                  | kept, as unreached                     |
 
 // The verdicts.
@@ -109,6 +109,7 @@ type observer struct {
 	mu       sync.Mutex
 	calib    map[int]string          // port: what the never-routed addresses got (PortOpen, PortClosed, PortSilent, calibFailed)
 	distinct map[string]bool         // portKey: the target's own answer differs from the network's
+	same     map[string]bool         // portKey: the target's own answer was read this run and is the network's (compared, not failed)
 	said     map[int]bool            // the network's ports said in the run's log
 	resets   map[string]bool         // address: the runner or the sweep got a reset on some port
 	sweeps   map[string]sweepFacts   // address: its deep sweep
@@ -122,7 +123,7 @@ type observer struct {
 type observerKey struct{}
 
 func (s *Service) newObserver(x *corerun.Exec) *observer {
-	return &observer{check: s.cfg.Path, x: x, log: s.cfg.Log, calib: map[int]string{}, distinct: map[string]bool{}, said: map[int]bool{},
+	return &observer{check: s.cfg.Path, x: x, log: s.cfg.Log, calib: map[int]string{}, distinct: map[string]bool{}, same: map[string]bool{}, said: map[int]bool{},
 		resets: map[string]bool{}, sweeps: map[string]sweepFacts{}, alive: map[string]map[int]bool{}, lost: map[string][]int{},
 		recheck: map[string]map[int]string{}, cuts: map[string]string{}, leftOut: map[string][]int{}}
 }
@@ -283,6 +284,7 @@ type observation struct {
 	checked  bool                // a network-path check was wired
 	calib    map[int]string      // its answers
 	distinct map[string]bool     // portKey: the target's own answer differs from the network's
+	same     map[string]bool     // portKey: the target's own answer was read this run and is the network's
 	deep     bool                // the run is a deep scan (the words of the lines)
 	names    map[string][]string // the names of each address (a domain's), for the lines
 }
@@ -295,6 +297,7 @@ type portVerdict struct {
 	reason string
 	probes int  // closed: the probes of this run that missed it (two agree: closed at once)
 	seen   bool // it accepted a connection this run: it is in the results
+	same   bool // network (synack): this run read the target's own answer on the port and it was the network's
 	clean  bool // open: the network-path check ran for the port and the network does not answer it
 	stored bool // it had an open row before this scan
 }
@@ -387,6 +390,7 @@ func verdicts(o observation) verdictSet {
 				if o.calib[p] == PortClosed {
 					v.reason = reasonReset
 				}
+				v.same = v.reason == reasonSynAck && o.same[portKey(ip, p)]
 			case slices.Contains(a.lost, p):
 				v.v, v.reason = verdictLost, reason
 			case a.open[p] && failed(p):
@@ -687,7 +691,7 @@ func (s *Service) observation(ctx context.Context, st ScanTarget, c Content, cov
 		ob.calibrate(ctx, scoped) // every port a verdict is given for is checked (most were at the start of the run)
 	}
 	ob.mu.Lock()
-	o.calib, o.distinct = maps.Clone(ob.calib), maps.Clone(ob.distinct)
+	o.calib, o.distinct, o.same = maps.Clone(ob.calib), maps.Clone(ob.distinct), maps.Clone(ob.same)
 	ob.mu.Unlock()
 	return o
 }

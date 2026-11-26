@@ -123,9 +123,11 @@ func (s *Service) networkPorts(ctx context.Context, ip string, open []int) map[i
 			continue
 		}
 		if !asked {
-			d = s.distinctAnswer(ctx, ip, p)
+			var compared bool
+			d, compared = s.distinctAnswer(ctx, ip, p)
 			o.mu.Lock()
 			o.distinct[portKey(ip, p)] = d
+			o.same[portKey(ip, p)] = compared && !d
 			o.mu.Unlock()
 		}
 		if !d {
@@ -135,22 +137,23 @@ func (s *Service) networkPorts(ctx context.Context, ip string, open []int) map[i
 	return out
 }
 
-// distinctAnswer says ip's answer on port differs from what a never-routed address gets through the same network. A comparison that
-// fails says no: the port stays the network's.
-func (s *Service) distinctAnswer(ctx context.Context, ip string, port int) bool {
+// distinctAnswer says ip's answer on port differs from what a never-routed address gets through the same network, and whether the
+// comparison ran. A comparison that fails says no, not compared: the port is left out of the results as the network's, but nothing
+// was learned of the target (its stored row is not retired on it).
+func (s *Service) distinctAnswer(ctx context.Context, ip string, port int) (distinct, compared bool) {
 	o := s.observerOf(ctx)
 	a, err := netip.ParseAddr(ip)
 	if err != nil || o.check == nil {
-		return false
+		return false, false
 	}
 	same, err := o.check.SameAsPath(ctx, a, port)
 	if err != nil {
 		if ctx.Err() == nil {
 			s.cfg.Log.WarnContext(ctx, "exposure: comparing a target's answer with the network's failed", "ip", ip, "port", port, "error", err)
 		}
-		return false
+		return false, false
 	}
-	return !same
+	return !same, true
 }
 
 // leftOut says in the run's log, once for each port, that the results of ip lost ports to the network.

@@ -36,6 +36,14 @@ async function press(name: string | RegExp) {
 const TOKEN = '8123456789:AAHnewTokenForVedette_1234567890abcdefXY7z'
 
 describe('notify: incidents (S-ALERT-3)', () => {
+  it('a long title without spaces (an IPS rule name) wraps inside its column instead of running over the next ones', async () => {
+    renderApp('/incidents')
+    const table = await screen.findByRole('table', { name: 'Incidents' })
+    const title = within(table).getByRole('link', { name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })
+    expect(title.className).toContain('[overflow-wrap:anywhere]')
+    expect(title.parentElement?.className).toContain('min-w-0')
+  })
+
   it('the heading counts new incidents; the list has trap, bad address and log anomaly, no vulnerabilities; no a11y violations', async () => {
     renderApp('/incidents')
     expect(await screen.findByRole('heading', { level: 1, name: '3 new incidents' })).toBeInTheDocument()

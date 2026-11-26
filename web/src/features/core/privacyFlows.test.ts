@@ -50,6 +50,14 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     }
     for (const to of [plain(rows.get(9)![3]!), flows['9']!.to]) expect(to).toContain('with a domain\'s testing terms, every public address its names resolve to, including a hosting provider, CDN or proxy in front of them')
   })
+  it('flow 9: the check of the ports the box\'s own network answers reaches no one, the same words in both (exposure INV-44)', () => {
+    const sentence = 'to 192.0.2.1, 198.51.100.1 and 203.0.113.1, documentation addresses (RFC 5737) that are never routed on the Internet, so the packets reach no one'
+    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain(sentence)
+  })
+  it('flow 9: the re-check of the ports a scan missed is said, the same words in both (exposure INV-22)', () => {
+    const sentence = 'to tell a closed port (a reset) from one that gives no answer at all (a firewall or WAF that blocks the box), so a blocked port is not taken for closed'
+    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain(sentence)
+  })
   it('flow 9: scheduled scans and how to turn them off, the same words in both (exposure INV-36)', () => {
     const sentence = 'Each target is also scanned by itself on its schedule (daily, weekly by default, or monthly; Off scans it only when you select Scan now)'
     for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain(sentence)

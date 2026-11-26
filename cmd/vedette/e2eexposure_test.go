@@ -75,7 +75,9 @@ func e2eExposureFakes() func() {
 	e2eExpMu.Lock()
 	defer e2eExpMu.Unlock()
 	if e2eExpN++; e2eExpN == 1 {
-		exposureTestConfig = func(c *exposure.Config) { c.Prober, c.Resolver, c.Runner, c.Liveness = e2eExp, e2eExp, e2eExp, nil } // no TCP connect from the box either
+		exposureTestConfig = func(c *exposure.Config) { // no TCP connect from the box either
+			c.Prober, c.Resolver, c.Runner, c.Liveness, c.Path = e2eExp, e2eExp, e2eExp, nil, nil
+		}
 	}
 	return func() {
 		e2eExpMu.Lock()

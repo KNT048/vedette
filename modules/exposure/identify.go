@@ -383,6 +383,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 				got = append(got, r)
 			}
 		}
+		res, got = s.dropPathServices(ctx, ip.String(), res, got) // INV-44: a port the box's own network answers is not the target's
 		c.Services = append(c.Services, got...)
 		if !st.Mode.Full && (res.AnswersEverywhere || surfaceEverywhere) {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notAnswersEverywhereKept})

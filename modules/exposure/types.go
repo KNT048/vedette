@@ -370,6 +370,12 @@ type Content struct {
 	// connection at a later liveness check (liveness.go), ascending: the engines after it skip them, and the scan is not a miss of any
 	// port of such an address (coverage: coverLost).
 	Lost map[string][]int `json:"-"`
+	// Silent and Answering are the ports of each address, by its canonical spelling, that were open before, that this scan did not
+	// see, and that the re-check right before the save (recheckMissed, INV-22) found silent (no answer at all, no reset: a firewall or
+	// WAF dropping the box's packets looks like this) or still accepting a connection. Neither is a miss of the port, except the third
+	// silent scan in a row at least a day after the first (silentStreak).
+	Silent    map[string][]int `json:"-"`
+	Answering map[string][]int `json:"-"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

@@ -1210,6 +1210,9 @@ export const handlers = [
 
 // Shared inside the mock layer: the scan module only scans external targets that are verified (IPs: seen by the box within 30 days).
 // Reading the targets also runs the automatic check when it is due, as the box's job would have by now, so the scan page of a clean install lists the IPs the box found.
+/** The tree and its rows, for tests that set a node up (its terms, the addresses its last scans saw). */
+export const exposureTreeStore: Collection<StoredNode[]> = tree
+export const exposureTreeRowsStore: Collection<TreeRows> = treeRows
 export const exposureTargetsStore: Collection<StoredTarget[]> = { get: () => { autoDetectIfDue(); return targets.get() }, set: (v) => targets.set(v), update: (fn) => targets.update(fn) }
 export { snapshots as exposureSnapshotsStore, commitments as exposureCommitmentsStore }
 // The scan module asks the same question before it scans an external IP (CheckScannable, INV-13).

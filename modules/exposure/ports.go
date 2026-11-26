@@ -141,6 +141,15 @@ type Runner interface {
 	Scan(ctx context.Context, t ScanTarget) (Content, error)
 }
 
+// PathChecker says which of ports answer a TCP connect to an address that is never routed (the RFC 5737 documentation ranges): such a
+// port is answered by the network between the box and the Internet (a firewall's SIP or SCCP helper, a transparent proxy, a SYN
+// proxy), whatever the destination, so an "open" there says nothing about a target (INV-44). cmd/vedette implements it with plain
+// TCP connects that are closed at once (nothing is sent, and no one is reached). It returns the ports that answered, ascending; an
+// error is "none known".
+type PathChecker interface {
+	AnsweredByPath(ctx context.Context, ports []int) ([]int, error)
+}
+
 // Gateway tells the page which device probably answers the open ports of the box's public IP (S-EXP-1). cmd/vedette
 // implements it from the host's default route, the inventory and the findings; exposure reads no other module's tables.
 type Gateway interface {

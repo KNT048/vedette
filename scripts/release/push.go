@@ -585,8 +585,10 @@ type inputsOpts struct {
 
 // bundledOf is bundled[] of the release: the pinned third-party software inside the signed images, as Settings → Updates →
 // Managed packages lists it, read from git at tag v<version> (what the images were built from): nuclei and the template pack in scan,
-// OpenCanary in honeypot. nmap is never here: the box installs it from Debian. nuclei has no sha256: it is built from source per
-// platform, so no one hash names it; the signed image digest does.
+// OpenCanary in honeypot, plus the two upstream images that are pinned by digest and pulled by the box itself: ZAP (scan) and OpenVAS
+// (greenbone; one row for the whole Greenbone Community compose project, shown by gvmd's release). nmap is never here: the box
+// installs the current Debian package, so no one version is pinned. nuclei has no sha256: it is built from source per platform, so
+// no one hash names it; the signed image digest does.
 func bundledOf(ctx context.Context, run runFunc, repo, version string) ([]release.Bundled, error) {
 	show := func(p string) ([]byte, error) {
 		ctx, cancel := context.WithTimeout(ctx, time.Minute)
@@ -615,6 +617,8 @@ func bundledOf(ctx context.Context, run runFunc, repo, version string) ([]releas
 		{Service: "scan", Name: "nuclei", Version: pins["NUCLEI_VERSION"], License: "MIT"},
 		{Service: "scan", Name: "nuclei-templates-pack", Version: pv, SHA256: sum, License: "MIT"},
 		{Service: "honeypot", Name: "opencanary", Version: pins["OPENCANARY_VERSION"], License: "BSD-3-Clause"},
+		{Service: "scan", Name: "zap", Version: imageTag(pins["ZAP_IMAGE"]), License: "Apache-2.0"},
+		{Service: "greenbone", Name: "openvas", Version: pins["OPENVAS_VERSION"], License: "AGPL-3.0 AND GPL-2.0 AND GPL-3.0"},
 	}
 	for _, x := range b {
 		if x.Version == "" {
@@ -622,6 +626,15 @@ func bundledOf(ctx context.Context, run runFunc, repo, version string) ([]releas
 		}
 	}
 	return b, nil
+}
+
+// imageTag is the tag of an image reference such as registry/name:2.17.0@sha256:<digest>; empty when there is none.
+func imageTag(ref string) string {
+	ref, _, _ = strings.Cut(ref, "@")
+	if i := strings.LastIndex(ref, ":"); i > strings.LastIndex(ref, "/") {
+		return ref[i+1:]
+	}
+	return ""
 }
 
 // BuildInputs writes the release description from what was pushed and built: the images of images.json with their index digests,

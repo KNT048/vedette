@@ -98824,10 +98824,6 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) Encode(e *jx.Encoder
 // encodeFields encodes fields.
 func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -98837,10 +98833,9 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposureDeleteExposureTargetsIDTermsOKTermsNotice from json.
@@ -98852,20 +98847,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) Decode(d *jx.Decoder
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -98877,7 +98860,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -98898,7 +98881,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) Decode(d *jx.Decoder
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -101762,10 +101745,6 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -101775,10 +101754,9 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposureDeleteExposureTreeIDTermsOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposureDeleteExposureTreeIDTermsOKTermsNotice from json.
@@ -101790,20 +101768,8 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) Decode(d *jx.Decoder) e
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -101815,7 +101781,7 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -101836,7 +101802,7 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -107039,10 +107005,6 @@ func (s *ExposureGetExposureTargetsIDOKTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposureGetExposureTargetsIDOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -107052,10 +107014,9 @@ func (s *ExposureGetExposureTargetsIDOKTermsNotice) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposureGetExposureTargetsIDOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOKTermsNotice from json.
@@ -107067,20 +107028,8 @@ func (s *ExposureGetExposureTargetsIDOKTermsNotice) Decode(d *jx.Decoder) error 
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -107092,7 +107041,7 @@ func (s *ExposureGetExposureTargetsIDOKTermsNotice) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -107113,7 +107062,7 @@ func (s *ExposureGetExposureTargetsIDOKTermsNotice) Decode(d *jx.Decoder) error 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -116827,10 +116776,6 @@ func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) Encode(e *jx.Encoder)
 // encodeFields encodes fields.
 func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -116840,10 +116785,9 @@ func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItemTermsNotice from json.
@@ -116855,20 +116799,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) Decode(d *jx.Decoder)
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -116880,7 +116812,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -116901,7 +116833,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -121736,10 +121668,6 @@ func (s *ExposureGetExposureTreeIDOKTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposureGetExposureTreeIDOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -121749,10 +121677,9 @@ func (s *ExposureGetExposureTreeIDOKTermsNotice) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeIDOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposureGetExposureTreeIDOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposureGetExposureTreeIDOKTermsNotice from json.
@@ -121764,20 +121691,8 @@ func (s *ExposureGetExposureTreeIDOKTermsNotice) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -121789,7 +121704,7 @@ func (s *ExposureGetExposureTreeIDOKTermsNotice) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -121810,7 +121725,7 @@ func (s *ExposureGetExposureTreeIDOKTermsNotice) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -126740,10 +126655,6 @@ func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -126753,10 +126664,9 @@ func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeOKItemsItemTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposureGetExposureTreeOKItemsItemTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposureGetExposureTreeOKItemsItemTermsNotice from json.
@@ -126768,20 +126678,8 @@ func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -126793,7 +126691,7 @@ func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -126814,7 +126712,7 @@ func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -129636,10 +129534,6 @@ func (s *ExposurePatchExposureTreeIDOKTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePatchExposureTreeIDOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -129649,10 +129543,9 @@ func (s *ExposurePatchExposureTreeIDOKTermsNotice) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePatchExposureTreeIDOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePatchExposureTreeIDOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePatchExposureTreeIDOKTermsNotice from json.
@@ -129664,20 +129557,8 @@ func (s *ExposurePatchExposureTreeIDOKTermsNotice) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -129689,7 +129570,7 @@ func (s *ExposurePatchExposureTreeIDOKTermsNotice) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -129710,7 +129591,7 @@ func (s *ExposurePatchExposureTreeIDOKTermsNotice) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -132663,10 +132544,6 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) Encode(e *jx.Enc
 // encodeFields encodes fields.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -132676,10 +132553,9 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice from json.
@@ -132691,20 +132567,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) Decode(d *jx.Dec
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -132716,7 +132580,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -132737,7 +132601,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -137057,10 +136921,6 @@ func (s *ExposurePostExposureTargetsCreatedTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePostExposureTargetsCreatedTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -137070,10 +136930,9 @@ func (s *ExposurePostExposureTargetsCreatedTermsNotice) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreatedTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePostExposureTargetsCreatedTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreatedTermsNotice from json.
@@ -137085,20 +136944,8 @@ func (s *ExposurePostExposureTargetsCreatedTermsNotice) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -137110,7 +136957,7 @@ func (s *ExposurePostExposureTargetsCreatedTermsNotice) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -137131,7 +136978,7 @@ func (s *ExposurePostExposureTargetsCreatedTermsNotice) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -142516,10 +142363,6 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) Encode(e *jx.En
 // encodeFields encodes fields.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -142529,10 +142372,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) encodeFields(e 
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice from json.
@@ -142544,20 +142386,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) Decode(d *jx.De
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -142569,7 +142399,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -142590,7 +142420,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) Decode(d *jx.De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -145607,10 +145437,6 @@ func (s *ExposurePostExposureTreeCreatedTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePostExposureTreeCreatedTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -145620,10 +145446,9 @@ func (s *ExposurePostExposureTreeCreatedTermsNotice) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTreeCreatedTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePostExposureTreeCreatedTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePostExposureTreeCreatedTermsNotice from json.
@@ -145635,20 +145460,8 @@ func (s *ExposurePostExposureTreeCreatedTermsNotice) Decode(d *jx.Decoder) error
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -145660,7 +145473,7 @@ func (s *ExposurePostExposureTreeCreatedTermsNotice) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -145681,7 +145494,7 @@ func (s *ExposurePostExposureTreeCreatedTermsNotice) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -149292,10 +149105,6 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) Encode(e *jx.Encoder
 // encodeFields encodes fields.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -149305,10 +149114,9 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePostExposureTreeIDVerifyOKNodeTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePostExposureTreeIDVerifyOKNodeTermsNotice from json.
@@ -149320,20 +149128,8 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) Decode(d *jx.Decoder
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -149345,7 +149141,7 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -149366,7 +149162,7 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) Decode(d *jx.Decoder
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -153393,10 +153189,6 @@ func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -153406,10 +153198,9 @@ func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePutExposureTargetsIDTermsOKTermsNotice from json.
@@ -153421,20 +153212,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) Decode(d *jx.Decoder) e
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -153446,7 +153225,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -153467,7 +153246,7 @@ func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -153565,8 +153344,10 @@ func (s *ExposurePutExposureTargetsIDTermsReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePutExposureTargetsIDTermsReq) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Bool(s.Disruptive)
+		if s.Disruptive.Set {
+			e.FieldStart("disruptive")
+			s.Disruptive.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("version")
@@ -153589,11 +153370,9 @@ func (s *ExposurePutExposureTargetsIDTermsReq) Decode(d *jx.Decoder) error {
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
 		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Bool()
-				s.Disruptive = bool(v)
-				if err != nil {
+				s.Disruptive.Reset()
+				if err := s.Disruptive.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -153622,7 +153401,7 @@ func (s *ExposurePutExposureTargetsIDTermsReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -156444,10 +156223,6 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Str(s.Disruptive)
-	}
-	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
@@ -156457,10 +156232,9 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTreeIDTermsOKTermsNotice = [3]string{
-	0: "disruptive",
-	1: "text",
-	2: "version",
+var jsonFieldsNameOfExposurePutExposureTreeIDTermsOKTermsNotice = [2]string{
+	0: "text",
+	1: "version",
 }
 
 // Decode decodes ExposurePutExposureTreeIDTermsOKTermsNotice from json.
@@ -156472,20 +156246,8 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) Decode(d *jx.Decoder) erro
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Disruptive = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"disruptive\"")
-			}
 		case "text":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -156497,7 +156259,7 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"text\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -156518,7 +156280,7 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -156574,8 +156336,10 @@ func (s *ExposurePutExposureTreeIDTermsReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ExposurePutExposureTreeIDTermsReq) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("disruptive")
-		e.Bool(s.Disruptive)
+		if s.Disruptive.Set {
+			e.FieldStart("disruptive")
+			s.Disruptive.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("version")
@@ -156598,11 +156362,9 @@ func (s *ExposurePutExposureTreeIDTermsReq) Decode(d *jx.Decoder) error {
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
 		case "disruptive":
-			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Bool()
-				s.Disruptive = bool(v)
-				if err != nil {
+				s.Disruptive.Reset()
+				if err := s.Disruptive.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -156631,7 +156393,7 @@ func (s *ExposurePutExposureTreeIDTermsReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

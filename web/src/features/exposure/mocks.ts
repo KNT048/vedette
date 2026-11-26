@@ -20,7 +20,7 @@ import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
 import { serviceLabel } from './services'
 import { seedTree, seedTreeRows, type StoredNode, type TreeRows } from './treeSeed'
-import { MAX_ISSUE_IDS, MAX_SELECTED, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
+import { MAX_ISSUE_IDS, MAX_SELECTED, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_KEPT_VERSIONS, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { mockDeviceProgress } from '@/lib/progress'
 import { scheduleSubjects } from '@/features/core/schedulesMock'
 import type { Proof, ProofState, Resolution, RunStatus, Scan, ScopeMode, Severity, TargetKind, TargetNode } from './types'
@@ -29,10 +29,13 @@ import { fmtDate, fmtDateTime } from '@/lib/format'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
-/** The testing terms each target was given; the box's own IP has them (without the disruptive tick), the rest none. */
+/** The testing terms each target was given; the box's own IP has an acceptance of the previous version made without its
+ *  disruptive tick (still valid: the deep scan only, until the terms are accepted again), the rest none. */
 const termsStore = collection<Record<string, Terms>>('exp_terms', () => ({
-  'xt-2': { version: TERMS_VERSION, by: 'admin@acme.example', at: new Date(Date.now() - 20 * 864e5).toISOString(), text: TERMS_TEMPLATE.replaceAll('{value}', BOX_EGRESS_IP), disruptive: false },
+  'xt-2': { version: TERMS_KEPT_VERSIONS[0], by: 'admin@acme.example', at: new Date(Date.now() - 20 * 864e5).toISOString(), text: TERMS_TEMPLATE.replaceAll('{value}', BOX_EGRESS_IP), disruptive: false },
 }), () => ({}))
+/** An acceptance of the current terms, or of a version kept valid after an update, counts (full_scan, deep). */
+const termsInForce = (version: string | undefined) => version === TERMS_VERSION || (version !== undefined && TERMS_KEPT_VERSIONS.includes(version))
 const commitments = collection<Record<string, Commitment>>('exp_commitments', () => {
   const at = (d: number) => new Date(Date.now() - d * 864e5).toISOString()
   return {
@@ -231,7 +234,7 @@ function view(t: StoredTarget): Target {
     id: t.id, kind: t.kind, value: t.value, status: !verified ? 'unverified' : expired ? 'expired' : 'verified', method: t.method, token: t.token,
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
     commitment_notice: current ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
-    terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
+    terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value) }, full_scan: termsInForce(terms?.version),
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, last_scan_finished_at: last?.finished_at ?? null, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
     proof: proofOf(t),
     origin: ip && !typed ? 'box' : 'person', open_exposures: last?.counts.ports ?? 0,
@@ -534,9 +537,9 @@ function nodeView(n: StoredNode, all = tree.get()): TargetNode {
     proof,
     commitment: n.commitment, terms: n.terms,
     commitment_notice: commitmentCurrent ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', n.value) },
-    terms_notice: { version: TERMS_VERSION, text: (n.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', n.value), disruptive: TERMS_DISRUPTIVE },
+    terms_notice: { version: TERMS_VERSION, text: (n.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', n.value) },
     terms_warning: null,
-    deep: n.terms?.version === TERMS_VERSION,
+    deep: termsInForce(n.terms?.version),
     blocked: !n.enabled ? 'disabled' : proof.state !== 'proven' && proof.state !== 'covered' ? 'proof' : !commitmentCurrent ? 'no_commitment' : null,
     last_scan: scans[0] ?? null,
     counts: { hosts: (rows.hosts[n.id] ?? []).length, services: open.length, web: open.filter((s) => s.is_web).length, issues: issues.length, worst },
@@ -715,18 +718,18 @@ const treeHandlers = [
     const me = currentUser()!
     if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then accept the testing terms.')
     const b = await body<{ version?: string; disruptive?: boolean }>(request)
-    if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
+    // an older page sends its tick: false asked for the deep scan without the disruptive checks, so it is asked to read the terms again
+    if (b.version !== TERMS_VERSION || b.disruptive === false) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
     const v = nodeView(n)
     if (v.proof.state !== 'proven' && v.proof.state !== 'covered' && v.proof.state !== 'not_current') return fail(409, 'not_verified', 'Prove ownership first; only then can the testing terms be accepted.')
-    const disruptive = b.disruptive === true
-    if (disruptive && v.proof.state === 'not_current') return fail(409, 'ip_not_current', `This box does not reach the Internet through ${v.value} now. The deep scan can be accepted now; the disruptive checks only once the box uses ${v.value} again.`)
+    if (v.terms?.version === TERMS_VERSION && v.terms.disruptive) return HttpResponse.json(v)
     const at = nowIso()
     const next = patchNode(n.id, (x) => ({
       ...x,
       commitment: x.commitment?.version === NOTICE_VERSION ? x.commitment : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', x.value), by: me.email, at, disruptive: false },
-      terms: { version: TERMS_VERSION, text: v.terms_notice.text + (disruptive ? `\n${TERMS_DISRUPTIVE}` : ''), by: me.email, at, disruptive },
+      terms: { version: TERMS_VERSION, text: v.terms_notice.text, by: me.email, at, disruptive: true },
     }))
-    audit('exposure.terms_accept', n.value, `disruptive checks: ${disruptive ? 'yes' : 'no'}`)
+    audit('exposure.terms_accept', n.value, 'disruptive checks: yes')
     return HttpResponse.json(nodeView(next))
   }),
 
@@ -1006,7 +1009,7 @@ export const handlers = [
     return HttpResponse.json({ verified: ok, message, target: view(next) })
   }),
 
-  // Accept the testing terms of a verified target (admin with two-step), with or without the disruptive tick. They
+  // Accept the testing terms of a verified target (admin with two-step), the disruptive checks included. They
   // include the ownership sentence, so the Scan now commitment is recorded too when missing.
   http.put(`${API}/exposure/targets/:id/terms`, async ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
@@ -1015,20 +1018,20 @@ export const handlers = [
     const me = currentUser()!
     if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
     const b = await body<{ version?: string; disruptive?: boolean }>(request)
-    if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
+    // an older page sends its tick: false asked for the deep scan without the disruptive checks, so it is asked to read the terms again
+    if (b.version !== TERMS_VERSION || b.disruptive === false) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
     const v = view(t)
     if (v.status === 'unverified') return fail(409, 'not_verified', 'Verify ownership first; only then can the testing terms be accepted.')
     if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} has expired. Verify it again first.`)
-    const disruptive = b.disruptive === true
-    if (v.full_scan && v.terms?.disruptive === disruptive) return HttpResponse.json(v)
+    if (v.terms?.version === TERMS_VERSION && v.terms.disruptive) return HttpResponse.json(v)
     if (v.commitment?.version !== NOTICE_VERSION) {
       const sentence = NOTICE_TEMPLATE.replace('{value}', t.value)
       commitments.update((m) => ({ ...m, [t.id]: { by: me.email, at: nowIso(), version: NOTICE_VERSION, sentence } }))
       audit('exposure.commitment', t.value, `confirmed by accepting the testing terms (notice ${NOTICE_VERSION}): ${sentence}`)
     }
-    const text = v.terms_notice.text + (disruptive ? `\n${TERMS_DISRUPTIVE}` : '')
-    termsStore.update((m) => ({ ...m, [t.id]: { version: TERMS_VERSION, by: me.email, at: nowIso(), text, disruptive } }))
-    audit('exposure.terms_accept', t.value, auditClip(`${v.terms ? `accepted again (replaces terms ${v.terms.version}, accepted by ${v.terms.by} at ${v.terms.at}, disruptive checks: ${v.terms.disruptive ? 'yes' : 'no'})` : 'accepted'} (disruptive checks: ${disruptive ? 'yes' : 'no'}, terms ${TERMS_VERSION}): ${text}`))
+    const text = v.terms_notice.text
+    termsStore.update((m) => ({ ...m, [t.id]: { version: TERMS_VERSION, by: me.email, at: nowIso(), text, disruptive: true } }))
+    audit('exposure.terms_accept', t.value, auditClip(`${v.terms ? `accepted again (replaces terms ${v.terms.version}, accepted by ${v.terms.by} at ${v.terms.at}, disruptive checks: ${v.terms.disruptive ? 'yes' : 'no'})` : 'accepted'} (disruptive checks: yes, terms ${TERMS_VERSION}): ${text}`))
     return HttpResponse.json(view(t))
   }),
 

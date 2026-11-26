@@ -66,7 +66,7 @@ const (
 )
 
 // gmpDisruptiveFamilies are the families of "Full and fast" that guess passwords, log in with default accounts or try to crash a
-// service: on only with the disruptive tick of the testing terms.
+// service: on only when the accepted testing terms include the disruptive checks.
 var gmpDisruptiveFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
 
 // gmpCheckbox is one checkbox of an NVT's preferences that Vedette's config must hold before a task starts: set on every scan and
@@ -86,7 +86,7 @@ type gbLevel struct {
 	webOff     []string // NVTs of the family Web application abuses left out of the config (#915); none keeps the whole family
 }
 
-// The two levels: the deep scan of accepted testing terms, and the deep scan with the disruptive tick.
+// The two levels: the deep scan of accepted testing terms, and the deep scan with the disruptive checks.
 var (
 	gbDeep = gbLevel{
 		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",

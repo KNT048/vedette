@@ -541,7 +541,6 @@ func iocHit(rec IOCRecord) map[string]any {
 	})
 	var sights []Sighting
 	var names, cats []string
-	score := 0.0
 	for _, g := range rec.Sightings {
 		if b, ok := BuiltinByID(g.SourceID); ok {
 			sights = append(sights, SightingOf(b))
@@ -556,8 +555,8 @@ func iocHit(rec IOCRecord) map[string]any {
 		if !slices.Contains(cats, c) && len(cats) < 2 {
 			cats = append(cats, c)
 		}
-		score = max(score, g.Confidence)
 	}
+	score, _ := IOCConfidence(rec.Sightings) // the same rating logs gives a hit on the value
 	v := Judge(rec.Type, rec.Value, sights, Whitelist{})
 	if v == VerdictNone {
 		return nil

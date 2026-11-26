@@ -198,8 +198,9 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A built-in list is rated by what it is on read (Feodo Tracker: a confirmed command-and-control list, 0.95), whatever was stored.
 	var feedID, feedName string
-	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT id, name FROM feeds_source ORDER BY id LIMIT 1`).Scan(&feedID, &feedName); err != nil {
+	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT id, name FROM feeds_source WHERE id = 'abusech-feodo'`).Scan(&feedID, &feedName); err != nil {
 		t.Fatal(err)
 	}
 	stamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
@@ -241,10 +242,10 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 		t.Fatalf("%+v %v matching=%v", d.BadConnections, err, d.IOCMatching)
 	}
 	h := d.BadConnections[0]
-	if h.Dest != "185.220.101.47" || h.DestKind != "ip" || h.Confidence != 0.4 || len(h.Feeds) != 1 || h.Feeds[0] != feedName || h.AssetID == nil || *h.AssetID != dev.ID || h.SeenVia != "syslog:FW-HQ" {
+	if h.Dest != "185.220.101.47" || h.DestKind != "ip" || h.Confidence != 0.95 || len(h.Feeds) != 1 || h.Feeds[0] != feedName || h.AssetID == nil || *h.AssetID != dev.ID || h.SeenVia != "syslog:FW-HQ" {
 		t.Fatalf("hit %+v (feed %s, device %s)", h, feedName, dev.ID)
 	}
-	if len(got) != 1 || len(ioc) != 1 || got[0].ID != h.ID || ioc[0].ID != h.ID || got[0].Target != "ioc:185.220.101.47" {
+	if len(got) != 1 || len(ioc) != 1 || got[0].ID != h.ID || ioc[0].ID != h.ID || got[0].Target != "ioc:185.220.101.47" || got[0].Severity != "critical" {
 		t.Fatalf("events %+v %+v", got, ioc)
 	}
 	// the export source
@@ -256,7 +257,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 		t.Fatalf("%q %v", out.String(), err)
 	}
 	// #376: the same hit is an ioc_connection event of response, through the real bus, with the trigger fields filled
-	if n := s.count(`SELECT count(*) FROM resp_events WHERE id = ? AND trigger = 'ioc_connection' AND asset_id = ? AND fields LIKE '%"dest_ip":"185.220.101.47"%' AND fields LIKE '%"src_ip":"192.168.30.1"%' AND fields LIKE '%"confidence":"0.4"%'`, "ioc:"+h.ID, dev.ID); n != 1 {
+	if n := s.count(`SELECT count(*) FROM resp_events WHERE id = ? AND trigger = 'ioc_connection' AND asset_id = ? AND fields LIKE '%"dest_ip":"185.220.101.47"%' AND fields LIKE '%"src_ip":"192.168.30.1"%' AND fields LIKE '%"confidence":"0.95"%'`, "ioc:"+h.ID, dev.ID); n != 1 {
 		t.Fatalf("the hit is not a response event (%d)", n)
 	}
 	// #376: and it is evidence an AI proposal can cite through the wired port: found, so the gate after evidence answers
@@ -283,7 +284,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	}
 	// the port: a listed domain, a name no feed lists, and the module off
 	f := logsFeeds{s.d}
-	if l, ok, err := f.Lookup(ctx, "domain", "Bad-Site.NET"); err != nil || !ok || l.Confidence != 0.8 {
+	if l, ok, err := f.Lookup(ctx, "domain", "Bad-Site.NET"); err != nil || !ok || l.Confidence != 0.95 || !l.C2 {
 		t.Fatalf("%+v %v %v", l, ok, err)
 	}
 	if _, ok, err := f.Lookup(ctx, "domain", "fine-site.org"); ok || err != nil {
@@ -303,7 +304,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if l, ok, err := f.Lookup(ctx, "domain", "tif-listed.net"); err != nil || !ok || len(l.SubFeeds) != 1 || l.SubFeeds[0] != "hagezi TIF" || l.SubConfidence != 0.7 {
+	if l, ok, err := f.Lookup(ctx, "domain", "tif-listed.net"); err != nil || !ok || len(l.SubFeeds) != 1 || l.SubFeeds[0] != "hagezi TIF" || l.SubConfidence != 0.75 {
 		t.Fatalf("%+v %v %v", l, ok, err)
 	}
 	if l, _, _ := f.Lookup(ctx, "domain", "bad-site.net"); len(l.SubFeeds) != 0 {

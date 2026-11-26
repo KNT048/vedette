@@ -23,9 +23,10 @@ import (
 // The fence (exposure INV-13): right before the job is handed out, sensor-active asks gate, which is exposure's own
 // OwnIPProof (verified, committed, inside its proof's 90 days; a sighting by the public-IP check renews it, with the person who
 // pressed Scan now as the actor), and for a deep scan modeNow, exposure's ModeNow (the terms as stored now: withdrawn or of an
-// older version → nothing is sent; the tick taken back → the deep scan without the disruptive scripts). The job carries the time
-// of the sighting the yes rests on, and the worker takes the address as the box's own on that proof while it holds, or on its own
-// sighting right before nmap. Every reason the step did not run that the page may show is an *exposure.Unavailable; a
+// older version → nothing is sent; no disruptive checks allowed now → the deep scan without the disruptive scripts). The job carries
+// the time of the sighting the yes rests on (none for an address the box's current one replaced), and the worker takes the address
+// as the box's own on that proof while it holds, or on its own sighting right before nmap. Every reason the step did not run that the
+// page may show is an *exposure.Unavailable; a
 // stop by the caller's context (exposure's bound included) stays a context error, so exposure says "did not finish within …" or
 // drops the run.
 type exposureServiceScan struct {
@@ -91,7 +92,7 @@ func (g ownGate) ShapeNow(ctx context.Context, _ nmapargv.Kind) (nmapargv.Kind, 
 }
 
 // shapeOf is the nmap shape of a scan mode: the K-4 scope keeps External exactly as before FULL-4; accepted terms make it
-// the deep scan, and the disruptive tick adds the dos and brute scripts.
+// the deep scan, and the disruptive checks (when the run may do them) add the dos and brute scripts.
 func shapeOf(m exposure.ScanMode) nmapargv.Kind {
 	switch {
 	case !m.Full:

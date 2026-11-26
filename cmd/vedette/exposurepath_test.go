@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -320,5 +321,42 @@ func TestExposurePathTellsASilentTargetFromTheNetworksBanner(t *testing.T) {
 	defer mu.Unlock()
 	if wrote {
 		t.Fatal("something was sent to read a banner")
+	}
+}
+
+// slowConn is a connection that accepts and then never answers: every read ends at the read deadline (a slow page).
+type slowConn struct{ net.Conn }
+
+func (slowConn) Read([]byte) (int, error)         { return 0, os.ErrDeadlineExceeded }
+func (slowConn) Write(b []byte) (int, error)      { return len(b), nil }
+func (slowConn) Close() error                     { return nil }
+func (slowConn) SetDeadline(time.Time) error      { return nil }
+func (slowConn) SetReadDeadline(time.Time) error  { return nil }
+func (slowConn) SetWriteDeadline(time.Time) error { return nil }
+
+// On a web or TLS port, the target's own answer is the evidence: when reading it failed (a slow page, a TLS handshake or a GET that
+// ended without an answer), nothing of the target was compared, however the never-routed addresses ended too. The comparison
+// reports that it did not run, so a stored row is not retired on it (the port is still left out as the network's).
+func TestExposurePathDoesNotCompareATargetsWebAnswerThatFailed(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	wrote := false
+	target := netip.MustParseAddr("8.8.8.8")
+	closing := exposurePath{public: func(netip.Addr) bool { return true }, dial: func(context.Context, string, string) (net.Conn, error) {
+		return &bannerConn{mu: &mu, wrote: &wrote}, nil // accepted, then closed without a byte: on the target and through the network
+	}}
+	for _, port := range []int{80, 443, 993} { // a web port, a web port with TLS, a TLS-only port
+		if same, err := closing.SameAsPath(t.Context(), target, port); err == nil {
+			t.Errorf("%d, the target's read ended without an answer, like the network's: same %v, want an error (not compared)", port, same)
+		}
+	}
+	slow := exposurePath{public: func(netip.Addr) bool { return true }, dial: func(context.Context, string, string) (net.Conn, error) {
+		return slowConn{}, nil
+	}}
+	if same, err := slow.SameAsPath(t.Context(), target, 443); err == nil {
+		t.Errorf("443, the target's page timed out, like the network's: same %v, want an error (not compared)", same)
+	}
+	if same, err := slow.SameAsPath(t.Context(), target, 5060); err != nil || !same { // a banner port: nothing on both sides stays the network's
+		t.Errorf("5060, nothing sent by either: same %v, err %v", same, err)
 	}
 }

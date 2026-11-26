@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -136,6 +137,10 @@ type omWire struct {
 	// distinct are the ports on which the target's answer (certificate, banner, HTTP response) differs from what a never-routed
 	// address gets through the same middlebox. The current ports cannot carry it: the network-path check sees only a connect.
 	distinct []int
+	// admin are the ports on which the runner finds an admin page (a surface issue on the port's row) when the port answers it.
+	admin []int
+	// recheckErr makes the re-check of the ports the scan missed fail (the check itself, not a port).
+	recheckErr bool
 }
 
 func (w *omWire) answer(p omPhase, ip string, port int) omAnswer {
@@ -178,6 +183,9 @@ func (w *omWire) Scan(_ context.Context, st ScanTarget) (Content, error) {
 		switch w.answer(omRunner, st.Value, port) {
 		case omSynAck:
 			c.Ports = append(c.Ports, PortRow{IP: st.Value, Port: port, Service: "http", Ident: IdentProbed})
+			if slices.Contains(w.admin, port) {
+				c.AdminPanels = append(c.AdminPanels, AdminRow{URL: fmt.Sprintf("https://%s:%d/", st.Value, port), Product: "a firewall", IP: st.Value, Port: port, Risk: "danger"})
+			}
 		case omReset:
 			c.Answered = map[string]bool{st.Value: true}
 		}
@@ -231,6 +239,12 @@ func (w *omWire) Alive(_ context.Context, ip netip.Addr, ports []int) (map[int]b
 
 // Probe is the re-check before the results are written.
 func (w *omWire) Probe(_ context.Context, ip netip.Addr, ports []int) (map[int]string, error) {
+	w.mu.Lock()
+	fail := w.recheckErr
+	w.mu.Unlock()
+	if fail {
+		return nil, errors.New("the re-check could not run")
+	}
 	out := map[int]string{}
 	for _, p := range ports {
 		out[p] = map[omAnswer]string{omSynAck: PortOpen, omReset: PortClosed, omSilence: PortSilent}[w.answer(omRecheck, ip.String(), p)]
@@ -282,7 +296,10 @@ type omRow struct {
 	dnsFails     bool // the now scans get no answer to the name's lookup
 	carryFlags   bool // with dnsFails: the carried row keeps the scan before's flags
 	distinct     []int
-	sameErr      bool // the comparison of the target's answer with the network's fails (the connect check itself works)
+	sameErr      bool   // the comparison of the target's answer with the network's fails (the connect check itself works)
+	admin        []int  // ports on which the runner finds an admin page, in every scan (a surface issue on the port's row)
+	recheckErr   bool   // the re-check of the missed ports fails in the now scans
+	moveTo       string // the now scans find the domain's name on this address instead (the address before left the domain)
 	want         omWant
 	// decision names the product rule the row's expectation changes; "" when the expectation follows the rules as written.
 	decision string
@@ -519,6 +536,67 @@ var omRows = []omRow{
 		sameErr: true,
 		want:    omWant{open: []int{22}},
 	},
+	{
+		// A real web row stored before the vantage was checked; now the network accepts 443 for every address and the target's own
+		// answer could not be read (a slow page, a TLS handshake that failed): the checker reports that it compared nothing. A
+		// failed read of the target is no evidence that the row was the network's: it stays (the port is left out of this run).
+		name: "middlebox_proxy/stored_before_the_check/real_web_row_kept_when_the_targets_answer_fails", kind: omTyped,
+		before: []omNet{omHost(omReset, 22, 443)}, beforeNoPath: true, now: omPath(omHost(omReset, 22, 443), omSynAck, 443),
+		sameErr: true,
+		want:    omWant{open: []int{22, 443}, line: []string{"443", "your own network"}},
+	},
+
+	// ---- a stored row with open issues is retired on the network's answer only when two scans agree ----
+	{
+		// A row stored before the vantage was checked, with an open issue on it (the admin page a firewall's proxy showed for 8443).
+		// Now the network accepts 8443 for every address and the target's answer is the network's: the row would be retired, but it
+		// holds an open issue, so one scan is not enough. It is kept, and the line says so.
+		name: "middlebox_proxy/stored_before_the_check/row_with_open_issues_kept_on_the_first_network_scan", kind: omTyped,
+		before: []omNet{omPath(omHost(omReset, 22), omSynAck, 8443)}, beforeNoPath: true, now: omPath(omHost(omReset, 22), omSynAck, 8443),
+		admin: []int{8443},
+		want:  omWant{open: []int{22, 8443}, run: corerun.Done, line: []string{ipC, "8443", "open issue"}},
+	},
+	{
+		// The same row on the second scan that finds 8443 the network's: two scans agree, so the row is retired, and the line names it.
+		name: "middlebox_proxy/stored_before_the_check/row_with_open_issues_retired_when_a_second_scan_agrees", kind: omTyped,
+		before: []omNet{omPath(omHost(omReset, 22), omSynAck, 8443)}, beforeNoPath: true, now: omPath(omHost(omReset, 22), omSynAck, 8443),
+		admin: []int{8443}, scans: 2,
+		want: omWant{open: []int{22}, notOpen: []int{8443}, run: corerun.Done, line: []string{ipC, "8443", "no longer listed"}},
+	},
+
+	// ---- every other way a stored row stops being listed ----
+	{
+		// One probe of this run missed 32400 (the trusted sweep; it is not on the fixed list), and the re-check that would be the
+		// second probe failed: one miss does not close a port. It is closed by the next scan that misses it too.
+		name: "clean_path/open_before/one_probe_misses_a_port_and_the_recheck_fails", kind: omOwnIP,
+		before: []omNet{omHost(omReset, 22, 32400)}, now: omHost(omReset, 22), recheckErr: true,
+		want: omWant{open: []int{22, 32400}, run: corerun.Done},
+	},
+	{
+		name: "clean_path/open_before/one_probe_misses_a_port_in_two_scans_in_a_row", kind: omOwnIP,
+		before: []omNet{omHost(omReset, 22, 32400)}, now: omHost(omReset, 22), recheckErr: true, scans: 2,
+		want: omWant{open: []int{22}, closed: []int{32400}, run: corerun.Done},
+	},
+	{
+		// 443 gives no answer at all, on every probe of three scans over more than a day, while 22 of the same host answers: the
+		// target's own firewall now drops it (or a WAF that blocks the box). Three silent scans over a day close it.
+		name: "external_waf/open_before/web_port_silent_three_scans_over_a_day", kind: omTyped,
+		before: []omNet{omHost(omSilence, 22, 443)}, now: omPath(omHost(omSilence, 22), omSilence, 443), scans: 3, gap: 13 * time.Hour,
+		want: omWant{open: []int{22}, closed: []int{443}},
+	},
+	{
+		// Nothing of the host answers the box for more than 30 days: its rows are no longer listed, with no alert, and the line of the
+		// address names them.
+		name: "external_waf/open_before/no_answer_for_more_than_30_days", kind: omTyped,
+		before: []omNet{omHost(omReset, 22, 443)}, now: omEverything(omSilence), scans: 3, gap: 15 * 24 * time.Hour,
+		want: omWant{notOpen: []int{22, 443}, run: corerun.Partial, line: []string{ipC, "no longer listed", "30 days"}},
+	},
+	{
+		// The domain's name moved to another address: the services of the address it left are closed at once.
+		name: "hosting_moved/open_before/name_points_at_another_address", kind: omDomain,
+		before: []omNet{omHost(omReset, 80, 443)}, now: omHost(omReset, 80, 443), moveTo: ipD,
+		want: omWant{closed: []int{80, 443}, run: corerun.Done},
+	},
 }
 
 // omFence is the Vedette host's fence for a typed IP: it gives the target's own token.
@@ -584,9 +662,10 @@ func newOMEnv(t *testing.T, kind omKind) *omEnv {
 
 // omScan is how one scan of a row runs.
 type omScan struct {
-	path, pathErr, sameErr, allPorts, dnsFails, carryFlags bool
-	nmapErr                                                error
-	distinct                                               []int
+	path, pathErr, sameErr, allPorts, dnsFails, carryFlags, recheckErr bool
+	nmapErr                                                            error
+	distinct, admin                                                    []int
+	ip                                                                 string // the address the name points at ("" the row's own)
 }
 
 // scan runs one scan of the target over n (the deep scan for an IP target).
@@ -595,6 +674,7 @@ func (o *omEnv) scan(n omNet, how omScan) ScanResult {
 	o.wire.mu.Lock()
 	o.wire.net, o.wire.pathErr, o.wire.sameErr, o.wire.nmapErr = n, how.pathErr, how.sameErr, how.nmapErr
 	o.wire.allPorts, o.wire.dnsFails, o.wire.carryFlags, o.wire.distinct = how.allPorts, how.dnsFails, how.carryFlags, how.distinct
+	o.wire.admin, o.wire.recheckErr, o.wire.ip = how.admin, how.recheckErr, cmp.Or(how.ip, o.ip)
 	o.wire.mu.Unlock()
 	o.svc.cfg.Path = nil
 	if how.path {
@@ -621,12 +701,20 @@ func (o *omEnv) state(port int) string {
 	return st
 }
 
-// runRow runs a row and returns what differs from its expectation, and the run of its last scan.
-func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
+// omLast is what a row's last scan did: the ports of the row's address open just before it, and what it returned.
+type omLast struct {
+	ip         string
+	openBefore []int
+	r          ScanResult
+	state      func(port int) string
+}
+
+// runRow runs a row and returns what differs from its expectation, the run of its last scan, and what that scan did.
+func runRow(t *testing.T, row omRow) ([]string, corerun.Detail, omLast) {
 	t.Helper()
 	o := newOMEnv(t, row.kind)
 	for _, b := range row.before {
-		o.scan(b, omScan{path: !row.beforeNoPath, allPorts: row.beforeAll})
+		o.scan(b, omScan{path: !row.beforeNoPath, allPorts: row.beforeAll, admin: row.admin})
 		o.advance(ScanEvery + time.Minute)
 	}
 	scans, gap := max(row.scans, 1), row.gap
@@ -634,12 +722,16 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
 		gap = ScanEvery + time.Minute
 	}
 	var r ScanResult
+	var openBefore []int
 	for i := range scans {
 		if i > 0 {
 			o.advance(gap)
 		}
-		r = o.scan(row.now, omScan{path: true, pathErr: row.pathErr, sameErr: row.sameErr, nmapErr: row.nmapErr, dnsFails: row.dnsFails, carryFlags: row.carryFlags, distinct: row.distinct})
+		openBefore = o.openPorts()
+		r = o.scan(row.now, omScan{path: true, pathErr: row.pathErr, sameErr: row.sameErr, nmapErr: row.nmapErr, dnsFails: row.dnsFails, carryFlags: row.carryFlags,
+			distinct: row.distinct, admin: row.admin, recheckErr: row.recheckErr, ip: row.moveTo})
 	}
+	last := omLast{ip: o.ip, openBefore: openBefore, r: r, state: o.state}
 	d := o.runDetail(o.ctx(), r.RunID)
 	var diff []string
 	for _, p := range row.want.open {
@@ -697,7 +789,29 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
 			diff = append(diff, fmt.Sprintf("step %q is %s (%q), want %s", w.name, st.Status, noteOf(st), w.status))
 		}
 	}
-	return diff, d
+	return diff, d, last
+}
+
+// openPorts are the ports of the row's address whose stored row is open.
+func (o *omEnv) openPorts() []int {
+	o.t.Helper()
+	rows, err := o.db.Reader().QueryContext(o.ctx(), `SELECT port FROM exp_service WHERE ip = ? AND state = 'open' ORDER BY port`, o.ip)
+	if err != nil {
+		o.t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []int
+	for rows.Next() {
+		var p int
+		if err := rows.Scan(&p); err != nil {
+			o.t.Fatal(err)
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		o.t.Fatal(err)
+	}
+	return out
 }
 
 // TestObservationMatrix runs every row of the matrix. A failing row names what the product concludes that it should not.
@@ -706,7 +820,7 @@ func TestObservationMatrix(t *testing.T) {
 	for _, row := range omRows {
 		t.Run(row.name, func(t *testing.T) {
 			t.Parallel()
-			diff, _ := runRow(t, row)
+			diff, _, _ := runRow(t, row)
 			if len(diff) == 0 {
 				return
 			}
@@ -726,10 +840,45 @@ func TestObservationMatrix_EveryDoneStepSaysWhatItDid(t *testing.T) {
 	for _, row := range omRows {
 		t.Run(row.name, func(t *testing.T) {
 			t.Parallel()
-			_, d := runRow(t, row)
+			_, d, _ := runRow(t, row)
 			for _, st := range d.Steps {
 				if st.Status == corerun.Done && strings.TrimSpace(noteOf(st)) == "" {
 					t.Errorf("step %q is done with no note", st.Name)
+				}
+			}
+		})
+	}
+}
+
+// TestObservationMatrix_EveryRetireIsNamed: in every row, a stored row that the last scan stopped listing without the target having
+// closed it (its verdict is not closed or filtered: the network's, not reached) is named in a "Not checked" line of its address,
+// so a wrong retire is never silent.
+func TestObservationMatrix_EveryRetireIsNamed(t *testing.T) {
+	t.Parallel()
+	for _, row := range omRows {
+		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+			_, d, last := runRow(t, row)
+			verdict := map[string]string{}
+			for _, it := range d.Items {
+				if it.SubjectKind == itemVerdict && it.SubjectID != nil {
+					verdict[*it.SubjectID] = it.Outcome
+				}
+			}
+			for _, p := range last.openBefore {
+				v, ok := verdict[portKey(last.ip, p)]
+				if last.state(p) == ServiceOpen || !ok || v == verdictClosed || v == verdictFiltered {
+					continue // still listed, closed by the target, or not judged by this scan (an address that left the domain)
+				}
+				named := slices.ContainsFunc(last.r.NotChecked, func(n NotCheckedRow) bool {
+					return strings.Contains(n.Text, last.ip) && strings.Contains(n.Text, strconv.Itoa(p)) && strings.Contains(n.Text, "no longer listed")
+				})
+				if !named {
+					var lines []string
+					for _, n := range last.r.NotChecked {
+						lines = append(lines, n.Text)
+					}
+					t.Errorf("port %d of %s (verdict %s) is no longer listed and no line names it; the lines: %q", p, last.ip, v, lines)
 				}
 			}
 		})

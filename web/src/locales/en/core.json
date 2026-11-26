@@ -666,6 +666,20 @@
     "meta": "This box maintains its operating system, pinned packages and Vedette itself.",
     "metaInfo": "The operating system and its packages, the packages Vedette pins, and Vedette itself. Software updates come only from signed GitHub releases; the box refuses packages that are unsigned or badly signed.",
     "settings": "Channel and update method",
+    "checkTitle": "Check for releases",
+    "tabs": {
+      "label": "Updates",
+      "vedette": "Vedette",
+      "os": "Operating system",
+      "managed": "Packages managed",
+      "settings": "Settings",
+      "vedetteBadgeAdvisory_one": "security advisory affects this version",
+      "vedetteBadgeAdvisory_other": "security advisories affect this version",
+      "vedetteBadgeAvailable_one": "update available",
+      "vedetteBadgeAvailable_other": "updates available",
+      "osBadge_one": "security update waiting",
+      "osBadge_other": "security updates waiting"
+    },
     "channel": "Software channel",
     "stable": "Stable",
     "beta": "Beta",
@@ -854,12 +868,15 @@
       "pending": "New version in the next release",
       "how": "Updated together with Vedette releases",
       "none": "None listed.",
-      "noneInfo": "This list comes from the signed release information of the version this box runs, which the box reads at a successful update check. The tools themselves, such as nmap in the scan image, ship with the release whether or not they are listed here."
+      "noneError": "This list could not be read: the update information of this box did not verify or could not be checked.",
+      "noneErrorLink": "See the error on the Vedette tab.",
+      "noneBuild": "This build is not a published release, so it has no signed package list.",
+      "noneInfo": "This list comes from the signed release information of the version this box runs, which the box reads at a successful update check. It names the tools Vedette pins itself: nuclei, its template pack and OpenCanary. Tools that come from the operating system packages, such as nmap, are not listed here; the Operating system tab updates them."
     },
     "vedette": {
       "title": "Vedette software",
       "desc": "Signed releases from GitHub, with one-click rollback.",
-      "info": "The channel, the update method and the update history are in this part."
+      "info": "The channel, the update method and the update history are on the Settings tab."
     },
     "os": {
       "title": "Operating system of this box",

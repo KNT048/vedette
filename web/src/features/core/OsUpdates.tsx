@@ -166,7 +166,7 @@ function Body({ s }: { s: CheckedOs }) {
   return (
     <>
       <section id="os" aria-labelledby="os-band">
-        <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={<><p>{t('updates.os.info')}</p><p>{t('updates.os.helper')}</p></>}
+        <Band id="os-band" title={t('updates.os.title')} desc={t('updates.os.desc')} info={<><p>{t('updates.os.info')}</p><p>{t('updates.os.helper')}</p></>}
           actions={<Button onClick={() => void act(() => m.check.mutateAsync(), t('updates.os.checked'))} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
         <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.os.checkWaiting')}</BusyNote>
         <div className="grid gap-5">
@@ -278,7 +278,7 @@ function NoCheckYet() {
   const m = useOsMutations()
   return (
     <section id="os" aria-labelledby="os-band">
-      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')}
+      <Band id="os-band" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')}
         actions={<Button onClick={() => void m.check.mutateAsync().then(() => toast.success(t('updates.os.checked'))).catch((e) => toast.error(errMsg(e, t)))} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
       <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.os.checkWaiting')}</BusyNote>
       <p role="status" className="text-sm">{t('updates.os.noCheckYet')}</p>
@@ -289,10 +289,10 @@ function NoCheckYet() {
 export function OsBlock() {
   const { t } = useTranslation('core')
   const q = useOsState()
-  // Band 1 stays when this part shows only an error, so the page numbers 1, 2, 3 whichever part loads (issue #241).
+  // The heading stays when this part shows only an error.
   if (q.error) return (
     <section id="os" aria-labelledby="os-band">
-      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')} />
+      <Band id="os-band" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')} />
       <QueryState query={q}>{(s) => (s.os ? <Body s={{ ...s, os: s.os }} /> : <NoCheckYet />)}</QueryState>
     </section>
   )

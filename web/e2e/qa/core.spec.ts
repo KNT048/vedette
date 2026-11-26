@@ -534,7 +534,8 @@ test.describe('updates: system helper', () => {
     await expect(helperRow(page)).toContainText('0.9.4')
     await toastText(page, /installed next to the old version/)
     await expect(softwareVersion(page)).toHaveText(/^0\.9\.4( |$)/)
-    await expect(page.locator('#vedette').getByRole('table', { name: 'Update history' })).toContainText(/System helper.*Update.*0\.9\.3 > 0\.9\.4/)
+    await page.getByRole('tab', { name: 'Settings' }).click()
+    await expect(page.getByRole('table', { name: 'Update history' })).toContainText(/System helper.*Update.*0\.9\.3 > 0\.9\.4/)
     noErrors(errors)
   })
 
@@ -543,7 +544,7 @@ test.describe('updates: system helper', () => {
     await updateWith(page, 'self_update_unhealthy')
     const why = 'The new system helper 0.9.4 did not start correctly, so the box went back to 0.9.3 by itself. Nothing else was changed.'
     await expect(page.getByRole('heading', { name: 'Update to 0.9.4 did not start; back on 0.9.3' })).toBeVisible()
-    await expect(page.locator('#vedette').getByText(why, { exact: true })).toBeVisible()
+    await expect(page.getByText(why, { exact: true })).toBeVisible()
     await expect(helperRow(page)).toContainText('0.9.3')
     await expect(softwareVersion(page)).toHaveText(/^0\.9\.3( |$)/)
     await expect(page.getByRole('button', { name: /^Update Vedette software$/ })).toBeEnabled()
@@ -554,7 +555,7 @@ test.describe('updates: system helper', () => {
     const errors = collectErrors(page)
     await updateWith(page, 'signature_invalid')
     await expect(page.getByRole('heading', { name: 'Update of Vedette software to 0.9.4 failed' })).toBeVisible()
-    await expect(page.locator('#vedette').getByText('The system helper in this update is not signed by the Vedette release key. Nothing was installed.', { exact: true })).toBeVisible()
+    await expect(page.getByText('The system helper in this update is not signed by the Vedette release key. Nothing was installed.', { exact: true })).toBeVisible()
     await expect(helperRow(page)).toContainText('0.9.3')
     await expect(softwareVersion(page)).toHaveText(/^0\.9\.3( |$)/)
     noErrors(errors)

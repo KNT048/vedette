@@ -671,10 +671,9 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
   const nuclei = components.find((c) => c.id === 'pack-nuclei')?.version ?? '–'
   const pending = available.some((a) => a.component === 'pack-nuclei')
   return [
-    { id: 'nmap', name: 'nmap', version: '7.95', status: 'ok' },
+    { id: 'nuclei', name: 'nuclei', version: '3.4.10', status: 'ok' },
+    { id: 'nuclei-templates', name: 'nuclei templates', version: nuclei, status: pending ? 'update_pending' : 'ok' },
     { id: 'opencanary', name: 'OpenCanary', version: '0.9.4', status: 'ok' },
-    { id: 'osquery', name: 'osquery mirror files', version: '5.12.1', status: 'ok' },
-    { id: 'nuclei', name: 'nuclei templates', version: nuclei, status: pending ? 'update_pending' : 'ok' },
   ]
 }
 

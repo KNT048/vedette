@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Download, RefreshCw, Upload } from 'lucide-react'
 import { Link } from 'react-router'
+import { useKeepListParams } from '@/components/common/listParams'
+import { PageTabs } from '@/components/common/PageFrame'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
@@ -106,14 +108,15 @@ function ReleaseNote({ a, className, open = false }: { a: UpdateAvailable; class
 }
 
 /** memo: the page title also reads the OS query; without it every OS refresh re-renders this body and the table cells remount under the user's click. */
-const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; reconnecting?: boolean }) {
+type Part = 'vedette' | 'managed' | 'settings'
+const Body = memo(function Body({ s, part, setAfter }: { s: UpdatesState; part: Part; setAfter: (id: string | null | undefined) => void }) {
   const { t } = useTranslation('core')
   const admin = useGate('admin')
   const operator = useGate('operator')
+  const keep = useKeepListParams() // the Updates and History lists keep their pages when the link changes tab
   const m = useUpdateMutations()
   const [rollback, setRollback] = useState<UpdateComponent | null>(null)
   const [dataLossOk, setDataLossOk] = useState(false)
-  const [after, setAfter] = useState<string | null | undefined>(undefined) // see RunPanel; undefined until Apply
   // The software update restarts every part of Vedette: it asks first, with the version, what restarts and about how long
   const [asking, setAsking] = useState<UpdateAvailable | null>(null)
   const askApply = (a: UpdateAvailable) => (a.component === 'software' ? setAsking(a) : void apply(a.component))
@@ -219,54 +222,29 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     { id: 'status', header: t('updates.managed.col.status'), accessorFn: (p) => p.status, cell: ({ row }) => (row.original.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>) },
     { id: 'how', header: t('updates.managed.col.how'), enableSorting: false, accessorFn: () => '', cell: () => <span className="text-meta text-muted">{t('updates.managed.how')}</span> },
   ]
+  // Why the list is empty: say it, so "None listed." does not read as "Vedette manages nothing".
+  const swVersion = s.components.find((c) => c.id === 'software')?.version ?? ''
+  const emptyKey = s.last_check_error ? 'updates.managed.noneError' : swVersion.includes('-') ? 'updates.managed.noneBuild' : 'updates.managed.none'
   const affected = s.advisories.filter((a) => a.status === 'affected')
   // "Update the software" only when the box offers a software update that reaches the fixed release; otherwise the advisory below says how.
   const softwareNext = availableOf('software')?.version
   const updateFixes = !!softwareNext && !!affected[0]?.fixed_in && compareVersion(softwareNext, affected[0].fixed_in) >= 0
 
-  return (
-    <>
-      <section id="managed" aria-labelledby="managed-band" className="mt-12">
-        <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} info={t('updates.managed.info')} />
-        {/* No empty table: the list comes from the running release's signed manifest, which a build without a release never gets. */}
-        {s.managed.length ? (
-          <DataTable urlKey="updates-managed" data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
-            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
-        ) : <div className="flex items-center gap-1"><p className="text-sm text-muted">{t('updates.managed.none')}</p><InfoTip topic={t('updates.managed.none')}>{t('updates.managed.noneInfo')}</InfoTip></div>}
-      </section>
-
-      <section id="vedette" aria-labelledby="vedette-band" className="mt-12">
-        <Band id="vedette-band" n="3" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} info={t('updates.vedette.info')} />
-      {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
+  const vedette = (
+ <section id="vedette" aria-labelledby="vedette-band">
+        <Band id="vedette-band" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} info={t('updates.vedette.info')} />
       <UpdateNotices s={s} />
       {affected.length ? (
         <Notice tone="danger" role="alert" className="mb-6" title={t('updates.advisoryBanner', { count: affected.length })}>{t(updateFixes ? 'updates.advisoryFix' : 'updates.advisoryFixManual', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</Notice>
       ) : null}
-
-      <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t(s.mode === 'auto' ? 'updates.checkAuto' : 'updates.check')}</Button>}>
+      <Section title={t('updates.checkTitle')} actions={<Button onClick={() => void check()} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t(s.mode === 'auto' ? 'updates.checkAuto' : 'updates.check')}</Button>}>
         <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.checkWaiting')}</BusyNote>
-        <fieldset disabled={!admin.ok} title={admin.title} className="m-0 grid min-w-0 gap-4 border-0 p-0 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <span className="text-sm font-medium">{t('updates.channel')}</span>
-            <Segmented label={t('updates.channel')} value={s.channel} onChange={(v) => admin.ok && void m.settings.mutateAsync({ channel: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'stable', label: t('updates.stable') }, { value: 'beta', label: t('updates.beta') }]} />
-            <p className="text-meta text-muted">{t(`updates.channelHint.${s.channel}`)}</p>
-          </div>
-          <div className="grid gap-1.5">
-            <div className="flex items-center gap-1"><span className="text-sm font-medium">{t('updates.mode')}</span><InfoTip topic={t('updates.mode')}>{t('updates.modeInfo')}</InfoTip></div>
-            <Segmented label={t('updates.mode')} value={s.mode} onChange={(v) => admin.ok && void m.settings.mutateAsync({ mode: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'manual', label: t('updates.manual') }, { value: 'auto', label: t('updates.auto') }]} />
-            <p className="text-meta text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
-          </div>
-        </fieldset>
         {/* One status line: a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
         <p className={`mt-3 text-meta ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
           {s.last_check_error ? t('updates.checkFailed', { time: fmtRelative(s.last_check_error.at), reason: s.last_check_error.message }) : isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) })}
           {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''}
           {!s.last_check_error && !isNever(s.last_check) ? ` ${softwareNext ? t('updates.resultNew', { version: softwareNext }) : t('updates.resultNone', { version: s.components.find((c) => c.id === 'software')?.version ?? '' })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
         </p>
-      </Section>
-
-      <Section title={t('updates.sources.title')} info={t('updates.sources.info')}>
-        <p className="max-w-3xl text-sm">{t('updates.sources.body')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('updates.sources.link')}</Link></p>
       </Section>
 
       <Section title={t('updates.components')} description={t('updates.componentsDesc')} info={t('updates.componentsInfo')}>
@@ -317,12 +295,57 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         </div>
       </Section>
       ) : null}
+ </section>
+)
+
+  const managedPart = (
+      <section id="managed" aria-labelledby="managed-band">
+        <Band id="managed-band" title={t('updates.managed.title')} desc={t('updates.managed.desc')} info={t('updates.managed.info')} />
+        {/* No empty table: the list comes from the running release's signed manifest, which a build without a release never gets. */}
+        {s.managed.length ? (
+          <DataTable urlKey="updates-managed" data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
+            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-1">
+            <p className="text-sm text-muted">{t(emptyKey)}</p>
+            {emptyKey === 'updates.managed.noneError' ? <Link className="text-sm text-accent underline-offset-4 hover:underline" to={keep('?tab=vedette')}>{t('updates.managed.noneErrorLink')}</Link> : null}
+            {emptyKey === 'updates.managed.none' ? <InfoTip topic={t('updates.managed.none')}>{t('updates.managed.noneInfo')}</InfoTip> : null}
+          </div>
+        )}
+      </section>
+)
+
+  const settingsPart = (
+  <>
+      <Section title={t('updates.sources.title')} info={t('updates.sources.info')}>
+        <p className="max-w-3xl text-sm">{t('updates.sources.body')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('updates.sources.link')}</Link></p>
+      </Section>
+
+      <Section title={t('updates.settings')}>
+        <fieldset disabled={!admin.ok} title={admin.title} className="m-0 grid min-w-0 gap-4 border-0 p-0 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">{t('updates.channel')}</span>
+            <Segmented label={t('updates.channel')} value={s.channel} onChange={(v) => admin.ok && void m.settings.mutateAsync({ channel: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'stable', label: t('updates.stable') }, { value: 'beta', label: t('updates.beta') }]} />
+            <p className="text-meta text-muted">{t(`updates.channelHint.${s.channel}`)}</p>
+          </div>
+          <div className="grid gap-1.5">
+            <div className="flex items-center gap-1"><span className="text-sm font-medium">{t('updates.mode')}</span><InfoTip topic={t('updates.mode')}>{t('updates.modeInfo')}</InfoTip></div>
+            <Segmented label={t('updates.mode')} value={s.mode} onChange={(v) => admin.ok && void m.settings.mutateAsync({ mode: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'manual', label: t('updates.manual') }, { value: 'auto', label: t('updates.auto') }]} />
+            <p className="text-meta text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
+          </div>
+        </fieldset>
+      </Section>
 
       <Section title={t('updates.history')} description={t('updates.historyDesc')}>
         <DataTable urlKey="updates-history" data={s.history} columns={hist} caption={t('updates.history')} pageSize={20} empty={t('updates.historyEmpty')}
           mobileRow={(h) => <div className="grid gap-0.5"><span className="font-medium">{comp(h.component)}, {t(`updates.act.${h.action}`)}</span><span className="font-mono text-caption [overflow-wrap:anywhere]">{h.from ?? '–'} {'>'} {h.to}</span><span className="text-caption text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('updates.hist.system') : h.user}</span></div>} />
       </Section>
+  </>
+)
 
+  return (
+ <>
+    {part === 'vedette' ? vedette : part === 'managed' ? managedPart : settingsPart}
       <Dialog open={!!asking} onOpenChange={(o) => !o && setAsking(null)}>
         {asking ? (
           <DialogContent title={t('updates.applyAsk.title', { version: asking.version })} description={t('updates.applyAsk.restart')}>
@@ -355,8 +378,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
           <DialogFooter><Button onClick={() => setRollback(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={(running && rollback?.id === 'software') || (!!rollback?.rollback_restores_data && !dataLossOk)} busy={m.rollback.isPending} busyLabel={t('updates.rollbackAsk.rollingBack')} onClick={() => rollback && void doRollback(rollback)}>{t('updates.rollbackAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      </section>
-    </>
+  </>
   )
 })
 
@@ -387,19 +409,31 @@ function ApplianceUpdates() {
   // in when the session did not survive the restart).
   const wait = useRestartWait(q.data?.run?.status === 'running', q.error, 'update')
   const os = useOsState()
+  // see RunPanel: the run on screen when Apply was last pressed on the software; kept here so it survives a change of tab
+  const [after, setAfter] = useState<string | null | undefined>(undefined)
   const sec = os.data?.pending.filter((p) => p.security).length ?? 0
   const name = os.data?.os?.name // null before the box first looked for updates
   // The headline is what the operating system still needs: security updates waiting, else a reboot to load what is installed.
   const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : os.data?.reboot_required ? t('updates.titleOsReboot', { name }) : t('updates.titleOsClean', { name })
+  const affected = q.data?.advisories.filter((a) => a.status === 'affected').length ?? 0
+  const available = q.data?.available.length ?? 0
+  // The software part has its own query: when it fails or is not built yet (501), the operating system tab still shows (issue #230).
+  // One branch for every answer with data, so the tab does not remount (and lose its dialogs) when a read fails during a restart.
+  const soft = (part: Part) => (q.data && (!q.error || q.data.run?.status === 'running') ? <Body s={q.data} part={part} setAfter={setAfter} /> : <QueryState query={q}>{(s) => <Body s={s} part={part} setAfter={setAfter} />}</QueryState>)
   return (
     <>
       <PageHeader title={title} meta={t('updates.meta')} info={t('updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-7']} />
       <ReadOnlyNote role="admin" />
-      <OsBlock />
-      {/* The software part has its own query: when it fails or is not built yet (501), the operating system part above still shows (issue #230). */}
-      {/* While the software updates, Vedette restarts and a read fails for a moment: keep the page and say it reconnects. */}
-      {/* One branch for every answer with data, so the run panel is not remounted when the run ends (its toast would be lost). */}
-      {q.data && (!q.error || q.data.run?.status === 'running') ? <Body s={q.data} reconnecting={wait.reconnecting} /> : <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>}
+      {/* While the software updates, Vedette restarts and a read fails for a moment: keep the page and say it reconnects.
+          The run is shown above the tabs, so it stays on screen (and its end is still announced) whichever tab is open. */}
+      {q.data?.run ? <RunPanel run={q.data.run} name={t(`updates.comp.${q.data.run.component}`, { defaultValue: q.data.run.component })} reconnecting={wait.reconnecting} after={after} /> : null}
+      <PageTabs label={t('updates.tabs.label')} tabs={[
+        { id: 'vedette', label: t('updates.tabs.vedette'), panel: soft('vedette'),
+          badge: affected ? { count: affected, label: t('updates.tabs.vedetteBadgeAdvisory', { count: affected }) } : available ? { count: available, label: t('updates.tabs.vedetteBadgeAvailable', { count: available }), tone: 'off' } : undefined },
+        { id: 'os', label: t('updates.tabs.os'), panel: <OsBlock />, badge: sec ? { count: sec, label: t('updates.tabs.osBadge', { count: sec }) } : undefined },
+        { id: 'managed', label: t('updates.tabs.managed'), panel: soft('managed') },
+        { id: 'settings', label: t('updates.tabs.settings'), panel: soft('settings') },
+      ]} />
       <RestartSlow wait={wait} />
     </>
   )

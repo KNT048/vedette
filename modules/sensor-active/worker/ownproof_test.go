@@ -162,7 +162,7 @@ func TestAProofDoesNotWidenTheGrammar(t *testing.T) {
 
 // The re-check of a running full job keeps to the proof: while it holds, a tick that would see the other line does not stop nmap;
 // once the proof runs out during the run, the next tick asks the services and stops the job (not_own_ip) when they name another
-// address.
+// address. The proof is one second from running out at the start, so the clock moves less than the worker's lease.
 func TestAFullJobOnAProvenIPKeepsRunningWhileTheProofHolds(t *testing.T) {
 	t.Parallel()
 	waitGo := `while [ ! -f "$DIR/go" ]; do sleep 0.02; done
@@ -172,14 +172,14 @@ func TestAFullJobOnAProvenIPKeepsRunningWhileTheProofHolds(t *testing.T) {
 	ticks := make(chan time.Time)
 	r := start(t, nm, func(cfg *worker.Config) { cfg.Egress, cfg.EgressTicks = eg, ticks })
 	r.core.push(sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: "external_full", Rate: nmapargv.FullRate, Targets: []string{"8.8.8.8"}, TimeoutS: 60,
-		ProvenAt: provenAt(egressip.ProofValid - time.Hour)})
+		ProvenAt: provenAt(egressip.ProofValid - time.Second)})
 	waitFor(t, "nmap to start", func() bool { return nm.argvLog() != "" })
 	ticks <- time.Time{}
 	ticks <- time.Time{} // the second send returns once the watcher has finished the first re-check
 	if eg.count() != 0 {
 		t.Fatalf("%d rounds while the proof holds", eg.count())
 	}
-	r.clock.Advance(2 * time.Hour) // the proof runs out during the run
+	r.clock.Advance(2 * time.Second) // the proof runs out during the run (well inside the lease)
 	ticks <- time.Time{}
 	got := r.core.next(t)
 	if got.res.Status != "stopped" || got.res.Reason != "not_own_ip" || got.res.XMLB64 != "" || eg.count() != worker.EgressRounds {

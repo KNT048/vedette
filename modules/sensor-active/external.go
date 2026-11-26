@@ -328,7 +328,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	var proof time.Time
 	if dom == nil {
 		var err error // exposure's gate result is minutes old by now (exposure INV-13, INV-19)
-		if proof, err = s.ownNow(ctx, ip, own, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent"); err != nil {
+		if proof, err = s.ownNow(ctx, ip, own, false); err != nil {
 			return External{}, err
 		}
 	} else {
@@ -480,12 +480,13 @@ const innerMargin = 15 * time.Second
 
 // fenceAgain is core's own-IP check right before an -sV batch's job leaves; it returns the proof the batch goes with.
 func (s *Service) fenceAgain(ctx context.Context, ip netip.Addr, own OwnEgress) (time.Time, error) {
-	return s.ownNow(ctx, ip, own, "sensoractive: external scan stopped before an -sV batch, the address is not the box's own public IP now; nothing more sent")
+	return s.ownNow(ctx, ip, own, true)
 }
 
-// ownNow is core's half of the own-IP fence right before a job leaves: own's yes (else ErrNotOwnIP, logged with refused), and,
-// when own is an OwnProver, the time of the sighting its yes rests on (zero otherwise: the job then goes without a proof).
-func (s *Service) ownNow(ctx context.Context, ip netip.Addr, own OwnEgress, refused string) (time.Time, error) {
+// ownNow is core's half of the own-IP fence right before a job leaves (batch: an -sV batch after the discovery): own's yes (else
+// ErrNotOwnIP, logged), and, when own is an OwnProver, the time of the sighting its yes rests on (zero otherwise: the job then goes
+// without a proof).
+func (s *Service) ownNow(ctx context.Context, ip netip.Addr, own OwnEgress, batch bool) (time.Time, error) {
 	var proof time.Time
 	var ok bool
 	var err error
@@ -499,8 +500,11 @@ func (s *Service) ownNow(ctx context.Context, ip netip.Addr, own OwnEgress, refu
 		return time.Time{}, ErrStopped
 	case err != nil:
 		return time.Time{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
+	case !ok && batch:
+		s.log.WarnContext(ctx, "sensoractive: external scan stopped before an -sV batch, the address is not the box's own public IP now; nothing more sent", "ip", ip.String())
+		return time.Time{}, ErrNotOwnIP
 	case !ok:
-		s.log.WarnContext(ctx, refused, "ip", ip.String())
+		s.log.WarnContext(ctx, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent", "ip", ip.String())
 		return time.Time{}, ErrNotOwnIP
 	}
 	return proof, nil

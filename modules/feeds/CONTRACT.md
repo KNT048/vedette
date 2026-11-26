@@ -122,6 +122,17 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-12** An indicator's verdict, score and category are computed on read from `feeds_ioc_source` by `Judge`: `block` for two
   independent sources or one block-class source, `alert` below that. An IP is never widened to a network. Private, reserved,
   documentation and local names or addresses never become indicators. An indicator no feed lists for 30 days is deleted.
+- **INV-12b** An indicator's confidence (the search `score`, logs' hit `confidence`) is computed on read by `IOCConfidence` over
+  the switched-on feeds that list it. A built-in indicator list carries no confidence per line, so `IOCLookup` rates its listing
+  by what the list is (`Source.Weight`), whatever `feeds_ioc_source.confidence` holds: abuse.ch Feodo Tracker 0.95 (confirmed
+  botnet command-and-control servers, `Source.C2`), ET Open compromised IPs 0.85, IPsum by the level its address names
+  (`levels/N.txt`: 1 − 0.6^N, at most 0.9; 0.78 for the default level 3 or an address that names none), hagezi TIF 0.75, the
+  Tor exit list 0.2 (it says what an address is, not that it is bad). A custom feed's listing weighs what the feed said, or 0.5.
+  Independent feeds add up (1 − ∏(1 − weight)) under `Judge`'s independence rules (an aggregate with one of its upstreams adds
+  nothing; all aggregates count once); the Tor exit list counts only when nothing else lists the address, and aggregates that
+  list a Tor exit relay count half. Two decimals. No stored row is rewritten: a listing stored before is rated the same way on
+  its next lookup. Tests: `TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds`,
+  `TestIOCConfidenceOfIPsumFollowsTheLevelOfItsAddress`, `TestIOCEveryBuiltinListIsRated`.
 
 **Other modules**
 - **INV-10** Feeds works without inventory: `you_have` is `null`, `matched_assets` empty, nothing fails.

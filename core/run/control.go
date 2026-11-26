@@ -204,9 +204,13 @@ func (m *Manager) requeue(ctx context.Context, tx *sql.Tx, id, now string) error
 	return err
 }
 
+// notReachedRestart is the note of a step a restart kept from running, in a run whose kind cannot go on from its steps.
+const notReachedRestart = "Not reached: " + RestartReason + " before this step."
+
 // Recover records what a previous process left: a queued or waiting run stays as it is; a running one becomes stopped with
 // the reason RestartReason, and is queued again when its kind is resumable and it has work left; a stopping one becomes
-// stopped with the reason the person gave. Start calls it before any run starts; after it no run is running or stopping.
+// stopped with the reason the person gave. The steps a run whose kind is not resumable never reached are skipped
+// (notReachedRestart). Start calls it before any run starts; after it no run is running or stopping.
 func (m *Manager) Recover(ctx context.Context) error {
 	var resumed int
 	err := m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
@@ -251,6 +255,12 @@ func (m *Manager) Recover(ctx context.Context) error {
 			}
 			if err := logTx(ctx, tx, l.id, now, Warn, "Stopped: "+logReason); err != nil {
 				return err
+			}
+			if k, ok := m.kind(l.module, l.kind); ok && !k.Resumable { // it cannot go on: no step waits for a turn it will never get
+				if _, err := tx.ExecContext(ctx, `UPDATE core_run_step SET status = ?, note = COALESCE(note, ?), ended_at = ? WHERE run_id = ? AND status IN (?, ?)`,
+					string(Skipped), notReachedRestart, now, l.id, string(Queued), string(Waiting)); err != nil {
+					return err
+				}
 			}
 			if l.st != Running {
 				continue

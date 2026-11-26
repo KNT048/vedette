@@ -473,7 +473,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		}
 	}()
 	// RunIDOf: the probe log names the run. What the engines report of their progress is the note of the step it belongs to.
-	ctx = withSteps(withRunSteps(context.WithValue(ctx, scanRunKey{}, x.ID()), rs), steps)
+	ctx = withSteps(withRunSteps(WithRunID(ctx, x.ID()), rs), steps)
 	if progress.SinkFrom(ctx) == nil {
 		ctx = progress.WithSink(ctx, rs)
 	}

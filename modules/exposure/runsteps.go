@@ -117,6 +117,11 @@ func RunIDOf(ctx context.Context) string {
 	return id
 }
 
+// WithRunID is ctx for the work of the exposure scan whose run is id (RunIDOf).
+func WithRunID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, scanRunKey{}, id)
+}
+
 func withRunSteps(ctx context.Context, rs *runSteps) context.Context {
 	return context.WithValue(ctx, runStepsKey{}, rs)
 }

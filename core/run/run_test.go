@@ -849,3 +849,50 @@ func TestSkippedStepsAndLiveNotes(t *testing.T) {
 	}
 	b.invariantsHold()
 }
+
+// A restart that cuts a run whose kind cannot go on from its steps leaves no step waiting for its turn on a run that has ended: the
+// running step is stopped and the steps it never reached are skipped, with why.
+func TestARestartSkipsTheStepsANonResumableRunNeverReached(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p1 := b.process(nil, g.kind("exposure", "scan", "exposure", false))
+	id := create(t, p1, spec("exposure", "scan", "Scan of 198.51.100.7"))
+	if err := p1.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	x := g.waitStarted(t)
+	ctx := t.Context()
+	first, err := x.AddStep(ctx, "find open ports", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := x.AddStep(ctx, "templates", 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := x.AddStep(ctx, "OpenVAS", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.StartStep(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	p1.Close() // the box stops: the rows are left as they are, as after a crash
+
+	p2 := b.process(nil, newGated().kind("exposure", "scan", "exposure", false))
+	if err := p2.Recover(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	d := b.get(p2, id)
+	if d.Status != run.Stopped || d.CanResume {
+		t.Fatalf("run after the restart = %s (can resume %v), want stopped for good", d.Status, d.CanResume)
+	}
+	if s := d.Steps[0]; s.Status != run.Stopped || s.EndedAt == nil {
+		t.Errorf("running step after the restart = %+v, want stopped", s)
+	}
+	for _, s := range d.Steps[1:] {
+		if s.Status != run.Skipped || s.Note == nil || !strings.Contains(*s.Note, run.RestartReason) || s.EndedAt == nil || s.Done != 0 {
+			t.Errorf("step %q never reached = %s %v ended %v done %d, want skipped, saying the restart", s.Name, s.Status, s.Note, s.EndedAt, s.Done)
+		}
+	}
+	b.invariantsHold()
+}

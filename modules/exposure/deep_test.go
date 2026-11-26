@@ -914,3 +914,38 @@ func TestContract_INV28_Deep_ACoveredChildUsesItsParentsDomain(t *testing.T) {
 		t.Fatalf("parent deleted meanwhile: %+v %q %v, forgot %v", out.Domain, why, err, fence.forgot)
 	}
 }
+
+// R1 of the observation model: inside a domain's deep scan, one address stops answering before its templates. The step of that
+// address checks it first, as the steps of an IP target do: the templates do not run on the port that stopped answering, and the
+// address's step ends partly done with why, never "done".
+func TestLiveness_ADomainAddressThatStopsAnsweringMakesItsStepIncomplete(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, false)
+	d.svc.cfg.Liveness = &fakeAlive{up: func(_ int, ip netip.Addr, _ int) bool { return ip.String() != ipB }}
+	s := d.scan()
+	run := d.runDetail(d.ctx(), s.RunID)
+	var step *corerun.Step
+	for i, st := range run.Steps {
+		if strings.HasPrefix(st.Name, "Deep scan of "+ipB+" ") {
+			step = &run.Steps[i]
+		}
+	}
+	if step == nil {
+		t.Fatalf("no step for %s: %+v", ipB, run.Steps)
+	}
+	if step.Status != corerun.Partial || !strings.Contains(noteOf(*step), ipB+":443 stopped answering during the scan") {
+		t.Fatalf("the step of %s = %s %q, want partly done saying 443 stopped answering", ipB, step.Status, noteOf(*step))
+	}
+	d.seams.mu.Lock()
+	defer d.seams.mu.Unlock()
+	for _, c := range d.seams.templates {
+		if c.ip == ipB {
+			t.Fatalf("the templates ran on %s, whose port stopped answering", ipB)
+		}
+	}
+	if run.Status != corerun.Partial {
+		t.Fatalf("run = %s %q", run.Status, run.Summary)
+	}
+}

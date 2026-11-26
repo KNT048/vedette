@@ -146,7 +146,11 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 	if err != nil {
 		return nil, err
 	}
-	o.Input = len(items)
+	for _, it := range items { // one item per device that waits for an answer; the card of devices not added with no finding is a review
+		if it.Kind != KindDevicesNotAdded {
+			o.Input++
+		}
+	}
 	if o.First, err = s.firstBlocks(ctx, gs); err != nil {
 		return nil, err
 	}

@@ -55640,7 +55640,7 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 9007199254740991,
-                      "description": "The Needs your input queue length"
+                      "description": "Devices that wait for an answer in Needs your input: one per device card or device not added that has findings; the one card of devices not added with no finding is a review and is not counted"
                     },
                     "first": {
                       "maxItems": 5,

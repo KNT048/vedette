@@ -92,7 +92,7 @@ describe('badges from the one overview read', () => {
     server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, needs_input: 0 }, affected: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, input: 0, first: [], trend: [], trend_start: '2026-10-18', generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
     renderApp('/')
     const nav = within(await mainNav())
-    expect(await nav.findByRole('link', { name: 'Findings 3 urgent to handle' }, { timeout: 3000 })).toBeInTheDocument()
+    expect(await nav.findByRole('link', { name: 'Findings 9 devices to handle' }, { timeout: 3000 })).toBeInTheDocument() // devices with an open finding (2 + 1 + 6), not a sum of findings
     const assets = nav.getByRole('button', { name: 'Assets' }) // no count and no "waiting" words: pending devices are not an alarm
     expect(assets).toHaveAttribute('aria-expanded', 'false')
     await userEvent.setup().click(assets)
@@ -111,7 +111,7 @@ describe('icon rail without a Devices count', () => {
     localStorage.setItem('vedette.nav.u-admin', JSON.stringify({ rail: true, open: [] }))
     renderApp('/')
     const nav = within(await mainNav())
-    expect(await nav.findByRole('link', { name: /^Findings 3/ }, { timeout: 3000 })).toBeInTheDocument()
+    expect(await nav.findByRole('link', { name: /^Findings 9/ }, { timeout: 3000 })).toBeInTheDocument()
     expect(nav.getByRole('link', { name: 'Devices' })).toHaveAccessibleName('Devices')
   })
 })

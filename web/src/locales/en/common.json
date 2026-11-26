@@ -344,7 +344,7 @@
     "breadcrumb": "Breadcrumb",
     "version": "Version",
     "badge": {
-      "findings": "urgent to handle",
+      "findings": "devices to handle",
       "incidents": "high or critical open"
     },
     "groupWaiting": "waiting: {{parts}}",

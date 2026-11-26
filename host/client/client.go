@@ -154,7 +154,8 @@ func (c *Client) do(hc *http.Client, req *http.Request) (*http.Response, error) 
 			return resp, err
 		}
 		d := c.rateWait(he.RetryAfterS)
-		if !c.mayWait(ctx, d, waited) {
+		replayable := req.Body == nil || req.Body == http.NoBody || req.GetBody != nil
+		if !replayable || !c.mayWait(ctx, d, waited) {
 			return nil, err
 		}
 		if serr := c.o.Sleep(ctx, d); serr != nil {

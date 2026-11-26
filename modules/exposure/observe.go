@@ -471,7 +471,7 @@ func vantageLines(o observation, vs verdictSet, boxIP string) []vantageLine {
 		}
 		switch roll.state {
 		case addrLost:
-			out = append(out, vantageLine{NotCheckedRow{Kind: "lost", Text: clipText(lostSentence(map[string][]int{ip: ports[verdictLost]})+" "+hint, maxLineText)}, true})
+			out = append(out, vantageLine{NotCheckedRow{Kind: "lost", Text: clipText(lostLine(ip, ports[verdictLost], roll.reason == reasonLoopback, boxIP, o.deep), maxLineText)}, true})
 		case addrUnreached:
 			who := ip
 			if n := o.names[ip]; len(n) > 0 {
@@ -538,19 +538,33 @@ func lostSentence(lost map[string][]int) string {
 	return "Results incomplete: " + joinAnd(where, 6) + " stopped answering during the scan."
 }
 
-// lostText is the sentence of the ports of the target that stopped answering ("" when none), with the hint of the vantage: the
-// steps that skip or lose a port say it in the same words as the run's line.
+// lostLine is the sentence of one address whose ports stopped answering, with the hint of its own vantage: the NAT-loopback hint for
+// the box's own IP reached from inside (loopback), what to allow for any other address. The address's line (vantageLines) and the
+// notes of the steps that skip or lose a port (lostText) are made here, in the same words.
+func lostLine(ip string, ports []int, loopback bool, boxIP string, deep bool) string {
+	hint := blockedHint(boxIP, deep)
+	if loopback {
+		hint = natHint
+	}
+	return lostSentence(map[string][]int{ip: ports}) + " " + hint
+}
+
+// lostText is the sentences of the ports of the target that stopped answering ("" when none), one for each address with the hint of
+// its own vantage (lostLine).
 func (s *Service) lostText(ctx context.Context, st ScanTarget, lost map[string][]int) string {
-	text := lostSentence(lost)
-	if text == "" {
-		return ""
-	}
-	for ip := range lost {
-		if s.loopback(ctx, st, ip) {
-			return text + " " + natHint
+	var parts []string
+	boxIP, known := "", false
+	for _, ip := range slices.SortedFunc(maps.Keys(lost), cmpAddr) {
+		if len(lost[ip]) == 0 {
+			continue
 		}
+		loop := s.loopback(ctx, st, ip)
+		if !loop && !known {
+			boxIP, known = s.boxPublicIP(ctx), true
+		}
+		parts = append(parts, lostLine(ip, lost[ip], loop, boxIP, st.Mode.Full))
 	}
-	return text
+	return strings.Join(parts, " ")
 }
 
 // loopback says ip is the box's own public IP, reached from inside the network: an IP target the box found as its own address, or an

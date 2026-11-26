@@ -463,3 +463,32 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+// nuclei 3.11.1 merges templates that send the same request into one cluster. When it gives up a host it found unresponsive, it
+// prints one skip line per cluster under the cluster's own id ("cluster-" and a SHA-256), not under the templates of the job. Such
+// a line is not a result of any template: it is skipped and counted, and the run is kept (a deep run of 200 http/technologies
+// templates on a host that stopped answering was thrown away whole, "a template the job did not ask for"). A cluster id with a
+// match, or one that is not exactly that shape, still throws the run away.
+func TestRead_ClusterSkipLineOfAnUnresponsiveHost(t *testing.T) {
+	t.Parallel()
+	const cluster = `"template-id":"cluster-49941d3cbc6e510ee8b2606610b8f809ecebf7d0c5a21bb373704f46592eb5eb","info":{"author":null,"tags":null,"severity":""},"type":"","host":"https://192.0.2.10:9443","timestamp":"2026-11-26T03:49:38.507968195Z"`
+	own := `{"template-id":"gitlab-detect","host":"192.0.2.10","port":"9443","matcher-status":false,"error":"port closed or filtered"}`
+	skip := `{` + cluster + `,"matcher-status":false,"error":"host was skipped as it was found unresponsive"}`
+	out := []byte(own + "\n" + skip + "\n" + skip + "\n")
+	res, sk, err := Read(out, []string{"gitlab-detect", "grafana-detect"}, []string{"192.0.2.10:9443"})
+	if err != nil {
+		t.Fatalf("the run was thrown away: %v", err)
+	}
+	if len(res) != 1 || res[0].Template != "gitlab-detect" || sk.Lines != 2 || sk.Matched != 0 || slices.Contains(sk.Templates, "") {
+		t.Fatalf("results %+v, skipped %+v", res, sk)
+	}
+	for name, line := range map[string]string{
+		"a cluster line with a match":        `{` + cluster + `,"matcher-status":true}`,
+		"a cluster id that is not a SHA-256": strings.Replace(skip, "cluster-49941d3c", "cluster-49941d3X", 1),
+		"a cluster line without an error":    `{` + cluster + `,"matcher-status":false}`,
+	} {
+		if _, _, err := Read([]byte(line+"\n"), []string{"gitlab-detect"}, []string{"192.0.2.10:9443"}); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+}

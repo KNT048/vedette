@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -126,6 +127,9 @@ func AppendNote(request, note string, limit int) string {
 	return request + note
 }
 
+// clusterID is the id nuclei 3.11.1 gives a cluster of templates that send the same request: "cluster-" and a SHA-256 in hex.
+var clusterID = regexp.MustCompile(`^cluster-[0-9a-f]{64}$`)
+
 // errSkip marks a line Read skips: valid JSON of one of the job's templates that cannot be a result of the job.
 var errSkip = errors.New("a line that cannot be a result of the job")
 
@@ -170,6 +174,7 @@ func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
 				}
 			}
 			switch {
+			case r.Template == "": // a cluster's skip line names no template of the job
 			case slices.Contains(skip.Templates, r.Template):
 			case len(skip.Templates) < MaxSkippedTemplates:
 				skip.Templates = append(skip.Templates, r.Template)
@@ -199,6 +204,15 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	var l line
 	if err := json.Unmarshal(raw, &l); err != nil {
 		return Result{}, fmt.Errorf("not the expected JSON: %w", err)
+	}
+	if clusterID.MatchString(l.TemplateID) {
+		// nuclei merges the job's templates that send the same request into a cluster; when it gives a host up as unresponsive it
+		// prints one skip line per cluster under the cluster's id. Not a result of any template: skipped and counted, never named
+		// as a template. A cluster line that is anything else (a match, no error) cannot be read without doubt.
+		if l.MatcherStatus == nil || *l.MatcherStatus || l.Error == "" {
+			return Result{}, errors.New("a cluster line that is not a skipped host")
+		}
+		return Result{Target: targetOf(l.Host, l.Port)}, errSkip
 	}
 	if !slices.Contains(templates, l.TemplateID) {
 		return Result{}, errors.New("a template the job did not ask for")

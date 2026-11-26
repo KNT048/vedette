@@ -269,7 +269,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	for i, tp := range r.tmpls {
 		ids[i] = tp.ID
 		rows[i] = scan.ExternalProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, r.port), Template: tp.ID,
-			Request: request(tp)}
+			Request: request(tp), RunID: exposure.RunIDOf(ctx)}
 	}
 	if err := a.probes(ctx, rows); err != nil {
 		if ctx.Err() != nil {

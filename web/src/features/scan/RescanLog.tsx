@@ -21,7 +21,7 @@ function ResultCell({ r }: { r: RescanEvent }) {
     return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ nav: <Link to="/devices" className={linkClass} /> }} /></Chip>
   }
   if (r.result === 'stopped') {
-    const link = r.run_id ? <Link to={runHref(r.run_id)} className={linkClass} /> : <span />
+    const link = r.run_id ? <Link to={runHref(r.run_id, 'settings')} className={linkClass} /> : <span />
     return <Chip tone={tone.stopped}><Trans t={t} i18nKey="auto.result.stopped" components={{ nav: link }} /></Chip>
   }
   return <Chip tone={tone[r.result]}>{t(`auto.result.${r.result}`)}</Chip>

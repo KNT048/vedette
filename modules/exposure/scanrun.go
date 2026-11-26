@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"net/netip"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/progress"
@@ -26,7 +28,8 @@ const (
 	RunLane = "exposure"
 )
 
-// The names of the steps of a scan's run. Settings › Scanning's engine cards read the newest ended step of each engine.
+// The names of the steps of a scan's run. Settings › Scanning's engine cards read the newest ended step of each engine. stepSurface
+// is the one step of the runs stored before the scan's steps were split (runsteps.go): a run that wrote its rows has it done.
 const (
 	stepSurface     = "Ports, names and services"
 	stepNameNuclei  = "Templates (nuclei)"
@@ -174,7 +177,8 @@ func (s *Service) registerRuns() error {
 	if s.cfg.Runs == nil {
 		return nil
 	}
-	return s.cfg.Runs.Register(corerun.Kind{Module: ModuleID, Name: RunKind, Lane: RunLane, Run: s.runScan})
+	// Each step of a scan counts as one unit: the run reads "3 of 8 steps" (runsteps.go).
+	return s.cfg.Runs.Register(corerun.Kind{Module: ModuleID, Name: RunKind, Lane: RunLane, Unit: "steps", Run: s.runScan})
 }
 
 // setStopCause records why the box stops run id before it asks the stop.
@@ -453,12 +457,32 @@ func (s *Service) runScan(ctx context.Context, x *corerun.Exec) (corerun.Result,
 
 // execute is the work of one scan.
 func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, user, id string) (res corerun.Result, err error) {
+	steps := &stepLog{}
+	rs := s.newRunSteps(x, steps)
+	defer func() { // runs after the recover below: every step the run did not end is ended, by how the run ended
+		end, why, note := s.endOf(ctx, err), "", ""
+		switch {
+		case end == runStopped:
+			why = stopWhy(s.cause(x.ID()).stop())
+		case err != nil:
+			note = failNote(err)
+		}
+		rs.close(ctx, end, why, note)
+	}()
 	defer func() { // the runner parses untrusted data; a panic must end this run, not the box
 		if p := recover(); p != nil {
 			s.cfg.Log.ErrorContext(ctx, "an exposure scan panicked", "target", id, "panic", p, "stack", string(debug.Stack()))
 			err = errScanPanicked
 		}
 	}()
+	// RunIDOf: the probe log names the run. What the engines report of their progress is the note of the step it belongs to.
+	ctx = withSteps(withRunSteps(WithRunID(ctx, x.ID()), rs), steps)
+	if progress.SinkFrom(ctx) == nil {
+		ctx = progress.WithSink(ctx, rs)
+	}
+	rs.add(ctx, stepDef{stepKeyCheck, stepNameCheck})
+	rs.start(ctx, stepKeyCheck)
+	rs.startLive(ctx)
 	if err := s.waitFeedSync(ctx); err != nil {
 		return corerun.Result{}, err
 	}
@@ -499,21 +523,16 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}); err != nil {
 		return corerun.Result{}, fmt.Errorf("recording the mode of the scan: %w", err)
 	}
-	steps := &stepLog{}
-	ctx = withSteps(ctx, steps)
-	ctx = withWebSteps(ctx, &webTracker{run: x.ID()})
-	surface, _ := x.AddStep(ctx, stepSurface, 0)
-	_ = x.StartStep(ctx, surface)
+	rs.end(ctx, stepKeyCheck, corerun.Done, modeNote(ex.mode))
+	head, tail := scanPlan(t.Kind, ex.mode)
+	rs.plan(ctx, head, tail, t.Kind != KindDomain) // a domain's addresses come before the rest
 	content, deep, err := s.engines(ctx, t, user, ex.mode, steps)
 	if err != nil {
-		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
-		s.recordSteps(ctx, x, steps, s.endOf(ctx, err))
 		s.auditFailedScan(ctx, user, t, s.stopErr(ctx, x.ID(), err))
 		return corerun.Result{}, s.stopErr(ctx, x.ID(), err)
 	}
 	gb, gbIP, line, err := s.planOpenVAS(ctx, t, ex.mode, user, content, deep)
 	if err != nil {
-		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
@@ -521,30 +540,25 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "greenbone", Text: line})
 	}
 	if err := s.reached(ctx, t, content); err != nil { // nothing answered and the box could not reach the Internet: incomplete
-		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
-		s.recordSteps(ctx, x, steps, runEnded)
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
 	if ctx.Err() != nil { // stopped just as it finished: nothing is stored
-		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Stopped, "")
-		s.recordSteps(ctx, x, steps, runStopped)
 		err := s.stopErr(ctx, x.ID(), ctx.Err())
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
+	rs.start(ctx, stepKeySave)
 	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
 	if err != nil {
-		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
 	ex.content, ex.vulns, ex.gaps, ex.written, ex.first = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true, wr.first
 	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
-	_ = x.Progress(ctx, surface, 1, 1)
-	_ = x.EndStep(ctx, surface, corerun.Done, fmt.Sprintf("%d open services (%d new, %d closed), %d open issues (%d new)",
-		wr.counts.Services, wr.counts.NewServices, wr.counts.ClosedServices, wr.counts.Issues, wr.counts.NewIssues))
-	s.recordSteps(ctx, x, steps, runOn)
+	rs.end(ctx, stepKeySave, corerun.Done, fmt.Sprintf("%s (%d new, %d closed), %s (%d new).",
+		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues))
+	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
@@ -556,6 +570,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	ex.gbRun = GreenboneRun{State: GBRunNotRun}
 	if !gb {
+		rs.skip(ctx, stepKeyOpenVAS, cmp.Or(line, "OpenVAS does not run in this scan."))
 		return corerun.Result{}, nil
 	}
 	return s.openVASStep(ctx, x, ex, user, t, content, deep, gbIP)
@@ -564,8 +579,13 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 // engines runs the runner and the engine steps of a scan and returns what they found.
 func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanMode, steps *stepLog) (Content, []deepAddr, error) {
 	st := s.scanTarget(ctx, t, user, mode)
+	rs := runStepsOf(ctx)
+	rs.start(ctx, stepKeySurface)
 	content, err := s.scanRunner().Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // The deep state of a run is exposure's own, never the runner's
+	if err == nil {
+		rs.end(ctx, stepKeySurface, corerun.Done, surfaceNote(st.Kind, content))
+	}
 	deepDomain := st.Kind == KindDomain && st.Mode.Full
 	if err == nil {
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
@@ -581,14 +601,23 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 		}
 	}
 	if err == nil {
+		rs.addTail(ctx)
+		if deepDomain { // a domain's templates ran in the steps of its addresses: this step says what they did
+			rs.start(ctx, stepKeyNuclei)
+		}
+		rs.settle(ctx, stepKeyNuclei, content, "templates")
+		rs.start(ctx, stepKeyZAP)
 		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of the services that answered HTTP
 	}
 	if err == nil {
 		steps.close(StepZAP)
+		rs.settle(ctx, stepKeyZAP, content, "web")
+		rs.start(ctx, stepKeyZAPActive)
 		content, err = s.webActive(ctx, st, content) // INV-24: the active scan of those pages, in a person's scan of an accepted target (the terms' mode, not the by-name scope)
 	}
 	if err == nil {
 		steps.close(StepZAPActive)
+		rs.settle(ctx, stepKeyZAPActive, content, "web_active")
 	}
 	return content, deep, err
 }
@@ -712,8 +741,8 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	mode := ex.mode
 	started := s.clock().Format("2006-01-02T15:04:05.000Z")
 	ex.gbRun = GreenboneRun{State: GBRunRunning, StartedAt: &started}
-	seq, _ := x.AddStep(ctx, stepNameOpenVAS, 0)
-	_ = x.StartStep(ctx, seq)
+	rs := runStepsOf(ctx)
+	rs.start(ctx, stepKeyOpenVAS)
 	st := s.scanTarget(ctx, t, user, mode)
 	var o gbOutcome
 	var err error
@@ -758,7 +787,7 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	})
 	if werr != nil { // its results are not stored: the step and the run say so, never done
 		s.cfg.Log.ErrorContext(wctx, "exposure: storing OpenVAS's results failed", "target", t.Value, "error", werr)
-		_ = x.EndStep(wctx, seq, corerun.Failed, clipText("External scan of "+t.Value+": OpenVAS's results could not be stored", 500))
+		rs.end(wctx, stepKeyOpenVAS, corerun.Failed, "OpenVAS's results could not be stored.")
 		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS's results could not be stored"}, nil
 	}
 	s.alertNews(wctx, t, x.ID(), stepOpenVAS, ex.first, nil, fresh)
@@ -766,7 +795,7 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	if s, ok := stepStatus[outcome]; ok {
 		st2 = s
 	}
-	_ = x.EndStep(wctx, seq, st2, clipText("External scan of "+t.Value+": "+text, 500))
+	rs.end(wctx, stepKeyOpenVAS, st2, text)
 	if err != nil || ctx.Err() != nil {
 		ex.err = s.stopErr(ctx, x.ID(), err)
 		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS did not finish"}, nil
@@ -843,6 +872,32 @@ func (s *Service) endOf(ctx context.Context, err error) int {
 	return runEnded
 }
 
+// failNote is the note of the step a run's error ended: the reason a person can read, never the box's own error text.
+func failNote(err error) string {
+	var ae *APIError
+	switch {
+	case errors.As(err, &ae):
+		return ae.Message
+	case errors.Is(err, errScanPanicked):
+		return "The scan stopped because of an error on the box."
+	}
+	return "The scan stopped because of an error on the box, so nothing was saved."
+}
+
+// surfaceNote is what the surface step found: an IP's open common ports, a domain's names.
+func surfaceNote(k Kind, c Content) string {
+	if k == KindDomain {
+		addrs := map[string]bool{}
+		for _, h := range c.Hosts {
+			for _, a := range h.IPs {
+				addrs[a.IP] = true
+			}
+		}
+		return fmt.Sprintf("%s found, on %s.", plural(len(c.Hosts), "name"), nouns(len(addrs), "address", "addresses"))
+	}
+	return fmt.Sprintf("%s open of the commonly exposed ones.", plural(len(c.Ports), "port"))
+}
+
 // errScanPanicked is the error of a run a panic ended: an error of the box, never a stop.
 var errScanPanicked = errors.New("exposure: the scan panicked")
 
@@ -865,6 +920,7 @@ func (s *Service) waitFeedSync(ctx context.Context) error {
 	if !busy || ch == nil {
 		return nil
 	}
+	runStepsOf(ctx).say(stepKeyCheck, "Waiting for OpenVAS's feed update to finish: it holds the box's one scan slot.")
 	select {
 	case <-ch:
 		return nil
@@ -1036,7 +1092,7 @@ func (s *Service) EngineRuns(ctx context.Context) (map[string]EngineRun, error) 
 		var note sql.NullString
 		err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT r.id, coalesce(r.subject_label, ''), st.ended_at, st.status, st.note FROM core_run_step st
 			JOIN core_run r ON r.id = st.run_id JOIN exp_scan x ON x.run_id = r.id WHERE r.module = ? AND r.kind = ? AND st.name = ? AND st.ended_at IS NOT NULL
-			ORDER BY st.ended_at DESC LIMIT 1`, ModuleID, RunKind, stepNames[engine]).Scan(&r.RunID, &r.Target, &r.At, &status, &note)
+			AND st.status <> 'skipped' ORDER BY st.ended_at DESC LIMIT 1`, ModuleID, RunKind, stepNames[engine]).Scan(&r.RunID, &r.Target, &r.At, &status, &note)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
@@ -1044,6 +1100,9 @@ func (s *Service) EngineRuns(ctx context.Context) (map[string]EngineRun, error) 
 			return nil, fmt.Errorf("exposure: reading the engines' last runs: %w", err)
 		}
 		r.Engine, r.Text = engine, note.String
+		if !strings.HasPrefix(r.Text, "External scan of ") { // the step's own note, as the run page shows it
+			r.Text = clipText("External scan of "+r.Target+": "+r.Text, maxLineText)
+		}
 		for o, st := range stepStatus {
 			if string(st) == status {
 				r.Outcome = o
@@ -1055,33 +1114,6 @@ func (s *Service) EngineRuns(ctx context.Context) (map[string]EngineRun, error) 
 		out[engine] = r
 	}
 	return out, nil
-}
-
-// recordSteps writes the engine steps of the run that ended and were not written yet (INV-30): nuclei and ZAP once they are done
-// (end runOn), and every step left when the run ends. A failure is logged.
-func (s *Service) recordSteps(ctx context.Context, x *corerun.Exec, l *stepLog, end int) {
-	why := ""
-	if end == runStopped {
-		why = stopWhy(s.cause(x.ID()).stop())
-	}
-	var target string
-	if r, err := x.Run(context.WithoutCancel(ctx)); err == nil && r.Subject != nil {
-		target = r.Subject.Label
-	}
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
-	defer cancel()
-	for _, r := range l.rows(x.ID(), target, s.clock(), end, why) {
-		seq, err := x.AddStep(wctx, stepNames[r.Engine], 0)
-		if err == nil {
-			err = x.StartStep(wctx, seq)
-		}
-		if err == nil {
-			err = x.EndStep(wctx, seq, stepStatus[r.Outcome], clipText(r.Text, 500))
-		}
-		if err != nil {
-			s.cfg.Log.ErrorContext(wctx, "exposure: recording an engine step failed", "run", x.ID(), "engine", r.Engine, "error", err)
-		}
-	}
 }
 
 // recordNames writes, as items of the run, the names the scan probed (kind name, the id of the name's row, outcome probed): the count of

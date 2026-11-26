@@ -21,7 +21,7 @@ var _ exposure.GreenboneProbeLog = exposureProbeLog{}
 // fails.
 func (l exposureProbeLog) RecordGreenboneProbe(ctx context.Context, p exposure.GreenboneProbe) error {
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
-		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p),
+		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p), RunID: exposure.RunIDOf(ctx),
 	}})
 }
 
@@ -41,6 +41,6 @@ func (l exposureProbeLog) RecordWebProbe(ctx context.Context, p exposure.WebProb
 	}
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
 		ID: p.ID, IP: p.IP, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Template: "exposure: " + p.Tool,
-		Request: fmt.Sprintf("planned: %s web scan of %s, ZAP pinned to %s:%d (no other address, no DNS)", kind, p.URL, p.IP, p.Port),
+		Request: fmt.Sprintf("planned: %s web scan of %s, ZAP pinned to %s:%d (no other address, no DNS)", kind, p.URL, p.IP, p.Port), RunID: exposure.RunIDOf(ctx),
 	}})
 }

@@ -67,7 +67,7 @@ export function RunsTab() {
   const columns = useMemo<ColumnDef<Run>[]>(() => [
     { id: 'what', header: t('runs.col.what'), cell: ({ row: { original: r } }) => (
       <div className="grid min-w-0 text-meta">
-        <Link to={runHref(r.id)} className={link}>{r.title}</Link>
+        <Link to={runHref(r.id, 'settings')} className={link}>{r.title}</Link>
         <span className="text-muted">{kindLabel(r.kind)} · {startedBy(r)}</span>
       </div>
     ) },
@@ -107,7 +107,7 @@ export function RunsTab() {
             filtered={filtered} onClearFilters={clear} empty={t('runs.empty')}
             mobileRow={(r) => (
               <div className="grid gap-1.5">
-                <Link to={runHref(r.id)} className={link}>{r.title}</Link>
+                <Link to={runHref(r.id, 'settings')} className={link}>{r.title}</Link>
                 <span className="text-meta text-muted">{whenOf(r)} · {kindLabel(r.kind)} · {startedBy(r)}</span>
                 <State r={r} />
               </div>

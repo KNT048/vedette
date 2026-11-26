@@ -445,3 +445,33 @@ func TestExposureTemplatesALineOfAnotherPortCoversNothing(t *testing.T) {
 		t.Fatalf("covered %q", cov)
 	}
 }
+
+// Every probe row of the safe templates names the exposure scan's run, both when it is logged before the job and when it is completed,
+// so the run's probes can be listed.
+func TestExposureTemplatesProbeRowsNameTheirRun(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443", Matched: true}}}
+	}}
+	sc := f.scanner()
+	record := sc.probes
+	var runs []string
+	sc.probes = func(ctx context.Context, ps []scan.ExternalProbe) error {
+		for _, p := range ps {
+			runs = append(runs, p.RunID)
+		}
+		return record(ctx, ps)
+	}
+	ctx := exposure.WithRunID(t.Context(), "run-exp-1")
+	if _, err := sc.ScanTemplates(ctx, exposure.ScanTarget{User: "u-admin"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")}); err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 4 {
+		t.Fatalf("probe rows written %d times, want 4 (2 logged, 2 completed): %q", len(runs), f.events)
+	}
+	for i, r := range runs {
+		if r != "run-exp-1" {
+			t.Errorf("probe row write %d names run %q, want run-exp-1", i+1, r)
+		}
+	}
+}

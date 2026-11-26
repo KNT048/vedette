@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
+	corerun "github.com/knt048/vedette/core/run"
 )
 
 // INV-24, the active web scan: when it runs, with which rules, and how its results are kept, against a fake ZAP.
@@ -62,13 +63,25 @@ func lineWith(lines []string, part string) bool {
 	return slices.ContainsFunc(lines, func(s string) bool { return strings.Contains(s, part) })
 }
 
-func (e *env) webSteps(id string) []WebStep {
+// runStep is the step named name of the newest scan's run, as the run page reads it, and its note.
+func (e *env) runStep(name string) (corerun.Step, string) {
 	e.t.Helper()
-	scans, err := e.svc.Scans(e.ctx(), id)
-	if err != nil || len(scans) == 0 {
-		e.t.Fatalf("scans: %v %v", scans, err)
+	d := e.newestScanRun()
+	for i, st := range d.Steps {
+		if st.Name != name {
+			continue
+		}
+		if name == stepNameZAPAct && (i == 0 || d.Steps[i-1].Name != stepNameZAP) {
+			e.t.Fatalf("the active web scan is not right after the passive one: step %d", i+1)
+		}
+		note := ""
+		if st.Note != nil {
+			note = *st.Note
+		}
+		return st, note
 	}
-	return scans[0].WebSteps
+	e.t.Fatalf("no step %q in the run", name)
+	return corerun.Step{}, ""
 }
 
 // Only a person's scan of a target whose testing terms are accepted runs the active scan, after the passive one, on the pages the
@@ -101,14 +114,13 @@ func TestZapActive_OnlyInAPersonsScanNow(t *testing.T) {
 	if !strings.HasPrefix(w.log.rows[len(w.log.rows)-1].Tool, "ZAP active scan") {
 		t.Fatalf("probe row: %+v", w.log.rows[len(w.log.rows)-1])
 	}
-	steps := e.webSteps(id)
-	if len(steps) != 2 || steps[0].Step != WebStepPassive || steps[1] != (WebStep{Step: WebStepActive, State: WebDone, PagesDone: 3, PagesTotal: 3, Disruptive: true}) {
-		t.Fatalf("web steps: %+v", steps)
+	if st, note := e.runStep(stepNameZAPAct); st.Status != corerun.Done || note != "ZAP attacked 3 of 3 pages with the disruptive rules on the box's own IP, 0 alerts." {
+		t.Fatalf("the active step: %s %q", st.Status, note)
 	}
 }
 
-// A scan the box runs by itself keeps the passive baseline only, and says so in one plain line on the scan and on the run's web
-// steps, so a scheduled run does not look incomplete.
+// A scan the box runs by itself keeps the passive baseline only, and says so in one plain line on the scan and on its run's active web
+// scan step (skipped), so a scheduled run does not look incomplete.
 func TestZapActive_ScheduledScanIsPassiveOnly(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -125,9 +137,11 @@ func TestZapActive_ScheduledScanIsPassiveOnly(t *testing.T) {
 	if !slices.Contains(notChecked(s), notActiveScheduled) || notActiveScheduled != "Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them." {
 		t.Fatalf("not checked: %q", notChecked(s))
 	}
-	steps := e.webSteps(id)
-	if len(steps) != 2 || steps[0].Note != notActiveScheduled || steps[0].State != WebDone || steps[1].State != WebSkipped || steps[1].Note != notActiveScheduled {
-		t.Fatalf("web steps: %+v", steps)
+	if st, note := e.runStep(stepNameZAPAct); st.Status != corerun.Skipped || note != notActiveScheduled {
+		t.Fatalf("the active step: %s %q", st.Status, note)
+	}
+	if st, _ := e.runStep(stepNameZAP); st.Status != corerun.Done {
+		t.Fatalf("the passive step: %s", st.Status)
 	}
 }
 
@@ -276,9 +290,10 @@ func TestZapActive_CutShortAndTheRunLimit(t *testing.T) {
 	if n != 2 || !lineWith(notChecked(s), notActiveCut) || !lineWith(notChecked(s), "1 page not attacked: the active pass of one scan takes at most 60 minutes") {
 		t.Fatalf("findings %d, not checked %q", n, notChecked(s))
 	}
-	steps := e.webSteps(id)
-	if a := steps[1]; a.State != WebPartial || !a.CutShort || a.PagesDone != 2 || a.PagesTotal != 3 || a.Alerts != 4 {
-		t.Fatalf("active step: %+v", a)
+	st, note := e.runStep(stepNameZAPAct)
+	if st.Status != corerun.Partial || !strings.HasPrefix(note, "ZAP attacked 2 of 3 pages with the disruptive rules on the box's own IP, 4 alerts. Cut short at its time limit (12 minutes) on ") ||
+		!strings.HasSuffix(note, "1 page not attacked.") {
+		t.Fatalf("the active step: %s %q", st.Status, note)
 	}
 }
 

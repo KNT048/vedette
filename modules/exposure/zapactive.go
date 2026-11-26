@@ -2,15 +2,14 @@ package exposure
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -66,82 +65,42 @@ const (
 	notActiveDisrupt   = "Active web scan (ZAP) ran without its disruptive rules (denial of service, checks that may change data) on %s: they run only on this box's own public IP, in a scan a person starts."
 )
 
-// The web steps of a run as the run page reads them (contract.ts WebStep), kept in exp_scan.summary as they go.
-const (
-	WebStepPassive = "zap_passive"
-	WebStepActive  = "zap_active"
-
-	WebRunning = "running"
-	WebDone    = "done"
-	WebPartial = "partial"
-	WebFailed  = "failed"
-	WebStopped = "stopped"
-	WebSkipped = "skipped"
-)
-
-// WebStep is one ZAP pass of a run: its state, the pages done of the pages it takes, the alerts it kept, whether a page was cut short
-// at its time limit, whether the disruptive rules ran on a page, and a line saying why it was skipped or how it ended.
-type WebStep struct {
-	Step       string `json:"step"`
-	State      string `json:"state"`
-	PagesDone  int    `json:"pages_done"`
-	PagesTotal int    `json:"pages_total"`
-	Alerts     int    `json:"alerts"`
-	CutShort   bool   `json:"cut_short"`
-	Disruptive bool   `json:"disruptive"`
-	Note       string `json:"note"`
+// activeTally is what the active pass did, for its run step's note.
+type activeTally struct {
+	pages, alerts int
+	disruptive    bool
+	cut           []string
+	note          string // why it ended early (a reason that held for the rest)
 }
 
-// webTracker keeps the web steps of one run and writes them into its summary each time one changes; nil outside a run.
-type webTracker struct {
-	mu    sync.Mutex
-	run   string
-	steps []WebStep
-}
-
-type webStepsKey struct{}
-
-func withWebSteps(ctx context.Context, t *webTracker) context.Context {
-	return context.WithValue(ctx, webStepsKey{}, t)
-}
-
-// webStepSet records step (by its name) and writes the run's web steps; a write that fails is logged and the scan goes on.
-func (s *Service) webStepSet(ctx context.Context, step WebStep) {
-	t, _ := ctx.Value(webStepsKey{}).(*webTracker)
-	if t == nil {
-		return
-	}
-	step.Note = clipText(step.Note, maxLineText)
-	t.mu.Lock()
-	found := false
-	for i := range t.steps {
-		if t.steps[i].Step == step.Step {
-			t.steps[i], found = step, true
-		}
-	}
-	if !found {
-		t.steps = append(t.steps, step)
-	}
-	steps := append([]WebStep(nil), t.steps...)
-	t.mu.Unlock()
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
-	defer cancel()
-	if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
-		return updateSummary(wctx, tx, t.run, func(sum *scanSummary) { sum.WebSteps = steps })
-	}); err != nil {
-		s.cfg.Log.WarnContext(ctx, "exposure: recording the web step of a scan", "run", t.run, "error", err)
-	}
-}
-
-// webStepEnd is the state a pass ends in from what its pages did.
-func webStepEnd(ok, failed, left int) string {
+// activeEnd is how the active pass's run step ends, and its note: the pages attacked of those it takes, with or without the
+// disruptive rules, the alerts, the pages cut short at their limit.
+func activeEnd(ok, failed, left int, t activeTally) (corerun.Status, string) {
+	how := corerun.Done
 	switch {
 	case ok == 0 && failed > 0:
-		return WebFailed
-	case failed > 0 || left > 0:
-		return WebPartial
+		how = corerun.Failed
+	case failed > 0 || left > 0 || t.note != "":
+		how = corerun.Partial
 	}
-	return WebDone
+	rules := "without the disruptive rules"
+	if t.disruptive {
+		rules = "with the disruptive rules on the box's own IP"
+	}
+	note := fmt.Sprintf("ZAP attacked %d of %s %s, %s.", ok, plural(t.pages, "page"), rules, plural(t.alerts, "alert"))
+	if ok == 0 {
+		note = fmt.Sprintf("ZAP attacked none of %s.", plural(t.pages, "page"))
+	}
+	if len(t.cut) > 0 {
+		note += " Cut short at its time limit (12 minutes) on " + strings.Join(t.cut, ", ") + ": what it found until then is kept."
+	}
+	if left > 0 {
+		note += " " + plural(left, "page") + " not attacked."
+	}
+	if t.note != "" {
+		note += " " + t.note
+	}
+	return how, note
 }
 
 // ownProvenPage says the page is on the box's own proven public IP: an IP target that is not a typed IP (the gate took it as the box's
@@ -157,29 +116,36 @@ func ownProvenPage(st ScanTarget, page WebPage) bool {
 // webActive is the active pass of the web step, after webPassive, on the pages it scanned (c.webOK). See the comment at the top.
 func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Content, error) {
 	pages := c.webOK
-	if !st.Mode.Full || len(pages) == 0 {
-		return c, nil // a surface scan has no active pass; with no page scanned there is nothing to attack
-	}
-	if st.User == SystemUser {
+	rs := runStepsOf(ctx) // its run step (stepKeyZAPActive), in the plan of a deep scan
+	switch {
+	case !st.Mode.Full: // a surface scan has no active pass (a typed IP without its live proof runs at that depth)
+		rs.skip(ctx, stepKeyZAPActive, "The active web scan runs only in a deep scan.")
+		return c, nil
+	case len(pages) == 0:
+		rs.skip(ctx, stepKeyZAPActive, "No web page was read by the passive web scan, so there is nothing to attack.")
+		return c, nil
+	case st.User == SystemUser:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveScheduled})
-		s.webStepSet(ctx, WebStep{Step: WebStepActive, State: WebSkipped, PagesTotal: len(pages), Note: notActiveScheduled})
+		rs.skip(ctx, stepKeyZAPActive, notActiveScheduled)
 		return c, nil
 	}
 	aw, _ := s.cfg.Web.(ActiveWebScanner)
 	if aw == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveNoScanner})
+		rs.skip(ctx, stepKeyZAPActive, notActiveNoScanner)
 		return c, nil
 	}
 	plog, _ := s.cfg.Probes.(WebProbeLog)
 	if plog == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveNoLog})
+		rs.skip(ctx, stepKeyZAPActive, notActiveNoLog)
 		return c, nil
 	}
-	step := WebStep{Step: WebStepActive, State: WebRunning, PagesTotal: len(pages)}
-	s.webStepSet(ctx, step)
+	rs.start(ctx, stepKeyZAPActive)
+	step := activeTally{pages: len(pages)}
 	steps := stepsOf(ctx)
 	start := s.clock()
-	var scanned, cut, gentle []string
+	var scanned, gentle []string
 	ok, failed, left := 0, 0, 0
 	for i, page := range pages {
 		if s.clock().Sub(start)+ActiveScanTimeout > ActiveRunLimit {
@@ -193,15 +159,14 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 		}
 		mode, err := s.ModeNow(ctx, st.User, st.ID) // the terms and the gate as they are now, with the run's own rules (runMode)
 		if ctx.Err() != nil {
-			s.webStepSet(ctx, WebStep{Step: WebStepActive, State: WebStopped, PagesDone: step.PagesDone, PagesTotal: step.PagesTotal, Alerts: step.Alerts, CutShort: step.CutShort, Disruptive: step.Disruptive})
-			return c, ctx.Err()
+			return c, ctx.Err() // the run's end stops its step
 		}
 		if err != nil || !mode.Full {
 			if err != nil {
 				s.cfg.Log.ErrorContext(ctx, "exposure: reading the terms before the active web scan failed", "target", st.Value, "error", err)
 			}
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveTerms})
-			left = len(pages) - i
+			left, step.note = len(pages)-i, notActiveTerms
 			break
 		}
 		pst := st
@@ -218,9 +183,10 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 			}
 			s.cfg.Log.ErrorContext(ctx, "exposure: writing the probe log of the active web step failed", "target", st.Value, "page", page.URL, "error", err)
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveNoLog})
-			left = len(pages) - i
+			left, step.note = len(pages)-i, notActiveNoLog
 			break
 		}
+		rs.say(stepKeyZAPActive, fmt.Sprintf("page %d of %d: %s", i+1, len(pages), page.URL))
 		wctx, cancel := context.WithTimeout(ctx, ActiveScanTimeout)
 		steps.begin(StepZAPActive, pst.Mode.Disruptive)
 		res, err := aw.Active(wctx, pst, page)
@@ -243,10 +209,10 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 				}
 				scanned = append(scanned, page.URL)
 				ok++
-				step.Alerts += len(rows)
-				step.Disruptive = step.Disruptive || pst.Mode.Disruptive
+				step.alerts += len(rows)
+				step.disruptive = step.disruptive || pst.Mode.Disruptive
 				if res.CutShort {
-					cut, step.CutShort = append(cut, page.URL), true
+					step.cut = append(step.cut, page.URL)
 					c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveCut, maxLineText)})
 				}
 				steps.end(StepZAPActive, callRan, len(rows), s.clock())
@@ -256,16 +222,12 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 				failed++
 				steps.end(StepZAPActive, callFailed, 0, s.clock())
 			}
-			step.PagesDone++
-			s.webStepSet(ctx, step)
 			continue
 		}
 		var un *Unavailable
 		var skip *PageSkipped
 		switch {
-		case ctx.Err() != nil: // the run was stopped: the scanner stopped ZAP; the step reads as stopped
-			step.State = WebStopped
-			s.webStepSet(ctx, step)
+		case ctx.Err() != nil: // the run was stopped: the scanner stopped ZAP; the run's end stops the step
 			return c, err
 		case errors.As(err, &skip), errors.As(err, &un):
 			steps.end(StepZAPActive, callSkipped, 0, s.clock())
@@ -273,24 +235,19 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 			failed++
 			steps.end(StepZAPActive, callFailed, 0, s.clock())
 		}
-		step.PagesDone++
 		switch {
 		case errors.As(err, &un):
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Active web scan (ZAP) did not run: "+un.Reason, maxLineText)})
-			left = len(pages) - i - 1
-			step.Note = clipText("Did not run: "+un.Reason, maxLineText)
+			left, step.note = len(pages)-i-1, "Did not run: "+un.Reason
 		case errors.As(err, &skip):
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": active web scan (ZAP) did not run: "+skip.Reason, maxLineText)})
-			s.webStepSet(ctx, step)
 			continue
 		case slow:
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveSlow, maxLineText)})
-			s.webStepSet(ctx, step)
 			continue
 		default:
 			s.cfg.Log.ErrorContext(ctx, "exposure: active web scan failed", "target", st.Value, "page", page.URL, "error", err)
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveFail, maxLineText)})
-			s.webStepSet(ctx, step)
 			continue
 		}
 		break
@@ -300,17 +257,14 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 	}
 	if len(scanned) > 0 {
 		text := fmt.Sprintf("Active web scan (ZAP: spider and active rules, attack requests to the page's own address only) of %s: %s. %s.",
-			plural(len(scanned), "page"), strings.Join(scanned, ", "), plural(step.Alerts, "alert"))
-		if len(cut) > 0 {
-			text += " Cut short at its time limit on " + strings.Join(cut, ", ") + "."
+			plural(len(scanned), "page"), strings.Join(scanned, ", "), plural(step.alerts, "alert"))
+		if len(step.cut) > 0 {
+			text += " Cut short at its time limit on " + strings.Join(step.cut, ", ") + "."
 		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "web", At: store.FormatTS(s.clock()), Text: clipText(text, maxLineText)})
 	}
-	step.State = webStepEnd(ok, failed, left)
-	if step.Note == "" && step.CutShort {
-		step.Note = "Cut short at the time limit on " + strings.Join(cut, ", ")
-	}
-	s.webStepSet(ctx, step)
+	how, note := activeEnd(ok, failed, left, step)
+	rs.end(ctx, stepKeyZAPActive, how, note)
 	return c, nil
 }
 

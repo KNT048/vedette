@@ -26,3 +26,7 @@ export type IncidentStatusCode = (typeof INCIDENT_STATUSES)[number]
  *  work left until what it names (the scan window, another run); running and stopping hold the lane; the last four are final. */
 export const RUN_STATUSES = ['queued', 'waiting', 'running', 'stopping', 'done', 'partial', 'failed', 'stopped'] as const
 export type RunStatusCode = (typeof RUN_STATUSES)[number]
+
+/** A step's state (core/run StepStatuses): the run states, and skipped for a step that did not run (its note says why). */
+export const STEP_STATUSES = [...RUN_STATUSES, 'skipped'] as const
+export type StepStatusCode = (typeof STEP_STATUSES)[number]

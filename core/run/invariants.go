@@ -38,9 +38,9 @@ var Invariants = []Invariant{
 	},
 	{
 		Name: "runs.known_status",
-		Rule: "every run and step is in one of the eight run states",
+		Rule: "every run is in one of the eight run states, and every step in one of them or skipped",
 		Query: `SELECT (SELECT count(*) FROM core_run WHERE status NOT IN (` + quoted(Statuses...) + `))
-			+ (SELECT count(*) FROM core_run_step WHERE status NOT IN (` + quoted(Statuses...) + `))`,
+			+ (SELECT count(*) FROM core_run_step WHERE status NOT IN (` + quoted(StepStatuses...) + `))`,
 	},
 	{
 		Name: "runs.progress_is_the_sum_of_steps",

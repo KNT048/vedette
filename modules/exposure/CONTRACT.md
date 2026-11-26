@@ -114,7 +114,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   baseline read in this run, and only in a scan a person started (Scan now, Run once now) of a target whose testing terms are
   accepted, read again right before each page (`ModeNow`). A scheduled scan keeps the passive baseline only and says so in one line
   ("Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.") on the scan and
-  on its web steps. The disruptive rules of the host's rule split (denial of service, data-changing checks, SQL injection's boolean
+  as the note of its run step "Active web scan (ZAP)", skipped. The disruptive rules of the host's rule split (denial of service, data-changing checks, SQL injection's boolean
   and UNION payloads, the hosting provider's metadata service, remote file inclusion's third-party URLs) and form posting run only on the box's own proven public IP (an IP
   target that is not typed, the page on exactly that address) when the run's mode allows the disruptive checks (`runMode`: a
   person's scan, the terms include them, the gateway not in 100.64.0.0/10); a domain's page, on hosting or a CDN, gets the active
@@ -129,8 +129,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   ZAP's risk, confidence and pass in `detail.zap`; an active alert goes "gone" only when the active scan finished on its page again
   (a page cut short does not close one), never because a scheduled scan read the page; an alert of a rule the host runs only
   with the disruptive rules (`ZapActiveResult.disruptive_rules`), found by a pass that ran them, carries `detail.zap.disruptive`
-  and goes "gone" only after a later active scan that ran them again (a pass without them keeps it open). The run's web steps (`zap_passive`, `zap_active`: state, pages done and total,
-  alerts, cut short, disruptive, note) are written into the scan's summary as they go (`Scan.web_steps`). Tests:
+  and goes "gone" only after a later active scan that ran them again (a pass without them keeps it open). The active pass is one step of the run (`zap_active` in `scanPlan`, right after the passive
+  ZAP step, in a deep scan's plan only): while it runs its note is the page it attacks; it ends with the pages attacked of those it
+  takes, with or without the disruptive rules, the alerts and the pages cut short at their limit, or is skipped with why. Tests:
   `zapactive_test.go` (`TestZapActive_*`), `cmd/vedette/exposureweb_test.go` (`TestExposureWeb_Active*`,
   `TestExposureWeb_AStoppedScanStopsZAPOnTheHost`).
 - **INV-25** Greenbone (OpenVAS) is optional and off by default; it runs as its own unmodified project beside Vedette and is
@@ -139,7 +140,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.
 - **INV-29**, **INV-30**, **INV-34** A running scan shows its step's progress; each engine step keeps its outcome and one sentence;
-  a scan is named by its start and shows its end.
+  a scan is named by its start and shows its end. Its run lists every step of its plan (`runsteps.go` `scanPlan`: the check, the
+  surface step, nmap's port discovery and service step for an IP, a step per deep-scanned address of a domain, nuclei, ZAP, the
+  comparison and save, OpenVAS) from the moment the plan is known, each one queued, running, ended or skipped with why; a step counts
+  as one ("3 of 8 steps"), a running step's note is where it is (the engines' progress reports, at most every 3 s), each start and end
+  is a log line, and the steps the run ends before are skipped as not reached. Every probe of the scan names its run
+  (`RunIDOf` of the scan's context, set with `WithRunID`; `scan_probe.run_id`), the safe templates' rows too.
 - **INV-33** Admin and VPN pages are named from one fingerprint table (`content/adminpages/adminpages.json`), shared with the scan
   module.
 - **INV-36** Every target has a schedule `exposure.target:<id>` (default weekly, Monday 02:30 in the scan window; at most every 6

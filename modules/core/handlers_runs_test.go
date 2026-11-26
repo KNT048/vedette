@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"testing"
@@ -119,5 +120,33 @@ func TestRuns_ListPageStopAndResume(t *testing.T) {
 	}
 	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action IN ('scanning.run_stop', 'scanning.run_resume')`); n != 3 {
 		t.Errorf("audit rows of stop and resume = %d, want 3", n)
+	}
+}
+
+// The run page answers a step that did not run as skipped, with why.
+func TestRuns_ASkippedStepIsAnswered(t *testing.T) {
+	t.Parallel()
+	s, m := newRunsStack(t)
+	id, err := m.Create(t.Context(), run.Spec{Module: "sensor-active", Kind: "device_check", Title: "Check 192.0.2.20", Trigger: run.Manual, RequestedBy: "admin@acme.example",
+		Steps: []run.StepPlan{{Name: "Find open ports", Total: 1}, {Name: "OpenVAS", Total: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE core_run_step SET status = 'skipped', note = 'OpenVAS is turned off.', ended_at = '2026-11-26T10:00:00.000Z' WHERE run_id = ? AND seq = 2`, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, page := s.call("GET", "/runs/"+id, "viewer", "")
+	if code != http.StatusOK {
+		t.Fatalf("GET /runs/%s = %d %v", id, code, page)
+	}
+	steps := page["steps"].([]any)
+	if st := steps[1].(map[string]any); st["status"] != "skipped" || st["note"] != "OpenVAS is turned off." || st["ended_at"] == nil {
+		t.Fatalf("skipped step = %v", st)
+	}
+	if st := steps[0].(map[string]any); st["status"] != "queued" {
+		t.Fatalf("first step = %v", st)
 	}
 }

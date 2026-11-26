@@ -374,19 +374,6 @@ export const ScanCounts = z.object({
   new_services: z.number().int(), closed_services: z.number().int(),
   issues: z.number().int().describe('Open issues after the scan'), new_issues: z.number().int(),
 })
-// The two ZAP passes of a scan as they go (the run page reads them): zap_passive, the baseline that reads the pages; zap_active, the
-// active scan that attacks them, only in a scan a person starts of a target whose testing terms are accepted.
-export const WebStepName = z.enum(['zap_passive', 'zap_active'])
-export const WebStepState = z.enum(['running', 'done', 'partial', 'failed', 'stopped', 'skipped'])
-export const WebStep = z.object({
-  step: WebStepName,
-  state: WebStepState.describe('running; done; partial: some pages failed or were left (the run\'s time for the active pass, a reason that held for the rest); failed: no page could be scanned; stopped: the run was stopped while ZAP ran (ZAP was stopped too); skipped: the pass did not run (note says why, e.g. a scheduled scan)'),
-  pages_done: z.number().int().min(0), pages_total: z.number().int().min(0).describe('The pages the pass takes: the web pages of the target (at most 4) for the passive pass, the pages the passive pass read for the active one'),
-  alerts: z.number().int().min(0).describe('Alerts kept so far, after Vedette\'s rule list'),
-  cut_short: z.boolean().describe('Active pass: a page reached the active scan\'s time limit (12 minutes); what it found until then is kept'),
-  disruptive: z.boolean().describe('Active pass: the disruptive rules ran on a page (the box\'s own public IP only)'),
-  note: z.string().describe('Why the pass was skipped or did not finish, or what to know about it, e.g. "Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them."; "" when none'),
-})
 export const Scan = z.object({
   run_id: z.string().describe('The shared run: its steps, items and log are read there, and it is stopped there'),
   target_id: z.string(),
@@ -397,7 +384,6 @@ export const Scan = z.object({
   waiting_for: z.string().nullable().describe('Set only while status is waiting, e.g. "the scan window (opens 23:00)"'),
   stop_reason: z.string().nullable(), error: z.string().nullable(),
   counts: ScanCounts.nullable().describe('What the scan left; null until it ends done or partial'),
-  web_steps: z.array(WebStep).describe('The ZAP passes of the scan, written as they go; empty before the web step starts and on a scan without web pages'),
 })
 
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])

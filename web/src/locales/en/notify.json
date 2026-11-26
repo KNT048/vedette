@@ -586,7 +586,8 @@
       "below_min_severity": "Change the minimum severity",
       "quiet_hours": "Quiet hours settings",
       "grouped": "Grouping settings",
-      "failed": "Test the channel"
+      "failed": "Test the channel",
+      "trigger_off": "Change in alert triggers"
     },
     "emptyResolvedTitle": "No resolved incidents",
     "clearUrgent": "Showing high and critical only",
@@ -825,5 +826,51 @@
     "kind": "Channel",
     "continue": "Continue",
     "off": "{{name}} (set up, switched off)"
+  },
+  "triggers": {
+    "title": "Alert triggers",
+    "description": "Which kinds of event send a message, and from which severity. What is off still shows on Incidents and on the finding.",
+    "descriptionInfo": "Each channel also has its own lowest severity: a message goes out only when both allow it. Quiet hours and grouping apply as usual. A change holds from the next event: messages already waiting for quiet hours or grouping still go out, and an alert held while its trigger was off is not sent later (History, Not sent can still send a vulnerability alert from the last 7 days). Every change is in the audit log.",
+    "send": "Send",
+    "dontSend": "Off",
+    "fromFor": "Lowest severity that sends for {{what}}",
+    "min": {
+      "critical": "Critical only",
+      "high": "High and above",
+      "medium": "Medium and above",
+      "low": "Every severity"
+    },
+    "off": "off",
+    "onFrom": "on, {{min}}",
+    "default": "Default: {{rule}}",
+    "save": "Save alert triggers",
+    "reset": "Back to defaults",
+    "saved": "Alert triggers saved. They hold from the next event.",
+    "kind": {
+      "trap": {
+        "label": "Decoy touched",
+        "why": "Nobody has a reason to open a decoy, so a touch is almost always someone exploring the network."
+      },
+      "vulnerability": {
+        "label": "Exploited or urgent vulnerability on a device",
+        "why": "A device you own has a weakness attackers use now: patch it first."
+      },
+      "intrusion": {
+        "label": "Intrusion alert (IPS/IDS)",
+        "why": "High and critical ones match real attacks; lower ones are mostly scans and policy noise."
+      },
+      "bad_address": {
+        "label": "Connection to a known-bad address",
+        "why": "A device talked to an address a threat feed lists. Medium matches stay on Incidents for you to review; choose Medium and above to get a message for each."
+      },
+      "log_anomaly": {
+        "label": "Unusual activity in logs",
+        "why": "High ones are brute force and floods; a new kind of log line or a small spike stays on Incidents."
+      },
+      "unknown_device": {
+        "label": "New device seen",
+        "why": "Phones use private, random hardware addresses, so a busy office sees many new devices a day. Review them on Devices instead."
+      }
+    }
   }
 }

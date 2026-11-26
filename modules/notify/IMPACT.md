@@ -249,3 +249,8 @@ The only caller in every item is `response` (through the adapter in `cmd/vedette
 ## Modifying: Not sent and the resend mark (INV-29; `notSentNotices`, `untold`, `notify_send.resend_of`)
 - `untold` decides both whether `SendNow` sends and whether a notice stays on Not sent: change it in one place. Each listed notice reads its findings through `FindingDirectory` once per request (cached by finding).
 - `resend_of` is written by `Resend` only; `modules/core/export_policy.go` classifies it (exported).
+
+## Modifying: alert triggers (INV-31; `triggers.go`, `notify_setting` key `triggers`, `unsent=trigger_off`)
+- `enqueue` is the only place the rule is read: every incident and vulnerability notice goes through it, so a new producer needs nothing. A new incident kind sends until it is added to `defaultTriggers` (with a name in `triggerNames` and a label in the web's alert settings) and to `AlertTriggerId` in `contract.ts`.
+- `trigger_off` is a new value of the open `unsent` vocabulary (no table change); the web's `NotSentFix` (`shared.tsx`) links it to the Settings tab of Alert channels. Feeds' first-run card does not read it: the vulnerability first-run summary is told by the `vulnerability` trigger, which is on by default.
+- Migration 0005 rebuilds `notify_setting` (four columns, rows copied) so its key may be `triggers`; `modules/core/export_policy.go` already classifies the table, `docs/SCHEMA.sql` is regenerated (`make schema`).

@@ -215,7 +215,28 @@ func newEnv(t *testing.T, opts ...func(*notify.Config)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Every alert trigger on from low: the tests of the other rules see every incident reach the channels. The tests of the triggers
+	// themselves start from the box's defaults (defaultTriggers).
+	if err := db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_setting (key, value, updated_at, updated_by) VALUES ('triggers', ?, '2026-11-01T00:00:00.000Z', 'test')`,
+			`[{"id":"trap","on":true,"min":"low"},{"id":"vulnerability","on":true,"min":"low"},{"id":"intrusion","on":true,"min":"low"},`+
+				`{"id":"bad_address","on":true,"min":"low"},{"id":"log_anomaly","on":true,"min":"low"},{"id":"unknown_device","on":true,"min":"low"}]`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 	return e
+}
+
+// defaultTriggers drops the all-on rule newEnv stores: the box's own defaults hold.
+func (e *env) defaultTriggers() {
+	e.t.Helper()
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `DELETE FROM notify_setting WHERE key = 'triggers'`)
+		return err
+	}); err != nil {
+		e.t.Fatal(err)
+	}
 }
 
 // save stores a channel as admin and fails the test on an error.

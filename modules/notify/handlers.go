@@ -253,6 +253,27 @@ func (h *NotifyHandlers) NotifyPutNotifyRules(ctx context.Context, req *oas.Noti
 	return convert[oas.NotifyPutNotifyRulesOK](out)
 }
 
+// NotifyPutNotifyTriggers implements PUT /notify/triggers (admin).
+func (h *NotifyHandlers) NotifyPutNotifyTriggers(ctx context.Context, req *oas.NotifyPutNotifyTriggersReq) (*oas.NotifyPutNotifyTriggersOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[struct {
+		Triggers []Trigger `json:"triggers"`
+	}](req)
+	if err != nil {
+		return nil, err
+	}
+	out, err := h.svc.SaveTriggers(ctx, who, in.Triggers)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPutNotifyTriggersOK](struct {
+		Triggers []TriggerView `json:"triggers"`
+	}{out})
+}
+
 // NotifyPostNotifyZaloLogin implements POST /notify/zalo/login (admin).
 func (h *NotifyHandlers) NotifyPostNotifyZaloLogin(ctx context.Context) (*oas.NotifyPostNotifyZaloLoginOK, error) {
 	who, err := actor(ctx)

@@ -73367,6 +73367,60 @@
                       ],
                       "additionalProperties": false
                     },
+                    "triggers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "trap",
+                              "vulnerability",
+                              "intrusion",
+                              "bad_address",
+                              "log_anomaly",
+                              "unknown_device"
+                            ]
+                          },
+                          "on": {
+                            "type": "boolean",
+                            "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent"
+                          },
+                          "min": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low"
+                            ],
+                            "description": "The lowest severity of this kind that sends a message"
+                          },
+                          "default_on": {
+                            "type": "boolean"
+                          },
+                          "default_min": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "on",
+                          "min",
+                          "default_on",
+                          "default_min"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Which kinds of event send an alert, and from which severity"
+                    },
                     "email_code_users": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -73378,6 +73432,7 @@
                     "channels",
                     "quiet",
                     "grouping",
+                    "triggers",
                     "email_code_users"
                   ],
                   "additionalProperties": false
@@ -74294,9 +74349,10 @@
                                   "dropped_stale",
                                   "first_run_summary",
                                   "line_left_out",
-                                  "unknown"
+                                  "unknown",
+                                  "trigger_off"
                                 ],
-                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it"
+                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
                               },
                               "text": {
                                 "type": "string",
@@ -74701,9 +74757,10 @@
                                       "dropped_stale",
                                       "first_run_summary",
                                       "line_left_out",
-                                      "unknown"
+                                      "unknown",
+                                      "trigger_off"
                                     ],
-                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it"
+                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
                                   },
                                   "text": {
                                     "type": "string",
@@ -75004,9 +75061,10 @@
                                     "dropped_stale",
                                     "first_run_summary",
                                     "line_left_out",
-                                    "unknown"
+                                    "unknown",
+                                    "trigger_off"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
                                 },
                                 "text": {
                                   "type": "string",
@@ -75363,9 +75421,10 @@
                                     "dropped_stale",
                                     "first_run_summary",
                                     "line_left_out",
-                                    "unknown"
+                                    "unknown",
+                                    "trigger_off"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
                                 },
                                 "text": {
                                   "type": "string",
@@ -75644,9 +75703,10 @@
                             "dropped_stale",
                             "first_run_summary",
                             "line_left_out",
-                            "unknown"
+                            "unknown",
+                            "trigger_off"
                           ],
-                          "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it"
+                          "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
                         },
                         "text": {
                           "type": "string",
@@ -76164,6 +76224,156 @@
                   "required": [
                     "items",
                     "fresh"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/triggers": {
+      "put": {
+        "operationId": "notify_put_notify_triggers",
+        "summary": "Save which kinds of event send an alert and from which severity (a trigger left out keeps its rule); audited with each change. 400 unknown_trigger, duplicate_trigger or bad_min",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "triggers": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "enum": [
+                            "trap",
+                            "vulnerability",
+                            "intrusion",
+                            "bad_address",
+                            "log_anomaly",
+                            "unknown_device"
+                          ]
+                        },
+                        "on": {
+                          "type": "boolean",
+                          "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent"
+                        },
+                        "min": {
+                          "type": "string",
+                          "enum": [
+                            "critical",
+                            "high",
+                            "medium",
+                            "low"
+                          ],
+                          "description": "The lowest severity of this kind that sends a message"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "on",
+                        "min"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "triggers"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "triggers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "trap",
+                              "vulnerability",
+                              "intrusion",
+                              "bad_address",
+                              "log_anomaly",
+                              "unknown_device"
+                            ]
+                          },
+                          "on": {
+                            "type": "boolean",
+                            "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent"
+                          },
+                          "min": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low"
+                            ],
+                            "description": "The lowest severity of this kind that sends a message"
+                          },
+                          "default_on": {
+                            "type": "boolean"
+                          },
+                          "default_min": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "high",
+                              "medium",
+                              "low"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "on",
+                          "min",
+                          "default_on",
+                          "default_min"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "triggers"
                   ],
                   "additionalProperties": false
                 }

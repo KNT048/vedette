@@ -94,8 +94,9 @@ func TestWiringFirewallIPSEventRaisesAnIntrusionIncidentAndTheFindingIsUnderAtta
 	if n := s.count(`SELECT count(*) FROM notify_pending WHERE notice_id = ?`, incID+"-raised-critical"); n != 1 {
 		t.Fatal("no notice of the raise to critical")
 	}
-	if n := s.count(`SELECT count(*) FROM notify_pending WHERE notice_id = ?`, incID); n != 1 {
-		t.Fatal("the first notice of the incident was not queued")
+	// the incident opened below high: the intrusion trigger sends from high by default, so only the raise to critical is told
+	if n := s.count(`SELECT count(*) FROM notify_pending WHERE notice_id = ?`, incID); n != 0 {
+		t.Fatal("the first notice of the incident was queued below the intrusion trigger's minimum")
 	}
 	if code, b := s.do("GET", "/detection/alerts/"+at(a, "id").(string), "viewer", ""); code != 200 || at(b, "incident", "id") != incID {
 		t.Fatalf("GET one alert: %d %v", code, b)

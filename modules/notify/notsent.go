@@ -267,6 +267,11 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		} else if detail == "pending" {
 			n.Text = "Not sent on its own: it is in the first-run summary, which no channel has delivered yet."
 		}
+	case UnsentTriggerOff:
+		n.Text = "Not sent: alerts of this kind are turned off in the alert settings."
+		if floor.Valid() && sev.Valid() {
+			n.Text = fmt.Sprintf("Not sent: it is %s, and the alert settings send this kind only from %s.", sev, floor)
+		}
 	case UnsentLineLeftOut:
 		n.Text = "Not named in the message that went out: its line was past what the message could hold."
 	default:

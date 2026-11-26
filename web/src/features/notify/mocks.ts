@@ -13,7 +13,7 @@ import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { MAX_BULK_INCIDENTS } from './contract'
 import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
-import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
+import type { AlertTrigger, AlertTriggerView, Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
@@ -35,6 +35,12 @@ const rules = collection<{ quiet: Quiet; grouping: Grouping }>('notify_rules', (
   quiet: { enabled: true, from: '22:00', to: '06:30', allow_critical: true },
   grouping: { enabled: true, window_min: 60 },
 }))
+// Alert triggers: the box's defaults (modules/notify/triggers.go defaultTriggers), the stored rule over them.
+const TRIGGER_DEFAULTS: AlertTriggerView[] = ([['trap', true, 'low'], ['vulnerability', true, 'low'], ['intrusion', true, 'high'], ['bad_address', true, 'high'], ['log_anomaly', true, 'high'], ['unknown_device', false, 'medium']] as const)
+  .map(([id, on, min]) => ({ id, on, min, default_on: on, default_min: min }))
+const triggers = collection<AlertTriggerView[]>('notify_triggers', () => TRIGGER_DEFAULTS.map((t) => ({ ...t })))
+const TRIGGER_NAMES: Record<AlertTrigger['id'], string> = { trap: 'decoy touched', vulnerability: 'exploited or urgent vulnerability', intrusion: 'intrusion alert', bad_address: 'connection to a known-bad address', log_anomaly: 'log anomaly', unknown_device: 'new device seen' }
+const triggerWords = (t: AlertTrigger) => (!t.on ? 'off' : t.min === 'low' ? 'on' : `on from ${t.min}`)
 
 // Vulnerability notices: messages about a finding. They are not incidents; the finding page shows them (slot finding.panels) and Settings, Alert channels, History lists them.
 interface Notice { id: string; finding_ids: string[]; cves: string[]; product: string; created_at: string; sends: SendRecord[] }
@@ -660,7 +666,7 @@ export const handlers = [
   http.get(`${API}/notify/channels`, () => {
     const denied = guard('admin'); if (denied) return denied
     const cur = channels.get()
-    return HttpResponse.json({ channels: CHANNEL_TYPES.map((t) => pub(cur.find((c) => c.type === t) ?? blank(t))), ...rules.get(), email_code_users: emailCodeUserCount() })
+    return HttpResponse.json({ channels: CHANNEL_TYPES.map((t) => pub(cur.find((c) => c.type === t) ?? blank(t))), ...rules.get(), triggers: triggers.get(), email_code_users: emailCodeUserCount() })
   }),
 
   http.put(`${API}/notify/channels/:type`, async ({ params, request }) => {
@@ -799,6 +805,33 @@ export const handlers = [
     rules.set(next)
     audit('notify.rules_save', 'quiet hours and grouping')
     return HttpResponse.json(next)
+  }),
+
+  http.put(`${API}/notify/triggers`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ triggers?: AlertTrigger[] }>(request)
+    const list = b.triggers ?? []
+    const seen = new Set<string>()
+    for (const t of list) {
+      if (!(t.id in TRIGGER_NAMES)) return fail(400, 'unknown_trigger', `There is no alert trigger "${t.id}".`)
+      if (seen.has(t.id)) return fail(400, 'duplicate_trigger', `The alert trigger "${t.id}" is listed twice.`)
+      seen.add(t.id)
+      if (!['critical', 'high', 'medium', 'low'].includes(t.min)) return fail(400, 'bad_min', 'The lowest severity must be critical, high, medium or low.')
+    }
+    const cur = triggers.get()
+    const changes: string[] = []
+    const next = cur.map((c) => {
+      const t = list.find((x) => x.id === c.id)
+      if (!t || (t.on === c.on && t.min === c.min)) return c
+      const [from, to] = triggerWords(c) === triggerWords(t) ? [`${triggerWords(c)} (from ${c.min})`, `${triggerWords(t)} (from ${t.min})`] : [triggerWords(c), triggerWords(t)]
+      changes.push(`${TRIGGER_NAMES[c.id]}: ${from} -> ${to}`)
+      return { ...c, on: t.on === true, min: t.min }
+    })
+    if (changes.length > 0) {
+      triggers.set(next)
+      audit('notify.triggers_save', 'alert triggers', changes.join('; '))
+    }
+    return HttpResponse.json({ triggers: next })
   }),
 ]
 

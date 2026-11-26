@@ -891,22 +891,38 @@ type gmpResult struct {
 // are left out: the issue has its own severity and solution.
 var gmpTagParts = []struct{ tag, head string }{{"insight", "Insight"}, {"affected", "Affected"}, {"impact", "Impact"}}
 
-// gmpDescription is the description of an OpenVAS issue, plain text: the test's summary, the detection result on this host, then its
-// insight, affected software and impact, at most gmpMaxDescription runes. gvmd gives the summary and the rest as the test's tags
+// plainLines is plainText line by line: each line of s cleaned, the empty ones dropped, joined with "\n", at most n runes. A detection
+// result is often a list (ciphers, algorithms, files), which one line would run together.
+func plainLines(s string, n int) string {
+	var out []string
+	for _, l := range strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n") {
+		if v := plainText(l, n); v != "" {
+			out = append(out, v)
+		}
+	}
+	v := strings.Join(out, "\n")
+	if r := []rune(v); len(r) > n {
+		v = strings.TrimSpace(string(r[:n-1])) + "…"
+	}
+	return v
+}
+
+// gmpDescription is the description of an OpenVAS issue, plain text (plainLines, each part on a line of its own): the test's summary,
+// the detection result on this host, then its insight, affected software and impact, at most gmpMaxDescription runes. gvmd gives the summary and the rest as the test's tags
 // ("summary=…|insight=…|…", a "|" never inside a value) and the detection result as the result's own description. A result
 // with none of them names the test, so the issue never shows an empty description.
 func gmpDescription(name, tags, detection string) string {
 	kv := map[string]string{}
 	for _, part := range strings.Split(tags, "|") {
 		if k, v, ok := strings.Cut(part, "="); ok {
-			kv[strings.TrimSpace(k)] = plainText(v, gmpMaxDescription)
+			kv[strings.TrimSpace(k)] = plainLines(v, gmpMaxDescription)
 		}
 	}
 	var parts []string
 	if v := kv["summary"]; v != "" {
 		parts = append(parts, v)
 	}
-	if v := plainText(detection, gmpMaxDescription); v != "" {
+	if v := plainLines(detection, gmpMaxDescription); v != "" {
 		parts = append(parts, "Detection result: "+v)
 	}
 	for _, p := range gmpTagParts {
@@ -917,7 +933,7 @@ func gmpDescription(name, tags, detection string) string {
 	if len(parts) == 0 {
 		return plainText(fmt.Sprintf("OpenVAS's test %q reported this result.", name), gmpMaxDescription)
 	}
-	return plainText(strings.Join(parts, " "), gmpMaxDescription)
+	return plainLines(strings.Join(parts, "\n"), gmpMaxDescription)
 }
 
 var (

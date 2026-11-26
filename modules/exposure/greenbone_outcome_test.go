@@ -93,3 +93,20 @@ func TestContract_INV25_IssueDetailHasGreenbonesDescription(t *testing.T) {
 		t.Fatalf("description of %d runes, the cap is %d", n, gmpMaxDescription)
 	}
 }
+
+// A detection result over several lines (a list of ciphers or algorithms) keeps its lines in the issue's description, and each part of
+// the description starts on a line of its own; each line is still plain text.
+func TestOpenVASDescriptionKeepsItsLines(t *testing.T) {
+	t.Parallel()
+	report := strings.Replace(gbFixture(t), "client-to-server MAC algorithm(s): umac-64-etm@openssh.com",
+		"client-to-server MAC algorithm(s):\n\numac-64-etm@openssh.com\r\nhmac-sha1  &lt;b&gt;x&lt;/b&gt;\n", 1)
+	rows, _, err := readReport(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := openvasIssue(rows[0]).detail.Description
+	want := "The remote SSH server is configured to allow weak MAC algorithm(s).\nDetection result: The remote SSH server supports the following weak client-to-server MAC algorithm(s):\numac-64-etm@openssh.com\nhmac-sha1 x"
+	if d != want {
+		t.Fatalf("description %q, want %q", d, want)
+	}
+}

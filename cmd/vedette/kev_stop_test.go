@@ -86,7 +86,8 @@ func (o *listOrigin) serve(feed string, entries ...string) {
 		o.kev = fmt.Sprintf(`{"title":"t","catalogVersion":"2026.11.20","dateReleased":"2026-11-20T00:00:00.000Z","count":%d,"vulnerabilities":[%s]}`, len(vs), strings.Join(vs, ","))
 		return
 	}
-	o.vc = fmt.Sprintf(`{"_benchmark":0.01,"_meta":{"timestamp":"2026-11-20T00:00:00Z","index":"vulncheck-kev","limit":100,"total_pages":1,"page":1},"data":[%s]}`, strings.Join(vs, ","))
+	// the one page of a cursor read: total_documents and no next_cursor
+	o.vc = fmt.Sprintf(`{"_benchmark":0.01,"_meta":{"timestamp":"2026-11-20T00:00:00Z","index":"vulncheck-kev","limit":100,"total_documents":%d,"sort":"_id","order":"desc"},"data":[%s]}`, len(vs), strings.Join(vs, ","))
 }
 
 // noticesOf counts the queued notices that name cve.

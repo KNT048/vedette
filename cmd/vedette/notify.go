@@ -293,6 +293,7 @@ func newNotify(d *deps) *notify.Service {
 		c.Devices = notifyDevices{d.Inventory}
 	}
 	c.Hits = notifyHits{d}
+	c.Sessions = notifyHits{d}
 	c.Findings = notifyFindings{d} // d.Findings and the feeds store are built after notify: read when asked
 	c.Signals = notifySignals{d}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
@@ -366,4 +367,65 @@ func homeFirstRun(svc *notify.Service) func(ctx context.Context, since time.Time
 		}
 		return out, nil
 	}
+}
+
+// SourceHits implements notify.HitSessions over the same export: the hits of src from through to, oldest first, without test hits,
+// at most limit (a trap session is minutes long; the honeypot caps its hits per source and hour).
+func (h notifyHits) SourceHits(ctx context.Context, src string, from, to time.Time) ([]notify.SessionHit, error) {
+	if h.d.Honeypot == nil {
+		return nil, errors.New("honeypot is not ready")
+	}
+	w := &sourceRows{src: src, limit: 500}
+	if err := h.d.Honeypot.ExportHits(ctx, from, to, w); err != nil {
+		return nil, err
+	}
+	return w.out, nil
+}
+
+// sourceRows reads the JSON lines ExportHits writes, keeping the hits of one source address, one line held at a time (maxHitRow).
+type sourceRows struct {
+	src   string
+	limit int
+	out   []notify.SessionHit
+	part  []byte
+}
+
+func (w *sourceRows) Write(p []byte) (int, error) {
+	n := len(p)
+	for len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			if len(w.part)+len(p) > maxHitRow {
+				return 0, errors.New("honeypot hit row too long")
+			}
+			w.part = append(w.part, p...)
+			break
+		}
+		w.part = append(w.part, p[:i]...)
+		var row struct {
+			ID      string          `json:"id"`
+			TS      string          `json:"ts"`
+			Kind    string          `json:"kind"`
+			Service *string         `json:"service"`
+			Label   string          `json:"label"`
+			SrcIP   string          `json:"src_ip"`
+			IsTest  json.RawMessage `json:"is_test"`
+		}
+		if json.Unmarshal(w.part, &row) == nil && row.SrcIP == w.src && !jsonTrue(row.IsTest) && len(w.out) < w.limit {
+			at, _ := time.Parse(time.RFC3339Nano, row.TS)
+			hit := notify.SessionHit{ID: row.ID, At: at, Kind: row.Kind, Label: row.Label}
+			if row.Service != nil {
+				hit.Service = *row.Service
+			}
+			w.out = append(w.out, hit)
+		}
+		w.part, p = w.part[:0], p[i+1:]
+	}
+	return n, nil
+}
+
+// jsonTrue is a JSON value that says yes: true or a number other than 0 (SQLite keeps a flag as an integer).
+func jsonTrue(v json.RawMessage) bool {
+	s := string(bytes.TrimSpace(v))
+	return s == "true" || (s != "" && s != "0" && s != "false" && s != "null" && s != "0.0")
 }

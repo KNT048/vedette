@@ -862,8 +862,11 @@ func (s *Service) openFrom(ctx context.Context, event string, data any) error {
 	if err != nil || !ok {
 		return err
 	}
-	_, _, err = s.OpenIncident(ctx, in)
-	return err
+	r, err := s.openIncident(ctx, in)
+	if err != nil || r.created || in.Session == 0 {
+		return err
+	}
+	return s.tellSession(ctx, r, in)
 }
 
 // incidentOf is the incident a producer's event opens or counts on: honeypot.hit.created, logs.anomaly.detected,
@@ -911,13 +914,15 @@ func trapIncident(e TrapHit) IncidentInput {
 		devs = []Device{{ID: id, Name: name}}
 	}
 	at, _ := time.Parse(time.RFC3339, e.TS) // zero = now
-	in := IncidentInput{Kind: IncidentTrap, Source: src, Target: label + "|" + e.Service,
+	// Every hit of one source in a session (no quiet longer than trapSession), on any trap or token, is one incident: an intruder
+	// scans, tries a login and opens files within a minute, and that is one event, told once and once more when it turns serious.
+	in := IncidentInput{Kind: IncidentTrap, Source: src, Target: trapSessionTarget,
 		Title: title, Severity: Critical, What: what,
 		Action: "Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.",
-		Link:   "/honeypot/hits/" + e.ID, Devices: devs, At: at}
-	if e.Kind == "scan" { // One High incident per scanning source while it is open; the touches themselves stay Critical
+		Link:   "/honeypot/hits/" + e.ID, Devices: devs, At: at, Session: trapSession}
+	if e.Kind == "scan" { // a scan alone is High; a touch in the same session raises the incident to Critical
 		decoys := clip(strings.TrimSpace(e.Decoy), 120)
-		in.Target, in.Severity = "scan", High
+		in.Severity = High
 		in.Title = src + " scanned the Trap IPs"
 		in.What = src + " touched several Trap IPs within a minute (" + decoys + "). Nobody uses them, so a machine is mapping your network: often malware looking for its next target, or someone probing."
 	}

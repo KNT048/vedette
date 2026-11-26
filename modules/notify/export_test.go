@@ -116,3 +116,6 @@ func (s *Service) SavedSecretForTest(ctx context.Context, t channel.Type) (strin
 
 // ReplaceNamesForTest runs the whole-name replacement of current device names.
 func ReplaceNamesForTest(text string, pairs [][2]string) string { return replaceNames(text, pairs) }
+
+// SessionWordsForTest is the title and description of a trap session.
+var SessionWordsForTest = sessionWords

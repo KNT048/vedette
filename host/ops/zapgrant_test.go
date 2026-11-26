@@ -269,3 +269,33 @@ func TestZapAuthorize_ASpentGrantFreesItsPlaceAndAFullHostDropsTheOldest(t *test
 		}
 	}
 }
+
+// A core older than the grant asks for the disruptive rules without a grant field and reads neither disruptive_refused nor anything
+// but cut_short to decide whether a page ran every rule it asked for (a page that did not closes no issue). The host is updated before
+// core, so it meets such a core: the page runs without the disruptive rules and the answer says it did not run every rule asked for
+// (cut_short), so that core cannot close an issue of a rule that never ran, nor count the page as attacked with the disruptive rules.
+func TestZapActive_ARequestWithoutAGrantIsNeverAnsweredAsAFullDisruptivePass(t *testing.T) {
+	t.Parallel()
+	a := newZapAuthz(t, routeLAN)
+	args := map[string]any{"url": "https://" + zapTestIP + ":8443/", "host": zapTestIP, "ip": zapTestIP, "port": 8443, "kind": "ip", "disruptive": true}
+	run, err := a.call("zap.active", args, zapPerson)
+	if err != nil || run.Status != api.StatusSucceeded {
+		t.Fatalf("zap.active of an older core: %+v %v", run, err)
+	}
+	var r struct {
+		CutShort bool   `json:"cut_short"`
+		Refused  string `json:"disruptive_refused"`
+	}
+	if err := json.Unmarshal(run.Result, &r); err != nil {
+		t.Fatal(err)
+	}
+	a.mu.Lock()
+	plan := a.plan
+	a.mu.Unlock()
+	if _, rough := planRules(t, plan)[zapRuleDoS]; rough || strings.Contains(plan, "postForm: true") {
+		t.Fatalf("the host ran the disruptive rules for a request without a grant: %s", plan)
+	}
+	if !r.CutShort || r.Refused != "zap_grant_missing" {
+		t.Fatalf("an older core reads this page as one that ran every rule it asked for: %s", run.Result)
+	}
+}

@@ -121,3 +121,19 @@ func TestExposureWeb_APersonOutsideTheActorAlphabetStillGetsAGrant(t *testing.T)
 		t.Fatalf("two people share one label: %q", labels)
 	}
 }
+
+// Without the host's grant core never asks for the disruptive rules: a request with disruptive and no grant is how a core older than
+// the grant asks, and the host answers it as a page that did not run every rule. The page runs without them and says why.
+func TestExposureWeb_NoGrantMeansThePageAsksForNoDisruptiveRules(t *testing.T) {
+	t.Parallel()
+	run := zapRun(t, api.StatusSucceeded, "", nil)
+	run.Command = api.CmdZapActive
+	run.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: "0123456789abcdef0123456789abcdef", Size: 11})
+	h := &fakeZapHost{run: run, report: []byte(`{"site":[]}`)}
+	ipT := webIPTarget
+	ipT.Mode = exposure.ScanMode{Full: true, Disruptive: true}
+	got, err := (exposureWebScan{host: h}).Active(t.Context(), ipT, webIPPage)
+	if err != nil || len(h.active) != 1 || h.active[0].Disruptive || h.active[0].Grant != "" || got.DisruptiveRefused == "" {
+		t.Fatalf("a page without a grant: sent %+v, refused %q, %v", h.active, got.DisruptiveRefused, err)
+	}
+}

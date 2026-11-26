@@ -159,6 +159,44 @@ func TestMatchAsset_EditionOfTheBuildDecides(t *testing.T) {
 	}
 }
 
+// A Mozilla ESR build of a line older than every ESR line the CVE lists for the product is not "not affected": Mozilla lists only
+// supported ESR lines, so an end-of-life one (Thunderbird 115 once 128 and 140 shipped) is absent whether or not its code has the
+// flaw. Its plain row is then no proof either way and the CVE stays asked, as an older release line does for an exact list. An ESR
+// line the rows reach, or a CVE with plain rows only (no supported ESR is affected, so the code is newer than every ESR), is decided.
+func TestMatchAsset_ESRLineOlderThanEveryListedESRLineStaysAsked(t *testing.T) {
+	t.Parallel()
+	tb := func(edition string, r VersionRange) Affected {
+		return Affected{CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:" + edition + ":*:*:*", Range: r}
+	}
+	row := Asset{ID: "pc", Name: "pc", Software: []Software{{ID: "s", Display: "Mozilla Thunderbird (x64 en-US)", Vendor: "Mozilla", Product: "Thunderbird",
+		Version: "115.9.0", Source: "agent"}}}
+	for _, tc := range []struct {
+		name string
+		rows []Affected
+		want string // "finding", "question", "none"
+	}{
+		{"ESR rows from 140 only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "question"},
+		{"ESR rows from 140 and 153", []Affected{tb("-", VersionRange{EndExcl: "157.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.17.0"}),
+			tb("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}, "question"},
+		{"an ESR row reaching 115", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "115.1.0", EndExcl: "115.42.0"}),
+			tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "finding"},
+		{"an ESR row fixed on 115 before this build", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{EndExcl: "115.5.0"})}, "none"},
+		{"plain rows only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"})}, "none"},
+	} {
+		r := MatchAsset(row, []Vuln{{CVE: "CVE-2099-0211", NVDAnswered: true, Published: uncNew, Affected: tc.rows}}, nil, t0)
+		got := "none"
+		switch {
+		case len(r.New) == 1:
+			got = "finding"
+		case len(r.Unchecked) == 1:
+			got = "question"
+		}
+		if got != tc.want {
+			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
+		}
+	}
+}
+
 // NVD's exact list is an enumeration: a row of a release line it does not list, newer than or between the listed lines, is no
 // candidate, so it is never asked (Junos 25.4R1 for CVE-2026-21913, listed at 24.4 and 25.2 releases only; Java 8 Update 491 for
 // CVE-2025-21587, listed at 8u441 and at Java 11, 17 and 21). A line older than every listed one stays a question (Junos 15.1R7.9:

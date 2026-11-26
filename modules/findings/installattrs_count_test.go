@@ -167,6 +167,9 @@ func TestQueue_Count_InstallAttributes(t *testing.T) {
 	wantItems := map[string]int{
 		"DESKTOP-01 not_comparable (architecture) / Notepad++: pinned to x64":        1,
 		"DESKTOP-02 not_comparable (edition) / Thunderbird: plain, and ESR from 140": 1,
+		// 115.9.0 is an ESR build of a line older than every ESR line listed (140, 153): their silence is no proof, it stays asked
+		"DESKTOP-01 not_comparable (edition) / Thunderbird: plain and two ESR branches": 1,
+		"DESKTOP-01 not_comparable (edition) / Thunderbird: plain, and ESR from 140":    1,
 	}
 	if !maps.Equal(items, wantItems) {
 		t.Errorf("queue %v, want %v", items, wantItems)
@@ -186,11 +189,9 @@ func TestQueue_Count_InstallAttributes(t *testing.T) {
 		t.Errorf("findings %v, want %v", findings, wantFindings)
 	}
 	wantNot := map[string]int{
-		"DESKTOP-01 / Thunderbird: plain rows only":            1,
-		"DESKTOP-01 / Thunderbird: plain and two ESR branches": 1,
-		"DESKTOP-01 / Thunderbird: plain, and ESR from 140":    1,
-		"DESKTOP-01 / FortiClient: Linux build":                1,
-		"DESKTOP-01 / SQL Server 2025 rows only":               1,
+		"DESKTOP-01 / Thunderbird: plain rows only": 1,
+		"DESKTOP-01 / FortiClient: Linux build":     1,
+		"DESKTOP-01 / SQL Server 2025 rows only":    1,
 	}
 	for k, n := range wantNot {
 		if notAffected[k] != n {

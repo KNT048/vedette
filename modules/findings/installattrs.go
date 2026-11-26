@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
 	"slices"
@@ -26,6 +27,7 @@ import (
 // installAttrs is what the box derived about how one software line was built. "" is not known.
 type installAttrs struct {
 	edition  string // mozillaESR or mozillaPlain (Mozilla Firefox and Thunderbird)
+	esrLine  uint64 // edition mozillaESR: the ESR line (major) of the build, 0 when not read
 	phases   bool   // the product's sw_edition values name release phases of one code line, not builds (Node.js "-" and "lts")
 	platform string // the device's OS family (osFamilies): "windows", "macos", "linux"
 	arch     string // "x64", "x86", "arm64"
@@ -197,6 +199,9 @@ func installOf(s Software, a Asset) installAttrs {
 		}
 		if r.edition != nil {
 			at.edition, at.editionWhy = r.edition(s.Display, ver)
+			if pv, ok := parseVersion(ver); ok && at.edition == mozillaESR && len(pv.rel) > 0 {
+				at.esrLine = pv.rel[0]
+			}
 		}
 		at.phases = at.phases || r.phases
 		if r.arch != "" && atLeastMajor(ver, r.floor) {
@@ -240,6 +245,9 @@ type siblings struct {
 	v    *Vuln
 	done bool
 	by   map[string]*[11]map[string]bool
+	// esrFrom: by product, the oldest ESR line (start major) the product's "esr" rows reach; 0 when a row has no start (it reaches
+	// every older line). A product with no "esr" row is absent.
+	esrFrom map[string]uint64
 }
 
 func siblingsOf(v *Vuln) *siblings { return &siblings{v: v} }
@@ -258,14 +266,36 @@ func (s *siblings) of(c CPE) [11]map[string]bool {
 	return [11]map[string]bool{}
 }
 
+// olderThanESRLines says the CVE's "esr" rows of c's product all start on a later ESR line than line: Mozilla lists supported ESR
+// lines only, so an end-of-life one is absent whether or not its code has the flaw. False when the product has no "esr" row (then no
+// supported ESR is affected and the flaw is in code newer than every ESR line).
+func (s *siblings) olderThanESRLines(c CPE, line uint64) bool {
+	if s == nil || s.v == nil || line == 0 {
+		return false
+	}
+	s.of(c)
+	from, ok := s.esrFrom[c.Vendor.Value+":"+c.Product.Value]
+	return ok && from > line
+}
+
 func (s *siblings) read() map[string]*[11]map[string]bool {
 	out := map[string]*[11]map[string]bool{}
+	s.esrFrom = map[string]uint64{}
 	for _, af := range s.v.Affected {
 		c, err := af.cpe()
 		if err != nil {
 			continue
 		}
 		k := c.Vendor.Value + ":" + c.Product.Value
+		if lit, _ := c.fields()[attrSWEdition].Literal(); c.fields()[attrSWEdition].Kind == Value && strings.EqualFold(lit, mozillaESR) {
+			var from uint64
+			if pv, ok := parseVersion(cmp.Or(af.Range.StartIncl, af.Range.StartExcl)); ok && len(pv.rel) > 0 {
+				from = pv.rel[0]
+			}
+			if prev, seen := s.esrFrom[k]; !seen || from < prev {
+				s.esrFrom[k] = from
+			}
+		}
 		if out[k] == nil {
 			out[k] = &[11]map[string]bool{}
 		}
@@ -304,10 +334,13 @@ func (at installAttrs) judge(c CPE, sw CPE, hasSW bool, sib *siblings) (CPE, boo
 			if a.Kind == Value {
 				val = strings.ToLower(lit)
 			}
-			if val == mozillaESR || val == mozillaPlain {
-				if val != at.edition {
-					return c, false
-				}
+			switch {
+			case val != mozillaESR && val != mozillaPlain:
+			case val == mozillaPlain && at.edition == mozillaESR && sib.olderThanESRLines(c, at.esrLine):
+				// an ESR line older than every one the rows list: their silence about it is no proof, so the plain row stays pinned
+			case val != at.edition:
+				return c, false
+			default:
 				*a = Attr{Kind: Any}
 			}
 		}

@@ -796,7 +796,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		m.Content.NotChecked = append(lineRows(out.retireLines), m.Content.NotChecked...) // first, as in the summary
+		m.NotChecked = append(lineRows(out.retireLines), m.NotChecked...) // first, as in the summary
 		out.final, out.first, out.verdicts, out.lines = m, w.first, vs, append(slices.Clone(out.retireLines), lines...)
 		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.openedAt), NewIssues: nz(out.newAt)})
 		return nil

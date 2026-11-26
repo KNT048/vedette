@@ -550,9 +550,10 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	lt := liveTarget(t, user)
 	s.checkAlive(ctx, lt, &content, "writing the results") // an address that stopped answering is not a miss of its ports (coverage)
-	if text := s.lostText(ctx, lt, content.Lost); text != "" {
-		rs.problem(text)
-		rs.incompleteOn(stepKeySave, text+" This scan does not count as a miss of any port there.")
+	lost := s.lostText(ctx, lt, content.Lost)
+	if lost != "" { // the save step stays done (its rows are written: RecentScans and the outside view read it), the run says it
+		rs.problem(lost)
+		lost = " " + lost + " This scan does not count as a miss of any port there."
 	}
 	rs.start(ctx, stepKeySave)
 	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
@@ -563,7 +564,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	ex.content, ex.vulns, ex.gaps, ex.written, ex.first = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true, wr.first
 	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
 	rs.end(ctx, stepKeySave, corerun.Done, fmt.Sprintf("%s (%d new, %d closed), %s (%d new).",
-		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues))
+		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues)+lost)
 	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordNames(ctx, x, wr.probed)

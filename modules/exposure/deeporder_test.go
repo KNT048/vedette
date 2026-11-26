@@ -213,6 +213,12 @@ func TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss(t *testing.T) {
 		s.RunID, ipA, coverAll, coverList, coverTop, coverWeb, coverEmpty); n != 0 {
 		t.Fatalf("the scan counts as having checked %s: %d coverage items", ipA, n)
 	}
+	if save := stepOf(t, d, stepNameSave); save.Status != corerun.Done || !strings.Contains(noteOf(save), "does not count as a miss") {
+		t.Fatalf("the save step = %s %q: its rows are written (done), and it says the scan is not a miss", save.Status, noteOf(save))
+	}
+	if recent, err := e.svc.RecentScans(e.ctx(), 10); err != nil || len(recent) == 0 || recent[0].RunID != s.RunID {
+		t.Fatalf("the scan that wrote its rows is not among the recent scans: %+v %v", recent, err)
+	}
 	if len(alive.asked) == 0 || !slices.Equal(alive.asked[0], []int{443}) {
 		t.Fatalf("the liveness check asked %v, want the port seen open in this run", alive.asked)
 	}

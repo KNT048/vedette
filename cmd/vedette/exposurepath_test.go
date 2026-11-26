@@ -209,3 +209,89 @@ func TestExposurePathReadsABoundedAnswer(t *testing.T) {
 		}
 	}
 }
+
+// bannerConn is a service that sends data by itself on connect and then closes; it records whether anything was written to it.
+type bannerConn struct {
+	net.Conn
+	mu    *sync.Mutex
+	data  []byte
+	pos   int
+	wrote *bool
+	read  *int
+}
+
+func (c *bannerConn) Read(b []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pos >= len(c.data) {
+		return 0, io.EOF
+	}
+	n := copy(b, c.data[c.pos:])
+	c.pos += n
+	if c.read != nil {
+		*c.read += n
+	}
+	return n, nil
+}
+
+func (c *bannerConn) Write(b []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	*c.wrote = true
+	return len(b), nil
+}
+
+func (c *bannerConn) Close() error                     { return nil }
+func (c *bannerConn) SetDeadline(time.Time) error      { return nil }
+func (c *bannerConn) SetReadDeadline(time.Time) error  { return nil }
+func (c *bannerConn) SetWriteDeadline(time.Time) error { return nil }
+
+// On a port that is not a web or TLS port, a proxy or helper that accepts it for every address is told from the target's own service
+// by what a server that speaks first sends on connect (its banner), nothing sent: a real SSH server behind such a proxy sends its
+// banner, the never-routed address gets a closed connection, so the port is the target's. A port whose target sends nothing (a
+// client-speaks-first service such as SIP) stays the network's, and so does a banner the proxy itself sends for every address (a
+// time in it changes nothing). The banner is read up to a bound.
+func TestExposurePathReadsTheBannerOfAServerThatSpeaksFirst(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	wrote := false
+	endless := 0
+	target := netip.MustParseAddr("8.8.8.8")
+	p := exposurePath{public: func(netip.Addr) bool { return true }, dial: func(_ context.Context, _, address string) (net.Conn, error) {
+		ap := netip.MustParseAddrPort(address)
+		own := ap.Addr() == target
+		var data []byte
+		var read *int
+		switch ap.Port() {
+		case 22:
+			if own {
+				data = []byte("SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13\r\n")
+			}
+		case 25: // an SMTP proxy that answers every address itself, with the time
+			data = []byte("220 proxy.example ESMTP ready Thu, 26 Nov 2026 12:00:0" + map[bool]string{true: "1", false: "7"}[own] + " +0000\r\n")
+		case 2222:
+			data, read = []byte(strings.Repeat("a", 1<<20)), &endless
+		}
+		return &bannerConn{mu: &mu, data: data, wrote: &wrote, read: read}, nil
+	}}
+	if same, err := p.SameAsPath(t.Context(), target, 22); err != nil || same {
+		t.Fatalf("22, the target's own SSH banner behind the proxy: same %v, err %v", same, err)
+	}
+	if same, err := p.SameAsPath(t.Context(), target, 5060); err != nil || !same {
+		t.Fatalf("5060, nothing sent by either: same %v, err %v", same, err)
+	}
+	if same, err := p.SameAsPath(t.Context(), target, 25); err != nil || !same {
+		t.Fatalf("25, the proxy's own banner for every address: same %v, err %v", same, err)
+	}
+	if _, err := p.SameAsPath(t.Context(), target, 2222); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if wrote {
+		t.Fatal("something was sent to read a banner")
+	}
+	if endless == 0 || endless > 4*512 {
+		t.Fatalf("an endless banner: read %d bytes over 4 connections, want at most 512 each", endless)
+	}
+}

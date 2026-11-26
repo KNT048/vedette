@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/exposure"
 )
@@ -146,5 +149,63 @@ func TestExposurePathComparesTheTargetsAnswerWithTheNetworks(t *testing.T) {
 	}
 	if _, err := (exposurePath{dial: none.dial}).SameAsPath(t.Context(), netip.MustParseAddr("10.0.0.1"), 80); err == nil {
 		t.Fatal("a private address was read")
+	}
+}
+
+// endlessHeaders is a web server that answers with a status line and then header lines without end (up to 4 MiB, then it closes):
+// it counts what the reader took from it.
+type endlessHeaders struct {
+	net.Conn
+	mu   *sync.Mutex
+	read *int
+	sent int
+}
+
+func (c *endlessHeaders) Read(b []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.sent >= 4<<20 {
+		return 0, io.EOF
+	}
+	src := []byte("X-Pad: " + strings.Repeat("a", 200) + "\r\n")
+	if c.sent == 0 {
+		src = []byte("HTTP/1.1 200 OK\r\n")
+	}
+	n := copy(b, src)
+	c.sent += n
+	*c.read += n
+	return n, nil
+}
+
+func (c *endlessHeaders) Write(b []byte) (int, error)      { return len(b), nil }
+func (c *endlessHeaders) Close() error                     { return nil }
+func (c *endlessHeaders) SetDeadline(time.Time) error      { return nil }
+func (c *endlessHeaders) SetReadDeadline(time.Time) error  { return nil }
+func (c *endlessHeaders) SetWriteDeadline(time.Time) error { return nil }
+
+// Reading what answers on a web port is bounded in bytes, headers included: an answer that never ends its headers is cut at
+// pathReadLimit, not read for the whole read time.
+func TestExposurePathReadsABoundedAnswer(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	conns := 0
+	reads := map[int]*int{}
+	p := exposurePath{public: func(netip.Addr) bool { return true }, dial: func(context.Context, string, string) (net.Conn, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		conns++
+		n := new(int)
+		reads[conns] = n
+		return &endlessHeaders{mu: &mu, read: n}, nil
+	}}
+	if _, err := p.SameAsPath(t.Context(), netip.MustParseAddr("8.8.8.8"), 80); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for i, n := range reads {
+		if *n > pathReadLimit {
+			t.Fatalf("connection %d: read %d bytes, want at most %d", i, *n, pathReadLimit)
+		}
 	}
 }

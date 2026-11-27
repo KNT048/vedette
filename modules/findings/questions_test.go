@@ -14,8 +14,19 @@ var (
 )
 
 func uncVuln(cve, vendor, product string, added time.Time, aff ...Affected) Vuln {
-	return Vuln{CVE: cve, Vendor: vendor, Product: product, Name: vendor + " " + product + " flaw", DateAdded: added, Published: added, Affected: aff,
+	return Vuln{CVE: cve, Vendor: vendor, Product: product, Name: vendor + " " + product + " flaw", DateAdded: added, Published: added, Affected: vendorCNARows(aff),
 		NVDAnswered: true}
+}
+
+// vendorCNARows marks rows as of a record the product's vendor assigned (Affected.VendorCNA): a list of exact releases is then the
+// vendor's enumeration, as the tests written before the box kept the record's assigner read every list.
+func vendorCNARows(aff []Affected) []Affected {
+	out := make([]Affected, len(aff))
+	for i, af := range aff {
+		af.VendorCNA = true
+		out[i] = af
+	}
+	return out
 }
 
 func uncAff(cpe, endExcl string) Affected {

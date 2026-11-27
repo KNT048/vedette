@@ -11,7 +11,7 @@ func newerListedVulns() []Vuln {
 	cpes := func(cve, vendor, product string, cs ...string) Vuln {
 		v := uncVuln(cve, vendor, product, uncNew)
 		for _, c := range cs {
-			v.Affected = append(v.Affected, Affected{CPE: c})
+			v.Affected = append(v.Affected, Affected{CPE: c, VendorCNA: true})
 		}
 		return v
 	}
@@ -164,7 +164,7 @@ func TestUnchecked_NewerThanListed_Class(t *testing.T) {
 	exact := func(vs ...string) []Affected {
 		var out []Affected
 		for _, v := range vs {
-			out = append(out, Affected{CPE: "cpe:2.3:a:acme:widget:" + v + ":*:*:*:*:*:*:*"})
+			out = append(out, Affected{CPE: "cpe:2.3:a:acme:widget:" + v + ":*:*:*:*:*:*:*", VendorCNA: true})
 		}
 		return out
 	}

@@ -456,7 +456,7 @@ CREATE TABLE feeds_cve (
     ssvc_automatable  TEXT CHECK (ssvc_automatable IS NULL OR (length(ssvc_automatable) BETWEEN 1 AND 40 AND ssvc_automatable NOT GLOB '*[^a-z0-9_]*')),
     ssvc_impact       TEXT CHECK (ssvc_impact IS NULL OR (length(ssvc_impact) BETWEEN 1 AND 40 AND ssvc_impact NOT GLOB '*[^a-z0-9_]*')),
     updated_at        TEXT NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-);
+, assigner TEXT NOT NULL DEFAULT '');
 
 CREATE TABLE feeds_cve_metric (
     cve     TEXT NOT NULL REFERENCES feeds_cve (cve) ON DELETE CASCADE,

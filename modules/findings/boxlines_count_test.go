@@ -20,10 +20,10 @@ func officeLines(t *testing.T) (*env, map[string]string) {
 	}
 	recent := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
 	offList := func(cve string, aff ...Affected) Vuln { // a CVE on no exploited list
-		return Vuln{CVE: cve, NVDAnswered: true, Published: recent, Affected: aff}
+		return Vuln{CVE: cve, NVDAnswered: true, Published: recent, Affected: vendorCNARows(aff)}
 	}
 	listed := func(cve, vendor, product, name string, aff ...Affected) Vuln {
-		return Vuln{CVE: cve, Vendor: vendor, Product: product, Name: name, NVDAnswered: true, Published: recent, DateAdded: recent, Affected: aff}
+		return Vuln{CVE: cve, Vendor: vendor, Product: product, Name: name, NVDAnswered: true, Published: recent, DateAdded: recent, Affected: vendorCNARows(aff)}
 	}
 	const (
 		tb     = "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:%s:*:*:*"

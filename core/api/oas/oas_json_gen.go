@@ -213632,6 +213632,8 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) Decode(d *jx.Decode
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed:
@@ -217069,6 +217071,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Decode(d *jx.Dec
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed:

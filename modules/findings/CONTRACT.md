@@ -144,6 +144,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   the starts are then not the vendor's whole word on where the flaw came in. `TestVendorRangeStartMatrix`,
   `TestVendorRangeStartNeedsEveryRowRead` (cmd/vedette). A distribution's fix for a package the device runs is compared before
   NVD's product ranges.
+- **A list of exact releases only.** A version later than every exact release the rows naming the line list (no range, no fix, no
+  unaffected word) is no candidate only when the list is the vendor's own enumeration: every row is of a record the product's vendor
+  assigned (`Affected.VendorCNA`, feeds `Range.VendorCNA` from `feeds_cve.assigner`: its CNA's rows and NVD's rows of the CVE) or of
+  a complete vendor list (`VendorList`) (`newerThanListed`). A third party's list (a lab's tested build, NVD's exact CPEs copied from
+  it) says nothing past its rows: the CVE stays possible, undecided `third_party_tested_build`; so does every list while the record's
+  assigner is not known yet. `TestExactList_AThirdPartysTestedBuildDecidesNothingPastIt`, `TestCVE5Status_StoredBeforeTheReRead`.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen
@@ -348,7 +354,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
   have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
   (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only
-  opens. A version inside its ranges is a finding unless the line's own names decide the CVE; the finding's evidence carries the
+  opens. A version inside its ranges is a finding unless the line's own names decide the CVE, or the version is not of the product's
+  numbering (`aiNumbering`: its first number is below the lowest first number any release the product's rows on the list name, so
+  the identity proves the product but not the release; the CVE is then possible, undecided `version_scheme_mismatch`, with the
+  product's rows, and nothing opens); the finding's evidence carries the
   identity (`Evidence.Identity`), it is never confirmed by the version alone (suspected: the device states its version, not that the
   CVE is about this software), and the view says "Identified by AI as <title>" (`View.identity`, with the AI's reason and model). What
   its ranges say otherwise (outside, a version needed, a question) decides nothing: the pair reads as the line's own names read it, so

@@ -88,7 +88,10 @@ detail is in its doc comment.
   newest release among equals. A person's entry without a version names the product, never its release: when a source (not nmap's
   guess) reads a release of the line, that source's release is the line's value under the person's name for it, the entry stays
   a reading (the line stays the person's, `personsLine`), and nothing asks the person for a version the device states. A version is stored as its product's version scheme writes it (`statedRelease`: ESXi "8.0 U3" is "8.0.3" with its
-  build in the name, DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5", Debian's "X+reallyY" is Y). The selfcheck
+  build in the name, DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5", Debian's "X+reallyY" is Y), and a version with a token beside
+  the release as that release (`releaseOf`, `core/versionscheme` `Reported`: a word before it "zx 5.4.2", a tag's "v2.3.1", a build
+  in parentheses "4.2.9 (31207)"; a qualifying word such as "beta" or a rest that is not a release is kept as given); its train is
+  the release's, and the source's text stays in the reading's item. The selfcheck
   `inventory.line_value_is_the_resolvers` recomputes `Resolve` on every line, and `inventory.line_is_the_train_of_its_readings` checks
   that every reading's release is of its line's train (`selfcheck.go`).
 - **INV-58** A line's product and train are what the product catalogue of the running build says of what its sources sent. Each

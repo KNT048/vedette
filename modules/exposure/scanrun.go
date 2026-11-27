@@ -691,7 +691,7 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 		}
 		rs.settle(ctx, stepKeyNuclei, content, "templates")
 		rs.start(ctx, stepKeyZAP)
-		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of the services that answered HTTP
+		content, err = s.webPassive(ctx, byName(st), content, st) // INV-24: passive web scan of the services that answered HTTP
 	}
 	if err == nil {
 		steps.close(StepZAP)

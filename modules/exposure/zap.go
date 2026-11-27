@@ -116,6 +116,9 @@ type WebScan struct {
 	// SkippedRules (active scan only) are the ZAP plugin ids the host left out of this page, or ran with weaker payloads, because of
 	// the target's deep-scan settings: an alert of one of them is not "gone" from this page.
 	SkippedRules []string
+	// Rules (an active scan run with its page's passive scan, CombinedWebScanner) are the ZAP plugin ids of the active rules it ran:
+	// the report's alerts of other rules are the passive ones of the same run, which the passive step read.
+	Rules []string
 }
 
 // Limits of the passive web scan (INV-24).
@@ -147,8 +150,10 @@ const (
 	notWebTarpit  = "Passive web scan (ZAP) did not run: this address answers on more ports than a normal box exposes, so its web ports cannot be told apart."
 	notWebFail    = "Passive web scan (ZAP) failed, so the page was not checked. The box log has the error."
 	notWebSlow    = "Passive web scan (ZAP) did not finish within 8 minutes, so the page was not checked."
-	notWebUnread  = "Passive web scan (ZAP) returned a report that could not be read, so the page was not checked."
-	notWebNoPage  = "ZAP reported no page at this address (no answer, a different protocol or a blocked request), so nothing was checked there."
+	// notWebSlowAhead is notWebSlow of a page whose passive and active scans ran in one ZAP run (CombinedScanTimeout).
+	notWebSlowAhead = "Web scan (ZAP, passive and active rules in one run) did not finish within 25 minutes, so the page was not checked."
+	notWebUnread    = "Passive web scan (ZAP) returned a report that could not be read, so the page was not checked."
+	notWebNoPage    = "ZAP reported no page at this address (no answer, a different protocol or a blocked request), so nothing was checked there."
 )
 
 // WebFindingRow is one ZAP alert on one scanned page (contract.ts WebFinding): a passive rule matched something in the responses.
@@ -677,7 +682,10 @@ func (s *Service) webKeepsPaths(st ScanTarget) bool {
 // notSetUpWeb. Like identify it ends the scan only when the run is stopped: a page that failed, was unavailable or whose report could
 // not be read is a "Not checked" line, and the pages already scanned and the rest are kept. A report that could not be read is never
 // "no alerts".
-func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Content, error) {
+//
+// act is the target of the active pass (webActive): a page whose active scan this run takes anyway runs both scans in one ZAP run
+// when the scanner can (aheadCall, CombinedWebScanner), and the active pass then takes its outcome (c.webAhead).
+func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act ScanTarget) (Content, error) {
 	if s.cfg.Web == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notSetUpWeb})
 		return c, nil
@@ -739,8 +747,8 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	alerts := 0
 	steps := stepsOf(ctx) // INV-30: each page ZAP is asked for is a call of the ZAP step
 	rs := runStepsOf(ctx)
+	noAhead := false // the host cannot run both scans of a page in one run (ErrNoCombined): the pages run one scan at a time
 	for i, page := range pages {
-		rs.say(stepKeyZAP, fmt.Sprintf("page %d of %d: %s", i+1, len(pages), page.URL))
 		pst := st
 		if st.Kind == KindDomain { // a page on an address that is an IP target too: that target's web paths to skip apply as well
 			it, found, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), page.IP.Unmap().String())
@@ -760,7 +768,19 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 				continue
 			}
 		}
-		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil { // LEGAL §3: logged before ZAP starts
+		call, ahead := activeCall{}, false
+		if !noAhead {
+			var err error
+			if call, ahead, err = s.aheadCall(ctx, act, pst, c, page, c.webAheadAt); err != nil {
+				return c, err
+			}
+		}
+		tool, wait, say := webTool, WebScanTimeout, fmt.Sprintf("page %d of %d: %s", i+1, len(pages), page.URL)
+		if ahead {
+			tool, wait, say = call.tool, CombinedScanTimeout, say+" (passive and active rules in one ZAP run)"
+		}
+		rs.say(stepKeyZAP, say)
+		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: tool}); err != nil { // LEGAL §3: logged before ZAP starts
 			if ctx.Err() != nil {
 				return c, err
 			}
@@ -769,11 +789,8 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			skipped = append(skipped, pages[i:]...)
 			break
 		}
-		wctx, cancel := context.WithTimeout(ctx, WebScanTimeout)
 		steps.begin(StepZAP, false)
-		res, err := s.cfg.Web.Baseline(wctx, pst, page)
-		slow := wctx.Err() != nil
-		cancel()
+		res, slow, err := s.webPage(ctx, pst, page, call, ahead, wait, &c, &noAhead)
 		if err == nil {
 			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
 			c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, pst.SkipPaths)
@@ -815,6 +832,8 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		case errors.As(err, &skip): // this page only: the next pages still run
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": passive web scan (ZAP) did not run: "+skip.Reason, maxLineText)})
 			continue
+		case slow && ahead:
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebSlowAhead, maxLineText)})
 		case slow:
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebSlow, maxLineText)})
 			continue
@@ -841,4 +860,41 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			"Passive web scan (ZAP baseline: spider and passive rules, no form sent) of %s: %s. %s.", plural(len(scanned), "page"), strings.Join(scanned, ", "), plural(alerts, "alert")), maxLineText)})
 	}
 	return c, nil
+}
+
+// webPage runs the passive scan of one page and returns its report, whether the run's wait for it ran out, and its error: with ahead,
+// in one ZAP run with the page's active scan (call), whose outcome it keeps in c.webAhead for the active pass; else, or when the host
+// cannot run both in one run (noAhead is then set for the rest of the pass), ZAP's baseline alone, with its own probe-log row.
+func (s *Service) webPage(ctx context.Context, pst ScanTarget, page WebPage, call activeCall, ahead bool, wait time.Duration, c *Content, noAhead *bool) (WebScan, bool, error) {
+	wctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	if ahead {
+		start := s.clock()
+		res, act, actErr, err := s.cfg.Web.(CombinedWebScanner).Combined(wctx, call.st, page)
+		if !errors.Is(err, ErrNoCombined) {
+			if err == nil {
+				if actErr == nil && len(act.Rules) == 0 { // without its rules the active report cannot be told from the passive one
+					actErr = errors.New("exposure: the active report of a run with its passive scan came without its rule list")
+				}
+				if c.webAhead == nil {
+					c.webAhead = map[string]*aheadRun{}
+				}
+				c.webAhead[page.URL] = &aheadRun{st: call.st, narrowed: call.narrowed, res: act, err: actErr}
+				if c.webAheadAt.IsZero() {
+					c.webAheadAt = start
+				}
+			}
+			return res, wctx.Err() != nil, err
+		}
+		*noAhead = true // nothing was started: the baseline now, the active scan in the active pass, as before
+		plog, _ := s.cfg.Probes.(WebProbeLog)
+		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil {
+			return WebScan{}, false, err
+		}
+		cancel()
+		wctx, cancel = context.WithTimeout(ctx, WebScanTimeout)
+		defer cancel()
+	}
+	res, err := s.cfg.Web.Baseline(wctx, pst, page)
+	return res, wctx.Err() != nil, err
 }

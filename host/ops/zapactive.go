@@ -32,6 +32,13 @@ import (
 //   - the passive rules off (the baseline already ran them on this page: no alert counted twice);
 //   - the active scan bounded per rule and per page, at two threads with a delay between requests, with the rule split below;
 //   - the report as the traditional JSON report, read by exposure's ParseZAPReport like the baseline's.
+//
+// With Passive (api.ZapActiveArgs.Passive) the one run does the page's passive pass too, so ZAP starts once and spiders once: the
+// passive rules stay on (as zap.baseline's, at most 10 alerts a rule), the plan waits for them after the spider, writes their report
+// (passive.json), and only then runs the active scan and writes its report. The spider, the active scan, the rule split and every
+// bound are those of the active plan above. With TechExclude, the active scan runs in a second context of the same include and
+// excludes whose technology leaves out what core positively knows the page does not run on; the spider and the passive rules keep
+// the first context, with every technology.
 
 // The bounds of one active page. The page's own limit holds everything up to the end of podman run: about a minute of JVM start, the
 // spider's minutes, the active scan's own cap, the report; exposure waits a little longer (ActiveScanTimeout) so it never gives up
@@ -55,8 +62,11 @@ const (
 	zapPassiveWaitMinutes   = 4
 
 	zapActivePageLimit = 20 * time.Minute
-	zapActiveTimeout   = 22 * time.Minute // the command: the page's 20 minutes and the cleanup after it
-	zapStopTimeout     = 3 * time.Minute  // zap.stop: the run's cleanup (podman rm, its proof, nft delete) after the cancel
+	// zapCombinedPageLimit is the page's limit with the passive pass in the same run: the active page's 20 minutes and the passive
+	// rules' wait after the spider (zapPassiveWaitMinutes); exposure waits a minute more (CombinedScanTimeout).
+	zapCombinedPageLimit = zapActivePageLimit + zapPassiveWaitMinutes*time.Minute
+	zapActiveTimeout     = 26 * time.Minute // the command: the longest page (zapCombinedPageLimit) and the cleanup after it
+	zapStopTimeout       = 3 * time.Minute  // zap.stop: the run's cleanup (podman rm, its proof, nft delete) after the cancel
 
 	// zapActiveMemory is the container's memory and swap cap (the JVM heap is half of it, the home tmpfs counts against it): the
 	// active scan keeps every request it sends in ZAP's session database, more than the baseline's.
@@ -65,6 +75,8 @@ const (
 	zapActiveTmpfs  = "/home/zap:rw,size=512m,mode=1777"
 	zapActivePids   = "--pids-limit=512"
 	zapPlanName     = "plan.yaml"
+	// zapPassiveReportName is the report of the passive pass of a run with Passive, written before its active scan starts.
+	zapPassiveReportName = "passive.json"
 )
 
 // The rule split of the active scan (ZAP plugin ids, https://www.zaproxy.org/docs/alerts/). The plan turns every rule off
@@ -159,10 +171,18 @@ var zapDenialRules = []int{20015, 30001, 30002, 40044}
 var zapFixedFileRules = []int{10045, 40028, 40029, 40032, 40034, 40035, 40042}
 
 // zapActiveOpts are how one active page runs: with the disruptive rules or not (after the host's own checks), and the deep-scan
-// settings of the target, which only narrow.
+// settings of the target, which only narrow. passive runs the page's passive pass in the same run; tech are the technologies the
+// active scan's context leaves out (validated against api.ZapTechs).
 type zapActiveOpts struct {
 	disruptive, noDoS, noChange, gentle bool
+	passive                             bool
+	tech                                []string
 }
+
+// zapTechRules are, per technology of api.ZapTechs, the rule that tests only it (its targets() asks for that database alone): it
+// skips when the context leaves the technology out. SQL Injection (zapSQLi) runs on with every other database, but no longer matches
+// the error messages of the ones left out: it is narrowed, and named with them (TestZapTechRulesCoverTheAPI holds the keys equal).
+var zapTechRules = map[string]int{"MySQL": 40019, "HypersonicSQL": 40020, "Oracle": 40021, "PostgreSQL": 40022, "Microsoft SQL Server": 40027}
 
 // postsForms says whether the spider posts forms: only with the disruptive rules and the checks that may change data.
 func (o zapActiveOpts) postsForms() bool { return o.disruptive && !o.noChange }
@@ -196,6 +216,44 @@ func zapSkippedRules(p zapPage, o zapActiveOpts) []int {
 			out = append(out, r.id)
 		}
 	}
+	for _, r := range zapTechOut(p, o) {
+		if !slices.Contains(out, r) {
+			out = append(out, r)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// zapTechOut are the rules of page p's plan under o that its technologies left out skip or narrow (zapTechRules).
+func zapTechOut(p zapPage, o zapActiveOpts) []int {
+	if len(o.tech) == 0 {
+		return nil
+	}
+	var out []int
+	for _, r := range zapActiveRules {
+		on, _ := zapRuleRuns(p, r, o)
+		if !on {
+			continue
+		}
+		for _, t := range o.tech {
+			if zapTechRules[t] == r.id || r.id == zapSQLi {
+				out = append(out, r.id)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// zapPlanRules are the ZAP plugin ids of the active rules page p's plan runs under o (api.ZapActiveResult.Rules).
+func zapPlanRules(p zapPage, o zapActiveOpts) []int {
+	var out []int
+	for _, r := range zapActiveRules {
+		if on, _ := zapRuleRuns(p, r, o); on {
+			out = append(out, r.id)
+		}
+	}
 	return out
 }
 
@@ -221,6 +279,9 @@ func zapSettingsNote(p zapPage, o zapActiveOpts) string {
 	}
 	if len(p.skip) > 0 {
 		parts = append(parts, strconv.Itoa(len(p.skip))+" web paths skipped")
+	}
+	if len(o.tech) > 0 {
+		parts = append(parts, "not run on "+strings.Join(o.tech, ", "))
 	}
 	if len(parts) == 0 {
 		return ""
@@ -258,20 +319,13 @@ func (z *zapPlanWriter) w(s ...string) {
 
 func zapQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
 
-// env writes the plan's one context: the page's origin as its include path, and an exclude for each path to skip.
-func (z *zapPlanWriter) env(p zapPage) {
-	z.w("env:",
-		"  contexts:",
-		"    - name: page",
-		"      urls:",
-		"        - "+zapQuote(p.url),
-		"      includePaths:",
-		"        - "+zapQuote(zapScopeRE(p.url)))
-	if len(p.skip) > 0 {
-		z.w("      excludePaths:")
-		for _, prefix := range p.skip {
-			z.w("        - " + zapQuote(zapExcludeRE(p.url, prefix)))
-		}
+// env writes the plan's context: the page's origin as its include path, and an exclude for each path to skip. With technologies to
+// leave out, a second context (zapActiveContext) of the same URL, include and excludes leaves them out for the active scan.
+func (z *zapPlanWriter) env(p zapPage, tech ...string) {
+	z.w("env:", "  contexts:")
+	z.context(p, zapPageContext, nil)
+	if len(tech) > 0 {
+		z.context(p, zapActiveContext, tech)
 	}
 	z.w("  parameters:",
 		"    failOnError: false",
@@ -290,12 +344,41 @@ func (z *zapPlanWriter) spiderSeeds(p zapPage) {
 	}
 }
 
-func (z *zapPlanWriter) report() {
+// The names of the plan's contexts: the page's (the spider, the passive rules, the active scan) and, with technologies to leave
+// out, the active scan's.
+const (
+	zapPageContext   = "page"
+	zapActiveContext = "active"
+)
+
+func (z *zapPlanWriter) context(p zapPage, name string, tech []string) {
+	z.w("    - name: "+name,
+		"      urls:",
+		"        - "+zapQuote(p.url),
+		"      includePaths:",
+		"        - "+zapQuote(zapScopeRE(p.url)))
+	if len(p.skip) > 0 {
+		z.w("      excludePaths:")
+		for _, prefix := range p.skip {
+			z.w("        - " + zapQuote(zapExcludeRE(p.url, prefix)))
+		}
+	}
+	if len(tech) > 0 {
+		z.w("      technology:", "        exclude:")
+		for _, t := range tech {
+			z.w("          - " + zapQuote(t))
+		}
+	}
+}
+
+func (z *zapPlanWriter) report() { z.reportAs(zapReportName) }
+
+func (z *zapPlanWriter) reportAs(name string) {
 	z.w("  - type: report",
 		"    parameters:",
 		"      template: traditional-json",
 		"      reportDir: "+zapQuote(zapWorkDir),
-		"      reportFile: "+zapQuote(zapReportName))
+		"      reportFile: "+zapQuote(name))
 }
 
 // zapPlanActive is the Automation Framework plan of one active page: built from the validated page, the fixed bounds above and the
@@ -303,12 +386,22 @@ func (z *zapPlanWriter) report() {
 func zapPlanActive(p zapPage, o zapActiveOpts) string {
 	threads, delay := zapPace(o)
 	var z zapPlanWriter
-	z.env(p)
-	z.w("  - type: passiveScan-config",
-		"    parameters:",
-		"      disableAllRules: true",
-		"      scanOnlyInScope: true",
-		"  - type: spider",
+	if !o.passive {
+		o.tech = nil // only a run with its passive pass takes them (zapActiveArgs)
+	}
+	z.env(p, o.tech...)
+	if o.passive { // the passive rules at their defaults, as the baseline's
+		z.w("  - type: passiveScan-config",
+			"    parameters:",
+			"      maxAlertsPerRule: "+strconv.Itoa(zapMaxAlertsPerRule),
+			"      scanOnlyInScope: true")
+	} else { // the baseline already ran them on this page: no alert counted twice
+		z.w("  - type: passiveScan-config",
+			"    parameters:",
+			"      disableAllRules: true",
+			"      scanOnlyInScope: true")
+	}
+	z.w("  - type: spider",
 		"    parameters:",
 		"      context: page",
 		"      url: "+zapQuote(p.url),
@@ -320,9 +413,19 @@ func zapPlanActive(p zapPage, o zapActiveOpts) string {
 		"      postForm: "+strconv.FormatBool(o.postsForms()),
 		"      acceptCookies: true")
 	z.spiderSeeds(p)
+	ascanContext := zapPageContext
+	if o.passive { // the passive rules read every page the spider found, then their report is written before any attack request
+		z.w("  - type: passiveScan-wait",
+			"    parameters:",
+			"      maxDuration: "+strconv.Itoa(zapPassiveWaitMinutes))
+		z.reportAs(zapPassiveReportName)
+		if len(o.tech) > 0 {
+			ascanContext = zapActiveContext
+		}
+	}
 	z.w("  - type: activeScan",
 		"    parameters:",
-		"      context: page",
+		"      context: "+ascanContext,
 		"      maxRuleDurationInMins: "+strconv.Itoa(zapRuleMinutes),
 		"      maxScanDurationInMins: "+strconv.Itoa(zapActiveMinutes),
 		"      threadPerHost: "+strconv.Itoa(threads),
@@ -455,6 +558,14 @@ func zapActiveArgs(a api.ZapActiveArgs) (zapPage, error) {
 	if a.Grant != "" && (!a.Disruptive || !zapGrantRE.MatchString(a.Grant)) {
 		return zapPage{}, server.Invalid("grant", "must be the grant of zap.authorize (32 hex characters), with disruptive")
 	}
+	if len(a.TechExclude) > 0 && !a.Passive {
+		return zapPage{}, server.Invalid("tech_exclude", "is taken only with passive")
+	}
+	for i, t := range a.TechExclude {
+		if !slices.Contains(api.ZapTechs, t) || slices.Contains(a.TechExclude[:i], t) {
+			return zapPage{}, server.Invalid("tech_exclude", "must be distinct names of "+strings.Join(api.ZapTechs, ", "))
+		}
+	}
 	return p, nil
 }
 
@@ -468,7 +579,7 @@ func (o *Ops) cmdZapActive() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			pass := zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant}
+			pass := zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant, passive: a.Passive, tech: slices.Clone(a.TechExclude)}
 			if st := a.Settings; st != nil {
 				pass.noDoS, pass.noChange, pass.gentle = st.NoDoS, st.NoChange, st.Gentle
 			}

@@ -350,6 +350,11 @@ type Content struct {
 	WebSkippedPaths []string `json:"-"`
 	// webOK are the pages the passive web scan of this run read (a report with the page in it): the active pass takes these.
 	webOK []WebPage
+	// webAhead are the active scans that ran in the same ZAP run as their page's passive scan (webPassive), by page URL: the active
+	// pass takes their outcome instead of running them again. webAheadAt is when the first of them started: the active pass's time
+	// (ActiveRunLimit) counts from there.
+	webAhead   map[string]*aheadRun
+	webAheadAt time.Time
 	// TemplatesRan are the "ip:port|template" of the templates that ran to the end this run and found nothing (TemplatesCovered);
 	// ScriptsRan the addresses whose deep nmap step ran its scripts to the end. An issue of those engines elsewhere is not "gone":
 	// they did not look there.

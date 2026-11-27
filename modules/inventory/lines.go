@@ -34,7 +34,8 @@ type lineIdentity struct {
 // older build gave it (every exploited product of the vendor), and "Eclipse Adoptium" "Temurin" is Java, not a product of its own.
 func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	id := lineIdentity{vendor: it.Vendor, product: it.Product}
-	version := reallyRelease(it.Version)
+	version := releaseOf(it.Version)
+	read := version
 	var p productid.Product
 	ok := false
 	if !agentSource(source) || len(it.KevKeys) > 0 {
@@ -72,32 +73,55 @@ func identify(it SoftwareItem, source string) (lineIdentity, string) {
 	if len(id.productKey) > 400 {
 		id.productKey = id.productKey[:400]
 	}
+	if given := reallyRelease(it.Version); version == read && given != read {
+		if _, _, ok := schemeStated(id.productKey, given, it.Display); ok {
+			version = given // the product's scheme reads the text as given (statedRelease): a build that places the release stays
+		}
+	}
 	return id, version
 }
 
 // statedRelease is the version and name a source or a person gave a line of productKey, written as every reader compares them: a
-// Debian upstream version "X+reallyY" is the release Y it really is ("4.16.0-2+really2.41.3" is util-linux 2.41.3); a product with a
-// version scheme takes the scheme's form (core/versionscheme Stated: ESXi "8.0 U3" or "8.0.3 build 24022510" is version "8.0.3" named
+// Debian upstream version "X+reallyY" is the release Y it really is ("4.16.0-2+really2.41.3" is util-linux 2.41.3), a version with a
+// token beside the release is that release (releaseOf: "v2.3.1" is 2.3.1); a product with a version scheme takes the scheme's form (core/versionscheme Stated: ESXi "8.0 U3" or "8.0.3 build 24022510" is version "8.0.3" named
 // "VMware ESXi 8.0 Update 3 (build 24022510)", as the host states itself; DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5"). Anything
 // else is kept as given.
 func statedRelease(productKey, version, display string) (string, string) {
-	version = reallyRelease(version)
-	p, ok := productid.ByKey(productKey)
-	if !ok || p.Scheme == "" {
-		return version, display
-	}
-	sc, ok := versionscheme.Lookup(p.Scheme)
+	given := reallyRelease(version)
+	// the scheme reads its own forms first: ESXi's "8.0.3 (24280767)" is Update 3b by its build, which releaseOf would drop
+	v, d, ok := schemeStated(productKey, given, display)
 	if !ok {
-		return version, display
+		version = releaseOf(given)
+		if v, d, ok = schemeStated(productKey, version, display); !ok {
+			return version, display
+		}
 	}
-	v, d, ok := sc.Stated(version, display)
-	switch {
-	case !ok:
-		return version, display
-	case d == "":
+	if d == "" {
 		return v, display
 	}
 	return v, d
+}
+
+// schemeStated is the version scheme's reading of a line of productKey (core/versionscheme Stated); ok is false when the product
+// has no scheme or the scheme does not read the text.
+func schemeStated(productKey, version, display string) (string, string, bool) {
+	p, ok := productid.ByKey(productKey)
+	if !ok || p.Scheme == "" {
+		return "", "", false
+	}
+	sc, ok := versionscheme.Lookup(p.Scheme)
+	if !ok {
+		return "", "", false
+	}
+	return sc.Stated(version, display)
+}
+
+// releaseOf is the release a version a source or a person gave states: Debian's "X+reallyY" is Y (reallyRelease), and a version with
+// a token beside the release is that release (core/versionscheme Reported: "zx 5.4.2", "v2.3.1", "4.2.9 (31207)"). The source's own
+// text stays in its reading's item (itemEvidence). Anything else is returned as it is.
+func releaseOf(version string) string {
+	v, _ := versionscheme.Reported(reallyRelease(version))
+	return v
 }
 
 // reallyRelease is the release a Debian upstream version "X+reallyY" really is: Y (the package went back to an older upstream release

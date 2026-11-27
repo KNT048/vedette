@@ -38,7 +38,7 @@ func answerableFixture(t testing.TB) ([]Asset, []answerableCase) {
 		return v
 	}
 	onNoList := func(cve string, aff ...Affected) Vuln {
-		return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeNVD, Published: uncNew, Affected: aff}
+		return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeNVD, Published: uncNew, Affected: vendorCNARows(aff)}
 	}
 	exact := func(cpes ...string) []Affected {
 		var out []Affected

@@ -590,3 +590,41 @@ func TestAIIdentity_AFamilyMatchOpensNothing(t *testing.T) {
 		t.Errorf("asked %d times: a stored family match is not asked again with the same candidates", len(fi.sent))
 	}
 }
+
+// An AI identity proves the product, not that the line's version is numbered as the product's releases are: a vendor's installer can
+// report its own number ("1.0.40.0") for a product whose releases the data names 25.x and 32.x. A version on a release line below every
+// line the product's rows name (any CVE on the list, bounds and listed releases) opens nothing; the CVE stays possible, undecided for
+// the version's numbering (version_scheme_mismatch). A version of the product's numbering still opens.
+func TestAIIdentity_AVersionOfAnotherNumberingOpensNothing(t *testing.T) {
+	t.Parallel()
+	const suite = "cpe:2.3:a:acme:graphics_suite:*:*:*:*:*:*:*:*"
+	const driver = "cpe:2.3:a:acme:graphics_driver:*:*:*:*:*:windows:*:*"
+	row := func(ver string) Asset {
+		return Asset{ID: "pc-01", Name: "pc-01", OS: "Microsoft Windows 11 Pro", Software: []Software{{ID: "s-1", Display: "Acme Graphics Suite & Drivers",
+			Vendor: "Acme Corporation", Product: "Acme Graphics Suite & Drivers", Version: ver, Source: "agent",
+			AIProduct: &AIProduct{Vendor: "acme", Product: "graphics_suite", Title: "Acme Graphics Suite", Publisher: "acme corporation", Name: "acme graphics suite drivers"}}}}
+	}
+	vulns := []Vuln{
+		{CVE: "CVE-2026-90011", NVDAnswered: true, Origin: RangeNVD, Published: t0, Affected: []Affected{uncAff(suite, "25.30.1400.0"), uncAff(driver, "32.0.101.5000")}},
+		{CVE: "CVE-2026-90012", NVDAnswered: true, Origin: RangeNVD, Published: t0, Affected: []Affected{uncAff(suite, "25.40.0"), {CPE: "cpe:2.3:a:acme:graphics_suite:24.10.0:*:*:*:*:*:*:*"}}},
+	}
+	res := MatchAsset(row("1.0.40.0"), vulns, nil, t0)
+	if len(res.New) != 0 {
+		t.Fatalf("new %+v: a version below every release line the product's rows name opened a finding", res.New)
+	}
+	got := uncByCVE(res.Unchecked)
+	for _, cve := range []string{"CVE-2026-90011", "CVE-2026-90012"} {
+		u, ok := got["s-1 "+cve]
+		if !ok || u.Reason != UncheckedNotComparable || u.undecided == nil || u.undecided.Reason != UndecidedSchemeMismatch || len(u.undecided.Ranges) == 0 {
+			t.Errorf("%s: unchecked %+v, want it possible as a version of another numbering, with the product's rows", cve, u)
+		}
+	}
+	if len(res.NotAffected) != 0 || len(res.Asked) != 0 || len(res.NeedVersion) != 0 {
+		t.Errorf("not affected %d, asked %d, need version %d: the AI's identity proves nothing and asks nothing", len(res.NotAffected), len(res.Asked), len(res.NeedVersion))
+	}
+	// a release of the product's own numbering: inside the first range, past the second
+	res = MatchAsset(row("24.10.0"), vulns, nil, t0)
+	if len(res.New) != 2 || res.New[0].Evidence.Identity == nil {
+		t.Errorf("new %+v: a version of the product's numbering opens, labelled with the AI's identity", res.New)
+	}
+}

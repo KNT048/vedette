@@ -64986,6 +64986,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) Validate() error {
 		return nil
 	case "eol_line_unlisted":
 		return nil
+	case "third_party_tested_build":
+		return nil
 	case "no_reference_page":
 		return nil
 	case "fetch_failed":
@@ -66400,6 +66402,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Validate() error 
 	case "ranges_start_at_branch_only":
 		return nil
 	case "eol_line_unlisted":
+		return nil
+	case "third_party_tested_build":
 		return nil
 	case "no_reference_page":
 		return nil

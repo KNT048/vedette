@@ -55,6 +55,9 @@ type Unchecked struct {
 	Attribute string
 	// undecided is the machine-readable reason no verdict was reached and the rows that were read (explainUnchecked); nil before it.
 	undecided *Undecided
+	// aiNumbering: not_comparable of a line the AI identified, whose version is inside the chosen product's range but not of its
+	// numbering (devMatch.aiGuard): undecided for the version's numbering, with the chosen product's rows.
+	aiNumbering bool
 }
 
 // explainUnchecked adds to each unchecked row with no version data its question needs (no_nvd_data, no_nvd_versions) what the reason
@@ -87,6 +90,10 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			continue
 		}
 		s, in := d.sws[i], d.infos[i]
+		if u.aiNumbering { // the chosen product's rows held it: they are the rows read
+			u.undecided = undecidedOf(*u, rowEntries(s, in, v))
+			continue
+		}
 		if d.own != nil && d.own[i] != nil { // a row the AI identified is unchecked only as its own names read it (aiGuard)
 			in = d.own[i].info
 		}
@@ -111,6 +118,8 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			}
 		case u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver):
 			u.undecided.Reason = UndecidedEOLUnlisted
+		case u.undecided.Reason == UndecidedExactOnly && laterThanEveryListed(own, in.ver):
+			u.undecided.Reason = UndecidedThirdPartyBuild // the vendor's own list would have decided it (newerThanListed)
 		case u.undecided.Reason == UndecidedSchemeMismatch && !notationDiffers(own, in.ver) && !winVersionRE.MatchString(strings.TrimSpace(in.ver)):
 			// the version reads and is written as the rows are: a row that does not compare is the record's, and typing the version
 			// again changes nothing (a Windows build keeps its label: its release, not its notation, is read there)
@@ -369,8 +378,20 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 // often do not evaluate end-of-life lines (Juniper's advisories say so; Oracle lists supported releases only), so Junos 15.1R7.9 or
 // Java 7 Update 401 against such a list is still asked. An older version of a listed line stays one too: an exact list is often the
 // last affected update of each line (Oracle's "8u77 and earlier", NVD's 8.0 GA entry for an ESXi flaw fixed in 8.0 Update 3d), and so
-// does any entry with a range, any version or a version that does not read.
+// does any entry with a range, any version or a version that does not read. Only the vendor's own list is such an enumeration: every
+// entry is of a record the product's vendor assigned (VendorCNA: its CNA's rows and NVD's rows of the CVE) or of a complete vendor list
+// (VendorList). A third party (a lab, a CNA of last resort) lists the build it tested, which says nothing of a later release: the row
+// stays a candidate, undecided as third_party_tested_build (explainUnchecked).
 func newerThanListed(own []Affected, ver string) bool {
+	if slices.ContainsFunc(own, func(af Affected) bool { return !af.VendorList && !af.VendorCNA }) {
+		return false // a third party's list (a lab's tested build, NVD's rows of its record) says nothing past its rows
+	}
+	return laterThanEveryListed(own, ver)
+}
+
+// laterThanEveryListed is newerThanListed's reading of the rows, whoever wrote them: every entry of own is one exact version, with no
+// range, that ver is later than or of another release line than, and ver is not older than every one of them.
+func laterThanEveryListed(own []Affected, ver string) bool {
 	if len(own) == 0 || !versionKnown(ver) {
 		return false
 	}

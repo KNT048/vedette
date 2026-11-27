@@ -31,10 +31,10 @@ func syntheticProducts() []synthetic {
 		return Software{ID: id, Display: vendor + " " + product, Vendor: vendor, Product: product, Version: version, Source: "agent"}
 	}
 	nvd := func(cve string, rows ...Affected) Vuln {
-		return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeNVD, Affected: rows}
+		return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeNVD, Affected: vendorCNARows(rows)}
 	}
 	cna := func(cve, from string, rows ...Affected) Vuln {
-		return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeCNA, RangesFrom: from, Affected: rows}
+		return Vuln{CVE: cve, NVDAnswered: true, Origin: RangeCNA, RangesFrom: from, Affected: vendorCNARows(rows)}
 	}
 	r := func(cpe, start, end string) Affected {
 		return Affected{CPE: cpe, Range: VersionRange{StartIncl: start, EndExcl: end}}

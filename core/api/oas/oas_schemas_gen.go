@@ -119226,6 +119226,7 @@ const (
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide       FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_do_not_decide"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_start_at_branch_only"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "eol_line_unlisted"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild   FindingsGetFindingsPossibleAuditOKGroupsItemReason = "third_party_tested_build"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "no_reference_page"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed             FindingsGetFindingsPossibleAuditOKGroupsItemReason = "fetch_failed"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText      FindingsGetFindingsPossibleAuditOKGroupsItemReason = "unparsed_vendor_text"
@@ -119248,6 +119249,7 @@ func (FindingsGetFindingsPossibleAuditOKGroupsItemReason) AllValues() []Findings
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText,
@@ -119283,6 +119285,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) MarshalText() ([]byt
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
 		return []byte(s), nil
@@ -119338,6 +119342,9 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage
@@ -121815,6 +121822,7 @@ const (
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide       FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_do_not_decide"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_start_at_branch_only"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "eol_line_unlisted"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild   FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "third_party_tested_build"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "no_reference_page"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed             FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "fetch_failed"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText      FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "unparsed_vendor_text"
@@ -121837,6 +121845,7 @@ func (FindingsGetFindingsPossibleOKItemsItemUndecidedReason) AllValues() []Findi
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText,
@@ -121872,6 +121881,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) MarshalText() ([]
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
 		return []byte(s), nil
@@ -121927,6 +121938,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) UnmarshalText(da
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage

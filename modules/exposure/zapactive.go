@@ -237,6 +237,10 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 			case found:
 				pst = withSettings(pst, it.Deep)
 			}
+			if !s.webKeepsPaths(pst) { // that target's web paths to skip, which this box's ZAP cannot leave out
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebPaths, maxLineText)})
+				continue
+			}
 		}
 		switch own := ownProvenPage(st, page); {
 		case own && pst.Mode.WebDisruptive():

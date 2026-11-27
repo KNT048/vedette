@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
@@ -460,12 +461,12 @@ func TestDeepSettings_GentleSlowsOpenVAS(t *testing.T) {
 func TestDeepSettings_EverySettingOnTheHardRulesStillRefuse(t *testing.T) {
 	t.Parallel()
 	m := newMatrixEnv(t) // every group on (acceptTerms with the disruptive checks)
-	if got := m.scan(SystemUser); len(got.nmapDis) != 0 || len(got.zapActive) != 0 || strings.Contains(got.gbConfig, "disruptive") {
+	if got := m.scan(SystemUser); len(got.nmapDis) != 0 || len(got.zapActive) != 0 || got.gbConfig != gbDeep.name {
 		t.Fatalf("scheduled: nmap %v, ZAP active %d, OpenVAS %q", got.nmapDis, len(got.zapActive), got.gbConfig)
 	}
 	gw := &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}}
 	m.env.svc.cfg.Gateway = gw
-	if got := m.scan("admin@acme.example"); len(got.nmapDis) != 0 || slices.ContainsFunc(got.zapActive, func(s ScanTarget) bool { return s.Mode.Disruptive }) || strings.Contains(got.gbConfig, "disruptive") {
+	if got := m.scan("admin@acme.example"); len(got.nmapDis) != 0 || slices.ContainsFunc(got.zapActive, func(s ScanTarget) bool { return s.Mode.Disruptive }) || got.gbConfig != gbDeep.name {
 		t.Fatalf("carrier-grade NAT: nmap %v, OpenVAS %q", got.nmapDis, got.gbConfig)
 	}
 	gw.g = GatewayDevice{IP: netip.MustParseAddr("192.0.2.1")}
@@ -715,5 +716,78 @@ func TestDeepSettings_NarrowOnlyClears(t *testing.T) {
 				t.Fatalf("narrow(%+v, %+v) = %+v: Disruptive is not the groups'", m, d, n)
 			}
 		}
+	}
+}
+
+// A domain's deep scan of the box's own IP that is an IP target too: the ports that target's settings skip are not observed there,
+// so the re-check of the ports open before never connects to them either.
+func TestDeepSettings_TheReCheckLeavesOutTheAddressTargetsSkippedPorts(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.acceptTerms(d.dom.ID, true)
+	pr := &probeRecorder{}
+	d.svc.cfg.Liveness = pr
+	d.scan() // 443 of the box's address is stored open for the domain
+	d.deepRow(d.idOfIP(ipA), false, true, true, true, true, SpeedNormal, "[443]", "[]")
+	pr.mu.Lock()
+	pr.asked = nil
+	pr.mu.Unlock()
+	d.advance(ScanEvery + time.Minute)
+	d.scan()
+	pr.mu.Lock()
+	defer pr.mu.Unlock()
+	if slices.Contains(pr.asked[ipA], 443) {
+		t.Fatalf("the re-check connected to a port the address's IP target skips: %v", pr.asked)
+	}
+}
+
+// A domain's page on an address that is an IP target with web paths to skip: the active web scan of that page runs only through a
+// web scanner that leaves the paths out, like the IP target's own scan; without one the page is not attacked and the scan says why.
+func TestDeepSettings_ADomainPageOnAnIPTargetWithPathsToSkipGetsNoActiveScan(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	w := e.wireActive(emptyReport)
+	box := e.committedIP(ipA)
+	e.deepRow(box.ID, false, true, true, true, true, SpeedNormal, "[]", `["/admin"]`)
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, true)
+	e.svc.SetRunner(&fakeRunner{content: Content{
+		Hosts: []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}},
+	}})
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(w.calls) != 0 {
+		t.Fatalf("ZAP attacked %q although the address's IP target has paths to skip it cannot keep out", w.urls)
+	}
+	if !lineWith(notChecked(s), notWebPaths) {
+		t.Fatalf("not checked: %q", notChecked(s))
+	}
+}
+
+// A group turned on while a scan runs never widens it: the run started with the defaults (denial of service off), the settings
+// are saved with every group on during its active web scan, and the later pages, OpenVAS and nmap's disruptive step keep the run's
+// narrower mode.
+func TestDeepSettings_AGroupTurnedOnMidRunNeverWidensIt(t *testing.T) {
+	t.Parallel()
+	m := newMatrixEnv(t)
+	m.deepRow(m.id, false, true, true, true, true, SpeedNormal, "[]", "[]")
+	m.web.hook = func() { m.deepRow(m.id, true, true, true, true, true, SpeedNormal, "[]", "[]") }
+	got := m.scan("admin@acme.example")
+	if len(got.zapActive) < 2 || !m.loadTarget(m.id).Deep.DoS {
+		t.Fatalf("ZAP active pages: %d; settings now %+v", len(got.zapActive), m.loadTarget(m.id).Deep)
+	}
+	for _, c := range got.zapActive {
+		if c.Mode.DoS || c.Mode.WebDisruptive() {
+			t.Errorf("a ZAP page got the denial-of-service group turned on mid-run: %+v", c.Mode)
+		}
+	}
+	if want := levelFor(false, true, true).name; got.gbConfig != want {
+		t.Errorf("OpenVAS used %q, want %q", got.gbConfig, want)
+	}
+	if len(got.nmapDis) != 0 {
+		t.Errorf("nmap's disruptive scripts ran: %v", got.nmapDis)
 	}
 }

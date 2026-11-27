@@ -428,11 +428,12 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c Content, scope 
 	}
 	seen, lost := openPorts(c), o.lostOf()
 	missed := map[string][]int{}
+	skip := ScanTarget{SkipPorts: t.Deep.SkipPorts}
 	for _, x := range prev {
 		k := ipKey(x.IP)
 		allowed, asked := scope[k]
 		if !asked || (allowed != nil && !slices.Contains(allowed, x.Port)) || len(lost[k]) > 0 || slices.Contains(seen[k], x.Port) || slices.Contains(missed[k], x.Port) ||
-			slices.Contains(t.Deep.SkipPorts, x.Port) { // a port this target's settings skip is never connected to
+			o.skips(skip, k, x.Port) { // a port this target's settings skip, or the settings of the address's IP target, is never connected to
 			continue
 		}
 		missed[k] = append(missed[k], x.Port)

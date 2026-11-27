@@ -23,10 +23,13 @@ import (
 type schemeRead struct {
 	installed versionscheme.Version
 	verdict   versionscheme.Verdict
-	stated    bool   // not affected by what the vendor states (a range it says is unaffected, its model-limited ranges): vendorStatements
-	origin    string // who stated the rows (RangeCNA, RangeADP)
-	vendor    string // the product's vendor as the catalogue names it ("VMware")
-	product   string // the product as the catalogue names it ("VMware ESXi")
+	stated    bool // not affected by what the vendor states (a range it says is unaffected, its model-limited ranges): vendorStatements
+	// before is set when the version is older than the first release the vendor lists as affected (olderThanEveryStart): not affected,
+	// the flaw came in with that release. nil otherwise.
+	before  *versionscheme.Version
+	origin  string // who stated the rows (RangeCNA, RangeADP)
+	vendor  string // the product's vendor as the catalogue names it ("VMware")
+	product string // the product as the catalogue names it ("VMware ESXi")
 }
 
 // buildRE reads the build a device states beside its version ("VMware ESXi 8.0 Update 3 (build 24022510)").
@@ -191,6 +194,12 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or inside a
 		// model-limited range: only the vendor's statements below may still say "not affected"
 	}
+	if scheme != nil && !namesLine(spans, installed) && !inside(installed, st.models) {
+		if first, ok := olderThanEveryStart(installed, spans); ok && !nvdCovers(in, v) {
+			out.verdict, out.before = versionscheme.Verdict{State: versionscheme.NotAffected}, first
+			return out, true
+		}
+	}
 	if notAffectedByStatements(installed, spans, st) && !nvdCovers(in, v) {
 		out.verdict, out.stated, out.origin = versionscheme.Verdict{State: versionscheme.NotAffected}, true, cmpOr(st.origin, origin)
 		return out, true
@@ -215,6 +224,57 @@ func notAffectedByStatements(installed versionscheme.Version, spans []versionsch
 	}
 	all := append(slices.Clone(spans), st.models...)
 	return namesLine(all, installed) && endsInTrain(all, installed) && versionscheme.Judge(installed, all).State == versionscheme.NotAffected
+}
+
+// olderThanEveryStart says the version is older than the first release every one of the vendor's affected ranges starts at, and that
+// first release is one inside its branch (Juniper's "23.2 versions from 23.2R2-S1 before 23.2R2-S5"): the vendor states where the flaw
+// came in, so an older release is not affected. It returns that first release. Not when a range has no start ("all versions before
+// 21.4R3-S9" reaches every older release: affected), when a start does not compare with the version (another variant), or when the
+// first start is the start or first release of a branch ("24.2 before 24.2R2-S3"): a vendor lists only the branches it supports, so
+// silence about an older branch is no statement (the line stays a question, olderLine).
+func olderThanEveryStart(installed versionscheme.Version, spans []versionscheme.Span) (*versionscheme.Version, bool) {
+	if len(spans) == 0 {
+		return nil, false
+	}
+	var first *versionscheme.Version
+	for _, sp := range spans {
+		if sp.Start == nil {
+			return nil, false
+		}
+		c, ok := versionscheme.Compare(installed, *sp.Start)
+		if !ok || c >= 0 {
+			return nil, false
+		}
+		if first == nil {
+			first = sp.Start
+		} else if c, ok := versionscheme.Compare(*sp.Start, *first); ok && c < 0 {
+			first = sp.Start
+		}
+	}
+	if branchStart(*first) {
+		return nil, false
+	}
+	return first, true
+}
+
+// branchStart says a range start is the start of a release branch or its first release ("24.2", "24.2R1", ESXi "8.0"), not a
+// release inside the branch where a flaw came in ("23.2R2-S1").
+func branchStart(v versionscheme.Version) bool {
+	if v.LineStart {
+		return true
+	}
+	if v.Rank != 0 || len(v.Build) == 0 {
+		return v.Rank == 0 && len(v.Build) == 0
+	}
+	if v.Build[0] > 1 {
+		return false
+	}
+	for _, b := range v.Build[1:] {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // nvdCovers says one of NVD's affected rows (a range or an exact release) covers the line's version (decide: Yes). On a
@@ -306,6 +366,10 @@ func schemeDecision(a Asset, v Vuln, r schemeRead) (Tri, VersionRange, string) {
 		}
 		return Yes, within, ""
 	case versionscheme.NotAffected:
+		if r.before != nil {
+			return No, VersionRange{}, fmt.Sprintf("Not affected: %s lists the releases of %s that have %s starting from %s, and %s runs %s %s, older than the first affected release the vendor lists (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
+				who, clean(r.product), v.CVE, clean(releaseName(*r.before)), clean(a.Name), clean(r.product), clean(release), clean(releaseName(*r.before)))
+		}
 		if r.stated {
 			return No, VersionRange{}, fmt.Sprintf("Not affected: %s states which releases of %s have %s, and %s runs %s %s, which is not one of them. Vedette closed this by itself and reopens it if a later match says the device is affected.",
 				who, clean(r.product), v.CVE, clean(a.Name), clean(r.product), clean(release))

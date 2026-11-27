@@ -20,7 +20,8 @@ import (
 // Versions. "affected" versions become ranges: version + lessThan = [version, lessThan), + lessThanOrEqual = [version, x], a version
 // alone is that exact version ([v, v]), a start of "0", "*" or "n/a" is no start, an end of "*" is no end. fixed is the end of a
 // lessThan range whose change at that end says unaffected (the CNA states the fixed release), or, on the highest row of an entry whose
-// only unaffected statement is one version above every affected row on that row's release line, that version (lineFixOf).
+// only unaffected statements are single versions above every affected row, the highest of them when it is on that row's release line
+// (highestAbove, lineFixOf).
 // version_type is the entry's versionType.
 // Whatever cannot be compared without guessing makes the whole product's rows from that container unusable (counted, none stored):
 // git commits, wildcards and text ("3.x", "before 2.4", "all"), a reversed range, a status change inside a range or an unaffected version
@@ -135,9 +136,15 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 		}
 		for _, g := range groups {
 			schemed := SchemeProduct(Range{Part: g.key[0], Vendor: g.key[1], Product: g.key[2]})
+			vendors := origin == OriginCNA && !slices.ContainsFunc(g.entries, func(a cnaAffected) bool { return !ownCNA(assigner, a.Vendor) })
 			own := func(got []Range) {
 				for _, r := range got {
 					r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE = cve, origin, g.key[0], g.key[1], g.key[2], g.cpe
+					if r.ModelLimited() && !vendors && r.DefaultStatus == DefaultUnaffected {
+						// a third party lists the hardware it tested: its "unaffected" for the rest says nothing about other models
+						// (ownCNA); only the vendor's own record of a model-limited row says the product is affected on those models only
+						r.DefaultStatus = DefaultUnknown
+					}
 					rows = append(rows, r)
 				}
 			}
@@ -401,7 +408,8 @@ func entryModels(ps []string) (models []string, limited bool) {
 // display); none is kept when an entry of the product is kept in no form (too many versions, models that cannot be kept). Only an entry whose unlisted versions are not stated affected (defaultStatus not affected: an
 // "affected except" entry's unaffected versions are fixed releases, exceptRows), and only a range with an end: an unaffected version
 // alone is a fixed release (read as such elsewhere), "*" or a list as the end says nothing a scheme reads, and a range with changes
-// is left out.
+// is left out. A start written as words that name no release (no digit: "all version prior to" lessThan "23.4R1") is read as no
+// start, as "0" is: the range is every release before its end.
 func unaffectedRows(entries []cnaAffected) []Range {
 	var first []string
 	sameModels := true // every entry of the product is limited to the same models (or none is limited)
@@ -435,8 +443,8 @@ func unaffectedRows(entries []cnaAffected) []Range {
 			if !ok {
 				continue
 			}
-			if w := strings.ToLower(start); saysNothing[w] || everyVersion[w] {
-				start = ""
+			if w := strings.ToLower(start); saysNothing[w] || everyVersion[w] || !strings.ContainsAny(start, "0123456789") {
+				start = "" // words that name no release ("all version prior to" lessThan "23.4R1"): from the first release, as "0"
 			}
 			bound, incl := v.LessThan, false
 			if bound == nil {
@@ -663,7 +671,7 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 	var spans []cnaSpan
 	var fixed []string // the unaffected versions the entry lists
 	unaffected := 0    // the entry's unaffected statements, of any form
-	lone := ""         // its one unaffected version, when that is all it states unaffected (no range)
+	var lone []string  // its unaffected versions stated alone (no range)
 	partial := false   // a letter-release version was left out
 	for _, v := range a.Versions {
 		switch strings.ToLower(strings.TrimSpace(v.Status)) {
@@ -673,7 +681,7 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 			if start := withoutProduct(strings.TrimSpace(v.Version), a); cnaVersionOK(start) && start != "0" {
 				fixed = append(fixed, start)
 				if v.LessThan == nil && v.LessThanOrEqual == nil {
-					lone = start
+					lone = append(lone, start)
 				}
 			}
 			continue
@@ -761,17 +769,41 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 			}
 		}
 	}
-	if unaffected == 1 && lone != "" && !partial && reads == nil {
-		if i, ok := lineFixOf(lone, spans); ok {
-			rows[i].Fixed = lone
+	if len(lone) > 0 && unaffected == len(lone) && !partial && reads == nil {
+		if y, ok := highestAbove(lone, spans); ok {
+			if i, ok := lineFixOf(y, spans); ok {
+				rows[i].Fixed = y
+			}
 		}
 	}
 	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected && !partial, true
 }
 
+// highestAbove is the highest of an entry's lone unaffected versions when every one of them is above the end of every affected row
+// (a fixed release per train above the last affected release: "7.21.5" and "7.23.1" above 7.20.8); ok is false when one is not, or
+// when two do not compare. Only the highest can be the fix of a line (lineFixOf): a release past it is past every fix the entry states.
+func highestAbove(lone []string, spans []cnaSpan) (string, bool) {
+	top := ""
+	for _, y := range lone {
+		for _, sp := range spans {
+			if c, ok := cmpLead(y, sp.end); sp.end == "" || !ok || c <= 0 {
+				return "", false
+			}
+		}
+		if top == "" {
+			top = y
+		} else if c, ok := cmpLead(y, top); !ok {
+			return "", false
+		} else if c > 0 {
+			top = y
+		}
+	}
+	return top, top != ""
+}
+
 // lineFixOf says which affected row a lone unaffected version y of an entry fixes, read as OSV reads "fixed": the entry lists its
 // affected versions from 0 up to a last one ("0 through 6.49.18", "7.0.0 through 7.11.2") and states only y unaffected ("7.24.0"),
-// above every one of them. y is then the fix of the release line the highest row ends on, when y is on that line (its first number):
+// or y and lower fixed releases (highestAbove), above every one of them. y is then the fix of the release line the highest row ends on, when y is on that line (its first number):
 // a version at or past y on that line is not affected (Range.LineFix, read by the matcher for a partial list only). A version between
 // the last affected one and y, or on another line, is not stated either way. ok is false when y is not above every row's end (it would
 // be a backport or a release of an earlier line), a row has no end, an end does not compare, or y is on another line.

@@ -243,6 +243,11 @@ type SchemedRange struct {
 	// Unaffected is a range the vendor states NOT affected ("0 before 24.4R1") for every device (feeds unaffectedRows); ModelOnly an
 	// affected range that holds only on some models (Juniper's EX4000). Both only ever support "not affected" (schemeJudge), never "affected".
 	Unaffected, ModelOnly bool
+	// Platforms are the hardware a ModelOnly row holds on, as the record names it ("QRX Series", "ZX4100"); nil when not known.
+	// Complete says the row is the vendor's own record stating every version it does not list unaffected (defaultStatus unaffected from
+	// the product's own CNA): with Platforms, the vendor's word that the product is affected on that hardware only (otherHardware).
+	Platforms []string
+	Complete  bool
 	// Unread is a vendor's affected row of the product that does not read in its scheme (Juniper's "22.2" lessThan "22.2*"): no
 	// span, never judged; it only says the rows that read are not the vendor's whole word (olderThanEveryStart does not apply).
 	Unread bool
@@ -1246,14 +1251,15 @@ func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
 // and NVD lists Edge 117.0.2045.47, the build that fixed CVE-2023-5217, as affected.
 //
 // A row of a complete record list (VendorList) names the row with an exact version too: the vendor stated every version's status. So
-// does a CVE record's "every version is affected" (fromZero), which no NVD row writes: NVD's version-less rows have no bound at all.
+// does a CVE record's "every version is affected" (fromZero), which no NVD row writes: NVD's version-less rows have no bound at all,
+// and an exact row that carries the fix the record states above its rows (LineFix): the record bounds the line there.
 // affirming false leaves out the record rows that only say "affected" (AffectedOnly): viaNVD's proof of "not affected" never rests on
 // them.
 func nvdNames(in swInfo, v Vuln, affirming bool) bool {
 	_, win := winDevice(in)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
-		if err != nil || c.Part.Kind == NA || af.AffectedOnly && !affirming || !endBound(af.Range) && !af.Range.fromZero() && (!af.VendorList || !versionEvidence(af)) {
+		if err != nil || c.Part.Kind == NA || af.AffectedOnly && !affirming || !endBound(af.Range) && !af.Range.fromZero() && af.LineFix == "" && (!af.VendorList || !versionEvidence(af)) {
 			continue
 		}
 		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {

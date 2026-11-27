@@ -758,8 +758,11 @@ func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) e
 			continue
 		}
 		i := at[r.CVE]
-		vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin,
-			Unaffected: unaffected, ModelOnly: modelOnly})
+		sr := findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin, Unaffected: unaffected, ModelOnly: modelOnly}
+		if modelOnly { // the hardware it holds on, and whether the vendor's own record states the rest unaffected (feeds ownCNA)
+			sr.Platforms, sr.Complete = r.Platforms, r.DefaultStatus == feeds.DefaultUnaffected
+		}
+		vulns[i].Schemed = append(vulns[i].Schemed, sr)
 	}
 	return nil
 }

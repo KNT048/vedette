@@ -161,18 +161,23 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   the CPE's target_sw (`kevRecordRow`, `Range.MatchRow`), so the row speaks for that system only. NVD's running-on platforms are not
   read so: they reach the matcher with their NVD row (`AffectedRow.Platforms`, `KevAffected`, `Range.MatchRow`) as the environment
   the row's product runs on, never as an affected product (findings P-2). `TestKevAffected_CarriesNVDsRunningOnSystems`. An entry naming any other platform (a model) still leaves its product's generic rows out. `TestRecordSystems_EntryLimitedToSystems`.
-  An entry whose only unaffected statement is one version above the end of every affected row it lists, on the release line (first
-  number) the highest row ends on ("0 through 6.49.18", "7.0.0 through 7.11.2", "7.24.0 unaffected"), keeps that version as `fixed` of
-  the highest row (`lineFixOf`, OSV's fixed): the match reads it as the fix of that line (`LineFix`, findings `pastRecordFix`). Any
-  other unaffected version stays as before. `TestParseCVERecord_Ranges`, `TestRecordRanges_LineFixReachesTheMatcher`.
+  An entry whose only unaffected statements are single versions above the end of every affected row it lists ("0 through 6.49.18",
+  "7.0.0 through 7.11.2", "7.24.0 unaffected"; a fixed release per train, "7.21.5" and "7.23.1" above 7.20.8) keeps the highest of them,
+  when it is on the release line (first number) the highest row ends on, as `fixed` of that row (`highestAbove`, `lineFixOf`, OSV's
+  fixed): the match reads it as the fix of that line (`LineFix`, findings `pastRecordFix`): a release past every fix the entry states.
+  Any other unaffected version stays as before. `TestParseCVERecord_Ranges`, `TestRecordRanges_LineFixReachesTheMatcher`,
+  `TestRecordRanges_SeveralFixedReleasesGiveTheLineFix`.
   For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",
   and that no reader of affected ranges reads (`RangeScheme` refuses them; `StatementScheme` reads them): a range the vendor states
-  unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`), which holds for every device: kept only beside
+  unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`; a start written as words that name no release,
+  "all version prior to" lessThan "23.4R1", is no start, as "0": `TestUnaffectedRows_ProseStartIsTheFirstRelease`), which holds for every device: kept only beside
   the product's affected rows, never when an entry of the product is kept in no form, and from an entry limited to some models only
   when every entry of the product names the same models (`TestParseCVERecord_UnaffectedOnlyBesideEveryEntry`); and the rows of
   an entry limited to some models (Juniper's "EX4000-48T", "EX Series"), stored with the models in `platforms` (`Range.ModelLimited`;
-  at most 64 names of 100 bytes, else the entry is kept in no form). The brief does not list unaffected rows as affected versions.
-  `TestParseCVERecord_VendorUnaffectedAndModelRows`, `TestStoreCVERecord_ModelsKept`.
+  at most 64 names of 100 bytes, else the entry is kept in no form). Such a row keeps the entry's `defaultStatus: unaffected` only from
+  the vendor's own CNA (`ownCNA`); a third party lists the hardware it tested, so its rows are stored `unknown`: only the vendor's word says
+  the product is affected on the named hardware alone (findings `otherHardware`). The brief does not list unaffected rows as affected versions.
+  `TestParseCVERecord_VendorUnaffectedAndModelRows`, `TestStoreCVERecord_ModelsKept`, `TestParseCVERecord_ModelRowsKeepTheDefaultOnlyFromTheVendor`.
   A record's open-ended row ("from 1.25.0, every later version") of a product whose bounded rows above its start name fixed
   releases is read as ending where the lowest of those rows starts (`CutCatchAll`, when the match set and the exploited-list view
   read the rows; the stored rows are as the record states them): the vendor's evaluated trains keep their own fixes, versions below

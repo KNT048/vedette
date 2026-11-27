@@ -117,7 +117,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
   inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
   inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
-  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
+  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). A model-limited row of the vendor's own
+  record (`SchemedRange.Complete`: its `defaultStatus` unaffected, feeds keeps it only from the product's own CNA) whose hardware
+  (`Platforms`) the device's stated model cannot be is not about the device (`otherHardware`, read by the names' shape only: "<letters>
+  Series", "<letters><number>", a numbered series; a model or a platform of another shape is never ruled out, nor is a device by a model
+  word without "Series" of other letters, which may name a part it carries ("MPC10E"), and only an operating
+  system's or firmware's rows are read so, `deviceFirmware`); when every row of the product is such a row, the device is not affected
+  ("lists the OS as affected only on QRX Series, and the switch is a ZX4200-48T"); a version of the vendor's rows for every device, an NVD
+  row covering it or an unread row still decide as before. With no row for every device, the starts of the vendor's own model-limited
+  rows say where the flaw came in (`olderThanEveryStart`, below). `TestOtherHardware`, `TestMatchAsset_ModelRowsOfOtherHardware`. (`notAffectedByStatements`,
   `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
   `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). Where the vendor's affected ranges start also decides "not affected" (Junos OS only: the one scheme whose
   first release of a branch is read, `branchStart`; the proof says "NVD lists" when NVD's rows are the ones read):

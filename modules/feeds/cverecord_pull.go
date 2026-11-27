@@ -96,8 +96,11 @@ const (
 	// lessThan ("1.20.4,2.0.2,2.1.2"); "ranges-9" reads an entry limited to operating systems once per system (recordSystems)
 	// instead of leaving the product's rows out, and keeps an entry's lone unaffected version above every affected row as the fix
 	// of its line (lineFixOf); "ranges-10" reads a range written with a hyphen in "version" ("1.0-1.23") from the first release through
-	// the second instead of as one release (hyphenRead).
-	recordReader = "ranges-10"
+	// the second instead of as one release (hyphenRead); "ranges-11" reads an unaffected range whose start is words naming no release
+	// ("all version prior to" lessThan "23.4R1") from the first release (unaffectedRows), keeps the highest of several single
+	// unaffected versions above every affected row as the fix of its line (highestAbove), and keeps a model-limited row's
+	// defaultStatus "unaffected" only from the vendor's own CNA (ownCNA).
+	recordReader = "ranges-11"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"
 )

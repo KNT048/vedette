@@ -1,7 +1,8 @@
 // By fix: the plan. One numbered step per fix across devices ("1. Update OpenSSH 9.6 → 10.6: 3 devices, 61 findings"), in the order
 // to do them (the most urgent first, then the fix that clears the most findings), opening to the devices it applies to. Mark as
 // handled… acts on one device at a time, on the CVEs the person keeps ticked (all by default). As Defender's security
-// recommendations and Tenable's remediation view group by the fix and rank it (GET /findings/fixes).
+// recommendations and Tenable's remediation view group by the fix and rank it (GET /findings/fixes). After them, the possible
+// findings by product and version (Possible.tsx), counted apart.
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +16,8 @@ import { StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { usePossibleSame } from '@/features/inventory/api'
-import { useDeviceCards, useFixCards } from './api'
+import { useDeviceCards, useFixCards, usePossibleCounts } from './api'
+import { PossibleLink, PossibleSection } from './Possible'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { HandleDialog, type HandleRow } from './HandleDialog'
@@ -149,6 +151,8 @@ export function ByFix({ status }: { status: string }) {
   const filtered = !!(raw.q || status)
   const pairs = usePossibleSame().data?.items // decoration only: without it (module off, no right) no device says "possibly the same"
   const offset = list.page * size
+  // the possible findings are not searched or filtered by status here: their count is said only with the whole list
+  const possible = usePossibleCounts(undefined, !filtered).data?.possible ?? 0
   const gotRows = useMemo(() => (h: Handling) => { setWant(null); setHandling(h) }, [])
   const failed = useMemo(() => () => setWant(null), [])
   const columns: ColumnDef<FixCard>[] = [
@@ -163,12 +167,13 @@ export function ByFix({ status }: { status: string }) {
         {(d) => d.total === 0 && !filtered ? <EmptyState art="no-findings" title={t('byDevice.empty')}>{t('byDevice.emptyBody')}</EmptyState> : (
           <>
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-              summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
+              summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}<PossibleLink count={filtered ? 0 : possible} />{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
               mobileRow={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} />} />
           </>
         )}
       </QueryState>
+      <PossibleSection by="product" />
       {want ? <LoadRows want={want} q={raw.q} status={status} onRows={gotRows} onFail={failed} /> : null}
       {handling ? <HandleDialog {...handling} onClose={() => setHandling(null)} /> : null}
     </div>

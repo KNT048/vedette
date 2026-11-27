@@ -1,5 +1,5 @@
-// The counts and lists read from By device and Needs your input outside the Findings screen are exact on a network with more
-// devices, or a device with more queue items, than one page holds.
+// The counts and lists read from By device and the possible findings outside the Findings screen are exact on a network with more
+// devices, or a device with more possible CVEs, than one page holds.
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/test/server'
 import { sessionStore } from '@/mocks/stores'
-import { useAllInput, useCveFindings, useOpenFindingsOf } from './api'
+import { useAllPossible, useCveFindings, useOpenFindingsOf } from './api'
 import { PAGE_MAX } from './contract'
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -51,15 +51,17 @@ describe('exact counts beyond one page', () => {
     expect(result.current.hits).toHaveLength(total)
   })
 
-  it('reads a device queue longer than one page', async () => {
+  it('reads the possible CVEs of a device beyond one page', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const total = 130
-    server.use(http.get('*/api/v1/findings/input', ({ request }) => {
-      const off = Number(new URL(request.url).searchParams.get('offset') ?? 0)
-      const items = Array.from({ length: Math.max(0, Math.min(PAGE_MAX, total - off)) }, (_, i) => ({ kind: 'unconfirmed', id: `f-${off + i}` }))
-      return HttpResponse.json({ items, total })
+    server.use(http.get('*/api/v1/findings/possible', ({ request }) => {
+      const p = new URL(request.url).searchParams
+      expect(p.get('device')).toBe('a-1')
+      const off = Number(p.get('offset') ?? 0)
+      const items = Array.from({ length: Math.max(0, Math.min(PAGE_MAX, total - off)) }, (_, i) => ({ id: `q-${off + i}`, cve: 'CVE-2026-1001' }))
+      return HttpResponse.json({ items, total, counts: { possible: total, proposals: 0, unchecked: 0, settled: 0 } })
     }))
-    const { result } = renderHook(() => useAllInput('a-1'), { wrapper })
+    const { result } = renderHook(() => useAllPossible({ device: 'a-1' }), { wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.items).toHaveLength(total)
   })

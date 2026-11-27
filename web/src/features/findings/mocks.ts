@@ -15,6 +15,7 @@ import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
 import { deviceStatus, modelHandlers, records } from './modelMocks'
+import { possibleHandlers } from './possibleMocks'
 import type { DeviceStatusCode } from '@/lib/statusCodes'
 import { SAMPLE_SEVERITY, type FindingRecord } from '@/mocks/seed/findings'
 
@@ -396,6 +397,7 @@ const BN340 = { asset: 'a-bn340', software: 'OpenSSH', cve: cveOf('CVE-2026-1231
 /** The release of what a person typed: the bare release, or the line apk prints ("openssh-server-10.2_p1-r1"); null when unreadable. */
 const releaseOf = (v: string) => { const m = /^(?:[a-z][a-z0-9+._-]*?-(?=\d))?(\d[\w.:~+-]*)$/.exec(v.trim()); return m ? m[1]! : null }
 export const handlers = [
+  ...possibleHandlers, // first: /findings/possible/… must not be read as /findings/:id/…
   ...modelHandlers, // first: /findings/devices and the other new paths must not be read as /findings/:id
   // One device's findings in every state (asset is required: the box's validator refuses a request without it).
   http.get(`${API}/findings`, ({ request }) => {

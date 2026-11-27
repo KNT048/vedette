@@ -63,13 +63,14 @@ export function SeverityLine({ counts, className }: { counts: SeverityCounts; cl
 }
 
 /** A device as the lists name it: its page, its address, "Not added yet", and its badge (a link to its findings with that status).
- * link false names the device without a link, where another row of the same list already links to its page. */
-export function DeviceLine({ device, status, badge = true, link = true }: { device: DeviceRef; status?: DeviceStatus; badge?: boolean; link?: boolean }) {
+ * link false names the device without a link, where another row of the same list already links to its page; `to` links another
+ * part of its page (its possible findings). */
+export function DeviceLine({ device, status, badge = true, link = true, to }: { device: DeviceRef; status?: DeviceStatus; badge?: boolean; link?: boolean; to?: string }) {
   const { t } = useTranslation('findings')
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
       {link ? (
-        <Link to={`/devices/${encodeURIComponent(device.id)}`} onClick={(e) => e.stopPropagation()}
+        <Link to={to ?? `/devices/${encodeURIComponent(device.id)}`} onClick={(e) => e.stopPropagation()}
           className="font-semibold text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{device.name}</Link>
       ) : <span className="font-semibold [overflow-wrap:anywhere]">{device.name}</span>}
       <span className="text-meta text-muted">{device.ip ?? t('noIp')}</span>

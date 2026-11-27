@@ -458,9 +458,10 @@ describe('findings: the device page\'s Findings tab', () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/devices/a-srvfile?tab=findings')
     expect(await screen.findByText('No open findings on this device.')).toBeInTheDocument()
-    // only a question waits: the badge says so and leads to it, as the line under the card does
-    expect(await screen.findByRole('link', { name: '1 item needs your input' })).toHaveAttribute('href', '/findings?tab=input&device=a-srvfile')
-    expect(screen.getByRole('link', { name: '1 possible' })).toHaveAttribute('href', '/findings?tab=device&device=a-srvfile')
+    // only possible findings wait (the version of SQL Server decides 4 CVEs): they are on this tab, after the open findings
+    const section = await screen.findByRole('region', { name: 'Possible findings' })
+    expect(await within(section).findByText('4 possible CVEs: Vedette cannot decide them, so they are not counted as open')).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Add the version of Microsoft SQL Server on SRV-FILE' })).toBeInTheDocument()
   })
 })
 

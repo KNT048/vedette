@@ -99,14 +99,16 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
   )
 }
 
-/** What waits for a person: the Needs your input queue of the Findings screen (devices not added yet, urgent findings not confirmed
- *  yet, questions). One link, hidden at 0. */
-function InputLine({ o }: { o: Overview }) {
+/** What waits for a person about findings: the possible CVEs (Vedette cannot decide them; counted apart from the open findings) and
+ *  the AI proposals about them waiting for a confirmation. Each a link, hidden at 0. */
+function PossibleLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  if (!o.input) return null
+  const { possible, proposals } = o.possible
+  if (!possible && !proposals) return null
   return (
-    <p className="-mt-4 mb-6 text-sm">
-      <Link to="/findings?tab=input" className="font-medium text-accent underline-offset-4 hover:underline">{t('dash.input', { count: o.input })}</Link>
+    <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      {possible ? <Link to="/findings?tab=device#possible" className="font-medium text-accent underline-offset-4 hover:underline">{t('dash.possible', { count: possible })}</Link> : null}
+      {proposals ? <Link to="/findings?tab=proposals" className="font-medium text-accent underline-offset-4 hover:underline">{t('dash.proposals', { count: proposals })}</Link> : null}
     </p>
   )
 }
@@ -317,7 +319,7 @@ export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; pr
       {firstRun ? null : (
         <>
           <Tiles o={s} noClaim={!!kevNotice} />
-          <InputLine o={s} />
+          <PossibleLine o={s} />
           <FixFirst o={s} kevNotice={kevNotice} />
         </>
       )}

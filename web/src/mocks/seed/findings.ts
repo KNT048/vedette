@@ -1,7 +1,7 @@
 // 3 sample findings tied to real KEV CVEs. Fixed ids: f-1 (NAS, confirmed), f-2 (WordPress, suspected), f-3 (Windows Server 2016, suspected).
 // The findings module owns this file (it may add findings); other modules only read through findingsStore.
 import type { Finding } from '@/lib/types'
-import type { Basis, CveSeverity, EventKind, FindingEvent, FixKind, Reason, Resolution, Verified, Via, QuestionKind } from '@/features/findings/types'
+import type { Basis, CveSeverity, EventKind, FindingEvent, FixKind, PossibleCheck, Reason, Resolution, UndecidedReason, Verified, Via, QuestionKind } from '@/features/findings/types'
 
 const D = (days: number, h = 0) => new Date(Date.now() - days * 864e5 - h * 36e5).toISOString()
 
@@ -89,6 +89,8 @@ export interface QuestionRecord {
   attribute?: 'edition' | 'architecture' | 'platform' | 'unlisted_line' | null
   /** A "not affected" answer, kept so it can be taken back; absent while the question waits. */
   answered?: { by: string; at: string }
+  /** Why the CVE is undecided (a possible finding's reason); absent: the usual reason of its kind. */
+  undecided?: { reason: UndecidedReason; ranges?: string[]; text?: string; url?: string }
 }
 
 const day = (days: number) => D(days).slice(0, 10)
@@ -206,18 +208,110 @@ export function seedFindingRecords(): FindingRecord[] {
 }
 
 export function seedQuestions(): QuestionRecord[] {
+  const line = (n: number, cve: string): QuestionRecord => ({ id: `fq-nas01-line-${n}`, kind: 'older_line', asset_id: 'a-nas01', software: { id: 's-nas01', name: 'Synology NAS (DSM)', version: '7.2' },
+    cve, cves: 1, asked_at: D(1), url: null, command: null, choices: [], fixes: ['7.3.2-86009 Update 5', '7.4.1-90080 Update 1'], line: '7.2' })
   return [
     { id: 'fq-srvfile-sql', kind: 'version_needed', asset_id: 'a-srvfile', software: { id: 's-srvfile-sql', name: 'Microsoft SQL Server', version: null }, cve: null, cves: 4,
-      asked_at: D(5), url: null, command: 'SELECT @@VERSION', choices: [] },
+      asked_at: D(5), url: null, command: 'SELECT @@VERSION', choices: [], cve_list: ['CVE-2026-131810', 'CVE-2026-131811', 'CVE-2026-131812', 'CVE-2026-131813'] },
     { id: 'fq-bn340-platform', kind: 'platform', asset_id: 'a-bn340', software: { id: 's-bn340-ssh', name: 'OpenSSH', version: '10.2' }, cve: 'CVE-2026-123158', cves: 1,
       asked_at: D(2), url: 'https://security.alpinelinux.example.com/vuln/CVE-2026-123158', command: 'cat /etc/alpine-release',
       choices: [{ label: 'Alpine Linux 3.23', os: 'Alpine Linux 3.23' }, { label: 'Another system', ask: ['os', 'pkg_version'] }] },
     { id: 'fq-nas01-range', kind: 'no_range_data', asset_id: 'a-nas01', software: { id: 's-nas01', name: 'Synology NAS (DSM)', version: '7.2' }, cve: 'CVE-2026-118204', cves: 1,
       asked_at: D(1), url: 'https://www.synology.example.com/en-global/security/advisory', command: null, choices: [] },
-    { id: 'fq-nas01-line', kind: 'older_line', asset_id: 'a-nas01', software: { id: 's-nas01', name: 'Synology NAS (DSM)', version: '7.2' }, cve: null, cves: 3,
-      asked_at: D(1), url: null, command: null, choices: [], cve_list: ['CVE-2026-118210', 'CVE-2026-118211', 'CVE-2026-118212'],
-      fixes: ['7.3.2-86009 Update 5', '7.4.1-90080 Update 1'], line: '7.2' },
+    // the vendor names fixes only on newer lines: one question per CVE
+    line(1, 'CVE-2026-118210'), line(2, 'CVE-2026-118211'), line(3, 'CVE-2026-118212'),
     { id: 'fq-unk02-fgt', kind: 'not_comparable', asset_id: 'a-unk02', software: { id: 's-unk02-fgt', name: 'FortiGate', version: 'latest' }, cve: null, cves: 3,
-      asked_at: D(1), url: null, command: 'get system status', choices: [] },
+      asked_at: D(1), url: null, command: 'get system status', choices: [], cve_list: ['CVE-2026-124401', 'CVE-2026-124402', 'CVE-2026-124403'] },
+    ...routerQuestions(),
+    ...sqlQuestions(),
   ]
+}
+
+/** CVEs of the possible findings that are on an exploited list. */
+export const POSSIBLE_EXPLOITED = new Set(['CVE-2026-240101', 'CVE-2026-240104', 'CVE-2026-240107', 'CVE-2026-240111', 'CVE-2026-240118', 'CVE-2026-240125', 'CVE-2026-240131',
+  'CVE-2026-240133', 'CVE-2026-118204', 'CVE-2026-245502'])
+
+/** The reasons the router's 30 possible CVEs are undecided, in turn: what a real record of a network OS often looks like. */
+const ROUTER_REASONS: QuestionRecord['undecided'][] = [
+  { reason: 'no_ranges' },
+  { reason: 'exact_releases_only', ranges: ['cpe:2.3:o:mikrotik:routeros:7.15:*:*:*:*:*:*:* [7.15, 7.15]', 'cpe:2.3:o:mikrotik:routeros:7.16:*:*:*:*:*:*:* [7.16, 7.16]'] },
+  { reason: 'ranges_start_at_branch_only', ranges: ['cpe:2.3:o:mikrotik:routeros:*:*:*:*:*:*:*:* [7.16, 7.16.2)'] },
+  { reason: 'unparsed_vendor_text', text: 'RouterOS long-term releases are affected until the fix is published; stable 7.16.2 and later are not affected.', url: 'https://mikrotik.example.com/security/advisories' },
+  { reason: 'eol_line_unlisted' },
+  { reason: 'nvd_pending' },
+]
+
+/** A MikroTik router with 30 possible CVEs (exploited ones among them), some already checked: the realistic large case. */
+function routerQuestions(): QuestionRecord[] {
+  return Array.from({ length: 32 }, (_, i): QuestionRecord => {
+    const cve = `CVE-2026-2401${String(i + 1).padStart(2, '0')}`
+    const u = ROUTER_REASONS[i % ROUTER_REASONS.length]!
+    return {
+      id: `fq-rt02-${i + 1}`, kind: u.reason === 'eol_line_unlisted' ? 'older_line' : 'no_range_data', asset_id: 'a-rt02',
+      software: { id: 's-rt02', name: 'MikroTik RouterOS', version: '7.14' }, cve, cves: 1, asked_at: D(3), url: 'https://mikrotik.example.com/security/advisories',
+      command: null, choices: [], versions_listed: u.reason !== 'no_ranges', undecided: u, ...(u.reason === 'eol_line_unlisted' ? { line: '7.14', fixes: ['7.16.2 (stable)', '7.15.3 (long-term)'] } : {}),
+    }
+  })
+}
+
+/** A software line with a very long name on a server, three possible CVEs. */
+function sqlQuestions(): QuestionRecord[] {
+  const sw = { id: 's-srvacc-sql', name: 'Microsoft SQL Server 2019 Enterprise Edition (64-bit) with Reporting Services and Integration Services', version: '15.0.4385.2' }
+  return [
+    { id: 'fq-srvacc-1', kind: 'no_range_data', asset_id: 'a-srvacc', software: sw, cve: 'CVE-2026-245501', cves: 1, asked_at: D(2), url: null, command: null, choices: [], undecided: { reason: 'no_ranges' } },
+    { id: 'fq-srvacc-2', kind: 'no_range_data', asset_id: 'a-srvacc', software: sw, cve: 'CVE-2026-245502', cves: 1, asked_at: D(2), url: null, command: null, choices: [], versions_listed: true,
+      undecided: { reason: 'exact_releases_only', ranges: ['cpe:2.3:a:microsoft:sql_server_2019:15.0.4360.2:*:*:*:*:*:x64:* [15.0.4360.2, 15.0.4360.2]'] } },
+    { id: 'fq-srvacc-3', kind: 'no_range_data', asset_id: 'a-srvacc', software: sw, cve: 'CVE-2026-245503', cves: 1, asked_at: D(2), url: null, command: null, choices: [], undecided: { reason: 'fetch_failed' } },
+  ]
+}
+
+/** The evidence identity of one possible CVE (64 hex), as the match computes it from the CVE, the line and the version. */
+export function checkKeyOf(q: Pick<QuestionRecord, 'id' | 'kind' | 'software' | 'undecided'>, cve: string): string {
+  const reason = q.undecided?.reason
+  // nothing a check can read decides these: the person's input does (the version, the system, the package release, the edition)
+  if (q.kind === 'version_needed' || q.kind === 'platform' || q.kind === 'package_release' || reason === 'nvd_pending' || !q.software?.version) return ''
+  let h = 2166136261
+  let out = ''
+  for (let round = 0; round < 8; round++) {
+    for (const c of `${round}|${cve}|${q.software.id}|${q.software.version}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0
+    out += h.toString(16).padStart(8, '0')
+  }
+  return out
+}
+
+/** A stored check of a possible CVE, keyed by its evidence identity. */
+export type CheckRecord = PossibleCheck
+const AI_SOURCES = [
+  { url: 'https://mikrotik.example.com/security/advisories/routeros-2026-07', title: 'MikroTik security advisory: RouterOS WinBox and WebFig', status: 'ok' as const, cited: true },
+  { url: 'https://nvd.example.org/vuln/detail', status: 'ok' as const },
+  { url: 'https://blog.example.net/routeros-analysis', status: 'failed' as const, note: 'the page answered 403' },
+]
+
+/** The checks already made: AI proposals waiting (one exploited "not affected", confirmed one by one), an unsure one, a rejected one
+ *  and two the box settled from the vendor's advisory. */
+export function seedPossibleChecks(): Record<string, CheckRecord> {
+  const rt = (i: number) => ({ id: `fq-rt02-${i}`, kind: 'no_range_data' as const, software: { id: 's-rt02', name: 'MikroTik RouterOS', version: '7.14' }, undecided: ROUTER_REASONS[(i - 1) % ROUTER_REASONS.length] })
+  const at = D(0, 3)
+  const ai = (q: ReturnType<typeof rt>, cve: string, verdict: CheckRecord['verdict'], confidence: CheckRecord['confidence'], quote: string, reason: string, extra: Partial<CheckRecord> = {}): [string, CheckRecord] => {
+    const key = checkKeyOf(q, cve)
+    return [key, { key, decided_by: 'ai', verdict, confidence, reason, quote, sources: AI_SOURCES, model: 'claude-sonnet-5-5', checked_by: 'it@example.com', checked_at: at, rejected: false, ...extra }]
+  }
+  const advisory = (q: ReturnType<typeof rt>, cve: string, quote: string): [string, CheckRecord] => {
+    const key = checkKeyOf(q, cve)
+    return [key, { key, decided_by: 'advisory', verdict: 'not_affected', confidence: null, reason: 'The vendor lists the affected releases from 7.15 on; 7.14 is older than the first affected release.',
+      quote, sources: [AI_SOURCES[0]!], model: null, checked_by: 'it@example.com', checked_at: at, rejected: false }]
+  }
+  const sql = { id: 'fq-srvacc-1', kind: 'no_range_data' as const, software: { id: 's-srvacc-sql', name: 'Microsoft SQL Server 2019 Enterprise Edition (64-bit) with Reporting Services and Integration Services', version: '15.0.4385.2' }, undecided: { reason: 'no_ranges' as const } }
+  return Object.fromEntries([
+    ai(rt(1), 'CVE-2026-240101', 'affected', 'confident', 'RouterOS versions 7.10 through 7.15.2 are affected; upgrade to 7.15.3 or 7.16.2.',
+      'The advisory names the range 7.10 through 7.15.2, which covers 7.14.'),
+    ai(rt(2), 'CVE-2026-240102', 'not_affected', 'likely', 'Only devices running the container package are affected.', 'The advisory limits it to the container package; nothing says it is installed.'),
+    ai(rt(7), 'CVE-2026-240107', 'not_affected', 'confident', 'This issue affects RouterOS 7.15 and later releases only.', 'The advisory names 7.15 and later; 7.14 is older.'),
+    ai(rt(9), 'CVE-2026-240109', 'unsure', null, '', 'The pages do not name RouterOS versions.'),
+    ai(rt(10), 'CVE-2026-240110', 'affected', 'likely', 'All RouterOS v7 releases before 7.16 are affected.', 'The advisory says all v7 releases before 7.16.', { rejected: true }),
+    ai(rt(13), 'CVE-2026-240113', 'affected', 'likely', 'Versions up to 7.15 are vulnerable when WebFig is enabled.', 'The advisory says up to 7.15 with WebFig on.'),
+    ai(sql, 'CVE-2026-245501', 'affected', 'likely', 'SQL Server 2019 CU28 and earlier are affected.', 'The bulletin lists SQL Server 2019 up to CU28; 15.0.4385.2 is CU28.'),
+    advisory(rt(31), 'CVE-2026-240131', '7.15 versions from 7.15rc1 before 7.15.3'),
+    advisory(rt(32), 'CVE-2026-240132', '7.16 versions before 7.16.2'),
+  ])
 }

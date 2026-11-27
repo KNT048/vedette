@@ -12,10 +12,10 @@ import type { DeviceRisk } from './types'
 /** A device's badge: the code and its count, or null for none. */
 export type DeviceBadgeValue = { code: DeviceStatusCode; count: number } | null
 
-/** Where a device's badge leads: the device's Findings tab filtered to that status; its questions for "Needs your input". */
+/** Where a device's badge leads: the device's Findings tab filtered to that status; its possible findings for "N possible". */
 export function deviceFindingsLink(device: string, code?: DeviceStatusCode): string {
   const d = encodeURIComponent(device)
-  if (code === 'possible') return `/findings?tab=device&device=${d}`
+  if (code === 'possible') return `/devices/${d}?tab=findings#possible`
   return code ? `/devices/${d}?tab=findings&status=${code}` : `/devices/${d}?tab=findings`
 }
 

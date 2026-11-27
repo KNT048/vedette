@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PAGE_MAX } from './contract'
-import type { AnsweredList, ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Resolution, View } from './types'
+import type { AnsweredList, ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, Overview, PossibleCheckRun, PossibleCheckState, PossibleList, Resolution, View } from './types'
 
 /** GET /findings?asset=: one device's findings in every state, each with its history (what a version entry, "I updated it" or
  *  "Not installed" changed). */
@@ -75,16 +75,9 @@ export const useOpenFindingsOf = (ids: readonly string[], enabled = true) => {
     },
   })
 }
-/** One device's whole Needs your input queue, every page. */
-export const useAllInput = (device: string, enabled = true) =>
-  useQuery({ queryKey: model('input', 'all', device), enabled, queryFn: () => allPages<InputList>((p) => `/findings/input${qs({ device, offset: p.offset, limit: p.limit })}`) })
 export const useFixCards = (f: { q?: string; status?: string }, page: Page, enabled = true) => {
   const path = `/findings/fixes${qs({ q: f.q, status: f.status, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('fixes', path), queryFn: () => api.get<FixCards>(path), enabled, placeholderData: keepPreviousData })
-}
-export const useInputList = (f: { q?: string; device?: string }, page: Page, enabled = true) => {
-  const path = `/findings/input${qs({ q: f.q, device: f.device, offset: page.offset, limit: page.limit })}`
-  return useQuery({ queryKey: model('input', path), queryFn: () => api.get<InputList>(path), enabled, placeholderData: keepPreviousData })
 }
 /** The questions answered "not affected": each can be asked again (useUnanswer). */
 export const useAnswered = (f: { device?: string }, page: Page, enabled = true) => {
@@ -131,3 +124,34 @@ export const useUnanswer = () => useModelWrite((v: { id: string }) => api.post<{
 /** A view of one finding: its status, the reasons of its urgency and how it is known, as every list row says them. */
 export const useView = (id: string, enabled = true) =>
   useQuery({ queryKey: model('view', id), queryFn: () => api.get<View>(`/findings/${encodeURIComponent(id)}/view`), enabled, retry: false })
+
+// ---- Possible findings: the CVEs Vedette cannot decide, counted apart from the open findings (GET /findings/possible).
+
+/** Every possible CVE (of one device when `device` is set) in one answer, every page; `state` one state (settled is only read
+ *  when asked for). */
+export const useAllPossible = (f: { device?: string; state?: 'possible' | 'proposal' | 'settled' }, enabled = true) =>
+  useQuery({
+    queryKey: model('possible', 'all', f.device ?? '', f.state ?? ''), enabled,
+    queryFn: () => allPages<PossibleList>((p) => `/findings/possible${qs({ device: f.device, state: f.state, offset: p.offset, limit: p.limit })}`),
+  })
+/** The possible counts of one device (or of every device) only: one small request. */
+export const usePossibleCounts = (device: string | undefined, enabled = true) =>
+  useQuery({ queryKey: model('possible', 'counts', device ?? ''), enabled, queryFn: () => api.get<PossibleList>(`/findings/possible${qs({ device, limit: 1 })}`), select: (d) => d.counts })
+/** Whether a check can run and how the last one stands; read again every 2 s while one runs. */
+export const usePossibleCheck = (enabled = true) =>
+  useQuery({
+    queryKey: ['findings', 'possible-check'], enabled, queryFn: () => api.get<PossibleCheckState>('/findings/possible/check'),
+    refetchInterval: (q) => (q.state.data?.run?.running ? 2000 : false),
+  })
+export const useStartPossibleCheck = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { device?: string }) => api.post<PossibleCheckRun>('/findings/possible/check', v.device ? { device: v.device } : {}),
+    onSuccess: (run) => { qc.setQueryData<PossibleCheckState>(['findings', 'possible-check'], (s) => (s ? { ...s, run } : s)) },
+    onSettled: () => { void qc.invalidateQueries({ queryKey: ['findings', 'possible-check'] }) },
+  })
+}
+export const useConfirmProposal = () => useModelWrite((v: { id: string }) => api.post<{ finding: string | null }>(`/findings/possible/${encodeURIComponent(v.id)}/confirm`, {}))
+export const useConfirmProposals = () => useModelWrite((v: { verdict: 'affected' | 'not_affected'; confidence: 'confident' | 'likely'; device?: string }) =>
+  api.post<{ confirmed: number }>('/findings/possible/confirm', v))
+export const useRejectProposal = () => useModelWrite((v: { key: string }) => api.post<{ ok: true }>(`/findings/possible/checks/${encodeURIComponent(v.key)}/reject`, {}))

@@ -146,7 +146,7 @@ func TestOracleLines_FailsClosed(t *testing.T) {
 		"graal": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:21.3.18",
 	}
 	jul := oracleDocText("CPUJul2026csaf", "2026-07-21", products, map[string]map[string][]string{
-		"CVE-2026-1001": {"known_affected": {"j8", "bad"}},                        // an unreadable release of Java
+		"CVE-2026-1001": {"known_affected": {"j8", "bad"}},                          // an unreadable release of Java
 		"CVE-2026-1002": {"known_affected": {"j8"}, "under_investigation": {"j21"}}, // a status not read
 		"CVE-2026-1003": {"known_affected": {"jmc", "graal"}},                       // other products only: no statement
 		"CVE-2026-1004": {"known_affected": {"j8"}},
@@ -154,11 +154,11 @@ func TestOracleLines_FailsClosed(t *testing.T) {
 		"CVE-2026-1006": {"known_affected": {"j21"}},
 	})
 	aug := oracleDocText("CSPUAug2026csaf", "2026-08-18", map[string]string{"j8": "Oracle Java SE Version 8u501", "j8old": "Oracle Java SE Version 8u481", "j21": "Oracle Java SE Version 21.0.12",
-		"j8b": "cpe:2.3:a:oracle:java_se:8u511b33:*:*:*:*:*:*:*",                      // a patch build as November 2026 writes it
+		"j8b": "cpe:2.3:a:oracle:java_se:8u511b33:*:*:*:*:*:*:*",                       // a patch build as November 2026 writes it
 		"j8p": "cpe:2.3:a:oracle:java_se:8u511b33:*:*:*:enterprise_performance:*:*:*"}, // the Performance Pack: another edition
 		map[string]map[string][]string{
-			"CVE-2026-1004": {"known_affected": {"j8"}},                               // a newer affected release on line 8
-			"CVE-2026-1005": {"known_not_affected": {"j8old"}},                        // 8u481 not affected, July lists 8u491 affected: disagree
+			"CVE-2026-1004": {"known_affected": {"j8"}},                                  // a newer affected release on line 8
+			"CVE-2026-1005": {"known_not_affected": {"j8old"}},                           // 8u481 not affected, July lists 8u491 affected: disagree
 			"CVE-2026-1007": {"known_affected": {"j8"}, "known_not_affected": {"j8old"}}, // one document, not affected below affected
 			"CVE-2026-1008": {"known_affected": {"j8b"}},
 			"CVE-2026-1009": {"known_affected": {"j8p", "j21"}}, // the Performance Pack and 21 only: plain Java 8 not listed

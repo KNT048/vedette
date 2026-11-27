@@ -6,6 +6,7 @@ import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { InfoTip } from '@/components/common/InfoTip'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { fmtRelative } from '@/lib/format'
 import { AnchorRedirect, ScrollToHash } from './anchors'
@@ -44,7 +45,7 @@ function ExposureView() {
     : scanned ? t('title.clean') : t('title.ready', { count: items.length })
   return (
     <>
-      <PageHeader title={title} stories={['S-EXP-1']} actions={items ? <AddTargetDialog items={items} /> : null} info={<p>{t('rule')}</p>}
+      <PageHeader title={title} stories={['S-EXP-1']} info={<p>{t('rule')}</p>}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{t('meta.rule')}</span>} />
       <AnchorRedirect map={ANCHOR_TAB} />
       <QueryState query={q}>
@@ -116,8 +117,10 @@ function TargetTree({ items }: { items: TargetNode[] }) {
     { id: 'issues', header: t('tree.col.issues'), enableSorting: false, cell: ({ row }) => <IssuesCell node={row.original} /> },
   ]
   return (
-    <Section id="targets" title={t('tree.title')} description={t('tree.description')} info={t('tree.descriptionInfo')}>
+    <section id="targets" aria-label={t('tree.title')}>
       <DataTable urlKey="exposure-tree" caption={t('tree.caption')} data={items} columns={columns} pageSize={50}
+        actions={<AddTargetDialog items={items} />}
+        summary={items.length ? <>{t('tree.summary', { count: items.length })}<InfoTip topic={t('tree.title')}><p>{t('tree.description')}</p><p>{t('tree.descriptionInfo')}</p></InfoTip></> : null}
         mobileRow={(n) => (
           <div className="grid gap-1.5">
             <NodeName n={n} depth={depth.get(n.id) ?? 0} parent={parentOf(n)} />
@@ -127,6 +130,6 @@ function TargetTree({ items }: { items: TargetNode[] }) {
           </div>
         )}
         empty={<EmptyState title={t('tree.emptyTitle')}><InfoLine topic={t('tree.emptyTitle')} info={t('tree.emptyBodyInfo')}>{t('tree.emptyBody')}</InfoLine></EmptyState>} />
-    </Section>
+    </section>
   )
 }

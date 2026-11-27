@@ -20,8 +20,8 @@ afterEach(() => { posts.length = 0 })
 const num = (s: string | null | undefined, re: RegExp) => Number(re.exec(s ?? '')?.[1] ?? Number.NaN)
 const title = async () => num((await screen.findByRole('heading', { level: 1, name: /open finding/ }, T)).textContent, /^(\d+) open finding/)
 const summary = async (tab: 'device' | 'fix') => {
-  const el = await waitFor(() => { const e = document.querySelector(`[data-count="${tab}"]`); if (!e) throw new Error('no summary'); return e }, T)
-  return num(el.textContent, /^(\d+) open finding/)
+  const el = await waitFor(() => { const e = document.querySelector(`[data-count="by-${tab}"]`); if (!e) throw new Error('no summary'); return e }, T)
+  return num(el.textContent, /(\d+) open finding/)
 }
 const devicesTable = () => screen.findByRole('table', { name: 'Devices with open findings' }, T)
 const fixesTable = () => screen.findByRole('table', { name: 'Fixes for open findings' }, T)
@@ -118,10 +118,10 @@ describe('By fix: a line in several steps says so', () => {
 describe('Findings: counts read as English', () => {
   it('one device, one fix and one finding are singular in the summaries and on a fix', async () => {
     renderApp('/findings?tab=device&by-device.q=CVE-2022-27593')
-    await waitFor(() => expect(document.querySelector('[data-count="device"]')).toHaveTextContent(/^1 open finding on 1 device$/), T)
+    await waitFor(() => expect(document.querySelector('[data-count="by-device"]')).toHaveTextContent(/^1 device, 1 open finding$/), T)
     renderApp('/findings?tab=fix&by-fix.q=CVE-2022-27593')
-    await waitFor(() => expect(document.querySelector('[data-count="fix"]')).toHaveTextContent(/^1 open finding, 1 fix$/), T)
-    expect(within(await fixesTable()).getByRole('button', { name: /^Update Photo Station/ })).toHaveTextContent(/1 device, 1 finding$/)
+    await waitFor(() => expect(document.querySelector('[data-count="by-fix"]')).toHaveTextContent(/^1 fix, 1 open finding$/), T)
+    expect(within(await fixesTable()).getByRole('article', { name: /Update Photo Station/ })).toHaveTextContent(/1 device, 1 finding/)
   })
 })
 

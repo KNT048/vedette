@@ -12,7 +12,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { Field, Textarea } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PageTabs } from '@/components/common/PageFrame'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
@@ -109,10 +109,7 @@ function Content() {
                   <EmptyState title={a.not_sent.reason === 'queued' || a.not_sent.reason === 'quiet_hours' ? t('detail.notYetTitle') : t('detail.noSendsTitle')} action={<NotSentFix notSent={a.not_sent} admin={admin} />}>{a.not_sent.text}</EmptyState>
                 ) : <EmptyState title={t('detail.noSendsTitle')} action={newChannel.button(t('incidents.setupChannels'))} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
               ) : (
-                <Tabs defaultValue={d.previews[0]!.channel}>
-                  <TabsList>{d.previews.map((p) => <TabsTrigger key={p.channel} value={p.channel}>{t(`ch.${p.channel}`)}</TabsTrigger>)}</TabsList>
-                  {d.previews.map((p) => <TabsContent key={p.channel} value={p.channel}><MessagePreview preview={p} label={t(`ch.${p.channel}`)} /></TabsContent>)}
-                </Tabs>
+                <PageTabs label={t('detail.sentTitle')} tabs={d.previews.map((p) => ({ id: p.channel, label: t(`ch.${p.channel}`), panel: <MessagePreview preview={p} label={t(`ch.${p.channel}`)} /> }))} />
               )}
             </Section>
             <Section id="log" title={t('detail.logTitle')}>

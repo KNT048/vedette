@@ -4,9 +4,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
+import { ExpandToggle, ListRow, ListToolbar } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { CveList, StatusBadge } from '@/components/common/status'
@@ -34,11 +34,8 @@ function Block({ device, block, narrowed, onHandle, fold = false }: { device: De
     <li className="grid gap-2 py-3 first:pt-0 last:pb-0" aria-label={what}>
       <div className="flex items-center justify-between gap-2">
         <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {fold ? (
-            <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="-ml-2 h-auto min-h-8 gap-1.5 whitespace-normal py-1 text-left">
-              <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} /><span className="font-medium [overflow-wrap:anywhere]">{what}</span>
-            </Button>
-          ) : <span className="font-medium [overflow-wrap:anywhere]">{what}</span>}
+          {fold ? <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} label={t('byDevice.toggleFix', { fix: what })} /> : null}
+          <span className="font-medium [overflow-wrap:anywhere]">{what}</span>
           <span className="text-muted">{block.fix.kind === 'none_yet' || block.fix.kind === 'unknown' ? t('byDevice.affects', { count: block.findings.length }) : t('byDevice.fixes', { count: block.findings.length })}</span>
           <StatusBadge code={block.status} />
           {block.findings.length > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: block.cause })}</span> : null}
@@ -72,27 +69,15 @@ export function DeviceCardView({ card, narrowed, onHandle, own = false }: { card
       {card.blocks.map((b) => <Block key={b.fix.key} device={card.device} block={b} narrowed={narrowed} onHandle={onHandle} fold={own} />)}
     </ul>
   )
+  if (own) return <article aria-label={card.device.name} className="grid gap-3 py-1">{counts}{list}</article>
   return (
-    <article aria-label={card.device.name} className="grid gap-3 py-1">
-      {own ? <>{counts}{list}</> : (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="grid gap-0.5">
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" aria-expanded={open} aria-controls={panel} aria-label={t('byDevice.toggle', { device: card.device.name })} onClick={() => setOpen((o) => !o)} className="size-8 shrink-0">
-                  <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} />
-                </Button>
-                <DeviceLine device={card.device} status={card.status} />
-              </div>
-              <span className="ml-9 flex flex-wrap items-center gap-x-2 text-meta text-muted">{counts}{urgency ? <span>{urgency}</span> : null}</span>
-              {top ? <span className="ml-9 text-meta text-muted">{t('byDevice.worst', { fix: title(top.fix, top.software), cve: top.cause })}</span> : null}
-            </div>
-            {!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}
-          </div>
-          {open ? list : null}
-        </>
-      )}
-    </article>
+    <ListRow label={card.device.name}
+      lead={<ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('byDevice.toggle', { device: card.device.name })} />}
+      title={<DeviceLine device={card.device} status={card.status} />}
+      meta={[<>{counts}{urgency ? <span>{urgency}</span> : null}</>, top ? t('byDevice.worst', { fix: title(top.fix, top.software), cve: top.cause }) : null]}
+      actions={!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}>
+      {open ? list : null}
+    </ListRow>
   )
 }
 
@@ -112,11 +97,10 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
   const named = q.data?.items.find((c) => c.device.id === device)?.device.name
   return (
     <div className="grid gap-3">
-      <StatusFilter />
-      <div className="flex flex-wrap items-center gap-2">
-        <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('byDevice.search')} />
+      <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('byDevice.search') }}>
         {device ? <Button size="sm" onClick={() => onDevice('')}><X />{t('byDevice.clearDevice', { device: named ?? t('byDevice.thisDevice') })}</Button> : null}
-      </div>
+        <StatusFilter />
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => d.total === 0 && !filtered ? (
           <EmptyState art="no-findings" title={t('byDevice.empty')}
@@ -128,8 +112,8 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
           </EmptyState>
         ) : (
           <>
-            <p role="status" className="text-sm" data-count="device">{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}</p>
             <DataTable urlKey="by-device" caption={t('byDevice.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
+              summary={t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
               mobileRow={(c) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} />} />
           </>

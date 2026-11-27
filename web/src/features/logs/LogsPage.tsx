@@ -10,7 +10,6 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -29,6 +28,7 @@ import { CATALOG } from './catalog'
 import { LAN_RANGE } from './places'
 import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
 import type { IocPair, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, Proto, SourcesResponse, SpikeItem } from './types'
+import { ListToolbar } from '@/components/common/ListParts'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 
@@ -259,14 +259,13 @@ function BadConnections({ feedsOn }: { feedsOn: boolean | undefined }) {
   ]
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <ListSearch value={list.q} onChange={(v) => list.set({ q: v, page: 0 })} label={t('digest.bad.search')} />
+      <ListToolbar search={{ value: list.q, onChange: (v) => list.set({ q: v, page: 0 }), label: t('digest.bad.search') }}>
         <Segmented label={t('events.window')} value={win} onChange={(v) => setParam('window', v, '7d')} options={[{ value: '24h', label: t('events.w24h') }, { value: '7d', label: t('events.w7d') }]} />
         <Select className="w-full sm:w-auto" aria-label={t('digest.bad.sortLabel')} value={sort} onChange={(e) => setParam('sort', e.target.value, 'last')}>
           <option value="last">{t('digest.bad.sortLast')}</option>
           <option value="hits">{t('digest.bad.sortHits')}</option>
         </Select>
-      </div>
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => d.total === 0 && !list.q ? (
           feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><DependencyLink reason={t('digest.bad.feedsOffReason')} to="/settings/modules#module-feeds" label={t('digest.bad.openModules')} /></EmptyState>
@@ -373,11 +372,10 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   ]
   return (
     <Section id="events" title={t('events.title')} description={t('events.description')}>
-      <div className="mb-3 flex flex-wrap items-end gap-3">
+      <ListToolbar className="mb-3" search={{ value: kw, onChange: (v) => list.set({ q: v, page: 0 }), label: t('events.q'), placeholder: t('events.qPlaceholder') }}>
         <Segmented label={t('events.window')} value={win} onChange={setWin} options={[{ value: '1h', label: t('events.w1h') }, { value: '24h', label: t('events.w24h') }, { value: '7d', label: t('events.w7d') }]} />
-        <Field label={t('events.source')} htmlFor="ev-source"><Select id="ev-source" className="h-8 w-44" value={source} onChange={(e) => setSource(e.target.value)}><option value="">{t('events.allSources')}</option>{sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
-        <Field label={t('events.q')} htmlFor="ev-q"><ListSearch id="ev-q" className="sm:w-56" value={kw} onChange={(v) => list.set({ q: v, page: 0 })} label={t('events.q')} placeholder={t('events.qPlaceholder')} /></Field>
-      </div>
+        <Select className="w-full sm:w-auto" aria-label={t('events.source')} value={source} onChange={(e) => setSource(e.target.value)}><option value="">{t('events.allSources')}</option>{sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => {
           const rows = [...d.events, ...extra.events]

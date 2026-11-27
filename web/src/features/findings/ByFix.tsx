@@ -6,9 +6,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ChevronDown } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
+import { InfoTip } from '@/components/common/InfoTip'
+import { ExpandToggle, ListRow, ListToolbar, RowRank } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { StatusBadge } from '@/components/common/status'
@@ -108,35 +108,33 @@ function FixCardView({ card, rank, same, loading, onHandle }: { card: FixCard; r
   const devices = t('byDevice.devices', { count: card.devices }) // "1 device", "3 devices"
   const nowOn = !from && card.fix.kind === 'update' ? [...new Set(card.items.map((d) => d.software?.version).filter((v): v is string => !!v))] : []
   return (
-    <article aria-label={t('byFix.step', { n: rank, fix: title })} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-2 py-1">
-      <span aria-hidden className="w-5 pt-1.5 text-right text-sm font-semibold text-muted tabular-nums" data-rank={rank}>{rank}</span>
-      <div className="grid min-w-0 gap-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <ListRow label={t('byFix.step', { n: rank, fix: title })}
+      lead={<><RowRank n={rank} /><ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={title} /></>}
+      title={<>
         {/* empty-guard: a fix card exists only for a fix with open findings (at least one) */}
-        <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)}
-          className="-ml-2 h-auto min-h-8 justify-start gap-1.5 whitespace-normal py-1 text-left">
-          <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} />
-          <span className="text-sm font-semibold [overflow-wrap:anywhere]">{title}</span>
-          <span className="font-normal text-muted">{t('byFix.counts', { count: card.findings, devices })}</span>
-          {/* devices that may be one machine say so instead of counting it twice without a word */}
-          {n < card.devices ? <span className="font-normal text-muted">{t('byFix.machines', { count: n })}</span> : null}
-        </Button>
+        <span className="font-semibold [overflow-wrap:anywhere]">{title}</span>
         <StatusBadge code={card.status} />
-        {card.findings > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: card.cause })}</span> : null}
-        <SeverityLine counts={card.severity} />
         <FixLink fix={card.fix} cve={card.cause} />
-        {nowOn.length ? <span className="w-full text-meta text-muted">{t('byFix.nowOn', { versions: listOf(nowOn) })}</span> : null}
-      </div>
+      </>}
+      meta={[
+        <>
+          <span>{t('byFix.counts', { count: card.findings, devices })}</span>
+          {/* devices that may be one machine say so instead of counting it twice without a word */}
+          {n < card.devices ? <span>{t('byFix.machines', { count: n })}</span> : null}
+          {card.findings > 1 ? <span>{t('byDevice.cause', { cve: card.cause })}</span> : null}
+          <SeverityLine counts={card.severity} />
+        </>,
+        nowOn.length ? t('byFix.nowOn', { versions: listOf(nowOn) }) : null,
+      ]}>
       {open ? (
-        <ul id={panel} aria-label={t('byFix.devicesOf', { fix: title })} className="ml-6 grid divide-y divide-rule border-l border-rule pl-3">
+        <ul id={panel} aria-label={t('byFix.devicesOf', { fix: title })} className="grid divide-y divide-rule">
           {card.items.map((d) => (
             <DeviceRow key={`${d.device.id}/${d.software?.id ?? ''}`} d={d} fixTitle={title} same={same.get(d.device.id) ?? []} busy={loading?.device.id === d.device.id && loading.fix === card.fix.key && loading.software === (d.software?.id ?? null)}
               onHandle={() => onHandle({ device: d.device, fix: card.fix.key, software: d.software?.id ?? null })} />
           ))}
         </ul>
       ) : null}
-      </div>
-    </article>
+    </ListRow>
   )
 }
 
@@ -158,16 +156,14 @@ export function ByFix({ status }: { status: string }) {
   ]
   return (
     <div className="grid gap-3">
-      <StatusFilter />
-      <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('byFix.search')} />
+      <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('byFix.search') }}>
+        <StatusFilter />
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => d.total === 0 && !filtered ? <EmptyState art="no-findings" title={t('byDevice.empty')}>{t('byDevice.emptyBody')}</EmptyState> : (
           <>
-            <div className="grid gap-0.5">
-              <p role="status" className="text-sm" data-count="fix">{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}</p>
-              {d.total > 1 ? <p className="text-meta text-muted">{t('byFix.order')}</p> : null}
-            </div>
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
+              summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
               mobileRow={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} />} />
           </>

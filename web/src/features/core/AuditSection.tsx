@@ -5,16 +5,16 @@ import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { QueryState } from '@/components/common/States'
 import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button } from '@/components/ui/button'
-import { Field, Input, Select } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
 import { fmtDateTime } from '@/lib/format'
 import { auditExportPath, useAudit } from './api'
 import { errMsg } from './parts'
 import type { AuditQuery, AuditRow } from './types'
+import { ListSummary, ListToolbar } from '@/components/common/ListParts'
 
 /** Rows of a page of the audit log by default. */
 const AUDIT_PAGE = 50
@@ -90,28 +90,21 @@ export default function AuditSection() {
   return (
     <>
       <PageHeader title={t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} />
-      <div role="search" aria-label={t('audit.filter.label')} className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Field label={t('audit.filter.text')} htmlFor="au-q"><ListSearch id="au-q" className="sm:max-w-none" value={list.q} onChange={(v) => list.set({ q: v, page: 0 })} label={t('audit.filter.text')} /></Field>
-        <Field label={t('audit.filter.user')} htmlFor="au-user">
-          <Select id="au-user" value={f.actor === 'people' ? PEOPLE : f.user} onChange={(e) => set(e.target.value === PEOPLE ? { actor: 'people', user: '' } : { actor: '', user: e.target.value })}>
-            <option value="">{t('audit.filter.any')}</option>
-            <option value={PEOPLE}>{t('audit.filter.people')}</option>
-            {q.data?.users.length ? <optgroup label={t('audit.filter.users')}>{q.data.users.map((u) => <option key={u} value={u}>{u}</option>)}</optgroup> : null}
-          </Select>
-        </Field>
-        <Field label={t('audit.filter.group')} htmlFor="au-group">
-          <Select id="au-group" value={f.group} onChange={(e) => set({ group: e.target.value })}><option value="">{t('audit.filter.any')}</option>{q.data?.groups.map((g) => <option key={g} value={g}>{t(`audit.group.${g}`, { defaultValue: g })}</option>)}</Select>
-        </Field>
-        <Field label={t('audit.filter.from')} htmlFor="au-from"><Input id="au-from" type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} /></Field>
-        <Field label={t('audit.filter.to')} htmlFor="au-to"><Input id="au-to" type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} /></Field>
-      </div>
-      {/* The list's toolbar, under the filters it counts: how many lines match (one line, the cut-off said in it) and Export CSV of them */}
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <p role="status" className="text-meta text-muted tabular-nums">
-          {q.data ? t('audit.count', { count: q.data.total }) : ''}
-        </p>
-        <DownloadButton variant="ghost" className="ml-auto" path={auditExportPath(f)} filename="vedette-audit.csv" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('audit.export')}</DownloadButton>
-      </div>
+      <ListToolbar className="mb-3" label={t('audit.filter.label')} search={{ value: list.q, onChange: (v) => list.set({ q: v, page: 0 }), label: t('audit.filter.text') }}>
+        <Select className="w-full sm:w-auto" aria-label={t('audit.filter.user')} value={f.actor === 'people' ? PEOPLE : f.user} onChange={(e) => set(e.target.value === PEOPLE ? { actor: 'people', user: '' } : { actor: '', user: e.target.value })}>
+          <option value="">{t('audit.filter.anyUser')}</option>
+          <option value={PEOPLE}>{t('audit.filter.people')}</option>
+          {q.data?.users.length ? <optgroup label={t('audit.filter.users')}>{q.data.users.map((u) => <option key={u} value={u}>{u}</option>)}</optgroup> : null}
+        </Select>
+        <Select className="w-full sm:w-auto" aria-label={t('audit.filter.group')} value={f.group} onChange={(e) => set({ group: e.target.value })}><option value="">{t('audit.filter.anyGroup')}</option>{q.data?.groups.map((g) => <option key={g} value={g}>{t(`audit.group.${g}`, { defaultValue: g })}</option>)}</Select>
+        <label className="flex items-center gap-1.5 text-meta text-muted">{t('audit.filter.from')}<Input className="w-auto" type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} /></label>
+        <label className="flex items-center gap-1.5 text-meta text-muted">{t('audit.filter.to')}<Input className="w-auto" type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} /></label>
+      </ListToolbar>
+      {/* the count of the lines that match (the cut-off said in it) and Export CSV of them */}
+      <ListSummary id="audit" className="mb-2"
+        actions={<DownloadButton variant="ghost" path={auditExportPath(f)} filename="vedette-audit.csv" onError={(e) => toast.error(errMsg(e, t))}><Download />{t('audit.export')}</DownloadButton>}>
+        {q.data ? t('audit.count', { count: q.data.total }) : ''}
+      </ListSummary>
       <QueryState query={q}>
         {(d) => (
           <>

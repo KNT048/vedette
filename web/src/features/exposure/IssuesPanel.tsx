@@ -118,25 +118,24 @@ function IssuesTable({ node, issues, services }: { node: TargetNode; issues: Iss
   ]
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Segmented<IssueState> label={t('issues.view')} value={view} onChange={setView} options={VIEWS.map((v) => ({ value: v, label: t(`issues.views.${v}`, { count: count(v) }) }))} />
-        {picked.length ? (
-          <div role="region" aria-label={t('issues.selection')} className="flex flex-wrap items-center gap-2">
-            <span className="text-meta font-medium">{t('issues.selected', { count: picked.length })}</span>
-            {/* empty-guard: the bar shows only with a selection */}
-            {view === 'open' ? <Button size="sm" variant="primary" onClick={(e) => { opener.current = e.currentTarget; setHandling(picked) }}>{t('issues.markSelected', { count: picked.length })}</Button>
-              : <Button size="sm" variant="primary" busy={reopen.isPending} busyLabel={t('issues.reopening')} onClick={() => doReopen(picked)}>{t('issues.reopenSelected', { count: picked.length })}</Button>}
-            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>{t('issues.clearSelection')}</Button>
-          </div>
-        ) : null}
-      </div>
       {only ? (
         <p className="flex flex-wrap items-center gap-2 text-meta">
           <span>{t('issues.onlyService', { where: `${only.ip}:${only.port}/${only.proto}` })}</span>
           <Button size="sm" variant="ghost" onClick={clearOnly}>{t('issues.allServices')}</Button>
         </p>
       ) : null}
-      <DataTable urlKey="exposure-issues" resetPageOn={`${view}:${only?.id ?? ''}`} caption={t('issues.caption', { value: node.value })} data={rows} columns={columns} pageSize={25}
+      <DataTable urlKey="exposure-issues" resetPageOn={`${view}:${only?.id ?? ''}`}
+        toolbar={<Segmented<IssueState> label={t('issues.view')} value={view} onChange={setView} options={VIEWS.map((v) => ({ value: v, label: t(`issues.views.${v}`, { count: count(v) }) }))} />}
+        actions={picked.length ? (
+          <div role="region" aria-label={t('issues.selection')} className="flex flex-wrap items-center gap-2">
+            <span className="text-meta font-medium">{t('issues.selected', { count: picked.length })}</span>
+          {/* empty-guard: the bar shows only with a selection */}
+          {view === 'open' ? <Button size="sm" variant="primary" onClick={(e) => { opener.current = e.currentTarget; setHandling(picked) }}>{t('issues.markSelected', { count: picked.length })}</Button>
+            : <Button size="sm" variant="primary" busy={reopen.isPending} busyLabel={t('issues.reopening')} onClick={() => doReopen(picked)}>{t('issues.reopenSelected', { count: picked.length })}</Button>}
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>{t('issues.clearSelection')}</Button>
+          </div>
+        ) : null}
+        caption={t('issues.caption', { value: node.value })} data={rows} columns={columns} pageSize={25}
         initialSort={[{ id: 'severity', desc: false }]} onRowClick={setDetail}
         mobileRow={(i) => (
           <div className="grid gap-1.5">

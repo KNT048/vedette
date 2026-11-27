@@ -501,7 +501,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
     const toast = (await screen.findByText(/^Added .+ to your devices\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
-    expect(await screen.findByText(/1 not added yet/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/1 new device not added yet/, undefined, T)).toBeInTheDocument()
     // The toast says where to find it again and opens the device
     expect(within(toast).getByText('Find it later in Devices.')).toBeInTheDocument()
     const approved = pending.find((id) => find(id).approved)!
@@ -2322,7 +2322,8 @@ describe('inventory: naming, versions, Software tab (S-INV-2)', () => {
     const id = await addOffice({ version: '2019', ip: '192.168.10.240' })
     assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, software: [...a.software, { ...a.software[0]!, id: 'sw-agent-office', version: '2021', source: 'agent' as const, confidence: 0.95 }] } : a)))
     renderApp(`/devices/${id}?tab=software`)
-    expect(await screen.findByText(/Also seen by: 2019 \(Manual/, undefined, T)).toBeInTheDocument()
+    // the rows render again once the device's other reads arrive: assert on the row in the document, not on the first one found
+    await waitFor(() => expect(screen.getByText(/Also seen by: 2019 \(Manual/)).toBeInTheDocument(), T)
     expect(within(screen.getByRole('table', { name: 'Software on the device' })).getAllByText('Microsoft Office')).toHaveLength(1)
     expect(screen.queryByText(/another release/)).not.toBeInTheDocument()
   })

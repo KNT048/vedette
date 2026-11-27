@@ -479,6 +479,8 @@
     "description": "Your domains and public IPs. A name under a domain target sits under it.",
     "descriptionInfo": "A domain's ownership proof covers every name under it, so a name added under a proven domain needs no proof of its own. A name that is its own target keeps its own options and is skipped by the scan of the domain above it, so it is never scanned twice.",
     "caption": "Targets",
+    "summary_one": "{{count}} target",
+    "summary_other": "{{count}} targets",
     "under": "under {{parent}}",
     "boxIp": "This box's IP",
     "off": "Off",

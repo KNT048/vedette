@@ -7,6 +7,7 @@ import { slotComponents } from '@/app/feature'
 import { PageHeader } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { PageTabs } from '@/components/common/PageFrame'
+import { ListSummary } from '@/components/common/ListParts'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { groupState, useRowSelection } from '@/components/common/Selection'
 import { Slot } from '@/components/common/Slot'
@@ -177,7 +178,8 @@ type Query = ReturnType<typeof useDeviceQuery>
 /** What Body puts in the toolbar of both lists: the count line and the page's buttons. */
 type Bar = { all: number; pending: number; actions: React.ReactNode }
 
-function DeviceSearch({ rows, top, now, query, same, bar, shown }: { rows: DeviceRow[]; top: SoftwareName[]; now: number; query: Query; same: SameIds; bar: Bar; shown: number }) {
+/** `count` false: the list under it draws its own count line (To review: "2 new devices not added yet"). */
+function DeviceSearch({ rows, top, now, query, same, bar, shown, count: withCount = true }: { rows: DeviceRow[]; top: SoftwareName[]; now: number; query: Query; same: SameIds; bar: Bar; shown: number; count?: boolean }) {
   const { t } = useTranslation('inventory')
   const keys = useMemo(() => deviceKeys(rows, now, same, top), [rows, now, same, top])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
@@ -194,7 +196,7 @@ function DeviceSearch({ rows, top, now, query, same, bar, shown }: { rows: Devic
   ]
   // A chip that would show 0 is left out (To review would read "SNMP 0, osquery 0, Manual 0"), unless it is on (#849 review L11).
   const shownChips = chips.filter((c) => c.count !== 0 || hasToken(query.q, c.token))
-  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} summary={<CountLine q={query.q} shown={shown} total={rows.length} bar={bar} />} actions={bar.actions} />
+  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} summary={withCount ? <CountLine q={query.q} shown={shown} total={rows.length} bar={bar} /> : null} actions={bar.actions} />
 }
 
 /** The toolbar's one count line, read out as the list changes (WCAG 4.1.3; the live region is always there so the first change and
@@ -205,7 +207,7 @@ function CountLine({ q, shown, total, bar }: { q: string; shown: number; total: 
   const text = q.trim()
     ? [t('search.shownOf', { shown, count: total }), bar.pending > 0 ? t('search.pending', { count: bar.pending }) : ''].filter(Boolean).join(' · ')
     : bar.pending > 0 ? t('list.title', { count: bar.all, pending: bar.pending }) : t('list.titleAllApproved', { count: bar.all })
-  return <span role="status" aria-live="polite" className="text-meta text-muted tabular-nums">{text}</span>
+  return <ListSummary id="devices">{text}</ListSummary>
 }
 
 /** How long the search's `software:` words must stay the same before the server is asked: each answer reads every device's lines. */
@@ -407,7 +409,7 @@ function ReviewList({ rows, top, now, notifyNew, notifyAvailable, query, same, b
   return (
     <section className="grid min-w-0 gap-3">
       <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
-        search={<><DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} /></>} filtered={!!q} onClear={clear}
+        search={<DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} count={false} />} filtered={!!q} onClear={clear}
         none={sw.waiting || sw.error ? <SoftwareNote {...sw} /> : undefined} />
     </section>
   )

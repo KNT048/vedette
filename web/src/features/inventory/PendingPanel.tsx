@@ -17,6 +17,7 @@ import { nameOf } from './nameOf'
 import type { DeviceRow } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 import { InfoTip } from '@/components/common/InfoTip'
+import { ListSummary } from '@/components/common/ListParts'
 import { SameHint } from './SameDevice'
 import { RiskMarker } from './RiskMarker'
 
@@ -77,23 +78,21 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
   const ready = pending.filter((d) => !d.suspicious)
   return (
     <section aria-labelledby="pending-title" className="mb-8 grid min-w-0 gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-0.5">
-          <div className="flex items-center gap-1">
-            <h2 id="pending-title" className="text-base font-semibold">{total ? t('pending.title', { count: total }) : t('pending.titleNone')}</h2>
-            <InfoTip topic={t('tabs.review')}>{t('pending.descriptionInfo')}</InfoTip>
-          </div>
-          <p className="max-w-3xl text-meta text-muted">{t('pending.description')}</p>
-          {total ? <p className="max-w-3xl text-meta text-muted">{t('pending.choiceHint')}</p> : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      {total ? search : null}
+      <ListSummary id="review" actions={
+        <>
           {ready.length > 1 ? <Button size="sm" variant="primary" disabled={!can || approveAll.isPending} busy={approveAll.isPending} busyLabel={t('inventory:pending.adding')}
             title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setConfirmAll(true)}>{t('pending.approveAll', { count: ready.length })}</Button> : null}
-          <Switch id="notify-new" checked={notifyNew} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
-            onCheckedChange={(v) => notify.mutate(v, { onSuccess: () => toast.success(v ? t('pending.notifyOn') : t('pending.notifyOff')), onError: (e) => toast.error(errMsg(e)) })} />
-          <label htmlFor="notify-new" className="text-sm">{t('pending.notify')}</label>
-        </div>
-      </div>
+          <span className="inline-flex items-center gap-2">
+            <Switch id="notify-new" checked={notifyNew} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+              onCheckedChange={(v) => notify.mutate(v, { onSuccess: () => toast.success(v ? t('pending.notifyOn') : t('pending.notifyOff')), onError: (e) => toast.error(errMsg(e)) })} />
+            <label htmlFor="notify-new" className="text-sm">{t('pending.notify')}</label>
+          </span>
+        </>
+      }>
+        <span id="pending-title">{total ? t('pending.title', { count: total }) : t('pending.titleNone')}</span>
+        <InfoTip topic={t('tabs.review')}><p>{t('pending.description')} {t('pending.choiceHint')}</p><p>{t('pending.descriptionInfo')}</p></InfoTip>
+      </ListSummary>
       <Dialog open={confirmAll} onOpenChange={setConfirmAll}>
         <DialogContent title={t('pending.approveAllTitle', { count: ready.length })} description={t('pending.approveAllBody', { count: ready.length })}>
           <DialogFooter>
@@ -109,7 +108,6 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
       {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
       {/* The channels page is an administrator's: others get the sentence without a link they cannot open */}
       {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')}{admin ? <> <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></> : null}</p> : null}
-      {total ? search : null}
       {pending.length ? (
         <Card flush>
           <ul className="divide-y divide-rule" aria-label={t('pending.title', { count: pending.length })}>

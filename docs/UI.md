@@ -166,7 +166,7 @@ Two components, one look, as Primer splits UnderlineNav and UnderlinePanels ([Un
 `PageTabs` for panels of one page (`role=tablist`, `?tab=`, replace history, arrows/Home/End: [APG tabs](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/));
 `UnderlineNav` for links between pages (`aria-current="page"`; Settings: a row below `lg`, the vertical menu from `lg`).
 `components/ui/tabs.tsx` stays private to `PageTabs` (guard in `PageFrame.test.tsx`). Underline 2 px `accent`
-under the open item, label `text-sm`, open item `font-medium ink`, counts as a `Counter`. Narrow screens: the row scrolls
+under the open item (the only mark of the open tab: a tab clicked with a pointer draws no focus ring, the keyboard still does), label `text-sm`, open item `font-medium ink`, counts as a `Counter`. Narrow screens: the row scrolls
 sideways inside itself and the open item scrolls into view; it never wraps and never becomes a select (Material's scrollable
 tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs, one or two words each. `Segmented` (exists;
 **fix**: selected = `accent-soft` + `accent` edge) is for filters, never for sections.
@@ -185,6 +185,19 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   over 3 columns). `empty` is "nothing yet"; when filters hide every row (its own text filter, or the page's: `filtered`) it shows
   `emptyFiltered`, by default "No rows match these filters." with "Clear filters" (`onClearFilters` clears the page's). Anatomy as
   [Primer DataTable](https://primer.style/product/components/data-table/).
+- **List anatomy** (`components/common/ListParts.tsx`), the same on every page and tab, top to bottom:
+  1. `ListToolbar` (DataTable draws it; a page that keeps the search above a server-paged list uses it directly): search
+     first, then the filters (`Segmented`, an unlabelled `Select` whose first option names "every …", toggles), then the list's
+     actions at the right end (Export, Add …; the primary one last). The add action of a list lives here, not in the page header.
+  2. `ListSummary` (DataTable `summary`): one `text-meta` muted line, "<count> <rows>" with an optional qualifier after a comma
+     ("7 devices, 16 open findings", "9 fixes, 16 open findings", "3 handled findings"); what the list is and how it is ordered
+     goes behind its ⓘ; buttons that act on the whole list as shown (Add all, Export CSV) sit at its right end.
+  3. The table. A DataTable of one column is a list of cards: its header is for screen readers only, as a `list` has none.
+     A card row is a `ListRow`: lead (`ExpandToggle`, a rank) | title line (the name, a link when it has a page, then its
+     badges) and short muted meta lines | actions on the right; the opened part is indented under the title.
+  A tab whose panel is one list has no heading repeating the tab's name. `ExpandToggle` is the one disclosure: a chevron
+  pointing right when closed and down when open, as an icon before a row's title or as a small text button ("Settings").
+  `src/test/layoutGuard.test.ts` fails on a tab row, list search, count line, disclosure chevron or "Back to …" link built by hand.
 
 ## 6. Empty state (`EmptyState` exists; **fix**: `art` prop; **build** `components/common/Illustration.tsx`)
 

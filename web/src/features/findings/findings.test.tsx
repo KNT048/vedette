@@ -419,7 +419,7 @@ describe('findings: the device page\'s Findings tab', () => {
   it('shows this device\'s card only: its fix blocks, each CVE a link to its finding, Mark as handled… in place', async () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/devices/a-nas02?tab=findings')
-    expect(await screen.findByRole('heading', { name: 'Findings on this device' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Findings on this device' })).toBeInTheDocument()
     const card = await screen.findByRole('article', { name: 'NAS-PHOTOS' })
     await expandAll(card)
     expect(within(card).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/fv-nas02-ps-1')

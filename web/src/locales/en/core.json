@@ -266,7 +266,8 @@
       "group": "Kind of action",
       "from": "From date",
       "to": "To date",
-      "any": "All",
+      "anyUser": "Anyone",
+      "anyGroup": "Every kind of action",
       "people": "Not the system (people and tools)",
       "users": "One user"
     },

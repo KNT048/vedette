@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { CalendarClock, ChevronDown, Play } from 'lucide-react'
+import { CalendarClock, Play } from 'lucide-react'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -11,6 +11,7 @@ import { useRunSchedule, useSaveSchedule, useSchedule } from './api'
 import { describeRule, intervalProblem, toDraft, toSave, type Draft } from './rule'
 import { fieldError, fmtInZone, orgZoneOf, ScheduleFields } from './ScheduleFields'
 import type { Schedule } from './types'
+import { ExpandToggle } from '@/components/common/ListParts'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -84,9 +85,7 @@ function Summary({ s, name, runNow, blocked }: { s: Schedule; name: string; runN
       {s.last_skip_reason ? <p className="text-meta text-warn">{t('skipped', { time: s.last_skip_at ? when(s.last_skip_at) : '', reason: s.last_skip_reason })}</p> : null}
       {s.upcoming.length > 1 || s.last_run_id || s.updated_by ? (
         <div className="grid gap-1.5">
-          <Button variant="ghost" size="sm" className="w-fit" aria-expanded={details} aria-controls={panel} aria-label={t('detailsOf', { name })} onClick={() => setDetails(!details)}>
-            <ChevronDown className={details ? 'rotate-180' : ''} aria-hidden />{t('details')}
-          </Button>
+          <ExpandToggle open={details} onToggle={() => setDetails(!details)} controls={panel} label={t('detailsOf', { name })}>{t('details')}</ExpandToggle>
           {details ? (
             <div id={panel} className="grid gap-2 border-l-2 border-rule pl-4 text-sm">
               {s.enabled && !paused && !blocked && s.upcoming.length ? (

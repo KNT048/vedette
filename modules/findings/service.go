@@ -909,18 +909,18 @@ func stillReportedError(fs []Finding) error {
 // stillListMax is how many CVEs one still_reported answer names before "and N more".
 const stillListMax = 5
 
-// shortCVEList names the CVEs of fs, each once, in their order: at most max, then "and N more".
-func shortCVEList(fs []Finding, max int) string {
+// shortCVEList names the CVEs of fs, each once, in their order: at most n, then "and N more".
+func shortCVEList(fs []Finding, n int) string {
 	var cves []string
 	for _, f := range fs {
 		if !slices.Contains(cves, f.CVE) {
 			cves = append(cves, f.CVE)
 		}
 	}
-	if len(cves) <= max {
+	if len(cves) <= n {
 		return strings.Join(cves, ", ")
 	}
-	return fmt.Sprintf("%s and %d more", strings.Join(cves[:max], ", "), len(cves)-max)
+	return fmt.Sprintf("%s and %d more", strings.Join(cves[:n], ", "), len(cves)-n)
 }
 
 func (s *Service) handle(ctx context.Context, ids []string, res Resolution, note string, until time.Time, user string, confirm bool) (handled, skipped int, err error) {

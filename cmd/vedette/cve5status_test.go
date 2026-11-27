@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"slices"
 	"strings"
 	"testing"
@@ -176,4 +177,70 @@ func rowsText(rows []feeds.Range) string {
 		fmt.Fprintf(&b, "[%s %s/%s %q..%q|%q %s] ", r.Origin, r.Vendor, r.Product, r.StartIncl, r.EndIncl, r.EndExcl, r.DefaultStatus)
 	}
 	return b.String()
+}
+
+// A box upgraded from a reader that kept a third-party CNA's defaultStatus "unaffected" (before ranges-6) holds those rows until the
+// whole list is read again, which can take hours or never come when the CVE records source is off. Feeds' migration 0003 stores them
+// unknown at once, so from the first match pass a third party's exact list decides nothing negative: Notepad++ 8.6.5 against CSA's
+// record of CVE-2026-3008 (affected 8.9.3 only) and AnyDesk 9.7.6 against VulnCheck's of CVE-2025-34499 (7.0.15 and 9.0.1) stay
+// questions, as before ranges-6.
+func TestCVE5Status_StoredBeforeTheReRead(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		cve, vendor, product, version string
+		exact                         []string
+	}{
+		{"CVE-2026-3008", "notepad", "notepad", "8.6.5", []string{"8.9.3"}},
+		{"CVE-2025-34499", "anydesk", "anydesk", "ad 9.7.6", []string{"7.0.15", "9.0.1"}}, // as the agent reads AnyDesk's version
+	} {
+		t.Run(c.cve, func(t *testing.T) {
+			t.Parallel()
+			s := newStack(t)
+			ctx := t.Context()
+			err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+				if err := seedNVD(ctx, tx, c.cve, time.Now().AddDate(0, -1, 0), 7.5); err != nil {
+					return err
+				}
+				for _, v := range c.exact { // as the older reader stored the third party's list: unlisted versions "unaffected"
+					if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, default_status)
+VALUES (?, 'cna', '', ?, ?, '', ?, '', ?, '', 'unaffected')`, c.cve, c.vendor, c.product, v, v); err != nil {
+						return err
+					}
+				}
+				return applyFeedsMigration(ctx, tx, "0003_")
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "pc-01"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			items := []inventory.SoftwareItem{{Display: c.product, Vendor: c.vendor, Product: c.product, Version: c.version, Confidence: 0.9}}
+			if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "osquery"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.d.Findings.Reconcile(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = ?`, id, c.cve); q != 1 {
+				t.Errorf("%s %s: %d questions, want 1 (a third party's list proves nothing about the versions it did not list)", c.product, c.version, q)
+			}
+		})
+	}
+}
+
+// applyFeedsMigration runs the up statements of the feeds migration whose file name starts with prefix on rows written after the
+// test box migrated (a box's rows before the upgrade).
+func applyFeedsMigration(ctx context.Context, tx *sql.Tx, prefix string) error {
+	names, err := fs.Glob(feeds.Migrations, prefix+"*.sql")
+	if err != nil || len(names) != 1 {
+		return fmt.Errorf("feeds migration %s: %v: %w", prefix, names, err)
+	}
+	b, err := fs.ReadFile(feeds.Migrations, names[0])
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, string(b))
+	return err
 }

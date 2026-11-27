@@ -227,7 +227,7 @@ func TestSelfcheck_MatchedVersionOnLine(t *testing.T) {
 
 // Range precedence exempts a finding whose line is a product with a version scheme, resolved as the matcher resolves it: a NetScaler
 // line nmap names "netscaler gateway" by its CPE is NetScaler, whose vendor rows decide before NVD's. A finding of another product
-// that rests on the CVE record's rows while NVD has rows breaks precedence.
+// that rests on CVE record rows the catalogue does not hold breaks precedence.
 func TestSelfcheck_RangePrecedenceResolvesTheLineProduct(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)

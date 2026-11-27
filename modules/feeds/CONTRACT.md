@@ -90,7 +90,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   affected. A CNA row whose product's list is complete (every row says what an unlisted version is) also decides "not affected"
   (`VendorList`); any other CNA row beside NVD's only says "affected" (`AffectedOnly`), and only for a version it states. An ADP row is
   read only when NVD gives none. `defaultStatus: unaffected` is kept only from the vendor's own CNA (`ownCNA`: assigner and vendor name
-  the same company, or the entry names no vendor); a third-party CNA's is stored `unknown` on the generic rows. An entry whose
+  the same company; an entry that names no vendor is no one's own); a third-party CNA's is stored `unknown` on the generic rows. The
+  rows an older reader stored carry no assigner: migration `0003_feeds_record_trust` stores their generic `unaffected` as `unknown`
+  until the whole list is read again with reader `ranges-6`, so no stale third-party list decides "not affected" in between
+  (`TestCVE5Status_StoredBeforeTheReRead`). An entry whose
   `defaultStatus` is affected states every version affected: the matcher reads its row from version 0 (`recordEvery`); a version word
   ("all") without it does not. `TestCVE5Status_DefaultStatusByAssigner`, `TestCVE5Status_EndToEnd` (cmd/vedette). A vendor row that
   no version scheme can order is shown, never matched. A record row that states no version is never read in a version scheme (it stays

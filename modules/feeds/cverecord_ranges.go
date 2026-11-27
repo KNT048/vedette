@@ -180,16 +180,17 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 	return rows, skipped, statedDropped
 }
 
-// ownCNA says the record's assigner is the vendor of the entry (assignerShortName and vendor name the same company once company words
-// are dropped: "fortinet" and "Fortinet", "openssl" and "OpenSSL"), or the entry names no vendor (the CNA's own product). Only then
-// does the entry's defaultStatus "unaffected" say anything about the versions it does not list: the vendor knows every release it
-// shipped, while a third-party CNA (VulnCheck, a bug bounty platform, a national CERT) lists the releases it tested, and its "unaffected"
-// for the rest is no evidence (CVE JSON 5 leaves the trust in defaultStatus to the reader; versions.md). Such an entry is read with
-// defaultStatus unknown: its listed versions still say "affected", a version it does not list stays a question.
+// ownCNA says the record's assigner is the vendor of the entry: assignerShortName and vendor name the same company once company words
+// are dropped ("fortinet" and "Fortinet", "openssl" and "OpenSSL"). Only then does the entry's defaultStatus "unaffected" say
+// anything about the versions it does not list: the vendor knows every release it shipped, while a third-party CNA (VulnCheck, a bug
+// bounty platform, a national CERT) lists the releases it tested, and its "unaffected" for the rest is no evidence (CVE JSON 5 leaves
+// the trust in defaultStatus to the reader; versions.md). An entry that names no vendor ("n/a", empty) does not say whose product it
+// is, so it is never the assigner's own. Such an entry is read with defaultStatus unknown: its listed versions still say "affected",
+// a version it does not list stays a question.
 func ownCNA(assigner, vendor string) bool {
 	v := productid.NormVendor(vendor)
 	if noVendor[v] {
-		return true
+		return false
 	}
 	a := productid.NormVendor(assigner)
 	return a != "" && a == v

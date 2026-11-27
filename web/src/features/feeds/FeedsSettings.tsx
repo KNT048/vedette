@@ -23,7 +23,7 @@ export default function FeedsSettings() {
   const sources = useFeedSources()
   return (
     <div className="grid max-w-5xl gap-2">
-      <PageHeader title={t('settings.title')} meta={t('settings.direct')} info={t('settings.directInfo')} stories={['S-FEED-4', 'S-FEED-5']} />
+      <PageHeader title={t('common:shell.feedsSettings')} meta={t('settings.direct')} info={t('settings.directInfo')} stories={['S-FEED-4', 'S-FEED-5']} />
       <QueryState query={sources}>{(d) => <Tables items={d.items} />}</QueryState>
     </div>
   )

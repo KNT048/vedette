@@ -554,7 +554,7 @@ test.describe('Clean install: first-time user', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await finishWizard(page)
     await page.goto('/devices')
-    await expect(h1(page)).toHaveText('Only the Vedette box so far') // only the box itself: it is always the first device (INV-3)
+    await expect(page.getByText('No other devices yet')).toBeVisible() // only the box itself: it is always the first device (INV-3)
     await expect(page.getByRole('button', { name: 'Add a device' }).last()).toBeEnabled()
     // header + the box on a desktop table; the box alone in the phone list (DataTable mobileRow below 768 px)
     const table = page.getByRole('table', { name: 'Device list' })

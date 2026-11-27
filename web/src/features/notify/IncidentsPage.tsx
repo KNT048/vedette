@@ -117,7 +117,7 @@ function Content() {
   const [bulk, setBulk] = useState<BulkStatus | null>(null)
   const opener = useRef<HTMLButtonElement>(null)
   const fresh = q.data?.incidents.filter((a) => a.status === 'new').length ?? 0
-  const title = !q.data ? t('incidents.titleLoading') : fresh === 0 ? t('incidents.titleNone') : t('incidents.title', { count: fresh })
+  const status = !q.data ? null : fresh === 0 ? t('incidents.titleNone') : t('incidents.title', { count: fresh })
   const all = q.data?.incidents ?? []
   const openRows = all.filter((a) => a.status !== 'resolved')
   const rowsFor = (x: Tab) => all.filter((a) => (x === 'open' ? a.status !== 'resolved' && (!onlyUrgent || urgent(a)) && (!onlyUnsent || needsFix(a.not_sent)) : a.status === 'resolved') && (kind === 'all' || a.kind === kind))
@@ -231,7 +231,7 @@ function Content() {
   )
   return (
     <>
-      <PageHeader title={title} stories={['S-ALERT-3', 'S-UI-1']} info={t('incidents.retention')} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')}<SampleDataNote /></span> : null} />
+      <PageHeader title={t('common:shell.incidents')} stories={['S-ALERT-3', 'S-UI-1']} info={<><p>{t('incidents.meta')}</p><p>{t('incidents.retention')}</p></>} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{status}<SampleDataNote /></span> : null} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'open', label: t('tabs.open'), panel, badge: { count: openRows.length, label: t('tabs.openBadge') } },

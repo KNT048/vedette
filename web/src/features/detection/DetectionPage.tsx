@@ -23,7 +23,7 @@ export default function DetectionPage() {
   const ov = useOverview()
   return (
     <>
-      <PageHeader title={t('title')} meta={t('meta')} stories={['S-IDS-1', 'S-LOG-4', 'S-HP-1']} />
+      <PageHeader title={t('common:shell.detection')} meta={t('meta')} stories={['S-IDS-1', 'S-LOG-4', 'S-HP-1']} />
       {ov.error ? <ErrorState error={ov.error} onRetry={() => void ov.refetch()} /> : ov.isPending ? <Loading /> : (
         <>
           <Kinds kinds={ov.data.kinds} />

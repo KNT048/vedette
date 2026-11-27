@@ -166,7 +166,7 @@ describe('logs: the syslog header of a listed line', () => {
 describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the heading answers the question, the Digest tab shows its tables, the Sources tab the sources, no a11y violations', async () => {
     renderApp('/logs')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 2 connections and 1 blocked attempt to bad destinations, 3 new log types, 2 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByText('Today: 2 connections and 1 blocked attempt to bad destinations, 3 new log types, 2 spikes.')).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'New log types' })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Log types with a spike' })).toBeInTheDocument()
@@ -461,7 +461,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('no sources yet: the empty state says what to do and nothing else is shown', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, sources: [], retention_days: 30 })))
     renderApp('/logs')
-    expect(await screen.findByRole('heading', { level: 1, name: 'No device is sending logs to the box yet.' })).toBeInTheDocument()
+    expect(await screen.findByText('No device is sending logs to the box yet.')).toBeInTheDocument()
     expect(screen.getByText('No log sources yet')).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'New log types' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Keyword')).not.toBeInTheDocument()
@@ -543,10 +543,10 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       http.get('*/api/v1/logs/events', () => HttpResponse.json({ events: [], total: lines, next_cursor: null })),
     )
     renderApp('/logs?tab=sources')
-    expect(await screen.findByRole('heading', { level: 1, name: 'No log line received yet.' })).toBeInTheDocument()
+    expect(await screen.findByText('No log line received yet.')).toBeInTheDocument()
     lines = 34
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    expect(await screen.findByRole('heading', { level: 1, name: /^Today: logs look normal/ })).toBeInTheDocument()
+    expect(await screen.findByText(/^Today: logs look normal/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: 'Events' }))
     expect(await screen.findByText(/0 of 34 matching lines/)).toBeInTheDocument()
   })
@@ -554,7 +554,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('less than the baseline of logs: the page says it is still learning, not that logs look normal', async () => {
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 34, baseline_days: 7, history_days: 0, new: [], spikes: [], bad_connections: [], ioc_matching: true })))
     renderApp('/logs')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Learning what is normal: 0 of 7 days of logs so far.' })).toBeInTheDocument()
+    expect(await screen.findByText('Learning what is normal: 0 of 7 days of logs so far.')).toBeInTheDocument()
     expect(await screen.findByText(/^No new log types yet\. The box is still learning/)).toBeInTheDocument()
     expect(screen.queryByText(/look normal|compared with 7 days ago|compared with the previous/)).not.toBeInTheDocument()
   })
@@ -564,7 +564,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [item], spikes: [], bad_connections: [], ioc_matching: false })))
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/logs')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 new log type, 0 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByText('Today: 1 new log type, 0 spikes.')).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules#module-feeds')
   })
 
@@ -573,10 +573,10 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     let hits = [hit('h-1', true)]
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: hits, ioc_matching: true })))
     renderApp('/logs?tab=sources')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByText('Today: 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.')).toBeInTheDocument()
     hits = [hit('h-1', true), hit('h-2', false)]
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 connection and 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByText('Today: 1 connection and 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.')).toBeInTheDocument()
   })
 
   it('syslog from an address that is not a source is named, with a way to add it; a viewer does not see addresses (S-LOG-1)', async () => {
@@ -664,7 +664,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
 describe('logs: SIEM forwarding (S-LOG-3)', () => {
   it('no a11y violations; an unconfigured form shows a sample record', async () => {
     renderSiem()
-    expect(await screen.findByRole('heading', { name: 'Forward to a SIEM' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'SIEM forwarding' })).toBeInTheDocument()
     expect(screen.getByText(/<131>1 .* finding\.created/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })

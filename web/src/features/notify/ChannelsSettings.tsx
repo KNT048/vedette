@@ -532,7 +532,7 @@ export default function ChannelsSettings() {
   return (
     <RequireModule module="notify">
       <AnchorRedirect />
-      <PageHeader title={t('channels.title')} meta={t('channels.description')} info={t('channels.descriptionInfo')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} actions={history} />
+      <PageHeader title={t('common:shell.channels')} meta={t('channels.description')} info={t('channels.descriptionInfo')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} actions={history} />
         <Notice tone="accent" title={t('channels.privacy')} info={t('channels.privacyInfo')} />
         <QueryState query={q}>
           {(d) => (

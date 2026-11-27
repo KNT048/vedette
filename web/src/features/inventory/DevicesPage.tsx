@@ -474,7 +474,6 @@ function Body() {
   ) : null
   const pending = lists.pending.length
   // The title names the page; "12 devices, 2 not yet approved" is the small line of the toolbar over the list
-  const title = !q.data ? t('list.titleLoading') : all === 0 ? t('list.titleEmpty') : all === 1 && lists.approved[0]?.is_box ? t('list.titleBoxOnly') : t('list.titleLoading')
   // Export, Settings and Add live in the list's toolbar; with no list yet (loading, no devices) the header keeps Settings and Add.
   const buttons = (withExport: boolean) => (
     <>
@@ -488,7 +487,7 @@ function Body() {
 
   return (
     <>
-      <PageHeader title={title} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
+      <PageHeader title={t('common:shell.devices')} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
         meta={<SampleDataNote />} info={<><p>{t('list.meta')}</p><p>{t('list.metaInfo')}</p></>}
         actions={all === 0 ? buttons(false) : undefined} />
       {/* what the box changed by itself in SNMP settings, for an admin, until dismissed */}

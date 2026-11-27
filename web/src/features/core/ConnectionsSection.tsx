@@ -56,7 +56,7 @@ export default function ConnectionsSection() {
   }
   return (
     <>
-      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} />
+      <PageHeader title={t('settings.connections')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} />
       <Notice tone="off" role="note" title={t('connections.writeNoteLead')} info={t('connections.writeNote')}>
         <span className="inline-flex flex-wrap items-center gap-1">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy#flow-12">{t('connections.privacyLink')}</Link><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></span>
       </Notice>

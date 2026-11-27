@@ -644,9 +644,9 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('no devices at all: guides the next action', async () => {
     assetsStore.set([])
     renderApp('/devices')
-    // Only the box is left (it cannot be deleted): the header and the empty state agree (S-INV-5).
-    expect(await screen.findByRole('heading', { name: 'Only the Vedette box so far' }, T)).toBeInTheDocument()
-    expect(screen.getByText('No other devices yet')).toBeInTheDocument()
+    // Only the box is left (it cannot be deleted): the page keeps its name and the empty state says so (S-INV-5).
+    expect(await screen.findByRole('heading', { level: 1, name: 'Devices' }, T)).toBeInTheDocument()
+    expect(await screen.findByText('No other devices yet', undefined, T)).toBeInTheDocument()
     expect(screen.queryByText('No devices yet')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Add a device' }).length).toBeGreaterThan(1)
     expect(await screen.findByText(/Vedette is watching your saved ranges/, undefined, T)).toBeInTheDocument() // the mock has ranges saved
@@ -2184,8 +2184,8 @@ describe('inventory: the box is the first device (S-INV-5)', () => {
     expect(r.json!.counts.all).toBe(1)
     expect(r.json!.items[0]).toMatchObject({ id: BOX_ID, is_box: true, hostname: 'vedette', ip: '—' })
     renderApp('/devices')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Only the Vedette box so far' }, T)).toBeInTheDocument()
-    expect(screen.getByText('No other devices yet')).toBeInTheDocument() // the empty state with the next actions
+    expect(await screen.findByRole('heading', { level: 1, name: 'Devices' }, T)).toBeInTheDocument()
+    expect(await screen.findByText('No other devices yet', undefined, T)).toBeInTheDocument() // the empty state with the next actions
     expect(within(await deviceTable()).getByText('This box')).toBeInTheDocument()
     setDataMode('sample')
   })

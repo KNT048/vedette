@@ -31,7 +31,7 @@ const itemOf = (name: string) => details(name).closest('li')!
 describe('honeypot: main page (S-HP-1)', () => {
   it('first sentence gives the 7-day hit count and latest source; the hits table names the Trap IP and links to the device; axe clean', async () => {
     renderApp('/honeypot?tab=hits')
-    expect(await screen.findByRole('heading', { level: 1, name: /Traps were hit 5 times in 7 days, last .* from PC-HR-01/ })).toBeInTheDocument()
+    expect(await screen.findByText(/Traps were hit 5 times in 7 days, last .* from PC-HR-01/)).toBeInTheDocument()
     const hits = await screen.findByRole('table', { name: 'Trap hits' })
     expect(within(hits).getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
     // Which Trap IP each hit went to, and the Trap IPs a scan touched.
@@ -67,7 +67,7 @@ describe('honeypot: main page (S-HP-1)', () => {
     const row = testChip.closest('tr')!
     expect(within(row).getByText('Vedette box (test)')).toBeInTheDocument()
     expect(within(row).getByText('FILESRV-OLD')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/5 times in 7 days/)
+    expect(screen.getByRole('heading', { level: 1 }).closest('header')!.textContent).toMatch(/5 times in 7 days/)
   })
 
   it('"Test trap" sends the test alert through the channels that are on and says what each did', async () => {
@@ -188,7 +188,7 @@ describe('honeypot: what the box reports (S-HP-1)', () => {
   it('a Trap IP that is on but could not be set up shows an error with the host reason, not "Off" and not "No trap was hit"', async () => {
     server.use(http.get('*/api/v1/honeypot', () => HttpResponse.json(overview('failed', 'the honeypot container did not start'))))
     renderApp('/honeypot?tab=services')
-    expect(await screen.findByRole('heading', { level: 1, name: 'A Trap IP is on, but the box could not set it up' })).toBeInTheDocument()
+    expect(await screen.findByText(/A Trap IP is on, but the box could not set it up/)).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Reason from the box: the honeypot container did not start.')
     expect(within(svcRow(/SSH/)).getByText('Error: not set up')).toBeInTheDocument()
   })
@@ -198,7 +198,7 @@ describe('honeypot: what the box reports (S-HP-1)', () => {
     renderApp('/honeypot?tab=services')
     await screen.findByRole('table', { name: 'Services and their status' })
     expect(within(svcRow(/SSH/)).getByText('Starting')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: 'Trap IPs are starting. Nothing is listening yet.' })).toBeInTheDocument()
+    expect(screen.getByText(/Trap IPs are starting. Nothing is listening yet./)).toBeInTheDocument()
   })
 
   it('an older host program: a listening Trap IP says it answers every service and why', async () => {

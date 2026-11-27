@@ -60,7 +60,7 @@ const summary = (page: Page) => byDevice(page).getByRole('status').filter({ hasT
 async function findingId(page: Page, which: 'pack' | 'nopack'): Promise<string> {
   const cve = which === 'pack' ? PACK_CVE : NOPACK_CVE
   await page.goto(cve ? `/findings?tab=device&by-device.q=${cve}` : '/findings?tab=device')
-  await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+  await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open findings?$/)
   const links = byDevice(page).getByRole('link', { name: /^CVE-\d{4}-\d+$/ })
   await expect(links.first()).toBeVisible()
   for (const a of await links.all()) {
@@ -80,7 +80,7 @@ test.describe('findings: list (S-MIT-1)', () => {
   test('headline, status filter, Handled, an older CVE link, search, open a row, Back, reload', async ({ page }, info) => {
     const errors = collectErrors(page)
     await start(page, 'operator')
-    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+    await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open findings?$/)
     const open = Number((await h1(page).innerText()).split(' ')[0])
     await expect(summary(page)).toHaveText(new RegExp(`^${open} open findings? on \\d+ devices?$`)) // the headline and the list agree
     await expect(devicesOf(page).first()).toBeVisible()
@@ -108,13 +108,13 @@ test.describe('findings: list (S-MIT-1)', () => {
     await page.goBack()
     await expect(page).toHaveURL(/by-device\.q=/)
     await page.reload()
-    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+    await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open findings?$/)
     expect(errors, errors.join('\n')).toEqual([])
   })
 
   test('a viewer reads the list', async ({ page }) => {
     await start(page, 'viewer')
-    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+    await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open findings?$/)
     await expect(byDevice(page).getByRole('link', { name: /^CVE-\d{4}-\d+$/ }).first()).toBeVisible()
     for (const b of await page.getByRole('button', { name: /^Mark (these )?as handled: / }).all()) await expect(b).toBeDisabled()
   })
@@ -122,7 +122,7 @@ test.describe('findings: list (S-MIT-1)', () => {
   test('phone: no sideways scroll on the list and on a finding', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'phone only')
     await start(page, 'operator')
-    await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+    await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open findings?$/)
     await noHScroll(page, 'list')
     const id = await findingId(page, 'pack')
     await page.goto(`/findings/${id}`)
@@ -387,7 +387,7 @@ test.describe('findings: device panel, missing finding, signed out', () => {
       await expect(page.getByText('Confirmed by Vedette maintainers', { exact: true })).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Mark as handled' }).or(page.getByRole('button', { name: 'Reopen finding' }))).toBeVisible()
       await page.goto('/findings')
-      await expect(h1(page)).toHaveText(/^\d+ open findings?$/)
+      await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open findings?$/)
     } finally {
       expect((await toggle(true)).status()).toBe(200)
     }

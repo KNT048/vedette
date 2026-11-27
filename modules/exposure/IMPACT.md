@@ -34,6 +34,7 @@ in the same commit.
 | nmap's disruptive scripts (`disruptive.go`, the last step `nmap_disruptive` of `scanPlan`, INV-43) | sensor-active's `ScanDisruptive` and `nmapargv.ExternalDisruptive` (its port list), the adapter `cmd/vedette/exposureservices.go` (`DisruptiveTimeout` held to `nmapargv.DisruptiveHostTimeout`), the issue key space `nse-disruptive:` (`scanCoverage` never closes one), `PRIVACY.md` flow 9. |
 | Engine images (`PrepareEngines`, `ImagePreparer`, `Unavailable.Pending`) | the host's `zap.prepare` (`host/ops/zap.go`, host-api §6.15b), `PRIVACY.md` flow 6 (when the ZAP image is downloaded) and its Settings → Privacy text, word for word. |
 | The OpenVAS probe log row and issue text (`gbProbeResult`, `gmpDescription`) | the probe log's results (`modules/scan` `RecordExternalProbes`: only `matched`, `not_matched`, `not_run` and `refused` are written over `no_response`); the Issues dialog's description. |
+| The OpenVAS scan configs (`gbLevel`, `levelConfig`, `partialFamilies`) and the configuration-fact allowlist (`gmpFacts`, `parseGMPReport`, `openvasIssue`) | the scan config Greenbone keeps per level (re-set and read back on every scan, so an older config is put right); the get_reports filter (`min_qod=0 levels=hmlg`, parsed down to QoD 70 plus the allowlist); an allowlisted issue's key `<oid>:<port>@<ip>`, which `keyAddr` and the tree read from the part after the last `@`; the OpenVAS texts in PRIVACY.md and `web/src/locales/en/{core,exposure}.json`. |
 
 ## Switching the module off
 

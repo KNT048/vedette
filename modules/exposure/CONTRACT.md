@@ -269,7 +269,15 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   or results the domain fence discarded keep `no_response` (`TestGreenboneProbeRowSaysHowTheScanEnded`). An OpenVAS issue's
   description is Greenbone's own text of the result: the test's summary, the detection result on the host, insight, affected
   software and impact, plain text with its lines kept, at most 1,500 characters (`TestOpenVASDescriptionKeepsItsLines`); a result with none names the test
-  (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
+  (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Vedette's scan configs (one per level, defined as data in `gbLevel`) are
+  copies of "Full and fast" whose family selection is the base config's own, growing flags and the NVTs it selects in part included;
+  a level takes away only the disruptive families (`TestOpenVASTuning_FamiliesAreTheBaseConfigs`). Generic web fuzzing is off at every
+  level: its checkbox is off and the three generic directory-traversal NVTs are out of the web family
+  (`TestOpenVASTuning_WebFuzzingIsOffInEveryLevel`); the web scan (ZAP) is the web attack engine. The report is read with every
+  level and QoD; QoD 70 and a severity above 0 stay the cut for every result except a short allowlist of configuration facts
+  (`gmpFacts`: SSH password logins, DHE key exchange, BREACH, TRACE, certificate problems; read with a second get_reports request for those OIDs only, best effort: the main read keeps its QoD 70 filter and caps), each a Low issue with a plain
+  title and a fix line, no CVE, one per port (`TestOpenVASFactsHaveTitleAndFix`, `TestOpenVASTuning_ConfigurationFactBecomesALowIssue`).
+  Each Greenbone service has a memory limit (`deploy/greenbone`).
   OpenVAS enabled but still starting (its images pull when it is turned on) or loading its feed: the step is skipped with why and
   that it will run in the next scan, and the run ends partly done (INV-42). OpenVAS that had nothing to scan in a run (no open port
   on any address, or an address that answers on every port: state `not_run`) has its step skipped with its "Not checked" lines as

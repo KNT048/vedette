@@ -29624,7 +29624,7 @@
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
-                            "description": "Quality of detection, 70 to 100"
+                            "description": "Quality of detection: 70 to 100 for a vulnerability, any value for a configuration fact"
                           },
                           "cves": {
                             "type": "array",
@@ -29841,7 +29841,7 @@
                             "description": "What that template did: matched (basis becomes template), no_match (one check, never \"not vulnerable\") or error; \"\" when none ran"
                           },
                           "qod": {
-                            "description": "Basis greenbone only: Greenbone's quality of detection, 70 to 100",
+                            "description": "Basis greenbone only: Greenbone's quality of detection: 70 to 100 for a vulnerability, any value for a configuration fact",
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991

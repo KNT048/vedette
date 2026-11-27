@@ -311,9 +311,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   Mozilla, NVD lists the ESR rows whenever an ESR is affected, so an ESR build inside only the plain rows is not affected, except when
   the CVE lists ESR rows and none spans the build's ESR line: Mozilla lists supported ESR lines only, so an end-of-life line
   (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153; an exact ESR row lists its own line only) is not proved
-  unaffected. A line older than every listed ESR line is a version finding when both readings say affected: as the normal release the
-  version is inside the plain row, and as ESR line M it carries the code of release M.0, inside the plain row too (`unlistedLineReadings`;
-  the evidence says "decided under every reading"); otherwise, and for a line between the listed ones, it stays asked whether that
+  unaffected; it stays asked whether that line is affected unless the rule below decides it. A product whose rows naming the line
+  state only fixed releases (an excluded end, from no start, 0 or the first release of the fix's own line) is affected for a version
+  lower than every one of them, whichever edition the line is (NVD's "-" counts as one; one edition alone, or a system or architecture
+  pin, is never read this way): every reading says the flaw is there from the start and none has a fix at or below the version
+  (`fixPointsReadings`, OSV's introduced 0; the evidence says "decided under every reading"). Otherwise the question asks whether the
   line is affected (`detail.attribute` `unlisted_line`, never the edition: `TestMatchAsset_UnlistedESRLine`). A platform's
   "-" alone is every build (Visual Studio Code); beside named systems (Office's "-" and "macos") it is the build for none of them. A
   derived attribute is the device's evidence (the finding is verified `device`) and the evidence names it. What is not derivable stays

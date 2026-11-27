@@ -1519,7 +1519,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 			m.Evidence.Summary = lineAffectedNote(a, s, v, lined)
 		}
 		if agreed != "" {
-			m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists %s for the normal release and for later ESR lines only; %s"+suspectedClause, name, sw, v.rangesBy(true), v.CVE, agreed)
+			m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists %s for builds Vedette cannot tell this one from; %s"+suspectedClause, name, sw, v.rangesBy(true), v.CVE, agreed)
 			m.agreed = agreed
 		}
 		if pinned != "" {

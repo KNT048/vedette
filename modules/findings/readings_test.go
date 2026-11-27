@@ -24,39 +24,40 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 		return decided
 	}
 
-	// An extended-support build of a line older than every line the CVE's ESR rows list. The build attributes are the box's
-	// derivation (installAttrs), set here for a product of no install rule.
-	t.Run("unlisted older line", func(t *testing.T) {
+	// A product whose rows state only fixed releases, per build (channel) the rows pin and the box cannot tell for the line.
+	t.Run("fixed releases only", func(t *testing.T) {
 		t.Parallel()
 		const mailer = "cpe:2.3:a:example:mailer:*:*:*:*:"
-		row := func(edition, start, end string) Affected {
-			return Affected{CPE: mailer + edition + ":*:*:*", Range: VersionRange{StartIncl: start, EndExcl: end}}
+		row := func(channel, start, end string) Affected {
+			return Affected{CPE: mailer + channel + ":*:*:*", Range: VersionRange{StartIncl: start, EndExcl: end}}
 		}
 		for _, tc := range []struct {
-			name string
-			aff  []Affected
-			want string
+			name, ver string
+			aff       []Affected
+			want      string
 		}{
-			{"the plain row holds the version and the line's first release", []Affected{row("-", "", "52.0"), row("esr", "45.0", "45.9.0")}, found},
-			{"the plain row starts after the line's first release", []Affected{row("-", "32.0", "52.0"), row("esr", "45.0", "45.9.0")}, asked},
-			{"the plain row ends below the version", []Affected{row("-", "", "30.3.0"), row("esr", "45.0", "45.9.0")}, asked},
-			{"a listed ESR line is older than the line", []Affected{row("-", "", "52.0"), row("esr", "24.0", "24.9.0"), row("esr", "45.0", "45.9.0")}, asked},
+			{"lower than the fix of every channel", "30.5.0", []Affected{row("-", "", "52.0"), row("extended", "45.0", "45.9.0")}, found},
+			{"lower than every fix, three lines", "30.5.0", []Affected{row("-", "", "57.0"), row("extended", "45.0", "45.17.0"), row("extended", "53.0", "53.4.0")}, found},
+			{"past the fix of one channel", "46.0.1", []Affected{row("-", "", "52.0"), row("extended", "45.0", "45.9.0")}, asked},
+			{"a row with a lower bound of its own", "30.5.0", []Affected{row("-", "", "52.0"), row("extended", "45.2.0", "45.9.0")}, asked},
+			{"the plain row starts inside the line", "30.5.0", []Affected{row("-", "30.2", "52.0"), row("extended", "45.0", "45.9.0")}, asked},
+			{"every row starts at its own line", "30.5.0", []Affected{row("-", "52.0", "52.3"), row("extended", "45.0", "45.9.0")}, asked},
+			{"one pinned channel alone", "30.5.0", []Affected{row("extended", "", "52.0")}, asked},
+			{"a system pin", "30.5.0", []Affected{{CPE: "cpe:2.3:a:example:mailer:*:*:*:*:*:linux:*:*", Range: VersionRange{EndExcl: "52.0"}},
+				{CPE: "cpe:2.3:a:example:mailer:*:*:*:*:*:macos:*:*", Range: VersionRange{EndExcl: "52.0"}}}, asked},
+			{"an inclusive end", "30.5.0", []Affected{row("-", "", "52.0"), {CPE: mailer + "extended:*:*:*", Range: VersionRange{StartIncl: "45.0", EndIncl: "45.9.0"}}}, asked},
 		} {
-			s := Software{ID: "m", Display: "Example Mailer", Vendor: "Example", Product: "Mailer", Version: "30.5.0", Source: "agent"}
-			a := Asset{ID: "pc", Name: "pc-01", Software: []Software{s}}
-			in := newSWInfo(s, "")
-			in.install = installAttrs{edition: mozillaESR, esrLine: 30, editionWhy: "its numbering says so"}
-			v := Vuln{CVE: "CVE-2099-7101", NVDAnswered: true, Published: uncNew, Affected: tc.aff}
-			m, out := judgeRanges(a, s, in, v, nil, uncNow)
-			got := asked
-			if out == outMatch && m.Basis == BasisVersion {
-				got = found
+			s := Software{ID: "m", Display: "Example Mailer", Vendor: "Example", Product: "Mailer", Version: tc.ver, Source: "agent"}
+			res := MatchAsset(Asset{ID: "pc", Name: "pc-01", Software: []Software{s}}, []Vuln{{CVE: "CVE-2099-7101", NVDAnswered: true, Published: uncNew, Affected: tc.aff}}, nil, uncNow)
+			got := outcome(res)
+			if got == decided {
+				got = asked // a CVE these rows do not decide is never proved unaffected by this rule
 			}
 			if got != tc.want {
-				t.Errorf("%s: %s (%v, %q), want %s", tc.name, got, out, m.Evidence.Summary, tc.want)
+				t.Errorf("%s (%s): %s, want %s (new %+v, unchecked %+v)", tc.name, tc.ver, got, tc.want, res.New, res.Unchecked)
 			}
-			if got == found && !strings.Contains(m.Evidence.Summary, "decided under every reading") {
-				t.Errorf("%s: the evidence does not name the readings: %q", tc.name, m.Evidence.Summary)
+			if got == found && !strings.Contains(res.New[0].Evidence.Summary, "decided under every reading") {
+				t.Errorf("%s: the evidence does not name the readings: %q", tc.name, res.New[0].Evidence.Summary)
 			}
 		}
 	})
@@ -115,30 +116,4 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 			}
 		}
 	})
-}
-
-// The same rule through the whole match, on a product whose install rule derives the build: an ESR build of an end-of-life line.
-func TestEveryReading_EndOfLifeESRLine(t *testing.T) {
-	t.Parallel()
-	ff := func(edition, start, end string) Affected {
-		return Affected{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:" + edition + ":*:*:*", Range: VersionRange{StartIncl: start, EndExcl: end}}
-	}
-	a := Asset{ID: "pc", Name: "pc-01", Software: []Software{{ID: "f", Display: "Mozilla Firefox ESR (x64 en-US)", Vendor: "Mozilla",
-		Product: "Firefox", Version: "102.15.0", Source: "agent"}}}
-	for _, tc := range []struct {
-		name string
-		aff  []Affected
-		want int // findings
-	}{
-		{"older than every listed ESR line, inside the plain row", []Affected{ff("-", "", "152.0"), ff("esr", "140.0", "140.12.0")}, 1},
-		{"older than every listed ESR line, the plain row starts inside the line", []Affected{ff("-", "102.5", "152.0"), ff("esr", "140.0", "140.12.0")}, 0},
-	} {
-		res := MatchAsset(a, []Vuln{{CVE: "CVE-2099-7301", NVDAnswered: true, Published: uncNew, Affected: tc.aff}}, nil, uncNow)
-		if len(res.New) != tc.want || tc.want == 1 && res.New[0].Basis != BasisVersion {
-			t.Errorf("%s: new %+v, unchecked %+v, want %d version finding", tc.name, res.New, res.Unchecked, tc.want)
-		}
-		if tc.want == 0 && len(res.Unchecked) != 1 {
-			t.Errorf("%s: no question: %+v", tc.name, res)
-		}
-	}
 }

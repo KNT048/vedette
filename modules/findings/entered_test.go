@@ -161,10 +161,10 @@ func TestMatchAsset_EditionOfTheBuildDecides(t *testing.T) {
 
 // A Mozilla ESR build of a line no ESR row of the CVE spans is not "not affected": Mozilla lists only supported ESR lines, so an
 // end-of-life one (Thunderbird 115 once 128 and 140 shipped; Firefox ESR 140 between the listed 115 and 153) is absent whether or not
-// its code has the flaw. A line older than every listed one is decided when both readings say affected (everyReading): as the normal
-// release the version is inside the plain row, and as ESR line M it carries release M.0's code, inside the plain row too. A line between
-// the listed ones stays asked. An ESR line the rows reach, or a CVE with plain rows only (no supported ESR is affected, so the code is
-// newer than every ESR), is decided by the rows.
+// its code has the flaw. When the rows state only fixed releases (no start, or the first release of the fix's own line) and the version
+// is lower than every one of them, it is affected whichever build it is (fixPointsReadings, a rule of no product); otherwise, as with an
+// ESR row of one exact build or a line between the listed ones, it stays asked whether the line is affected. An ESR line the rows
+// reach, or a CVE with plain rows only (no supported ESR is affected, so the code is newer than every ESR), is decided by the rows.
 func TestMatchAsset_UnlistedESRLine(t *testing.T) {
 	t.Parallel()
 	tb := func(edition string, r VersionRange) Affected {
@@ -188,7 +188,7 @@ func TestMatchAsset_UnlistedESRLine(t *testing.T) {
 		{"plain rows only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"})}, "none"},
 		// NVD also writes an ESR row as one exact build (CVE-2026-5731: thunderbird 140.9.0 esr): it lists line 140 only
 		{"an exact ESR build of 140", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}),
-			{CPE: "cpe:2.3:a:mozilla:thunderbird:140.9.0:*:*:*:esr:*:*:*"}}, "finding"},
+			{CPE: "cpe:2.3:a:mozilla:thunderbird:140.9.0:*:*:*:esr:*:*:*"}}, "question"},
 	} {
 		r := MatchAsset(row, []Vuln{{CVE: "CVE-2099-0211", NVDAnswered: true, Published: uncNew, Affected: tc.rows}}, nil, t0)
 		got := "none"

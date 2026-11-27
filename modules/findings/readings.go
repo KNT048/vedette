@@ -3,6 +3,8 @@ package findings
 import (
 	"cmp"
 	"fmt"
+	"slices"
+	"strings"
 )
 
 // Readings. A record can leave one input open that the box cannot settle: which build of the product a line is, or whether a list a
@@ -32,7 +34,7 @@ func everyReading(in swInfo, v Vuln, key []identity, name string) (agreement, bo
 	if !versionKnown(in.ver) {
 		return agreement{}, false
 	}
-	if a, ok := unlistedLineReadings(in, v, key, name); ok {
+	if a, ok := fixPointsReadings(in, v, key, name); ok {
 		return a, true
 	}
 	if v.listed() {
@@ -44,23 +46,20 @@ func everyReading(in swInfo, v Vuln, key []identity, name string) (agreement, bo
 	return agreement{}, false
 }
 
-// unlistedLineReadings reads a line the box derives to be an extended-support build (installAttrs.esrLine: Mozilla numbers ESR builds
-// M.N.x) of a line older than every ESR line the CVE's rows list (end of life: the vendor lists the lines it still supports). The rows
-// then say nothing about the line by name, and the plain row stays pinned (judge). Two readings remain:
-//   - the line is the plain release after all (the derivation rests on the numbering, not on the build's own word): the plain row is
-//     compared with the version as it is;
-//   - it is the ESR build the numbering says: an ESR line M is cut from release M.0 and carries its code, so the plain row is compared
-//     with M.0. A line older than every listed ESR line has no fix of its own on any row. Only "affected" counts from this reading:
-//     M.0 outside the plain row does not prove the line was never given the flaw later.
-//
-// Both say affected: affected. Anything else stays the edition question.
-func unlistedLineReadings(in swInfo, v Vuln, key []identity, name string) (agreement, bool) {
-	at := in.install
-	if at.edition != mozillaESR || at.esrLine == 0 || in.hasCPE && in.cpe.fields()[attrSWEdition].Kind != Any {
-		return agreement{}, false
-	}
+// fixPointsReadings reads a product whose rows state only fixed releases (OSV's fixed with introduced 0): every row of the product
+// that names the line ends at an excluded end (CVE JSON 5 lessThan, NVD's versionEndExcluding) and starts nowhere, at 0, or at the first
+// release of the end's own release line ("140.0" before "140.12.0": the row says which line the fix is of, not where the flaw came in).
+// The rows may pin an edition or channel the box cannot settle for the line, and each value is one reading; as in pinnedInside, NVD's
+// NA ("-") is the plain edition, one edition alone says nothing about the editions it leaves out, and a system or architecture pin is
+// never read this way (a build no row names would be a reading with no row at all). A version lower than every fixed release the product's rows state, on every line, is affected whichever build
+// it is: no reading has a fix at or below it, and each says the flaw is there from the start. A row about another build than the one
+// the box derived for the line (judge) is no reading of it; when no row is one, nothing is decided. This only ever says "affected".
+func fixPointsReadings(in swInfo, v Vuln, key []identity, name string) (agreement, bool) {
 	sib := siblingsOf(&v)
-	older := false
+	var fixes []string
+	var within *VersionRange
+	var builds []string               // the editions the rows that read the line pin, one entry per distinct set
+	applies, anyBuild := false, false // anyBuild: a row that reads the line pins no edition
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
@@ -69,40 +68,68 @@ func unlistedLineReadings(in swInfo, v Vuln, key []identity, name string) (agree
 		if own, _, _ := entryFor(c, in, key); !own {
 			continue
 		}
-		if !sib.esrLineOlder(c, at.esrLine) {
-			return agreement{}, false // a listed line spans or precedes it: the rows' silence about it is not of an older line
+		r := af.Range
+		start := cmp.Or(r.StartIncl, r.StartExcl)
+		if c.Version.Kind != Any || r.EndExcl == "" || r.EndIncl != "" || r.StartExcl != "" ||
+			start != "" && !isPlaceholder(start) && !lineStart(start, r.EndExcl) {
+			return agreement{}, false // an exact release, an inclusive end, no end, or a lower bound of its own: not fix points only
 		}
-		older = true
+		o, ok := compareBound(in.ver, r.EndExcl)
+		if !ok || o >= 0 {
+			return agreement{}, false // at or past a fix the product states, or a fix that does not compare
+		}
+		fixes = append(fixes, r.EndExcl)
+		j, ok := in.install.judge(c, in.cpe, in.hasCPE, sib)
+		if !ok {
+			continue // a row about another build than the line's: no reading of it
+		}
+		applies = true
+		vals, liftable := pinnedValues(j, in)
+		if !liftable {
+			return agreement{}, false // a system or architecture pin: a build no row names is a reading too, with no row at all
+		}
+		if len(vals) == 0 {
+			anyBuild = true
+		} else if set := strings.Join(vals, " "); !slices.Contains(builds, set) {
+			builds = append(builds, set)
+		}
+		if start == "" || isPlaceholder(start) {
+			if fromZero := (VersionRange{EndExcl: r.EndExcl}); within == nil || widerEnd(fromZero, *within) {
+				within = &fromZero
+			}
+		}
 	}
-	if !older {
-		return agreement{}, false
+	if !applies || within == nil || !anyBuild && len(builds) < 2 {
+		return agreement{}, false // one pinned edition alone says nothing of the editions it leaves out (pinnedInside)
 	}
-	plain := in
-	plain.install.edition, plain.install.esrLine = mozillaPlain, 0
-	t1, r1, _, _ := decide(plain, v, key)
-	branch := plain
-	branch.ver = fmt.Sprintf("%d.0", at.esrLine)
-	t2, r2, _, _ := decide(branch, v, key)
-	if t1 != Yes || t2 != Yes {
-		return agreement{}, false
-	}
-	return agreement{t: Yes, within: r1, says: fmt.Sprintf("decided under every reading: as the normal release, version %s is inside the range "+
-		"affected (%s); as an ESR build of line %d, which no ESR row of %s lists (the rows list only later lines), it carries the code of "+
-		"release %d.0, which is inside the range affected (%s)", clean(in.ver), clean(r1.String()), at.esrLine, clean(name), at.esrLine, clean(r2.String()))}, true
+	return agreement{t: Yes, within: *within, says: fmt.Sprintf("decided under every reading: the rows of %s state only fixed releases (%s), "+
+		"on every build they name, and version %s is lower than every one of them, so it is affected whichever build it is",
+		clean(name), clean(joinVersions(fixes)), clean(in.ver))}, true
 }
 
-// esrLineOlder says the CVE has "esr" rows of c's product and line is older than the first line of every one of them (esrLineUnlisted,
-// end of life before every listed line). A row with no start reaches every older line, so it never is.
-func (s *siblings) esrLineOlder(c CPE, line uint64) bool {
-	if !s.esrLineUnlisted(c, line) {
+// lineStart says start is the first release of end's release line: the same first number, nothing but zeros after it ("140.0", "7").
+func lineStart(start, end string) bool {
+	s := strings.TrimSpace(start)
+	lead := leadNumber(s)
+	if lead == "" || lead != leadNumber(end) {
 		return false
 	}
-	for _, sp := range s.esrLines[c.Vendor.Value+":"+c.Product.Value] {
-		if sp[0] <= line {
-			return false
+	j := 0
+	for j < len(s) && isDigit(s[j]) {
+		j++
+	}
+	return strings.Trim(s[j:], ".0") == ""
+}
+
+// joinVersions lists versions once each, in the order given.
+func joinVersions(vs []string) string {
+	var out []string
+	for _, x := range vs {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
 		}
 	}
-	return true
+	return strings.Join(out, ", ")
 }
 
 // fixTrainReadings reads a CVE record's list that may name only the release trains its writer tested: a partial CVE.org list

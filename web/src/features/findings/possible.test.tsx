@@ -57,6 +57,9 @@ describe('Possible findings in By device and By fix', () => {
     const held = within(row).getByTestId('possible-held')
     expect(held).toHaveAttribute('data-reason', 'answer_unusable')
     expect(held.textContent).toMatch(/^The AI reads this again after .+: its last answer was not in the format Vedette needs or was cut off\.$/)
+    // it replaces the cause's default sentence, which would ask for an AI that already tried
+    expect(within(row).getByTestId('possible-cause')).toHaveTextContent(/^The AI reads this again after/)
+    expect(row).not.toHaveTextContent('With an AI provider set up')
     // a row that is not held says nothing of it
     expect(within(rows.find((r) => r.textContent?.includes('CVE-2026-240101'))!).queryByTestId('possible-held')).toBeNull()
   })

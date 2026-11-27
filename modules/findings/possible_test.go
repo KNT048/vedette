@@ -70,7 +70,7 @@ func possibleWorld(t *testing.T) (*env, *fakeChecker) {
 	e, _ := residueWorld(t)
 	fc := &fakeChecker{
 		pages: map[string][]FetchedPage{
-			"CVE-2026-82001": {{URL: dsmPageURL + "#82001", Status: "ok", Text: "Affected products: Synology DiskStation Manager (DSM).\n7.2.1 versions before 7.2.1-69057-6 are affected. Upgrade to 7.2.1-69057-6 or above."}},
+			"CVE-2026-82001": {{URL: dsmPageURL + "#82001", Status: "ok", Text: "CVE-2026-82001. Affected products: Synology DiskStation Manager (DSM).\n7.2.1 versions before 7.2.1-69057-6 are affected. Upgrade to 7.2.1-69057-6 or above."}},
 			"CVE-2026-82002": {{URL: dsmPageURL + "#82002", Status: "ok", Text: "Synology DiskStation Manager (DSM). DSM 7.2 is not affected by this issue, which only concerns the new photo service."}},
 			"CVE-2026-82003": {{URL: dsmPageURL + "#82003", Status: "failed", Note: "the site answered 403"}},
 		},

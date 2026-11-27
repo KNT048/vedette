@@ -94,9 +94,10 @@ func readAdvisory(pages []FetchedPage, id CheckID, cve string) (v advisoryVerdic
 			continue
 		}
 		var rs []textRange
+		names, others := cveMentions(p.Text, cve)
 		if p.JSON {
 			rs = csafRanges(p.Text, id, cve)
-		} else if mentionsProduct(p.Text, id) {
+		} else if names && mentionsProduct(p.Text, id) { // plain text decides only on a page about this CVE
 			rs = textRanges(p.Text)
 		}
 		if len(rs) == 0 {
@@ -105,7 +106,9 @@ func readAdvisory(pages []FetchedPage, id CheckID, cve string) (v advisoryVerdic
 			}
 			continue
 		}
-		if verdict, quote, decided := judgeTextRanges(rs, id.Version, scheme); decided {
+		// "not affected" from plain text needs a page about this CVE alone: on a page that names others, the ranges read may be another
+		// CVE's while this one's are in words the box cannot read (a CSAF document's ranges are the CVE's own)
+		if verdict, quote, decided := judgeTextRanges(rs, id.Version, scheme); decided && (verdict == VerdictAffected || p.JSON || !others) {
 			return advisoryVerdict{verdict: verdict, quote: quote, url: p.URL}, true, nil
 		}
 		if unparsed == nil {
@@ -119,6 +122,20 @@ func readAdvisory(pages []FetchedPage, id CheckID, cve string) (v advisoryVerdic
 		}
 	}
 	return advisoryVerdict{}, false, unparsed
+}
+
+var reCVEID = regexp.MustCompile(`(?i)\bCVE-[0-9]{4}-[0-9]{4,}\b`)
+
+// cveMentions says whether text names cve, and whether it names any other CVE.
+func cveMentions(text, cve string) (names, others bool) {
+	for _, m := range reCVEID.FindAllString(text, -1) {
+		if strings.EqualFold(m, cve) {
+			names = true
+		} else {
+			others = true
+		}
+	}
+	return names, others
 }
 
 // snippetAround is up to undecidedText bytes of text around the first mention of the product's word.

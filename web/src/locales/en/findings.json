@@ -158,6 +158,7 @@
     "checklistTitle": "4. Checklist",
     "checklistHint": "Tick as you finish ({{done}}/{{total}}). Only for tracking on this screen; not saved.",
     "noPack": "No confirmed recommendation yet",
+    "aiReadFix": "The vendor's fix, read by AI",
     "noPackAi": "Your own AI can draft more; its answer always carries the AI-generated label.",
     "noPackBodyInfo": "Vedette maintainers have not confirmed a step-by-step pack for this CVE yet. Below is what the exploited list requires, where the vendor's fix is, and how to check your device.",
     "dueDate": "CISA's deadline for US federal agencies: {{date}}. Use it as your own deadline.",
@@ -896,6 +897,9 @@
   },
   "todo": {
     "source": "From the vendor, the CVE record and the exploited lists.",
+    "aiReadSource": "The release the vendor's page states, quoted in step 1. Vedette maintainers have not confirmed a step-by-step pack.",
+    "fixAiReadPage": "Source: the vendor's page read by AI,",
+    "fixAiReadRecord": "Source: the CVE record read by AI",
     "fixUpdate": "Fixed in {{fixed}}: update {{product}} on {{device}} from {{version}} to {{fixed}} or later.",
     "fixUpdateNoVersion": "Fixed in {{fixed}}: update {{product}} on {{device}} to {{fixed}} or later.",
     "fixDistro": "Fixed in the distribution's package {{fixed}}: install the security updates of {{device}} (for example apt upgrade or dnf upgrade). It has {{version}}.",
@@ -941,7 +945,7 @@
   },
   "coverage": {
     "meta": "How much of what the catalogue relates to your software the last match pass decided, and why the rest is undecided.",
-    "info": "Each pair is one software line of one device and one CVE whose record or NVD analysis names that product. Decided pairs are counted by the source whose data decided them; undecided pairs by the reason the box gives. The unnamed rows are pairs the matcher reached and neither decided nor asked about: the box should name every one. Counts only: nothing here leaves the box.",
+    "info": "Each pair is one software line of one device and one CVE whose record or NVD analysis names that product. Decided pairs are counted by the source whose data decided them; undecided pairs by their cause (the step of deciding that is missing), with the matcher's own reason for them beside it. The unnamed rows are pairs the matcher reached and neither decided nor asked about: the box should name every one. Counts only: nothing here leaves the box.",
     "none": "No match pass has been counted yet. The pass runs a minute after the box starts and then every hour.",
     "at": "Last match pass {{at}}: {{devices}} devices, {{lines}} software lines, {{pairs}} pairs.",
     "decidedShare": "Decided {{share}}",
@@ -950,7 +954,8 @@
     "caption": "Decision coverage of the last match pass",
     "col": {
       "outcome": "Outcome",
-      "source": "Source or reason",
+      "source": "Source or cause",
+      "detail": "Matcher's reason",
       "affected": "Affected",
       "notAffected": "Not affected",
       "pairs": "Pairs",
@@ -1007,6 +1012,11 @@
       "pending_nvd": "NVD has not listed versions",
       "needs_person": "A person decides",
       "other": "Other reason",
+      "not_comparable": "Version not comparable",
+      "no_range_data": "No range decides this version",
+      "platform": "Platform unknown",
+      "package_release": "Package release unknown",
+      "older_line": "Older line not listed",
       "other_distro_silent": "Unnamed: the distribution's data has no word",
       "other_record_unread": "Unnamed: the record's rows were not read",
       "other_dropped": "Unnamed: matched on the name alone, not listed"

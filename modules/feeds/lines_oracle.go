@@ -55,8 +55,9 @@ const (
 // oracleDocPath is the path of a CSAF document on Oracle's host as the feed links it (both layouts in use).
 var oracleDocPath = regexp.MustCompile(`^/(?:a/tech/docs|docs/tech)/security-alerts/[a-z0-9-]{1,100}csaf\.json$`)
 
-// releaseRE is a release as a line row keeps it: numbers joined by '.' or '_' ("1.8.0_491", "11.0.33.0.3").
-var releaseRE = regexp.MustCompile(`^[0-9]{1,6}(?:[._][0-9]{1,6}){0,7}$`)
+// releaseRE is a release as a line row keeps it: numbers joined by '.' or '_', with a patch build after "-b" ("1.8.0_491", "11.0.33.0.3",
+// "1.8.0_511-b33").
+var releaseRE = regexp.MustCompile(`^[0-9]{1,6}(?:[._][0-9]{1,6}){0,7}(?:-b[0-9]{1,3})?$`)
 
 // CSAFSelector says how a CSAF document names a catalogue product (line-sources.json csaf).
 type CSAFSelector struct {
@@ -446,11 +447,12 @@ func releaseOf(raw csafRawProduct, p productid.Product, sel CSAFSelector) (oracl
 	return oracleProductRelease{line: line, release: c}, true
 }
 
-// cmpRelease orders two releases of one line by their numbers ("1.8.0_491" < "1.8.0_501", "11.0.33" < "11.0.33.0.3").
+// cmpRelease orders two releases of one line by their numbers ("1.8.0_491" < "1.8.0_501", "11.0.33" < "11.0.33.0.3"); a patch build
+// counts after its release ("1.8.0_511" < "1.8.0_511-b33" < "1.8.0_521").
 func cmpRelease(a, b string) int {
 	split := func(s string) []int {
 		var out []int
-		for f := range strings.FieldsFuncSeq(s, func(r rune) bool { return r == '.' || r == '_' }) {
+		for f := range strings.FieldsFuncSeq(s, func(r rune) bool { return r == '.' || r == '_' || r == '-' || r == 'b' }) {
 			n, _ := strconv.Atoi(f)
 			out = append(out, n)
 		}

@@ -177,7 +177,7 @@ func TestOracleLines_FailsClosed(t *testing.T) {
 	if got := rowsByLine(by["CVE-2026-1004"]); !slices.Equal(got, []string{"21=unaffected", "8=affected:1.8.0_501!"}) || by["CVE-2026-1004"].StatedAt != "2026-08-18" {
 		t.Errorf("CVE-2026-1004 %v %q", got, by["CVE-2026-1004"].StatedAt)
 	}
-	if got := rowsByLine(by["CVE-2026-1008"]); !slices.Equal(got, []string{"21=unaffected", "8=affected:1.8.0_511!"}) {
+	if got := rowsByLine(by["CVE-2026-1008"]); !slices.Equal(got, []string{"21=unaffected", "8=affected:1.8.0_511-b33!"}) {
 		t.Errorf("CVE-2026-1008 %v", got)
 	}
 	if got := rowsByLine(by["CVE-2026-1009"]); !slices.Equal(got, []string{"21=affected:21.0.12!", "8=unaffected"}) {

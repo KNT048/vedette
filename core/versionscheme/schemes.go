@@ -104,8 +104,8 @@ var LinuxKernel = register(&Scheme{
 // Java SE. Java 8 and earlier write "1.8.0_491" (or "8u491"), Java 9 on "17.0.10" (with "+7" for the build); a feature release is a
 // train (8, 17), its updates the places inside it.
 var (
-	javaOld = regexp.MustCompile(`^1\.([1-8])\.0(?:_([0-9]{1,4}))?(?:-b[0-9]{1,3})?$`)
-	javaU   = regexp.MustCompile(`^([1-8])u([0-9]{1,4})(?:-?b[0-9]{1,3})?$`)
+	javaOld = regexp.MustCompile(`^1\.([1-8])\.0(?:_([0-9]{1,4}))?(?:-b([0-9]{1,3}))?$`)
+	javaU   = regexp.MustCompile(`^([1-8])u([0-9]{1,4})(?:-?b([0-9]{1,3}))?$`)
 	javaNew = regexp.MustCompile(`^([0-9]{1,3})((?:\.[0-9]{1,4}){0,3})(?:\+[0-9]{1,4})?$`)
 )
 
@@ -122,11 +122,19 @@ var Java = register(&Scheme{
 			line := []int{atoi(s)}
 			return Version{Line: line, LineStart: true, Train: s, Label: s, Display: s}, true
 		}
+		withPatch := func(v Version, ok bool, b string) (Version, bool) { // the build after the update ("-b33"): a patch build
+			if b != "" {
+				v.Patch = atoi(b)
+			}
+			return v, ok
+		}
 		if m := javaOld.FindStringSubmatch(s); m != nil {
-			return mk(atoi(m[1]), []int{0, atoi(m[2])})
+			v, ok := mk(atoi(m[1]), []int{0, atoi(m[2])})
+			return withPatch(v, ok, m[3])
 		}
 		if m := javaU.FindStringSubmatch(s); m != nil {
-			return mk(atoi(m[1]), []int{0, atoi(m[2])})
+			v, ok := mk(atoi(m[1]), []int{0, atoi(m[2])})
+			return withPatch(v, ok, m[3])
 		}
 		if m := javaNew.FindStringSubmatch(s); m != nil && atoi(m[1]) >= 9 {
 			place := []int{0, 0}

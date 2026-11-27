@@ -34,6 +34,7 @@ func TestLineJudge_OracleJava(t *testing.T) {
 	const cve = "CVE-2026-46917"
 	rows := []LineRow{oracleRow("8", "affected", "1.8.0_491", true), oracleRow("11", "affected", "11.0.31", true), oracleRow("21", "unaffected", "", false)}
 	oracle8 := javaRow("Java 8 Update 491 (64-bit)", "8.0.4910.10")
+	patchRows := []LineRow{oracleRow("8", "affected", "1.8.0_511-b33", true)}
 	nvd21 := []Affected{{CPE: "cpe:2.3:a:oracle:jdk:21.0.7:*:*:*:*:*:*:*"}}
 	for _, tc := range []struct {
 		name  string
@@ -49,6 +50,15 @@ func TestLineJudge_OracleJava(t *testing.T) {
 		{"Oracle 8u491 as 1.8.0_491-b10", javaRow("Java SE Development Kit 8 Update 491", "1.8.0_491-b10"), rows, nil, oracleDay, nil, lineAffected, outMatch},
 		{"Oracle 8u501: fixed", javaRow("Java 8 Update 501 (64-bit)", "8.0.5010.8"), rows, nil, oracleDay, nil, lineFixed, outNotAffected},
 		{"Temurin 8u482: affected", javaRow("Eclipse Temurin JDK with Hotspot 8u482-b08 (x64)", "1.8.0_482"), rows, nil, oracleDay, nil, lineAffected, outMatch},
+		// Oracle's bundled patch release 8u511b33 is the newest affected (November 2026 CSPU): a later build of 8u511 is fixed, the GA
+		// build and a version that states no build are 8u511 itself, so affected
+		{"Oracle 8u511 b34 on Windows: fixed", javaRow("Java 8 Update 511 (64-bit)", "8.0.5110.34"), patchRows, nil, oracleDay, nil, lineFixed, outNotAffected},
+		{"Oracle 8u511 b34 from java -version: fixed", javaRow("Java SE Development Kit 8 Update 511", "1.8.0_511-b34"), patchRows, nil, oracleDay, nil, lineFixed, outNotAffected},
+		{"Oracle 8u511 b33: affected", javaRow("Java 8 Update 511 (64-bit)", "8.0.5110.33"), patchRows, nil, oracleDay, nil, lineAffected, outMatch},
+		{"Oracle 8u511 GA b09: affected", javaRow("Java 8 Update 511 (64-bit)", "8.0.5110.9"), patchRows, nil, oracleDay, nil, lineAffected, outMatch},
+		{"Oracle 8u511 with no build: affected", javaRow("Java 8 Update 511", "8u511"), patchRows, nil, oracleDay, nil, lineAffected, outMatch},
+		{"Oracle 8u521: fixed", javaRow("Java 8 Update 521 (64-bit)", "8.0.5210.8"), patchRows, nil, oracleDay, nil, lineFixed, outNotAffected},
+		{"Oracle 8u501 b40: affected", javaRow("Java 8 Update 501 (64-bit)", "8.0.5010.40"), patchRows, nil, oracleDay, nil, lineAffected, outMatch},
 		{"Temurin 8u492: past Oracle's number, another build", javaRow("Eclipse Temurin JDK with Hotspot 8u492-b09 (x64)", "1.8.0_492"), rows, nil, oracleDay, nil, lineNone, outNone},
 		{"Temurin 21.0.7, NVD names 21.0.7 with an explicit row", javaRow("Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "21.0.7"), []LineRow{oracleRow("21", "unaffected", "", true)}, nil, oracleDay, nvd21, lineNone, outNone},
 		{"Temurin 21.0.7: assessed, not listed", javaRow("Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "21.0.7"), rows, nil, oracleDay, nil, lineUnaffected, outNotAffected},

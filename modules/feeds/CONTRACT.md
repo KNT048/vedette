@@ -160,7 +160,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   Oracle's CSAF feed (`oracle-cpu-csaf`, every 6 hours) is its RSS and each document it lists, asked of the feed's own host with the
   validators the document last gave (a 304 is not read again while the box runs): of the catalogue's products (a CPE line-sources.json
   names, else the product tree branch it names; another edition such as the Performance Pack is not the product) one row per release
-  line with the newest affected release, read through the product's `version_map` (`8u491` = `1.8.0_491`); a line the document assessed
+  line with the newest affected release, read through the product's `version_map` (`8u491` = `1.8.0_491`, a patch build kept: `8u511b33` = `1.8.0_511-b33`); a line the document assessed
   (has a release of) and does not list is a convention row (`explicit` 0, `unaffected`), a line whose every release it lists not affected
   an explicit `unaffected` row. A statement is dated by its document's first release. A CVE that names a release Vedette cannot read, a
   status it does not read, or a release not affected at or below an affected one on the same line (in one document or across several) is

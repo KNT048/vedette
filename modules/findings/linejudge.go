@@ -148,7 +148,7 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 		case r.Status == "unaffected":
 			got = lineUnaffected
 		default: // affected, fixed: the line's affected releases
-			switch (VersionRange{StartIncl: r.Introduced, EndIncl: r.LastAffected, EndExcl: r.Fixed}).Contains(ver) {
+			switch lineContains(p, r, ver) {
 			case Yes:
 				got = lineAffected
 			case No:
@@ -205,6 +205,44 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 		return assessed
 	}
 	return notAssessed
+}
+
+// lineContains says ver is inside a vendor row's affected releases of its line. In the product's version scheme where it reads the
+// version and the bound, a patch build the bound states counts (versionscheme.ComparePatch: Oracle's 8u511b33 is after 8u511 and before
+// 8u521); a bound the scheme does not read ("11.0.33.0.3") is compared as any version is.
+func lineContains(p productid.Product, r LineRow, ver string) Tri {
+	rng := VersionRange{StartIncl: r.Introduced, EndIncl: r.LastAffected, EndExcl: r.Fixed}
+	sc, ok := versionscheme.Lookup(p.Scheme)
+	if !ok || p.Scheme == "" {
+		return rng.Contains(ver)
+	}
+	iv, ok := sc.Parse(ver)
+	if !ok {
+		return rng.Contains(ver)
+	}
+	unknown := false
+	holds := func(bound string, want func(int) bool) bool {
+		if bound == "" {
+			return true
+		}
+		c, known := compareBound(ver, bound)
+		if bv, ok := sc.Parse(bound); ok {
+			c, known = versionscheme.ComparePatch(iv, bv)
+		}
+		if !known {
+			unknown = true
+			return true
+		}
+		return want(c)
+	}
+	if !holds(rng.StartIncl, func(c int) bool { return c >= 0 }) || !holds(rng.EndIncl, func(c int) bool { return c <= 0 }) ||
+		!holds(rng.EndExcl, func(c int) bool { return c < 0 }) {
+		return No
+	}
+	if unknown {
+		return Unknown
+	}
+	return Yes
 }
 
 // supportOf is the support of a product's line, the earliest release and the latest end any support source gives.

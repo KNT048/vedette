@@ -133,6 +133,7 @@ Device merges and deletes run the lifecycle participants (section 5.9).
 | `fnd_finding` | One row per (device, CVE, software line) that was affected at some time: detection, handling and urgency in separate column groups (section 5.2). |
 | `fnd_finding_event` | Append-only history of a finding (created, handled, reopened, urgency or fix changed …). The report's "handled" section reads it. |
 | `fnd_question` | What Vedette cannot decide without a person (a version it needs, a platform, a package release …), with how many CVEs wait on the answer. Not a finding. |
+| `fnd_coverage_run` | The decision coverage of each match pass, counts only (the newest 30 kept). |
 | `fnd_reach_run` | The reachability audit run after a feed refresh (the newest 30 kept). |
 | `mit_applied` | Remediation items a person marked applied on a finding. Never changes the finding's state. |
 | `mit_ai_output` | The last AI-written remediation per finding and skill, kept apart from the signed packs. |

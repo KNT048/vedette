@@ -28,6 +28,10 @@ import (
 //  4. Every other reading of another release still feeds matching (an older second install, another port), unless the person's
 //     entry holds and the reading was already there when the person set it: the person looked at it and said otherwise. Such a
 //     reading sets differs.
+//     A person's entry without a version names the product, never its release: it holds no version against a source. When a
+//     source other than nmap's guess reads a release of the line, rules 1 to 4 run as if there were no entry (the strongest source
+//     with a release is the line, under the person's name for it); the entry stays a reading, so the line stays the person's when
+//     no source reads it any more, and a version-less entry never leaves the line without the release a source read.
 //  5. A "not installed" mark holds until a reading first seen after the mark (a new install, or the source reading a new release),
 //     also across a removal. A line with no reading and no entry is removed; one that gets a reading again is present.
 
@@ -145,6 +149,10 @@ func Resolve(line LineState, readings []Reading) Resolution {
 			break
 		}
 	}
+	var named *Reading // a version-less entry a source's release fills (rule 3): it names the line, the source gives its value
+	if entry != nil && !hasRelease(*entry) && slices.ContainsFunc(rs, func(r Reading) bool { return !r.entry() && !r.guess() && hasRelease(r) }) {
+		named, entry = entry, nil
+	}
 	// rule 1: the newest release among the readings first seen after the entry that read a newer release than it
 	if entry != nil {
 		var by *Reading
@@ -192,13 +200,20 @@ func Resolve(line LineState, readings []Reading) Resolution {
 			}
 		}
 	} else {
-		best := rs[0]
-		for _, r := range rs[1:] {
-			if readingRank(r) == readingRank(best) && newerRelease(r.Version, r.PkgVersion, best.Version, best.PkgVersion) {
+		var best *Reading
+		for i := range rs {
+			r := &rs[i]
+			if named != nil && (r.entry() || r.guess() || !hasRelease(*r)) {
+				continue
+			}
+			if best == nil || readingRank(*r) == readingRank(*best) && newerRelease(r.Version, r.PkgVersion, best.Version, best.PkgVersion) {
 				best = r
 			}
 		}
-		res.Effective = best
+		res.Effective = *best
+		if named != nil && named.Display != "" {
+			res.Effective.Display = named.Display // what the person called it ("FortiGate"), at the release a source read
+		}
 	}
 	// rule 4
 	eff := res.Effective
@@ -206,8 +221,8 @@ func Resolve(line LineState, readings []Reading) Resolution {
 		if r.entry() || r.guess() || r.Source == eff.Source && r.Instance == eff.Instance && r.Addr == eff.Addr {
 			continue
 		}
-		if pkgrel.Same(eff.Version, eff.PkgVersion, r.Version, r.PkgVersion) {
-			continue
+		if pkgrel.Same(eff.Version, eff.PkgVersion, r.Version, r.PkgVersion) || !hasRelease(r) && !hasRelease(eff) {
+			continue // the same release, or no release on either side: nothing differs
 		}
 		if entry != nil && r.FirstSeen <= entry.FirstSeen {
 			continue // the person saw it when they set their version
@@ -216,4 +231,9 @@ func Resolve(line LineState, readings []Reading) Resolution {
 	}
 	res.Differs = len(res.Matched) > 0
 	return res
+}
+
+// hasRelease says whether a reading reads a release (a version or a package release).
+func hasRelease(r Reading) bool {
+	return strings.TrimSpace(r.Version) != "" || strings.TrimSpace(r.PkgVersion) != ""
 }

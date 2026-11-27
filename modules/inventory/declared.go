@@ -80,12 +80,13 @@ func appliance(kind string) bool {
 	return true
 }
 
-// declaredCandidates are the rows of sw a person declared of an OS product, live and installed, the newest first.
+// declaredCandidates are the rows of sw a person declared of an OS product, live and installed, the newest first: a person's entry,
+// or a row a person added without a version whose release a source reads (personsLine).
 func declaredCandidates(sw []Software) []*Software {
 	var out []*Software
 	for i := range sw {
 		s := &sw[i]
-		if s.Source != "manual" || !s.live || s.NotInstalled {
+		if !s.live || s.NotInstalled {
 			continue
 		}
 		if _, ok := osProducts[productid.Key(s.Vendor, s.Product)]; ok {

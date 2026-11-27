@@ -183,6 +183,12 @@ func readingsOf(ctx context.Context, tx *sql.Tx, lineID string) ([]Reading, erro
 
 // lineOf finds the line of a device for an identity, or creates it (state present, its effective reading the first one, history
 // "appeared"). A removed line found again comes back through settleLine.
+//
+// A version names a product's train; no version names the product only. So, for a product whose trains install side by side, a
+// reading without a release (a person's entry without a version, a banner without one) and a train of the product are one line
+// whenever the device has one of them: a reading without a release joins the device's line of the product (the newest seen), and
+// the first train read of a product whose line holds only readings without a release becomes that line's train (renamed in place:
+// its id, history and findings stay). A version-less line never stays beside the train a source reads, asking for a version.
 func (s *Service) lineOf(ctx context.Context, tx *sql.Tx, assetID string, id lineIdentity, first Reading) (lineID string, err error) {
 	err = tx.QueryRowContext(ctx, `SELECT id FROM inv_software WHERE asset_id = ? AND product_key = ? AND line = ?`, assetID, id.productKey, id.line).Scan(&lineID)
 	if err == nil {
@@ -190,6 +196,17 @@ func (s *Service) lineOf(ctx context.Context, tx *sql.Tx, assetID string, id lin
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("inventory: read software line: %w", err)
+	}
+	switch other, err := productLine(ctx, tx, assetID, id.productKey, id.line, hasRelease(first)); {
+	case err != nil:
+		return "", err
+	case other != "" && id.line != "":
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET line = ? WHERE id = ?`, id.line, other); err != nil {
+			return "", fmt.Errorf("inventory: name the software line's train: %w", err)
+		}
+		return other, nil
+	case other != "":
+		return other, nil
 	}
 	lineID = store.NewID("s")
 	vendor, product := clip(id.vendor, maxSwField), clip(id.product, maxSwField)
@@ -207,6 +224,30 @@ func (s *Service) lineOf(ctx context.Context, tx *sql.Tx, assetID string, id lin
 		return "", err
 	}
 	return lineID, nil
+}
+
+// productLine is the device's other line of a product with trains that a reading belongs to (lineOf): for a train (train set), the
+// product's line without a train that holds no reading with a release; for a reading without a release (train "" and no release),
+// the product's line of a train, present first, the newest seen. "" when none, or when the product has no trains.
+func productLine(ctx context.Context, tx *sql.Tx, assetID, productKey, train string, release bool) (string, error) {
+	var q string
+	switch p, ok := productid.ByKey(productKey); {
+	case !ok || p.Trains == productid.TrainsNone:
+		return "", nil
+	case train != "":
+		q = `SELECT s.id FROM inv_software s WHERE s.asset_id = ? AND s.product_key = ? AND s.line = ''
+			AND NOT EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = s.id AND (r.version IS NOT NULL OR r.pkg_version IS NOT NULL))`
+	case !release:
+		q = `SELECT s.id FROM inv_software s WHERE s.asset_id = ? AND s.product_key = ? AND s.line <> ''
+			ORDER BY s.state = 'present' DESC, s.last_seen DESC, s.id LIMIT 1`
+	default:
+		return "", nil
+	}
+	var id string
+	if err := tx.QueryRowContext(ctx, q, assetID, productKey).Scan(&id); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("inventory: read software line: %w", err)
+	}
+	return id, nil
 }
 
 // itemEvidence is what a source sent of a reading as identify read it (inv_software_reading.item_*): its vendor and product names,

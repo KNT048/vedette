@@ -42,7 +42,7 @@ type identifier func(it SoftwareItem, source string) (lineIdentity, string)
 // identifyRules is the generation of the identification code (identify and core/productid's rules). Raise it with a change of that
 // code that can give a stored reading another product or train: the next start identifies the stored lines again, as after a change
 // of the catalogue's data. TestIdentifyRulesFollowTheIdentificationCode fails on any change of that code until the change is weighed.
-const identifyRules = "4"
+const identifyRules = "5"
 
 // catalogueRevision is the revision of the product catalogue this build identifies with: a hash of the identification rules'
 // generation and of the catalogue files core/productid loads (products/*.json, curated.json, kev-products.json).
@@ -387,6 +387,9 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 			p := placed{from: l.id, old: hr.r, r: hr.r, ev: hr.ev}
 			if hr.ev.ok {
 				id, v := s.ident(hr.ev.item(hr.r), hr.r.Source)
+				if id.productKey == l.key && id.line == "" && !hasRelease(Reading{Version: v, PkgVersion: hr.r.PkgVersion}) {
+					id.line = l.train // a reading without a release stays on its product's line of a train (lineOf)
+				}
 				p.to, p.r.Version, p.r.Instance = id, v, hr.ev.instance
 				keys[id.productKey] = true
 			} else {
@@ -429,6 +432,7 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 		}
 		plan.all = append(plan.all, mine...)
 	}
+	joinTrains(plan.all)
 	// a line is renamed when no line holds its new identity, which another line may leave first: until none moves
 	for moved := true; moved; {
 		moved = false
@@ -464,7 +468,8 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 			p.r.Instance = installInstance(p.r.Instance, p.r)
 		}
 	}
-	// one reading per line, source, instance and address: the newer one stays (as when two devices' lines fold)
+	// one reading per line, source, instance and address: one with a release over one without, else the newer one stays (as when two
+	// devices' lines fold)
 	type pk struct {
 		to                 identityKey
 		source, inst, addr string
@@ -472,7 +477,8 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 	newest := map[pk]int{}
 	for i, p := range plan.all {
 		k := pk{keyOf(p.to), p.r.Source, p.r.Instance, p.r.Addr}
-		if j, ok := newest[k]; !ok || p.r.SeenAt > plan.all[j].r.SeenAt {
+		if j, ok := newest[k]; !ok || hasRelease(p.r) != hasRelease(plan.all[j].r) && hasRelease(p.r) ||
+			hasRelease(p.r) == hasRelease(plan.all[j].r) && p.r.SeenAt > plan.all[j].r.SeenAt {
 			newest[k] = i
 		}
 	}
@@ -485,6 +491,32 @@ func (s *Service) planIdentities(lines []heldLine) identPlan {
 		}
 	}
 	return plan
+}
+
+// joinTrains puts a reading without a release that belongs to a product's line without a train on a train of that product the plan
+// gives the device, as lineOf does on a write: the newest seen. A reading of the same source, install and address with a release
+// there is kept over it (a person's typed version over the same person's entry without one); a line without a train left without
+// readings is removed.
+func joinTrains(all []placed) {
+	for i := range all {
+		p := &all[i]
+		if p.to.line != "" || hasRelease(p.r) {
+			continue
+		}
+		if prod, ok := productid.ByKey(p.to.productKey); !ok || prod.Trains == productid.TrainsNone {
+			continue
+		}
+		var train *placed
+		for j := range all {
+			q := &all[j]
+			if q.to.productKey == p.to.productKey && q.to.line != "" && (train == nil || q.r.SeenAt > train.r.SeenAt || q.r.SeenAt == train.r.SeenAt && q.to.line > train.to.line) {
+				train = q
+			}
+		}
+		if train != nil {
+			p.to.line = train.to.line
+		}
+	}
 }
 
 // heldIdentities maps the product and train of every line of a device to its id, after renames.

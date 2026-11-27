@@ -411,7 +411,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 		if err := softwareEvent(ctx, tx, l.assetID, id, target.productKey, next.Display, now, "entry_set", "", releaseText(next.Version, next.PkgVersion), sourceManual, actor); err != nil {
 			return false, err
 		}
-		if cur != nil { // the entry moved: this line is back to its sources
+		if cur != nil && id != l.id { // the entry moved: this line is back to its sources (a line without a train that takes one stays)
 			if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = 'manual'`, l.id); err != nil {
 				return false, fmt.Errorf("inventory: correct software: %w", err)
 			}
@@ -424,7 +424,9 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 				return false, err
 			}
 		}
-		lines = append(lines, id)
+		if id != l.id {
+			lines = append(lines, id)
+		}
 	}
 	if err := s.settled(ctx, tx, o, l.assetID, before, lines...); err != nil {
 		return false, err
@@ -444,7 +446,8 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 }
 
 // addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is true when the device
-// already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it).
+// already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it); the
+// product without a version is any train of it the device has.
 func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup, moved bool, err error) {
 	id, version := s.ident(it, sourceManual)
 	version, display := statedRelease(id.productKey, version, it.Display)
@@ -452,6 +455,15 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 	var guess bool
 	err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.asset_id = ? AND s.product_key = ? AND s.line = ?`, assetID, id.productKey, id.line).
 		Scan(&lineID, &state, &guess)
+	if errors.Is(err, sql.ErrNoRows) && version == "" { // the product without a version is any train of it the device has (lineOf)
+		other, perr := productLine(ctx, tx, assetID, id.productKey, id.line, false)
+		if perr != nil {
+			return false, false, perr
+		}
+		if other != "" {
+			err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.id = ?`, other).Scan(&lineID, &state, &guess)
+		}
+	}
 	switch {
 	case err == nil && state == statePresent && !guess:
 		return true, false, nil

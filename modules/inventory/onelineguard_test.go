@@ -36,6 +36,7 @@ var readingsDecls = map[string]bool{
 	"modules/inventory/lines.go:readingsOf":             true,
 	"modules/inventory/lines.go:settleLine":             true,
 	"modules/inventory/lines.go:putReading":             true,
+	"modules/inventory/lines.go:productLine":            true, // where a reading lands: a line without a train that holds no release, no version read
 	"modules/inventory/software.go:replaceSoftwareTx":   true,
 	"modules/inventory/statedos.go:syncStatedOS":        true,
 	"modules/inventory/entries.go:editEntryTx":          true,

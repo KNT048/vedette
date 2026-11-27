@@ -77,12 +77,17 @@ detail is in its doc comment.
 **Software lines**
 - **INV-54** One `inv_software` row per installed software line: unique on (device, `product_key`, `line`); the id never changes
   (a version move is an update with a `version_changed` event). Readings per source are `inv_software_reading`; history is the
-  append-only `inv_software_event`. Removal is a state; a removed line is deleted after 400 days.
+  append-only `inv_software_event`. Removal is a state; a removed line is deleted after 400 days. Of a product whose trains install
+  side by side, a reading without a release and a train are one line (`lineOf`, and `joinTrains` for lines stored apart before):
+  a reading without a release joins the device's line of a train of the product, and the first train read of a line that holds
+  only readings without a release becomes its train in place (id kept).
 - **INV-52** The effective reading is written only by `Resolve` (`resolve.go`), in every write path: a person's entry holds until
   a reading first seen after it, or an agent's report after it, reads a newer release (history `entry_lapsed`, audit
   `inventory.software_correction_lapsed`); a source that reads another release after the entry that is not newer leaves it, said
   once per source and release (history `entry_kept`, audit `inventory.software_correction_kept`); otherwise the strongest source,
-  newest release among equals. A version is stored as its product's version scheme writes it (`statedRelease`: ESXi "8.0 U3" is "8.0.3" with its
+  newest release among equals. A person's entry without a version names the product, never its release: when a source (not nmap's
+  guess) reads a release of the line, that source's release is the line's value under the person's name for it, the entry stays
+  a reading (the line stays the person's, `personsLine`), and nothing asks the person for a version the device states. A version is stored as its product's version scheme writes it (`statedRelease`: ESXi "8.0 U3" is "8.0.3" with its
   build in the name, DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5", Debian's "X+reallyY" is Y). The selfcheck
   `inventory.line_value_is_the_resolvers` recomputes `Resolve` on every line, and `inventory.line_is_the_train_of_its_readings` checks
   that every reading's release is of its line's train (`selfcheck.go`).

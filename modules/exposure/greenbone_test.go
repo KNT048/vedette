@@ -82,6 +82,17 @@ type fakeGVM struct {
 	lastHost    string          // the hosts of the last create_target: the report's rows of ipA are this address's
 	ran         bool            // the task was served "Running" once: its progress is 50 from then on, -1 before
 	hangOnce    map[string]bool // commands not answered the first time they come
+	faf         []fakeFam       // the families "Full and fast" selects; nil is the short default list
+}
+
+// fakeFam is one family of the fake "Full and fast": how many of its max NVTs it selects, whether it is growing, and which NVTs
+// when it selects only some.
+type fakeFam struct {
+	name    string
+	count   int
+	max     int
+	growing bool
+	nvts    []string
 }
 
 const leftoverTask = "cccccccc-dddd-4eee-8fff-000000000000"
@@ -91,7 +102,8 @@ type fakeCfg struct {
 	id, name string
 	families []string
 	prefs    map[string]string
-	web      []string // the NVTs of Web application abuses; nil is the whole family (growing)
+	web      []string            // the NVTs of Web application abuses; nil is the whole family (growing)
+	sel      map[string][]string // the NVTs of any other family that was set one by one
 }
 
 // fakeWebNVTs is the feed's family Web application abuses in the fake gvmd.
@@ -120,7 +132,7 @@ func (f *fakeGVM) cfg(name string) (fakeCfg, string) {
 			used = c.name
 		}
 		if c.name == name {
-			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs), web: slices.Clone(c.web)}, used
+			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs), web: slices.Clone(c.web), sel: maps.Clone(c.sel)}, used
 		}
 	}
 	return fakeCfg{}, used
@@ -202,11 +214,22 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			c := f.cfgIn(body)
 			fams := ""
 			for _, n := range c.families {
-				fams += "<family><name>" + n + "</name><nvt_count>10</nvt_count></family>"
+				count := "10"
+				if v, ok := c.sel[n]; ok {
+					count = fmt.Sprint(len(v))
+				}
+				fams += "<family><name>" + n + "</name><nvt_count>" + count + "</nvt_count></family>"
 			}
 			return ok(`<config id="` + c.id + `"><name>` + c.name + `</name><families>` + fams + `</families></config>`)
 		case f.noFAF:
 			return `<get_configs_response status="404" status_text="Failed to find config"/>`
+		}
+		if f.faf != nil {
+			fams := ""
+			for _, x := range f.faf {
+				fams += fmt.Sprintf("<family><name>%s</name><nvt_count>%d</nvt_count><max_nvt_count>%d</max_nvt_count><growing>%d</growing></family>", x.name, x.count, x.max, map[bool]int{true: 1}[x.growing])
+			}
+			return ok(`<config id="` + gmpFullAndFast + `"><name>Full and fast</name><families>` + fams + `</families></config>`)
 		}
 		return ok(`<config id="` + gmpFullAndFast + `"><name>Full and fast</name><families><family><name>General</name></family><family><name>Brute force attacks</name></family>` +
 			`<family><name>Default Accounts</name></family><family><name>Denial of Service</name></family><family><name>Web application abuses</name></family></families></config>`)
@@ -243,16 +266,26 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			c.prefs["safe_checks"] = value()
 		}
 		if strings.Contains(body, "nvt_selection") && !f.keepNVTs {
-			c.web = []string{}
+			fam := body[strings.Index(body, "<family>")+len("<family>") : strings.Index(body, "</family>")]
+			oids := []string{}
 			for _, part := range strings.Split(body, `<nvt oid="`)[1:] {
-				c.web = append(c.web, part[:strings.Index(part, `"`)])
+				oids = append(oids, part[:strings.Index(part, `"`)])
 			}
 			if f.partNVTs {
-				c.web = c.web[:1]
+				oids = oids[:1]
+			}
+			if fam == gmpWebFamily {
+				c.web = oids
+			} else {
+				if c.sel == nil {
+					c.sel = map[string][]string{}
+				}
+				c.sel[fam] = oids
 			}
 		}
 		if strings.Contains(body, "family_selection") && !f.keepFamily {
 			c.web = nil // all and growing: the whole family again
+			c.sel = nil
 			c.families = nil
 			for _, part := range strings.Split(body, "<family><name>")[1:] {
 				c.families = append(c.families, part[:strings.Index(part, "<")])
@@ -260,6 +293,15 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return ok("")
 	case "get_nvts":
+		for _, x := range f.faf {
+			if x.nvts != nil && strings.Contains(body, "family="+x.name+" ") && strings.Contains(body, gmpFullAndFast) {
+				out := ""
+				for _, oid := range x.nvts {
+					out += `<nvt oid="` + oid + `"><name>x</name></nvt>`
+				}
+				return ok(out)
+			}
+		}
 		web := append(slices.Clone(fakeWebNVTs), f.webExtra...)
 		if c := f.cfgIn(body); c != nil && c.web != nil {
 			web = c.web

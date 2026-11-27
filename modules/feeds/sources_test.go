@@ -30,6 +30,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"cloudblog.withgoogle.com":                   true, // Google Threat Intelligence's blog (its RSS feed)
 		"www.spamhaus.org":                           true, // Spamhaus DROP (off until an administrator turns it on)
 		"endoflife.date":                             true, // endoflife.date's release lines and support dates (line support only)
+		"www.oracle.com":                             true, // Oracle's CSAF advisories (its RSS feed and each document it lists)
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -48,6 +49,9 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			want = 6
 		}
 		if vendorClaimFeed(s.ID) { // a vendor's word on exploitation: small lists, read every 6 hours so a claim is not a day late
+			want = 6
+		}
+		if s.ID == oracleLineFeedID { // Oracle's documents: an RSS and a conditional GET per document (304 when unchanged) every 6 hours
 			want = 6
 		}
 		if s.ID == dropFeedID { // Spamhaus asks for at most one download a day
@@ -71,8 +75,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 30 {
-		t.Fatalf("expected the 30 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 31 {
+		t.Fatalf("expected the 31 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

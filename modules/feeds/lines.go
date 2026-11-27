@@ -53,7 +53,12 @@ type LineSourceDef struct {
 	Products []string `json:"products"`
 	Listed   string   `json:"listed"`
 	Absent   string   `json:"absent"`
-	Ref      string   `json:"ref"`
+	// Builds are the distributions of the product whose releases the source numbers ("Oracle"): a release past the newest affected one
+	// of a line is fixed only for them. Empty: every build.
+	Builds []string `json:"builds"`
+	// CSAF says, per catalogue product id, how the source's CSAF documents name the product (listed last_affected).
+	CSAF map[string]CSAFSelector `json:"csaf"`
+	Ref  string                  `json:"ref"`
 }
 
 type lineSourcesFile struct {
@@ -92,8 +97,8 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 		return p.Key, nil
 	}
 	for _, s := range f.Sources {
-		if _, ok := BuiltinByID(s.Source); !ok || strings.TrimSpace(s.Name) == "" || len(s.Products) == 0 || s.Listed != ListedSemverRange ||
-			s.Absent != AbsentUnaffectedIfSupported && s.Absent != AbsentUnknown {
+		if _, ok := BuiltinByID(s.Source); !ok || strings.TrimSpace(s.Name) == "" || len(s.Products) == 0 || s.Listed != ListedSemverRange && s.Listed != ListedLastAffected ||
+			s.Absent != AbsentUnaffectedIfSupported && s.Absent != AbsentUnaffectedIfAssessed && s.Absent != AbsentUnknown {
 			return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: unknown feed, no product or unknown convention", s.Source)
 		}
 		for _, id := range s.Products {
@@ -101,7 +106,20 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 			if err != nil {
 				return lineCatalogue{}, err
 			}
+			if sel := s.CSAF[id]; s.Listed == ListedLastAffected && len(sel.CPE) == 0 && strings.TrimSpace(sel.Branch) == "" {
+				return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: product %q has no csaf entry", s.Source, id)
+			}
 			c.keys[s.Source] = append(c.keys[s.Source], k)
+		}
+		for id, sel := range s.CSAF {
+			if !slices.Contains(s.Products, id) {
+				return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: csaf names %q, not one of its products", s.Source, id)
+			}
+			if len(sel.Own) > 0 && (len(s.Builds) == 0 || strings.TrimSpace(sel.Branch) == "") {
+				return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: product %q has own_components without builds or branch", s.Source, id)
+			}
+			sel.builds = s.Builds
+			s.CSAF[id] = sel
 		}
 		c.sources[s.Source] = s
 	}
@@ -124,7 +142,11 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 // lineStatement is one CVE a line source speaks about for one product, with its rows.
 type lineStatement struct {
 	CVE, Product, Ref string
-	Rows              []lineRow
+	StatedAt          string // the day of the vendor's document (YYYY-MM-DD); "" when the source gives none (then the day first read)
+	// OnlyBuilds are the builds the statement is limited to: the CVE is in a part of the product only they ship (line-sources.json
+	// csaf own_components). Empty: every build.
+	OnlyBuilds []string
+	Rows       []lineRow
 }
 
 // lineRow is one release line of a statement (feeds_line_status).
@@ -392,6 +414,9 @@ func isDay(s string) bool {
 // buildLines pulls a line source (Node.js's index) or the support source (endoflife.date). The whole file every time (145 kB and
 // 3 MB, once a day): the stored rows keep only the catalogue's CVEs (INV-34), so a CVE that entered it since is read at the next pull.
 func (s *Service) buildLines(ctx context.Context, src sourceRow, p pullPlan, dec Decoder) (pullPlan, error) {
+	if dec == DecoderOracleCSAF {
+		return s.buildOracleLines(ctx, src, p)
+	}
 	cat, err := lineCat()
 	if err != nil {
 		return p, err
@@ -444,8 +469,16 @@ func applyLines(ctx context.Context, tx *sql.Tx, now time.Time, sourceID string,
 		if d, ok := days[st.Product+"|"+st.CVE]; ok {
 			day = d
 		}
-		res, err := tx.ExecContext(ctx, `INSERT INTO feeds_line_cve (source_id, product, cve, stated_at, ref)
-SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM feeds_cve WHERE cve = ?)`, sourceID, st.Product, st.CVE, day, st.Ref, st.CVE)
+		if isDay(st.StatedAt) { // the vendor dates its statement
+			day = st.StatedAt
+		}
+		var only any
+		if len(st.OnlyBuilds) > 0 {
+			b, _ := json.Marshal(st.OnlyBuilds)
+			only = string(b)
+		}
+		res, err := tx.ExecContext(ctx, `INSERT INTO feeds_line_cve (source_id, product, cve, stated_at, ref, only_builds)
+SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM feeds_cve WHERE cve = ?)`, sourceID, st.Product, st.CVE, day, st.Ref, only, st.CVE)
 		if err != nil {
 			return nil, fmt.Errorf("feeds: write line rows: %w", err)
 		}
@@ -485,7 +518,7 @@ explicit, platforms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, sourceID, st.Produc
 
 // lineSigs is, per product|cve a line source states, its ref and rows as one text, and the day it was stated.
 func lineSigs(ctx context.Context, tx *sql.Tx, sourceID string) (sigs, days map[string]string, err error) {
-	rows, err := tx.QueryContext(ctx, `SELECT c.product || '|' || c.cve, c.stated_at, c.ref || ifnull((SELECT json_group_array(json_array(line, status,
+	rows, err := tx.QueryContext(ctx, `SELECT c.product || '|' || c.cve, c.stated_at, c.ref || '|' || ifnull(c.only_builds, '') || ifnull((SELECT json_group_array(json_array(line, status,
 introduced, last_affected, fixed, explicit, ifnull(platforms, ''))) FROM (SELECT * FROM feeds_line_status s WHERE s.source_id = c.source_id
 AND s.product = c.product AND s.cve = c.cve ORDER BY line)), '') FROM feeds_line_cve c WHERE c.source_id = ?`, sourceID)
 	if err != nil {
@@ -553,6 +586,8 @@ type LineCover struct {
 	Name                      string // how texts name the source (line-sources.json)
 	StatedAt                  time.Time
 	Absent                    string
+	Builds                    []string // the product's builds whose releases the source numbers (line-sources.json); empty: every build
+	OnlyBuilds                []string // the builds the statement is limited to (a part only they ship); empty: every build
 	Stale                     bool
 }
 
@@ -587,24 +622,29 @@ func (s *Store) LineData(ctx context.Context, cves []string, now time.Time) ([]L
 	list, _ := json.Marshal(cves)
 	rdr := s.db.Reader()
 	var covers []LineCover
-	q, err := rdr.QueryContext(ctx, `SELECT source_id, product, cve, stated_at, ref FROM feeds_line_cve WHERE cve IN (SELECT value FROM json_each(?))
-ORDER BY cve, source_id, product`, string(list))
+	q, err := rdr.QueryContext(ctx, `SELECT source_id, product, cve, stated_at, ref, ifnull(only_builds, '') FROM feeds_line_cve
+WHERE cve IN (SELECT value FROM json_each(?)) ORDER BY cve, source_id, product`, string(list))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("feeds: read line covers: %w", err)
 	}
 	products := map[string]bool{}
 	for q.Next() {
 		var c LineCover
-		var day string
-		if err := q.Scan(&c.Source, &c.Product, &c.CVE, &day, &c.Ref); err != nil {
+		var day, only string
+		if err := q.Scan(&c.Source, &c.Product, &c.CVE, &day, &c.Ref, &only); err != nil {
 			_ = q.Close()
 			return nil, nil, nil, fmt.Errorf("feeds: read line covers: %w", err)
 		}
 		if !on[c.Source] {
 			continue
 		}
+		if only != "" {
+			if err := json.Unmarshal([]byte(only), &c.OnlyBuilds); err != nil || len(c.OnlyBuilds) == 0 {
+				continue // limited to builds that cannot be read: the source says nothing about the CVE
+			}
+		}
 		c.StatedAt, _ = time.Parse(time.DateOnly, day)
-		c.Absent, c.Name, c.Stale = cat.sources[c.Source].Absent, cat.sources[c.Source].Name, stale[c.Source]
+		c.Absent, c.Name, c.Builds, c.Stale = cat.sources[c.Source].Absent, cat.sources[c.Source].Name, cat.sources[c.Source].Builds, stale[c.Source]
 		if c.Absent == "" {
 			c.Absent = AbsentUnknown
 		}

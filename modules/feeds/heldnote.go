@@ -31,6 +31,7 @@ var heldNotes = map[string]func(context.Context, *sql.Tx) (string, error){
 	winRelFeedID:        heldWinRel,
 	pocGitHubFeedID:     heldPoC,
 	nodeLineFeedID:      func(ctx context.Context, tx *sql.Tx) (string, error) { return lineHeld(ctx, tx, nodeLineFeedID) },
+	oracleLineFeedID:    func(ctx context.Context, tx *sql.Tx) (string, error) { return lineHeld(ctx, tx, oracleLineFeedID) },
 	eolFeedID:           func(ctx context.Context, tx *sql.Tx) (string, error) { return supportHeld(ctx, tx, eolFeedID) },
 }
 
@@ -47,6 +48,7 @@ var heldFrom = map[string][]string{
 	winRelFeedID:        {winRelFeedID},
 	pocGitHubFeedID:     {pocGitHubFeedID},
 	nodeLineFeedID:      {nodeLineFeedID, nvdFeedID, recentFeedID, cveOrgFeedID}, // the catalogue's pruning drops statements of CVEs it no longer keeps
+	oracleLineFeedID:    {oracleLineFeedID, nvdFeedID, recentFeedID, cveOrgFeedID},
 	eolFeedID:           {eolFeedID},
 }
 

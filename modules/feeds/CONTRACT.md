@@ -25,7 +25,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   exactly the feed's URL and sends no customer data. Feed data never comes through the project's own repository or a central
   server. `TestContract_INV1_OnlyDeclaredSources`.
 - **INV-2** A feed URL is `https`; `http` only to an internal host. Limits of a pull: 5,000,000 bytes, 50,000 rows (a built-in
-  source may set its own row cap), 60 seconds; redirects only to the same host, at most 5.
+  source may set its own byte and row caps, counted after the transport's decoding: Oracle's CSAF documents 16 MB each, read as a stream),
+  60 seconds; redirects only to the same host, at most 5.
 - **INV-13** Every built-in host is listed in `PRIVACY.md` flow 1 and on Settings → Privacy.
 - **INV-17** No pull connects to Vedette itself (loopback, the core container, the honeypot decoys, Vedette's own ports on the
   machine's address), to link-local or to cloud metadata addresses. The guard runs on the resolved address right before connect
@@ -145,8 +146,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   restart does not reset it), through the same download, rate and fetch log as any whole-list read; that read stamps the CVEs the list
   does not hold, so they start no second one.
 - **INV-40** Vendor statements per release line come from line sources declared in `content/catalog/line-sources.json` (the feed, its
-  catalogue products, what a listed row states and what a line it does not list means: `unaffected_if_supported` or `unknown`), never
-  from per-product code. The Node.js security working group's index (`nodejs-security-wg`) is read into `feeds_line_cve` (the source
+  catalogue products, what a listed row states (`semver_range`, `last_affected`) and what a line it does not list means:
+  `unaffected_if_supported`, `unaffected_if_assessed` or `unknown`; the builds whose releases it numbers; how a CSAF document names the
+  product), never from per-product code. The Node.js security working group's index (`nodejs-security-wg`) is read into `feeds_line_cve` (the source
   speaks about the CVE for the product, with the day of its statement and the advisory link) and `feeds_line_status` (one row per
   release line its vulnerable range names: from the start it gives, up to the release its patched range gives for that line; limited to
   the platforms the entry names). An entry whose ranges do not read, name one line twice or disagree is dropped whole and counted, never
@@ -155,7 +157,19 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   its day, so an unchanged index changes nothing for findings. endoflife.date (`endoflife-date`) fills `feeds_line_support` (release day,
   end of security support, latest release) of the products the file names, and is never a CVE verdict. `LineData` gives findings the
   rows, covers and support of the sources that are on; a cover is `Stale` when its source is more than a day past its interval.
-  `TestParseNodeLines_Count`, `TestParseNodeLines_FailsClosed`, `TestParseEOL_Count`, `TestLineSourcesPull`.
+  Oracle's CSAF feed (`oracle-cpu-csaf`, every 6 hours) is its RSS and each document it lists, asked of the feed's own host with the
+  validators the document last gave (a 304 is not read again while the box runs): of the catalogue's products (a CPE line-sources.json
+  names, else the product tree branch it names; another edition such as the Performance Pack is not the product) one row per release
+  line with the newest affected release, read through the product's `version_map` (`8u491` = `1.8.0_491`, a patch build kept: `8u511b33` = `1.8.0_511-b33`); a line the document assessed
+  (has a release of) and does not list is a convention row (`explicit` 0, `unaffected`), a line whose every release it lists not affected
+  an explicit `unaffected` row. A statement is dated by its document's first release. A CVE that names a release Vedette cannot read, a
+  status it does not read, or a release not affected at or below an affected one on the same line (in one document or across several) is
+  dropped whole; several documents on a CVE are combined (the newest affected release of a line wins). When a document of the feed
+  cannot be read, no convention row is written until it can. A CVE whose Java SE description names only components only Oracle's own
+  build ships (line-sources.json `own_components`: installer, Java plugin, JavaFX in Java 8) is stated for those builds only
+  (`feeds_line_cve.only_builds`, `LineCover.OnlyBuilds`); one of any other component, or none named, for every build.
+  `TestParseNodeLines_Count`, `TestParseNodeLines_FailsClosed`, `TestParseEOL_Count`, `TestLineSourcesPull`, `TestOracleLines_Count`,
+  `TestOracleLines_FailsClosed`, `TestOracleLinesPull`, `TestOracleLines_OwnBuildParts`.
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
   the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the

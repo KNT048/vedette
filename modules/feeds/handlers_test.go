@@ -617,12 +617,12 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 28, "id") != "hagezi-tif" || at(b, "items", 29, "id") != "spamhaus-drop" || at(b, "items", 29, "enabled") != false || at(b, "items", 30) != nil {
+	if c != 200 || at(b, "items", 29, "id") != "hagezi-tif" || at(b, "items", 30, "id") != "spamhaus-drop" || at(b, "items", 30, "enabled") != false || at(b, "items", 31) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 20, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 21, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")

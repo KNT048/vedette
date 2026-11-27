@@ -19,7 +19,7 @@ import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/l
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
   CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
-  AnsweredList, AnsweredQuestion, InputGroupItem, InputItem, InputList, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
+  AnsweredList, AnsweredQuestion, InputGroupItem, InputItem, InputList, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View, PossibleCheckState, PossibleList,
 } from './types'
 
 export const records = collection<FindingRecord[]>('fnd_finding_model', seedFindingRecords, () => [])
@@ -330,6 +330,14 @@ export const modelHandlers = [
   })),
   http.get(`${API}/findings/handled`, ({ request }) => read(() => handledList(query(request)))),
   http.get(`${API}/findings/overview`, () => read(overview)),
+  // possible findings: the sample box has none yet, and no AI profile to check them with
+  http.get(`${API}/findings/possible`, () => read(() => ({ items: [], total: 0, counts: { possible: 0, proposals: 0, unchecked: 0, settled: 0 } }) satisfies PossibleList)),
+  http.get(`${API}/findings/possible/audit`, () => read(() => ({ groups: [] }))),
+  http.get(`${API}/findings/possible/check`, () => read(() => ({ ready: false, reason: 'The preview has no AI profile to check possible findings with.', run: null }) satisfies PossibleCheckState)),
+  http.post(`${API}/findings/possible/check`, () => guard('operator') ?? fail(409, 'ai_unavailable', 'The preview has no AI profile to check possible findings with.')),
+  http.post(`${API}/findings/possible/confirm`, () => guard('operator') ?? HttpResponse.json({ confirmed: 0 })),
+  http.post(`${API}/findings/possible/:id/confirm`, () => guard('operator') ?? fail(404, 'not_found', 'No such proposal: it was answered, rejected or the evidence changed.')),
+  http.post(`${API}/findings/possible/checks/:key/reject`, () => guard('operator') ?? fail(404, 'not_found', 'No such proposal: it was answered, rejected or the evidence changed.')),
   http.get(`${API}/findings/:id/view`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     const r = one(String(params.id))

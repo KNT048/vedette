@@ -15,8 +15,9 @@ import (
 //   - Groups: each group of checks off leaves its scripts out of the --script value of ExternalFull and ExternalDisruptive (the
 //     value is the base and the allowed groups' scripts, sorted; scripts.go says which script is in which group). Scheduled scans
 //     run ExternalFull, so a group off removes its scripts there too.
-//   - SkipPorts: ExternalFull and External's discovery name them in --exclude-ports, so nmap sends nothing to them, and ExternalFull
-//     then also leaves out followScripts (they reach ports learned from another service). ExternalDisruptive and the External -sV
+//   - SkipPorts: ExternalFull, ExternalFullPorts and External's discovery name them in --exclude-ports, so nmap sends nothing to
+//     them, and ExternalFull then also leaves out followScripts (they reach ports learned from another service); ExternalFull on open
+//     ports names them too, and its -p list never holds one. ExternalDisruptive and the External -sV
 //     batches name their own ports (-p): the caller leaves the skipped ones out (ExternalBatchesSkipping), and a disruptive line
 //     with ports to skip is refused.
 //   - Gentle is the job's rate: the two full shapes also run at GentleRate, where ExternalFull drops --version-all (see GentleRate).
@@ -105,7 +106,7 @@ func skipList(ports []int) (string, error) {
 }
 
 // FlagsNarrow is FlagsFor of a shape narrowed by a target's deep-scan settings: ExternalFull and ExternalDisruptive take the groups,
-// ExternalFull and External's discovery the ports to skip; every other shape takes none (a LAN line skipping ports is an error).
+// ExternalFull, ExternalFullPorts and External's discovery the ports to skip; every other shape takes none (a LAN line skipping ports is an error).
 // Wide() gives FlagsFor's line exactly.
 func FlagsNarrow(kind Kind, rate int, ports []int, n Narrow) ([]string, error) {
 	if n.Groups&^AllGroups != 0 {
@@ -116,11 +117,13 @@ func FlagsNarrow(kind Kind, rate int, ports []int, n Narrow) ([]string, error) {
 		return nil, err
 	}
 	switch kind {
-	case ExternalFull:
-		if len(ports) != 0 {
-			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list", kind.Name())
+	case ExternalFull: // ports nil: the one-run line on every port; otherwise the open ports the deep scan's port scan found
+		return fullFlags(rate, n, skip, ports)
+	case ExternalFullPorts:
+		if len(ports) != 0 || n.Groups != AllGroups {
+			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list and no script groups", kind.Name())
 		}
-		return fullFlags(rate, n, skip)
+		return fullPortsFlags(rate, skip)
 	case ExternalDisruptive:
 		if skip != "" {
 			return nil, fmt.Errorf("nmapargv: the %s shape names its ports itself: leave the skipped ones out of them", kind.Name())

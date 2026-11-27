@@ -37,6 +37,11 @@ type exposureServiceScan struct {
 	// scanDomain is sensor-active's ScanDomainIP: the deep scan of an address a verified domain's name resolves to, as a
 	// domain_ip job the worker's own fence checks. nil: such a step is refused (nothing sent).
 	scanDomain func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, set sensoractive.DeepSettings, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
+	// scanOn and scanDomainOn run one of a deep scan's two runs (sensor-active's ScanFullPortsWith and ScanFullOnWith, ScanDomainIPOn):
+	// kind nmapargv.ExternalFullPorts without ports, or nmapargv.ExternalFull on the open ports. nil: the deep scan runs in one run
+	// (ScanOpenPorts says exposure.ErrPortsFirstUnsupported).
+	scanOn       func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error)
+	scanDomainOn func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, set sensoractive.DeepSettings, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
 	// scanDisruptive is sensor-active's ScanDisruptive: the disruptive scripts on the open ports of the box's own IP. nil: refused.
 	scanDisruptive func(ctx context.Context, ip netip.Addr, ports []int, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error)
 	gate           ownIPGate
@@ -163,40 +168,109 @@ func fullSettings(t exposure.ScanTarget, kind nmapargv.Kind) sensoractive.DeepSe
 }
 
 func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTarget, ip netip.Addr) (exposure.ServiceScan, error) {
+	kind := nmapargv.External
+	if t.Mode.Full { // the deep scan in one run: never the disruptive scripts, which are its last step (ScanDisruptive)
+		kind = nmapargv.ExternalFull
+	}
+	got, err := a.run(ctx, t, ip, kind, nil)
+	if err != nil {
+		return exposure.ServiceScan{}, err
+	}
+	return serviceScanOf(got, ip), nil
+}
+
+// ScanOpenPorts implements exposure.PortsFirstScanner: the deep scan's port scan of every TCP port of ip (nmapargv.ExternalFullPorts),
+// behind the same fences as the one full run. A scan container whose worker does not run the two runs gets nothing and exposure
+// gets exposure.ErrPortsFirstUnsupported (it then runs the one full run on every port).
+func (a exposureServiceScan) ScanOpenPorts(ctx context.Context, t exposure.ScanTarget, ip netip.Addr) (exposure.OpenPorts, error) {
+	if !t.Mode.Full || (t.Domain == nil && a.scanOn == nil) || (t.Domain != nil && a.scanDomainOn == nil) {
+		return exposure.OpenPorts{}, exposure.ErrPortsFirstUnsupported
+	}
+	got, err := a.run(ctx, t, ip, nmapargv.ExternalFullPorts, nil)
+	switch {
+	case errors.Is(err, sensoractive.ErrFullPortsUnsupported):
+		return exposure.OpenPorts{}, exposure.ErrPortsFirstUnsupported
+	case err != nil:
+		return exposure.OpenPorts{}, err
+	}
+	out := exposure.OpenPorts{Ports: got.Ports, Refused: got.Refused, Open: make([]int, 0, len(got.Services))}
+	for _, s := range got.Services {
+		out.Open = append(out.Open, s.Port)
+	}
+	return out, nil
+}
+
+// ScanOpenServices implements exposure.PortsFirstScanner: -sV and the reviewed scripts on ports, the open ports of ip the port scan
+// found (nmapargv.ExternalFull with a port list), behind the same fences again.
+func (a exposureServiceScan) ScanOpenServices(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ports []int) (exposure.ServiceScan, error) {
+	if !t.Mode.Full || len(ports) == 0 {
+		return exposure.ServiceScan{}, errors.New("exposure services: the run on open ports is a deep scan's, on at least one port")
+	}
+	got, err := a.run(ctx, t, ip, nmapargv.ExternalFull, ports)
+	switch {
+	case errors.Is(err, sensoractive.ErrFullPortsUnsupported): // the worker changed since the port scan (an update)
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOld}
+	case err != nil:
+		return exposure.ServiceScan{}, err
+	}
+	return serviceScanOf(got, ip), nil
+}
+
+// run is one nmap run of kind on ip for exposure (ports: the open ports of the deep scan's run on them, nil otherwise): the module
+// switch, the typed-IP rule, the step's bound, the box's own IP or a domain's address, and the errors exposure shows. A worker that
+// does not run the deep scan's two runs gives sensoractive.ErrFullPortsUnsupported as it is.
+func (a exposureServiceScan) run(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, kind nmapargv.Kind, ports []int) (sensoractive.External, error) {
 	if a.on != nil && !a.on() {
-		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOff}
+		return sensoractive.External{}, &exposure.Unavailable{Reason: servicesOff}
 	}
 	if t.Typed && t.Domain == nil { // a typed IP goes only with its proof, never as the box's own address (the worker would refuse it)
-		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: orText(t.TypedWhy, webTypedNoScope)}
+		return sensoractive.External{}, &exposure.Unavailable{Reason: orText(t.TypedWhy, webTypedNoScope)}
 	}
-	kind, bound := nmapargv.External, exposure.ServicesTimeout
-	if t.Mode.Full { // the deep scan's first run: never the disruptive scripts, which are its last step (ScanDisruptive)
-		kind, bound = nmapargv.ExternalFull, exposure.FullServicesTimeout
+	bound := exposure.ServicesTimeout
+	if kind.IsFull() {
+		bound = exposure.FullServicesTimeout
 	}
 	ctx, cancel := context.WithTimeout(ctx, bound) // exposure bounds the step too; this keeps the adapter honest alone
 	defer cancel()
+	split := kind == nmapargv.ExternalFullPorts || len(ports) > 0
 	var got sensoractive.External
 	var err error
 	g := ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow}
-	if t.Domain != nil { // An address that is not the box's, reached through a name of the verified domain
+	switch {
+	case t.Domain != nil: // An address that is not the box's, reached through a name of the verified domain
 		if !kind.IsFull() || a.scanDomain == nil {
-			return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
+			return sensoractive.External{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
 		}
-		got, err = a.scanDomain(ctx, ip, kind, fullSettings(t, kind), sensoractive.DomainIP{Scope: scopeOf(t.Domain), Chain: chainText(t.Domain)}, g)
-	} else {
+		dom := sensoractive.DomainIP{Scope: scopeOf(t.Domain), Chain: chainText(t.Domain)}
+		if split {
+			if a.scanDomainOn == nil {
+				return sensoractive.External{}, sensoractive.ErrFullPortsUnsupported
+			}
+			got, err = a.scanDomainOn(ctx, ip, kind, ports, fullSettings(t, kind), dom, g)
+		} else {
+			got, err = a.scanDomain(ctx, ip, kind, fullSettings(t, kind), dom, g)
+		}
+	case split:
+		if a.scanOn == nil {
+			return sensoractive.External{}, sensoractive.ErrFullPortsUnsupported
+		}
+		got, err = a.scanOn(ctx, ip, kind, ports, fullSettings(t, kind), g)
+	default:
 		got, err = a.scan(ctx, ip, kind, fullSettings(t, kind), g)
 	}
 	un, isDomain := domainErr(err, t.Domain, ip.String())
 	switch {
 	case err == nil:
+	case errors.Is(err, sensoractive.ErrFullPortsUnsupported): // nothing was sent: the caller runs the one full run instead
+		return sensoractive.External{}, err
 	case ctx.Err() != nil: // exposure's bound or the run's stop: exposure tells them apart
-		return exposure.ServiceScan{}, ctx.Err()
+		return sensoractive.External{}, ctx.Err()
 	case isDomain: // The worker's domain fence refused or stopped it, or the worker has no fence key
-		return exposure.ServiceScan{}, un
+		return sensoractive.External{}, un
 	default:
-		return exposure.ServiceScan{}, servicesErr(err, ip, bound)
+		return sensoractive.External{}, servicesErr(err, ip, bound)
 	}
-	return serviceScanOf(got, ip), nil
+	return got, nil
 }
 
 // ScanDisruptive runs the disruptive scripts on ports, the open ports of ip (the box's own verified public IP) the scan found: the
@@ -301,6 +375,23 @@ func exposureServicesFor(d deps, gate ownIPGate, modeNow func(ctx context.Contex
 				return sensoractive.External{}, err
 			}
 			return svc.ScanDomainIPWith(ctx, ip, kind, set, dom, gate)
+		},
+		scanOn: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error) {
+			svc, err := sensorActiveService(ctx, d)
+			if err != nil {
+				return sensoractive.External{}, err
+			}
+			if kind == nmapargv.ExternalFullPorts {
+				return svc.ScanFullPortsWith(ctx, ip, set, own)
+			}
+			return svc.ScanFullOnWith(ctx, ip, ports, set, own)
+		},
+		scanDomainOn: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, set sensoractive.DeepSettings, dom sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error) {
+			svc, err := sensorActiveService(ctx, d)
+			if err != nil {
+				return sensoractive.External{}, err
+			}
+			return svc.ScanDomainIPOn(ctx, ip, kind, ports, set, dom, gate)
 		},
 		scanDisruptive: func(ctx context.Context, ip netip.Addr, ports []int, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error) {
 			svc, err := sensorActiveService(ctx, d)

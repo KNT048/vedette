@@ -566,7 +566,7 @@ func (w *Worker) post(ctx context.Context, id string, res *sensorlink.JobResult)
 }
 
 // argvOf is the job grammar of the table in sensor-protocol.md 6.4, checked here again and not trusted from core: a known
-// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate, a full one nmapargv.FullRate), 1..64
+// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate, a full one nmapargv.FullRate or GentleRate), 1..64
 // canonical unique private IPv4 targets (the three external shapes: exactly one public one; nmapargv.Build and Validate refuse
 // anything else), a timeout of 1..7200
 // seconds. The argv is built here from
@@ -605,11 +605,22 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if batch && (j.HostTimeoutS < int(nmapargv.BatchMinTimeout/time.Second) || j.HostTimeoutS > int(nmapargv.BatchMaxTimeout/time.Second)) {
 		return nil, fmt.Errorf("host timeout %d s is outside the batch range", j.HostTimeoutS) // checked before it becomes a duration
 	}
+	n := nmapargv.Wide()
+	if j.Narrow != nil { // a target's deep-scan settings: the full shapes' groups, the ports skipped (the grammar checks both again)
+		if !kind.IsExternal() || batch {
+			return nil, fmt.Errorf("a %s job carries no deep-scan settings", j.Shape)
+		}
+		g, err := nmapargv.GroupsOf(j.Narrow.Groups)
+		if err != nil {
+			return nil, err
+		}
+		n = nmapargv.Narrow{Groups: g, SkipPorts: j.Narrow.SkipPorts}
+	}
 	var argv []string
 	if batch {
 		argv, err = nmapargv.BuildBatch(j.Rate, j.Ports, time.Duration(j.HostTimeoutS)*time.Second, targets)
 	} else {
-		argv, err = nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports; external_disruptive: its 1..40
+		argv, err = nmapargv.BuildNarrow(kind, j.Rate, j.Ports, n, targets) // port_versions: its 1..20 ports; external_disruptive: its 1..40
 	}
 	if err != nil {
 		return nil, err
@@ -637,7 +648,7 @@ func (w *Worker) beat(ctx context.Context) {
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil,
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true, Narrow: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil,
 		OwnProof: true} // core's proof of the box's own IP is read by the own-IP fence of every external and own_ip job
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {

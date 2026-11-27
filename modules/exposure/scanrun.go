@@ -709,7 +709,7 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 // scanTarget is what the runner and the engines are told about t.
 func (s *Service) scanTarget(ctx context.Context, t Target, user string, mode ScanMode) ScanTarget {
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: mode, Typed: t.Typed,
-		SkipPorts: t.Deep.SkipPorts, SkipPaths: t.Deep.SkipPaths, Gentle: t.Deep.Gentle()}
+		SkipPorts: t.Deep.SkipPorts, SkipPaths: t.Deep.SkipPaths, Gentle: t.Deep.Gentle(), Groups: t.Deep.Groups()}
 	if at, err := s.executorProof(ctx, t); err != nil { // fail closed: the executors check the address themselves
 		s.cfg.Log.ErrorContext(ctx, "exposure: reading the proof the executors get failed", "target", t.Value, "error", err)
 	} else {

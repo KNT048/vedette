@@ -110,6 +110,12 @@ const (
 // MaxZapReport is the largest report the host keeps and serves (exposure.MaxWebReport).
 const MaxZapReport = 4 << 20
 
+// The limits of ZapSettings.SkipPaths (exposure's own limits of a target's web paths to skip).
+const (
+	ZapMaxSkipPaths   = 20
+	ZapMaxSkipPathLen = 200
+)
+
 // ZapBaselineArgs are the args of zap.baseline. URL is http(s)://Host[:Port]/; IP is the public IPv4 address ZAP is pinned to and
 // Port its TCP port. Kind ip: Host is the IP itself, and the host checks that the box leaves the Internet through it. Kind domain:
 // Host is Domain or a name under it, and the host checks that Domain still has the TXT record vedette-verify=<TXTToken> and that Host
@@ -134,6 +140,29 @@ type ZapBaselineArgs struct {
 	// goes out through another line, and the host then takes the page on it instead of its own sighting. Empty: the host's sighting
 	// right before the run decides, as before.
 	ProvenAt string `json:"proven_at,omitempty"`
+	// Settings are the target's deep-scan settings (nil: none). They only narrow what the run does. A host older than the field
+	// refuses the run (an unknown field): nothing is requested.
+	Settings *ZapSettings `json:"settings,omitempty"`
+}
+
+// ZapSettings are a target's deep-scan settings as zap.baseline and zap.active take them. Each one only narrows the run.
+type ZapSettings struct {
+	// SkipPaths are URL path prefixes ZAP never requests (at most ZapMaxSkipPaths, each starting with "/", other than "/" alone, at
+	// most ZapMaxSkipPathLen characters of a URL path: letters, digits and - . _ ~ % ! & ' , ; = : @ /). The host matches each one
+	// literally as a prefix of the page's own origin, in any case: it builds the excludes of ZAP's context itself from the validated
+	// prefixes. With paths to skip, the passive pass runs as an Automation Framework plan with those excludes (zap-baseline.py has
+	// none), and the active pass leaves out the rules that request fixed file names (ZAP does not apply the context's excludes to
+	// them), naming them in ZapActiveResult.SkippedRules.
+	SkipPaths []string `json:"skip_paths,omitempty"`
+	// NoDoS and NoChange turn classes of the disruptive rules of zap.active off: NoDoS the denial-of-service rules, NoChange the rules
+	// that may change data or make the server fetch something elsewhere, with form posting and SQL Injection's stronger payloads.
+	// They never stand in for Disruptive, the grant or the gateway check; without the disruptive rules (and in zap.baseline, which
+	// has none) they change nothing.
+	NoDoS    bool `json:"no_dos,omitempty"`
+	NoChange bool `json:"no_change,omitempty"`
+	// Gentle runs zap.active's scan and its spider on one thread with 500 ms between requests (fixed in the host). zap.baseline's
+	// spider runs on one thread anyway.
+	Gentle bool `json:"gentle,omitempty"`
 }
 
 // ZapBaselineResult is the result of a zap.baseline that produced a report: zap-baseline.py's exit code (0 no rule matched, 1 a FAIL
@@ -184,6 +213,10 @@ type ZapActiveResult struct {
 	// DisruptiveRefused is set when the run asked for the disruptive rules and the host ran the page without them: one of the
 	// ZapRefused* codes. "" when they ran, or were not asked for.
 	DisruptiveRefused string `json:"disruptive_refused,omitempty"`
+	// SkippedRules are the ZAP plugin ids of the rule split that this page did not run, or ran with weaker payloads, because of the
+	// settings of the run (ZapSettings) where the same run without them would have: core closes no issue of one of them with this
+	// page.
+	SkippedRules []int `json:"skipped_rules,omitempty"`
 }
 
 // ZapStopArgs are the args of zap.stop: the X-Request-Id (a UUID v4) of the zap.baseline or zap.active run to stop.

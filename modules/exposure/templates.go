@@ -68,6 +68,10 @@ const (
 	fullTemplatesCap = 90 * time.Minute
 )
 
+// GentleTemplateScale is how many times longer a full job's templates take at the gentle speed (nucleiargv.TimeScale of its gentle
+// rate; cmd/vedette holds them equal). The step stays within fullTemplatesCap: a gentle step reaches it sooner and says so.
+const GentleTemplateScale = 5
+
 // FullTemplatesTimeout is the bound of the template step of a Full scan: the time of each port of the jobs, at most fullTemplatesCap.
 func FullTemplatesTimeout(jobs []TemplateJob) time.Duration {
 	seen := map[int]bool{}
@@ -306,8 +310,11 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	bound, slow := TemplatesTimeout, notTemplatesSlow
-	if st.Mode.Full { // the bound of a Full step follows its ports
+	if st.Mode.Full { // the bound of a Full step follows its ports, and its speed
 		bound = FullTemplatesTimeout(jobs)
+		if st.Gentle {
+			bound = min(bound*GentleTemplateScale, fullTemplatesCap)
+		}
 		slow = fmt.Sprintf(notFullSlow, minutes(bound))
 	}
 	tctx, cancel := context.WithTimeout(ctx, bound)

@@ -398,8 +398,8 @@ func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
 
 // surfaceScan is the part of *surface.Scanner the runner calls (a test hands it a fake that probes nothing).
 type surfaceScan interface {
-	Domain(ctx context.Context, domain string, names surface.Names, mayScanPorts func(context.Context, netip.Addr) bool) (surface.Result, error)
-	IP(ctx context.Context, ip netip.Addr) (surface.Result, error)
+	DomainWith(ctx context.Context, domain string, names surface.Names, mayScanPorts func(context.Context, netip.Addr) bool, o surface.Options) (surface.Result, error)
+	IPWith(ctx context.Context, ip netip.Addr, o surface.Options) (surface.Result, error)
 }
 
 // errScanSwitchedOff is the cause of a scan's context when the External exposure module is switched off while it runs.
@@ -441,23 +441,24 @@ func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (expos
 	}
 	var res surface.Result
 	var err error
+	opts := surface.Options{SkipPorts: t.SkipPorts, Gentle: t.Gentle} // a port the target's settings skip is never dialled
 	switch t.Kind {
 	case exposure.KindDomain:
 		// t.Names: the names this target scans; its enabled children's names and the ones its scope leaves out are listed, not probed
 		names := surface.Names{Scans: t.Names.Scans, Find: t.Names.Find(), Choose: t.Names.Choose(), Chosen: t.Names.Chosen()}
-		res, err = r.scan.Domain(ctx, t.Value, names, func(ctx context.Context, ip netip.Addr) bool {
+		res, err = r.scan.DomainWith(ctx, t.Value, names, func(ctx context.Context, ip netip.Addr) bool {
 			ok, err := r.scope(ctx, t.User, ip)
 			if err != nil { // fail closed: no port scan of an address exposure could not vouch for
 				r.log.ErrorContext(ctx, "exposure_scan_scope_failed", "ip", ip.String(), "error", err)
 			}
 			return ok && err == nil
-		})
+		}, opts)
 	case exposure.KindIP:
 		ip, perr := netip.ParseAddr(t.Value)
 		if perr != nil {
 			return exposure.Content{}, fmt.Errorf("vedette: scanning %q: %w", t.Value, perr)
 		}
-		res, err = r.scan.IP(ctx, ip)
+		res, err = r.scan.IPWith(ctx, ip, opts)
 	default:
 		return exposure.Content{}, fmt.Errorf("vedette: scanning %q: unknown kind %q", t.Value, t.Kind)
 	}

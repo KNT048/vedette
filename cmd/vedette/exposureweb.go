@@ -52,6 +52,19 @@ func zapSettingsOf(t exposure.ScanTarget, active, disruptive bool) *api.ZapSetti
 	return &st
 }
 
+// zapPathsRefused is why the host would refuse the web paths to skip of a target, "" when it takes them: "/" alone would leave out
+// the page itself, and a domain's address that is also an IP target adds up both targets' paths, which can pass the host's limit.
+// Each path is one exposure validated as the host does (the characters and the length are the same rule).
+func zapPathsRefused(paths []string) string {
+	switch {
+	case slices.Contains(paths, "/"):
+		return webPathsAll
+	case len(paths) > api.ZapMaxSkipPaths:
+		return fmt.Sprintf(webPathsMany, len(paths), api.ZapMaxSkipPaths)
+	}
+	return ""
+}
+
 // zapHost is what the scan needs of the host client (*hostclient.Client).
 type zapHost interface {
 	ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requestID, actor string) (api.Run, error)
@@ -164,6 +177,9 @@ const (
 	webTypedNoScope   = "the proof of this IP could not be handed to the host, so its pages were not scanned."
 	webTypedNotProved = "the proof of %s (its token file or reverse DNS name) is not found now by the host, so its pages were not scanned."
 	webOldHost        = "the box's host helper (vedette-host) is older than this version of Vedette. Update the box, then scan again."
+	// The web paths to skip of the target's settings, which ZAP cannot run with.
+	webPathsAll  = "this target's settings skip every web path (/), so ZAP was not sent to it."
+	webPathsMany = "this target's settings, with those of the box's IP target, skip %d web paths, more than the %d one web scan takes, so ZAP was not sent to it."
 	// The domain fence of the host takes only the token bound to this box.
 	webForeign  = "the Vedette host did not recognise this box's token for the domain, so nothing was sent. Update the box."
 	webNoFenceK = "the Vedette host has no usable domain fence key, so nothing was sent. Its log says why."
@@ -219,6 +235,9 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	if w.host == nil {
 		return exposure.WebScan{}, &exposure.Unavailable{Reason: webNoHost}
 	}
+	if why := zapPathsRefused(t.SkipPaths); why != "" { // the host would refuse them: nothing is sent, and the reason is the settings
+		return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
+	}
 	args, err := w.zapArgsOf(ctx, t, page)
 	if err != nil {
 		return exposure.WebScan{}, err
@@ -229,7 +248,8 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	}
 	actor := zapActor(t.User)
 	var run api.Run
-	noGrant := false // the page asked for the disruptive rules without the host's grant: it runs without them
+	noGrant := false      // the page asked for the disruptive rules without the host's grant: it runs without them
+	sentSettings := false // the page went with the target's deep-scan settings (api.ZapSettings), which an older host refuses
 	if active {
 		// The disruptive rules only for the box's own IP: the host refuses them on any other page as well, and runs them only with the
 		// grant of the person's press (t.Grant) and its own read of the gateway.
@@ -243,9 +263,11 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			aa.Grant = t.Grant
 		}
 		aa.Settings = zapSettingsOf(t, true, aa.Disruptive)
+		sentSettings = aa.Settings != nil
 		run, err = w.host.ZapActive(ctx, aa, id, actor)
 	} else {
 		args.Settings = zapSettingsOf(t, false, false)
+		sentSettings = args.Settings != nil
 		run, err = w.host.ZapBaseline(ctx, args, id, actor)
 	}
 	if err != nil {
@@ -256,7 +278,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			return exposure.WebScan{}, ctx.Err()
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
 			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "" || active && t.Grant != "" ||
-				zapSettingsOf(t, active, true) != nil)): // an older host refuses a proof, or settings, it does not know
+				sentSettings)): // an older host refuses a proof, or settings, it does not know
 
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
 		}

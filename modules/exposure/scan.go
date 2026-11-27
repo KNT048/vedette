@@ -431,7 +431,7 @@ func sanitize(c Content) Content {
 	return Content{Hosts: nz(out.Hosts), Listed: out.Listed, Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
 		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), WebPages: sanitizeWebPages(c.WebPages), WebActivePages: sanitizeWebPages(c.WebActivePages), WebDisruptivePages: sanitizeWebPages(c.WebDisruptivePages),
-		WebSkippedRules: slices.Clone(c.WebSkippedRules), TemplatesRan: boundedKeys(c.TemplatesRan), ScriptsRan: boundedKeys(c.ScriptsRan), Probed: probed}
+		WebSkippedRules: slices.Clone(c.WebSkippedRules), WebSkippedPaths: slices.Clone(c.WebSkippedPaths), TemplatesRan: boundedKeys(c.TemplatesRan), ScriptsRan: boundedKeys(c.ScriptsRan), Probed: probed}
 }
 
 // The ports a scan's runner and sweep probed on one address (coverage, INV-22): an input of the run's verdicts (observe.go), which say

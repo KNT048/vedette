@@ -637,6 +637,32 @@ type PathExcluder interface {
 // notWebPaths is the line of a ZAP step left out because this box's ZAP cannot leave out the target's web paths to skip.
 const notWebPaths = notSettings + " This target has web paths to skip, and this box's web scan cannot leave them out yet, so it did not run (it follows links wherever they go)."
 
+// addSkippedPaths adds the web paths to skip of a pass on page to list (Content.WebSkippedPaths), each once.
+func addSkippedPaths(list []string, page string, paths []string) []string {
+	for _, p := range paths {
+		if k := siteOf(page) + " " + p; !slices.Contains(list, k) {
+			list = append(list, k)
+		}
+	}
+	return list
+}
+
+// underSkippedPath says one of urls (an issue's evidence) is under a path prefix of prefixes, as the host's excludes match it: the
+// prefix as written, in any case, at the start of the URL's path.
+func underSkippedPath(urls, prefixes []string) bool {
+	for _, raw := range urls {
+		u, err := url.Parse(raw)
+		if err != nil {
+			continue
+		}
+		p := strings.ToLower(u.EscapedPath())
+		if slices.ContainsFunc(prefixes, func(prefix string) bool { return strings.HasPrefix(p, strings.ToLower(prefix)) }) {
+			return true
+		}
+	}
+	return false
+}
+
 // webKeepsPaths says the web scans may run on st: it has no web path to skip, or the web scanner leaves them out.
 func (s *Service) webKeepsPaths(st ScanTarget) bool {
 	if len(st.SkipPaths) == 0 {
@@ -731,6 +757,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		cancel()
 		if err == nil {
 			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
+			c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, st.SkipPaths)
 			switch {
 			case perr == nil:
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)

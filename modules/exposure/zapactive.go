@@ -289,6 +289,7 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 				for _, r := range res.SkippedRules { // a rule the settings left out of the page did not look at it again
 					c.WebSkippedRules = append(c.WebSkippedRules, r+"@"+siteOf(page.URL))
 				}
+				c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, pst.SkipPaths)
 				if !res.CutShort { // a page cut short did not run every rule: an active alert it no longer reports is not "gone"
 					c.WebActivePages = append(c.WebActivePages, page.URL)
 					if rough {

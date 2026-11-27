@@ -64,6 +64,17 @@ func groupAllows(m exposure.ScanMode, tp pack.Template) bool {
 	return true
 }
 
+// tplFilter is what may leave for one port of a deep scan: the template's set at the mode's depth (RunsAt), its group (groupAllows)
+// and the web paths to skip. The planners choose only such templates, so a port's room is never spent on one the send would drop.
+type tplFilter struct {
+	m     exposure.ScanMode
+	paths []string
+}
+
+func (f tplFilter) runs(tp pack.Template) bool {
+	return tp.RunsAt(true, f.m.Disruptive) && groupAllows(f.m, tp) && templatePathOf(tp, f.paths) != tplPathSkipped
+}
+
 // requestRE is the first request line of a template as the index keeps it: the method, then the URL as written.
 var requestRE = regexp.MustCompile(`^[A-Z]+ (\S*)`)
 

@@ -144,6 +144,13 @@ func TestRecordShape_PartialRecordPastItsFix(t *testing.T) {
 		{"between listed trains", "2.53.0", trains, asked},
 		{"on a train no row covers", "2.57.0", []Affected{rng("2.56.0", "2.56.1")}, asked},
 		{"an exact row above the version", "2.0.0", []Affected{rng("", "1.0.0"), exact}, asked},
+		{"past one exact release of its train: no fix stated", "3.0.4", []Affected{exact}, asked},
+		// "through 7.24.5": an inclusive end is the last version known affected, not a fix, so a later version is not proved fixed
+		{"past an inclusive end: no fix stated", "7.25.2", []Affected{
+			{CPE: cpe, Range: VersionRange{StartIncl: "0", EndIncl: "7.23.6"}},
+			{CPE: cpe, Range: VersionRange{StartIncl: "7.24.0", EndIncl: "7.24.5"}},
+		}, asked},
+		{"past an inclusive end of its own train", "7.24.6", []Affected{{CPE: cpe, Range: VersionRange{StartIncl: "7.24.0", EndIncl: "7.24.5"}}}, asked},
 	} {
 		v := uncVuln("CVE-2026-90031", "Example", "Chat Desktop", uncNew, tc.aff...)
 		v.RangesFrom = RangesCVEOrgPartial
@@ -200,5 +207,56 @@ func TestRecordShape_RecordRowOfOneSystem(t *testing.T) {
 		if got := len(res.New) == 1 && res.New[0].Basis == BasisVersion; got != tc.found {
 			t.Errorf("%s: new %+v, unchecked %+v, want a version finding %v", tc.os, res.New, res.Unchecked, tc.found)
 		}
+	}
+}
+
+// An NA row that names a build (an edition, a system or an architecture) beside versioned rows of other builds is not about no version
+// of the same build: it names the build NVD lists with no version, as a product sold per year or per channel is written ("-" with an
+// edition, or with "x64"). Reading it as apart would leave only the rows of the other builds, which the install's own build rules out:
+// a CVE NVD calls affected on the install's build would close. It stays undecided, or decides affected where the build is known.
+func TestRecordShape_NAOfOneBuildBesideOtherBuilds(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		aff  []Affected
+	}{
+		{"NA on the install's system beside another system's range", []Affected{
+			{CPE: "cpe:2.3:a:example:mail_client:-:*:*:*:*:macos:*:*"},
+			{CPE: "cpe:2.3:a:example:mail_client:*:*:*:*:*:android:*:*", Range: VersionRange{EndExcl: "4.2"}},
+		}},
+		{"NA of one edition beside another edition's exact release", []Affected{
+			{CPE: "cpe:2.3:a:example:mail_client:-:*:*:*:subscription:*:*:*"},
+			{CPE: "cpe:2.3:a:example:mail_client:2019:*:*:*:*:*:*:*"},
+		}},
+	} {
+		v := uncVuln("CVE-2026-90061", "Example", "Mail Client", uncNew, tc.aff...)
+		a := Asset{ID: "mac", Name: "mac-01", OS: "macOS 14.5", AgentOS: "macOS 14.5", Software: []Software{shapeRow("Mail Client", "16.80.1", false)}}
+		res := MatchAsset(a, []Vuln{v}, nil, uncNow)
+		if len(res.New) == 0 && len(res.Unchecked) == 0 {
+			t.Errorf("%s: closed as not affected, want a finding or a question (NVD lists the install's build with no version)", tc.name)
+		}
+	}
+
+	// An NA row that names no build stays apart beside versioned rows of other builds: the rows that compare decide.
+	v := uncVuln("CVE-2026-90062", "Example", "Viewer", uncNew,
+		Affected{CPE: "cpe:2.3:a:example:viewer:-:*:*:*:*:*:*:*"},
+		Affected{CPE: "cpe:2.3:a:example:viewer:*:*:*:*:*:android:*:*", Range: VersionRange{EndExcl: "152.0.4191.52"}})
+	a := Asset{ID: "pc", Name: "pc-01", OS: "Windows 11", AgentOS: "Windows 11", Software: []Software{shapeRow("Viewer", "158.0.4370.45", false)}}
+	if res := MatchAsset(a, []Vuln{v}, nil, uncNow); len(res.New) != 0 || len(res.Unchecked) != 0 {
+		t.Errorf("NA of no build beside other builds: new %+v, unchecked %+v, want decided", res.New, res.Unchecked)
+	}
+}
+
+// A bare row is NVD's "and earlier" marker only beside a bounded row of the same build: beside a range pinned to one system, the bare
+// row still says every version of every build, and the install on another system stays affected by it.
+func TestRecordShape_EarlierMarkerOfAnotherBuild(t *testing.T) {
+	t.Parallel()
+	v := uncVuln("CVE-2026-90071", "Example", "Fetch Tool", uncNew,
+		Affected{CPE: "cpe:2.3:a:example:fetch_tool:*:*:*:*:*:*:*:*"},
+		Affected{CPE: "cpe:2.3:a:example:fetch_tool:*:*:*:*:*:windows:*:*", Range: VersionRange{EndIncl: "5.14"}})
+	a := Asset{ID: "mac", Name: "mac-01", OS: "macOS 14.5", AgentOS: "macOS 14.5", Software: []Software{shapeRow("Fetch Tool", "6.43.18", false)}}
+	res := MatchAsset(a, []Vuln{v}, nil, uncNow)
+	if len(res.New) == 0 && len(res.Unchecked) == 0 {
+		t.Errorf("closed as not affected, want the bare row of every build to keep the CVE")
 	}
 }

@@ -18,21 +18,45 @@ import (
 // list versions the product elsewhere (a row of the same product with a range or a version): CPE name matching (NISTIR 7696) makes NA
 // and a value DISJOINT, so the row is not about this install. Alone, an NA row may be NVD's way to name a product whose release is in its
 // name ("suite_2016:-") or that has no release numbers (a subscription build), so it stays Unknown. Only applications: NVD writes "-" on an
-// operating system or firmware ("o") for a device's firmware of no stated version, which may be any of them.
+// operating system or firmware ("o") for a device's firmware of no stated version, which may be any of them. An NA row that names a
+// build (pinsBuild: an edition, a system, an architecture) is apart only beside a versioned row of that same build (sameBuild): "-" with
+// "subscription", or with "macos" beside a range for "android", is how NVD lists that build with no version, so it stays.
 func naVersionApart(c CPE, ver string, rows []Affected) bool {
 	if c.Part.Kind != Value || c.Part.Value != "a" || c.Version.Kind != NA || !versionKnown(ver) {
 		return false
 	}
 	return slices.ContainsFunc(rows, func(o Affected) bool {
 		oc, err := o.cpe()
-		return err == nil && oc.Version.Kind != NA && sameProduct(c, oc) && versionEvidence(o)
+		return err == nil && oc.Version.Kind != NA && sameProduct(c, oc) && (!pinsBuild(c) || sameBuild(c, oc)) && versionEvidence(o)
 	})
+}
+
+// buildAttrs are the CPE attributes that name a build of a product rather than a release (fields: edition, language, sw_edition,
+// target_sw, target_hw, other); the update belongs to the release.
+const buildAttrs = 5
+
+// pinsBuild says c names a build: an attribute of buildAttrs is not ANY.
+func pinsBuild(c CPE) bool {
+	f := c.fields()
+	return slices.ContainsFunc(f[buildAttrs:], func(a *Attr) bool { return a.Kind != Any })
+}
+
+// sameBuild says two CPEs pin the same build attributes (buildAttrs): they name the same build of the product.
+func sameBuild(a, b CPE) bool {
+	fa, fb := a.fields(), b.fields()
+	for i := buildAttrs; i < len(fa); i++ {
+		if *fa[i] != *fb[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // earlierMarker says row af (version ANY, no range, nothing pinned) only repeats NVD's legacy "and earlier": the same list has a row of
 // the same product that ends and has no start ("5.14 and earlier": a bare "*" beside "up to 5.14"). Such a pair never means "every
 // version": the bounded row would then say nothing. The bounded row decides; a range that starts somewhere does not make a bare row a
-// marker (it may be "every version" beside a later line's range). A record row that only says "affected" (AffectedOnly) is neither.
+// marker (it may be "every version" beside a later line's range), nor does one pinned to a build (a system, an edition): the bare row
+// still speaks for the other builds. A record row that only says "affected" (AffectedOnly) is neither.
 func earlierMarker(c CPE, af Affected, rows []Affected) bool {
 	if af.AffectedOnly || !af.Range.IsZero() || !everyVersion(c) {
 		return false
@@ -42,7 +66,7 @@ func earlierMarker(c CPE, af Affected, rows []Affected) bool {
 		if o.AffectedOnly || !endBound(r) || r.StartIncl+r.StartExcl != "" && !isPlaceholder(r.StartIncl+r.StartExcl) {
 			continue
 		}
-		if oc, err := o.cpe(); err == nil && sameProduct(c, oc) {
+		if oc, err := o.cpe(); err == nil && sameProduct(c, oc) && sameBuild(c, oc) { // a range of one build leaves the others' bare row
 			return true
 		}
 	}
@@ -81,10 +105,14 @@ func pastEnd(r VersionRange, ver string) bool {
 
 // pastRecordFix says the version is after a fix a partial CVE record states, on a release train the record covers (OSV: introduced <= v
 // < fixed, whoever the CNA is). A partial list (a CNA that lists what it tested) may skip trains, so a version outside every row proves
-// nothing on its own; it does when the version is
-//   - past the end of a row that starts on the version's own train (the record speaks for that train: "2.56.0-rc0" before "2.56.1"
+// nothing on its own; it does when the version is past a fix the record states on a train it covers.
+//
+// A fix is an excluded end (CVE JSON 5 lessThan, OSV fixed). An included end (lessThanOrEqual, "through") names the last version the CNA
+// knew affected, often the latest release when it wrote the record: a later version is not stated fixed, so it proves nothing. The
+// version must be
+//   - past the fix of a row that starts on the version's own train (the record speaks for that train: "2.56.0-rc0" before "2.56.1"
 //     on 2.56.1), or
-//   - past the end of a row from version 0 or with no start ("before 7.2.9" on 7.4.7), and below the start of no row: a version
+//   - past the fix of a row from version 0 or with no start ("before 7.2.9" on 7.4.7), and below the start of no row: a version
 //     between the trains the record lists (2.53.0 beside rows for 2.50 and 2.56) stays undecided, since the record may have skipped
 //     its train.
 //
@@ -118,8 +146,8 @@ func pastRecordFix(in swInfo, v Vuln, key []identity) bool {
 			}
 			gap = gap || o < 0
 		}
-		if !pastEnd(r, in.ver) || r.StartIncl != "" && r.StartIncl == r.EndIncl {
-			continue // not past it, or one exact release (no fix stated)
+		if r.EndExcl == "" || !pastEnd(r, in.ver) {
+			continue // no fix stated (an inclusive end, "through 7.24.5", is the last version known affected; an exact row is one release), or not past it
 		}
 		switch {
 		case start == "" || isPlaceholder(start):

@@ -37,7 +37,7 @@ export function LogTab() {
     { id: 'hash', header: t('log.hash'), enableSorting: false, cell: ({ row }) => <span className="font-mono text-caption text-muted" title={row.original.hash}>{row.original.hash.slice(0, 10)}</span> },
   ]
   return (
-    <Section title={t('log.title')} description={t('log.description')} info={t('log.descriptionInfo')} stories={['S-RESP-2', 'S-AI-8']}
+    <Section label={t('log.title')} description={t('log.description')} info={t('log.descriptionInfo')} stories={['S-RESP-2', 'S-AI-8']}
       actions={chain === null ? <Chip tone="off">{t('log.checking')}</Chip> : chain.ok ? <Chip tone="ok">{t('log.verified')}</Chip> : <Chip tone="danger">{t('log.broken', { n: (chain.broken_at ?? 0) + 1 })}</Chip>}>
       {items.length ? (
         <DataTable urlKey="response-log" caption={t('log.title')} data={[...items].reverse()} columns={columns} pageSize={50}

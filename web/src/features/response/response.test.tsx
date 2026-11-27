@@ -1409,7 +1409,7 @@ describe('response: screens', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Response' })).toBeInTheDocument()
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.replace(/\d+.*$/, '').trim())).toEqual(['Requests', 'Rules', 'Actions', 'Log', 'Settings'])
     expect(screen.getByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
-    expect(await screen.findByRole('heading', { name: 'Inbox' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Inbox' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: 'Rules' }))
     expect(await screen.findByText('Block destinations of known-bad connections')).toBeInTheDocument()
     expect(await screen.findByText('Template gallery')).toBeInTheDocument()
@@ -1972,7 +1972,7 @@ describe('response: inbox and guided setup (item 20)', () => {
     const other = (['high', 'medium', 'low'] as const).find((r) => r !== one.risk)!
     await userEvent.click(within(screen.getByRole('group', { name: 'Risk' })).getByRole('button', { name: `${other[0]!.toUpperCase()}${other.slice(1)} risk` }))
     const shown = pending.filter((a) => a.risk === other)
-    if (!shown.some((a) => a.title === one.title)) await waitFor(() => expect(screen.queryByRole('heading', { name: one.title, level: 3 })).toBeNull())
+    if (!shown.some((a) => a.title === one.title)) await waitFor(() => expect(screen.queryByRole('heading', { name: one.title, level: 2 })).toBeNull())
     if (!shown.length) expect(screen.getByText(/No request matches these filters/)).toBeInTheDocument()
     await userEvent.click(within(screen.getByRole('group', { name: 'Where from' })).getByRole('button', { name: 'People' }))
     expect(within(screen.getByRole('group', { name: 'Where from' })).getByRole('button', { name: 'People' })).toHaveAttribute('aria-pressed', 'true')
@@ -2180,7 +2180,7 @@ describe('a box that had AI response on before this release left it out', () => 
     try {
       const u = userEvent.setup()
       renderApp('/response?tab=requests&view=history')
-      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('section')!
+      const card = (await screen.findByRole('heading', { level: 2, name: 'Add 185.220.101.47 to the block list' })).closest('section')!
       const back = within(card as HTMLElement).getByRole('button', { name: 'Roll back' })
       expect(enabled(back)).toBe(true)
       await u.click(back)
@@ -2194,12 +2194,12 @@ describe('a box that had AI response on before this release left it out', () => 
     const calls = rollbackCalls()
     try {
       renderApp('/response?tab=requests&view=history')
-      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('section')!
+      const card = (await screen.findByRole('heading', { level: 2, name: 'Add 185.220.101.47 to the block list' })).closest('section')!
       const back = within(card as HTMLElement).getByRole('button', { name: 'Roll back' })
       expect(back).toBeDisabled()
       expect(back).toHaveAccessibleDescription('Execution is off: undo this on the device itself.')
       expect(calls).toHaveLength(0)
-      const other = (screen.getByRole('heading', { level: 3, name: 'Add 45.9.148.20 to the block list' })).closest('section')!
+      const other = (screen.getByRole('heading', { level: 2, name: 'Add 45.9.148.20 to the block list' })).closest('section')!
       expect(within(other as HTMLElement).getByRole('button', { name: 'Roll back' })).toBeEnabled()
     } finally { postV1.POST_V1_IN_UI = true; server.events.removeAllListeners() }
   })

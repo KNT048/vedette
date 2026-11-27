@@ -83,7 +83,7 @@ function HoneypotBody() {
                 { id: 'services', label: t('tabs.services'), panel: <ServicesTab data={data} /> },
                 { id: 'tokens', label: t('tabs.tokens'), panel: <TokensSection /> },
                 { id: 'hits', label: t('tabs.hits'), panel: (
-                  <Section id="hits" title={t('hits.title')} description={t('hits.description')} info={t('hits.descriptionInfo')}>
+                  <Section id="hits" label={t('hits.title')} description={t('hits.description')} info={t('hits.descriptionInfo')}>
                     <QueryState query={hits}>{(h) => <HitsTable items={h.items} anyTrapOn={data.trap_ips.enabled > 0} />}</QueryState>
                   </Section>
                 ) },
@@ -150,7 +150,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
   ]
   return (
     <>
-      <Section id="services" title={t('traps.title')} description={t('traps.description')} info={<><p>{t('traps.descriptionInfo')}</p><p>{t('traps.testNote')}</p></>}>
+      <Section id="services" label={t('traps.title')} description={t('traps.description')} info={<><p>{t('traps.descriptionInfo')}</p><p>{t('traps.testNote')}</p></>}>
         <DataTable urlKey="honeypot-traps" caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
           mobileRow={(tr) => (
             <div className="grid gap-2">

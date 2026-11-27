@@ -116,7 +116,7 @@ function SourcesSection() {
   const description = !box ? t('sources.description', { ip: '' }) : box.ip ? t('sources.description', { ip: box.ip }) : box.lan ? t('sources.descriptionNoIpLan', { lan: box.lan }) : t('sources.descriptionNoIp')
   const descriptionInfo = !box || box.ip ? t('sources.descriptionInfo') : box.lan ? t('sources.descriptionNoIpLanInfo', { lan: box.lan }) : t('sources.descriptionNoIpInfo')
   return (
-    <Section id="sources" title={t('sources.title')} description={description} info={descriptionInfo} stories={['S-LOG-1']} actions={<>{refresh}{addButton}</>}>
+    <Section id="sources" label={t('sources.title')} description={description} info={descriptionInfo} stories={['S-LOG-1']} actions={<>{refresh}{addButton}</>}>
       <QueryState query={q}>
         {(d) => {
           const columns: ColumnDef<LogSource>[] = [
@@ -371,7 +371,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
     { id: 'line', header: t('events.col.message'), accessorFn: (r) => r.message, enableSorting: false, cell: ({ row }) => <Message e={row.original} /> },
   ]
   return (
-    <Section id="events" title={t('events.title')} description={t('events.description')}>
+    <Section id="events" label={t('events.title')} description={t('events.description')}>
       <ListToolbar className="mb-3" search={{ value: kw, onChange: (v) => list.set({ q: v, page: 0 }), label: t('events.q'), placeholder: t('events.qPlaceholder') }}>
         <Segmented label={t('events.window')} value={win} onChange={setWin} options={[{ value: '1h', label: t('events.w1h') }, { value: '24h', label: t('events.w24h') }, { value: '7d', label: t('events.w7d') }]} />
         <Select className="w-full sm:w-auto" aria-label={t('events.source')} value={source} onChange={(e) => setSource(e.target.value)}><option value="">{t('events.allSources')}</option>{sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
@@ -427,7 +427,7 @@ function RetentionSection({ days, linesPerHour, logsBytes, freeBytes }: { days: 
   const [pending, setPending] = useState<number | null>(null)
   const save = (n: number) => set.mutate(n, { onSuccess: () => toast.success(t('retention.saved')), onError: (er) => toast.error(er instanceof ApiError ? er.message : String(er)), onSettled: () => setPending(null) })
   return (
-    <Section id="retention" title={t('retention.title')} description={linesPerHour > 0 ? t('retention.description', { days, mb }) : t('retention.descriptionNone')}>
+    <Section id="retention" label={t('retention.title')} description={linesPerHour > 0 ? t('retention.description', { days, mb }) : t('retention.descriptionNone')}>
       <Card className="max-w-xl">
       <Field label={t('retention.label')} htmlFor="ret-days" className="max-w-xs">
         <Select id="ret-days" value={days} disabled={!isAdmin || set.isPending} title={isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })}

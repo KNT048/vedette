@@ -124,14 +124,14 @@ function FileSteps({ node, file }: { node: TargetNode; file: FileProof }) {
   return (
     <>
       <InfoLine className="max-w-3xl text-sm" topic={t('verify.typed.topic')} info={t('verify.typed.introInfo')}>{p.state === 'expired' ? t('verify.typed.introExpired', { value: node.value }) : t('verify.typed.intro', { value: node.value })}</InfoLine>
-      <h3 className="text-sm font-medium">{t('verify.typed.fileTitle')}</h3>
+      <h2 className="text-sm font-medium">{t('verify.typed.fileTitle')}</h2>
       <KeyValue items={[
         { label: t('verify.typed.path'), value: <span data-testid="proof-path">/.well-known/vedette-verify.txt</span> },
         { label: t('verify.typed.urls'), value: <span className="grid break-all">{file.urls.map((u) => <span key={u}>{u}</span>)}</span> },
       ]} />
       <CodeBlock code={file.content} label={t('verify.typed.contentLabel')} />
       <p className="max-w-3xl text-meta text-muted">{t('verify.typed.fileHint')}</p>
-      <h3 className="text-sm font-medium">{t('verify.typed.ptrTitle')}</h3>
+      <h2 className="text-sm font-medium">{t('verify.typed.ptrTitle')}</h2>
       <p className="max-w-3xl text-sm" data-testid="proof-ptr">{file.ptr_domains.length > 0 ? t('verify.typed.ptr', { value: node.value, domains: file.ptr_domains.join(', ') }) : t('verify.typed.ptrNone', { value: node.value })}</p>
       <p className="max-w-3xl text-meta text-muted">{t('verify.typed.aRecord')}</p>
     </>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { ListToolbar } from '@/components/common/ListParts'
 import { Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Segmented } from '@/components/ui/segmented'
@@ -53,12 +54,12 @@ export function RequestsTab() {
   return (
     <div className="grid gap-2">
       {pending && setupDone === false && !frozen ? <AiSetup compact /> : null}
-      <Section id="requests" title={t('requests.title')} description={t('requests.description')} info={t('requests.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-3']}
-        actions={<div className="flex flex-wrap gap-2">
+      <Section id="requests" label={t('requests.title')} description={t('requests.description')} info={t('requests.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-3']}>
+        <ListToolbar className="mb-3">
           <Segmented label={t('requests.view')} value={view} onChange={setView} options={[{ value: 'pending', label: t('requests.pending', { count: pending }) }, { value: 'history', label: t('requests.history') }]} />
           <Segmented label={t('requests.source')} value={src} onChange={setSrc} options={[{ value: 'all', label: t('requests.all') }, { value: 'ai', label: t('requests.ai') }, { value: 'rule', label: t('requests.rules') }, { value: 'person', label: t('requests.people') }]} />
           <Segmented label={t('requests.risk')} value={risk} onChange={setRisk} options={[{ value: 'all', label: t('requests.anyRisk') }, ...(['high', 'medium', 'low'] as const).map((r) => ({ value: r, label: t(`catalog.risks.${r}`) }))]} />
-        </div>}>
+        </ListToolbar>
         {items.length ? <div className="grid gap-4">{items.map((a) => <RequestCard key={a.id} a={a} />)}</div>
           // UI.md §6: a filter that finds nothing is text only, with the way back to every request
           : filtered ? (

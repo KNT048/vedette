@@ -39,7 +39,7 @@ export default function TrapIpsTab({ hits, lan, lanKnown = true, smbName }: { hi
   const q = useTrapIps()
   const admin = useCan('admin') // /devices/setup is the administrator's (#875 r1)
   return (
-    <Section id="trap-ips" title={t('trapIp.title')} description={t('trapIp.description', { lan })} info={t('trapIp.descriptionInfo')}>
+    <Section id="trap-ips" label={t('trapIp.title')} description={t('trapIp.description', { lan })} info={t('trapIp.descriptionInfo')}>
       {/* §0: a Trap IP goes on the LAN range; while the box does not know it, the way to the exact field */}
       {lanKnown ? null : admin ? <DependencyLink className="mb-4" reason={t('trapIp.noLan')} to="/settings/scanning?tab=safety#range-input" label={t('trapIp.noLanLink')} />
         : <p className="mb-4 text-meta text-muted">{t('trapIp.noLan')} {t('trapIp.noLanAskAdmin')}</p>}
@@ -77,6 +77,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
   // what the list's search reads: the name, the address, the vendor and the services
   const searchCols: ColumnDef<TrapIP>[] = [{ id: 'text', accessorFn: (d) => [d.name, d.ip, d.vendor ?? '', d.services.join(' '), d.reason ?? ''].join(' ') }]
 
+  const addButton = <Button id="trap-ip-add" variant="primary" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: data.suggestions[0]?.preset ?? 'file_server' })}><Plus />{t('trapIp.add')}</Button>
   return (
     <div className="grid gap-4">
       {data.suggestions.length ? (
@@ -95,9 +96,8 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
         </Card>
       ) : null}
 
-      <div>
-        <Button id="trap-ip-add" variant="primary" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: data.suggestions[0]?.preset ?? 'file_server' })}><Plus />{t('trapIp.add')}</Button>
-      </div>
+      {/* the add action sits in the list's toolbar; with no Trap IP yet there is no list, so it stands alone */}
+      {data.items.length ? null : <div>{addButton}</div>}
       {/* 17 services and four fields: a wide dialog over the list, which stays as it was underneath */}
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null) }}>
         {editing ? (
@@ -108,7 +108,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
       </Dialog>
 
       {data.items.length ? (
-        <DataTable urlKey="trap-ips" caption={t('trapIp.listLabel')} data={data.items} columns={searchCols} pageSize={25}
+        <DataTable urlKey="trap-ips" caption={t('trapIp.listLabel')} data={data.items} columns={searchCols} pageSize={25} actions={addButton}
           list={(d) => (
             <div className="grid gap-2 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">

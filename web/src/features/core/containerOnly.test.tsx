@@ -36,7 +36,7 @@ const hostCalls = () => calls.filter((u) => HOST_PATHS.some((p) => new URL(u, lo
 describe('container-only install', () => {
   it('Updates shows the compose commands and no appliance control; Data shows the volume backup; neither calls the host', async () => {
     renderApp('/settings/updates')
-    expect(await screen.findByText('Update Vedette')).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Update Vedette' })).toBeInTheDocument()
     expect(screen.getAllByText(/docker compose --env-file vedette.env pull/)).not.toHaveLength(0)
     expect(screen.queryByRole('button', { name: /Check for releases|Export|Import/ })).toBeNull()
     renderApp('/settings/data')

@@ -8,7 +8,9 @@
 //    role="status" line with a count next to it;
 //  - a row or block that opens: ExpandToggle (a chevron pointing right when closed, down when open); no page pairs aria-expanded
 //    with a chevron icon of its own;
-//  - a detail page goes back with breadcrumbs (PageHeader `breadcrumbs`), not a "Back to …" arrow link.
+//  - a detail page goes back with breadcrumbs (PageHeader `breadcrumbs`), not a "Back to …" arrow link;
+//  - a tab panel does not open with a heading that repeats its tab's name ("Trap hits" in the Hits tab): its Section has no
+//    `title`, only a `label` (the English texts of the feature's tab labels and Section titles are compared).
 // A named exception is listed in ALLOWED with why it stays; an entry no longer used fails too, so the list only shrinks.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -70,6 +72,50 @@ const ALLOWED: { rule: string; file: string; hits: number; why: string }[] = [
   { rule: 'count-line', file: 'features/feeds/ParserEditor.tsx', hits: 1, why: 'the result of one parser test run (accepted and rejected chips), not the count of a list' },
 ]
 
+const LOCALES: Record<string, unknown> = Object.fromEntries(readdirSync(join(SRC, 'locales/en')).filter((f) => f.endsWith('.json'))
+  .map((f) => [f.replace(/\.json$/, ''), JSON.parse(readFileSync(join(SRC, 'locales/en', f), 'utf8')) as unknown]))
+
+/** The English text of an i18n key used in a file of namespace `ns` ("common:x.y" names its own); a plural key's other form. */
+function english(ns: string, key: string): string | undefined {
+  const [n, k] = key.includes(':') ? key.split(':', 2) as [string, string] : [ns, key]
+  const at = (path: string) => path.split('.').reduce<unknown>((o, p) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[p] : undefined), LOCALES[n])
+  const v = at(k) ?? at(`${k}_other`)
+  return typeof v === 'string' ? v : undefined
+}
+const words = (s: string) => s.toLowerCase().replace(/\(.*?\)|\{\{.*?\}\}/g, '').replace(/\s+/g, ' ').trim()
+const nsOf = (text: string) => /useTranslation\('(\w+)'\)/.exec(text)?.[1] ?? 'common'
+const featureOf = (file: string) => file.split('/').slice(0, 2).join('/')
+
+/** Per feature: the tab labels of its PageTabs, in words. */
+const tabLabels = new Map<string, Set<string>>()
+for (const f of files) {
+  for (const block of f.text.match(/<PageTabs[\s\S]*?\]\}\s*\/>/g) ?? []) {
+    for (const m of block.matchAll(/label: t\('([^']+)'/g)) {
+      const v = english(nsOf(f.text), m[1]!)
+      if (v) tabLabels.set(featureOf(f.file), new Set([...(tabLabels.get(featureOf(f.file)) ?? []), words(v)]))
+    }
+  }
+}
+
+/** The Sections of a file whose title repeats a tab label of its feature (the same words, or ending in them). */
+function tabHeadings(file: string, text: string): string[] {
+  const labels = tabLabels.get(featureOf(file)) ?? new Set<string>()
+  return [...text.matchAll(/<Section\b[^>]*?\btitle=\{t\('([^']+)'/g)].flatMap((m) => {
+    const v = english(nsOf(text), m[1]!)
+    const w = v ? words(v) : ''
+    return w && [...labels].some((l) => w === l || w.endsWith(` ${l}`)) ? [m[1]!] : []
+  })
+}
+
+const TAB_HEADING_ALLOWED: { file: string; key: string; why: string }[] = [
+  { file: 'features/exposure/ExposurePage.tsx', key: 'settings.scanTitle', why: 'one of three blocks of the Settings tab, each with its own heading' },
+  { file: 'features/honeypot/DevicePanel.tsx', key: 'device.title', why: 'a block of the device page, not of the trap page\'s Hits tab' },
+  { file: 'features/inventory/DeclaredSoftwareSection.tsx', key: 'declaredPage.title', why: 'a settings page of its own, not the device page\'s Software tab' },
+  { file: 'features/reports/PdplTab.tsx', key: 'pdpl.report.title', why: 'one block of the assessment tab, not the Report tab' },
+  { file: 'features/response/MetricsTab.tsx', key: 'ai.title', why: 'one of several blocks of the metrics tab, not the Requests tab' },
+  { file: 'features/response/MetricsTab.tsx', key: 'metrics.rejectedTitle', why: 'one of several blocks of the metrics tab, not the Requests tab' },
+]
+
 describe('layout guard: tabs, list toolbars, count lines, row toggles and breadcrumbs come from the shared parts', () => {
   it('reads the app sources', () => {
     expect(files.length).toBeGreaterThan(200)
@@ -88,6 +134,16 @@ describe('layout guard: tabs, list toolbars, count lines, row toggles and breadc
       expect(stale, `ALLOWED entries that no longer match (remove them or fix the count):\n${stale.join('\n')}`).toEqual([])
     })
   }
+
+  it('tab-heading: a tab panel does not open with a heading that repeats the tab name (Section `label`, not `title`)', () => {
+    const found = files.flatMap((f) => tabHeadings(f.file, f.text).map((key) => ({ file: f.file, key })))
+    const bad = found.filter((x) => !TAB_HEADING_ALLOWED.some((a) => a.file === x.file && a.key === x.key)).map((x) => `${x.file} ${x.key}`)
+    expect(bad).toEqual([])
+    const stale = TAB_HEADING_ALLOWED.filter((a) => !found.some((x) => x.file === a.file && x.key === a.key)).map((a) => `${a.file} ${a.key}`)
+    expect(stale).toEqual([])
+    expect(tabLabels.get('features/honeypot')?.has('hits')).toBe(true)
+    expect(tabHeadings('features/honeypot/X.tsx', `useTranslation('honeypot')\n<Section id="x" title={t('hits.title')}>`)).toEqual(['hits.title'])
+  })
 
   it('the rules find what they are written for', () => {
     const byId = Object.fromEntries(RULES.map((r) => [r.id, r]))

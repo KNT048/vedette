@@ -1273,6 +1273,12 @@ CREATE UNIQUE INDEX fnd_possible_check_identity_uq ON fnd_possible_check (cve, p
 
 CREATE INDEX fnd_possible_check_cve_ix ON fnd_possible_check (cve);
 
+CREATE TABLE fnd_coverage_run (
+    id     INTEGER PRIMARY KEY,
+    ran_at TEXT    NOT NULL CHECK (ran_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    counts TEXT    NOT NULL CHECK (json_valid(counts) AND json_type(counts) = 'object' AND length(counts) <= 65536)
+);
+
 -- module mitigation
 
 CREATE TABLE mit_applied (

@@ -72,6 +72,7 @@ type Service struct {
 	now       func() time.Time
 	gen       atomic.Uint64 // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	stamps    stamps        // each device's match stamp of its last full match (matchstamp.go)
+	covers    covers        // each device's decision coverage of its last full match, and the last pass's sum (coverage.go)
 	check     checkState    // the one check of possible findings at a time (possiblecheck.go)
 }
 

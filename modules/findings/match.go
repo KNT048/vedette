@@ -654,6 +654,7 @@ type entryRead struct {
 	matched                                        []Match     // every row the entry matches: each software line is its own finding (Match.Lines)
 	provedEach                                     []Match     // the proof of every row proved not affected, in row order
 	needRows                                       []int       // the rows that need a version, in row order
+	outs                                           []rowOut    // every row the entry reached and how (coverage.go), in row order
 }
 
 func newDevMatch(a Asset, vulns []Vuln, now time.Time) *devMatch {
@@ -717,6 +718,9 @@ func (d *devMatch) read(vi int) *entryRead {
 			key, haveKey = keyIDs(v), true
 		}
 		m, out := matchOne(a, s, infos[i], v, keyed, key, named[i][vi], now)
+		if out != outNone {
+			e.outs = append(e.outs, rowOut{row: i, out: out})
+		}
 		if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
 			// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
 			// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding;

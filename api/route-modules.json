@@ -99,6 +99,7 @@
   "GET /feeds/weekly": "feeds",
   "GET /findings": "findings",
   "GET /findings/answered": "findings",
+  "GET /findings/coverage": "findings",
   "GET /findings/devices": "findings",
   "GET /findings/fixes": "findings",
   "GET /findings/handled": "findings",

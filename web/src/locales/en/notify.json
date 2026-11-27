@@ -521,7 +521,6 @@
     "title_one": "{{count}} new incident",
     "title_other": "{{count}} new incidents",
     "titleNone": "No new incidents",
-    "titleLoading": "Incidents",
     "meta": "Something happening on your network now. Vulnerabilities to patch are in Findings.",
     "retention": "History and resolved incidents are kept for 1 year.",
     "caption": "Incidents",

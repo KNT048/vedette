@@ -1,6 +1,5 @@
 {
   "page": {
-    "titleLoading": "Reports",
     "title_one": "{{count}} finding is open; {{handled}} handled in this report's period",
     "title_other": "{{count}} findings are open; {{handled}} handled in this report's period",
     "titleClear": "No open findings; {{handled}} handled in this report's period",

@@ -37,7 +37,7 @@ function ExposureView() {
   const waiting = items?.filter((n) => n.enabled && !proven(n)).length ?? 0
   const scanned = items?.some((n) => n.last_scan) ?? false
   // The first sentence says what is open, then what waits on a person, then that nothing was found.
-  const title = !items ? t('titleLoading')
+  const status = !items ? null
     : items.length === 0 ? t('title.none')
     : issues > 0 ? t('title.issues', { count: issues })
     : services > 0 ? t('title.services', { count: services })
@@ -45,8 +45,8 @@ function ExposureView() {
     : scanned ? t('title.clean') : t('title.ready', { count: items.length })
   return (
     <>
-      <PageHeader title={title} stories={['S-EXP-1']} info={<p>{t('rule')}</p>}
-        meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{t('meta.rule')}</span>} />
+      <PageHeader title={t('common:shell.exposure')} stories={['S-EXP-1']} info={<p>{t('rule')}</p>}
+        meta={<span className="flex flex-wrap items-center gap-2">{status}<SampleDataNote /></span>} />
       <AnchorRedirect map={ANCHOR_TAB} />
       <QueryState query={q}>
         {(d) => {

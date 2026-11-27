@@ -31,7 +31,7 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
     const errors = collectErrors(page)
     await startWithSample(page)
     await page.goto('/incidents')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('3 new incidents')
+    await expect(page.locator('header:has(h1)').first()).toContainText('3 new incidents')
     await expect(page.locator('main')).not.toContainText('QNAP Photo Station') // vulnerabilities live in Findings, not here
     await page.getByRole('tab', { name: 'Resolved', exact: true }).click()
     await expect(visible(page.getByText('192.168.10.157 touched the RDP trap on FILESRV-OLD'))).toBeVisible()
@@ -47,7 +47,7 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('PC-HR-01 touched the SMB trap on FILESRV-OLD')
     await page.goBack()
     await expect(page).toHaveURL(/\/incidents(\?tab=open)?$/)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('new incidents')
+    await expect(page.locator('header:has(h1)').first()).toContainText('new incidents')
     await noHorizontalScroll(page)
     expect(errors).toEqual([])
   })
@@ -84,7 +84,7 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
     await page.getByRole('button', { name: 'Reopen' }).click()
     await expect(page.getByRole('button', { name: 'Acknowledge' })).toBeVisible()
     await page.goto('/incidents')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('3 new incidents')
+    await expect(page.locator('header:has(h1)').first()).toContainText('3 new incidents')
   })
 
   test('a viewer reads but cannot acknowledge or resolve; the buttons say why', async ({ page }) => {
@@ -385,7 +385,7 @@ test.describe('notify: clean install', () => {
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/incidents')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('No new incidents')
+    await expect(page.locator('header:has(h1)').first()).toContainText('No new incidents')
     await expect(page.getByRole('button', { name: 'Set up alert channels' }).first()).toBeVisible() // docs/UI.md §0: set up right here
     await expect(page.locator('main')).not.toContainText(/QNAP|FILESRV-OLD|185\.220|NAS-PHOTOS/)
     await shot(page, 'notify', 'clean-incidents')

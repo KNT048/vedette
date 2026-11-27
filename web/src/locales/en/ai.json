@@ -18,11 +18,8 @@
     "unassignedInfo": "A profile exists, but this task has none assigned, or the privacy rule excludes it. Assign one in the job routing table."
   },
   "page": {
-    "titleLoading": "AI assistant",
     "info": "Ask about your own devices and findings in plain words. The AI reads data through read-only tools, changes nothing, and every token it uses counts against the monthly budget.",
     "titleOff": "AI assistant is off, existing data is kept",
-    "titleUnconfigured": "No AI profile yet: add one in Settings to ask your data",
-    "titleKeyLost": "The AI key was not restored: enter it again in Settings to ask your data",
     "title": "{{used}} of {{cap}} tokens used this month. The AI only reads data and changes nothing.",
     "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it.",
     "tabs": "Assistant sections",

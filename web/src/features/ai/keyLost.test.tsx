@@ -84,8 +84,7 @@ describe('AI panels after a restore without the decryption key', () => {
   it('an administrator is sent to enter the key again, not to add a profile', async () => {
     lostProfiles()
     renderApp('/assistant')
-    expect(await screen.findByRole('heading', { level: 1, name: /The AI key was not restored/ }, T)).toBeInTheDocument()
-    expect(await screen.findByText('The AI key was not restored', undefined, T)).toBeInTheDocument()
+        expect(await screen.findByText('The AI key was not restored', undefined, T)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Enter the key again in Settings, AI assistant' })).toHaveAttribute('href', '/settings/ai#ai-profiles')
     expect(screen.queryByRole('button', { name: 'Add AI profile' })).toBeNull()
     expect(screen.queryByText('No AI profile yet')).toBeNull()

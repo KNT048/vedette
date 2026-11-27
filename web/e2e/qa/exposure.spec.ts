@@ -44,7 +44,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await page.clock.install() // time flows; the test jumps over the 30 seconds between two DNS checks of a target
   await finishClean(page)
   await page.goto('/exposure')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('2 targets, none scanned yet')
+  await expect(page.locator('header:has(h1)').first()).toContainText('2 targets, none scanned yet')
   await expect(page.getByText('example.com')).toHaveCount(0)
   await expect(link(page, '203.0.113.10')).toBeVisible() // found at first start, nothing was clicked
   await expect(link(page, '203.0.113.11')).toBeVisible()
@@ -74,7 +74,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await expect(page).toHaveURL(/\/exposure\/xt-/)
   const url = page.url().split('?')[0]!
   const id = url.split('/').pop()!
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('shop-test.example needs ownership proof before it can be scanned')
+  await expect(page.locator('header:has(h1)').first()).toContainText('shop-test.example needs ownership proof before it can be scanned')
   const scan = page.getByRole('button', { name: 'Scan now', exact: true })
   await expect(scan).toBeDisabled()
   await expect(page.getByText('Cannot scan yet: shop-test.example has no ownership proof. Prove it on the Ownership tab.')).toBeVisible()
@@ -95,7 +95,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await page.clock.fastForward('00:31')
   await ownership.getByRole('button', { name: 'Check', exact: true }).click()
   await expect(ownership.getByRole('status').filter({ hasText: /^Found/ })).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('shop-test.example is ready for its first scan')
+  await expect(page.locator('header:has(h1)').first()).toContainText('shop-test.example is ready for its first scan')
 
   // Proven but not confirmed, administrator without two-step sign-in: no scan, in the button (with the way to turn it on) and in the API.
   await scan.click()
@@ -287,7 +287,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await page.goto('/exposure?tab=targets')
   await link(page, '198.51.100.7').click()
   await expect(page).toHaveURL(/\/exposure\/xt-/)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('198.51.100.7 is ready for its first scan')
+  await expect(page.locator('header:has(h1)').first()).toContainText('198.51.100.7 is ready for its first scan')
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   const ownership = page.getByRole('tabpanel', { name: /^Ownership/ })
   await expect(ownership.getByText('This IP is proved because this box reaches the Internet through it.')).toBeVisible()
@@ -328,7 +328,7 @@ test('sample: a domain without its TXT record and a typed IP without proof canno
   const errors = collectErrors(page)
   await sampleStart(page)
   await page.goto('/exposure')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^\d+ open issues on your Internet-facing targets$/)
+  await expect(page.locator('header:has(h1)').first()).toContainText(/^\d+ open issues on your Internet-facing targets$/)
   await expect(link(page, '198.51.100.2')).toBeVisible()
   await expect(targets(page)).toContainText(/git\.example\.com\s*under example\.com\s*Covered\s*by the proof of example\.com/)
   await shot(page, 'exposure', `list-${isMobile ? 'mobile' : 'desktop'}`)
@@ -336,7 +336,7 @@ test('sample: a domain without its TXT record and a typed IP without proof canno
 
   // A domain whose TXT record was not found: locked, with the reason, and the API says the same.
   await page.goto('/exposure/xt-13?tab=ownership')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('shop.example.net needs ownership proof before it can be scanned')
+  await expect(page.locator('header:has(h1)').first()).toContainText('shop.example.net needs ownership proof before it can be scanned')
   await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   await expect(page.getByRole('tabpanel', { name: /^Ownership/ }).getByRole('status').filter({ hasText: /^Not found/ })).toBeVisible()
   expect((await api(page, 'POST', '/exposure/tree/xt-13/scan')).body.error.code).toBe('not_verified')
@@ -344,7 +344,7 @@ test('sample: a domain without its TXT record and a typed IP without proof canno
 
   // An IP typed in by a person: proved by a token file or a reverse DNS name, never scanned before.
   await page.goto('/exposure/xt-15?tab=ownership')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('198.51.100.3 needs ownership proof before it can be scanned')
+  await expect(page.locator('header:has(h1)').first()).toContainText('198.51.100.3 needs ownership proof before it can be scanned')
   await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   await expect(page.getByText('Prove this address is yours with a token file served on it, or with a reverse DNS name.')).toBeVisible()
   expect((await api(page, 'POST', '/exposure/tree/xt-15/scan')).body.error.code).toBe('not_verified')

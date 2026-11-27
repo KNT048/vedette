@@ -18,12 +18,12 @@ export default function ReportsPage() {
   // The title says where things stand, as the report's own first line does (open now, handled in its period).
   const s = d?.summary
   const handled = s?.handled ?? d?.handled?.totals.reduce((n, x) => n + x.n, 0) ?? 0
-  const title = !d ? t('page.titleLoading') : emptyReport(d) ? t('page.titleEmpty')
-    : s && s.open_now === 0 ? t('page.titleClear', { handled }) : s ? t('page.title', { count: s.open_now, handled }) : t('page.titleLoading')
+  const status = !d ? null : emptyReport(d) ? t('page.titleEmpty')
+    : s && s.open_now === 0 ? t('page.titleClear', { handled }) : s ? t('page.title', { count: s.open_now, handled }) : null
   const tab = (panel: React.ReactNode) => <Suspense fallback={<Loading />}>{panel}</Suspense>
   return (
     <>
-      <PageHeader title={title} meta={<SampleDataNote />} stories={['S-REP-1', 'S-REP-2']} />
+      <PageHeader title={t('common:shell.reports')} meta={<span className="inline-flex flex-wrap items-center gap-2">{status}<SampleDataNote /></span>} stories={['S-REP-1', 'S-REP-2']} />
       <RequireModule module="reports">
         <PageTabs label={t('page.tabs')} tabs={[
           { id: 'report', label: t('page.report'), panel: tab(<ReportTab />) },

@@ -18,6 +18,6 @@ describe('lazy locale namespaces', () => {
   it('loads a feature namespace on request', async () => {
     await loadNamespaces('findings')
     expect(i18n.hasLoadedNamespace('findings')).toBe(true)
-    expect(i18n.exists('findings:titleLoading')).toBe(true)
+    expect(i18n.exists('findings:emptyDevices')).toBe(true)
   })
 })

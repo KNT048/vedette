@@ -34,7 +34,7 @@ export default function HoneypotPage() {
   const hp = useModules().data?.modules.find((m) => m.id === 'honeypot')
   if (hp?.available === false) return (
     <>
-      <PageHeader title={t('notHere.page')} stories={['S-HP-1', 'S-CORE-9']} />
+      <PageHeader title={t('common:shell.honeypot')} stories={['S-HP-1', 'S-CORE-9']} />
       <EmptyState title={t('notHere.title')} info={t('notHere.bodyInfo')}>
         {t('notHere.body')}
         {hp.enabled ? <DependencyLink className="mt-2" reason={t('notHere.modulesWhy')} to="/settings/modules#module-honeypot" label={t('notHere.modules')} /> : null}
@@ -51,7 +51,7 @@ function HoneypotBody() {
   const overview = useOverview()
   const hits = useHits()
   const o = overview.data
-  const title = !o ? t('titleLoading')
+  const status = !o ? null
     : o.trap_ips.enabled === 0 ? t('title.noTraps')
     : o.problem ? t('title.failed')
     : o.trap_ips.listening === 0 && o.traps.some((x) => x.state === 'starting') ? t('title.starting')
@@ -60,8 +60,8 @@ function HoneypotBody() {
     : t('title.quiet')
   return (
     <>
-      <PageHeader title={title} stories={['S-HP-1', 'S-HP-2']} info={t('metaInfo')}
-        meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{o ? t('meta', { time: fmtDateTime(o.updated_at) }) : null}</span>} />
+      <PageHeader title={t('common:shell.honeypot')} stories={['S-HP-1', 'S-HP-2']} info={t('metaInfo')}
+        meta={<span className="flex flex-wrap items-center gap-2">{status}<SampleDataNote />{o ? t('meta', { time: fmtDateTime(o.updated_at) }) : null}</span>} />
       <QueryState query={overview}>
         {(data) => {
           const lan = data.lan ?? t('lanUnknown')

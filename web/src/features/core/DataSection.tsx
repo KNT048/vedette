@@ -84,7 +84,7 @@ export default function DataSection() {
 
   return (
     <>
-      <PageHeader title={t('data.title')} meta={install === 'container' ? t('container.data.meta') : t('data.meta')} info={install === 'container' ? t('container.data.metaInfo') : t('data.metaInfo')} stories={['S-CORE-1']} />
+      <PageHeader title={t('settings.data')} meta={install === 'container' ? t('container.data.meta') : t('data.meta')} info={install === 'container' ? t('container.data.metaInfo') : t('data.metaInfo')} stories={['S-CORE-1']} />
       {install === 'container' ? <ContainerBackup /> : install === 'appliance' ? (
         <>
           <Section id="backup" title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>

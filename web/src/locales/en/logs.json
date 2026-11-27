@@ -15,7 +15,6 @@
   "titleQuiet": "Today: logs look normal, nothing new compared with the last 7 days.",
   "titleLearning": "Learning what is normal: {{n}} of {{days}} days of logs so far.",
   "titleNoIoc": "Today: {{fresh}}, {{spikes}}.",
-  "titleLoading": "Logs",
   "pageInfo": "Vedette reads the syslog your devices send to the box and compares the last 24 hours with the days before, so new log types, spikes and connections to bad addresses stand out.",
   "titleNoSources": "No device is sending logs to the box yet.",
   "meta": "{{lines}} lines in the last 24 hours vs the previous {{days}} days. Updated {{time}}.",
@@ -276,7 +275,6 @@
     "saved": "Log retention saved."
   },
   "siem": {
-    "title": "Forward to a SIEM",
     "description": "Copies events to your SIEM (Wazuh, Graylog, Splunk, Elastic).",
     "descriptionInfo": "Data only goes to the destination you enter here; switching it off stops it immediately.",
     "enabled": "Forward events to the SIEM",

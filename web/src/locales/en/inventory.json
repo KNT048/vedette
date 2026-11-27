@@ -141,16 +141,13 @@
     }
   },
   "list": {
-    "titleLoading": "Devices",
     "title_one": "{{count}} device, {{pending}} not added yet",
     "title_other": "{{count}} devices, {{pending}} not added yet",
     "titleAllApproved_one": "{{count}} device, added",
     "titleAllApproved_other": "{{count}} devices, all added",
     "meta": "Open a device for each value's source and confidence.",
     "metaInfo": "New values are added; old values are never overwritten.",
-    "all": "All devices",
-    "titleEmpty": "No devices yet",
-    "titleBoxOnly": "Only the Vedette box so far"
+    "all": "All devices"
   },
   "uncheckable": {
     "title": "Vedette cannot check this device yet",

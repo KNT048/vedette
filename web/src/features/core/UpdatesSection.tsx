@@ -418,7 +418,7 @@ function ApplianceUpdates() {
   const sec = os.data?.pending.filter((p) => p.security).length ?? 0
   const name = os.data?.os?.name // null before the box first looked for updates
   // The headline is what the operating system still needs: security updates waiting, else a reboot to load what is installed.
-  const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : os.data?.reboot_required ? t('updates.titleOsReboot', { name }) : t('updates.titleOsClean', { name })
+  const status = !name ? null : sec ? t('updates.titleOs', { name, count: sec }) : os.data?.reboot_required ? t('updates.titleOsReboot', { name }) : t('updates.titleOsClean', { name })
   const affected = q.data?.advisories.filter((a) => a.status === 'affected').length ?? 0
   const available = q.data?.available.length ?? 0
   // The software part has its own query: when it fails or is not built yet (501), the operating system tab still shows (issue #230).
@@ -426,7 +426,7 @@ function ApplianceUpdates() {
   const soft = (part: Part) => (q.data && (!q.error || q.data.run?.status === 'running') ? <Body s={q.data} part={part} setAfter={setAfter} /> : <QueryState query={q}>{(s) => <Body s={s} part={part} setAfter={setAfter} />}</QueryState>)
   return (
     <>
-      <PageHeader title={title} meta={t('updates.meta')} info={t('updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-7']} />
+      <PageHeader title={t('settings.updates')} meta={status} info={<><p>{t('updates.meta')}</p><p>{t('updates.metaInfo')}</p></>} stories={['S-CORE-2', 'S-CORE-7']} />
       <ReadOnlyNote role="admin" />
       {/* While the software updates, Vedette restarts and a read fails for a moment: keep the page and say it reconnects.
           The run is shown above the tabs, so it stays on screen (and its end is still announced) whichever tab is open. */}

@@ -83,7 +83,7 @@ export default function AiSettings() {
       <QueryState query={cfg}>
         {(c) => (
           <>
-            <PageHeader title={t('settings.title')} meta={allFailed(c) ? t('settings.statusAllFailed') : c.configured ? t('settings.statusOn') : t('settings.statusOff')} info={allFailed(c) ? t('settings.statusAllFailedInfo') : undefined} />
+            <PageHeader title={t('common:shell.aiSettings')} meta={allFailed(c) ? t('settings.statusAllFailed') : c.configured ? t('settings.statusOn') : t('settings.statusOff')} info={allFailed(c) ? t('settings.statusAllFailedInfo') : undefined} />
             {moved ? <Suspense fallback={null}><ConnectionsMoved /></Suspense> : null}
             {/* each lazy panel has its own Suspense (FRONTEND §3) */}
             <PageTabs label={t('harness.tabs.label')} tabs={TABS.map((id) => {

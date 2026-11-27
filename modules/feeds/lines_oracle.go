@@ -38,9 +38,9 @@ const (
 
 	oracleNotice = "Oracle Critical Patch Update, Critical Security Patch Update and Security Alert CSAF documents (TLP:WHITE), Oracle Terms of Use. Facts only: CVE ids, release lines and the newest affected release; no text is kept."
 
-	// ListedLastAffected: a row is the newest affected release of a line, every earlier release of the line affected too.
+	// ListedLastAffected says a row is the newest affected release of a line, every earlier release of the line affected too.
 	ListedLastAffected = "last_affected"
-	// AbsentUnaffectedIfAssessed: a line the document assessed (has a release of in its product tree) and does not list is not affected.
+	// AbsentUnaffectedIfAssessed says a line the document assessed (has a release of in its product tree) and does not list is not affected.
 	AbsentUnaffectedIfAssessed = "unaffected_if_assessed"
 
 	// oracleDocMaxBytes bounds one document after decoding (the largest, July 2026, is 5.6 MB): the source's own cap (INV-2).

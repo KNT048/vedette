@@ -137,6 +137,15 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	chrome := Software{ID: "s-chrome", Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: "131.0.6778.85", Source: "agent",
 		Packaged: true, PkgVersion: "131.0.6778.85-1", PkgSource: "google-chrome-stable", KevKeys: []string{"google|chromium v8"}}
 	chromeKEV := []Vuln{mxChromeKEV()}
+	// an exploited OpenSSH CVE on a package whose release has an epoch ("1:9.6p1-3ubuntu13.4"): the upstream range raises it while
+	// Ubuntu is silent, and Ubuntu's word that the installed release is fixed closes it as a data correction, never as an update the
+	// device made (the upstream "9.6p1" compared with the package release "1:9.6p1-3ubuntu13.4")
+	sshKEV := sshOld
+	sshKEV.KevKeys = []string{"openbsd|openssh"}
+	sshKEVVuln := func(fixes ...DistroFix) []Vuln {
+		return []Vuln{{CVE: mxCVEKEV, Vendor: "OpenBSD", Product: "OpenSSH", Source: "cisa-kev", NVDAnswered: true, Distro: fixes, DistroOn: mxDistroOn,
+			Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "9.8p1"}}}}}
+	}
 
 	k43, k44 := mxKernel("7.0.0-43.43"), mxKernel("7.0.0-44.44")
 	img44, img43 := mxImage("7.0.0-44", "7.0.0-44.44"), mxImage("7.0.0-43", "7.0.0-43.43")
@@ -221,6 +230,11 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 			[]mxStep{mxRead(kevDebOpen, k44)}, mxWant{open: yes(), fix: FixNoneYet, evidence: "a later point release"}},
 		{"kernel/exploited/Ubuntu's feeds off: NVD's range decides", "", cveKEV, k44.ID, []mxStep{mxRead(kevFeedsOff, k44)},
 			mxWant{open: yes()}},
+		{"package/exploited/epoch release, no word yet: NVD's range raises it, not confirmed", "", cveKEV, sshKEV.ID,
+			[]mxStep{mxRead(sshKEVVuln(), sshKEV)}, mxWant{open: yes(), verified: VerifiedNo}},
+		{"package/exploited/epoch release, no word yet, then Ubuntu says the installed release is fixed: closed by the data, not as an update", "", cveKEV,
+			sshKEV.ID, []mxStep{mxRead(sshKEVVuln(), sshKEV), mxRead(sshKEVVuln(mxUbuntu("openssh", "1:9.6p1-3ubuntu13.4", false)), sshKEV)},
+			mxWant{open: no(), via: ViaDataCorrected}},
 		{"package/exploited/a vendor's own .deb (plain revision): NVD's range decides", "", cveKEV, chrome.ID, []mxStep{mxRead(chromeKEV, chrome)},
 			mxWant{open: yes(), known: "131.0.6778.85-1"}},
 	}

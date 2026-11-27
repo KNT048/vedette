@@ -259,11 +259,14 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 		}
 		return ViaDataCorrected, "", "", "", false
 	}
-	cur := l.reading.Version
-	if l.reading.Pkg != "" { // a line with a package release is matched on it (detectionOf, scanLine): whatever the basis
-		cur = l.reading.Pkg
+	cur, pkg := l.reading.Version, false
+	// a line with a package release is matched on it (detectionOf, scanLine): whatever the basis, except the device's version read
+	// against NVD's upstream ranges while the distribution has no word (awaitingDistro), which stored the upstream version: comparing
+	// that with the package release would call "9.6p1" to "1:9.6p1-3ubuntu13.4" an update the device never made
+	if l.reading.Pkg != "" && f.Basis != DetectDeviceVersion {
+		cur, pkg = l.reading.Pkg, true
 	}
-	if moved(f.MatchedVersion, cur, l.reading.Pkg != "") {
+	if moved(f.MatchedVersion, cur, pkg) {
 		if l.sw.Source == "manual" && l.sw.ReportedSource != "" {
 			return ViaDataCorrected, "", "", "", true // a person corrected what a source reads
 		}

@@ -17,7 +17,7 @@ import (
 
 // identifyCodeAt is the identification code identifyRules was last set for: the generation, then a hash of the code (comments left
 // out). Update it with the generation, after deciding whether the change can give a stored reading another product or train.
-const identifyCodeAt = "6:4b029545ec589cb0"
+const identifyCodeAt = "6:5fea7ca745776196"
 
 // identificationCode is a hash of the code that decides a reading's product and train: every non-test Go file of core/productid,
 // and identify, trainOf and installInstance in this package. Comments and layout do not count.

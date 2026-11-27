@@ -13,8 +13,9 @@ import (
 var (
 	// reportedWord is a word of letters before the release, then a space, or the "v" of a tag right before it.
 	reportedWord = regexp.MustCompile(`^(?:([A-Za-z]{1,16})\s+|[vV])([0-9].*)$`)
-	// reportedBuild is a build number in parentheses after the release.
-	reportedBuild = regexp.MustCompile(`^(.*?)\s*\([0-9]{1,12}\)$`)
+	// reportedBuild is a build number in parentheses after the release and a space. Right after the release ("12.4(25)", "9.16(3)") the
+	// number is part of the release in a vendor's "<train>(<release>)" notation, not a build beside it.
+	reportedBuild = regexp.MustCompile(`^(.*?)\s+\([0-9]{1,12}\)$`)
 	// reportedRelease is what must be left: dotted numbers, with a tag's pre-release or build part ("2.4.0-rc.1").
 	reportedRelease = regexp.MustCompile(`^[0-9]{1,9}(?:\.[0-9]{1,9})+(?:[-+~][0-9A-Za-z.+~-]{1,40})?$`)
 )

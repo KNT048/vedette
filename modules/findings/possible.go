@@ -41,7 +41,8 @@ type PossibleItem struct {
 }
 
 // Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
-// only one made on older evidence of the CVE record, which applies until a new check replaces it).
+// only one made on older evidence of the CVE record, which applies until a new check replaces it, or one that stored only that no page
+// could be read, from before the AI read the record when no page reads).
 func (it PossibleItem) Checkable() bool {
 	if it.Question.CheckKey == "" {
 		return false
@@ -49,7 +50,13 @@ func (it PossibleItem) Checkable() bool {
 	if it.Check != nil && it.Check.Reading != nil {
 		return it.Due
 	}
-	return it.Check == nil || it.Check.Stale
+	return it.Check == nil || it.Check.Stale || it.Check.noPageRead()
+}
+
+// noPageRead says the check stored only that no reference page could be read (decided by structure, no_reference_page or fetch_failed).
+func (c Check) noPageRead() bool {
+	return c.DecidedBy == DecidedStructured && c.Verdict == VerdictUnsure && c.Undecided != nil &&
+		(c.Undecided.Reason == UndecidedNoReference || c.Undecided.Reason == UndecidedFetchFailed)
 }
 
 // Bulk says a proposal may be confirmed together with others of its class: never an exploited CVE proposed "not affected" (a person
@@ -149,8 +156,6 @@ func possibleItemOf(q Question, cve string, in causeInputs) PossibleItem {
 	}
 	it.Check = &c
 	switch {
-	case c.Reading != nil && c.Verdict == VerdictNotAffected && c.RejectedBy == "" && c.Reading.settles(it.Exploited):
-		it.State = PossibleSettled
 	case c.Settled() && c.Verdict == VerdictNotAffected:
 		it.State = PossibleSettled
 	case c.Proposal():

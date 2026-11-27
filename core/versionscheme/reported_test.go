@@ -10,13 +10,16 @@ func TestReported(t *testing.T) {
 		in, want string
 		ok       bool
 	}{
-		{"v2.3.1", "2.3.1", true},             // a release tag
-		{"V4.8.120.0", "4.8.120.0", true},     // upper case
-		{"v2.4.0-rc.1", "2.4.0-rc.1", true},   // a tag's pre-release stays with the release
-		{"zx 5.4.2", "5.4.2", true},           // a vendor's word before the release
-		{"Version 4.1.0", "4.1.0", true},      // a word in another case
-		{"4.2.9 (31207)", "4.2.9", true},      // the build in parentheses
-		{"4.2.9(31207)", "4.2.9", true},       // without a space
+		{"v2.3.1", "2.3.1", true},               // a release tag
+		{"V4.8.120.0", "4.8.120.0", true},       // upper case
+		{"v2.4.0-rc.1", "2.4.0-rc.1", true},     // a tag's pre-release stays with the release
+		{"zx 5.4.2", "5.4.2", true},             // a vendor's word before the release
+		{"Version 4.1.0", "4.1.0", true},        // a word in another case
+		{"4.2.9 (31207)", "4.2.9", true},        // the build in parentheses
+		{"4.2.9(31207)", "4.2.9(31207)", false}, // a number in parentheses right after the release is part of it, not a build
+		{"12.4(25)", "12.4(25)", false},         // a release numbered "<train>(<release>)"
+		{"9.16(3)", "9.16(3)", false},
+		{"v9.16(3)", "v9.16(3)", false},
 		{"v4.2.9 (31207)", "4.2.9", true},     // both
 		{" 5.0.1 (7) ", "5.0.1", true},        // around spaces
 		{"1.2.3", "1.2.3", false},             // a plain release: nothing to read

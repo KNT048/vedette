@@ -139,6 +139,8 @@ type Target struct {
 	ParentID  string
 	ScopeMode ScopeMode
 	Enabled   bool
+	// Deep is the target's deep-scan settings (exp_deep_setting; the defaults without a row).
+	Deep DeepSettings
 	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
 	// of the box, or a target of the box that sits under the name where its record was found) and that token: the domain and token the
 	// executors' fence checks. proofAt is the name the record sits on when it is not proofDomain itself (the zone apex, or a parent
@@ -330,7 +332,7 @@ type Content struct {
 	Checks      []CheckRow      `json:"checks"`
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
-	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
+	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70 plus configuration facts)
 	// WebPages are the pages ZAP scanned this run (it answered for them): a ZAP alert of another page that no longer comes is not
 	// "gone", since ZAP did not look there.
 	WebPages []string `json:"-"`

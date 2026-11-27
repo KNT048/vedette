@@ -92,7 +92,7 @@ type KEVEntry struct {
 }
 
 // GreenboneRow is one result of Greenbone's report (contract.ts GreenboneResult): severity (CVSS 0.1 to 10), the test's name, the port
-// ("443/tcp", "general/tcp"; "" when it gave none that reads as one), QoD (70 to 100), the CVE ids the test names, Greenbone's advice
+// ("443/tcp", "general/tcp"; "" when it gave none that reads as one), QoD (70 to 100; an allowlisted configuration fact any), the CVE ids the test names, Greenbone's advice
 // (clipped) and the test's OID. IP is the scanned address.
 type GreenboneRow struct {
 	IP       string   `json:"ip"`
@@ -169,6 +169,7 @@ const (
 const (
 	NotAvailableGreenbone = "OpenVAS is not available on this box."
 	notGBOff              = "Optional deep scan with OpenVAS is off. An administrator can turn it on under Settings on the External exposure page."
+	notGBSettings         = "OpenVAS: " + NotBySettings
 	notGBProof            = "OpenVAS did not scan: the proof of this IP (its token file or reverse DNS name) was not found just now."
 	notGBDomain           = "OpenVAS runs on the box's own verified public IP only, never on the names of a domain."
 	// notGBNoDeep: a domain with accepted terms whose deep scan reached no address this run.
@@ -178,9 +179,10 @@ const (
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	// notGBNotOwn: the address is not the box's own proven IP (no sighting inside its days, or a typed IP without its scope), so
 	// OpenVAS, which has no fence of its own on the host, gets nothing (INV-13).
-	notGBNotOwn = "OpenVAS did not scan: this IP is not the box's own proven address (the box has not seen it as its address within the last 90 days, or it is a typed IP without its proof), so nothing was sent."
-	notGBNoLog  = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
-	notGBSlow   = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
+	notGBNotOwn      = "OpenVAS did not scan: this IP is not the box's own proven address (the box has not seen it as its address within the last 90 days, or it is a typed IP without its proof), so nothing was sent."
+	notGBNoLog       = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
+	notGBFactsUnread = "OpenVAS's configuration facts (password logins, TRACE, certificate and key exchange notes) could not be read this time; its other results are shown."
+	notGBSlow        = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
 	notGBPartial     = "OpenVAS was stopped after 90 minutes; these are the results it had found by then."
 	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
@@ -750,6 +752,9 @@ func (s *Service) greenbonePlan(ctx context.Context, st ScanTarget) (run bool, l
 	if !st.Mode.Full { // Greenbone's checks are covered by the testing terms only
 		return false, notGBTerms, nil
 	}
+	if !st.Mode.OpenVAS { // the target's settings turned OpenVAS off
+		return false, notGBSettings, nil
+	}
 	if st.Kind == KindIP && st.Typed { // a typed IP: the proof is looked for again (the cached live result of this scan) before OpenVAS starts
 		t, err := loadTarget(ctx, s.cfg.DB.Reader(), st.ID)
 		if err != nil {
@@ -868,11 +873,12 @@ func gbRunOf(states []string) string {
 }
 
 // gbPorts is what OpenVAS checks on ip: the TCP ports this run found open there (the surface scan and service
-// identification), ascending, without repeats; a row an earlier scan left (not seen, not checked) is not one.
-func gbPorts(rows []PortRow, ip netip.Addr) []int {
+// identification), ascending, without repeats; a row an earlier scan left (not seen, not checked) is not one, nor a port the
+// target's settings skip.
+func gbPorts(rows []PortRow, ip netip.Addr, skip []int) []int {
 	var out []int
 	for _, p := range rows {
-		if ipKey(p.IP) == ip.String() && p.Port >= 1 && p.Port <= 65535 && p.Misses == 0 && !p.Unchecked && !slices.Contains(out, p.Port) {
+		if ipKey(p.IP) == ip.String() && p.Port >= 1 && p.Port <= 65535 && p.Misses == 0 && !p.Unchecked && !slices.Contains(out, p.Port) && !slices.Contains(skip, p.Port) {
 			out = append(out, p.Port)
 		}
 	}
@@ -981,7 +987,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 		return line(notGBGate, "not done: the gate refused")
 	}
 	// The testing terms again: withdrawn meanwhile, nothing is sent; without the disruptive checks now, the deep config, not the disruptive.
-	m := t.mode()
+	m := narrow(t.mode(), t.Deep) // the terms and the target's deep-scan settings as they are now
 	if !m.Full {
 		return line(notGBTerms, "not done: the testing terms are not accepted")
 	}
@@ -998,7 +1004,10 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 		}
 	}
 	// Never above the run's snapshot: withdrawing the terms stops the run; the disruptive checks added while it runs wait for the next one
-	st.Mode = ScanMode{Full: true, Disruptive: m.Disruptive && st.Mode.Disruptive}
+	st.Mode = m.And(st.Mode) // the config follows the groups this allows (levelOf)
+	if !st.Mode.OpenVAS {    // the settings turned OpenVAS off for this target (or the address's IP target) while the run ran
+		return line(notGBSettings, "not done: turned off in the target's settings")
+	}
 	if st.Domain != nil { // An address of a domain that is not the box's: the host checks the fence itself, or nothing is sent
 		f, ok := s.cfg.Greenbone.(GreenboneFence)
 		if !ok {
@@ -1022,7 +1031,8 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	g.mu.Lock()
 	poll, limit := g.poll, g.cap
 	g.mu.Unlock()
-	res, err := s.runGreenbone(ctx, limit, st, ip, ports, plog, poll)
+	fu := &factsUnread{}
+	res, err := s.runGreenbone(context.WithValue(ctx, factsUnreadKey{}, fu), limit, st, ip, ports, plog, poll)
 	rows, problems := res.rows, res.problems
 	var out gbOutcome
 	if len(problems) > 0 {
@@ -1083,11 +1093,19 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 			cves[id] = true
 		}
 	}
-	low := 0
+	// A configuration fact is read at any QoD (gmpFacts): it is counted on its own, so "QoD 70 or more" stays true of the rest.
+	low, facts := 0, 0
 	for _, r := range rows {
-		if r.Severity < GreenboneLowBelow {
+		switch {
+		case isFactOID(r.OID):
+			facts++
+		case r.Severity < GreenboneLowBelow:
 			low++
 		}
+	}
+	factText := ""
+	if facts > 0 {
+		factText = " and " + plural(facts, "configuration fact")
 	}
 	out.rows, out.state = rows, GBRunDone
 	how, text, audit := "scanned", "", "done"
@@ -1101,10 +1119,17 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 		how, out.state, text, audit = "partly scanned", GBRunEnded, notGBEnded+res.reason, "ended by OpenVAS"
 	}
 	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
-		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
-		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows), "result"), GreenboneMinQoD, len(rows)-low, plural(low, "hardening note"), plural(len(cves), "CVE")), maxLineText)}}
+		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s)%s, %s named.",
+		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows)-facts, "result"), GreenboneMinQoD, len(rows)-facts-low, plural(low, "hardening note"), factText,
+		plural(len(cves), "CVE")), maxLineText)}}
 	if text != "" {
 		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
+	}
+	if l := gbSafeChecksLine(st.Mode); l != "" {
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: l})
+	}
+	if fu.failed.Load() {
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: notGBFactsUnread})
 	}
 	if len(rows) > maxGreenboneRows {
 		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("OpenVAS: only the %d highest-severity of %d results are kept.", maxGreenboneRows, len(rows))})
@@ -1204,7 +1229,7 @@ func (s *Service) runGreenbone(ctx context.Context, limit time.Duration, st Scan
 	if target, err = g.createTarget(gctx, name, ip.String(), portList); err != nil {
 		return res, err
 	}
-	if task, err = g.createTask(gctx, name, target, config); err != nil {
+	if task, err = g.createTask(gctx, name, target, config, st.Gentle); err != nil {
 		return res, err
 	}
 	probe := GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), Fence: domainNote(st), PortList: gbProbePorts(ports), Config: lv.name + " (" + lv.text + ")", Note: gbNote}
@@ -1510,7 +1535,7 @@ func cleanGreenboneRow(r GreenboneRow) (GreenboneRow, bool) {
 	}
 	r.CVEs = cves
 	r.Severity = float64(int(r.Severity*10+0.5)) / 10
-	if r.Name == "" || r.Severity <= 0 || r.Severity > 10 || r.QoD < GreenboneMinQoD || r.QoD > 100 {
+	if r.Name == "" || r.Severity <= 0 || r.Severity > 10 || (r.QoD < GreenboneMinQoD && !isFactOID(r.OID)) || r.QoD > 100 {
 		return GreenboneRow{}, false
 	}
 	return r, true

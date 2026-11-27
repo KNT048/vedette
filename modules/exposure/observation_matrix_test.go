@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -141,6 +142,8 @@ type omWire struct {
 	admin []int
 	// recheckErr makes the re-check of the ports the scan missed fail (the check itself, not a port).
 	recheckErr bool
+	// asked are the ports the liveness checks and the re-check connected to, on any address.
+	asked map[int]bool
 }
 
 func (w *omWire) answer(p omPhase, ip string, port int) omAnswer {
@@ -228,9 +231,22 @@ func (w *omWire) AnsweredByPath(_ context.Context, ports []int) ([]int, error) {
 	return out, nil
 }
 
+// note records the ports a liveness check or the re-check connected to.
+func (w *omWire) note(ports []int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.asked == nil {
+		w.asked = map[int]bool{}
+	}
+	for _, p := range ports {
+		w.asked[p] = true
+	}
+}
+
 // Alive is the liveness check.
 func (w *omWire) Alive(_ context.Context, ip netip.Addr, ports []int) (map[int]bool, error) {
 	out := map[int]bool{}
+	w.note(ports)
 	for _, p := range ports {
 		out[p] = w.answer(omAlive, ip.String(), p) == omSynAck
 	}
@@ -246,6 +262,7 @@ func (w *omWire) Probe(_ context.Context, ip netip.Addr, ports []int) (map[int]s
 		return nil, errors.New("the re-check could not run")
 	}
 	out := map[int]string{}
+	w.note(ports)
 	for _, p := range ports {
 		out[p] = map[omAnswer]string{omSynAck: PortOpen, omReset: PortClosed, omSilence: PortSilent}[w.answer(omRecheck, ip.String(), p)]
 	}
@@ -278,6 +295,8 @@ type omWant struct {
 	line    []string       // a "Not checked" line of the last scan contains each of these (case-insensitive)
 	noLine  []string       // no "Not checked" line of the last scan contains this (case-insensitive)
 	steps   []omStep
+	// notAsked are ports the liveness checks and the re-check of the scans of now never connected to (the target's settings skip them).
+	notAsked []int
 }
 
 // omRow is one cell of the matrix that changes an outcome.
@@ -300,6 +319,7 @@ type omRow struct {
 	admin        []int  // ports on which the runner finds an admin page, in every scan (a surface issue on the port's row)
 	recheckErr   bool   // the re-check of the missed ports fails in the now scans
 	moveTo       string // the now scans find the domain's name on this address instead (the address before left the domain)
+	skip         []int  // the ports the target's deep-scan settings skip, saved after the history scans
 	want         omWant
 	// decision names the product rule the row's expectation changes; "" when the expectation follows the rules as written.
 	decision string
@@ -591,6 +611,33 @@ var omRows = []omRow{
 		before: []omNet{omHost(omReset, 22, 443)}, now: omEverything(omSilence), scans: 3, gap: 15 * 24 * time.Hour,
 		want: omWant{notOpen: []int{22, 443}, run: corerun.Partial, line: []string{ipC, "no longer listed", "30 days"}},
 	},
+	// ---- the target's settings skip a port: it is not observed, so it is neither closed nor confirmed ----
+	{
+		// The settings skip 80, open before; now the target resets it. A skipped port is not observed: its row stays as it was (never
+		// closed by a scan that skipped it, its issues kept), and no liveness check or re-check connects to it.
+		name: "settings/open_before/skipped_port_resets_now", kind: omOwnIP,
+		before: []omNet{omHost(omReset, 22, 80, 443)}, now: omHost(omReset, 22, 443), skip: []int{80},
+		want: omWant{open: []int{22, 80, 443}, run: corerun.Done, notAsked: []int{80}, noLine: []string{"no longer listed"}},
+	},
+	{
+		// A port the settings skip opens for the first time: the runner and the sweep still see it, the scan does not list it.
+		name: "settings/never_seen/skipped_port_opens", kind: omOwnIP,
+		before: []omNet{omHost(omReset, 22)}, now: omHost(omReset, 22, 32400), skip: []int{32400},
+		want: omWant{open: []int{22}, absent: []int{32400}, run: corerun.Done, notAsked: []int{32400}},
+	},
+	{
+		// A typed IP whose 443 the settings skip gives no answer on it for three scans over a day: the filtered rule never closes a
+		// port the scans did not observe.
+		name: "settings/open_before/skipped_port_silent_three_scans_over_a_day", kind: omTyped,
+		before: []omNet{omHost(omSilence, 22, 443)}, now: omPath(omHost(omSilence, 22), omSilence, 443), scans: 3, gap: 13 * time.Hour, skip: []int{443},
+		want: omWant{open: []int{22, 443}, notAsked: []int{443}},
+	},
+	{
+		// The box's own IP through a domain's name (no testing terms): the domain's settings skip 443 there, which stays as it was.
+		name: "settings/domain_on_box_ip_open_before/skipped_port_resets_now", kind: omDomainOnBox,
+		before: []omNet{omHost(omReset, 22, 443)}, now: omHost(omReset, 22), skip: []int{443},
+		want: omWant{open: []int{22, 443}, notAsked: []int{443}},
+	},
 	{
 		// The domain's name moved to another address: the services of the address it left are closed at once.
 		name: "hosting_moved/open_before/name_points_at_another_address", kind: omDomain,
@@ -717,6 +764,13 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail, omLast) {
 		o.scan(b, omScan{path: !row.beforeNoPath, allPorts: row.beforeAll, admin: row.admin})
 		o.advance(ScanEvery + time.Minute)
 	}
+	if len(row.skip) > 0 {
+		b, _ := json.Marshal(row.skip)
+		o.deepRow(o.id, false, true, true, true, true, SpeedNormal, string(b), "[]")
+		o.wire.mu.Lock()
+		o.wire.asked = nil
+		o.wire.mu.Unlock()
+	}
 	scans, gap := max(row.scans, 1), row.gap
 	if gap == 0 {
 		gap = ScanEvery + time.Minute
@@ -783,6 +837,13 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail, omLast) {
 			diff = append(diff, fmt.Sprintf("a \"Not checked\" line contains %q: %q", part, r.NotChecked[i].Text))
 		}
 	}
+	o.wire.mu.Lock()
+	for _, p := range row.want.notAsked {
+		if o.wire.asked[p] {
+			diff = append(diff, fmt.Sprintf("port %d was connected to by a liveness check or the re-check", p))
+		}
+	}
+	o.wire.mu.Unlock()
 	for _, w := range row.want.steps {
 		st := stepOf(t, d, w.name)
 		if st.Status != w.status {

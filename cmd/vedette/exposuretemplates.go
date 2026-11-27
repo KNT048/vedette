@@ -115,7 +115,7 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 
 // scanBaseline runs the read-only KEV templates of the jobs, the scan of a target without accepted testing terms.
 func (a exposureTemplateScan) scanBaseline(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
-	runs, notes := templateRuns(ix, ip, jobs)
+	runs, notes := templateRuns(ix, ip, jobs, t)
 	out := exposure.TemplateScan{NotChecked: notes}
 	var checks int64
 	for _, r := range runs {
@@ -175,19 +175,28 @@ func namesOf(ids []string) string {
 // pack marks own_ip, at most nucleiargv.MaxTemplates a run. A CVE the pack has no template for is left out (no result, not an
 // error); a CVE whose templates are all unmarked gets a notReadOnly line; a job for another address or scope is left out (exposure
 // never makes one).
-func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) (runs []templateRun, notes []string) {
+func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob, t exposure.ScanTarget) (runs []templateRun, notes []string) {
 	for _, j := range jobs {
-		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != "" { // a full job is scanFull's, in a Full scan only
+		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != "" || t.Skips(j.Port) { // a full job is scanFull's, in a Full scan only
 			continue
 		}
 		var tmpls []pack.Template
 		var refused []string
+		unknown := 0
 		for _, cve := range j.CVEs {
 			all := ix.ForCVE(cve)
 			ok := 0
 			for _, tp := range all {
-				if tp.OwnIP && !slices.ContainsFunc(tmpls, func(x pack.Template) bool { return x.ID == tp.ID }) {
+				pv := templatePathOf(tp, t.SkipPaths)
+				if tp.OwnIP && pv == tplPathSkipped { // under a web path the target skips: left out, not refused
+					ok++
+					continue
+				}
+				if tp.OwnIP && pv != tplPathSkipped && !slices.ContainsFunc(tmpls, func(x pack.Template) bool { return x.ID == tp.ID }) {
 					tmpls, ok = append(tmpls, tp), ok+1
+					if pv == tplPathUnknown {
+						unknown++
+					}
 				}
 			}
 			if len(all) > 0 && ok == 0 {
@@ -196,6 +205,9 @@ func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) (r
 		}
 		if len(refused) > 0 {
 			notes = append(notes, fmt.Sprintf(notReadOnly, namesOf(refused), j.Port))
+		}
+		if l := pathsLine(unknown, j.Port, t.SkipPaths); l != "" {
+			notes = append(notes, l)
 		}
 		target := nucleiargv.Target{Host: ip.String(), Port: j.Port, Scheme: j.Scheme}
 		for c := range slices.Chunk(tmpls, nucleiargv.MaxTemplates) {

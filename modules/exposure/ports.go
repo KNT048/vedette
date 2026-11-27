@@ -64,6 +64,12 @@ type ScanTarget struct {
 	// Mode is what this scan may do: Full once the target's testing terms are accepted, else the basic scope. Every
 	// scanner seam reads it here, and only here.
 	Mode ScanMode
+	// SkipPorts are the TCP ports this scan leaves out on every address (the target's deep-scan settings): no engine is sent to
+	// them and nothing is concluded about them. SkipPaths are URL path prefixes the web scans leave out (ZAP; nuclei by the first
+	// request of a template, as far as it can tell). Gentle is the slower speed. None of them is a permission; they only narrow.
+	SkipPorts []int
+	SkipPaths []string
+	Gentle    bool
 	// Typed: the target is a public IP a person typed in (INV-35); its proof is looked for again before the steps that reach the address.
 	Typed bool
 	// TypedWhy is, for a typed IP whose deep steps cannot run, the line that says why (no testing terms, no fence, the proof not found): the

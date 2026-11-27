@@ -109,9 +109,11 @@ type NodeView struct {
 	TermsNotice      TermsNotice  `json:"terms_notice"`
 	TermsWarning     *string      `json:"terms_warning"`
 	Deep             bool         `json:"deep"`
-	Blocked          *string      `json:"blocked"`
-	LastScan         *ScanView    `json:"last_scan"`
-	Counts           NodeCounts   `json:"counts"`
+	// DeepSettings are the target's deep-scan settings (the defaults when none were saved).
+	DeepSettings DeepSettings `json:"deep_settings"`
+	Blocked      *string      `json:"blocked"`
+	LastScan     *ScanView    `json:"last_scan"`
+	Counts       NodeCounts   `json:"counts"`
 }
 
 // TreeView is GET /exposure/tree (contract.ts TargetTree).
@@ -237,7 +239,7 @@ func treeOrder(all []Target) []Target {
 func (s *Service) nodeOf(t Target, r nodeRead) NodeView {
 	now := r.checks.now
 	n := NodeView{ID: t.ID, ScheduleKey: ScheduleKey(t.ID), Kind: t.Kind, Value: t.Value, Origin: t.Origin, Enabled: t.Enabled,
-		CreatedAt: store.FormatTS(t.CreatedAt), Proof: proofOf(t, r, now), TermsNotice: termsOf(t), Deep: t.mode().Full, Counts: r.counts[t.ID]}
+		CreatedAt: store.FormatTS(t.CreatedAt), Proof: proofOf(t, r, now), TermsNotice: termsOf(t), Deep: t.mode().Full, DeepSettings: t.Deep, Counts: r.counts[t.ID]}
 	if n.Origin == "" {
 		n.Origin = OriginPerson
 	}

@@ -82,6 +82,19 @@ type fakeGVM struct {
 	lastHost    string          // the hosts of the last create_target: the report's rows of ipA are this address's
 	ran         bool            // the task was served "Running" once: its progress is 50 from then on, -1 before
 	hangOnce    map[string]bool // commands not answered the first time they come
+	faf         []fakeFam       // the families "Full and fast" selects; nil is the short default list
+	factsReport string          // the get_reports answer to the facts-only request ("nvt=" in its filter); "" is report
+	factsFail   bool            // the facts-only request is answered with 400
+}
+
+// fakeFam is one family of the fake "Full and fast": how many of its max NVTs it selects, whether it is growing, and which NVTs
+// when it selects only some.
+type fakeFam struct {
+	name    string
+	count   int
+	max     int
+	growing bool
+	nvts    []string
 }
 
 const leftoverTask = "cccccccc-dddd-4eee-8fff-000000000000"
@@ -91,11 +104,12 @@ type fakeCfg struct {
 	id, name string
 	families []string
 	prefs    map[string]string
-	web      []string // the NVTs of Web application abuses; nil is the whole family (growing)
+	web      []string            // the NVTs of Web application abuses; nil is the whole family (growing)
+	sel      map[string][]string // the NVTs of any other family that was set one by one
 }
 
 // fakeWebNVTs is the feed's family Web application abuses in the fake gvmd.
-var fakeWebNVTs = []string{"1.3.6.1.4.1.25623.1.0.113002", gmpWebRootTravOID, "1.3.6.1.4.1.25623.1.0.117574"}
+var fakeWebNVTs = []string{"1.3.6.1.4.1.25623.1.0.100001", "1.3.6.1.4.1.25623.1.0.100002", "1.3.6.1.4.1.25623.1.0.113002", "1.3.6.1.4.1.25623.1.0.106756", "1.3.6.1.4.1.25623.1.0.117574"}
 
 var cfgIDRe = regexp.MustCompile(`config_id=([0-9a-f-]{36})`)
 
@@ -120,7 +134,7 @@ func (f *fakeGVM) cfg(name string) (fakeCfg, string) {
 			used = c.name
 		}
 		if c.name == name {
-			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs), web: slices.Clone(c.web)}, used
+			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs), web: slices.Clone(c.web), sel: maps.Clone(c.sel)}, used
 		}
 	}
 	return fakeCfg{}, used
@@ -201,12 +215,29 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		case f.cfgIn(body) != nil:
 			c := f.cfgIn(body)
 			fams := ""
-			for _, n := range c.families {
-				fams += "<family><name>" + n + "</name><nvt_count>10</nvt_count></family>"
+			listed := slices.Clone(c.families)
+			for n := range c.sel {
+				if !slices.Contains(listed, n) {
+					listed = append(listed, n)
+				}
+			}
+			for _, n := range listed {
+				count := "10"
+				if v, ok := c.sel[n]; ok {
+					count = fmt.Sprint(len(v))
+				}
+				fams += "<family><name>" + n + "</name><nvt_count>" + count + "</nvt_count></family>"
 			}
 			return ok(`<config id="` + c.id + `"><name>` + c.name + `</name><families>` + fams + `</families></config>`)
 		case f.noFAF:
 			return `<get_configs_response status="404" status_text="Failed to find config"/>`
+		}
+		if f.faf != nil {
+			fams := ""
+			for _, x := range f.faf {
+				fams += fmt.Sprintf("<family><name>%s</name><nvt_count>%d</nvt_count><max_nvt_count>%d</max_nvt_count><growing>%d</growing></family>", x.name, x.count, x.max, map[bool]int{true: 1}[x.growing])
+			}
+			return ok(`<config id="` + gmpFullAndFast + `"><name>Full and fast</name><families>` + fams + `</families></config>`)
 		}
 		return ok(`<config id="` + gmpFullAndFast + `"><name>Full and fast</name><families><family><name>General</name></family><family><name>Brute force attacks</name></family>` +
 			`<family><name>Default Accounts</name></family><family><name>Denial of Service</name></family><family><name>Web application abuses</name></family></families></config>`)
@@ -243,16 +274,26 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			c.prefs["safe_checks"] = value()
 		}
 		if strings.Contains(body, "nvt_selection") && !f.keepNVTs {
-			c.web = []string{}
+			fam := body[strings.Index(body, "<family>")+len("<family>") : strings.Index(body, "</family>")]
+			oids := []string{}
 			for _, part := range strings.Split(body, `<nvt oid="`)[1:] {
-				c.web = append(c.web, part[:strings.Index(part, `"`)])
+				oids = append(oids, part[:strings.Index(part, `"`)])
 			}
 			if f.partNVTs {
-				c.web = c.web[:1]
+				oids = oids[:1]
+			}
+			if fam == gmpWebFamily {
+				c.web = oids
+			} else {
+				if c.sel == nil {
+					c.sel = map[string][]string{}
+				}
+				c.sel[fam] = oids
 			}
 		}
 		if strings.Contains(body, "family_selection") && !f.keepFamily {
 			c.web = nil // all and growing: the whole family again
+			c.sel = nil
 			c.families = nil
 			for _, part := range strings.Split(body, "<family><name>")[1:] {
 				c.families = append(c.families, part[:strings.Index(part, "<")])
@@ -260,6 +301,15 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return ok("")
 	case "get_nvts":
+		for _, x := range f.faf {
+			if x.nvts != nil && strings.Contains(body, "family="+x.name+" ") && strings.Contains(body, gmpFullAndFast) {
+				out := ""
+				for _, oid := range x.nvts {
+					out += `<nvt oid="` + oid + `"><name>x</name></nvt>`
+				}
+				return ok(out)
+			}
+		}
 		web := append(slices.Clone(fakeWebNVTs), f.webExtra...)
 		if c := f.cfgIn(body); c != nil && c.web != nil {
 			web = c.web
@@ -351,6 +401,14 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return ok(`<task id="bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"><name>x</name><status>` + st + `</status><progress>` + progress + `</progress></task>`)
 	case "get_reports":
+		if strings.Contains(body, "nvt=") {
+			if f.factsFail {
+				return `<get_reports_response status="400" status_text="Bogus"/>`
+			}
+			if f.factsReport != "" {
+				return strings.ReplaceAll(f.factsReport, ipA, f.lastHost)
+			}
+		}
 		if f.lastHost != "" {
 			return strings.ReplaceAll(f.report, ipA, f.lastHost)
 		}
@@ -840,8 +898,8 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	if !slices.Equal(c.families, []string{"General", "Web application abuses"}) {
 		t.Fatalf("families = %q", c.families)
 	}
-	// #915: the web-root traversal test, which the checkbox does not gate, is left out; the rest of its family stays
-	if want := []string{"1.3.6.1.4.1.25623.1.0.113002", "1.3.6.1.4.1.25623.1.0.117574"}; !slices.Equal(c.web, want) {
+	// the three generic traversal tests are left out; the rest of the family stays
+	if want := []string{"1.3.6.1.4.1.25623.1.0.100001", "1.3.6.1.4.1.25623.1.0.100002"}; !slices.Equal(c.web, want) {
 		t.Fatalf("web application tests = %q", c.web)
 	}
 	l := gvm.log
@@ -1067,8 +1125,8 @@ func TestContract_INV25_Timeout(t *testing.T) {
 				}
 				h.gvm.mu.Lock()
 				reads, stops := 0, 0
-				for _, c := range h.gvm.cmds {
-					reads += map[bool]int{true: 1}[c == "get_reports"]
+				for i, c := range h.gvm.cmds {
+					reads += map[bool]int{true: 1}[c == "get_reports" && !strings.Contains(h.gvm.bodies[i], "nvt=")] // the facts read is a second request
 					stops += map[bool]int{true: 1}[c == "stop_task"]
 				}
 				h.gvm.mu.Unlock()
@@ -1434,13 +1492,13 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, used := h.gvm.cfg(gbDisruptive.name)
-	if v := c.prefs; used != gbDisruptive.name || v["Disable brute force checks"] != "no" || v["Disable default account checks"] != "no" || v["Enable generic web application scanning"] != "yes" || v["safe_checks"] != "no" {
+	if v := c.prefs; used != gbDisruptive.name || v["Disable brute force checks"] != "no" || v["Disable default account checks"] != "no" || v["Enable generic web application scanning"] != "no" || v["safe_checks"] != "no" {
 		t.Fatalf("config %q used, prefs %v", used, v)
 	}
 	if !slices.Equal(c.families, []string{"General", "Brute force attacks", "Default Accounts", "Denial of Service", "Web application abuses"}) {
 		t.Fatalf("families = %q", c.families)
 	}
-	if c.web != nil || h.gvm.seen("get_nvts") { // #915: the disruptive level keeps the whole family, growing
+	if !slices.Equal(c.web, []string{"1.3.6.1.4.1.25623.1.0.100001", "1.3.6.1.4.1.25623.1.0.100002"}) { // the disruptive level leaves the traversal tests out too
 		t.Fatalf("web application tests = %q", c.web)
 	}
 	if d, _ := h.gvm.cfg(gbDeep.name); d.id != "" {
@@ -1463,7 +1521,7 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 		t.Fatal(err)
 	}
 	dials := h.dialCount()
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeAll}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBTerms || h.dialCount() != dials {
 		t.Fatalf("step = %+v, %v, dials %d -> %d", o, err, dials, h.dialCount())
 	}
@@ -1478,7 +1536,7 @@ func TestContract_INV25_WebRootTraversalOffFailsClosed(t *testing.T) {
 	h.gvm.with(func(g *fakeGVM) { g.keepNVTs = true })
 	s := e.scanIP(gbOpen())
 	if h.gvm.seen("create_task") || len(s.Greenbone) != 0 ||
-		!slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "did not keep the web-root traversal test off") }) {
+		!slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "did not keep the generic web traversal tests off") }) {
 		t.Fatalf("not checked %q, cmds %q", notChecked(s), h.gvm.cmds)
 	}
 	for name, set := range map[string]func(*fakeGVM){
@@ -1504,14 +1562,14 @@ func TestContract_INV25_WebFamilyFollowsTheFeed(t *testing.T) {
 	e.enable()
 	s := e.scanIP(gbOpen())
 	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
-		return c.Kind == "greenbone" && strings.Contains(c.Text, "web-root traversal test off")
+		return c.Kind == "greenbone" && strings.Contains(c.Text, "generic web fuzzing off")
 	}) {
 		t.Fatalf("checks = %+v", s.Checks)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.webExtra = []string{"1.3.6.1.4.1.25623.1.0.200000"} })
 	e.advance(ScanEvery)
 	e.scanIP(gbOpen())
-	if c, _ := h.gvm.cfg(gbDeep.name); !slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.200000") || slices.Contains(c.web, gmpWebRootTravOID) {
+	if c, _ := h.gvm.cfg(gbDeep.name); !slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.200000") || slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.106756") {
 		t.Fatalf("web application tests = %q", c.web)
 	}
 }
@@ -1878,7 +1936,7 @@ func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *tes
 	h.gvm.cmds = nil
 	h.gvm.mu.Unlock()
 	e.advance(ValidDays * 24 * time.Hour)
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeDeepOnly}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || len(o.missed) != 0 || h.gvm.seen("create_target") { // a refusal: a plain skip
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
@@ -1897,7 +1955,7 @@ func TestContract_INV25_OpenVASNeverScansAReplacedAddress(t *testing.T) {
 	e.acceptTerms(ips[0].ID, false)
 	e.advance(ScanEvery)
 	e.fullAs(ipB) // B is new: A was never seen while B was in use
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeDeepOnly}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || len(o.missed) != 0 || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
@@ -1925,7 +1983,7 @@ func TestContract_INV25_OpenVASNeverScansATypedIPWithoutItsScope(t *testing.T) {
 	}
 	w.acceptTerms(v.ID, false)
 	w.enable()
-	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: ScanMode{Full: true}, Typed: true}, []int{443})
+	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: modeDeepOnly, Typed: true}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") ||
 		!strings.Contains(o.not[0].Text, "not the box's own proven address") || !strings.Contains(o.audit, "not the box's own proven IP") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)

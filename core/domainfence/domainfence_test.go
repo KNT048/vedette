@@ -298,7 +298,8 @@ func TestLoadKey(t *testing.T) {
 	}
 }
 
-// The sensor binary links this package: its non-test files import the standard library, core/localnet and its sibling leaf proofat only.
+// The sensor binary links this package: its non-test files import the standard library, core/localnet, its sibling leaf proofat and
+// golang.org/x/net/dns/dnsmessage (standard library only) only.
 func TestIsALeaf(t *testing.T) {
 	t.Parallel()
 	files, err := filepath.Glob("*.go")
@@ -315,8 +316,9 @@ func TestIsALeaf(t *testing.T) {
 		}
 		for _, im := range af.Imports {
 			p, _ := strconv.Unquote(im.Path.Value)
-			if strings.Contains(p, ".") && p != "github.com/knt048/vedette/core/localnet" && p != "github.com/knt048/vedette/core/domainfence/proofat" {
-				t.Errorf("%s imports %q: only the standard library, core/localnet and core/domainfence/proofat", f, p)
+			if strings.Contains(p, ".") && p != "github.com/knt048/vedette/core/localnet" && p != "github.com/knt048/vedette/core/domainfence/proofat" &&
+				p != "golang.org/x/net/dns/dnsmessage" {
+				t.Errorf("%s imports %q: only the standard library, core/localnet, core/domainfence/proofat and dnsmessage", f, p)
 			}
 		}
 	}

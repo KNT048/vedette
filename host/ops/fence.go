@@ -68,6 +68,22 @@ func (r fenceResolver) LookupCNAME(ctx context.Context, name string) (string, er
 	return net.DefaultResolver.LookupCNAME(ctx, name)
 }
 
+// AuthTXT asks the zone's own name servers when the resolver's answer proves nothing (domainfence.Owned): Deps.FenceAuth, else the
+// real servers when the TXT lookup is the system resolver's. A test world that answers ZapTXT without FenceAuth has none, so no test
+// asks real DNS.
+func (r fenceResolver) AuthTXT(ctx context.Context, name string) (domainfence.AuthAnswer, error) {
+	switch {
+	case r.o.d.FenceAuth != nil:
+		return r.o.d.FenceAuth(ctx, name)
+	case r.o.d.ZapTXT != nil:
+		return domainfence.AuthAnswer{}, errors.New("the zone's name servers are not asked in this world")
+	}
+	return systemAuthority.AuthTXT(ctx, name)
+}
+
+// systemAuthority asks the zone's own name servers, found through the system resolver.
+var systemAuthority = &domainfence.Authoritative{R: net.DefaultResolver}
+
 // initFence loads or makes the key, loads the domain list and writes the scan container's copies. A failure leaves o.fence nil
 // (exposure.token and the domain checks then refuse fence_unavailable) and is logged; nothing else of the host depends on it.
 func (o *Ops) initFence() {

@@ -148,7 +148,8 @@ func loadFence(path string, logger *slog.Logger) *domainfence.Fence {
 		return nil
 	}
 	// review r1 H1: the host's list of the domains it issued a token for, a read-only copy next to the key, read at every check
-	f, err := domainfence.New(key, net.DefaultResolver, domainfence.FileLists(filepath.Join(filepath.Dir(path), "domains"), filepath.Join(filepath.Dir(path), "ips")), nil)
+	// The system resolver, with the zone's own name servers behind it for a record its cache does not show yet (as core's check)
+	f, err := domainfence.New(key, domainfence.NewSystemResolver(), domainfence.FileLists(filepath.Join(filepath.Dir(path), "domains"), filepath.Join(filepath.Dir(path), "ips")), nil)
 	if err != nil {
 		logger.Error("the domain fence cannot start: this worker runs no domain_ip job", "error", err.Error())
 		return nil

@@ -58,7 +58,7 @@ const fixTailSQL = `('|' || fix_kind || '|' || ifnull(fix_version, '') || CASE f
 var catalogueInvariants = []selfcheck.Invariant{
 	{ // a detected finding names a version its software line runs: the line's effective reading or one of its live readings (a
 		// version or a package release), never a version of another line (a safe check's and a person's word name no version of theirs).
-		// An ignored device writes nothing (INV-30): its findings keep the version they were matched on while its agent may still
+		// An ignored device writes nothing (POST-1; INV-30 lists its findings only under Ignored): its findings keep the version they were matched on while its agent may still
 		// report newer ones, and unignoring it matches it again at once, so it is left out here.
 		Name: "findings.matched_version_on_line",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE f.state = 'open' AND f.detected = 1 AND f.software_id IS NOT NULL

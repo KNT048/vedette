@@ -181,6 +181,34 @@ func TestLineReading_AppliesToASecondDeviceOnTheSameLine(t *testing.T) {
 	}
 }
 
+// A reading stored by a check of one device applies at once to the other devices on the same line: they are matched again with it,
+// so none of them shows the reading as a proposal waiting for a person.
+func TestLineReading_ACheckOfOneDeviceAppliesToTheLineAtOnce(t *testing.T) {
+	t.Parallel()
+	e, _ := lineWorld(t)
+	twin := e.inv.match["nas-01"]
+	twin.ID, twin.Name = "nas-02", "nas-02"
+	twin.Software = slices.Clone(twin.Software)
+	twin.Software[0].ID, twin.Software[0].Version = "s-nas-2", "7.2.1-69057-3"
+	e.inv.match[twin.ID] = twin
+	e.inv.assets[twin.ID] = AssetView{ID: twin.ID, Name: twin.ID, Hostname: ptr(twin.ID), IP: "192.0.2.91", Kind: "server", Approved: true}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	items, err := e.svc.possibleItems(t.Context(), "nas-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), e.svc.unitsToCheck(t.Context(), items), "ana@example.com")
+	if n := aiReadFindings(t, e, "nas-01"); n != 1 {
+		t.Fatalf("%d ai_read findings on the checked device, want 1", n)
+	}
+	if n := aiReadFindings(t, e, "nas-02"); n != 1 {
+		t.Errorf("%d ai_read findings on the other device of the line right after the check, want 1", n)
+	}
+}
+
 // A reading is read again when the CVE record changes (the reading keeps applying until then); a page unchanged after 30 days is
 // fetched (no tokens) and not asked again; a changed page is asked again. Only the newest reading of the line is kept.
 func TestLineReading_ReadAgainWhenTheRecordOrThePageChanges(t *testing.T) {
@@ -342,6 +370,8 @@ func TestLineStatement_VerdictFor(t *testing.T) {
 	}{
 		{"inside the stated fix", LineStatement{Status: StatementFixed, FixedIn: "3.4.5", Quote: "Fixed in 3.4.5.", QuoteFound: true}, VerdictAffected},
 		{"before X, past it", LineStatement{Status: StatementFixed, FixedIn: "3.4.0", Quote: "All versions before 3.4.0 are affected.", QuoteFound: true}, VerdictNotAffected},
+		{"before X of another train", LineStatement{Status: StatementFixed, FixedIn: "3.3.5", Quote: "Widget 3.3 before 3.3.5 and 3.4 before 3.4.3 are affected.",
+			QuoteFound: true}, ""},
 		{"past a fix of no named line", LineStatement{Status: StatementFixed, FixedIn: "3.4.0", Quote: "Upgrade to 3.4.0.", QuoteFound: true}, ""},
 		{"past the fix on the stated line", LineStatement{Status: StatementFixed, FixedIn: "3.4.0", StatedLine: "3.4", Quote: "Release 3.4 is fixed in 3.4.0.", QuoteFound: true}, VerdictNotAffected},
 		{"line named not affected", LineStatement{Status: StatementNotAffected, StatedLine: "3.4", Quote: "Widget 3.4 is not affected.", QuoteFound: true}, VerdictNotAffected},

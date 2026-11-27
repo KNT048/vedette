@@ -424,6 +424,15 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 				devices[d] = true
 			}
 		}
+		if len(readings) > 0 { // a reading applies to every device on its line, not only to those this check looked at
+			others, err := devicesOfCVE(ctx, s.rd(ctx), group[0].cve)
+			if err != nil {
+				s.cfg.Log.WarnContext(ctx, "findings: reading the devices of a CVE after a check failed", "cve", group[0].cve, "error", err)
+			}
+			for _, d := range others {
+				devices[d] = true
+			}
+		}
 		update(func(r *CheckRun) {
 			r.Done += len(group)
 			r.Failed += failed

@@ -313,12 +313,28 @@ func (st LineStatement) pastFix(id CheckID) bool {
 	if st.coversLine(id) && dottedPrefix(st.StatedLine, end) {
 		return true
 	}
+	if !sameTrain(end, id.Version) {
+		return false // "7.14 before 7.14.5 and 7.15 before 7.15.3": a fix on another train says nothing about this version
+	}
 	for _, m := range reBefore.FindAllStringSubmatch(st.Quote, -1) {
 		if strings.EqualFold(strings.TrimRight(m[1], "."), end) {
 			return true // "all versions before X": the vendor's whole list ends at X
 		}
 	}
 	return false
+}
+
+// sameTrain says two versions differ only in their last part ("3.4.0" and "3.4.7", "2.442" and "2.450"): a release before which every
+// version is affected is on the version's own train. 3.3.5 and 3.4.1 are not, nor are 120.0.1 and 121.0.1.
+func sameTrain(a, b string) bool {
+	train := func(v string) string {
+		if i := strings.LastIndexAny(v, ".-_"); i > 0 {
+			return strings.ToLower(v[:i])
+		}
+		return ""
+	}
+	ta := train(a)
+	return ta != "" && ta == train(b)
 }
 
 // fix is the fix a finding the reading opened says: the stated fixed release, kept only when the quote names it.

@@ -274,3 +274,35 @@ func TestExposureGroups_ZAPDisruptiveNeedsDoSAndChange(t *testing.T) {
 		}
 	}
 }
+
+// The planner spends a port's room only on templates the mode and the paths to skip let leave: one of a group that is off, or
+// under a path to skip, never takes a place another template could have had (the per-port cap and the progress bound count only
+// sendable ones).
+func TestExposureGroups_ThePlanSpendsItsRoomOnSendableTemplates(t *testing.T) {
+	t.Parallel()
+	ix, err := nucleipack.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	products := pack.ProductTags(ix.Templates)
+	p := fullPorts(ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")}, nil)[0]
+	for name, f := range map[string]tplFilter{
+		"logins off":             {m: without(exposure.GroupLogins)},
+		"data change off":        {m: without(exposure.GroupChange)},
+		"paths to skip":          {m: modeAllGroups, paths: []string{"/wp-", "/admin"}},
+		"every disruptive group": {m: modeAllGroups},
+	} {
+		plan, capped := webPlan(ix, p, reachableTags(ix, products, p), f, 50)
+		if len(plan) != 50 || capped == 0 {
+			t.Errorf("%s: %d planned, %d capped", name, len(plan), capped)
+		}
+		for _, tp := range plan {
+			if !f.runs(tp) {
+				t.Errorf("%s: %s is planned but cannot be sent", name, tp.ID)
+			}
+		}
+		if other := otherPlan(ix, fullPort{port: 22, service: "ssh", product: "OpenSSH"}, f); slices.ContainsFunc(other, func(tp pack.Template) bool { return !f.runs(tp) }) {
+			t.Errorf("%s: a non-web plan holds a template that cannot be sent", name)
+		}
+	}
+}

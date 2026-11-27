@@ -14,7 +14,7 @@ import (
 
 const (
 	dnsTimeout   = 5 * time.Second
-	notFoundHint = "DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is the host shown (some providers append the domain automatically)."
+	notFoundHint = "DNS usually updates within minutes and can take up to 72 hours, and a resolver may keep an older answer until the record's TTL runs out (often an hour). Check again later. If it still fails, make sure the Name field is the host shown (some providers append the domain automatically) and the value is exactly the one shown."
 )
 
 func txtRecord(token string) string { return "vedette-verify=" + token }

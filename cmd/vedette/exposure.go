@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"net"
 	"net/netip"
 	"net/url"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -46,7 +46,8 @@ func exposureService(d deps) *exposure.Service {
 	if err != nil { // the address is a constant of the package
 		panic("vedette: " + err.Error())
 	}
-	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Outside: outside, Log: d.Log, Clock: d.Clock}
+	// The system resolver; a domain's ownership check also asks the zone's own name servers when its cached answer proves nothing
+	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: domainfence.NewSystemResolver(), Prober: prober, Runner: scanRunner(d), Outside: outside, Log: d.Log, Clock: d.Clock}
 	// A snapshot's day and the times in the API's messages are those of the organization's time zone (Settings › General)
 	cfg.Zone = orgLocationAt(d)
 	if d.Auth != nil { // The first scan of a target records the commitment only for an administrator with two-step sign-in

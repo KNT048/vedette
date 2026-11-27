@@ -25,8 +25,8 @@ const as = (userId: 'u-admin' | 'u-op' | 'u-view') => sessionStore.set({ userId 
 const user = () => userEvent.setup()
 const HTTP = { name: 'Lab API', kind: 'http', target: 'https://192.168.10.50', auth_type: 'token', secret: 'a-long-enough-secret', allow: ['https://192.168.10.50/api/'], enabled: true }
 const SSH = { name: 'Lab switch', kind: 'ssh', target: '192.168.10.51:22', auth_type: 'ssh-key', username: 'vedette', secret: 'a-long-enough-key', allow: ['show version'], enabled: true }
-const card = (name: string) => screen.getByRole('heading', { level: 2, name: new RegExp(name) }).closest('li') as HTMLElement
-const loaded = () => screen.findAllByRole('heading', { level: 2 })
+const card = (name: string) => screen.getByRole('article', { name: new RegExp(name) })
+const loaded = () => screen.findAllByRole('article')
 const inForce = (connector_id: string) => actionsStore.update((l) => [{ id: 'act-inforce', items: [{ id: 'it-1', connector_id, status: 'executed' }] } as never, ...l])
 
 describe('Settings → Connections: the page', () => {
@@ -77,7 +77,7 @@ describe('Settings → Connections: the page', () => {
     await u.type(within(dlg).getByLabelText('Secret'), 'a-long-enough-secret')
     await u.type(within(dlg).getByLabelText('Allow-list (one per line)'), 'https://192.168.10.60/api/')
     await u.click(within(dlg).getByRole('button', { name: 'Add connection' }))
-    expect(await screen.findByRole('heading', { level: 2, name: /Guest switch/ })).toBeInTheDocument()
+    expect(await screen.findByRole('article', { name: /Guest switch/ })).toBeInTheDocument()
     expect(within(card('Guest switch')).getByText('Not tested')).toBeInTheDocument()
     expect((await post('/core/connections', { ...HTTP, name: 'Another one' })).status).toBe(201)
   })
@@ -211,7 +211,7 @@ describe('Settings → Connections: test, delete and the server errors', () => {
     expect(within(old).getByText(/does not start an MCP server from a command/)).toBeInTheDocument()
     await u.click(within(old).getByRole('button', { name: 'Delete Old MCP command' }))
     await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(screen.queryByRole('heading', { level: 2, name: /Old MCP command/ })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('article', { name: /Old MCP command/ })).toBeNull())
   })
 
   it('in_use: delete is refused while a change made through the connection is in force, and works after it is gone', async () => {
@@ -228,7 +228,7 @@ describe('Settings → Connections: test, delete and the server errors', () => {
     expect(connectorsStore.get().some((c) => c.id === 'cn-fgt')).toBe(true)
     actionsStore.update((l) => l.filter((a) => a.id !== 'act-inforce'))
     await u.click(within(dlg).getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(screen.queryByRole('heading', { level: 2, name: /Office FortiGate/ })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('article', { name: /Office FortiGate/ })).toBeNull())
   })
 
   it('the other server errors reach the right field: duplicate name, no allow-list, short secret, missing user name', async () => {
@@ -493,7 +493,7 @@ describe('Connections: SSH keys', () => {
     expect(key.value).toContain('\n-----END OPENSSH PRIVATE KEY-----')
     await u.type(within(dlg).getByLabelText('Allow-list (one per line)'), 'show version')
     await u.click(within(dlg).getByRole('button', { name: 'Add connection' }))
-    await screen.findByRole('heading', { level: 2, name: /Key switch/ })
+    await screen.findByRole('article', { name: /Key switch/ })
     expect(sent.secret).toBe(OPENSSH_NONE)
   })
 

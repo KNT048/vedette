@@ -5,22 +5,15 @@ import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { RowList } from '@/components/common/ListParts'
 import { AiJob } from '../contract'
 import { ActionError } from '../parts'
 import type { AiJob as Job } from '../types'
 
 export const ALL_JOBS = AiJob.options as Job[]
 
-/** One row in a management list: content on the left, a switch and buttons on the right. */
-export function Row({ children, actions, dim }: { children: React.ReactNode; actions?: React.ReactNode; dim?: boolean }) {
-  return (
-    <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-rule px-4 py-3 last:border-b-0">
-      <div className={`grid min-w-0 flex-1 basis-72 gap-1 text-sm ${dim ? 'opacity-60' : ''}`}>{children}</div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </li>
-  )
-}
-export const List = ({ label, children }: { label: string; children: React.ReactNode }) => <Card flush><ul aria-label={label}>{children}</ul></Card>
+/** A management list (rules, memory, skills, knowledge, hooks): its rows are ListRows, in a flush Card. */
+export const List = ({ label, children }: { label: string; children: React.ReactNode }) => <Card flush><RowList flush label={label}>{children}</RowList></Card>
 
 export function Toggle({ checked, onChange, label, disabled, title }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean; title?: string }) {
   return <Switch checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled} title={title} />

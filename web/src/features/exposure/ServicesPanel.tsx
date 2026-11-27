@@ -44,7 +44,7 @@ function ServicesTable({ node, services, issues, gateway }: { node: TargetNode; 
       const n = openIssues(row.original)
       const s = row.original
       // to the issues of this service only: each row's link has its own target and its own label
-      return n > 0 ? <Link className="font-medium text-accent underline-offset-4 hover:underline" to={issuesOf(s.id)} aria-label={t('services.issuesOn', { count: n, where: `${s.ip}:${s.port}/${s.proto}` })}>{t('services.issues', { count: n })}</Link> : <span className="text-muted">0</span>
+      return n > 0 ? <Link className="text-accent underline-offset-4 hover:underline" to={issuesOf(s.id)} aria-label={t('services.issuesOn', { count: n, where: `${s.ip}:${s.port}/${s.proto}` })}>{t('services.issues', { count: n })}</Link> : <span className="text-muted">0</span>
     } },
     { id: 'seen', header: t('services.col.seen'), accessorFn: (s) => s.last_seen, cell: ({ row }) => <ServiceSeen s={row.original} /> },
   ]

@@ -20,7 +20,7 @@ import type { DeepSettings, DeepSettingsBody, TargetNode } from './types'
 const PATH_CHARS = /^[A-Za-z0-9._~%!&',;=:@/-]+$/
 const MAX_PATH = 200
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 const body = (s: DeepSettings): DeepSettingsBody => ({ dos: s.dos, logins: s.logins, web_active: s.web_active, data_change: s.data_change, openvas: s.openvas, speed: s.speed, skip_ports: s.skip_ports, skip_paths: s.skip_paths })
 

@@ -15,7 +15,7 @@ import { Seen } from './NodeParts'
 import type { Address, Host, TargetNode } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 /**
  * The names found under a domain target, each with its addresses, where it was found and when first and last seen. A name that

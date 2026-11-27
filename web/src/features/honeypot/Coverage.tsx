@@ -4,6 +4,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { Chip, type Tone } from '@/components/common/StatusChip'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { SPAN_IN_UI } from '@/lib/span'
 import { LOGIN_SERVICES } from './presets'
 import type { HpService } from './types'
@@ -65,21 +66,18 @@ export default function CoverageSection({ services, listeningIps, bait, admin = 
   return (
     <Section id="coverage" title={t('coverage.title')} description={t('coverage.description')} info={<><p>{t('coverage.descriptionInfo')}</p><p>{t('coverage.note')}</p></>}>
       <Card>
-        <ul className="grid divide-y divide-rule" aria-label={t('coverage.listLabel')}>
+        <RowList label={t('coverage.listLabel')}>
           {ROWS.map((r) => {
             const f = fix(r.id)
             return (
-              <li key={r.id} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
-                <span className="grid justify-items-start">
-                  <span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span>
-                  <span className="text-meta text-muted">{t(`coverage.row.${r.id}.${how(r.id)}`)}{ROW_INFO.has(how(r.id)) ? <InfoTip topic={t(`coverage.row.${r.id}.move`)}>{t(`coverage.row.${r.id}.${how(r.id)}Info`)}</InfoTip> : null}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span>
-                  {f ? <Link to={f.to} className="mt-1 text-meta font-medium text-accent underline underline-offset-4">{t(`coverage.fix.${f.label}`)}</Link> : null}
-                </span>
-                <span className="sm:justify-self-end"><Chip tone={TONE[level(r.id, r.level)]}>{t(`coverage.level.${level(r.id, r.level)}`)}</Chip></span>
-              </li>
+              <ListRow key={r.id} title={t(`coverage.row.${r.id}.move`)} badges={<Chip tone={TONE[level(r.id, r.level)]}>{t(`coverage.level.${level(r.id, r.level)}`)}</Chip>}
+                meta={[
+                  <span key="how">{t(`coverage.row.${r.id}.${how(r.id)}`)}{ROW_INFO.has(how(r.id)) ? <InfoTip topic={t(`coverage.row.${r.id}.move`)}>{t(`coverage.row.${r.id}.${how(r.id)}Info`)}</InfoTip> : null}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span>,
+                  f ? <Link key="fix" to={f.to} className="font-medium text-accent underline underline-offset-4">{t(`coverage.fix.${f.label}`)}</Link> : null,
+                ]} />
             )
           })}
-        </ul>
+        </RowList>
         {listening ? null : (
           <div className="mt-3 flex flex-wrap items-center gap-1 text-meta text-muted">
             <p>{t('coverage.notListening')}</p>

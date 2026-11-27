@@ -5,6 +5,7 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { fmtDate, fmtDateTime, fmtPeriodEnd } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { RowTitle } from '@/components/common/ListParts'
 import { useSentList } from './api'
 import type { SentReportItem } from './types'
 
@@ -25,8 +26,7 @@ export default function HistoryTab() {
           rowTone={(r) => (r.status === 'failed' ? 'warn' : undefined)}
           columns={[
             { id: 'sent', header: t('history.col.sent'), accessorKey: 'sent_at', cell: ({ row }: { row: { original: Row } }) => (
-              <Link to={sentPath(row.original.id)} onClick={(e) => e.stopPropagation()} aria-label={t('history.openLabel', { time: fmtDateTime(row.original.sent_at) })}
-                className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{fmtDateTime(row.original.sent_at)}</Link>
+              <RowTitle to={sentPath(row.original.id)} label={t('history.openLabel', { time: fmtDateTime(row.original.sent_at) })} className="whitespace-nowrap">{fmtDateTime(row.original.sent_at)}</RowTitle>
             ) },
             { id: 'period', header: t('history.col.period'), accessorFn: (r: Row) => r.period.from, cell: ({ row }: { row: { original: Row } }) => <span className="whitespace-nowrap">{fmtDate(row.original.period.from)} – {fmtPeriodEnd(row.original.period.to)}</span> },
             { id: 'trigger', header: t('history.col.trigger'), accessorFn: (r: Row) => (r.trigger === 'schedule' ? t('history.trigger.schedule') : r.sent_by ? t('history.trigger.manual', { by: r.sent_by }) : t('history.trigger.manualUnnamed')) },

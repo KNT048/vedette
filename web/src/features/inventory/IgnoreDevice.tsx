@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -14,6 +13,7 @@ import { useDeviceAction, useIgnoredDevices } from './api'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
 import { InfoLine } from '@/components/common/InfoLine'
+import { ListRow } from '@/components/common/ListParts'
 import type { DeviceDetail, DeviceRow } from './types'
 
 /** A private (locally administered) MAC: the 0x02 bit of the first byte. Phones and laptops pick one per network and change it. */
@@ -67,18 +67,10 @@ function IgnoredItem({ d }: { d: DeviceRow }) {
   const act = useDeviceAction(d.id)
   const name = nameOf(d, kindLabel(d.kind))
   return (
-    <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-      <div className="grid gap-0.5">
-        <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name}</Link>
-        <p className="text-meta text-muted">
-          {[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. {t('ignored.since', { when: fmtRelative(d.ignored_at ?? d.last_seen) })}
-        </p>
-      </div>
-      <div>
-        <Button size="sm" disabled={!can || act.ignore.isPending} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
-          onClick={() => void act.ignore.mutateAsync(false).then(() => toast.success(t('ignored.undone', { name })), (e: unknown) => toast.error(errMsg(e)))}>{t('ignored.stop')}</Button>
-      </div>
-    </div>
+    <ListRow title={name} to={`/devices/${d.id}`}
+      meta={[`${[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. ${t('ignored.since', { when: fmtRelative(d.ignored_at ?? d.last_seen) })}`]}
+      actions={<Button size="sm" disabled={!can || act.ignore.isPending} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+        onClick={() => void act.ignore.mutateAsync(false).then(() => toast.success(t('ignored.undone', { name })), (e: unknown) => toast.error(errMsg(e)))}>{t('ignored.stop')}</Button>} />
   )
 }
 

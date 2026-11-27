@@ -34,21 +34,22 @@ const OWN_LIST_ALLOWED: { file: string; why: string }[] = [
   { file: 'components/common/PageFrame.tsx', why: 'the KPI strip: at most four numbers, not a list of records' },
 ]
 
-/** Each <ul> of the source that maps a query's items (items, d.items, data.items) into rows that carry a button, a link or a switch. */
+/** Each <ul> (or RowList) of the source that maps a query's items (items, d.items, data.items) into rows that carry a button, a link or a
+ *  switch (a ListRow or RowTitle with a page or actions counts as one). */
 export function ownRecordLists(text: string): number[] {
   const out: number[] = []
-  for (const m of text.matchAll(/<ul\b[^>]*>/g)) {
+  for (const m of text.matchAll(/<(?:ul|RowList)\b[^>]*>/g)) {
     let depth = 0
     let end = text.length
-    const re = /<ul\b|<\/ul>/g
+    const re = /<(?:ul|RowList)\b|<\/(?:ul|RowList)>/g
     re.lastIndex = m.index!
     for (let x = re.exec(text); x; x = re.exec(text)) {
-      if (x[0] !== '</ul>') depth++
+      if (!x[0].startsWith('</')) depth++
       else if (--depth === 0) { end = x.index; break }
     }
     const body = text.slice(m.index! + m[0].length, end)
-    const own = body.replace(/<ul\b[\s\S]*?<\/ul>/g, '')
-    if (/\b(?:items|[a-z]\.items|data\.items)\b[^\n]{0,80}\.map\(/.test(body) && /<(?:Button|Link|Switch|DropdownMenu)\b/.test(own)) out.push(text.slice(0, m.index).split('\n').length)
+    const own = body.replace(/<(ul|RowList)\b[\s\S]*?<\/\1>/g, '')
+    if (/\b(?:items|[a-z]\.items|data\.items)\b[^\n]{0,80}\.map\(/.test(body) && /<(?:Button|Link|Switch|DropdownMenu)\b|<(?:ListRow|RowTitle)\b[^>]*\b(?:to|href|actions)=/.test(own)) out.push(text.slice(0, m.index).split('\n').length)
   }
   return out
 }
@@ -122,6 +123,7 @@ describe('list guard: one shared search box and pager', () => {
   it('the guard catches what it must', () => {
     expect(ownRecordLists('<ul aria-label="x">{d.items.map((r) => <li key={r.id}>{r.name}<Button>Delete</Button></li>)}</ul>')).toEqual([1])
     expect(ownRecordLists('<ul>{steps.map((r) => <li key={r}>{r}</li>)}</ul>')).toEqual([])
+    expect(ownRecordLists('<RowList label="x">{d.items.map((r) => <ListRow key={r.id} title={r.name} to={`/x/${r.id}`} />)}</RowList>')).toEqual([1])
     expect(tables('<DataTable caption="x" data={d} />')).toHaveLength(1)
     expect(tables('<DataTable<Row> urlKey="a" caption={t(\'x\')} data={d.map((r) => <b key={r.id}>{r.n}</b>)} />')[0]).toMatch(/urlKey="a"/)
     expect(/<Link\b[^>]*\bto=(?:"|\{["'`])\?[^"'`#]*["'`]/.test('<Link to="?tab=software">x</Link>')).toBe(true)

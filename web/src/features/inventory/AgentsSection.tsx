@@ -50,7 +50,7 @@ function NoBoxAddress() {
   const install = useInstallKind()
   return (
     <Notice tone="warn" role="status" className="mb-0" title={t('agents.noAddress.title')}
-      actions={install === 'container' ? undefined : <Link to="/settings/network?tab=box-address" className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
+      actions={install === 'container' ? undefined : <Link to="/settings/network?tab=box-address" className="text-sm text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
       info={<><p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p><p>{t('agents.noAddress.token')}</p></>}>
       <p className="text-ink">{t('agents.noAddress.body')}</p>
     </Notice>
@@ -106,7 +106,7 @@ function PackageTable({ packages }: { packages: OsqueryPackage[] }) {
             <tr key={p.file} className="border-t border-rule align-top">
               <td className="py-1.5 pr-3">
                 <a href={`/api/v1/install/osquery/${encodeURIComponent(p.file)}`} download={p.file} aria-label={t('agents.download.link', { file: p.file })}
-                  className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">
+                  className="inline-flex items-center gap-1 whitespace-nowrap text-accent underline-offset-4 hover:underline">
                   <Download className="size-3.5 shrink-0" aria-hidden />{p.file}
                 </a>
               </td>

@@ -11,7 +11,7 @@ import { runHref } from './node'
 import { RunState } from './NodeParts'
 import type { Scan, TargetNode } from './types'
 
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 /** The runs of this target, newest first: who or what started each, how deep, how it ended and what it changed. The newest one's steps
  *  come first, the same list as its run page, so what a scan is doing (or why a step did not run) is seen here too. */

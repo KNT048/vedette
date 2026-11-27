@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Section } from '@/components/common/PageHeader'
 import { SeverityBadge } from '@/components/common/status'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { api } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
@@ -32,21 +33,16 @@ export function DeviceIncidents({ id }: { id: string }) {
   return (
     <Section id="incidents" title={t('incidents.title', { count: open.length })} info={t('incidents.info')}
       actions={<Link to="/incidents" className={`text-meta ${link}`}>{t('incidents.all')}</Link>}>
-      <ul className="grid gap-1.5" aria-label={t('incidents.title', { count: open.length })}>
+      <RowList boxed label={t('incidents.title', { count: open.length })}>
         {open.map((i) => (
-          <li key={i.id} className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-md border border-rule bg-surface px-3 py-2.5">
-            <span className="grid min-w-0 gap-0.5">
-              <Link to={`/incidents/${encodeURIComponent(i.id)}`} className={`font-medium [overflow-wrap:anywhere] ${link}`}>{i.title}</Link>
-              <span className="text-caption text-muted">{t(`notify:${kindKey(i)}`)}</span>
-            </span>
-            <span className="flex flex-wrap items-center gap-2">
-              <SeverityBadge severity={i.severity} />
-              <IncidentStatusChip status={i.status} />
-              <time className="text-caption text-muted" dateTime={i.last_seen} title={fmtDateTime(i.last_seen)}>{t('incidents.seen', { when: fmtRelative(i.last_seen) })}</time>
-            </span>
-          </li>
+          <ListRow key={i.id} title={i.title} to={`/incidents/${encodeURIComponent(i.id)}`}
+            badges={<><SeverityBadge severity={i.severity} /><IncidentStatusChip status={i.status} /></>}
+            meta={[<>
+              <span>{t(`notify:${kindKey(i)}`)}</span>
+              <time dateTime={i.last_seen} title={fmtDateTime(i.last_seen)}>{t('incidents.seen', { when: fmtRelative(i.last_seen) })}</time>
+            </>]} />
         ))}
-      </ul>
+      </RowList>
     </Section>
   )
 }

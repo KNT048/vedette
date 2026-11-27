@@ -35,9 +35,9 @@ export function UncheckableNotice({ a, onAdd }: { a: A; onAdd: () => void }) {
       <ul className="mt-1 list-disc pl-5">
         <li>{t('uncheckable.wayVersion')}</li>
         {hasSourcesCard(a) ? (
-          <li>{t('uncheckable.waySnmp')} <Link to="?tab=overview#sources" className="font-medium text-accent underline-offset-4 hover:underline">{t('uncheckable.waySnmpLink')}</Link></li>
+          <li>{t('uncheckable.waySnmp')} <Link to="?tab=overview#sources" className="text-accent underline-offset-4 hover:underline">{t('uncheckable.waySnmpLink')}</Link></li>
         ) : null}
-        <li>{t('uncheckable.wayAgent')} <Link to="/devices/setup?tab=agents" className="font-medium text-accent underline-offset-4 hover:underline">{t('uncheckable.wayAgentLink')}</Link></li>
+        <li>{t('uncheckable.wayAgent')} <Link to="/devices/setup?tab=agents" className="text-accent underline-offset-4 hover:underline">{t('uncheckable.wayAgentLink')}</Link></li>
       </ul>
     </Notice>
   )

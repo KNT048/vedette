@@ -7,7 +7,7 @@ import { slotComponents } from '@/app/feature'
 import { PageHeader } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { PageTabs } from '@/components/common/PageFrame'
-import { ListSummary } from '@/components/common/ListParts'
+import { ListSummary, RowTitle } from '@/components/common/ListParts'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { groupState, useRowSelection } from '@/components/common/Selection'
 import { Slot } from '@/components/common/Slot'
@@ -261,7 +261,7 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
   const shownIds = shown.map((d) => d.id)
   const rowMenu = (d: DeviceRow) => (admin && !d.is_box ? <RowMenu d={d} suggested={same.suggested.get(d.id) ?? []} onMerge={setMerging} /> : null)
   const dash = <span className="text-muted">–</span>
-  const nameLink = (d: DeviceRow, cls = '') => <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className={cn('font-medium text-accent underline-offset-4 hover:underline', cls)}>{nameOf(d, kindLabel(d.kind))}</Link>
+  const nameLink = (d: DeviceRow, cls = '') => <RowTitle to={`/devices/${d.id}`} className={cls}>{nameOf(d, kindLabel(d.kind))}</RowTitle>
   const columns: ColumnDef<DeviceRow>[] = [
     ...(selecting ? [{
       id: 'select', enableSorting: false,
@@ -276,7 +276,7 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
       return (
         <div className="min-w-0">
           <div className="flex items-center gap-x-2">
-            <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} title={name} className="min-w-0 truncate font-medium text-accent underline-offset-4 hover:underline">{name}</Link>
+            <RowTitle to={`/devices/${d.id}`} title={name} className="min-w-0 truncate">{name}</RowTitle>
             <NameChips d={d} dense /><SameChip id={d.id} others={same.others.get(d.id) ?? []} />
           </div>
           <HardwareLine d={d} />

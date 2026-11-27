@@ -7,7 +7,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ExpandToggle, ListRow, ListToolbar } from '@/components/common/ListParts'
+import { ListRow, ListSummary, ListToolbar, RowList } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { CveList, StatusBadge } from '@/components/common/status'
@@ -17,14 +17,16 @@ import { useDeviceCards, usePossibleCounts } from './api'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { HandleDialog, type HandleRow } from './HandleDialog'
 import { NotAdded } from './NotAdded'
-import { asAsset, DeviceLine, FixLink, useFixTitle } from './parts'
+import { asAsset, FixLink, useDeviceRow, useFixTitle } from './parts'
 import { PossibleLink, PossibleSection } from './Possible'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceCard, DeviceRef, FixBlock } from './types'
 
 export type Handling = { device: DeviceRef; rows: HandleRow[]; fix?: string; software?: string | null; complete?: boolean }
 
-function Block({ device, block, narrowed, onHandle, fold = false }: { device: DeviceRef; block: FixBlock; narrowed: boolean; onHandle: (h: Handling) => void; fold?: boolean }) {
+/** One fix of a device, ranked in the order to do them: "1  Update OpenSSH 10.2p1 → 10.6  fixes 3 CVEs  [Exploited]", its CVEs under
+ *  it. On the device's own page (`fold`) a fix opens on click. */
+function Block({ device, block, rank, narrowed, onHandle, fold = false }: { device: DeviceRef; block: FixBlock; rank: number; narrowed: boolean; onHandle: (h: Handling) => void; fold?: boolean }) {
   const { t } = useTranslation('findings')
   const [open, setOpen] = useState(!fold) // on the device's own page a block opens on click
   const can = useCan('operator')
@@ -32,53 +34,52 @@ function Block({ device, block, narrowed, onHandle, fold = false }: { device: De
   const need = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const rows: HandleRow[] = block.findings.map((f) => ({ id: f.id, cve: f.cve, severity: f.severity, status: f.status }))
   const what = title(block.fix, block.software)
+  const panel = `block-${`${device.id}-${block.fix.key}`.replace(/[^\w-]/g, '_')}`
   return (
-    <li className="grid gap-2 py-3 first:pt-0 last:pb-0" aria-label={what}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {fold ? <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} label={t('byDevice.toggleFix', { fix: what })} /> : null}
-          <span className="font-medium [overflow-wrap:anywhere]">{what}</span>
-          <span className="text-muted">{block.fix.kind === 'none_yet' || block.fix.kind === 'unknown' ? t('byDevice.affects', { count: block.findings.length }) : t('byDevice.fixes', { count: block.findings.length })}</span>
-          <StatusBadge code={block.status} />
-          {block.findings.length > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: block.cause })}</span> : null}
-          <FixLink fix={block.fix} cve={block.cause} />
-        </p>
-        <Button size="sm" className="shrink-0" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
-          onClick={() => onHandle({ device, rows, fix: block.fix.key, software: block.software?.id ?? null, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>
-      </div>
-      {open ? <CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
+    <ListRow label={what} rank={rank} title={what}
+      toggle={fold ? { open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('byDevice.toggleFix', { fix: what }) } : undefined}
+      sub={block.fix.kind === 'none_yet' || block.fix.kind === 'unknown' ? t('byDevice.affects', { count: block.findings.length }) : t('byDevice.fixes', { count: block.findings.length })}
+      badges={<><StatusBadge code={block.status} /><FixLink fix={block.fix} cve={block.cause} /></>}
+      meta={[block.findings.length > 1 ? t('byDevice.cause', { cve: block.cause }) : null]}
+      actions={<Button size="sm" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
+        onClick={() => onHandle({ device, rows, fix: block.fix.key, software: block.software?.id ?? null, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>}>
+      {open ? <div id={panel}><CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
         items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, urgency: f.urgency, verification: f.verification, to: `/findings/${encodeURIComponent(f.id)}` }))}
         action={(i) => (
           <Button size="sm" variant="ghost" className="h-7" disabled={!can} title={need} aria-label={t('byDevice.handleOneOf', { cve: i.cve, device: device.name })}
             onClick={() => onHandle({ device, rows: rows.filter((r) => r.id === i.id) })}>{t('byDevice.handleOne')}</Button>
-        )} /> : null}
-    </li>
+        )} /></div> : null}
+    </ListRow>
   )
 }
 
-/** One device: its name line and badge, Add device and Ignore while nobody added it, then its fix blocks. On the device's own page
- *  (`own`) the page already names the device and offers those actions: the card is its counts and its fix blocks. */
-export function DeviceCardView({ card, narrowed, onHandle, own = false }: { card: DeviceCard; narrowed: boolean; onHandle: (h: Handling) => void; own?: boolean }) {
+/** One device, ranked by how urgent its findings are: its name line and badge, Add device and Ignore while nobody added it, then
+ *  its fix blocks. On the device's own page (`own`) the page already names the device and offers those actions: the card is its
+ *  counts and its fix blocks, a list of its own. */
+export function DeviceCardView({ card, rank, narrowed, onHandle, own = false }: { card: DeviceCard; rank?: number; narrowed: boolean; onHandle: (h: Handling) => void; own?: boolean }) {
   const { t } = useTranslation('findings')
   const title = useFixTitle()
+  const deviceRow = useDeviceRow()
   const [open, setOpen] = useState(false) // By device: a device opens on click, like a fix in By fix
-  const counts = <span className="text-meta text-muted">{t('byDevice.counts', { count: card.findings, cves: card.cves })}</span>
+  const counts = t('byDevice.counts', { count: card.findings, cves: card.cves })
   const urgency = (['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended'] as const).filter((k) => card.counts[k] > 0).map((k) => t(`common:deviceStatus.${k}`, { count: card.counts[k] })).join(' · ')
   const top = card.blocks[0]
   const panel = `device-${card.device.id.replace(/[^\w-]/g, '_')}`
-  const list = (
-    <ul id={own ? undefined : panel} aria-label={t('byDevice.blocksOf', { device: card.device.name })} className="grid divide-y divide-rule">
-      {card.blocks.map((b) => <Block key={b.fix.key} device={card.device} block={b} narrowed={narrowed} onHandle={onHandle} fold={own} />)}
-    </ul>
-  )
-  if (own) return <article aria-label={card.device.name} className="grid gap-3 py-1">{counts}{list}</article>
+  const blocks = card.blocks.map((b, i) => <Block key={b.fix.key} device={card.device} block={b} rank={i + 1} narrowed={narrowed} onHandle={onHandle} fold={own} />)
+  if (own) {
+    return (
+      <div className="grid gap-3">
+        <ListSummary>{counts}</ListSummary>
+        <RowList boxed label={t('byDevice.blocksOf', { device: card.device.name })}>{blocks}</RowList>
+      </div>
+    )
+  }
   return (
-    <ListRow label={card.device.name}
-      lead={<ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('byDevice.toggle', { device: card.device.name })} />}
-      title={<DeviceLine device={card.device} status={card.status} />}
+    <ListRow label={card.device.name} rank={rank} {...deviceRow(card.device, { status: card.status })}
+      toggle={{ open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('byDevice.toggle', { device: card.device.name }) }}
       meta={[<>{counts}{urgency ? <span>{urgency}</span> : null}</>, top ? t('byDevice.worst', { fix: title(top.fix, top.software), cve: top.cause }) : null]}
       actions={!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}>
-      {open ? list : null}
+      {open ? <RowList id={panel} label={t('byDevice.blocksOf', { device: card.device.name })}>{blocks}</RowList> : null}
     </ListRow>
   )
 }
@@ -93,9 +94,9 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
   const narrowed = !!(raw.q || status)
   const filtered = narrowed || !!device
   const clear = () => { raw.set({ q: '', page: 0 }); onDevice('') }
-  const columns: ColumnDef<DeviceCard>[] = [
-    { id: 'device', header: t('byDevice.col'), cell: ({ row: { original: c } }) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} /> },
-  ]
+  // a list of cards: the column only names it (the server searches and orders it)
+  const columns: ColumnDef<DeviceCard>[] = [{ id: 'device', header: t('byDevice.col') }]
+  const offset = list.page * size
   const named = q.data?.items.find((c) => c.device.id === device)?.device.name
   // the possible findings are not searched or filtered by status here: their count is said only with the whole list
   const possible = usePossibleCounts(device || undefined, !narrowed).data?.possible ?? 0
@@ -119,7 +120,7 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
             <DataTable urlKey="by-device" caption={t('byDevice.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
               summary={<>{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}<PossibleLink count={narrowed ? 0 : possible} /></>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
-              mobileRow={(c) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} />} />
+              list={(c) => <DeviceCardView card={c} rank={offset + d.items.indexOf(c) + 1} narrowed={narrowed} onHandle={setHandling} />} />
           </>
         )}
       </QueryState>

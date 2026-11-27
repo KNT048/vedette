@@ -17,7 +17,7 @@ import { nameOf } from './nameOf'
 import type { DeviceRow } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 import { InfoTip } from '@/components/common/InfoTip'
-import { ListSummary } from '@/components/common/ListParts'
+import { ListRow, ListSummary, RowList } from '@/components/common/ListParts'
 import { SameHint } from './SameDevice'
 import { RiskMarker } from './RiskMarker'
 
@@ -32,29 +32,24 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   const busy = act.approve.isPending || act.ignore.isPending
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
-    <li className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
-      <div className="grid gap-0.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name}</Link>
-          <RiskMarker id={d.id} risk={d.risk} />
-          {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-        </div>
-        <p className="text-meta text-muted">
-          {[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. {t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}
-        </p>
-        <SameHint id={d.id} others={sameAs} />
-      </div>
-      {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (the toast links the device). */}
-      <div className="flex flex-wrap gap-2">
+    <>
+    <ListRow title={name} to={`/devices/${d.id}`}
+      badges={<><RiskMarker id={d.id} risk={d.risk} />{d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}</>}
+      meta={[
+        `${[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. ${t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}`,
+        <SameHint key="same" id={d.id} others={sameAs} />,
+      ]}
+      // mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (the toast links the device).
+      actions={<>
         <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('inventory:pending.adding')} title={title ?? t('pending.approveLabel', { name })}
           aria-label={t('pending.approveLabel', { name })} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
         {/* Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
         <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
-      </div>
+      </>} />
       {/* mutateAsync: the row leaves this list when the list reloads (as Approve) */}
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={d.mac} findings={d.findings_count} pending={act.ignore.isPending}
         onConfirm={() => void act.ignore.mutateAsync(true).then(() => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, fail)} />
-    </li>
+    </>
   )
 }
 
@@ -110,9 +105,9 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
       {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')}{admin ? <> <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></> : null}</p> : null}
       {pending.length ? (
         <Card flush>
-          <ul className="divide-y divide-rule" aria-label={t('pending.title', { count: pending.length })}>
+          <RowList flush label={t('pending.title', { count: pending.length })}>
             {pending.map((d) => <PendingItem key={d.id} d={d} sameAs={sameAs?.get(d.id) ?? []} />)}
-          </ul>
+          </RowList>
         </Card>
       ) : filtered ? (
         <Card className="py-6 text-center text-muted">

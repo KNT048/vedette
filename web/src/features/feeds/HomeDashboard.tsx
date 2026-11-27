@@ -7,7 +7,7 @@ import type { z } from 'zod'
 import { Circle, CircleCheck } from 'lucide-react'
 import { Card } from '@/components/common/Card'
 import { KpiGrid, KpiTile } from '@/components/common/KpiTile'
-import { RankedList, RankedRow } from '@/components/common/RankedList'
+import { ListRow, RowList, RowTitle } from '@/components/common/ListParts'
 import { Sparkline } from '@/components/common/Sparkline'
 import { Illustration } from '@/components/common/Illustration'
 import { EmptyState, ErrorState } from '@/components/common/States'
@@ -107,8 +107,8 @@ function PossibleLine({ o }: { o: Overview }) {
   if (!possible && !proposals) return null
   return (
     <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      {possible ? <Link to="/findings?tab=device#possible" className="font-medium text-accent underline-offset-4 hover:underline">{t('dash.possible', { count: possible })}</Link> : null}
-      {proposals ? <Link to="/findings?tab=proposals" className="font-medium text-accent underline-offset-4 hover:underline">{t('dash.proposals', { count: proposals })}</Link> : null}
+      {possible ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.possible', { count: possible })}</Link> : null}
+      {proposals ? <Link to="/findings?tab=proposals" className="text-accent underline-offset-4 hover:underline">{t('dash.proposals', { count: proposals })}</Link> : null}
     </p>
   )
 }
@@ -121,19 +121,19 @@ function FixRow({ item, rank }: { item: FirstItem; rank: number }) {
   const what = title(block.fix, block.software)
   const cause = block.findings.find((f) => f.cve === block.cause)
   return (
-    <RankedRow rank={rank}
-      title={<Link to={`/findings?tab=device&device=${encodeURIComponent(device.id)}`} className="underline-offset-4 hover:underline">{what}</Link>}
-      meta={(
+    <ListRow rank={rank} title={what} to={`/findings?tab=device&device=${encodeURIComponent(device.id)}`}
+      badges={<StatusBadge code={block.status} />}
+      meta={[
         <>
-          <Link to={`/devices/${encodeURIComponent(device.id)}`} className="text-ink underline-offset-4 hover:underline [overflow-wrap:anywhere]">{device.name}</Link>
+          <RowTitle to={`/devices/${encodeURIComponent(device.id)}`}>{device.name}</RowTitle>
           {block.findings.length > 1 ? <span>{t('dash.cause', { cve: block.cause })}</span> : null}
-          {/* the badge beside the block is its cause's status: its reasons and confirmation lines, as on the finding's page */}
-          {cause ? <FindingStatusLines badge={false} className="basis-full" value={{ status: cause.status, urgency: cause.urgency, verification: cause.verification }} /> : null}
-          <CveList className="basis-full" label={t('dash.cvesOf', { fix: what })}
-            items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, to: `/findings/${encodeURIComponent(f.id)}` }))} />
-        </>
-      )}
-      aside={<StatusBadge code={block.status} />} />
+        </>,
+        // the badge beside the block is its cause's status: its reasons and confirmation lines, as on the finding's page
+        cause ? <FindingStatusLines key="status" badge={false} value={{ status: cause.status, urgency: cause.urgency, verification: cause.verification }} /> : null,
+      ]}>
+      <CveList label={t('dash.cvesOf', { fix: what })}
+        items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, to: `/findings/${encodeURIComponent(f.id)}` }))} />
+    </ListRow>
   )
 }
 
@@ -151,9 +151,9 @@ function FixFirst({ o, kevNotice }: { o: Overview; kevNotice: ReactNode }) {
   return (
     <Card id="fix-first" flush className="mb-8" title={t('dash.fixFirst')} info={t('dash.fixFirstInfo')}
       actions={/* empty-guard: the Fix first card is drawn only when it lists open findings (an empty one returns earlier) */ <Link to="/findings?tab=device" className="text-meta text-accent underline-offset-4 hover:underline">{t('dash.allFindings', { count: o.open.findings })}</Link>}>
-      <RankedList label={t('dash.fixFirst')}>
+      <RowList flush ordered label={t('dash.fixFirst')}>
         {o.first.map((f, i) => <FixRow key={`${f.device.id}/${f.block.fix.key}`} item={f} rank={i + 1} />)}
-      </RankedList>
+      </RowList>
     </Card>
   )
 }

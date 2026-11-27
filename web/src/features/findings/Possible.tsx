@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Bot, CircleHelp, ExternalLink, MoreHorizontal, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ExpandToggle, ListRow } from '@/components/common/ListParts'
+import { ExpandToggle, ListRow, RowList } from '@/components/common/ListParts'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
@@ -30,7 +30,7 @@ import { AskDialog } from './AskDialog'
 import { PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { linkLabels } from './links'
-import { DeviceLine } from './parts'
+import { DeviceLine, useDeviceRow } from './parts'
 import type { AnsweredQuestion, DeviceRef, PossibleCheck, PossibleCheckRun, PossibleCounts, PossibleRow, SoftwareRef } from './types'
 
 /** At most this many evidence identities are checked per click (the server's limit). */
@@ -300,24 +300,17 @@ export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled
   // a version_needed CVE is decided by the line's version, not one by one
   const perCve = r.kind !== 'version_needed'
   return (
-    <li className="grid gap-1.5 py-2" data-testid="possible-row">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <Link to={`/cve/${encodeURIComponent(r.cve)}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
-          <SeverityBadge severity={r.severity} compact />
-          {r.exploited ? <ExploitedChip /> : null}
-          <CheckChip check={r.check} />
-        </span>
-        <span className="flex shrink-0 flex-wrap items-center gap-2">
-          {r.check ? <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('possible.detail.toggleOf', { cve: r.cve })}>{t('possible.detail.toggle')}</ExpandToggle> : null}
-          {r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <AnswerMenu r={r} /> : null}
-        </span>
-      </div>
-      {/* a version_needed CVE: the line already says the version decides it */}
-      {(settled && r.check) || !perCve ? null : <p className="text-meta text-muted">{reason(r)}</p>}
-      {settled && r.check?.quote ? <p className="text-meta text-muted italic [overflow-wrap:anywhere]">“{r.check.quote}”</p> : null}
+    <ListRow testId="possible-row" title={r.cve} to={`/cve/${encodeURIComponent(r.cve)}`}
+      toggle={r.check ? { open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('possible.detail.toggleOf', { cve: r.cve }) } : null}
+      badges={<><SeverityBadge severity={r.severity} compact />{r.exploited ? <ExploitedChip /> : null}<CheckChip check={r.check} /></>}
+      meta={[
+        // a version_needed CVE: the line already says the version decides it
+        (settled && r.check) || !perCve ? null : reason(r),
+        settled && r.check?.quote ? <span key="quote" className="[overflow-wrap:anywhere]">“{r.check.quote}”</span> : null,
+      ]}
+      actions={r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <AnswerMenu r={r} /> : null}>
       {open && r.check ? <div id={panel}><CheckDetails check={r.check} /></div> : null}
-    </li>
+    </ListRow>
   )
 }
 
@@ -328,9 +321,9 @@ function Rows({ rows, label, settled = false }: { rows: PossibleRow[]; label: st
   const shown = all ? rows : rows.slice(0, FIRST)
   return (
     <div className="grid gap-1">
-      <ul aria-label={label} className="grid divide-y divide-rule">
+      <RowList label={label}>
         {shown.map((r) => <PossibleCveRow key={rowKey(r)} r={r} settled={settled} />)}
-      </ul>
+      </RowList>
       {rows.length > FIRST ? (
         <Button size="sm" variant="ghost" className="-ml-2 w-fit" onClick={() => setAll((a) => !a)}>
           {all ? t('possible.showFewer') : t('possible.showAll', { count: rows.length })}
@@ -418,27 +411,28 @@ export function LineBlock({ l, withDevice = false, bulk = true }: { l: PossibleL
   const need = inputOf(l)
   const exploited = exploitedOf(l.rows)
   const proposals = proposalsOf(l.rows)
+  const deviceRow = useDeviceRow()
   return (
-    <li className="grid gap-2 py-3 first:pt-0 last:pb-0" aria-label={withDevice ? `${l.device.name}: ${name}` : name} data-testid="possible-line">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {withDevice ? <DeviceLine device={l.device} badge={false} to={possibleOf(l.device.id)} /> : <span className="font-medium [overflow-wrap:anywhere]">{name}</span>}
-          <span className="text-muted">{t('possible.line.count', { count: l.rows.length })}</span>
-          {exploited ? <span className="text-meta text-danger">{t('possible.line.exploited', { count: exploited })}</span> : null}
-          {proposals ? <span className="text-meta text-accent">{t('possible.line.proposals', { count: proposals })}</span> : null}
-        </p>
-        <span className="flex shrink-0 flex-wrap items-center gap-2">
-          {need ? (
-            <Button size="sm" variant="primary" disabled={!roles.operator} title={roles.needOperator} aria-label={t(`possible.line.${need}Of`, { software: name, device: l.device.name })}
-              onClick={() => setInput(need)}>{t(`possible.line.${need}`)}</Button>
-          ) : null}
-          {l.software && bulk ? <BulkMenu device={l.device} line={{ id: l.software.id, name }} count={l.rows.length} /> : null}
-        </span>
-      </div>
-      {need ? <p className="text-meta text-muted">{t(`possible.line.${need}Why`, { software: name, count: l.rows.length })}</p> : null}
+    <ListRow testId="possible-line" label={withDevice ? `${l.device.name}: ${name}` : name}
+      {...(withDevice ? deviceRow(l.device, { badge: false, to: possibleOf(l.device.id) }) : { title: name })}
+      meta={[
+        <Fragment key="counts">
+          <span>{t('possible.line.count', { count: l.rows.length })}</span>
+          {exploited ? <span className="text-danger">{t('possible.line.exploited', { count: exploited })}</span> : null}
+          {proposals ? <span className="text-accent">{t('possible.line.proposals', { count: proposals })}</span> : null}
+        </Fragment>,
+        need ? t(`possible.line.${need}Why`, { software: name, count: l.rows.length }) : null,
+      ]}
+      actions={<>
+        {need ? (
+          <Button size="sm" variant="primary" disabled={!roles.operator} title={roles.needOperator} aria-label={t(`possible.line.${need}Of`, { software: name, device: l.device.name })}
+            onClick={() => setInput(need)}>{t(`possible.line.${need}`)}</Button>
+        ) : null}
+        {l.software && bulk ? <BulkMenu device={l.device} line={{ id: l.software.id, name }} count={l.rows.length} /> : null}
+      </>}>
       <Rows rows={l.rows} label={t('possible.line.cvesOf', { software: name, device: l.device.name })} />
       {input ? <LineInputDialog l={l} input={input} onClose={() => setInput(null)} /> : null}
-    </li>
+    </ListRow>
   )
 }
 
@@ -452,10 +446,10 @@ function DeviceGroup({ d }: { d: PossibleDevice }) {
   const exploited = exploitedOf(d.rows)
   const proposals = proposalsOf(d.rows)
   const lines = d.lines.map((l) => `${nameOf(l.software, t('possible.theSoftware'))}: ${l.rows.length}`)
+  const deviceRow = useDeviceRow()
   return (
-    <ListRow label={t('possible.deviceOf', { device: d.device.name })}
-      lead={<ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('possible.toggleDevice', { device: d.device.name })} />}
-      title={<DeviceLine device={d.device} badge={false} to={possibleOf(d.device.id)} />}
+    <ListRow label={t('possible.deviceOf', { device: d.device.name })} {...deviceRow(d.device, { badge: false, to: possibleOf(d.device.id) })}
+      toggle={{ open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('possible.toggleDevice', { device: d.device.name }) }}
       meta={[
         <Fragment key="counts">
           <span>{t('possible.cves', { count: d.rows.length })}</span>
@@ -466,9 +460,9 @@ function DeviceGroup({ d }: { d: PossibleDevice }) {
       ]}
       actions={<BulkMenu device={d.device} line={null} count={d.rows.length} />}>
       {open ? (
-        <ul id={panel} aria-label={t('possible.linesOf', { device: d.device.name })} className="grid divide-y divide-rule">
+        <RowList id={panel} label={t('possible.linesOf', { device: d.device.name })}>
           {d.lines.map((l) => <LineBlock key={l.key} l={l} bulk={d.lines.length > 1} />)}
-        </ul>
+        </RowList>
       ) : null}
     </ListRow>
   )
@@ -483,9 +477,8 @@ function ProductGroup({ p }: { p: PossibleProduct }) {
   const exploited = exploitedOf(p.rows)
   const devices = new Set(p.lines.map((l) => l.device.id)).size
   return (
-    <ListRow label={name}
-      lead={<ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('possible.toggleProduct', { product: name })} />}
-      title={<span className="font-semibold [overflow-wrap:anywhere]">{name}</span>}
+    <ListRow label={name} title={name}
+      toggle={{ open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('possible.toggleProduct', { product: name }) }}
       meta={[
         <>
           <span>{t('possible.productCount', { count: p.rows.length, devices: t('byDevice.devices', { count: devices }) })}</span>
@@ -493,9 +486,9 @@ function ProductGroup({ p }: { p: PossibleProduct }) {
         </>,
       ]}>
       {open ? (
-        <ul id={panel} aria-label={t('possible.devicesOf', { product: name })} className="grid divide-y divide-rule">
+        <RowList id={panel} label={t('possible.devicesOf', { product: name })}>
           {p.lines.map((l) => <LineBlock key={l.key} l={l} withDevice />)}
-        </ul>
+        </RowList>
       ) : null}
     </ListRow>
   )
@@ -593,7 +586,7 @@ export function DevicePossible({ assetId }: { assetId: string }) {
           <CheckRunLine />
           <DataTable urlKey="device-possible" caption={t('possible.captionDevice')} data={lines} pageSize={20}
             columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (l: PossibleLine) => searchText(l.rows) }] satisfies ColumnDef<PossibleLine>[]}
-            list={(l) => <ul className="grid"><LineBlock l={l} /></ul>}
+            list={(l) => <LineBlock l={l} />}
             summary={t('possible.summaryDevice', { count: counts.possible })} actions={<CheckPossible counts={counts} device={assetId} />} />
         </>
       ) : null}
@@ -715,23 +708,18 @@ function AnsweredRow({ x }: { x: AnsweredQuestion }) {
   const what = x.cve ?? nameOf(x.software, t('possible.theSoftware'))
   const words = { cve: what, device: x.device.name }
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 py-2">
-      <span className="grid gap-0.5">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {x.cve ? <Link to={`/cve/${encodeURIComponent(x.cve)}`} className="text-accent underline-offset-4 hover:underline">{x.cve}</Link> : null}
-          <DeviceLine device={x.device} badge={false} />
-          {x.software ? <span className="text-meta text-muted">{nameOf(x.software, '')}</span> : null}
-          {/* a confirmed AI proposal says so, with its check */}
-          {x.check?.decided_by === 'ai' && !x.check.rejected && x.check.verdict === 'not_affected' ? <AiCheckedBadge check={x.check} /> : null}
-        </span>
-        <span className="text-meta text-muted">{t('possible.answered.by', { by: x.by, date: fmtDate(x.at) })}</span>
-      </span>
-      <Button size="sm" disabled={!roles.operator} title={roles.needOperator} busy={unanswer.isPending && unanswer.variables?.id === x.id} busyLabel={t('common:busy.saving')}
+    <ListRow title={what} to={x.cve ? `/cve/${encodeURIComponent(x.cve)}` : undefined}
+      // a confirmed AI proposal says so, with its check
+      badges={x.check?.decided_by === 'ai' && !x.check.rejected && x.check.verdict === 'not_affected' ? <AiCheckedBadge check={x.check} /> : null}
+      meta={[
+        <Fragment key="device"><DeviceLine device={x.device} badge={false} />{x.cve && x.software ? <span>{nameOf(x.software, '')}</span> : null}</Fragment>,
+        t('possible.answered.by', { by: x.by, date: fmtDate(x.at) }),
+      ]}
+      actions={<Button size="sm" disabled={!roles.operator} title={roles.needOperator} busy={unanswer.isPending && unanswer.variables?.id === x.id} busyLabel={t('common:busy.saving')}
         aria-label={t('possible.answered.askAgainOf', words)}
         onClick={() => unanswer.mutate({ id: x.id }, { onSuccess: () => toast.success(t('possible.askedAgain', words)), onError: (e) => toast.error(errMsg(e)) })}>
         {t('possible.answered.askAgain')}
-      </Button>
-    </li>
+      </Button>} />
   )
 }
 
@@ -747,9 +735,9 @@ function Answered({ device }: { device: string }) {
       <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls="possible-answered">{t('possible.answered.toggle', { count: total })}</ExpandToggle>
       {open ? (
         <div id="possible-answered" className="grid gap-1 sm:pl-6">
-          <ul aria-label={t('possible.answered.caption')} className="grid divide-y divide-rule">
+          <RowList label={t('possible.answered.caption')}>
             {q.data!.items.map((x) => <AnsweredRow key={x.id} x={x} />)}
-          </ul>
+          </RowList>
           {total > q.data!.items.length ? <p className="text-meta text-muted">{t('possible.answered.more', { count: total - q.data!.items.length })}</p> : null}
         </div>
       ) : null}

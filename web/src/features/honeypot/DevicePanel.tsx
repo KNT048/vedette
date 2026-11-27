@@ -1,8 +1,8 @@
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { useModuleEnabled } from '@/lib/modules'
 import { fmtDateTime } from '@/lib/format'
 import { useHits } from './api'
@@ -27,14 +27,13 @@ function Inner({ assetId }: { assetId: string }) {
         : q.error ? <p role="alert" className="text-sm text-danger">{q.error instanceof Error ? q.error.message : String(q.error)}</p>
         : (
           <Card flush>
-          <ul className="grid divide-y divide-rule">
+          <RowList flush label={t('device.title')}>
             {q.data.items.map((h) => (
-              <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
-                <Link className="text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${h.id}`}>{t('device.item', { service: hitName(t, h), time: fmtDateTime(h.ts) })}</Link>
-                {h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : <span className="text-meta text-muted">{h.excerpt.length > 70 ? `${h.excerpt.slice(0, 70)}…` : h.excerpt}</span>}
-              </li>
+              <ListRow key={h.id} title={t('device.item', { service: hitName(t, h), time: fmtDateTime(h.ts) })} to={`/honeypot/hits/${h.id}`}
+                badges={h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}
+                meta={[h.is_test ? null : h.excerpt.length > 70 ? `${h.excerpt.slice(0, 70)}…` : h.excerpt]} />
             ))}
-          </ul>
+          </RowList>
           </Card>
         )}
     </Section>

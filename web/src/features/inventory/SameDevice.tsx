@@ -38,7 +38,7 @@ export function PossibleSameNotice({ me, list, onMerged }: { me: Me; list: Possi
   const admin = useCan('admin')
   const [asking, setAsking] = useState<{ what: 'merge' | 'keep'; other: PossibleSame } | null>(null)
   const one = list.length === 1 ? list[0]! : null
-  const other = (p: PossibleSame) => <Link to={`/devices/${encodeURIComponent(p.id)}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{p.name}</Link>
+  const other = (p: PossibleSame) => <Link to={`/devices/${encodeURIComponent(p.id)}`} className="text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{p.name}</Link>
   // #876: a deep link (#possible-same) focuses Merge when there is one pair, not the link to the other device in the title.
   const buttons = (p: PossibleSame, id?: string) => (admin ? (
     <span id={id} className="flex flex-wrap gap-2">

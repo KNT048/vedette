@@ -50,7 +50,7 @@ function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void
         info={SPAN_IN_UI || sensor.span ? t('sensors.spanHint') : undefined}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
-          <Link to="/settings/network" className="text-sm font-medium text-accent underline-offset-4 hover:underline" onClick={onClose}>{t(SPAN_IN_UI ? 'sensors.spanLink' : 'sensors.networkLink')}</Link>
+          <Link to="/settings/network" className="text-sm text-accent underline-offset-4 hover:underline" onClick={onClose}>{t(SPAN_IN_UI ? 'sensors.spanLink' : 'sensors.networkLink')}</Link>
           <DialogFooter><DialogClose asChild><Button>{t('common:close')}</Button></DialogClose></DialogFooter>
         </div>
       </DialogContent>

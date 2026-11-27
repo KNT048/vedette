@@ -28,7 +28,7 @@ import { CATALOG } from './catalog'
 import { LAN_RANGE } from './places'
 import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
 import type { IocPair, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, Proto, SourcesResponse, SpikeItem } from './types'
-import { ListToolbar } from '@/components/common/ListParts'
+import { ListToolbar, RowTitle } from '@/components/common/ListParts'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 
@@ -122,7 +122,7 @@ function SourcesSection() {
           const columns: ColumnDef<LogSource>[] = [
             { id: 'device', header: t('sources.col.device'), accessorFn: (r) => r.name, cell: ({ row: { original: r } }) => (
               <div className="grid">
-                {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.name}</Link> : <span className="font-medium">{r.name}</span>}
+                <RowTitle to={r.asset_id ? `/devices/${r.asset_id}` : undefined}>{r.name}</RowTitle>
                 <span className="text-caption text-muted">{CATALOG[r.kind].name}{r.asset_id || r.asset_matches.length ? '' : `, ${t('sources.notInInventory')}`}{r.asset_via === 'snmp_read' ? `, ${t('sources.viaSnmp')}` : ''}</span>
                 {r.asset_matches.length > 0 && (
                   <span className="text-caption text-muted">
@@ -162,7 +162,7 @@ function SourcesSection() {
                     <div className="grid gap-1.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="grid">
-                          {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.name}</Link> : <span className="font-medium">{r.name}</span>}
+                          <RowTitle to={r.asset_id ? `/devices/${r.asset_id}` : undefined}>{r.name}</RowTitle>
                           <span className="text-caption text-muted">{CATALOG[r.kind].name}</span>
                         </div>
                         <Chip tone={STATE_TONE[r.state]}>{t(`sources.state.${r.state}`)}</Chip>
@@ -237,13 +237,13 @@ function BadConnections({ feedsOn }: { feedsOn: boolean | undefined }) {
   const columns: ColumnDef<IocPair>[] = [
     { id: 'device', header: t('digest.bad.col.device'), cell: ({ row: { original: r } }) => (
       <div className="grid">
-        {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.asset_name}</Link> : <span className="font-medium">{r.src_ip}</span>}
+        <RowTitle to={r.asset_id ? `/devices/${r.asset_id}` : undefined}>{r.asset_id ? r.asset_name : r.src_ip}</RowTitle>
         <span className="text-caption text-muted">{r.asset_id ? r.src_ip : t('sources.notInInventory')}</span>
       </div>
     ) },
     { id: 'dst', header: t('digest.bad.col.dst'), cell: ({ row: { original: r } }) => (
       <div className="grid gap-0.5">
-        <Link to={eventsLinkFor(r)} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline" aria-label={t('digest.bad.showLogs', { dst: r.dest })} title={t('digest.bad.showLogs', { dst: r.dest })}>{r.dest}</Link>
+        <Link to={eventsLinkFor(r)} className="text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline" aria-label={t('digest.bad.showLogs', { dst: r.dest })} title={t('digest.bad.showLogs', { dst: r.dest })}>{r.dest}</Link>
         {r.listed_as ? <span className="flex items-center gap-1 text-caption text-muted">{t('digest.bad.listedAs', { name: r.listed_as })}<InfoTip topic={t('digest.bad.listedAs', { name: r.listed_as })}>{t('digest.bad.listedAsHint')}</InfoTip></span> : null}
         {r.other_devices > 0 ? <span className="text-caption text-muted">{t('digest.bad.otherDevices', { count: r.other_devices })}</span> : null}
         {r.blocked > 0 ? <span className="flex items-center gap-1"><Chip tone="warn">{r.blocked === r.hits ? t('digest.bad.blocked') : t('digest.bad.blockedSome', { count: r.blocked, hits: r.hits })}</Chip><InfoTip topic={t('digest.bad.blocked')}>{t('digest.bad.blockedHint')}</InfoTip></span> : null}
@@ -276,7 +276,7 @@ function BadConnections({ feedsOn }: { feedsOn: boolean | undefined }) {
             server={{ total: d.total, list }} filtered={!!list.q} onClearFilters={clear}
             mobileRow={(r) => (
               <div className="grid gap-1">
-                <Link to={eventsLinkFor(r)} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline" aria-label={t('digest.bad.showLogs', { dst: r.dest })}>{r.dest}</Link>
+                <Link to={eventsLinkFor(r)} className="text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline" aria-label={t('digest.bad.showLogs', { dst: r.dest })}>{r.dest}</Link>
                 <span className="text-meta">{r.asset_name ?? r.src_ip}{r.asset_name ? ` (${r.src_ip})` : ''}</span>
                 <span className="text-caption text-muted">{t('digest.bad.mobileLine', { count: r.hits, time: fmtDateTime(r.last_seen), confidence: Math.round(r.confidence * 100) })}</span>
                 {r.other_devices > 0 ? <span className="text-caption text-muted">{t('digest.bad.otherDevices', { count: r.other_devices })}</span> : null}

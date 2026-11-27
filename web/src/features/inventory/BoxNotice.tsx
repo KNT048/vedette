@@ -5,7 +5,7 @@ import { useInstallKind } from '@/lib/modules'
 import { useOsState } from '@/features/core/api'
 import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 /**
  * The box is the first device; its findings are fixed by updating the operating system, not by a device vendor.

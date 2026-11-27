@@ -23,15 +23,17 @@ const summary = async (tab: 'device' | 'fix') => {
   const el = await waitFor(() => { const e = document.querySelector(`[data-count="by-${tab}"]`); if (!e) throw new Error('no summary'); return e }, T)
   return num(el.textContent, /(\d+) open finding/)
 }
-const devicesTable = () => screen.findByRole('table', { name: 'Devices with open findings' }, T)
-const fixesTable = () => screen.findByRole('table', { name: 'Fixes for open findings' }, T)
+const devicesTable = () => screen.findByRole('list', { name: 'Devices with open findings' }, T)
+const fixesTable = () => screen.findByRole('list', { name: 'Fixes for open findings' }, T)
 /** Findings are collapsed until clicked: opens every closed toggle inside `root`. */
 async function expandAll(root: HTMLElement = document.body) {
   for (const b of within(root).queryAllByRole('button').filter((x) => x.getAttribute('aria-expanded') === 'false')) await userEvent.click(b)
 }
 const card = async (name: string) => { const c = await within(await devicesTable()).findByRole('article', { name }, T); await expandAll(c); return c }
+/** The rows of a list, not the rows opened inside them. */
+const rowsOf = (list: HTMLElement) => within(list).getAllByRole('article').filter((a) => !a.parentElement?.closest('article'))
 /** Every card of a list: the findings it counts ("5 findings, 4 CVEs" on a device; "3 devices, 61 findings" on a fix). */
-const sumOf = (table: HTMLElement, re: RegExp) => within(table).getAllByRole('article').reduce((n, a) => n + num(a.textContent, re), 0)
+const sumOf = (table: HTMLElement, re: RegExp) => rowsOf(table).reduce((n, a) => n + num(a.textContent, re), 0)
 const openTab = async (name: RegExp) => userEvent.click(await screen.findByRole('tab', { name }, T))
 
 describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
@@ -63,12 +65,12 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
     const table = await devicesTable()
     const fw = await card('FW-HQ')
     await expandAll(table)
-    expect(within(fw).getByRole('listitem', { name: 'Update OpenSSH 10.2p1 → 10.6' })).toHaveTextContent(/fixes 3 CVEs/)
+    expect(within(fw).getByRole('article', { name: 'Update OpenSSH 10.2p1 → 10.6' })).toHaveTextContent(/fixes 3 CVEs/)
     const cves = within(fw).getByRole('list', { name: 'CVEs fixed by: Update OpenSSH 10.2p1 → 10.6' })
     expect(within(cves).getByRole('link', { name: 'CVE-2026-123159' })).toHaveAttribute('href', '/findings/fv-fw01-ssh-1')
     expect(within(cves).getAllByText(/^(High|Medium|Low)/).length).toBeGreaterThan(0)
     // a finding with no fix yet: its device is listed, with the advisory
-    const block = within(table).getByRole('listitem', { name: 'No fix known yet for Brother printer firmware' })
+    const block = within(table).getByRole('article', { name: 'No fix known yet for Brother printer firmware' })
     expect(within(block).getByRole('link', { name: 'Vendor advisory' })).toHaveAttribute('href', 'https://support.brother.example.com/security')
     // the device badge leads to that device's findings with that status
     expect(within(fw).getByRole('link', { name: /exploited$/ })).toHaveAttribute('href', '/devices/a-fw01?tab=findings&status=exploited')
@@ -82,7 +84,7 @@ describe('By fix is the plan: numbered steps, from → to, one machine counted o
     server.use(http.get('*/api/v1/inventory/possible-same', () => HttpResponse.json({ items: [{ a: ref('a-fw01', 'FW-HQ'), b: ref('a-bn340', 'BN340'), why: 'Same name', reason: 'rotating_name' }] })))
     renderApp('/findings?tab=fix')
     const table = await fixesTable()
-    const steps = within(table).getAllByRole('article')
+    const steps = rowsOf(table)
     expect(steps.length).toBeGreaterThan(2)
     steps.forEach((a, i) => expect(a).toHaveAccessibleName(new RegExp(`^Step ${i + 1}: `)))
     expect(screen.getByText('Do them in this order: the most urgent first, then the fix that clears the most findings.')).toBeInTheDocument()
@@ -222,7 +224,7 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
   it('Ignored devices: the explanation sits behind the info icon, and the list searches on the server', async () => {
     metaStore.update((m) => ({ ...m, 'a-fw01': { ...m['a-fw01'], ignored_at: new Date().toISOString() }, 'a-bn340': { ...m['a-bn340'], ignored_at: new Date().toISOString() } }))
     renderApp('/findings?tab=ignored')
-    const table = await screen.findByRole('table', { name: 'Ignored devices with findings' }, T)
+    const table = await screen.findByRole('list', { name: 'Ignored devices with findings' }, T)
     expect(screen.getByText(/They are hidden from the other lists/)).not.toBeVisible() // only the info icon's description
     expect(screen.getByRole('button', { name: 'About Ignored devices' })).toHaveAccessibleDescription(/They are hidden from the other lists/)
     expect(await within(table).findByRole('article', { name: 'FW-HQ' }, T)).toBeInTheDocument()
@@ -252,6 +254,6 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
     renderApp('/findings?tab=fix&device=a-fw01')
     expect(await screen.findByRole('tab', { name: 'By device', selected: true }, T)).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Only FW-HQ: show every device' }, T)).toBeInTheDocument()
-    expect(within(await devicesTable()).getAllByRole('article')).toHaveLength(1)
+    expect(rowsOf(await devicesTable())).toHaveLength(1)
   })
 })

@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { InfoTip } from '@/components/common/InfoTip'
-import { ExpandToggle, ListRow, ListToolbar, RowRank } from '@/components/common/ListParts'
+import { ListRow, ListToolbar, RowList } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { StatusBadge } from '@/components/common/status'
@@ -21,7 +21,7 @@ import { PossibleLink, PossibleSection } from './Possible'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { HandleDialog, type HandleRow } from './HandleDialog'
-import { DeviceLine, FixLink, SeverityLine, useFixTitle } from './parts'
+import { FixLink, SeverityLine, useDeviceRow, useFixTitle } from './parts'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceRef, FixCard, FixDevice, SoftwareRef } from './types'
 
@@ -43,30 +43,27 @@ function LoadRows({ want, q, status, onRows, onFail }: { want: Want; q: string; 
 function DeviceRow({ d, fixTitle, same, busy, onHandle }: { d: FixDevice; fixTitle: string; same: Ref[]; busy: boolean; onHandle: () => void }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
+  const deviceRow = useDeviceRow()
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 py-2">
-      <div className="grid gap-0.5">
-        <DeviceLine device={d.device} badge={false} />
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {d.software?.version ? <span className="text-meta text-muted">{t('byFix.installed', { software: d.software.name, version: d.software.version })}</span> : null}
-          <StatusBadge code={d.status} />
-          {d.findings > 0 ? <Link to={`/findings?tab=device&device=${encodeURIComponent(d.device.id)}`} className="text-meta text-accent underline-offset-4 hover:underline">{t('byFix.findings', { count: d.findings })}</Link> : null}
-          <SeverityLine counts={d.severity} />
-        </span>
-        {d.others.length ? (
-          <span className="text-meta text-muted">
-            {t('byFix.otherSteps', { count: d.others.length, product: d.others[0]!.product, fixes: listOf(d.others.map((o) => o.version ?? t(o.kind === 'none_yet' ? 'byFix.otherNoneYet' : 'byFix.otherAdvisory'))) })}
-          </span>
-        ) : null}
-        {same.length ? (
-          <Link to={`/devices/${encodeURIComponent(d.device.id)}#possible-same`} className="w-fit text-meta text-accent underline-offset-4 hover:underline">
-            {t('byFix.sameAs', { names: listOf(same.map((x) => x.name)) })}
-          </Link>
-        ) : null}
-      </div>
-      <Button size="sm" disabled={!can} busy={busy} busyLabel={t('common:busy.working')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
-        aria-label={t('byFix.handleOf', { fix: fixTitle, device: d.device.name })} onClick={onHandle}>{t('byDevice.handleOne')}</Button>
-    </li>
+    <ListRow label={d.device.name} {...deviceRow(d.device, { badge: false })}
+      badges={<StatusBadge code={d.status} />}
+      meta={[
+        <>
+          {d.software?.version ? <span>{t('byFix.installed', { software: d.software.name, version: d.software.version })}</span> : null}
+          {d.findings > 0 ? <Link to={`/findings?tab=device&device=${encodeURIComponent(d.device.id)}`} className="text-accent underline-offset-4 hover:underline">{t('byFix.findings', { count: d.findings })}</Link> : null}
+          <SeverityLine counts={d.severity} className="" />
+        </>,
+        d.others.length || same.length ? <>
+          {d.others.length ? <span>{t('byFix.otherSteps', { count: d.others.length, product: d.others[0]!.product, fixes: listOf(d.others.map((o) => o.version ?? t(o.kind === 'none_yet' ? 'byFix.otherNoneYet' : 'byFix.otherAdvisory'))) })}</span> : null}
+          {same.length ? (
+            <Link to={`/devices/${encodeURIComponent(d.device.id)}#possible-same`} className="text-accent underline-offset-4 hover:underline">
+              {t('byFix.sameAs', { names: listOf(same.map((x) => x.name)) })}
+            </Link>
+          ) : null}
+        </> : null,
+      ]}
+      actions={<Button size="sm" disabled={!can} busy={busy} busyLabel={t('common:busy.working')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+        aria-label={t('byFix.handleOf', { fix: fixTitle, device: d.device.name })} onClick={onHandle}>{t('byDevice.handleOne')}</Button>} />
   )
 }
 
@@ -110,31 +107,27 @@ function FixCardView({ card, rank, same, loading, onHandle }: { card: FixCard; r
   const devices = t('byDevice.devices', { count: card.devices }) // "1 device", "3 devices"
   const nowOn = !from && card.fix.kind === 'update' ? [...new Set(card.items.map((d) => d.software?.version).filter((v): v is string => !!v))] : []
   return (
-    <ListRow label={t('byFix.step', { n: rank, fix: title })}
-      lead={<><RowRank n={rank} /><ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={title} /></>}
-      title={<>
-        {/* empty-guard: a fix card exists only for a fix with open findings (at least one) */}
-        <span className="font-semibold [overflow-wrap:anywhere]">{title}</span>
-        <StatusBadge code={card.status} />
-        <FixLink fix={card.fix} cve={card.cause} />
-      </>}
+    <ListRow label={t('byFix.step', { n: rank, fix: title })} rank={rank} title={title}
+      toggle={{ open, onToggle: () => setOpen((o) => !o), controls: panel, label: title }}
+      // empty-guard: a fix card exists only for a fix with open findings (at least one)
+      badges={<><StatusBadge code={card.status} /><FixLink fix={card.fix} cve={card.cause} /></>}
       meta={[
         <>
           <span>{t('byFix.counts', { count: card.findings, devices })}</span>
           {/* devices that may be one machine say so instead of counting it twice without a word */}
           {n < card.devices ? <span>{t('byFix.machines', { count: n })}</span> : null}
           {card.findings > 1 ? <span>{t('byDevice.cause', { cve: card.cause })}</span> : null}
-          <SeverityLine counts={card.severity} />
+          <SeverityLine counts={card.severity} className="" />
         </>,
         nowOn.length ? t('byFix.nowOn', { versions: listOf(nowOn) }) : null,
       ]}>
       {open ? (
-        <ul id={panel} aria-label={t('byFix.devicesOf', { fix: title })} className="grid divide-y divide-rule">
+        <RowList id={panel} label={t('byFix.devicesOf', { fix: title })}>
           {card.items.map((d) => (
             <DeviceRow key={`${d.device.id}/${d.software?.id ?? ''}`} d={d} fixTitle={title} same={same.get(d.device.id) ?? []} busy={loading?.device.id === d.device.id && loading.fix === card.fix.key && loading.software === (d.software?.id ?? null)}
               onHandle={() => onHandle({ device: d.device, fix: card.fix.key, software: d.software?.id ?? null })} />
           ))}
-        </ul>
+        </RowList>
       ) : null}
     </ListRow>
   )
@@ -155,9 +148,8 @@ export function ByFix({ status }: { status: string }) {
   const possible = usePossibleCounts(undefined, !filtered).data?.possible ?? 0
   const gotRows = useMemo(() => (h: Handling) => { setWant(null); setHandling(h) }, [])
   const failed = useMemo(() => () => setWant(null), [])
-  const columns: ColumnDef<FixCard>[] = [
-    { id: 'fix', header: t('byFix.col'), cell: ({ row: { original: c, index } }) => <FixCardView card={c} rank={offset + index + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} /> },
-  ]
+  // a list of cards: the column only names it (the server searches and orders it)
+  const columns: ColumnDef<FixCard>[] = [{ id: 'fix', header: t('byFix.col') }]
   return (
     <div className="grid gap-3">
       <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('byFix.search') }}>
@@ -169,7 +161,7 @@ export function ByFix({ status }: { status: string }) {
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
               summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}<PossibleLink count={filtered ? 0 : possible} />{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
-              mobileRow={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} />} />
+              list={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} />} />
           </>
         )}
       </QueryState>

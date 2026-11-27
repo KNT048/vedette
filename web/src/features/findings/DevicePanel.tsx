@@ -5,7 +5,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Card } from '@/components/common/Card'
 import { useKeepListParams } from '@/components/common/listParams'
 import { ListToolbar } from '@/components/common/ListParts'
 import { QueryState } from '@/components/common/States'
@@ -61,7 +60,7 @@ export function DeviceFindingsLine({ summary }: { summary: DeviceFindingsSummary
       <span className="text-sm font-medium">{summary.open ? t('device.open', { count: summary.open }) : t('device.noOpen')}</span>
       {/* the counts per status; the title's badge already leads to the most urgent ones, View findings to all */}
       {statuses.map((s) => <StatusBadge key={s} code={s} count={summary.counts![s]} />)}
-      {summary.open ? <Link to={keep('?tab=findings')} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('device.view')}</Link> : null}
+      {summary.open ? <Link to={keep('?tab=findings')} className="text-sm text-accent underline-offset-4 hover:underline">{t('device.view')}</Link> : null}
       {summary.possible ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLink', { count: summary.possible })}</Link> : null}
     </div>
   )
@@ -97,7 +96,7 @@ export function DeviceFindings({ assetId, summary }: { assetId: string; summary:
           {(d) => {
             const card: DeviceCard | undefined = d.items.find((c) => c.device.id === assetId)
             if (!card) return <p className="text-sm text-muted">{q ? t('device.noneMatch', { q }) : status ? t('device.noneWithStatus') : t('device.none')}</p>
-            return <Card><DeviceCardView own card={card} narrowed={!!status || !!q} onHandle={setHandling} /></Card>
+            return <DeviceCardView own card={card} narrowed={!!status || !!q} onHandle={setHandling} />
           }}
         </QueryState>
         <DevicePossible assetId={assetId} />

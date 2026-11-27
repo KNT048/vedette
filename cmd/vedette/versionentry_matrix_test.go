@@ -19,7 +19,10 @@ import (
 //     not new evidence and must not change how its findings are judged (basis, confirmation, range origin, a person's patched mark);
 //   - a version a person gives is that person's word, whichever form it was given in (adding the device, correcting a line);
 //   - a question left after the person typed the version must be one their answer can close, never "type the version again";
-//   - a distribution package is judged by the distribution's fix data, and a package release a person gives there is their word.
+//   - a distribution package is judged by the distribution's fix data, and a package release a person gives there is their word;
+//   - a person's claim (a version, "patched", "not affected") is checked against the evidence: one the evidence contradicts is
+//     raised once with that evidence, never accepted silently and never undone later without a word, and a claim the evidence
+//     agrees with stays (no confirmation churn, no answer dropped while the release is the same).
 //
 // A failing row is a gap in the current design, not a broken test.
 func TestVersionEntryMatrix(t *testing.T) {
@@ -271,6 +274,71 @@ func TestVersionEntryMatrix(t *testing.T) {
 				t.Fatal(err)
 			}
 			personsWord(t, finding(t, s, asset, sshCVE))
+		}},
+		// A person may give wrong information; re-checking it is the box's job. A person's claim (a version, "patched") that the
+		// evidence contradicts is neither trusted silently nor thrown away silently: the box says so once, with the evidence.
+		{"firmware / LLDP statement / person marks a finding patched with no version change: the contradiction is raised at once", func(t *testing.T, s *stack) {
+			seed(t, s, ranged, "Juniper", "Junos OS", [][5]string{{anyJunos, "", "", "", "20.4"}})
+			asset, line := lldpSwitch(t, s)
+			var id string
+			if err := s.d.DB.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = ? AND cve = ?`, asset, ranged).Scan(&id); err != nil {
+				t.Fatal(err)
+			}
+			_, _, err := s.d.Findings.Handle(t.Context(), []string{id}, findings.ResolutionPatched, "", time.Time{}, person)
+			if err != nil {
+				return // refused, naming the release the device still reports: acceptable
+			}
+			// accepted: the device still states 15.1R7.9, inside the range, so the person is asked about it now (an open question on
+			// the line), not surprised by a silent reopen at the next reading
+			if n := s.count(`SELECT count(*) FROM fnd_question WHERE software_id = ? AND answer IS NULL`, line); n == 0 {
+				t.Errorf("patched accepted while the device's own release %s is inside the affected range, and nothing asks the person about it", junos)
+			}
+		}},
+		{"firmware / LLDP statement / person types a version the device's own statement contradicts: the contradiction is raised", func(t *testing.T, s *stack) {
+			seed(t, s, ranged, "Juniper", "Junos OS", [][5]string{{anyJunos, "", "", "", "20.4"}})
+			asset, line := lldpSwitch(t, s)
+			if err := edit(t, s, asset, line, inventory.SoftwareEdit{Version: str("21.4R3")}); err != nil {
+				return // refused, naming the release the device states: acceptable
+			}
+			if n := s.count(`SELECT count(*) FROM fnd_question WHERE software_id = ? AND answer IS NULL`, line); n == 0 {
+				t.Errorf("the person's 21.4R3 replaced the device's own statement %s without a word; the finding is closed: %+v", junos, finding(t, s, asset, ranged))
+			}
+		}},
+		{"firmware / person's version / Package release set then removed, same release throughout: no confirmation churn", func(t *testing.T, s *stack) {
+			seed(t, s, ranged, "Juniper", "Junos OS", [][5]string{{anyJunos, "", "", "", "20.4"}})
+			asset, line := lldpSwitch(t, s)
+			for _, e := range []inventory.SoftwareEdit{{Version: str(junos)}, {PkgVersion: str(junos)}, {PkgVersion: str("")}} {
+				_ = edit(t, s, asset, line, e)
+			}
+			var id string
+			if err := s.d.DB.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = ? AND cve = ?`, asset, ranged).Scan(&id); err != nil {
+				t.Fatal(err)
+			}
+			c, u := s.count(`SELECT count(*) FROM fnd_finding_event WHERE finding_id = ? AND kind = 'confirmed'`, id), s.count(`SELECT count(*) FROM fnd_finding_event WHERE finding_id = ? AND kind = 'unconfirmed'`, id)
+			if c != 1 || u != 0 {
+				t.Errorf("%d confirmed and %d unconfirmed events while the compared release never changed: want one confirmation", c, u)
+			}
+		}},
+		{"firmware / person answered Not affected / clears the entry and types the same release again: the answer stays", func(t *testing.T, s *stack) {
+			junosFeeds(t, s)
+			asset, line := lldpSwitch(t, s)
+			if err := edit(t, s, asset, line, inventory.SoftwareEdit{Version: str(junos)}); err != nil {
+				t.Fatal(err)
+			}
+			var q string
+			if err := s.d.DB.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_question WHERE software_id = ? AND cve = ?`, line, bare).Scan(&q); err != nil {
+				t.Fatalf("the CVE with no versions is no question: %v", err)
+			}
+			if _, err := s.d.Findings.AnswerQuestion(t.Context(), q, findings.AnswerNotAffected, "checked the vendor advisory for 15.1", person); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.d.Inventory.RemoveSoftware(t.Context(), person, asset, line); err != nil {
+				t.Fatal(err)
+			}
+			_ = edit(t, s, asset, line, inventory.SoftwareEdit{Version: str(junos)})
+			if n := s.count(`SELECT count(*) FROM fnd_question WHERE software_id = ? AND cve = ? AND answer = 'not_affected'`, line, bare); n != 1 {
+				t.Errorf("the answer for release %s was dropped although the line runs that release throughout", junos)
+			}
 		}},
 		{"distribution package / agent on Ubuntu below the distribution's fix: confirmed by the device", func(t *testing.T, s *stack) {
 			seed(t, s, sshCVE, "OpenBSD", "OpenSSH", [][5]string{{"cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", "", "", "", "10.6p2"}},

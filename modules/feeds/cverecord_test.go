@@ -154,8 +154,8 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 			[]span{{ei: "7.24.2", fixed: "7.25beta4", def: k}}, 0},
 		{"a lone unaffected version on another line than the rows end on", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"8.1.0","status":"unaffected"}]}`,
 			[]span{{si: "7.0.0", ei: "7.11.2", def: k}}, 0},
-		{"an unaffected version beside two", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.24.0","status":"unaffected"},{"version":"7.25.0","status":"unaffected"}]}`,
-			[]span{{si: "7.0.0", ei: "7.11.2", def: k}}, 0},
+		{"two unaffected versions above the rows: the highest", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.24.0","status":"unaffected"},{"version":"7.25.0","status":"unaffected"}]}`,
+			[]span{{si: "7.0.0", ei: "7.11.2", fixed: "7.25.0", def: k}}, 0},
 		{"an unaffected range above the rows is no lone version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.24.0","lessThan":"7.30.0","status":"unaffected"}]}`,
 			[]span{{si: "7.0.0", ei: "7.11.2", def: k}}, 0},
 		{"a lone unaffected version below an affected row's end", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.30.0","lessThan":"7.30.4","status":"affected"},{"version":"7.24.0","status":"unaffected"}]}`,
@@ -605,8 +605,8 @@ func TestRecordRanges_ExploitedListView(t *testing.T) {
 	})
 	aff, err := s.KevAffected(t.Context())
 	const pcpe = "cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:*"
-	if err != nil || !slices.Equal(aff["CVE-2024-3400"], []AffectedRow{{CPE: pcpe, StartIncl: "10.2.0", EndExcl: "10.2.9-h1", VendorList: true},
-		{CPE: pcpe, StartIncl: "11.0.0", EndExcl: "11.0.4-h1", VendorList: true}, {CPE: pcpe, StartIncl: "11.1.0", EndExcl: "11.1.2-h3", VendorList: true}}) || !slices.Equal(aff["CVE-2026-1000"], []AffectedRow{{CPE: `cpe:2.3:*:acme:gateway:15.2\(4\)M3:*:*:*:*:*:*:*`}}) ||
+	if err != nil || !slices.EqualFunc(aff["CVE-2024-3400"], []AffectedRow{{CPE: pcpe, StartIncl: "10.2.0", EndExcl: "10.2.9-h1", VendorList: true},
+		{CPE: pcpe, StartIncl: "11.0.0", EndExcl: "11.0.4-h1", VendorList: true}, {CPE: pcpe, StartIncl: "11.1.0", EndExcl: "11.1.2-h3", VendorList: true}}, AffectedRow.sameSpan) || !slices.EqualFunc(aff["CVE-2026-1000"], []AffectedRow{{CPE: `cpe:2.3:*:acme:gateway:15.2\(4\)M3:*:*:*:*:*:*:*`}}, AffectedRow.sameSpan) ||
 		aff["CVE-2026-1001"] != nil || aff["CVE-2026-1002"] != nil {
 		t.Fatalf("KevAffected = %+v %v", aff, err)
 	}

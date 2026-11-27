@@ -1,0 +1,214 @@
+package findings
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/knt048/vedette/core/productid"
+)
+
+// The hardware a vendor's record limits a row to (CVE JSON 5 affected[].platforms) against the model a device states: a row is for
+// other hardware only when every platform it names is read as a family or a model and none can be the device's. Synthetic names:
+// the rule reads the shape of the names (a family "<letters> Series", a model "<letters><number>"), never a list of products.
+func TestOtherHardware(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		model     string
+		platforms []string
+		other     bool
+	}{
+		{"ZX4200-48T", []string{"QRX Series"}, true},
+		{"Acme Networks ZX4200-48T", []string{"QRX Series"}, true},                                         // vendor words before the model
+		{"ZX4200-48T", []string{"QRX Series with SPC3"}, true},                                             // a qualifier narrows the family only
+		{"ZX4200-48T", []string{"QRX 5000 Series with SPC3", "MZ Series"}, true},                           // every family is another
+		{"QRX300", []string{"QRX1600", "QRX2300", "QRX4300"}, true},                                        // models of the device's own letters
+		{"ZX4200-48T", []string{"QRX1600", "QRX2300", "QRX4300"}, false},                                   // other letters without "Series": maybe parts, not devices
+		{"ZX4200-48T", []string{"ZX4100", "ZX4300-MP (Multigigabit)", "ZX2300", "ZX4400", "ZX4000"}, true}, // ZX4000 is one model of a list
+		{"ZX204", []string{"ZX10k Series"}, true},
+		{"ZX4200-48T", []string{"ZX Series"}, false},
+		{"ZX4200-48T", []string{"QRX Series", "ZX Series"}, false},
+		{"ZX4200-48T", []string{"ZX4200"}, false},
+		{"ZX4300-48MP", []string{"ZX4300-MP (Multigigabit)"}, false},
+		{"ZX4200-48T", []string{"ZX4000"}, false},         // alone, a round number may name a series
+		{"ZX4200-48T", []string{"ZX 4000 Series"}, false}, // the 4000 series holds 4200
+		{"ZX4200-48T", []string{"ZX4k Series"}, false},    // so does the 4k series
+		{"ZX9204", []string{"ZX9200 Series"}, false},
+		{"ZX10003", []string{"ZX10k Series"}, false},
+		{"QRX345", []string{"vQRX Series"}, false},             // one name inside the other: not told apart
+		{"ZX4200-48T", []string{"QRX Series", "Cloud"}, false}, // a platform the rule cannot read
+		{"ZX4200-48T", []string{"Linux"}, false},
+		{"ZX4200-48T", []string{"Windows", "MacOS"}, false},
+		{"Workstation 440 G10", []string{"Tablet 17"}, false}, // a name with a blank before its number is not read as a model
+		{"NX250", []string{"QRX Series and NX250"}, false},    // a clause after "Series" that names more hardware
+		{"ZX9204", []string{"QRX Series and ZX9200 Series"}, false},
+		{"NX150", []string{"QRX Series (QRX300) and NX150"}, false},
+		{"NX150", []string{"QRX 5000 Series & NX150"}, false},
+		{"NX150", []string{"QRX Series or NX150"}, false},
+		{"NX150", []string{"QRX Series plus NX150"}, false},
+		{"NX150", []string{"QRX Series with SPC3, NX150"}, false},
+		{"ZX4200-48T", []string{"QRX Series devices"}, false}, // only a "with" qualifier is read after "Series"
+		{"QRX5600", []string{"QRX5400-5600-5800"}, false},     // more model numbers after a hyphen: a list, not one model
+		{"QRX5800", []string{"QRX5400-5800"}, false},
+		{"QRX5220", []string{"QRX5220-128C"}, false},
+		{"QRX4200", []string{"QRX5220-128C"}, true},
+		{"ZX4200-48T", []string{"QRX5220-128C"}, false},
+		{"ZX480", []string{"MPC10E", "MPC11E"}, false}, // line cards the device may carry
+		{"ZX480", []string{"QRX Series", "MPC10E"}, false},
+		{"ZX480", []string{"MPC10E (QRX Series)"}, false},
+		{"ZX480", []string{"with SPC3"}, false},
+		{"ZX480", []string{"PIC"}, false},
+		{"ZX480", []string{"SPC3"}, false},
+		{"NX150", []string{"QRX Series with NX150"}, false}, // a "with" qualifier that names a model of other letters
+		{"ZX480", []string{"QRX Series with MPC10E"}, false},
+		{"ZX4200-48T", []string{"QRX Series with QRX-SPC3"}, true},
+		{"ZX4200-48T", []string{"QRX Series (SPC3)"}, false}, // a parenthesis may list more: only the platform's own hardware is read in it
+		{"NX150", []string{"QRX Series (and NX)"}, false},
+		{"ZX4600", []string{"ZX4300 (also ZX4600)"}, false},
+		{"ZX4600", []string{"ZX4300 (ZX4300-48MP)"}, true},
+		{"QRX345", []string{"QRX Series (including vQRX)"}, false},
+		{"ZX4200-48T", []string{"QRX Series (including vQRX)"}, true},
+		{"ZX9208", []string{"ZX92xx"}, false}, // x for any digit
+		{"ZX4200-48T", []string{"ZX92xx"}, true},
+		{"ZX480", []string{"ZX2K-MPC11E"}, false}, // a part named after the hardware it fits: never other hardware
+		{"ZX480", []string{"ZX10K-LC2101"}, false},
+		{"ZX4600", []string{"ZX9200-40XS"}, true},            // a variant suffix
+		{"NX150", []string{"QRX Series (and NX150)"}, false}, // a parenthesis that names more hardware
+		{"NX150", []string{"QRX Series (QRX300, NX150)"}, false},
+		{"NX250", []string{"QRX Series (and NX Series)"}, false},
+		{"ZX4200-48T", []string{"QRX Series (QRX300)"}, true}, // a parenthesis of the platform's own models narrows it
+		{"QRX345", []string{"QRX Series (QRX300)"}, false},
+		{"ZX4200-48T", []string{"All Series"}, false}, // a plain word, not a family's letters
+		{"ZX4200-48T", []string{"Other Series"}, false},
+		{"ZX4200-48T", []string{"ALL Series"}, false}, // "all" in any case is never a family
+		{"ZX4200-48T", []string{"all Series"}, false},
+		{"ZX4200-48T", []string{"ALL 4000 Series"}, false},
+		{"ZX4200-48T", []string{"QRX Series", "ALL Series"}, false},
+		{"ZX4200-48T", []string{"all platforms"}, false},
+		{"ZX4200-48T", []string{"QRX/NX Series"}, false},
+		{"NX150", []string{"QRX1500/NX150"}, false},
+		{"NX150", []string{"QRX1500, NX150"}, false},
+		{"ZX10K3", []string{"ZX10003"}, false},               // a model number the device writes with k is not read
+		{"AB12 Q9K-C93180YC", []string{"Q9K Series"}, false}, // a model word the device states that is not read
+		{"zx4200-48t", []string{"ZX Series"}, false},
+		{"ZX4200-48T", []string{"zx series"}, false},
+		{"ZX4200-48T", []string{"ZX  Series"}, false},
+		{"QRX4200", []string{"QRX 4000 Series"}, false},
+		{"QRX4200", []string{"QRX-4200"}, false},
+		{"Chassis AB12 ZX4200", []string{"ZX Series"}, false}, // every model word the device states counts, not only the first
+		{"Rev A12, ZX4200-48T", []string{"ZX4200"}, false},
+		{"Chassis AB12 ZX4200", []string{"QRX Series"}, true},
+		{"ZX4200-48T", nil, false},
+		{"", []string{"QRX Series"}, false},                 // the device's model is not known
+		{"Virtual Platform", []string{"QRX Series"}, false}, // no model number
+	} {
+		if got := otherHardware(tc.model, tc.platforms); got != tc.other {
+			t.Errorf("model %q, platforms %q: other %v, want %v", tc.model, tc.platforms, got, tc.other)
+		}
+	}
+}
+
+// A vendor's own record that lists the product as affected only on other hardware than the device's model proves the device not
+// affected, inside the listed ranges too; it never does for hardware it may name, a model the box does not know, a third party's list,
+// or a version an NVD row or an every-device row of the vendor calls affected.
+func TestMatchAsset_ModelRowsOfOtherHardware(t *testing.T) {
+	t.Parallel()
+	p, ok := productid.ResolveStored("Juniper", "Junos OS", "Juniper Junos OS", "")
+	if !ok || p.Scheme == "" {
+		t.Fatal("no product with a version scheme")
+	}
+	rows := func(platforms []string, complete bool, spans ...[3]string) []SchemedRange {
+		out := schemedRows(t, p.Scheme, p.Key, spans...)
+		for i := range out {
+			out[i].ModelOnly, out[i].Platforms, out[i].Complete = true, platforms, complete
+		}
+		return out
+	}
+	other := []string{"QRX Series", "MZ Series with SPC3"}
+	limited := rows(other, true, [3]string{"24.2", "24.2R2-S2", ""}, [3]string{"25.2", "25.2R2", ""})
+	vuln := func(cve string, schemed []SchemedRange, nvd ...Affected) Vuln {
+		return Vuln{CVE: cve, Vendor: "Juniper", Product: "Junos OS", NVDAnswered: true, Published: uncNew, DateAdded: uncNew, Schemed: schemed, Affected: nvd}
+	}
+	device := func(model, ver string) Asset {
+		return Asset{ID: "sw", Name: "sw", Model: model, Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS",
+			Version: ver, Source: "manual", SetBy: "admin@example.test", KevKeys: []string{"juniper|junos os"}}}}
+	}
+	for _, tc := range []struct {
+		name, model, ver string
+		v                Vuln
+		want             string // "none", "finding", "kept"
+	}{
+		{"an older line, rows for other hardware", "ZX4200-48T", "15.1R7.9", vuln("CVE-2099-0501", limited), "none"},
+		{"inside a listed range, rows for other hardware", "ZX4200-48T", "24.2R1", vuln("CVE-2099-0502", limited), "none"},
+		{"rows that may name the device's hardware", "ZX4200-48T", "24.2R1", vuln("CVE-2099-0503", rows([]string{"ZX Series"}, true, [3]string{"24.2", "24.2R2-S2", ""})), "kept"},
+		{"the device's model is not known", "", "24.2R1", vuln("CVE-2099-0504", limited), "kept"},
+		{"a third party's list (no default)", "ZX4200-48T", "24.2R1", vuln("CVE-2099-0505", rows(other, false, [3]string{"24.2", "24.2R2-S2", ""})), "kept"},
+		{"an every-device row of the vendor covers it", "ZX4200-48T", "24.2R1",
+			vuln("CVE-2099-0506", append(schemedRows(t, p.Scheme, p.Key, [3]string{"24.2", "24.2R2-S1", ""}), limited...)), "finding"},
+		{"the device's hardware, older than where the flaw came in", "ZX4200-48T", "15.1R7.9",
+			vuln("CVE-2099-0508", rows([]string{"ZX Series", "QRX Series"}, true, [3]string{"23.4R2-S6", "23.4R2-S7", ""}, [3]string{"24.2R2-S3", "24.2R2-S4", ""})), "none"},
+		{"the device's hardware, rows from a branch start", "ZX4200-48T", "15.1R7.9",
+			vuln("CVE-2099-0509", rows([]string{"ZX Series"}, true, [3]string{"23.4", "23.4R2-S7", ""})), "kept"},
+		{"the device's hardware, a third party's starts", "ZX4200-48T", "15.1R7.9",
+			vuln("CVE-2099-0510", rows([]string{"ZX Series"}, false, [3]string{"23.4R2-S6", "23.4R2-S7", ""})), "kept"},
+		{"an NVD row covers it", "ZX4200-48T", "24.2R1",
+			vuln("CVE-2099-0507", limited, Affected{CPE: "cpe:2.3:o:juniper:junos:24.2:r1:*:*:*:*:*:*"}), "kept"},
+	} {
+		r := MatchAsset(device(tc.model, tc.ver), []Vuln{tc.v}, nil, t0)
+		got := "none"
+		switch {
+		case len(r.New) == 1 && r.New[0].Basis == BasisVersion && tc.want == "finding":
+			got = "finding"
+		case len(r.New)+len(r.Unchecked)+len(r.NameOnly)+len(r.NotComparable) > 0:
+			got = "kept"
+		}
+		if got != tc.want {
+			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
+		}
+	}
+	// the proof names the hardware the record lists and the device's model
+	r := MatchAsset(device("ZX4200-48T", "15.1R7.9"), []Vuln{vuln("CVE-2099-0501", limited)}, map[string]bool{"CVE-2099-0501": true}, t0)
+	if len(r.NotAffected) != 1 {
+		t.Fatalf("not affected %+v, want the open finding closed", r.NotAffected)
+	}
+	if n := r.NotAffected[0].Evidence.Summary; !strings.HasPrefix(n, "Not affected:") || !strings.Contains(n, "QRX Series") || !strings.Contains(n, "ZX4200-48T") {
+		t.Errorf("note %q", n)
+	}
+}
+
+// A record that lists its affected releases one by one and states the fixed release above them (LineFix: "7.23.1" above 7.20.8) bounds
+// the line: a release past the fix on that line is not affected, also when only the record's rows name the product; a release between
+// the last affected one and the fix stays undecided, and so does a listed release on this path (an exact release a CVE on no list
+// names decides nothing by itself, viaNVD).
+func TestMatchAsset_ExactRowsWithALineFix(t *testing.T) {
+	t.Parallel()
+	const cve = "CVE-2099-0601"
+	cpe := "cpe:2.3:o:acme:gateway_os:*:*:*:*:*:*:*:*"
+	var aff []Affected
+	for _, v := range []string{"6.0", "6.44", "7.20.0", "7.20.8"} {
+		aff = append(aff, Affected{CPE: cpe, Range: VersionRange{StartIncl: v, EndIncl: v}})
+	}
+	aff[len(aff)-1].LineFix = "7.23.1"
+	v := Vuln{CVE: cve, NVDAnswered: true, Published: uncNew, Affected: aff, RangesFrom: RangesCVEOrgPartial, Origin: RangeCNA}
+	for _, tc := range []struct {
+		ver, want string // "none" (proved not affected), "finding", "open" (neither)
+	}{
+		{"7.25.2", "none"},
+		{"7.23.1", "none"},
+		{"7.22.0", "open"},
+		{"7.20.8", "open"},
+	} {
+		a := Asset{ID: "gw", Name: "gw", Software: []Software{{ID: "s", Display: "Acme Gateway OS", Vendor: "Acme", Product: "Gateway OS",
+			Version: tc.ver, Source: "snmp", CPE: cpe}}}
+		r := MatchAsset(a, []Vuln{v}, map[string]bool{cve: true}, t0)
+		got := "open"
+		switch {
+		case len(r.NotAffected) == 1:
+			got = "none"
+		case len(r.Existing) == 1 && r.Existing[0].Basis == BasisVersion:
+			got = "finding"
+		}
+		if got != tc.want {
+			t.Errorf("%s: %s, want %s (%+v)", tc.ver, got, tc.want, r)
+		}
+	}
+}

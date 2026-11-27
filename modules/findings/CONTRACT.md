@@ -117,7 +117,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
   inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
   inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
-  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
+  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). A model-limited row of the vendor's own
+  record (`SchemedRange.Complete`: its `defaultStatus` unaffected, feeds keeps it only from the product's own CNA) whose hardware
+  (`Platforms`) the device's stated model cannot be is not about the device (`otherHardware`, read by the names' shape only: "<letters>
+  Series", "<letters><number>", a numbered series; a model or a platform of another shape is never ruled out, nor is a device by a model
+  word without "Series" of other letters, which may name a part it carries ("MPC10E"), and only an operating
+  system's or firmware's rows are read so, `deviceFirmware`); when every row of the product is such a row, the device is not affected
+  ("lists the OS as affected only on QRX Series, and the switch is a ZX4200-48T"); a version of the vendor's rows for every device, an NVD
+  row covering it or an unread row still decide as before. With no row for every device, the starts of the vendor's own model-limited
+  rows say where the flaw came in (`olderThanEveryStart`, below). `TestOtherHardware`, `TestMatchAsset_ModelRowsOfOtherHardware`. (`notAffectedByStatements`,
   `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
   `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). Where the vendor's affected ranges start also decides "not affected" (Junos OS only: the one scheme whose
   first release of a branch is read, `branchStart`; the proof says "NVD lists" when NVD's rows are the ones read):
@@ -210,6 +218,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **P-2 Why undecided.** Every possible CVE carries a machine-readable `detail.undecided` (`UndecidedReasons`: the reason, the range rows
   read, the advisory text that blocked a decision with its address), also in the export (`fnd_question.detail`,
   `fnd_possible_check.detail`) and grouped by `GET /findings/possible/audit`. `TestPossible_Count_EveryPossibleCVEHasAReason`.
+  An operating-system row a CVE's rows do not name, when every row is an application and NVD's running-on condition of one names an
+  operating system of the row's vendor (cpeMatch vulnerable false: the environment, not the affected product), is `named_as_platform_only`
+  (`platformOnly`), its evidence the rows that name the system: not affected as a product. Only an exploited list ties such a CVE to the
+  system's row, so the row stays possible with cause `needs_person`; an application row is matched by the same rows as always.
+  `TestPlatformOnly_OperatingSystemNamedOnlyAsTheEnvironment`.
 - **P-3 Check identity.** The match pass gives each checkable question (one CVE, a line with a version, no_range_data, older_line or a
   not_comparable no build attribute decides, NVD answered) `check_key`: the CVE, product, release line, exact version and the CVE record's
   stamp (`feeds.RecordStamps`). A changed version or record gives a new key. `TestPossibleCheck_KeyFollowsTheEvidence`. A changed

@@ -109,6 +109,13 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 		}
 		u.undecided = undecidedOf(*u, own)
 		switch {
+		case u.undecided.Reason == UndecidedNotNamed:
+			if env := platformOnly(in, v); len(env) > 0 {
+				u.undecided.Reason = UndecidedPlatformOnly
+				for _, af := range env[:min(len(env), undecidedRows)] {
+					u.undecided.Ranges = append(u.undecided.Ranges, rowText(af))
+				}
+			}
 		case u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver):
 			u.undecided.Reason = UndecidedEOLUnlisted
 		case u.undecided.Reason == UndecidedSchemeMismatch && !notationDiffers(own, in.ver) && !winVersionRE.MatchString(strings.TrimSpace(in.ver)):
@@ -117,6 +124,32 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			u.undecided.Reason = UndecidedRangesDoNotCover
 		}
 	}
+}
+
+// platformOnly reads NVD's CPE configurations of an operating-system row the CVE's rows do not name: when every row is an
+// application (part "a": none is an operating system, hardware or a row without a part, as the CVE record's are) and NVD's "running
+// on" condition of some of them names an operating system of the row's vendor, the CVE affects software that runs on the system, not
+// the system itself. It returns those rows (the evidence); nil otherwise. The rows' versions are not read: an application row of the
+// device is matched by them as always.
+func platformOnly(in swInfo, v Vuln) []Affected {
+	if !in.hasCPE || in.cpe.Part.Kind != Value || in.cpe.Part.Value != "o" || in.cpe.Vendor.Kind != Value || len(v.Affected) == 0 {
+		return nil
+	}
+	vendor := strings.ToLower(in.cpe.Vendor.Value)
+	var env []Affected
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind != Value || c.Part.Value != "a" {
+			return nil
+		}
+		if slices.ContainsFunc(af.Platforms, func(p string) bool {
+			pv, _, ok := strings.Cut(p, ":")
+			return ok && strings.EqualFold(pv, vendor)
+		}) {
+			env = append(env, af)
+		}
+	}
+	return env
 }
 
 // undecidedOf is the machine-readable reason of an unchecked row, with the rows of the CVE that name it (own) as they were read.

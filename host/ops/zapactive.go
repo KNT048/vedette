@@ -45,6 +45,14 @@ const (
 	zapThreadsPerHost   = 2  // concurrent requests (threadPerHost)
 	zapDelayMs          = 100
 	zapMaxAlertsPerRule = 10
+	// The gentle speed of a target's deep-scan settings: one thread (the spider's too) and 500 ms between requests, fixed here, never
+	// a number of core's. The active scan's own cap stays: a gentle page reaches it sooner and says so (cut_short).
+	zapGentleThreads = 1
+	zapGentleDelayMs = 500
+	// The passive plan of a page with paths to skip (zapPassivePlan): the baseline's spider minute and passive wait (-m 1 -T 5, less
+	// the plan's own start), inside zapPageLimit.
+	zapPassiveSpiderMinutes = 1
+	zapPassiveWaitMinutes   = 4
 
 	zapActivePageLimit = 20 * time.Minute
 	zapActiveTimeout   = 22 * time.Minute // the command: the page's 20 minutes and the cleanup after it
@@ -140,6 +148,86 @@ var zapActiveRules = []zapRule{
 // zapSQLi is the SQL Injection rule whose strength follows Disruptive.
 const zapSQLi = 40018
 
+// zapDenialRules are the disruptive rules of denial of service (api.ZapSettings.NoDoS turns them off); every other disruptive rule
+// may change data or makes the server fetch something elsewhere (NoChange turns them off, with form posting and SQL Injection's
+// stronger payloads).
+var zapDenialRules = []int{20015, 30001, 30002, 40044}
+
+// zapFixedFileRules request fixed file names under a page's folders (.env, .htaccess, ELMAH, trace.axd, hidden files, Spring
+// actuators, /WEB-INF), not a URL the spider found: ZAP does not apply the context's excludes to them, so a page with paths to skip
+// leaves them out.
+var zapFixedFileRules = []int{10045, 40028, 40029, 40032, 40034, 40035, 40042}
+
+// zapActiveOpts are how one active page runs: with the disruptive rules or not (after the host's own checks), and the deep-scan
+// settings of the target, which only narrow.
+type zapActiveOpts struct {
+	disruptive, noDoS, noChange, gentle bool
+}
+
+// postsForms says whether the spider posts forms: only with the disruptive rules and the checks that may change data.
+func (o zapActiveOpts) postsForms() bool { return o.disruptive && !o.noChange }
+
+// zapRuleRuns says whether rule r runs on page p under o, and at which strength.
+func zapRuleRuns(p zapPage, r zapRule, o zapActiveOpts) (bool, string) {
+	denial := slices.Contains(zapDenialRules, r.id)
+	switch {
+	case r.class == zapRuleOff,
+		r.class == zapRuleDisruptive && !o.disruptive,
+		r.class == zapRuleDisruptive && denial && o.noDoS,
+		r.class == zapRuleDisruptive && !denial && o.noChange,
+		len(p.skip) > 0 && slices.Contains(zapFixedFileRules, r.id):
+		return false, ""
+	case r.id == zapSQLi && !o.postsForms():
+		return true, "low"
+	}
+	return true, "medium"
+}
+
+// zapSkippedRules are the rules page p does not run under o, or runs with weaker payloads, that it would run with the same disruptive
+// rules and no deep-scan settings (api.ZapActiveResult.SkippedRules).
+func zapSkippedRules(p zapPage, o zapActiveOpts) []int {
+	wide := p
+	wide.skip = nil
+	var out []int
+	for _, r := range zapActiveRules {
+		on, strength := zapRuleRuns(p, r, o)
+		wideOn, wideStrength := zapRuleRuns(wide, r, zapActiveOpts{disruptive: o.disruptive})
+		if wideOn && (!on || strength != wideStrength) {
+			out = append(out, r.id)
+		}
+	}
+	return out
+}
+
+// zapPace is the threads and the delay between requests of an active page.
+func zapPace(o zapActiveOpts) (threads, delayMs int) {
+	if o.gentle {
+		return zapGentleThreads, zapGentleDelayMs
+	}
+	return zapThreadsPerHost, zapDelayMs
+}
+
+// zapSettingsNote is what the run log says of the deep-scan settings of a page ("" for none).
+func zapSettingsNote(p zapPage, o zapActiveOpts) string {
+	var parts []string
+	if o.disruptive && o.noDoS {
+		parts = append(parts, "denial-of-service rules off")
+	}
+	if o.disruptive && o.noChange {
+		parts = append(parts, "rules that may change data off")
+	}
+	if o.gentle {
+		parts = append(parts, "gentle")
+	}
+	if len(p.skip) > 0 {
+		parts = append(parts, strconv.Itoa(len(p.skip))+" web paths skipped")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "; the target's settings: " + strings.Join(parts, ", ")
+}
+
 // zapDisruptiveRuleIDs are the rules a run without Disruptive does not run as a run with it does: the disruptive class, and SQL
 // Injection (its stronger payloads). ZapActiveResult carries them to core, which closes an issue of one of them only after a run
 // with Disruptive.
@@ -153,51 +241,92 @@ func zapDisruptiveRuleIDs() []int {
 	return ids
 }
 
-// zapActivePlan is the Automation Framework plan of one active page: built from the validated page and the fixed bounds above, never
-// from text core sent.
+// zapActivePlan is the Automation Framework plan of one active page with or without the disruptive rules and no deep-scan settings.
 func zapActivePlan(p zapPage, disruptive bool) string {
-	q := func(s string) string { b, _ := json.Marshal(s); return string(b) } // a JSON string is a YAML double-quoted scalar
-	var b strings.Builder
-	w := func(s ...string) {
-		for _, l := range s {
-			b.WriteString(l)
-			b.WriteByte('\n')
-		}
+	return zapPlanActive(p, zapActiveOpts{disruptive: disruptive})
+}
+
+// zapPlanWriter writes a plan line by line; zapQuote quotes a value (a JSON string is a YAML double-quoted scalar).
+type zapPlanWriter struct{ b strings.Builder }
+
+func (z *zapPlanWriter) w(s ...string) {
+	for _, l := range s {
+		z.b.WriteString(l)
+		z.b.WriteByte('\n')
 	}
-	w("env:",
+}
+
+func zapQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
+
+// env writes the plan's one context: the page's origin as its include path, and an exclude for each path to skip.
+func (z *zapPlanWriter) env(p zapPage) {
+	z.w("env:",
 		"  contexts:",
 		"    - name: page",
 		"      urls:",
-		"        - "+q(p.url),
+		"        - "+zapQuote(p.url),
 		"      includePaths:",
-		"        - "+q(zapScopeRE(p.url)),
-		"  parameters:",
+		"        - "+zapQuote(zapScopeRE(p.url)))
+	if len(p.skip) > 0 {
+		z.w("      excludePaths:")
+		for _, prefix := range p.skip {
+			z.w("        - " + zapQuote(zapExcludeRE(p.url, prefix)))
+		}
+	}
+	z.w("  parameters:",
 		"    failOnError: false",
 		"    failOnWarning: false",
 		"    progressToStdout: true",
-		"jobs:",
-		"  - type: passiveScan-config",
+		"jobs:")
+}
+
+// spiderSeeds writes the spider's reading of robots.txt and sitemap.xml off when a path to skip covers the file: the spider fetches
+// them as seeds, not as URLs it found.
+func (z *zapPlanWriter) spiderSeeds(p zapPage) {
+	for _, f := range []struct{ path, param string }{{"/robots.txt", "parseRobotsTxt"}, {"/sitemap.xml", "parseSitemapXml"}} {
+		if slices.ContainsFunc(p.skip, func(prefix string) bool { return strings.HasPrefix(f.path, strings.ToLower(prefix)) }) {
+			z.w("      " + f.param + ": false")
+		}
+	}
+}
+
+func (z *zapPlanWriter) report() {
+	z.w("  - type: report",
+		"    parameters:",
+		"      template: traditional-json",
+		"      reportDir: "+zapQuote(zapWorkDir),
+		"      reportFile: "+zapQuote(zapReportName))
+}
+
+// zapPlanActive is the Automation Framework plan of one active page: built from the validated page, the fixed bounds above and the
+// settings o, never from text core sent.
+func zapPlanActive(p zapPage, o zapActiveOpts) string {
+	threads, delay := zapPace(o)
+	var z zapPlanWriter
+	z.env(p)
+	z.w("  - type: passiveScan-config",
 		"    parameters:",
 		"      disableAllRules: true",
 		"      scanOnlyInScope: true",
 		"  - type: spider",
 		"    parameters:",
 		"      context: page",
-		"      url: "+q(p.url),
+		"      url: "+zapQuote(p.url),
 		"      maxDuration: "+strconv.Itoa(zapSpiderMinutes),
 		"      maxDepth: "+strconv.Itoa(zapSpiderDepth),
 		"      maxChildren: "+strconv.Itoa(zapSpiderChildren),
-		"      threadCount: "+strconv.Itoa(zapThreadsPerHost),
+		"      threadCount: "+strconv.Itoa(threads),
 		"      processForm: true",
-		"      postForm: "+strconv.FormatBool(disruptive),
-		"      acceptCookies: true",
-		"  - type: activeScan",
+		"      postForm: "+strconv.FormatBool(o.postsForms()),
+		"      acceptCookies: true")
+	z.spiderSeeds(p)
+	z.w("  - type: activeScan",
 		"    parameters:",
 		"      context: page",
 		"      maxRuleDurationInMins: "+strconv.Itoa(zapRuleMinutes),
 		"      maxScanDurationInMins: "+strconv.Itoa(zapActiveMinutes),
-		"      threadPerHost: "+strconv.Itoa(zapThreadsPerHost),
-		"      delayInMs: "+strconv.Itoa(zapDelayMs),
+		"      threadPerHost: "+strconv.Itoa(threads),
+		"      delayInMs: "+strconv.Itoa(delay),
 		"      maxAlertsPerRule: "+strconv.Itoa(zapMaxAlertsPerRule),
 		"      addQueryParam: false",
 		"      injectPluginIdInHeader: false",
@@ -208,36 +337,62 @@ func zapActivePlan(p zapPage, disruptive bool) string {
 		"      defaultThreshold: \"off\"",
 		"      rules:")
 	for _, r := range zapActiveRules {
-		if r.class == zapRuleOff || r.class == zapRuleDisruptive && !disruptive {
-			continue
+		if on, strength := zapRuleRuns(p, r, o); on {
+			z.w("        - id: "+strconv.Itoa(r.id), "          strength: "+strength, "          threshold: medium")
 		}
-		strength := "medium"
-		if r.id == zapSQLi && !disruptive {
-			strength = "low"
-		}
-		w("        - id: "+strconv.Itoa(r.id), "          strength: "+strength, "          threshold: medium")
 	}
-	w("  - type: report",
-		"    parameters:",
-		"      template: traditional-json",
-		"      reportDir: "+q(zapWorkDir),
-		"      reportFile: "+q(zapReportName))
-	return b.String()
+	z.report()
+	return z.b.String()
 }
 
-// zapScopeRE is the include path the plan gives its context (ZAP adds the context URL's own unescaped "<url>.*"; see the top): the page's scheme, host and port, anchored at both ends, then nothing or
-// a path or query. ZAP writes a URL without the scheme's own port, so the default port may be there or not; any other port must be.
-func zapScopeRE(pageURL string) string {
+// zapPassivePlan is the passive pass of a page with paths to skip, as an Automation Framework plan (zap-baseline.py has no exclude):
+// zap-baseline.py's own run with the page's context and its excludes. The passive rules at their defaults (core applies its own rule
+// list to the report, as for the baseline), a spider of one minute on one thread that neither handles nor posts a form, the wait for
+// the passive rules, and the same report.
+func zapPassivePlan(p zapPage) string {
+	var z zapPlanWriter
+	z.env(p)
+	z.w("  - type: passiveScan-config",
+		"    parameters:",
+		"      maxAlertsPerRule: "+strconv.Itoa(zapMaxAlertsPerRule),
+		"      scanOnlyInScope: true",
+		"  - type: spider",
+		"    parameters:",
+		"      context: page",
+		"      url: "+zapQuote(p.url),
+		"      maxDuration: "+strconv.Itoa(zapPassiveSpiderMinutes),
+		"      threadCount: 1",
+		"      processForm: false",
+		"      postForm: false")
+	z.spiderSeeds(p)
+	z.w("  - type: passiveScan-wait",
+		"    parameters:",
+		"      maxDuration: "+strconv.Itoa(zapPassiveWaitMinutes))
+	z.report()
+	return z.b.String()
+}
+
+// zapOriginRE is the page's scheme, host and port as a pattern. ZAP writes a URL without the scheme's own port, so the default port
+// may be there or not; any other port must be.
+func zapOriginRE(pageURL string) string {
 	scheme, rest, _ := strings.Cut(pageURL, "://")
 	hostport := strings.TrimSuffix(rest, "/")
 	host, port, hasPort := strings.Cut(hostport, ":")
 	origin := regexp.QuoteMeta(scheme + "://" + strings.ToLower(host))
 	if hasPort {
-		origin += ":" + port
-	} else {
-		origin += "(?::" + map[string]string{"http": "80", "https": "443"}[scheme] + ")?"
+		return origin + ":" + port
 	}
-	return "^" + origin + "(?:[/?].*)?$"
+	return origin + "(?::" + map[string]string{"http": "80", "https": "443"}[scheme] + ")?"
+}
+
+// zapScopeRE is the include path the plan gives its context (ZAP adds the context URL's own unescaped "<url>.*"; see the top): the
+// page's origin, anchored at both ends, then nothing or a path or query.
+func zapScopeRE(pageURL string) string { return "^" + zapOriginRE(pageURL) + "(?:[/?].*)?$" }
+
+// zapExcludeRE is the exclude of a path to skip: the page's origin, then the prefix as written (QuoteMeta: never a pattern), then
+// anything; in any case, so a server that ignores case (IIS) is not reached under another spelling of the prefix.
+func zapExcludeRE(pageURL, prefix string) string {
+	return "(?i)^" + zapOriginRE(pageURL) + regexp.QuoteMeta(prefix) + ".*$"
 }
 
 // zapActiveArgv is the one podman run of zap.active: the container of zap.baseline with the active pass's memory, heap, tmpfs and pid
@@ -313,7 +468,11 @@ func (o *Ops) cmdZapActive() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			return o.zapRun(ctx, rc.Log, p, zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant})
+			pass := zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant}
+			if st := a.Settings; st != nil {
+				pass.noDoS, pass.noChange, pass.gentle = st.NoDoS, st.NoChange, st.Gentle
+			}
+			return o.zapRun(ctx, rc.Log, p, pass)
 		},
 	})
 }

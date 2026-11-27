@@ -87,6 +87,7 @@ type templateRun struct {
 	tmpls      []pack.Template
 	full       bool
 	disruptive bool
+	gentle     bool                  // a full run at the gentle speed of the target's settings (nucleiargv.GentleFullRate)
 	domain     *exposure.DomainScope // A full run on an address of a verified domain's name (domain_ip); nil otherwise
 }
 
@@ -245,6 +246,9 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	rate, depth, what := nucleiargv.OwnIPRate, "", "own IP"
 	if r.full { // FULL-4
 		rate, depth, what = nucleiargv.FullRate, nucleiargv.DepthFull, "own IP, deep scan, testing terms accepted"
+		if r.gentle {
+			rate = nucleiargv.GentleFullRate
+		}
 		if r.domain != nil {
 			// review r1 L4: short, so the template's own request (the probe itself) is not what scan_probe.request's 300 cut off
 			what = "domain_ip " + r.domain.Domain + " via " + finalName(r.domain) + ", deep scan, testing terms accepted"

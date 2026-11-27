@@ -739,7 +739,7 @@ func TestDisruptiveShapeRunsOnTheOpenPortsOnly(t *testing.T) {
 		"no port":         {FullRate, nil, addrs(t, "8.8.8.8")},
 		"41 ports":        {FullRate, forty, addrs(t, "8.8.8.8")},
 		"unsorted ports":  {FullRate, []int{443, 22}, addrs(t, "8.8.8.8")},
-		"another rate":    {ExternalRate, ports, addrs(t, "8.8.8.8")},
+		"another rate":    {200, ports, addrs(t, "8.8.8.8")},
 		"a LAN target":    {FullRate, ports, addrs(t, "192.168.1.1")},
 		"two targets":     {FullRate, ports, addrs(t, "8.8.8.8", "1.1.1.1")},
 		"port 0":          {FullRate, []int{0, 22}, addrs(t, "8.8.8.8")},

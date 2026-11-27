@@ -131,6 +131,89 @@ var disruptiveMoved = map[string]string{
 	"smtp-vuln-cve2011-1720":   "can crash the mail server",
 }
 
+// The groups of checks a target's deep-scan settings can turn off (Groups). Every script of fullScripts and disruptiveExtra is in
+// at most one of the three lists below; a script in none is the always-on base of its line, and every script of disruptiveExtra is
+// in one (TestGroupsCoverEveryScript holds them against testdata/nse-7.95-categories.txt).
+
+// dosScripts can exhaust or crash a service, whatever nmap's own category says: the dos category, the crash checks of
+// disruptiveMoved, and http-slowloris-check of the full line (it holds connections open to see whether the server runs out). 16.
+var dosScripts = []string{
+	"ftp-libopie", "ftp-vuln-cve2010-4221", "http-slowloris", "http-slowloris-check", "rdp-vuln-ms12-020",
+	"samba-vuln-cve-2012-1182", "smb-flood", "smb-vuln-conficker", "smb-vuln-cve2009-3103", "smb-vuln-ms06-025",
+	"smb-vuln-ms07-029", "smb-vuln-ms08-067", "smb-vuln-ms10-054", "smb-vuln-regsvc-dos", "smtp-vuln-cve2010-4344",
+	"smtp-vuln-cve2011-1720",
+}
+
+// loginScripts guess passwords or try default logins: the brute category, and mysql-vuln-cve2012-2122 (about 1500 root login
+// attempts). 75.
+var loginScripts = []string{
+	"afp-brute", "ajp-brute", "backorifice-brute", "cassandra-brute", "cics-enum", "cics-user-brute", "cics-user-enum",
+	"citrix-brute-xml", "cvs-brute", "cvs-brute-repository", "deluge-rpc-brute", "dicom-brute", "domcon-brute", "dpap-brute",
+	"drda-brute", "ftp-brute", "http-brute", "http-form-brute", "http-iis-short-name-brute", "http-joomla-brute",
+	"http-wordpress-brute", "iax2-brute", "imap-brute", "impress-remote-discover", "informix-brute", "ipmi-brute", "irc-brute",
+	"irc-sasl-brute", "iscsi-brute", "ldap-brute", "lu-enum", "membase-brute", "metasploit-msgrpc-brute", "metasploit-xmlrpc-brute",
+	"mikrotik-routeros-brute", "mmouse-brute", "mongodb-brute", "ms-sql-brute", "mysql-brute", "mysql-enum", //nolint:misspell // nmap's script name
+	"mysql-vuln-cve2012-2122", "nessus-brute", "nessus-xmlrpc-brute", "netbus-brute", "nexpose-brute", "nje-node-brute",
+	"nje-pass-brute", "nping-brute", "omp2-brute", "openvas-otp-brute", "oracle-brute", "oracle-brute-stealth", "oracle-sid-brute",
+	"pcanywhere-brute", "pgsql-brute", "pop3-brute", "redis-brute", "rexec-brute", "rlogin-brute", "rpcap-brute", "rsync-brute",
+	"rtsp-url-brute", "sip-brute", "smb-brute", "smtp-brute", "snmp-brute", "socks-brute", "ssh-brute", "svn-brute", "telnet-brute",
+	"tso-enum", "vmauthd-brute", "vnc-brute", "vtam-enum", "xmpp-brute",
+}
+
+// changeScripts send an attack payload that may change data or state on the target: the exploit-category scripts of the full line
+// that run a command, send a script, SQL or traversal string, or trigger a backdoor (all but exploitNoPayload), the same payloads
+// sent by scripts outside that category (http-phpself-xss, http-vuln-cve2017-8917, http-passwd, http-vuln-cve2010-2861,
+// http-vuln-misfortune-cookie), and http-sql-injection of the disruptive line. 31.
+var changeScripts = []string{
+	"afp-path-vuln", "distcc-cve2004-2687", "ftp-proftpd-backdoor", "http-adobe-coldfusion-apsa1301", "http-awstatstotals-exec",
+	"http-axis2-dir-traversal", "http-csrf", "http-dlink-backdoor", "http-dombased-xss", "http-litespeed-sourcecode-download",
+	"http-majordomo2-dir-traversal", "http-passwd", "http-phpmyadmin-dir-traversal", "http-phpself-xss", "http-shellshock",
+	"http-sql-injection", "http-tplink-dir-traversal", "http-vuln-cve2006-3392", "http-vuln-cve2009-3960", "http-vuln-cve2010-2861",
+	"http-vuln-cve2012-1823", "http-vuln-cve2013-0156", "http-vuln-cve2013-6786", "http-vuln-cve2013-7091",
+	"http-vuln-cve2014-8877", "http-vuln-cve2017-5689", "http-vuln-cve2017-8917", "http-vuln-misfortune-cookie",
+	"http-vuln-wnr1000-creds", "irc-unrealircd-backdoor", "qconn-exec",
+}
+
+// exploitNoPayload are the exploit-category scripts of the full line that stay in the base: each sends one plain request for a
+// page or file the flaw leaves open, with no payload.
+var exploitNoPayload = map[string]string{
+	"http-avaya-ipoffice-users": "one GET of the user list page the flaw leaves open",
+	"http-huawei-hg5xx-vuln":    "one GET of a status page the flaw leaves open",
+	"supermicro-ipmi-conf":      "one GET of the configuration file the flaw leaves open",
+}
+
+// followScripts connect to ports they learn from another service's answer, not from the ports the scan found open: a line that
+// skips ports leaves them out, so a skipped port is never reached through them.
+var followScripts = map[string]string{
+	"ms-sql-config":      "connects to the instances the SQL Server Browser or a named pipe names",
+	"ms-sql-dac":         "connects to the dedicated admin port the SQL Server Browser names",
+	"ms-sql-dump-hashes": "connects to the instances the SQL Server Browser or a named pipe names",
+	"ms-sql-hasdbaccess": "connects to the instances the SQL Server Browser or a named pipe names",
+	"ms-sql-info":        "connects to the instances the SQL Server Browser or a named pipe names",
+	"ms-sql-ntlm-info":   "connects to the instances the SQL Server Browser or a named pipe names",
+	"ms-sql-query":       "connects to the instances the SQL Server Browser or a named pipe names",
+	"ms-sql-tables":      "connects to the instances the SQL Server Browser or a named pipe names",
+	"nfs-ls":             "connects to the mountd and NFS ports the RPC portmapper names",
+	"nfs-showmount":      "connects to the mountd port the RPC portmapper names",
+	"nfs-statfs":         "connects to the mountd and NFS ports the RPC portmapper names",
+	"p2p-conficker":      "connects to the ports Conficker's algorithm computes from the address",
+	"upnp-info":          "fetches the description at the location the UPnP answer names",
+}
+
+// groupOfScript is the group of each script in one (GroupOf).
+var groupOfScript = func() map[string]Groups {
+	m := map[string]Groups{}
+	for g, l := range map[Groups][]string{GroupDoS: dosScripts, GroupLogins: loginScripts, GroupChange: changeScripts} {
+		for _, s := range l {
+			m[s] = g
+		}
+	}
+	return m
+}()
+
+// GroupOf is the group of a script of the full shapes; 0 for a script of the always-on base.
+func GroupOf(script string) Groups { return groupOfScript[script] }
+
 // noOutputScripts can print credentials, password hashes or files that hold them: their output is not kept (StoresOutput).
 // Every brute script, and the ones that read secrets. 98 scripts.
 var noOutputScripts = []string{

@@ -220,47 +220,56 @@ func TestExposureGroups_NucleiGetsNoSkippedPort(t *testing.T) {
 	}
 }
 
-// nmap's disruptive scripts are one list of every disruptive group: the shape allows them only with every group on, the adapter refuses
-// otherwise, and a skipped port never goes.
-func TestExposureGroups_NmapDisruptiveNeedsEveryGroup(t *testing.T) {
+// nmap's disruptive scripts are split by group: the shape allows them while any disruptive group is on, the job carries the groups
+// allowed, and a skipped port never goes.
+func TestExposureGroups_NmapDisruptiveRunsTheGroupsAllowed(t *testing.T) {
 	t.Parallel()
 	if k := shapeOf(modeAllGroups); k != nmapargv.ExternalDisruptive {
 		t.Fatalf("every group: %s", k.Name())
 	}
 	var sent [][]int
-	sc := exposureServiceScan{scanDisruptive: func(_ context.Context, _ netip.Addr, p []int, _ sensoractive.OwnEgress) (sensoractive.External, error) {
-		sent = append(sent, p)
+	var groups []nmapargv.Groups
+	sc := exposureServiceScan{scanDisruptive: func(_ context.Context, _ netip.Addr, p []int, set sensoractive.DeepSettings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
+		sent, groups = append(sent, p), append(groups, set.Groups)
 		return sensoractive.External{}, nil
 	}}
-	for _, g := range []exposure.Groups{exposure.GroupDoS, exposure.GroupLogins, exposure.GroupChange} {
+	for g, want := range map[exposure.Groups]nmapargv.Groups{
+		exposure.GroupDoS:    nmapargv.GroupLogins | nmapargv.GroupChange,
+		exposure.GroupLogins: nmapargv.GroupDoS | nmapargv.GroupChange,
+		exposure.GroupChange: nmapargv.GroupDoS | nmapargv.GroupLogins,
+	} {
 		m := without(g)
-		if k := shapeOf(m); k != nmapargv.ExternalFull {
+		if k := shapeOf(m); k != nmapargv.ExternalDisruptive {
 			t.Errorf("%v off: shape %s", g.Names(), k.Name())
 		}
-		var un *exposure.Unavailable
-		if _, err := sc.ScanDisruptive(t.Context(), exposure.ScanTarget{ID: "t1", Mode: m}, ownPublicIP, []int{22}); !errors.As(err, &un) {
-			t.Errorf("%v off: %v", g.Names(), err)
+		groups = nil
+		if _, err := sc.ScanDisruptive(t.Context(), exposure.ScanTarget{ID: "t1", Mode: m}, ownPublicIP, []int{22}); err != nil || len(groups) != 1 || groups[0] != want {
+			t.Errorf("%v off: groups %v %v", g.Names(), groups, err)
 		}
 	}
-	if len(sent) != 0 {
-		t.Fatalf("sent %v", sent)
+	none := exposure.ScanMode{Full: true, WebActive: true, Off: exposure.GroupDoS | exposure.GroupLogins | exposure.GroupChange}
+	var un *exposure.Unavailable
+	if _, err := sc.ScanDisruptive(t.Context(), exposure.ScanTarget{ID: "t1", Mode: none}, ownPublicIP, []int{22}); !errors.As(err, &un) || shapeOf(none) != nmapargv.ExternalFull {
+		t.Errorf("every disruptive group off: %v", err)
 	}
+	sent = nil
 	if _, err := sc.ScanDisruptive(t.Context(), exposure.ScanTarget{ID: "t1", Mode: modeAllGroups, SkipPorts: []int{443}}, ownPublicIP, []int{22, 443}); err != nil || len(sent) != 1 || !slices.Equal(sent[0], []int{22}) {
 		t.Fatalf("a skipped port: %v %v", sent, err)
 	}
 }
 
-// ZAP's disruptive rules hold denial-of-service and data-changing rules: the host is asked for them only with both groups on.
-func TestExposureGroups_ZAPDisruptiveNeedsDoSAndChange(t *testing.T) {
+// ZAP's disruptive rules are asked for while either of their classes is allowed; the class that is off goes to the host as
+// no_dos or no_change.
+func TestExposureGroups_ZAPDisruptiveWithEitherClass(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
-		m    exposure.ScanMode
-		want bool
+		m                  exposure.ScanMode
+		want, noDoS, noChg bool
 	}{
-		"every group":     {modeAllGroups, true},
-		"dos off":         {without(exposure.GroupDoS), false},
-		"data change off": {without(exposure.GroupChange), false},
-		"logins off":      {without(exposure.GroupLogins), true},
+		"every group":     {modeAllGroups, true, false, false},
+		"dos off":         {without(exposure.GroupDoS), true, true, false},
+		"data change off": {without(exposure.GroupChange), true, false, true},
+		"logins off":      {without(exposure.GroupLogins), true, false, false},
 	} {
 		r := zapRun(t, api.StatusSucceeded, "", nil)
 		r.Command = api.CmdZapActive
@@ -271,6 +280,11 @@ func TestExposureGroups_ZAPDisruptiveNeedsDoSAndChange(t *testing.T) {
 		ipT.Mode, ipT.Grant = c.m, "0123456789abcdef0123456789abcdef"
 		if _, err := w.Active(t.Context(), ipT, webIPPage); err != nil || len(h.active) != 1 || h.active[0].Disruptive != c.want {
 			t.Errorf("%s: %+v %v", name, h.active, err)
+			continue
+		}
+		st := h.active[0].Settings
+		if (st != nil && st.NoDoS) != c.noDoS || (st != nil && st.NoChange) != c.noChg {
+			t.Errorf("%s: settings %+v", name, st)
 		}
 	}
 }

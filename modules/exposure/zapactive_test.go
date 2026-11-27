@@ -24,7 +24,8 @@ type activeWeb struct {
 	calls   []ScanTarget
 	urls    []string
 	hook    func()
-	logRows []int // rows in the probe log at each active call
+	logRows []int    // rows in the probe log at each active call
+	skipped []string // the rules the host says the settings left out of each page (WebScan.SkippedRules)
 }
 
 func (a *activeWeb) Active(_ context.Context, st ScanTarget, p WebPage) (WebScan, error) {
@@ -33,7 +34,7 @@ func (a *activeWeb) Active(_ context.Context, st ScanTarget, p WebPage) (WebScan
 	}
 	a.calls, a.urls = append(a.calls, st), append(a.urls, p.URL)
 	a.logRows = append(a.logRows, len(a.log.rows))
-	return WebScan{Report: a.active(p.URL), CutShort: a.cut, DisruptiveRules: zapTestDisruptiveRules}, nil
+	return WebScan{Report: a.active(p.URL), CutShort: a.cut, DisruptiveRules: zapTestDisruptiveRules, SkippedRules: a.skipped}, nil
 }
 
 // zapTestDisruptiveRules are the rules the host names as run only with the disruptive rules (ZapActiveResult.DisruptiveRules).

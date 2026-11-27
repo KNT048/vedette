@@ -106,6 +106,11 @@
 - The worker posts the first phase as a job starts (one more request a job) and moves to `ports` on nmap's `<hosthint>`.
 - `Dispatcher.JobProgress` sets `progress.Update.NewPass` on a job's first report: a consumer that keeps a Tracker sees each nmap run as a pass of its own.
 
+## Modifying: a target's deep-scan settings in `nmapargv` (`Groups`, `Narrow`, `GentleRate`, `dosScripts`/`loginScripts`/`changeScripts`, `followScripts`; INV-19a)
+- **The scan image**: the worker links `nmapargv`, so a grammar change needs a new image; an older worker refuses the new lines (`invalid_job`), a newer one still runs the lines of before. Ship core, the scan image and the host together.
+- **The group lists** are reviewed against `testdata/nse-7.95-categories.txt` (`TestGroupsCoverEveryScript`); a new nmap version means reading them again with the full lists (`ReviewedNmapVersion`). Moving a script into a group removes it whenever that group is off, scheduled scans included; moving one out of a group makes it run with the group off.
+- **exposure / cmd/vedette**: the groups, the ports to skip and the gentle rate reach the worker only through `DeepSettings` (`ScanExternalWith` and the others), `FlagsNarrow`/`BuildNarrow`, the dispatcher's `ParseNarrow` and the job's `narrow` (`sensorlink.NmapNarrow`, heartbeat `nmap.narrow`); `ParseFor` refuses a narrowed line, so a caller that drops the settings fails instead of widening. The full sweep's groups are the target's settings (`exposure.ScanTarget.Groups`), the disruptive scripts' the run's mode (`cmd/vedette` `modeGroups`, `ownGate.GroupsNow`). `GentleRate` equals `ExternalRate` (100): `ExternalRateOf` stays the normal rate of each shape.
+
 ## Modifying: progress of a running job (#830: `nmapargv.StatsEvery`, `worker/progress.go`, `Dispatcher.JobProgress`)
 - `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row of a run stores it after the shape's flags (`StatsFlags`, INV-9); rows from before have none.
 - The worker's `Link` gained `PostProgress`; `*sensorlink.Client` implements it. A `core` of before #830 answers `404`, which the worker ignores.

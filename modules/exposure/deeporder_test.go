@@ -44,6 +44,7 @@ type disruptiveServices struct {
 	fakeServices
 	mu      sync.Mutex
 	ports   [][]int
+	modes   []ScanMode // the mode of each call: the groups the scripts may run
 	scripts []ScriptRow
 	err     error
 }
@@ -54,7 +55,7 @@ func (f *disruptiveServices) ScanDisruptive(_ context.Context, t ScanTarget, ip 
 	if ip.String() != t.Value || !t.Mode.Disruptive {
 		return ServiceScan{}, errors.New("asked for another address, or without the disruptive checks")
 	}
-	f.ports = append(f.ports, slices.Clone(ports))
+	f.ports, f.modes = append(f.ports, slices.Clone(ports)), append(f.modes, t.Mode)
 	return ServiceScan{Ports: len(ports), Probed: ports, Scripts: f.scripts}, f.err
 }
 

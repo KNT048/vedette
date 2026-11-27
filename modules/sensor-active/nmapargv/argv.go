@@ -356,9 +356,7 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		if rate != FullRate {
 			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
 		}
-		// The reviewed explicit script list of scripts.go, never a category expression (FORBID-3); one argv element, never through a shell.
-		return []string{flagPrivileged, "-sS", "-sV", flagVersionAll, "-Pn", flagNoDNS, "-p-", flagScript, FullScripts, flagScriptTimeout, fullScriptTimeout,
-			flagMaxRate, r, flagMaxRetries, fullRetries, flagHostTimeout, fullHostTimeout}, nil
+		return fullFlags(rate, Wide(), "")
 	case ExternalDisruptive:
 		return nil, errors.New("nmapargv: the external_disruptive shape needs its ports (FlagsFor)")
 	}
@@ -407,7 +405,7 @@ func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
 // batches are BatchFlags', with their host timeout).
 func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 	if kind == ExternalDisruptive {
-		return disruptiveFlags(rate, ports)
+		return disruptiveFlags(rate, ports, Wide())
 	}
 	if kind != PortVersions {
 		if len(ports) != 0 {
@@ -429,11 +427,43 @@ func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 		"-p", list, flagHostTimeout, normalHostTimeout}, nil
 }
 
-// disruptiveFlags is the flag part of an ExternalDisruptive run: the disruptive scripts on 1..commonports.MaxBelievableOpen ascending,
-// distinct open ports, -sV first (the scripts' port rules read the service names), at FullRate.
-func disruptiveFlags(rate int, ports []int) ([]string, error) {
-	if rate != FullRate {
-		return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", ExternalDisruptive.Name(), FullRate, rate)
+// fullRate checks the rate of a full shape: FullRate, or GentleRate at the gentle speed.
+func fullRate(kind Kind, rate int) error {
+	if rate != FullRate && rate != GentleRate {
+		return fmt.Errorf("nmapargv: the %s shape runs at %d or %d packets/s, not %d", kind.Name(), FullRate, GentleRate, rate)
+	}
+	return nil
+}
+
+// fullFlags is the flag part of an ExternalFull run under n (skip is n's ports as an --exclude-ports value, "" for none): the reviewed
+// explicit script list of scripts.go, never a category expression (FORBID-3), one argv element, never through a shell. At GentleRate
+// without --version-all (GentleRate says why).
+func fullFlags(rate int, n Narrow, skip string) ([]string, error) {
+	if err := fullRate(ExternalFull, rate); err != nil {
+		return nil, err
+	}
+	scripts, err := ScriptsOf(ExternalFull, n)
+	if err != nil {
+		return nil, err
+	}
+	f := []string{flagPrivileged, "-sS", "-sV"}
+	if rate == FullRate {
+		f = append(f, flagVersionAll)
+	}
+	f = append(f, "-Pn", flagNoDNS, "-p-")
+	if skip != "" {
+		f = append(f, flagExcludePorts, skip)
+	}
+	return append(f, flagScript, scripts, flagScriptTimeout, fullScriptTimeout, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, fullRetries,
+		flagHostTimeout, fullHostTimeout), nil
+}
+
+// disruptiveFlags is the flag part of an ExternalDisruptive run: the disruptive scripts of the groups n allows on
+// 1..commonports.MaxBelievableOpen ascending, distinct open ports, -sV first (the scripts' port rules read the service names), at
+// FullRate or GentleRate.
+func disruptiveFlags(rate int, ports []int, n Narrow) ([]string, error) {
+	if err := fullRate(ExternalDisruptive, rate); err != nil {
+		return nil, err
 	}
 	if len(ports) == 0 || len(ports) > commonports.MaxBelievableOpen {
 		return nil, fmt.Errorf("nmapargv: an external_disruptive run reads 1 to %d ports, got %d", commonports.MaxBelievableOpen, len(ports))
@@ -442,7 +472,11 @@ func disruptiveFlags(rate int, ports []int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, "-p", list, flagScript, DisruptiveScripts, flagScriptTimeout, fullScriptTimeout,
+	scripts, err := ScriptsOf(ExternalDisruptive, n)
+	if err != nil {
+		return nil, err
+	}
+	return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, "-p", list, flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
 		flagMaxRate, strconv.Itoa(rate), flagMaxRetries, fullRetries, flagHostTimeout, disruptiveHostTimeout}, nil
 }
 
@@ -464,12 +498,17 @@ func portList(ports []int) (string, error) {
 // takes, of about equal size, each ascending. More than commonports.MaxBelievableOpen ports of open outside the fixed list is an
 // error (the caller then names the fixed list alone).
 func ExternalBatches(open []int) ([][]int, error) {
+	return externalBatches(open, func(int) bool { return true })
+}
+
+// externalBatches is ExternalBatches of the ports keep says yes to.
+func externalBatches(open []int, keep func(int) bool) ([][]int, error) {
 	var extra []int
 	for _, p := range open {
 		if p < 1 || p > 65535 {
 			return nil, fmt.Errorf("nmapargv: port %d is outside 1..65535", p)
 		}
-		if !slices.Contains(ExtraPortNumbers, p) {
+		if !slices.Contains(ExtraPortNumbers, p) && keep(p) {
 			extra = append(extra, p)
 		}
 	}
@@ -478,14 +517,19 @@ func ExternalBatches(open []int) ([][]int, error) {
 	if len(extra) > commonports.MaxBelievableOpen {
 		return nil, fmt.Errorf("nmapargv: %d open ports outside the fixed list, more than %d", len(extra), commonports.MaxBelievableOpen)
 	}
-	var admin []int
+	var admin, common []int
 	for _, p := range ExtraPortNumbers {
-		if !slices.Contains(commonports.Numbers(), p) {
+		if !slices.Contains(commonports.Numbers(), p) && keep(p) {
 			admin = append(admin, p)
 		}
 	}
+	for _, p := range commonports.Numbers() {
+		if keep(p) {
+			common = append(common, p)
+		}
+	}
 	var out [][]int
-	for _, group := range [][]int{commonports.Numbers(), admin, extra} {
+	for _, group := range [][]int{common, admin, extra} {
 		out = append(out, cut(group, MaxBatchPorts)...)
 	}
 	return out, nil
@@ -568,7 +612,7 @@ func HostTimeoutOf(args []string) time.Duration {
 	if i < 2 {
 		return 0
 	}
-	if k, _, ports, ok := shapeOf(args[:i-2]); !ok || k != External || ports == nil {
+	if k, _, ports, _, ok := shapeOf(args[:i-2]); !ok || k != External || ports == nil {
 		return 0
 	}
 	return hostTimeoutOf(args[:i-2])
@@ -576,25 +620,7 @@ func HostTimeoutOf(args []string) time.Duration {
 
 // BuildFor is Build with the ports of a PortVersions or an ExternalDisruptive run (one target).
 func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string, error) {
-	if kind == PortVersions && len(targets) != 1 {
-		return nil, fmt.Errorf("nmapargv: a port_versions run takes exactly one target, got %d", len(targets))
-	}
-	valid, err := targetRule(kind, len(targets))
-	if err != nil {
-		return nil, err
-	}
-	args, err := FlagsFor(kind, rate, ports)
-	if err != nil {
-		return nil, err
-	}
-	args = append(args, flagStats, StatsEvery, flagXML, "-")
-	for _, t := range targets {
-		if !valid(t) {
-			return nil, fmt.Errorf("nmapargv: target %q is not allowed in the %s shape", t, kind.Name())
-		}
-		args = append(args, t.String())
-	}
-	return args, nil
+	return BuildNarrow(kind, rate, ports, Wide(), targets)
 }
 
 // portsOf reads the -p list of flags that may be a PortVersions line or an external -sV batch: plain decimal ports separated by
@@ -629,33 +655,47 @@ func atoi5(s string) (int, bool) {
 	return n, err == nil
 }
 
-// shapeOf is the kind, rate and ports of the flag part of an argv: one of the fixed shapes, a PortVersions line whose flags are
-// exactly FlagsFor of its own rate and ports, or an external -sV batch whose flags are exactly BatchFlags of its own rate, ports and
-// host timeout.
-func shapeOf(flags []string) (Kind, int, []int, bool) {
+// shapeOf is the kind, rate, ports and deep-scan settings of the flag part of an argv: one of the fixed shapes (ExternalFull with the
+// groups of one of its script values and the --exclude-ports it names, External's discovery with its --exclude-ports), a
+// PortVersions line whose flags are exactly FlagsFor of its own rate and ports, an ExternalDisruptive line whose flags are exactly
+// FlagsNarrow of its own rate, ports and groups, or an external -sV batch whose flags are exactly BatchFlags of its own rate, ports
+// and host timeout.
+func shapeOf(flags []string) (Kind, int, []int, Narrow, bool) {
 	rate := 1
 	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
 		if n, ok := atoi(flags[j+1]); ok {
 			rate = n
 		}
 	}
+	skip, ok := excludeOf(flags)
+	if !ok {
+		return 0, 0, nil, Narrow{}, false
+	}
 	for _, k := range kinds {
-		if want, err := Flags(k, rate); err == nil && slices.Equal(flags, want) {
-			return k, rate, nil, true
+		if skip != nil && k != ExternalFull && k != External {
+			continue
+		}
+		for _, n := range narrowsOf(k, skip) {
+			if want, err := FlagsNarrow(k, rate, nil, n); err == nil && slices.Equal(flags, want) {
+				return k, rate, nil, n, true
+			}
 		}
 	}
-	if ports := portsOf(flags); ports != nil {
+	if ports := portsOf(flags); ports != nil && skip == nil {
 		if want, err := FlagsFor(PortVersions, rate, ports); err == nil && slices.Equal(flags, want) {
-			return PortVersions, rate, ports, true
+			return PortVersions, rate, ports, Wide(), true
 		}
-		if want, err := FlagsFor(ExternalDisruptive, rate, ports); err == nil && slices.Equal(flags, want) {
-			return ExternalDisruptive, rate, ports, true
+		for g := AllGroups; g > 0; g-- {
+			n := Narrow{Groups: g}
+			if want, err := FlagsNarrow(ExternalDisruptive, rate, ports, n); err == nil && slices.Equal(flags, want) {
+				return ExternalDisruptive, rate, ports, n, true
+			}
 		}
 		if want, err := BatchFlags(rate, ports, hostTimeoutOf(flags)); err == nil && slices.Equal(flags, want) {
-			return External, rate, ports, true
+			return External, rate, ports, Wide(), true
 		}
 	}
-	return 0, 0, nil, false
+	return 0, 0, nil, Narrow{}, false
 }
 
 // Build builds an nmap command line only from private IPv4 addresses (the external shape: one public one), an integer rate and
@@ -695,7 +735,7 @@ func Validate(args []string) error {
 		return errors.New("argv must contain --stats-every " + StatsEvery + " -oX -")
 	}
 	flags := args[:i-2]
-	kind, _, _, ok := shapeOf(flags)
+	kind, _, _, _, ok := shapeOf(flags)
 	if !ok {
 		return fmt.Errorf("flags %q are not one of the eleven allowed command shapes", flags)
 	}
@@ -743,19 +783,15 @@ func Parse(args []string) (Kind, int, []netip.Addr, error) {
 }
 
 // ParseFor is Parse with the ports of a PortVersions or ExternalDisruptive line or of an external -sV batch (nil for every other line; a batch's host
-// timeout is HostTimeoutOf's).
+// timeout is HostTimeoutOf's). A line narrowed by a target's deep-scan settings is refused: its caller would drop the narrowing on
+// the way to the worker (ParseNarrow keeps it). The gentle speed is the rate, which it returns.
 func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {
-	if err := Validate(args); err != nil {
+	k, rate, ports, n, targets, err := ParseNarrow(args)
+	if err != nil {
 		return 0, 0, nil, nil, err
 	}
-	i := slices.Index(args, flagXML)
-	k, rate, ports, ok := shapeOf(args[:i-2])
-	if !ok {
-		return 0, 0, nil, nil, errors.New("nmapargv: argv matches no shape") // unreachable after Validate
-	}
-	targets := make([]netip.Addr, 0, len(args)-i-2)
-	for _, t := range args[i+2:] {
-		targets = append(targets, netip.MustParseAddr(t)) // Validate proved each is canonical
+	if !n.wide() {
+		return 0, 0, nil, nil, errors.New("nmapargv: the line is narrowed by a target's deep-scan settings (ParseNarrow)")
 	}
 	return k, rate, ports, targets, nil
 }

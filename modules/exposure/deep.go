@@ -285,6 +285,7 @@ func withSettings(st ScanTarget, d DeepSettings) ScanTarget {
 	both := intersect(DeepSettings{DoS: true, Logins: true, WebActive: true, DataChange: true, OpenVAS: true, SkipPorts: st.SkipPorts, SkipPaths: st.SkipPaths,
 		Speed: map[bool]string{true: SpeedGentle, false: SpeedNormal}[st.Gentle]}, d)
 	st.SkipPorts, st.SkipPaths, st.Gentle = both.SkipPorts, both.SkipPaths, both.Gentle()
+	st.Groups &= d.Groups()
 	return st
 }
 

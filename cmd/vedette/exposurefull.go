@@ -215,7 +215,7 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 				continue
 			}
 			jctx, end := meter.s.Job(ctx)
-			res, o, quiet, err := a.send(jctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive, domain: t.Domain})
+			res, o, quiet, err := a.send(jctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive, gentle: t.Gentle, domain: t.Domain})
 			end(int64(len(c)))
 			if err != nil {
 				return nil, err

@@ -5,7 +5,7 @@
 // with one answer menu (Affected, Not affected, Accept the risk). "Check N possible" reads the CVEs' vendor advisories on the box
 // first and asks the AI only about the rest; an AI verdict is a proposal a person confirms or rejects. What the box settled as not
 // affected from a vendor advisory is listed under "Checked, not affected", and a person can still say it is affected.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -300,7 +300,8 @@ export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled
           {r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <AnswerMenu r={r} /> : null}
         </span>
       </div>
-      {settled && r.check ? null : <p className="text-meta text-muted">{reason(r)}</p>}
+      {/* a version_needed CVE: the line already says the version decides it */}
+      {(settled && r.check) || !perCve ? null : <p className="text-meta text-muted">{reason(r)}</p>}
       {settled && r.check?.quote ? <p className="text-meta text-muted italic [overflow-wrap:anywhere]">“{r.check.quote}”</p> : null}
       {open && r.check ? <div id={panel}><CheckDetails check={r.check} /></div> : null}
     </li>
@@ -394,8 +395,9 @@ function BulkMenu({ device, line, count }: { device: DeviceRef; line: { id: stri
 }
 
 /** One software line: "Junos OS 15.1R7.9 · 12 possible CVEs · 2 exploited", the one input that decides them, then its CVEs.
- *  `withDevice`: name the device (By fix lists one product on several devices). */
-export function LineBlock({ l, withDevice = false }: { l: PossibleLine; withDevice?: boolean }) {
+ *  `withDevice`: name the device (By fix lists one product on several devices); `bulk` false: the device row's own menu already
+ *  answers for its only line. */
+export function LineBlock({ l, withDevice = false, bulk = true }: { l: PossibleLine; withDevice?: boolean; bulk?: boolean }) {
   const { t } = useTranslation('findings')
   const roles = useRoles()
   const [input, setInput] = useState<Exclude<LineInput, null> | null>(null)
@@ -417,7 +419,7 @@ export function LineBlock({ l, withDevice = false }: { l: PossibleLine; withDevi
             <Button size="sm" variant="primary" disabled={!roles.operator} title={roles.needOperator} aria-label={t(`possible.line.${need}Of`, { software: name, device: l.device.name })}
               onClick={() => setInput(need)}>{t(`possible.line.${need}`)}</Button>
           ) : null}
-          {l.software ? <BulkMenu device={l.device} line={{ id: l.software.id, name }} count={l.rows.length} /> : null}
+          {l.software && bulk ? <BulkMenu device={l.device} line={{ id: l.software.id, name }} count={l.rows.length} /> : null}
         </span>
       </div>
       {need ? <p className="text-meta text-muted">{t(`possible.line.${need}Why`, { software: name, count: l.rows.length })}</p> : null}
@@ -442,17 +444,17 @@ function DeviceGroup({ d }: { d: PossibleDevice }) {
       lead={<ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('possible.toggleDevice', { device: d.device.name })} />}
       title={<DeviceLine device={d.device} badge={false} to={possibleOf(d.device.id)} />}
       meta={[
-        <>
+        <Fragment key="counts">
           <span>{t('possible.cves', { count: d.rows.length })}</span>
           {exploited ? <span className="text-danger">{t('possible.line.exploited', { count: exploited })}</span> : null}
           {proposals ? <span className="text-accent">{t('possible.line.proposals', { count: proposals })}</span> : null}
-        </>,
-        <span className="[overflow-wrap:anywhere]">{lines.join(' · ')}</span>,
+        </Fragment>,
+        <span key="lines" className="[overflow-wrap:anywhere]">{lines.join(' · ')}</span>,
       ]}
       actions={<BulkMenu device={d.device} line={null} count={d.rows.length} />}>
       {open ? (
         <ul id={panel} aria-label={t('possible.linesOf', { device: d.device.name })} className="grid divide-y divide-rule">
-          {d.lines.map((l) => <LineBlock key={l.key} l={l} />)}
+          {d.lines.map((l) => <LineBlock key={l.key} l={l} bulk={d.lines.length > 1} />)}
         </ul>
       ) : null}
     </ListRow>

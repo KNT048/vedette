@@ -3,13 +3,13 @@
 // ("Confident" only when the AI's quote is in the page word for word and names a release range of this version's line), the quoted
 // sentence and the pages. Confirm one, confirm a whole class at once (never an exploited CVE proposed not affected: one by one), or
 // reject (the CVE is possible again). GET /findings/possible?state=proposal.
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ChevronDown } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ExpandToggle, ListRow, LeadSpacer } from '@/components/common/ListParts'
+import { ExpandToggle, ListRow } from '@/components/common/ListParts'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
@@ -39,7 +39,6 @@ function ProposalRow({ r }: { r: PossibleRow }) {
   const panel = `proposal-${`${r.id}-${r.cve}`.replace(/[^\w-]/g, '_')}`
   return (
     <ListRow label={t('proposals.rowOf', { cve: r.cve, device: r.device.name })}
-      lead={<LeadSpacer />}
       title={<>
         <Link to={`/cve/${encodeURIComponent(r.cve)}`} className="font-semibold text-accent underline-offset-4 hover:underline">{r.cve}</Link>
         <SeverityBadge severity={r.severity} compact />
@@ -47,9 +46,9 @@ function ProposalRow({ r }: { r: PossibleRow }) {
         <CheckChip check={check} />
       </>}
       meta={[
-        <><DeviceLine device={r.device} badge={false} />{r.software ? <span className="[overflow-wrap:anywhere]">{r.software.version ? `${r.software.name} ${r.software.version}` : r.software.name}</span> : null}</>,
-        check.quote ? <span className="italic text-ink [overflow-wrap:anywhere]">“{check.quote}”</span> : check.reason,
-        !r.bulk ? <span>{t('proposals.oneByOne')}</span> : null,
+        <Fragment key="device"><DeviceLine device={r.device} badge={false} />{r.software ? <span className="[overflow-wrap:anywhere]">{r.software.version ? `${r.software.name} ${r.software.version}` : r.software.name}</span> : null}</Fragment>,
+        check.quote ? <span key="quote" className="italic text-ink [overflow-wrap:anywhere]">“{check.quote}”</span> : check.reason,
+        !r.bulk ? <span key="one">{t('proposals.oneByOne')}</span> : null,
       ]}
       actions={<>
         <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('possible.detail.toggleOf', { cve: r.cve })}>{t('possible.detail.toggle')}</ExpandToggle>

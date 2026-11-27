@@ -338,6 +338,13 @@ func (r *HookRunner) RunPersonalData(ctx context.Context, text string) (HookResu
 	return r.run(ctx, text, func(d hookDef) bool { return d.id == HookBlockPII && d.kind == KindBuiltin })
 }
 
+// runPublic applies only the customer's own before_ai hooks to text the box fetched itself from a public source (DataBlock.public):
+// the built-in ones guard customer data and the topic of a request, and on a vendor's page they read an office phone number, a
+// diff's line numbers or the word "songs" as personal data or an off-topic request, which stopped the reading of that CVE.
+func (r *HookRunner) runPublic(ctx context.Context, text string) (HookResult, error) {
+	return r.run(ctx, text, func(d hookDef) bool { return d.when == BeforeAI && d.kind == KindCustom })
+}
+
 func (r *HookRunner) run(ctx context.Context, text string, use func(hookDef) bool) (HookResult, error) {
 	if len(text) > MaxHookInputBytes {
 		return HookResult{}, ErrHookInputTooLarge

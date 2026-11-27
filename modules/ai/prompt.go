@@ -80,6 +80,10 @@ type DataBlock struct {
 	Kind   DataKind
 	Source string // short label such as "syslog, last 24 hours"; sanitised before use
 	Text   string
+	// public marks text the box fetched itself from a public source for a call of public text only (a CVE record, a vendor's reference
+	// page): it holds no customer data by construction, so the built-in hooks, which guard what a person or the box's own data sends,
+	// do not read it; a customer's own hooks still do (guard). Only this module sets it.
+	public bool
 }
 
 // PromptInput is everything that goes into one call.

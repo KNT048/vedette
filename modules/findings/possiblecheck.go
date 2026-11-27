@@ -65,6 +65,24 @@ type CheckStop struct{ Reason string }
 
 func (e *CheckStop) Error() string { return e.Reason }
 
+// ItemRefused is a Propose error about the items of that one call only (a hook stopped its text, the answer was not usable): the check
+// goes on with the next item, and the automatic reading leaves these items until RetryAfter has passed, so one item that cannot be read
+// is never first again at every run. Reason is the sentence a person reads.
+type ItemRefused struct {
+	Reason     string
+	RetryAfter time.Duration
+}
+
+func (e *ItemRefused) Error() string { return e.Reason }
+
+// possibleRetry is how long the automatic reading leaves items whose call failed for a reason Propose did not name (the provider
+// answered an error): the next run after it reads them again. aiFailStreak such calls in a row, with no answer between, mean the AI
+// is not answering at all: the run stops there instead of failing every item that is left.
+const (
+	possibleRetry = time.Hour
+	aiFailStreak  = 3
+)
+
 // CVERecordText is the public text of a CVE's record.
 type CVERecordText struct {
 	Description string
@@ -139,6 +157,9 @@ type checkState struct {
 	mu     sync.Mutex
 	run    *CheckRun
 	unread map[string]time.Time // check keys whose pages could not be read, when (the next check tries again)
+	// held is the check keys whose AI call was refused or failed, until when the automatic reading leaves them and why (a person's
+	// check reads them at once)
+	held map[string]heldItem
 	// due is the lines a finding the AI's reading opened stands on whose reading is due again (the record changed, or the page was not
 	// fetched for statementRecheck): they have no question, so the match notes them here for the next check (noteReadingDue).
 	due map[string]checkUnit
@@ -208,6 +229,28 @@ func (s *Service) markUnread(keys []string, unread bool, now time.Time) {
 			s.check.unread[k] = now
 		} else {
 			delete(s.check.unread, k)
+		}
+	}
+}
+
+// heldItem is why the automatic reading leaves an item for now, and until when.
+type heldItem struct {
+	until  time.Time
+	reason string
+}
+
+// hold notes the keys whose call was refused or failed (until the time given), or clears them after an answer (zero until).
+func (s *Service) hold(keys []string, until time.Time, reason string) {
+	s.check.mu.Lock()
+	defer s.check.mu.Unlock()
+	if s.check.held == nil {
+		s.check.held = map[string]heldItem{}
+	}
+	for _, k := range keys {
+		if until.IsZero() {
+			delete(s.check.held, k)
+		} else {
+			s.check.held[k] = heldItem{until: until, reason: reason}
 		}
 	}
 }
@@ -303,8 +346,8 @@ const possibleAutoMax = 200
 
 // AutoRead starts the automatic reading of possible findings after a match pass, in the background: when a reading can run, the AI
 // settings have it on and its reads for today are not used up, over every possible CVE that is due (exploited first, then the highest
-// CVSS score), skipping those whose pages could not be read in the last day. It returns whether a reading started; nothing happens
-// while another check runs.
+// CVSS score), skipping those whose pages could not be read in the last day and those whose last call was refused or failed until their
+// retry time (held). It returns whether a reading started; nothing happens while another check runs.
 func (s *Service) AutoRead(ctx context.Context) bool {
 	if s.cfg.Checker == nil || s.cfg.Checker.Ready(ctx) != nil {
 		return false
@@ -323,6 +366,9 @@ func (s *Service) AutoRead(ctx context.Context) bool {
 	items = slices.DeleteFunc(items, func(it PossibleItem) bool { return recent(it.Question.CheckKey) })
 	s.check.mu.Unlock()
 	units := s.unitsToCheck(ctx, items)
+	s.check.mu.Lock()
+	units = slices.DeleteFunc(units, func(u checkUnit) bool { h, ok := s.check.held[u.key]; return ok && now.Before(h.until) })
+	s.check.mu.Unlock()
 	if len(units) == 0 {
 		return false
 	}
@@ -404,6 +450,7 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 	}
 	devices := map[string]bool{}
 	var stopped string
+	streak := 0 // AI calls in a row that failed with no answer between (aiFailStreak)
 	for i := 0; i < len(units); {
 		j := i
 		for j < len(units) && units[j].cve == units[i].cve {
@@ -450,6 +497,13 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 		})
 		if res.stop != "" {
 			stopped = res.stop
+			break
+		}
+		if res.answered > 0 {
+			streak = 0
+		}
+		if streak += res.aiFailed; streak >= aiFailStreak {
+			stopped = fmt.Sprintf("The AI failed on %d calls in a row (%s); the reading goes on at the next run.", streak, res.lastFail)
 			break
 		}
 		if ctx.Err() != nil {
@@ -501,13 +555,17 @@ func mapsKeys[K comparable, V any](m map[K]V) func(func(K) bool) {
 
 // cveCheck is what the check of one CVE produced: checks of exact versions (the box's own reading, or undecided), the AI's readings of
 // release lines, the readings whose page was fetched again and found unchanged, how many units were not checked, and why the run
-// stops ("" when it goes on).
+// stops ("" when it goes on). answered and aiFailed count the AI calls that answered and those that failed for a reason Propose did not
+// name (lastFail, the last one's error); a refused call (ItemRefused) is neither: it says nothing about the AI.
 type cveCheck struct {
 	checks   []Check
 	readings []LineStatement
 	seen     []string
 	failed   int
 	stop     string
+
+	answered, aiFailed int
+	lastFail           string
 }
 
 // lineAsk is one release line of a CVE the AI is asked about, with the units (exact versions) on it.
@@ -612,6 +670,12 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 			}
 			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line})
 		}
+		var keys []string
+		for _, l := range part {
+			for _, u := range l.units {
+				keys = append(keys, u.key)
+			}
+		}
 		ans, err := s.cfg.Checker.Propose(ctx, actor, req)
 		if err != nil {
 			n := 0
@@ -624,11 +688,22 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 				res.stop = stopErr.Reason
 				return res
 			}
-			for _, l := range part {
-				res.failed += len(l.units)
+			// only this call's items: noted with the reason and a retry time, and the check goes on with the next item
+			res.failed += len(keys)
+			wait, why := possibleRetry, err.Error()
+			if refused := (*ItemRefused)(nil); errors.As(err, &refused) {
+				wait = max(refused.RetryAfter, possibleRetry)
+			} else {
+				res.aiFailed++
+				res.lastFail = why
 			}
+			s.hold(keys, now.Add(wait), why)
+			s.cfg.Log.InfoContext(ctx, "findings: an AI reading of a possible CVE was not made; the check goes on with the next item", "cve", cve,
+				"items", len(keys), "retry_after", wait.String(), "reason", clipBytes(why, 300))
 			continue
 		}
+		res.answered++
+		s.hold(keys, time.Time{}, "")
 		byIndex := map[int]ProposeVerdict{}
 		for _, v := range ans.Verdicts {
 			byIndex[v.Index] = v

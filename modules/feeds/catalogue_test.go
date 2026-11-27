@@ -251,14 +251,15 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 		_, err = writeRecords(t.Context(), tx, recs, k, now)
 		return err
 	})
-	// NVD has ranges for 0101: the CVE record's are kept beside them and never read while NVD's are there; 0102's come from the CNA
-	// (a partial list: no defaultStatus)
+	// NVD has ranges for 0101: the CVE record's are kept and read beside them (a complete list: it decides both ways); 0102's come from
+	// the CNA alone (a partial list: no defaultStatus)
 	if n := count(t, db, `SELECT count(*) FROM feeds_cve_range WHERE cve = 'CVE-2026-0101' AND origin = 'cna'`); n != 1 {
 		t.Fatalf("CNA rows of 0101: %d", n)
 	}
 	got, err := s.Ranges(t.Context(), []ProductKey{{Vendor: "Acme", Product: "Box"}})
-	if err != nil || len(got) != 2 || got[0].CVE != "CVE-2026-0101" || got[0].Origin != OriginNVD || got[0].EndExcl != "2.0" ||
-		got[1].CVE != "CVE-2026-0102" || got[1].Origin != OriginCNA || got[1].DefaultStatus != DefaultUnknown || got[1].StartIncl != "3.0" {
+	if err != nil || len(got) != 3 || got[0].CVE != "CVE-2026-0101" || got[0].Origin != OriginNVD || got[0].EndExcl != "2.0" ||
+		got[1].CVE != "CVE-2026-0101" || got[1].Origin != OriginCNA || !got[1].VendorList || got[1].AffectedOnly ||
+		got[2].CVE != "CVE-2026-0102" || got[2].Origin != OriginCNA || got[2].DefaultStatus != DefaultUnknown || got[2].StartIncl != "3.0" || got[2].AffectedOnly {
 		t.Fatalf("Ranges = %+v %v", got, err)
 	}
 	cat, err := s.Catalogue(t.Context(), []string{"CVE-2026-0101", "CVE-2026-0102", "CVE-2099-0001"})
@@ -279,9 +280,10 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 	if g := sig["CVE-2026-0101"][0]; g.Kind != SignalExploited || g.Source != kevFeedID || !g.Qualifies || g.FirstSeen != time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC) {
 		t.Fatalf("CISA signal = %+v", g)
 	}
-	// KevAffected and RangesFromCVEOrg, as findings reads them: NVD's rows of 0101; the CNA's of 0102, named as a partial list
+	// KevAffected and RangesFromCVEOrg, as findings reads them: NVD's rows of 0101 with the CNA's complete list beside them; the CNA's
+	// of 0102, named as a partial list
 	aff, err := s.KevAffected(t.Context())
-	if err != nil || len(aff["CVE-2026-0101"]) != 2 || len(aff["CVE-2026-0102"]) != 1 {
+	if err != nil || len(aff["CVE-2026-0101"]) != 3 || !aff["CVE-2026-0101"][2].VendorList || len(aff["CVE-2026-0102"]) != 1 {
 		t.Fatalf("KevAffected = %+v %v", aff, err)
 	}
 	if src, err := s.RangesFromCVEOrg(t.Context()); err != nil || !maps.Equal(src, map[string]string{"CVE-2026-0102": rangesCVEOrgPartial}) {

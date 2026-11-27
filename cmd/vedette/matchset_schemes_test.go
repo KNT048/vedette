@@ -227,7 +227,7 @@ func TestSelfcheck_MatchedVersionOnLine(t *testing.T) {
 
 // Range precedence exempts a finding whose line is a product with a version scheme, resolved as the matcher resolves it: a NetScaler
 // line nmap names "netscaler gateway" by its CPE is NetScaler, whose vendor rows decide before NVD's. A finding of another product
-// that rests on the CVE record's rows while NVD has rows breaks precedence.
+// that rests on CVE record rows the catalogue does not hold breaks precedence.
 func TestSelfcheck_RangePrecedenceResolvesTheLineProduct(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -264,7 +264,7 @@ func TestSelfcheck_RangePrecedenceResolvesTheLineProduct(t *testing.T) {
 			urgency, urgency_at, first_seen, last_seen, updated_at) VALUES (?, ?, 'CVE-2025-5777', ?, 1, 'banner_version', 'no', 'cna', 'update', ?, 'open', 2, ?, ?, ?, ?)`
 		for _, r := range [][3]string{
 			{"f-ns", line[items[0].Product], "citrix|netscaler gateway|update|14.1-43.56"}, // Citrix's rows decided: the scheme product
-			{"f-box", line[items[1].Product], "acme|box|update|2.1"},                       // a record row beat NVD's
+			{"f-box", line[items[1].Product], "acme|box|update|2.1"},                       // rests on record rows the catalogue does not hold
 		} {
 			if r[1] == "" {
 				return fmt.Errorf("no line for %s", r[0])

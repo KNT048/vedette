@@ -318,11 +318,17 @@ type Range struct {
 	// "" for NVD's rows.
 	DefaultStatus string
 	Platforms     []string // NVD's "running on" operating systems ("microsoft:windows"); empty for none
+	// AffectedOnly and VendorList are set by the readers for matching (matchRows), never stored. VendorList: a CNA row of a product
+	// whose list in the record is complete (every row says what an unlisted version is: recordComplete), so a version outside every
+	// row of it is not affected. AffectedOnly: a CNA row beside NVD's rows of the CVE whose product's list is not complete: it may
+	// say a version is affected (the affected answer wins when the record and NVD disagree), never that one is not.
+	AffectedOnly, VendorList bool
 }
 
 // AffectedRow is the range as the matcher's CPE entry.
 func (r Range) AffectedRow() AffectedRow {
-	return AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}
+	return AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
+		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}
 }
 
 const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.default_status, r.platforms`
@@ -362,11 +368,55 @@ func rangeOrigin(rows []Range) []Range {
 	return rows
 }
 
+// matchRows is one CVE's rows as the match reads them (Ranges, RangesOf): the rows rangeOrigin gives, and, when NVD gives rows, the
+// CNA's rows of the CVE record beside them, so a version either calls affected is affected (CVE JSON 5: a version takes the status
+// of the entry that names it; NVD's analysis can narrow or lag the CNA's word, as an exact release where the CNA states a range, or an
+// edition only NVD pins). A CNA row of a product whose list is complete (recordComplete) is the vendor's whole word on the product and
+// also decides "not affected" (VendorList); any other CNA row beside NVD's only ever says "affected" (AffectedOnly). An ADP row
+// beside NVD's is not read, as before.
+func matchRows(rows []Range) []Range {
+	complete := recordComplete(rows)
+	nvd := slices.ContainsFunc(rows, func(r Range) bool { return r.Origin == OriginNVD })
+	var out []Range
+	for _, r := range rows {
+		if !r.Generic() {
+			continue
+		}
+		switch {
+		case r.Origin == OriginNVD:
+		case r.Origin == OriginCNA:
+			r.VendorList = complete[recordKey(r)]
+			r.AffectedOnly = nvd && !r.VendorList
+		case nvd:
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// recordComplete says, per product of the CNA's generic rows of one CVE (recordKey), whether every row states what a version the
+// record does not list is (defaultStatus affected or unaffected; a third-party CNA's "unaffected" is stored unknown: ownCNA).
+func recordComplete(rows []Range) map[[3]string]bool {
+	out := map[[3]string]bool{}
+	for _, r := range rows {
+		if r.Origin != OriginCNA || !r.Generic() {
+			continue
+		}
+		k := recordKey(r)
+		c, seen := out[k]
+		out[k] = (c || !seen) && (r.DefaultStatus == DefaultAffected || r.DefaultStatus == DefaultUnaffected)
+	}
+	return out
+}
+
+func recordKey(r Range) [3]string { return [3]string{r.Part, r.Vendor, r.Product} }
+
 // ProductKey names a product as the catalogue's ranges do: CPE vendor and product, lower case ("apache", "http_server").
 type ProductKey struct{ Vendor, Product string }
 
-// Ranges returns the ranges of every catalogue CVE that names one of these products, with the precedence of rangeOrigin applied per
-// CVE (a CVE NVD gives ranges for counts only NVD's, also when NVD names other products). Sorted by CVE, then as stored.
+// Ranges returns the ranges of every catalogue CVE that names one of these products, as the match reads them per CVE (matchRows: NVD's
+// rows with the CNA's beside them, else the CVE record's). Sorted by CVE, then as stored.
 func (s *Store) Ranges(ctx context.Context, keys []ProductKey) ([]Range, error) {
 	cves := map[string]bool{}
 	for chunk := range slices.Chunk(keys, 400) {
@@ -402,7 +452,7 @@ JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product
 			return nil, err
 		}
 		for _, per := range groupByCVE(rows) {
-			for _, r := range rangeOrigin(per) {
+			for _, r := range matchRows(per) {
 				if want[ProductKey{r.Vendor, r.Product}] {
 					out = append(out, r)
 				}
@@ -457,7 +507,7 @@ func MatchName(vendor, product string, record bool) (string, string) {
 	return productid.Norm(p.Vendor), productid.Norm(p.Product)
 }
 
-// RangesOf returns the ranges of these CVEs with the precedence of rangeOrigin applied per CVE, sorted by CVE, then as stored. A CVE
+// RangesOf returns the ranges of these CVEs as the match reads them per CVE (matchRows), sorted by CVE, then as stored. A CVE
 // the catalogue does not hold, or holds without ranges, is absent.
 func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 	var out []Range
@@ -471,7 +521,7 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 			return nil, err
 		}
 		for _, per := range groupByCVE(rows) {
-			out = append(out, rangeOrigin(per)...)
+			out = append(out, matchRows(per)...)
 		}
 	}
 	return out, nil
@@ -695,7 +745,22 @@ func (r Range) MatchRow() (AffectedRow, bool) {
 		v, p := MatchName(r.Vendor, r.Product, true)
 		return kevRecordRow(r, cpeEscape(v), cpeEscape(p)), true
 	}
-	return r.AffectedRow(), true
+	row := r.AffectedRow()
+	if recordEvery(r) {
+		row.StartIncl = "0"
+	}
+	return row, true
+}
+
+// recordEvery says a row is the CNA's statement that every version of the product is affected: a row without a bound (entryRows) of
+// an entry whose defaultStatus is affected, the schema's way to say it. The matcher reads it from version 0 with no end: a version, so
+// the row decides instead of reading as a list that names no version (NVD's version-less rows). A version word alone ("all", "All
+// versions") without defaultStatus is no such statement: records converted from the older format write it for "the versions before the
+// fix" (Red Hat's polkit record of CVE-2021-4034, fixed in 0.120), so it stays a row that names no version. Nor does the row of a
+// product with a version scheme: its scheme reads the vendor's word (Synology's records say "affected" with no version and name the
+// fixed releases in the description: describedRows).
+func recordEvery(r Range) bool {
+	return r.Origin == OriginCNA && r.Generic() && !recordBounded(r) && r.DefaultStatus == DefaultAffected && !SchemeProduct(r)
 }
 
 // groupByCVE splits rows sorted by CVE into one slice per CVE.
@@ -909,8 +974,8 @@ func (s *Store) CVSSOf(ctx context.Context, cves []string) (map[string]CVSS, err
 	return out, nil
 }
 
-// KevAffected returns the affected entries of the exploited lists' CVEs, for findings: NVD's when NVD gives any, else those of the
-// CNA's CVE record for the product the list's entry names (kevRecordView; RangesFromCVEOrg names them). A CVE NVD has not answered for and the record gave nothing for is absent; one NVD
+// KevAffected returns the affected entries of the exploited lists' CVEs, for findings: NVD's with the CNA's CVE record rows for the
+// product the list's entry names beside them (matchRows' rule), else the record's alone (kevRecordView; RangesFromCVEOrg names those). A CVE NVD has not answered for and the record gave nothing for is absent; one NVD
 // answered for without a vulnerable entry is present with an empty list.
 func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, error) {
 	db := s.db.Reader()
@@ -922,12 +987,19 @@ func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, erro
 	for _, r := range rows {
 		out[r.CVE] = append(out[r.CVE], r.AffectedRow())
 	}
-	fromRecord, _, err := kevRecordView(ctx, db) // only CVEs without NVD ranges
+	fromRecord, _, nvd, err := kevRecordView(ctx, db)
 	if err != nil {
 		return nil, err
 	}
 	for cve, rs := range fromRecord {
-		out[cve] = rs
+		if !nvd[cve] {
+			out[cve] = rs
+			continue
+		}
+		for _, r := range rs { // beside NVD's rows (matchRows' rule)
+			r.AffectedOnly = !r.VendorList
+			out[cve] = append(out[cve], r)
+		}
 	}
 	answered, err := stringSet(ctx, db, `SELECT c.cve FROM feeds_cve c WHERE c.nvd_at IS NOT NULL AND c.nvd_status <> 'Rejected'
 AND c.cve IN (SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
@@ -952,7 +1024,10 @@ const (
 // with their source as findings names it: "cve.org" (a complete list: every row says affected or unaffected) or "cve.org-partial"
 // (findings may raise a match on it, never close one). kevRecordView decides both.
 func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error) {
-	_, src, err := kevRecordView(ctx, s.db.Reader())
+	_, src, nvd, err := kevRecordView(ctx, s.db.Reader())
+	for cve := range nvd {
+		delete(src, cve) // NVD's rows lead: the record's are read beside them
+	}
 	return src, err
 }
 

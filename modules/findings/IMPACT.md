@@ -4,7 +4,7 @@ What else to check when you change part of this module. Signatures and behaviour
 
 | If you change | Check |
 |---|---|
-| The matcher (`match.go` `MatchAsset`, `matchpass.go`, `distro.go`, `windows.go`, `platform.go`, `schemes.go`, `vendorscheme.go`) | the golden and equivalence fixtures in `testdata/` (`kev-nvd-*.json`, `equiv-*.json.gz`); exposure, which matches services at scan time with the same function (`cmd/vedette/exposurematch.go`); selfchecks `findings.matched_version_on_line`, `findings.range_precedence`. |
+| The matcher (`match.go` `MatchAsset`, `matchpass.go`, `distro.go`, `windows.go`, `platform.go`, `schemes.go`, `vendorscheme.go`, `readings.go`) | the golden and equivalence fixtures in `testdata/` (`kev-nvd-*.json`, `equiv-*.json.gz`); exposure, which matches services at scan time with the same function (`cmd/vedette/exposurematch.go`); selfchecks `findings.matched_version_on_line`, `findings.range_precedence`. |
 | What the match reads from inventory (`Asset`, `Software`, `MatchInput` fields) or feeds (`Vuln`, `MatchSet`) | the adapters in `cmd/vedette/wiring.go`; inventory's `SoftwareLine` and feeds' range readers. |
 | `Transition` or the trigger list (`transition.go`) | `TestTransition_EveryStateAndTrigger`, `TestTransition_InvariantsHoldForAnySequence`; the database CHECKs in `migrations/sqlite/0001_findings.sql`; the selfchecks `findings.handled_complete`, `findings.version_moved_versions`, `findings.open_is_detected`. |
 | `via` values or patch credit (`goneVia`) | the report's handled section (`cmd/vedette/reports.go` reads `fnd_finding_event` kinds and `via`); `TestCredit_*`; the selfcheck `findings.vocabulary`. |

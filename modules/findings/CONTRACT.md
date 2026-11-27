@@ -274,7 +274,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version known affected, not a fix) on a train it covers (OSV's introduced/fixed): past a row from
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
-  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
+  train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
+  so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an
+  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside

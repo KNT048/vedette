@@ -113,6 +113,8 @@
     "noTemplate": "No safe scan template for this CVE yet",
     "noTemplateRun": "A template exists; not yet run on this device",
     "source": "Source",
+    "aiReadSource": "The vendor's page read by AI",
+    "aiReadRecord": "The CVE record read by AI",
     "request": "Request sent (shortened)",
     "response": "Response (shortened)",
     "recheck": "How to check it yourself",
@@ -640,6 +642,7 @@
     "aiRead": "Read by AI from {{host}}",
     "aiReadTopic": "What the AI read",
     "aiReadReject": "Reject the AI's reading from {{host}}",
+    "aiReadRejectShort": "Reject the AI's reading",
     "aiReadRejected": "Rejected. The finding closes on every device of this release line, and the CVE is possible again.",
     "chip": {
       "model": "Model: {{model}}",

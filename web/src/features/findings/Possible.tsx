@@ -154,26 +154,35 @@ export function AiCheckedBadge({ check }: { check: PossibleCheck }) {
   )
 }
 
-/** "Read by AI from <host>" on a finding the AI's reading of the vendor's statement opened: the reading behind the info icon, and Reject,
- *  which closes the finding on every device of the line and makes the CVE possible again. */
+/** "Read by AI from <host>" on a finding the AI's reading of the vendor's statement opened: the reading behind the info icon. Its Reject
+ *  is AiReadReject, among the page's actions. */
 function AiReadBadge({ check }: { check: PossibleCheck }) {
+  const { t } = useTranslation('findings')
+  const host = check.reading?.host ?? t('possible.chip.theRecord')
+  return (
+    <span className="inline-flex items-center gap-1" data-testid="ai-read">
+      <Chip tone="accent" icon={Bot} title={check.model ? t('possible.chip.model', { model: check.model }) : undefined}>{t('possible.aiRead', { host })}</Chip>
+      <InfoTip topic={t('possible.aiReadTopic')}><CheckDetails check={check} /></InfoTip>
+      {check.rejected ? <span className="text-meta text-muted">{t('possible.chip.readRejected')}</span> : null}
+    </span>
+  )
+}
+
+/** Reject of the AI's reading a finding rests on, in one click: the finding closes on every device of the line and the CVE is possible
+ *  again. Nothing once the reading is rejected. */
+export function AiReadReject({ check }: { check: PossibleCheck }) {
   const { t } = useTranslation('findings')
   const roles = useRoles()
   const reject = useRejectProposal()
-  const host = check.reading?.host ?? t('possible.chip.theRecord')
+  if (!check.reading || check.rejected) return null
+  const host = check.reading.host ?? t('possible.chip.theRecord')
   return (
-    <span className="inline-flex flex-wrap items-center gap-2" data-testid="ai-read">
-      <Chip tone="accent" icon={Bot} title={check.model ? t('possible.chip.model', { model: check.model }) : undefined}>{t('possible.aiRead', { host })}</Chip>
-      <InfoTip topic={t('possible.aiReadTopic')}><CheckDetails check={check} /></InfoTip>
-      {check.rejected ? <span className="text-meta text-muted">{t('possible.chip.readRejected')}</span> : (
-        <Button size="sm" disabled={!roles.operator} title={roles.needOperator} busy={reject.isPending} busyLabel={t('common:busy.saving')}
-          aria-label={t('possible.aiReadReject', { host })}
-          onClick={() => reject.mutate({ key: check.key }, {
-            onSuccess: () => toast.success(t('possible.aiReadRejected')),
-            onError: (e) => toast.error(errMsg(e)),
-          })}>{t('possible.proposal.reject')}</Button>
-      )}
-    </span>
+    <Button disabled={!roles.operator} title={roles.needOperator} busy={reject.isPending} busyLabel={t('common:busy.saving')}
+      aria-label={t('possible.aiReadReject', { host })}
+      onClick={() => reject.mutate({ key: check.key }, {
+        onSuccess: () => toast.success(t('possible.aiReadRejected')),
+        onError: (e) => toast.error(errMsg(e)),
+      })}>{t('possible.aiReadRejectShort')}</Button>
   )
 }
 

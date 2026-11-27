@@ -53,7 +53,12 @@ describe('Read by AI', () => {
     renderApp(`/findings/${id}`)
     const badge = await screen.findByTestId('ai-read', {}, T)
     expect(badge).toHaveTextContent('Read by AI from mikrotik.example.com')
-    await userEvent.click(within(badge).getByRole('button', { name: 'Reject the AI\'s reading from mikrotik.example.com' }))
+    // the evidence names the vendor's page the AI read, not NVD's data
+    const source = await screen.findByTestId('ai-read-source', {}, T)
+    expect(source).toHaveTextContent('The vendor\'s page read by AI')
+    expect(within(source).getByRole('link', { name: /mikrotik\.example\.com/ })).toHaveAttribute('href', 'https://mikrotik.example.com/security/advisories/routeros-2026-07')
+    expect(screen.queryByText(/NVD vulnerability data/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Reject the AI\'s reading from mikrotik.example.com' }))
     await waitFor(() => expect(records.get().find((r) => r.id === id)?.state).toBe('handled'), T)
     expect(questions.get().some((x) => x.cve === 'CVE-2026-240103' && !x.answered)).toBe(true)
   })

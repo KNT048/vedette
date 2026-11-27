@@ -254,10 +254,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
   states line N of that product fixed or affected in a release N.x and nothing for this product's line N) is stored with `basis inferred`
   (`fnd_line_statement.basis`, else `stated`; an answer whose quote is only in another product's row of the record is inferred whatever
-  it says, `otherProductsRow`, `TestLineReading_AQuoteOfAnotherProductsRowIsAnInference`; so is one whose quote names this product and
-  another product of the record and pairs a release of the answer, a bound or the "before X" fix on the version's train, with the other
-  product, the nearest product name before it: `unpairedBound`, `TestLineReading_ABoundPairedWithAnotherProductIsAnInference`), keeps no
-  bound and stands only
+  it says, `otherProductsRow`, `TestLineReading_AQuoteOfAnotherProductsRowIsAnInference`; so is one whose quote names another product of
+  the record and pairs a release of the answer (a bound, the "before X" fix on the version's train, or the version or line itself, at
+  any place the quote names it) with the other product, the nearest product name before it, a name inside a longer one being the longer
+  one's ("Mail" in "Mail Server") and this product's edition ("Browser ESR") being this product: `unpairedBound`,
+  `TestLineReading_ABoundPairedWithAnotherProductIsAnInference`, `TestLineReading_AReleaseTheQuotePairsWithAnotherProductIsAnInference`),
+  keeps no bound and stands only
   as `affected`, with a quote naming that release, and only while no row of this product names a release of line N
   (`ownRowOnLine`), never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
   the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;

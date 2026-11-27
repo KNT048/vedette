@@ -173,64 +173,58 @@ func otherProductsRow(rec CVERecordText, product, quote string) string {
 	return from
 }
 
-// unpairedBound names the other product of the record a release of the answer belongs to, when the quote names this product and another
-// product of the record: a bound the answer gives (or the "before X" on the version's own train the quote states, its fix) is this
-// product's only when the nearest product name before it in the quote is this product's ("fixed in Browser ESR 115.42 and Mail 140.17":
-// 115.42 is the browser's); a bound the quote does not hold is not this product's either. "" when the quote names one product only, or
-// every release of the answer is paired with this product.
+// unpairedBound names the other product of the record a release of the answer belongs to, when the quote names another product of the
+// record: a bound the answer gives, the "before X" on the version's own train the quote states (its fix), and the version or line the
+// quote names are this product's only when, at every place the quote names them, the nearest product name before it is this product's
+// ("fixed in Browser ESR 115.42 and Mail 140.17": 115.42 is the browser's). A name inside a longer one is the longer one's ("Mail" in
+// "Mail Server", "Mail-Server" or "MailServer"); a name is this product's for the vendor's same product or its edition ("Browser
+// ESR"). A bound the quote does not hold is not this product's either. "" when the quote names no other product of the record, or every
+// release it pairs is this product's.
 func unpairedBound(rec CVERecordText, id CheckID, v ProposeVerdict) string {
 	quote := strings.ToLower(oneLine(v.Quote, 400))
 	vendor, name, _ := strings.Cut(id.Product, "|")
 	own := func(rv, rp string) bool {
-		return productid.Norm(rv) == productid.Norm(vendor) && strings.HasPrefix(productid.Norm(rp), productid.Norm(name))
+		p, n := productid.Norm(rp), productid.Norm(name)
+		return productid.Norm(rv) == productid.Norm(vendor) && (p == n || strings.HasPrefix(p, n) && releaseWord[p[len(n):]])
 	}
 	type named struct {
 		start, end int
 		own        bool
 		label      string
 	}
-	var names []named
+	var found []named
 	add := func(rv, rp string) {
-		phrase := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(rp, "_", " ")))
-		if len(phrase) < 2 {
+		words := strings.FieldsFunc(strings.ToLower(rp), func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') })
+		if len(strings.Join(words, "")) < 2 {
 			return
 		}
-		re := regexp.MustCompile(`(?:^|[^a-z0-9])(` + regexp.QuoteMeta(phrase) + `)(?:$|[^a-z0-9])`)
+		for i, w := range words {
+			words[i] = regexp.QuoteMeta(w)
+		}
+		re := regexp.MustCompile(`(?:^|[^a-z0-9])(` + strings.Join(words, `[\s_.\-]{0,2}`) + `)(?:$|[^a-z0-9])`)
 		for _, m := range re.FindAllStringSubmatchIndex(quote, -1) {
-			names = append(names, named{start: m[2], end: m[3], own: own(rv, rp), label: strings.TrimSpace(rv + " " + rp)})
+			found = append(found, named{start: m[2], end: m[3], own: own(rv, rp), label: strings.TrimSpace(rv + " " + rp)})
 		}
 	}
 	add(vendor, name)
 	for _, r := range rec.Rows {
 		add(r.Vendor, r.Product)
 	}
+	var names []named // a name inside a longer name of the quote is that longer name's
 	other := ""
-	mine := false
-	for _, n := range names {
-		if n.own {
-			mine = true
-		} else if other == "" {
+	for _, n := range found {
+		if slices.ContainsFunc(found, func(o named) bool { return o.start <= n.start && o.end >= n.end && o.end-o.start > n.end-n.start }) {
+			continue
+		}
+		names = append(names, n)
+		if !n.own && other == "" {
 			other = n.label
 		}
 	}
-	if !mine || other == "" {
+	if other == "" {
 		return ""
 	}
-	bounds := []string{v.Introduced, v.FixedIn, v.LastAffected}
-	for _, m := range reBefore.FindAllStringSubmatch(v.Quote, -1) {
-		if x := strings.TrimRight(m[1], "."); onFixTrain(x, id.Version) {
-			bounds = append(bounds, x)
-		}
-	}
-	for _, b := range bounds {
-		b = strings.ToLower(strings.TrimSpace(b))
-		if b == "" {
-			continue
-		}
-		at := tokenIndex(quote, b)
-		if at < 0 {
-			return other
-		}
+	pairedOwn := func(at int) string { // "" when the nearest name before at is this product's, else the product it is paired with
 		var near *named
 		for i := range names {
 			n := &names[i]
@@ -241,23 +235,59 @@ func unpairedBound(rec CVERecordText, id CheckID, v ProposeVerdict) string {
 				near = n
 			}
 		}
-		if near == nil || !near.own {
-			if near != nil {
-				return near.label
-			}
+		switch {
+		case near == nil:
 			return other
+		case !near.own:
+			return near.label
+		}
+		return ""
+	}
+	bounds := []string{v.Introduced, v.FixedIn, v.LastAffected}
+	for _, m := range reBefore.FindAllStringSubmatch(v.Quote, -1) {
+		if x := strings.TrimRight(m[1], "."); onFixTrain(x, id.Version) {
+			bounds = append(bounds, x)
+		}
+	}
+	for i, b := range append(bounds, id.Version, id.Line, v.Line) {
+		b = strings.ToLower(strings.TrimSpace(b))
+		if b == "" {
+			continue
+		}
+		at := tokenIndexes(quote, b)
+		if len(at) == 0 && i < len(bounds) {
+			return other // a bound the quote does not hold
+		}
+		for _, a := range at {
+			if p := pairedOwn(a); p != "" {
+				return p
+			}
 		}
 	}
 	return ""
 }
 
-// tokenIndex is where text (lower case) names tok as a whole version (namesToken), -1 when it does not.
-func tokenIndex(text, tok string) int {
-	re := regexp.MustCompile(`(?:^|[^0-9a-z.])(` + regexp.QuoteMeta(tok) + `)(?:$|[^0-9a-z.]|\.(?:$|[^0-9a-z]))`)
-	if m := re.FindStringSubmatchIndex(text); m != nil {
-		return m[2]
+// tokenIndexes are the places text (lower case) names tok as a whole version (namesToken): not inside a longer version, a sentence's
+// last period may follow it.
+func tokenIndexes(text, tok string) []int {
+	word := func(c byte) bool { return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' }
+	var out []int
+	for from := 0; tok != ""; {
+		i := strings.Index(text[from:], tok)
+		if i < 0 {
+			break
+		}
+		at, end := from+i, from+i+len(tok)
+		from = at + 1
+		if at > 0 && (word(text[at-1]) || text[at-1] == '.') {
+			continue
+		}
+		if end < len(text) && (word(text[end]) || text[end] == '.' && end+1 < len(text) && word(text[end+1])) {
+			continue
+		}
+		out = append(out, at)
 	}
-	return -1
+	return out
 }
 
 // recordText is the text of the record the AI reads as data block 0 and its quotes are looked up in: the description, the solution and

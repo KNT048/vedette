@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The AI reads like a careful person, evidence-bound: the whole CVE record (every product's rows, not only the line's own), the record
@@ -344,5 +345,62 @@ func TestLineReading_AQuoteOfAnotherProductsRowIsAnInference(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = '` + cveQuill + `' AND fix_kind <> 'unknown'`); n != 0 {
 		t.Errorf("%d findings carry the other product's release as their fix", n)
+	}
+}
+
+// A release the quote pairs with another product of the record is never this product's bound, fix or "not affected", however the
+// sentence names the products: a longer name that contains this one ("Mail Server" read for Mail), written with a dash or as one
+// word, with the vendor in the row's product, a quote that names the other product only, a release named for both products, and the
+// version itself said "not affected" of the other product. A sentence that pairs the release with this product (or names no
+// product) still states it, and a row of this product's edition ("browser esr") is this product's.
+func TestLineReading_AReleaseTheQuotePairsWithAnotherProductIsAnInference(t *testing.T) {
+	t.Parallel()
+	rows := func(products ...string) CVERecordText {
+		var r CVERecordText
+		for _, p := range products {
+			r.Rows = append(r.Rows, RecordRow{Vendor: "quillfeather", Product: p, Text: "quillfeather " + p + ": affected [cna]"})
+		}
+		return r
+	}
+	fixed := func(quote string) ProposeVerdict {
+		return ProposeVerdict{Status: StatementFixed, FixedIn: "2.3", Line: "2", Quote: quote}
+	}
+	for _, tc := range []struct {
+		name, product string
+		rec           CVERecordText
+		v             ProposeVerdict
+		inferred      bool
+	}{
+		{"a longer name holding this one", "mail", rows("mail", "mail_server"), fixed("Fixed in Quillfeather Mail Server 2.3."), true},
+		{"both named, the release the other's", "mail", rows("mail", "mail_server"), fixed("Quillfeather Mail 1.9 and Quillfeather Mail Server 2.3 fix it."), true},
+		{"the other's name with a dash", "mail", rows("mail", "mail_server"), fixed("Mail 1.9 and Mail-Server 2.3 fix it."), true},
+		{"the other's name as one word", "mail", rows("mail", "mail_server"), fixed("Mail 1.9 and MailServer 2.3 fix it."), true},
+		{"the vendor in the other's product", "mail", rows("mail", "quillfeather_mail_server"), fixed("Quillfeather Mail 1.9 and Quillfeather Mail Server 2.3 fix it."), true},
+		{"the other product named only", "browser", rows("browser", "mail"), fixed("Quillfeather Mail before 2.3 is affected."), true},
+		{"one release named for both", "browser", rows("browser", "mail"), fixed("Quillfeather Browser 2.3 is affected and Quillfeather Mail 2.3 is fixed."), true},
+		{"the version not affected of the other", "browser", rows("browser", "mail"),
+			ProposeVerdict{Status: StatementNotAffected, Line: "2", Quote: "Quillfeather Browser 1.0 is affected; Quillfeather Mail 2.2 is not affected."}, true},
+		{"this product's own release", "browser", rows("browser", "mail"), fixed("Fixed in Quillfeather Browser 1.9 and 2.3, and Quillfeather Mail 3.1."), false},
+		{"this product's edition", "browser", rows("browser_esr", "mail"), fixed("Fixed in Quillfeather Browser ESR 2.3 and Quillfeather Mail 3.1."), false},
+		{"no product named", "browser", rows("browser", "mail"), fixed("Versions before 2.3 are affected."), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			id := CheckID{Product: "quillfeather|" + tc.product, Line: "2", Version: "2.2"}
+			v := tc.v
+			v.InferredFrom = unpairedBound(tc.rec, id, v)
+			st := readingOfAnswer("CVE-2026-991002", id, v, nil, v.Quote, nil, ProposeAnswer{}, "admin", time.Now())
+			st.VendorPage = true
+			verdict, fix := st.verdictFor(id), st.fix(id)
+			if tc.inferred {
+				if st.Basis != BasisInferred || verdict == VerdictNotAffected || fix.Kind != FixUnknown {
+					t.Errorf("basis %s, verdict %q, fix %+v: want an inference (no fix, never not affected)", st.Basis, verdict, fix)
+				}
+				return
+			}
+			if st.Basis != BasisStated || fix.Version != "2.3" {
+				t.Errorf("basis %s, fix %+v: want the stated fix 2.3", st.Basis, fix)
+			}
+		})
 	}
 }

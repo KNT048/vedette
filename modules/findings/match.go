@@ -1398,7 +1398,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	schemed := false
 	var lined lineRead // a vendor's release-line statement decided (M-13)
 	if lr := lineJudge(a, s, in, v); !isWin && ps.ask == askNone && !ps.below && lr.decides() {
-		tri, within, vendorNote = lineDecision(a, s, v, lr)
+		tri, within, vendorNote = lineDecision(s, v, lr)
 		proof, schemed, lined = proofRange, true, lr
 	} else if !isWin {
 		if r, ok := schemeJudge(a, s, in, v); ok { // the vendor's own rows, read in the product's version scheme, decide first

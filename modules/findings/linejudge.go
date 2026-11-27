@@ -216,7 +216,7 @@ func nvdNamesLine(in swInfo, v Vuln, p productid.Product, line string) bool {
 
 // lineDecision is judge's reading of a line verdict that decides: the tri-state, the vendor's affected range of the line, and the
 // sentence of a "not affected" proof.
-func lineDecision(a Asset, s Software, v Vuln, r lineRead) (Tri, VersionRange, string) {
+func lineDecision(s Software, v Vuln, r lineRead) (Tri, VersionRange, string) {
 	if r.verdict == lineAffected {
 		return Yes, r.within(), ""
 	}

@@ -26,9 +26,10 @@ const (
 	nodeLineFeedID = "nodejs-security-wg" // Node.js security working group, vuln/core/index.json
 	eolFeedID      = "endoflife-date"     // endoflife.date API v1, products/full: line support only
 
-	// DecoderNodeLines and DecoderEOL are the decoders of the two sources.
+	// DecoderNodeLines is the decoder of the Node.js line source (parseNodeLines).
 	DecoderNodeLines Decoder = "nodejs-security-wg"
-	DecoderEOL       Decoder = "endoflife-date"
+	// DecoderEOL is the decoder of the endoflife.date support source (parseEOL).
+	DecoderEOL Decoder = "endoflife-date"
 
 	nodeLineNotice = "MIT, Node.js security working group (nodejs/security-wg). Facts only: CVE ids and the affected and patched release lines."
 	eolNotice      = "MIT, endoflife.date. Facts only: release lines and their support dates; never a CVE verdict."
@@ -205,12 +206,12 @@ type nodeEntry struct {
 	Environments []string `json:"affectedEnvironments"`
 }
 
-// ParseNodeLines reads the Node.js security working group's index (vuln/core/index.json) into one statement per CVE for product:
+// parseNodeLines reads the Node.js security working group's index (vuln/core/index.json) into one statement per CVE for product:
 // one affected row per release line its vulnerable range names, from the start the range gives (none: the whole line), up to the
 // release its patched range gives for that line (none: no fix yet). An entry limited to some platforms keeps its lines listed with
 // the platforms, so they are never read as "not listed". It fails closed: an entry whose ranges do not read, name one line twice,
 // or disagree is dropped and counted by reason, never stored in part.
-func ParseNodeLines(body []byte, product string) ([]lineStatement, Stats, error) {
+func parseNodeLines(body []byte, product string) ([]lineStatement, Stats, error) {
 	var idx map[string]json.RawMessage
 	if err := json.Unmarshal(body, &idx); err != nil {
 		return nil, Stats{}, fail(ErrBadSample, "The Node.js vulnerability index is not the JSON object Vedette reads.")
@@ -316,11 +317,11 @@ type eolFile struct {
 	} `json:"result"`
 }
 
-// ParseEOL reads endoflife.date's products/full for the catalogue products names maps (the name at endoflife.date -> catalogue key):
+// parseEOL reads endoflife.date's products/full for the catalogue products names maps (the name at endoflife.date -> catalogue key):
 // per release line its release day and end of security support (assessed_until and eol: the day the vendor stops assessing the line),
 // and the day of its latest release. A line that is past its end with no day given, or has no release day, is not stored: its
 // support is unknown.
-func ParseEOL(body []byte, names map[string]string) ([]lineSupport, Stats, error) {
+func parseEOL(body []byte, names map[string]string) ([]lineSupport, Stats, error) {
 	var f eolFile
 	if err := json.Unmarshal(body, &f); err != nil || len(f.Result) == 0 {
 		return nil, Stats{}, fail(ErrBadSample, "The endoflife.date answer is not the product list Vedette reads.")
@@ -368,7 +369,7 @@ func (s *Service) buildLines(ctx context.Context, src sourceRow, p pullPlan, dec
 	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified}
 	var st Stats
 	if dec == DecoderEOL {
-		p.support, st, err = ParseEOL(resp.Body, cat.support[src.ID])
+		p.support, st, err = parseEOL(resp.Body, cat.support[src.ID])
 		if err == nil && len(p.support) == 0 {
 			err = fail(ErrBadSample, "endoflife.date lists none of the products Vedette reads its support for; the stored support was kept.")
 		}
@@ -381,7 +382,7 @@ func (s *Service) buildLines(ctx context.Context, src sourceRow, p pullPlan, dec
 	}
 	for _, key := range cat.keys[src.ID] {
 		var sts []lineStatement
-		if sts, st, err = ParseNodeLines(resp.Body, key); err != nil {
+		if sts, st, err = parseNodeLines(resp.Body, key); err != nil {
 			return p, err
 		}
 		p.lines = append(p.lines, sts...)

@@ -13,7 +13,7 @@ import (
 // its reason, never in part.
 func TestParseNodeLines_Count(t *testing.T) {
 	t.Parallel()
-	sts, st, err := ParseNodeLines([]byte(testFile(t, "lines/node-index.json")), "node.js|node.js")
+	sts, st, err := parseNodeLines([]byte(testFile(t, "lines/node-index.json")), "node.js|node.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,14 +79,14 @@ func TestParseNodeLines_FailsClosed(t *testing.T) {
 "5":{"cve":["not-a-cve"],"vulnerable":"22.x","patched":"^22.4.0","affectedEnvironments":["all"]},
 "6":{"cve":["CVE-2026-1006"],"vulnerable":"22.x","patched":"","affectedEnvironments":[]},
 "7":"x"}`
-	sts, st, err := ParseNodeLines([]byte(body), "node.js|node.js")
+	sts, st, err := parseNodeLines([]byte(body), "node.js|node.js")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(sts) != 0 || st.Rejected != 6 {
 		t.Fatalf("statements %+v, stats %+v", sts, st)
 	}
-	if _, _, err := ParseNodeLines([]byte(`[]`), "node.js|node.js"); err == nil {
+	if _, _, err := parseNodeLines([]byte(`[]`), "node.js|node.js"); err == nil {
 		t.Error("an array was read")
 	}
 }
@@ -100,7 +100,7 @@ func TestParseEOL_Count(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sup, st, err := ParseEOL([]byte(testFile(t, "lines/eol-products-full.json")), cat.support[eolFeedID])
+	sup, st, err := parseEOL([]byte(testFile(t, "lines/eol-products-full.json")), cat.support[eolFeedID])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestLineSourcesPull(t *testing.T) {
 
 func mustNode(t *testing.T) []lineStatement {
 	t.Helper()
-	sts, _, err := ParseNodeLines([]byte(testFile(t, "lines/node-index.json")), "node.js|node.js")
+	sts, _, err := parseNodeLines([]byte(testFile(t, "lines/node-index.json")), "node.js|node.js")
 	if err != nil {
 		t.Fatal(err)
 	}

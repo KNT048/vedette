@@ -20,6 +20,9 @@ const UnknownAuthor = "unknown (entered before this release)"
 //     line as a distribution's package because of it;
 //   - an entry with no author (a device added by hand, a CSV import) gets UnknownAuthor.
 //
+// The OS a person set on a device is left out: syncStatedOS rebuilds that reading from the OS correction (its author is the
+// correction's), so naming an author on the reading would be undone by the next observation and written again by every run.
+//
 // Each change is one audit row (inventory.entry_cleaned) and the device is matched again. With nothing left to clean a run reads one
 // query: the job runs it at start and every day after, and it is idempotent.
 func (s *Service) CleanStoredClaims(ctx context.Context) error {
@@ -27,7 +30,7 @@ func (s *Service) CleanStoredClaims(ctx context.Context) error {
 	var todo []stray
 	err := func() error {
 		rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT s.asset_id, s.id FROM inv_software_reading r JOIN inv_software s ON s.id = r.software_id
-			WHERE r.source = 'manual' AND (r.pkg_version IS NOT NULL OR r.set_by IS NULL) ORDER BY s.asset_id, s.id`)
+			WHERE r.source = 'manual' AND r.instance <> ? AND (r.pkg_version IS NOT NULL OR r.set_by IS NULL) ORDER BY s.asset_id, s.id`, instanceOS)
 		if err != nil {
 			return err
 		}
@@ -86,7 +89,7 @@ func (s *Service) cleanDeviceClaims(ctx context.Context, assetID string, lineIDs
 				return err
 			}
 			for _, r := range rs {
-				if !r.entry() {
+				if !r.entry() || r.Instance == instanceOS { // the person's OS: rebuilt from the OS correction, which holds its author
 					continue
 				}
 				what := ""

@@ -1,5 +1,4 @@
 {
-  "titleLoading": "Internal traps",
   "title": {
     "noTraps": "No Trap IP is on. Add one to learn when something probes your network.",
     "today_one": "{{count}} trap hit today",
@@ -521,7 +520,6 @@
     }
   },
   "notHere": {
-    "page": "Honeypot",
     "title": "Traps need the appliance install",
     "body": "Container-only install: no trap can run here.",
     "bodyInfo": "There is no vedette-host to run the honeypot container and its Trap IPs, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",

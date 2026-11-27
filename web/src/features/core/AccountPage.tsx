@@ -276,7 +276,7 @@ export default function AccountPage() {
   const approver = operator && responseOn // S-RESP-2: approvers prove their approval channel addresses
   return (
     <>
-      <PageHeader title={q.data ? t('account.title', { name: q.data.user.name }) : t('account.titleLoading')} meta={t('account.meta')} stories={['S-CORE-3']} />
+      <PageHeader title={t('settings.myAccount')} meta={t('account.meta')} stories={['S-CORE-3']} />
       <OldHashToTab map={OLD_HASH} />
       {/* Profile, how I sign in, where I am signed in, and (approvers) my approval channels are separate areas, as GitHub's
           Public profile / Password and authentication / Sessions pages are; a tab the person cannot use is left out. */}

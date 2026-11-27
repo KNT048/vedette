@@ -217,8 +217,8 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     const was = await sw.isChecked()
     if (was) { await sw.click(); await toast(page, /CISA KEV is off/) }
     await page.goto('/')
-    await expect(h1(page)).toContainText('The CISA list is turned off.')
-    await expect(h1(page)).not.toContainText(/\d+ vulnerabilit/)
+    await expect(page.locator('header:has(h1)').first()).toContainText('The CISA list is turned off.')
+    await expect(page.locator('header:has(h1)').first()).not.toContainText(/\d+ vulnerabilit/)
     // The hot board follows the same rule: an empty window never reads as "none" while the list is off.
     for (const win of ['24 hours', '7 days']) {
       await page.getByRole('button', { name: win }).click()

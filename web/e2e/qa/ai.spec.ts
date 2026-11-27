@@ -33,7 +33,7 @@ test.describe('ai: clean install', () => {
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/assistant')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('No AI profile yet')
+    await expect(page.locator('header:has(h1)').first()).toContainText('No AI profile yet')
     await expect(page.getByRole('button', { name: 'About No AI profile yet' }).first()).toHaveAccessibleDescription(/^Add an AI profile \(provider, model and key\) to use this\./) // #824: behind the empty state's ⓘ
     await expect(page.getByRole('link', { name: 'Open Settings, AI assistant' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Token meter' })).toHaveCount(0) // not connected and never run: no zero is shown
@@ -92,7 +92,7 @@ test.describe('ai: clean install', () => {
     // a job with no primary profile takes the new profile: usable at once
     await expect(page.getByLabel('Primary profile for Ask your data', { exact: true })).toHaveValue(/.+/)
     await page.goto('/assistant')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used this month')
+    await expect(page.locator('header:has(h1)').first()).toContainText('tokens used this month')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     // a clean install already lists the box itself as its first device (inventory mock, 830c3ad), so the answer comes from one device; the empty-inventory answer is covered by vitest
     await expect(page.getByText(/No device in the inventory has RDP/)).toBeVisible()
@@ -235,7 +235,7 @@ test.describe('ai: sample data', () => {
     const errors = collectErrors(page)
     await sampleStart(page)
     await page.goto('/assistant')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used this month')
+    await expect(page.locator('header:has(h1)').first()).toContainText('tokens used this month')
     for (const [q, re] of [['Which machines still expose RDP?', /devices? (has|have) RDP/], ['Which devices are not approved yet?', /devices? (is|are) not approved yet/], ['Which findings are confirmed?', /findings? (is|are) confirmed/], ['Which NAS has findings?', /There (is|are) \d+ NAS/], ['Which cameras are Hikvision?', /cameras? and recorders?/], ['Which machines run an operating system near end of support?', /out of support or about to be/]] as const) {
       await page.getByRole('button', { name: q }).click()
       await expect(page.getByText(re).first()).toBeVisible()
@@ -362,7 +362,7 @@ test.describe('ai: sample data', () => {
     })
     await page.reload()
     await page.goto('/assistant')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('AI assistant is off')
+    await expect(page.locator('header:has(h1)').first()).toContainText('AI assistant is off')
     await page.goto('/cve/CVE-2022-27593')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('CVE-2022-27593')
     await expect(page.getByRole('heading', { level: 2, name: 'Explain in plain English' })).toHaveCount(0) // the AI panel is not built when the module is off

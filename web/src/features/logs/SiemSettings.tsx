@@ -134,7 +134,7 @@ export default function SiemSettings() {
   const q = useSiem()
   return (
     <RequireModule module="logs">
-      <PageHeader title={t('siem.title')} meta={t('siem.description')} info={t('siem.descriptionInfo')} stories={['S-LOG-3']} />
+      <PageHeader title={t('common:shell.siem')} meta={t('siem.description')} info={t('siem.descriptionInfo')} stories={['S-LOG-3']} />
       <QueryState query={q}>{(cfg) => <Card className="max-w-2xl"><SiemForm cfg={cfg} /></Card>}</QueryState>
     </RequireModule>
   )

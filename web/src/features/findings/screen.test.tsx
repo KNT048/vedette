@@ -18,7 +18,7 @@ server.events.on('request:start', ({ request }) => {
 afterEach(() => { posts.length = 0 })
 
 const num = (s: string | null | undefined, re: RegExp) => Number(re.exec(s ?? '')?.[1] ?? Number.NaN)
-const title = async () => num((await screen.findByRole('heading', { level: 1, name: /open finding/ }, T)).textContent, /^(\d+) open finding/)
+const title = async () => num((await waitFor(() => within(screen.getByRole('heading', { level: 1, name: 'Findings' }).closest('header')!).getByText(/^\d+ open finding/), T)).textContent, /^(\d+) open finding/)
 const summary = async (tab: 'device' | 'fix') => {
   const el = await waitFor(() => { const e = document.querySelector(`[data-count="by-${tab}"]`); if (!e) throw new Error('no summary'); return e }, T)
   return num(el.textContent, /(\d+) open finding/)

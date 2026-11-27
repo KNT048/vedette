@@ -462,17 +462,17 @@ function Content() {
   const sources = useSources()
   const digest = useDigest()
   const feedsOn = useModuleEnabled('feeds')
-  let title = t('titleLoading')
+  let status: string | null = null
   const noSources = sources.data?.sources.length === 0
   const noLogs = !noSources && digest.data !== undefined && digest.data.lines_24h === 0
   const learning = digest.data !== undefined && digest.data.history_days < digest.data.baseline_days
-  if (noSources) title = t('titleNoSources')
-  else if (noLogs) title = t('titleNoLogs')
+  if (noSources) status = t('titleNoSources')
+  else if (noLogs) status = t('titleNoLogs')
   else if (digest.data) {
     const { bad_connections: b, new: n, spikes: s } = digest.data
     // No count of bad connections when none can be matched (Feeds off, or no IOC feed lists anything): "0" would read as "none happened".
     const unmatched = b.length === 0 && (feedsOn === false || !digest.data.ioc_matching)
-    if (b.length + n.length + s.length === 0) title = learning ? t('titleLearning', { n: digest.data.history_days, days: digest.data.baseline_days }) : t('titleQuiet')
+    if (b.length + n.length + s.length === 0) status = learning ? t('titleLearning', { n: digest.data.history_days, days: digest.data.baseline_days }) : t('titleQuiet')
     else {
       // A hit the logging device blocked is an attempt, counted apart from the connections that went through.
       const attempts = b.filter((h) => h.blocked).length
@@ -481,7 +481,7 @@ function Content() {
         ? t('headline.badBoth', { connections: t('headline.connections', { count: connections }), attempts: t('headline.attempts', { count: attempts }) })
         : t('headline.bad', { what: attempts ? t('headline.attempts', { count: attempts }) : t('headline.connections', { count: connections }) })
       const rest = { fresh: t('headline.fresh', { count: n.length }), spikes: t('headline.spikes', { count: s.length }) }
-      title = unmatched ? t('titleNoIoc', rest) : t('title', { bad, ...rest })
+      status = unmatched ? t('titleNoIoc', rest) : t('title', { bad, ...rest })
     }
   }
   const sourceList = sources.data?.sources ?? []
@@ -509,8 +509,8 @@ function Content() {
   const sourcesTab = { id: 'sources', label: t('tabs.sources'), panel: <SourcesSection /> }
   return (
     <>
-      <PageHeader title={title} info={t('pageInfo')} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
-        meta={digest.data && !noSources && !noLogs ? <span className="inline-flex flex-wrap items-center gap-2">{t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) })}<SampleDataNote /></span> : null} />
+      <PageHeader title={t('common:shell.logs')} info={t('pageInfo')} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
+        meta={<span className="inline-flex flex-wrap items-center gap-2"><span>{status}</span>{digest.data && !noSources && !noLogs ? t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) }) : null}<SampleDataNote /></span>} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={noSources ? [sourcesTab, ...retention] : [
         { id: 'digest', label: t('tabs.digest'), panel: <>

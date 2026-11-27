@@ -152,10 +152,10 @@ export default function McpSection() {
   // under the title says so (PageHeader, PageModule from the section).
   const leaving = useScope('mcp-server') === 'leaving'
   const q = useMcp(on === true)
-  const title = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('settings.mcp')
+  const status = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : null
   return (
     <>
-      <PageHeader title={title} meta={t('mcp.meta')} info={t('mcp.metaInfo')} stories={['S-MCP-1']} />
+      <PageHeader title={t('settings.mcp')} meta={status ? `${status}. ${t('mcp.meta')}` : t('mcp.meta')} info={t('mcp.metaInfo')} stories={['S-MCP-1']} />
       {on === undefined ? <Loading /> : on ? <QueryState query={q}>{(s) => <Body s={s} locked={leaving} />}</QueryState> : <McpSwitch on={false} />}
     </>
   )

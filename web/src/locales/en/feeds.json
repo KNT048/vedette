@@ -82,7 +82,6 @@
     "hiddenToast": "Item hidden."
   },
   "lookup": {
-    "title": "Lookup",
     "meta": "Search this box for a CVE, product, IP address or domain.",
     "metaInfo": "Searches data on this box only: CVE, product name, IP address or domain. Nothing is sent out.",
     "emptyTitle": "Enter what you want to check",

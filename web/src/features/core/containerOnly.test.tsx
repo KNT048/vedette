@@ -441,7 +441,7 @@ describe('container-only install', () => {
 
   it('the honeypot page says once why traps cannot run and reads no honeypot route', async () => {
     renderApp('/honeypot')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Honeypot' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Internal traps' })).toBeInTheDocument()
     expect(screen.getAllByText('Traps need the appliance install')).toHaveLength(1)
     expect(calls.filter((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/honeypot'))).toEqual([])
   })

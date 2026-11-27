@@ -48,7 +48,7 @@ describe('notify: incidents (S-ALERT-3)', () => {
 
   it('the heading counts new incidents; the list has trap, bad address and log anomaly, no vulnerabilities; no a11y violations', async () => {
     renderApp('/incidents')
-    expect(await screen.findByRole('heading', { level: 1, name: '3 new incidents' })).toBeInTheDocument()
+    expect(await screen.findByText('3 new incidents')).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Incidents' })
     expect(within(table).getAllByRole('row')).toHaveLength(5)
     expect(within(table).getByRole('link', { name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toHaveAttribute('href', '/incidents/al-4')
@@ -203,7 +203,7 @@ describe('notify: incidents (S-ALERT-3)', () => {
     const channels = (enabled: boolean) => http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: enabled, enabled, fields: {}, secret_last4: null, min_severity: 'high', last_test: null, approvals: false, approvers: [], approval_last4: { app_token: null, bot_token: null } }], quiet: { enabled: false, from: '22:00', to: '07:00', allow_critical: true }, grouping: { enabled: false, window_min: 15 }, email_code_users: 0 }))
     server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })), channels(false))
     const view = renderApp('/incidents')
-    expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    expect(await screen.findByText('No new incidents')).toBeInTheDocument()
     // docs/UI.md §0: the channel is set up right here: the one channel not set up opens its form at once
     await userEvent.click(await screen.findByRole('button', { name: 'Set up alert channels' }))
     expect(await screen.findByRole('dialog', { name: /Webhook/ })).toBeInTheDocument()
@@ -213,7 +213,7 @@ describe('notify: incidents (S-ALERT-3)', () => {
     view.unmount()
     server.use(channels(true))
     renderApp('/incidents')
-    expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    expect(await screen.findByText('No new incidents')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Set up alert channels' })).toBeNull())
   })
 
@@ -511,7 +511,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
     await userEvent.type(within(dlg).getByLabelText('Note (optional)'), 'Pentest by the vendor')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Resolve 4 incidents' }))
     expect(await screen.findByText('4 incidents resolved')).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    expect(await screen.findByText('No new incidents')).toBeInTheDocument()
     // Every incident resolved, the badge goes at once, not after the summary's next minute
     await waitFor(() => expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: /^Incidents/ })).toHaveAccessibleName('Incidents'))
     expect(auditStore.get().filter((a) => a.action === 'notify.incident_status')).toHaveLength(4)

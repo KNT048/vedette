@@ -24,7 +24,6 @@
     "connections": "Connections"
   },
   "general": {
-    "title": "{{name}} box: name and time zone",
     "meta": "Shown on reports and alerts; sets the clock of every schedule.",
     "metaInfo": "The name appears in the sidebar, reports and alert messages. The time zone sets scan windows, quiet hours and the weekly report.",
     "name": "Organization name",
@@ -1353,7 +1352,6 @@
     }
   },
   "data": {
-    "title": "Back up, export and delete the box's data",
     "meta": "Your data stays on this machine.",
     "metaInfo": "All of this works from here, no command line.",
     "downloaded": "Downloaded {{file}}",
@@ -1527,8 +1525,6 @@
     }
   },
   "account": {
-    "title": "{{name}}'s account",
-    "titleLoading": "My account",
     "meta": "Profile, password, two-step sign-in and the places you are signed in.",
     "profile": {
       "title": "Profile",

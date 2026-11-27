@@ -28,8 +28,9 @@ import (
 // terms and deep-scan settings were last changed before it started, its port and service steps ran, its settings allowed at least
 // what the domain's step allows now (no group it turned off that the step has on, the normal speed unless the step is gentle, every
 // port and web path it skipped skipped by the step too), and its OpenVAS and disruptive steps ran when the domain's step would run
-// them now on an address with open ports; every open port this run found there was seen by it; and no finding it would give comes from
-// a check the domain's step would not run (reuseNarrower). A reuse must never close or reopen anything of the domain by itself: when the domain holds
+// them now on an address with open ports; every open port this run found there was seen by it; at least one port it saw open is one
+// the step does not skip when it would give a finding; and no finding it would give comes from a check the domain's step would not
+// run (reuseNarrower). A reuse must never close or reopen anything of the domain by itself: when the domain holds
 // an open port of the address the source did not see, an open address-level issue (nmap scripts, OpenVAS, the comparison with
 // exploited CVEs) the source did not report, or one gone or marked patched or mitigated that it did report, the address is scanned.
 
@@ -197,6 +198,9 @@ func (s *Service) reuseFor(ctx context.Context, st, stD ScanTarget, a deepAddr, 
 		in.reused = true
 		src.issues = append(src.issues, in)
 	}
+	if !open && len(src.issues) > 0 { // every open port it saw is one the step skips: the step would send nothing there
+		return nil, "this scan skips every open port its deep scan saw there"
+	}
 	if why := reuseNarrower(stD, it.Deep, termsDisruptive && by != SystemUser, src.issues); why != "" {
 		return nil, why
 	}
@@ -215,17 +219,22 @@ const disruptiveGroups = GroupDoS | GroupLogins | GroupChange
 // reuseNarrower says "" when no finding a reuse would take (ins) can come from a check the domain's step stD would not run: a reuse
 // never reports what the domain's own terms and settings would not have found. The source's full sweep ran nmap's scripts of its
 // target's settings' groups (d, unchanged since it started); its OpenVAS config and disruptive scripts followed the disruptive groups
-// of its run, at most those same groups and only with the disruptive terms on a run a person started (disruptive). A finding does not
-// say which group's check found it, so one such finding is enough to scan the address instead.
+// of its run, at most those same groups and only with the disruptive terms on a run a person started (disruptive). The sweep also
+// leaves out the scripts that follow ports another service names (nmapargv's followScripts) as soon as any port is skipped, so a
+// source that skipped none ran scripts a step that skips one would not. A finding does not say which check found it, so one such
+// finding is enough to scan the address instead.
 func reuseNarrower(stD ScanTarget, d DeepSettings, disruptive bool, ins []issueIn) string {
 	sweep, ran := d.Groups()&disruptiveGroups, Groups(0)
 	if disruptive {
 		ran = sweep
 	}
+	follows := len(d.SkipPorts) == 0 && len(stD.SkipPorts) > 0
 	for _, in := range ins {
 		switch {
 		case in.engine == EngineSurface && strings.HasPrefix(in.key, keyScript) && sweep&^stD.Groups != 0:
 			return "its deep scan ran nmap's scripts of a group this scan has turned off"
+		case in.engine == EngineSurface && strings.HasPrefix(in.key, keyScript) && follows:
+			return "its deep scan skipped no port, so it ran nmap's scripts that this scan leaves out while it skips one"
 		case (in.engine == EngineOpenVAS || strings.HasPrefix(in.key, keyScriptDisruptive)) && ran&^modeGroups(stD.Mode) != 0:
 			return "its deep scan ran disruptive checks this scan does not run"
 		}

@@ -278,7 +278,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   address changed since). A reuse never reports what the domain's own terms and settings would not have found (`reuseNarrower`):
   when it would take a script finding and the source's full sweep ran the scripts of a group the step's settings turn off, or an
   OpenVAS or disruptive-script finding and the source's run could have had a disruptive group the step does not have (its OpenVAS
-  config and disruptive scripts follow those groups; a run a person started with the disruptive terms), the address is scanned.
+  config and disruptive scripts follow those groups; a run a person started with the disruptive terms), or a script finding when the
+  step skips a port and the source skipped none (the full sweep leaves out the scripts that follow ports another service names once
+  a port is skipped), the address is scanned; so is it when the step skips every open port the source saw and a finding would be
+  taken (the step would send nothing there).
   A reuse never closes or reopens anything by itself (`reuseKeepsRows`): when the domain
   holds an open port there the source did not see, an open address-level issue (nmap's scripts, OpenVAS, the comparison with
   exploited CVEs) it did not report, or one gone or marked patched or mitigated that it did report, the address is scanned as

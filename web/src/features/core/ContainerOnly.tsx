@@ -80,7 +80,7 @@ export function ContainerUpdates() {
   const offer = q.data?.available.find((a) => a.component === 'software')
   return (
     <>
-      <Section title={t('container.updates.title')} description={t('container.updates.desc')} info={t('container.updates.descInfo')}>
+      <Section label={t('container.updates.title')} description={t('container.updates.desc')} info={t('container.updates.descInfo')}>
         <div className="grid min-w-0 max-w-3xl gap-3">
           <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
             options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
@@ -96,7 +96,7 @@ export function ContainerUpdates() {
           )}
         </div>
       </Section>
-      <Section title={t('container.os.title')} description={t('container.os.desc')} info={t('container.os.descInfo')}>{null}</Section>
+      <Section label={t('container.os.title')} description={t('container.os.desc')} info={t('container.os.descInfo')}>{null}</Section>
     </>
   )
 }
@@ -159,7 +159,7 @@ export function CheckFailed({ e }: { e: UpdateCheckError }) {
 function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; running: string; engine: Engine }) {
   const { t } = useTranslation('core')
   const version = offer.version
-  const heading = <h3 className="mt-2 text-sm font-semibold [overflow-wrap:anywhere]">{t('container.updates.block1', { version })}</h3>
+  const heading = <h2 className="mt-2 text-sm font-semibold [overflow-wrap:anywhere]">{t('container.updates.block1', { version })}</h2>
   // A version that cannot go into a command as it is gets no commands at all (no placeholder for the customer to fix by hand).
   if (!SAFE_VERSION.test(version) || !SAFE_VERSION.test(running)) return (
     <>

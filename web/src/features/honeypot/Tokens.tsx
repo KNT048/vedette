@@ -29,7 +29,7 @@ export default function TokensSection() {
   const { t } = useTranslation('honeypot')
   const q = useTokens()
   return (
-    <Section id="tokens" title={t('token.title')} description={t('token.description')} info={t('token.descriptionInfo')}>
+    <Section id="tokens" label={t('token.title')} description={t('token.description')} info={t('token.descriptionInfo')}>
       <QueryState query={q}>{(d) => <Inner items={d.items} />}</QueryState>
     </Section>
   )

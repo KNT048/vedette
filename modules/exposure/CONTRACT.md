@@ -13,7 +13,7 @@ are gates.
 | `GET /exposure/targets`, `/exposure/targets/{id}`, `/exposure/targets/{id}/outside`, `/exposure/tree`, `/exposure/tree/{id}`, `/exposure/tree/{id}/hosts`, `…/addresses`, `…/services`, `…/issues`, `…/scans`, `/exposure/scan`, `/exposure/greenbone` | viewer |
 | `GET /exposure/targets/{id}/snapshots`, `…/snapshots/{date}`, `…/diff` | viewer (answer 501: results are rows, INV-8) |
 | `POST /exposure/targets/{id}/verify`, `…/scan`, `…/openvas`, `DELETE /exposure/targets/{id}/queue`, `POST /exposure/tree/{id}/verify`, `…/scan`, `POST /exposure/scan/stop`, `POST /exposure/issues/handle`, `…/reopen` | operator |
-| `POST /exposure/targets`, `DELETE /exposure/targets/{id}`, `PUT`/`DELETE /exposure/targets/{id}/terms`, `POST /exposure/targets/{id}/outside`, `POST /exposure/tree`, `PATCH`/`DELETE /exposure/tree/{id}`, `PUT`/`DELETE /exposure/tree/{id}/terms`, `POST /exposure/box-ip/verify`, `PUT /exposure/box-ip/settings`, `DELETE /exposure/box-ip/ignored/{ip}`, `PUT /exposure/greenbone` | admin |
+| `POST /exposure/targets`, `DELETE /exposure/targets/{id}`, `PUT`/`DELETE /exposure/targets/{id}/terms`, `POST /exposure/targets/{id}/outside`, `POST /exposure/tree`, `PATCH`/`DELETE /exposure/tree/{id}`, `PUT`/`DELETE /exposure/tree/{id}/terms`, `PUT /exposure/tree/{id}/deep-settings`, `POST /exposure/box-ip/verify`, `PUT /exposure/box-ip/settings`, `DELETE /exposure/box-ip/ignored/{ip}`, `PUT /exposure/greenbone` | admin |
 
 Shapes: `web/src/features/exposure/contract.ts`.
 
@@ -226,6 +226,38 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   the address, never by the first nmap run. `TestScanPlan_TheDisruptiveScriptsRunLast`,
   `TestDisruptive_TheScriptsRunLastOnTheOpenPorts`, `TestDisruptive_SkippedWhenTheRunMayNotRunThem`, `cmd/vedette`
   `TestExposureDisruptiveScriptsRunOnTheOpenPorts`, sensor-active `TestScanDisruptiveRunsOnTheOpenPortsOnly`.
+- **INV-46** Each target has deep-scan settings (`exp_deep_setting`, one row per target, removed with it; no row is the defaults):
+  the groups `dos` (off by default), `logins`, `web_active`, `data_change` and `openvas`, a speed (`normal`, `gentle`), the ports to
+  skip and the URL path prefixes to skip (two separate lists; one is never turned into the other). They only narrow: `narrow` is the
+  last step of `runMode`, after the terms, the scheduled-scan rule and carrier-grade NAT, so every `ModeNow` re-read takes them, and
+  it only clears bits (`ScanMode.DoS`, `Logins`, `Change`, `WebActive`, `OpenVAS`; `Disruptive` is `DoS || Logins || Change`). The
+  adapters AND the re-read with the run's mode bit by bit (`ScanMode.And`), so a group turned off during a run is left out from its next step and a group turned on never reaches it; the ports and web
+  paths to skip and the speed are read once at the check step and apply from the next scan. Nothing is stopped. A domain's address that is also an IP target of the box takes both targets' settings
+  (`deepGate`, `withSettings`; the active web scan of its pages too). Each engine core feeds honours them: nuclei leaves out the
+  templates of a group that is off (classified in core, `cmd/vedette` `templateGroup`: a check that can exhaust or crash a service is
+  in the denial-of-service group whatever its tags) and, by the first request of each template, those under a path to skip (one it
+  cannot judge runs, and the step says how many); nmap's full sweep runs the script groups the target's settings allow
+  (`ScanTarget.Groups`; scheduled scans too) and its disruptive scripts those of the groups the run allows, narrowed again right
+  before the job (`cmd/vedette` `ownGate.GroupsNow`; sensor-active INV-19a), and the ports to skip go to nmap as `--exclude-ports`
+  or are left out of its port lists; ZAP's active pass is skipped with `web_active` off, its disruptive rules run with `dos` or
+  `data_change` and the host leaves out the class that is off (`no_dos`, `no_change`), the web paths to skip are excluded by the
+  host in both passes (host INV-31d; a web scanner that cannot leave them out, `PathExcluder`, gets no ZAP run), an issue of a rule
+  the settings left out of a page is never closed by that page (`WebSkippedRules`), and gentle runs ZAP on one thread with 500 ms
+  between requests; the surface runner never dials a port to skip and connects more slowly when gentle; nuclei's full jobs run at
+  its gentle rate when gentle (the step's bound stretches by `GentleTemplateScale`, within its cap); OpenVAS is skipped with `openvas` off, and its scan config follows the mask of the disruptive
+  groups (`levelFor`: the Brute force and Default Accounts families and their two checkboxes with `logins`, the Denial of Service
+  family with `dos`, each family read back by itself; `safe_checks` off only when `dos` and `data_change` are both allowed, since it
+  gates both: with one of them off the run says both are narrowed for OpenVAS); the gentle speed runs its task with `max_checks` 2 and
+  `max_hosts` 1, and its port list leaves out the ports to skip. A skipped port is not observed (INV-45): it is dropped
+  from what the runner and the sweep report, gets no engine, liveness check or re-check, and its stored row keeps its state and
+  issues (`dropSkipped`, `observation`). The check step names the settings a run used and `exp_scan.summary` (`settings`) keeps
+  them; every group or step the settings removed says "Turned off in this target's settings." A value the box cannot read narrows: a
+  toggle counts as off, the speed as gentle, and an exclusion list it cannot parse makes the scan refuse at its check step
+  (`settings_unreadable`), so nothing is sent without the person's exclusions. `PUT /exposure/tree/{id}/deep-settings` is an
+  administrator's, needs two-step sign-in to turn `dos` on (the one change that adds risk), refuses ports outside 1-65535, more than
+  64 ports, a path that does not start with "/" or holds anything but the characters of a URL path, and more than 20 paths, and is
+  audited (`exposure.deep_settings`, before and after). `TestDeepSettings_*`, the `settings/` rows of `TestObservationMatrix`,
+  `cmd/vedette` `TestExposureGroups_*`.
 - **INV-19** Service identification runs before results are stored.
 - **INV-20** Exploited CVEs of a service are matched at scan time through findings' matcher (`Config.Matcher`).
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.
@@ -275,7 +307,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   level: its checkbox is off and the three generic directory-traversal NVTs are out of the web family
   (`TestOpenVASTuning_WebFuzzingIsOffInEveryLevel`); the web scan (ZAP) is the web attack engine. The report is read with every
   level and QoD; QoD 70 and a severity above 0 stay the cut for every result except a short allowlist of configuration facts
-  (`gmpFacts`: SSH password logins, DHE key exchange, BREACH, TRACE, certificate problems; read with a second get_reports request for those OIDs only, best effort: the main read keeps its QoD 70 filter and caps), each a Low issue with a plain
+  (`gmpFacts`: SSH password logins, DHE key exchange, BREACH, TRACE, certificate problems; TRACE only from the NVT that confirms the echo, never from the HTTP methods enumeration; read with a second get_reports request for those OIDs only, best effort: the main read keeps its QoD 70 filter and caps), each a Low issue with a plain
   title and a fix line, no CVE, one per port (`TestOpenVASFactsHaveTitleAndFix`, `TestOpenVASTuning_ConfigurationFactBecomesALowIssue`).
   Each Greenbone service has a memory limit (`deploy/greenbone`).
   OpenVAS enabled but still starting (its images pull when it is turned on) or loading its feed: the step is skipped with why and

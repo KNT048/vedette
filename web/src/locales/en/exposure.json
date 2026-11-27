@@ -479,6 +479,8 @@
     "description": "Your domains and public IPs. A name under a domain target sits under it.",
     "descriptionInfo": "A domain's ownership proof covers every name under it, so a name added under a proven domain needs no proof of its own. A name that is its own target keeps its own options and is skipped by the scan of the domain above it, so it is never scanned twice.",
     "caption": "Targets",
+    "summary_one": "{{count}} target",
+    "summary_other": "{{count}} targets",
     "under": "under {{parent}}",
     "boxIp": "This box's IP",
     "off": "Off",
@@ -788,5 +790,89 @@
     "name": "Scans of {{value}}",
     "needsTerms": "Paused until the testing terms are accepted (Ownership tab).",
     "neverDisruptive": "Scheduled scans never run the disruptive checks."
+  },
+  "deepSettings": {
+    "button": "Deep scan settings",
+    "title": "Deep scan settings: {{value}}",
+    "description": "How hard a deep scan may hit this target. These settings only narrow the scan: a check you leave on still runs only where the testing terms allow it.",
+    "descriptionInfo": "Use them for a production router, a fragile device or a site with a delete link. They apply to every deep scan of this target, including scheduled ones. Scheduled scans never run the disruptive checks, whatever is set here.",
+    "needTerms": "Deep scans need the testing terms of this target to be accepted (Ownership tab). Until then these settings are kept but nothing deep runs, and the disruptive checks cannot be turned on.",
+    "problem": "The stored settings cannot be read ({{problem}}). Scans of this target are refused until you save them again.",
+    "group": {
+      "dos": {
+        "label": "Denial-of-service checks",
+        "help": "May slow down or crash a service or device. Off unless you turn it on.",
+        "info": "Checks that try to exhaust or crash a service, such as slow-connection and oversized-request tests. Turning this on needs two-step sign-in on your account."
+      },
+      "logins": {
+        "label": "Password guessing and default logins",
+        "help": "Tries well-known and default passwords on the services found. May lock accounts.",
+        "info": "Includes brute-force and default-credential checks of every scan engine."
+      },
+      "web_active": {
+        "label": "Active web attacks",
+        "help": "Crawls the site and sends attack requests to its pages and forms.",
+        "info": "The active web scan: its spider and attack rules. Turn it off for a site where a request can delete or send something."
+      },
+      "data_change": {
+        "label": "Exploit checks that may change data",
+        "help": "May create or change data, for example by submitting forms.",
+        "needsWeb": "Its web checks also need Active web attacks, which is off.",
+        "info": "Checks that confirm a flaw by sending the exploit request, not only a harmless read."
+      },
+      "openvas": {
+        "label": "OpenVAS for this target",
+        "help": "Runs the OpenVAS scanner on this target when it is on for the box.",
+        "info": "OpenVAS is a long scan with many checks. Turn it off here to leave this target out while the box keeps using it for others."
+      }
+    },
+    "openvasOff": "OpenVAS is turned off for the whole box, so it cannot run on this target. Turn it on in Settings, Scanning, Engines.",
+    "speed": {
+      "label": "Speed",
+      "normal": "Normal",
+      "gentle": "Gentle",
+      "help": {
+        "normal": "Scans run at the usual pace.",
+        "gentle": "Slower, for fragile devices: scans take longer."
+      }
+    },
+    "ports": {
+      "label": "Ports to skip",
+      "help": "No scan engine is sent to these TCP ports (at most {{max}}).",
+      "info": "TCP ports only: a few discovery checks still use UDP (for example NetBIOS name lookup on port 137). Their stored services are left as they are: a scan that skipped a port never marks it closed. Separate several ports with spaces or commas.",
+      "placeholder": "For example 8080, 3389",
+      "bad": "\"{{value}}\" is not a port number (1 to 65535).",
+      "tooMany": "At most {{max}} ports can be skipped."
+    },
+    "paths": {
+      "label": "Web paths to skip",
+      "help": "Web scans leave these paths out (at most {{max}}). nmap and OpenVAS cannot skip a path: skip its port instead.",
+      "info": "Matched as written from the start of the path, not as a pattern. The web scanner skips them; nuclei does so as far as it can, by the first request of each check. The run page says when it could not.",
+      "placeholder": "For example /admin/delete",
+      "noSlash": "\"{{value}}\" does not start with /.",
+      "tooLong": "A path is longer than {{max}} characters.",
+      "badChar": "\"{{value}}\" holds a character a path cannot have here: only letters, digits and - . _ ~ % ! & ' , ; = : @ /. Patterns, queries and spaces are not allowed.",
+      "tooMany": "At most {{max}} paths can be skipped."
+    },
+    "add": "Add",
+    "remove": "Remove {{value}}",
+    "when": "A check turned off stops a scan that is already running at its next step. Ports, paths and speed apply from the next scan.",
+    "save": "Save settings",
+    "toast": "Deep scan settings of {{value}} saved",
+    "change": "Change",
+    "summary": {
+      "dos": {
+        "on": "Denial-of-service checks: on",
+        "off": "Denial-of-service checks: off"
+      },
+      "loginsOff": "Password guessing: off",
+      "web_activeOff": "Active web attacks: off",
+      "data_changeOff": "Data-changing exploit checks: off",
+      "openvasOff": "OpenVAS: off",
+      "ports_one": "{{count}} port skipped",
+      "ports_other": "{{count}} ports skipped",
+      "paths_one": "{{count}} path skipped",
+      "paths_other": "{{count}} paths skipped"
+    }
   }
 }

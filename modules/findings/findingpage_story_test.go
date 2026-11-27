@@ -125,3 +125,18 @@ func TestFindingPage_EveryFixKindHasItsOwnHistoryNote(t *testing.T) {
 		t.Errorf("restart note = %q, want %q", got, want)
 	}
 }
+
+// A fix key of a fix only a subscription carries ends in its channel ("…|distro_update|<release>|ubuntu_pro"). The history note still
+// reads the kind and the release, and says the subscription, never "update to ubuntu_pro or later".
+func TestFindingPage_HistoryNoteOfAChannelFix(t *testing.T) {
+	t.Parallel()
+	for key, want := range map[string]string{
+		FixKey("ubuntu|python3-pip", Fix{Kind: FixDistroUpdate, Version: "25.1.1+dfsg-1ubuntu2+esm3", Channel: ChannelUbuntuPro}): "Now: install the distribution's package 25.1.1+dfsg-1ubuntu2+esm3 or later (only Ubuntu Pro has it).",
+		FixKey("microsoft|windows 10", Fix{Kind: FixOSUpdate, Version: "19045.6456", Channel: ChannelESU}):                        "Now: install the operating system update to build 19045.6456 or later (only with Extended Security Updates).",
+		FixKey("ubuntu|python3-pip", Fix{Kind: FixDistroUpdate, Version: "25.1.1+dfsg-1ubuntu2.1"}):                               "Now: install the distribution's package 25.1.1+dfsg-1ubuntu2.1 or later.",
+	} {
+		if got := fixChangeNote(key); got != want {
+			t.Errorf("fixChangeNote(%q) = %q, want %q", key, got, want)
+		}
+	}
+}

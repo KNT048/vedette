@@ -28,10 +28,12 @@ var gmpFacts = []gmpFact{
 	{oid: "1.3.6.1.4.1.25623.1.0.117414", // BREACH
 		title: "HTTP compression over TLS allows the BREACH attack",
 		fix:   "Turn off HTTP compression for pages that carry secrets or tokens, or mask CSRF tokens per response."},
-	{oid: "1.3.6.1.4.1.25623.1.0.153974", // Allowed HTTP Methods Enumeration
+	// HTTP Debugging Methods (TRACE/TRACK) Enabled: raised only when the scanner got the request echoed back. The methods enumeration
+	// NVT (1.3.6.1.4.1.25623.1.0.153974) is not a source: it lists the methods a server did not refuse, so a port that redirects every
+	// method names TRACE without supporting it.
+	{oid: "1.3.6.1.4.1.25623.1.0.11213",
 		title: "The web server allows TRACE",
-		fix:   "Disable the TRACE method (Apache: TraceEnable off; nginx: return 405 for TRACE; most reverse proxies: block it).",
-		when:  regexp.MustCompile(`\bTRACE\b`)},
+		fix:   "Disable the TRACE method (Apache: TraceEnable off; nginx: return 405 for TRACE; most reverse proxies: block it)."},
 	{oid: "1.3.6.1.4.1.25623.1.0.103140", // Self-Signed Certificate
 		title: "The TLS certificate is self-signed",
 		fix:   "Install a certificate from a public certificate authority (for example Let's Encrypt)."},

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -23,6 +24,7 @@ import { ProofPanel } from './ProofPanel'
 import { ScanBar, ScanButton, useScanFlow } from './ScanBar'
 import { ScansPanel } from './ScansPanel'
 import { ServicesPanel } from './ServicesPanel'
+import { DeepSettingsDialog } from './DeepSettingsDialog'
 import { DeleteTargetDialog, EditTargetDialog, ScanToggle } from './TargetDialogs'
 import { TermsPanel } from './TermsPanel'
 import type { TargetNode } from './types'
@@ -41,7 +43,8 @@ function TargetLoader() {
   const q = useNode(id)
   return (
     <>
-      <Link to="/exposure" className="mb-3 inline-flex items-center gap-1 text-meta text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('target.back')}</Link>
+      {/* the way back while the target loads or fails; once it shows, its header carries the same breadcrumbs (docs/UI.md §3) */}
+      {q.data ? null : <div className="mb-3"><Breadcrumbs items={[{ label: t('common:shell.exposure'), to: '/exposure' }]} /></div>}
       <QueryState query={q}>{(n) => <TargetView node={n} />}</QueryState>
     </>
   )
@@ -93,7 +96,7 @@ function TargetView({ node }: { node: TargetNode }) {
   const live = isLive(node.last_scan)
   return (
     <>
-      <PageHeader title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
+      <PageHeader breadcrumbs={[{ label: t('common:shell.exposure'), to: '/exposure' }]} title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
         meta={<span className="flex flex-wrap items-center gap-2">
           <ProofChip node={node} />
           {parent ? <span className="text-meta">{t('target.under')} <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${encodeURIComponent(parent.id)}`}>{parent.value}</Link></span> : null}
@@ -102,6 +105,7 @@ function TargetView({ node }: { node: TargetNode }) {
         </span>}
         actions={<>
           <ScanButton node={node} flow={flow} />
+          <Button onClick={() => flow.setSettingsOpen(true)}><SlidersHorizontal />{t('deepSettings.button')}</Button>
           {domain ? <Button onClick={() => setEditing(true)} disabled={!admin} title={needAdmin}><Pencil />{t('edit.button')}</Button> : <ScanToggle node={node} disabled={!admin} title={needAdmin} />}
           <Button onClick={() => setDeleting(true)} disabled={!admin} title={needAdmin}><Trash2 />{t('delete.button')}</Button>
         </>} />
@@ -114,7 +118,7 @@ function TargetView({ node }: { node: TargetNode }) {
         ...(domain ? [{ id: 'names', label: t('tabs.names'), panel: <NamesPanel node={node} onEdit={() => setEditing(true)} /> }] : []),
         { id: 'scans', label: live ? t('tabs.scanning') : t('tabs.scans'), highlight: live, panel: <><ScanSchedule node={node} /><ScansPanel node={node} /></> },
         { id: 'ownership', label: t('tabs.ownership'), badge: needsProof(node) ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
-          <Section id="step-verify" title={t('proof.title')} description={t(`proof.description.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)} info={t(`proof.descriptionInfo.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)}>
+          <Section id="step-verify" label={t('proof.title')} description={t(`proof.description.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)} info={t(`proof.descriptionInfo.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)}>
             <ProofPanel node={node} />
           </Section>
           {node.commitment ? (
@@ -130,6 +134,7 @@ function TargetView({ node }: { node: TargetNode }) {
         ...(node.kind === 'ip' ? [{ id: 'outside', label: t('tabs.outsideView'), panel: <OutsidePanel node={node} /> }] : []),
       ]} />
       {!operator ? <InfoLine className="mt-4 max-w-3xl text-meta text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
+      {flow.settingsOpen ? <DeepSettingsDialog node={node} open onOpenChange={flow.setSettingsOpen} /> : null}
       <EditTargetDialog node={node} open={editing} onOpenChange={setEditing} />
       <DeleteTargetDialog node={node} items={items} open={deleting} onOpenChange={setDeleting} onDone={() => void nav('/exposure')} />
     </>

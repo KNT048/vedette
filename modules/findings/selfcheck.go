@@ -18,22 +18,27 @@ var invariants = []selfcheck.Invariant{
 		Query: `SELECT count(*) FROM fnd_finding WHERE (state = 'open') <> (resolution IS NULL)
 			OR state = 'handled' AND (via IS NULL OR resolved_by IS NULL OR resolved_at IS NULL)`,
 	},
+	{ // open means detected: an open finding the latest match no longer detects would show the advice of a reading the device moved past
+		Name:  "findings.open_is_detected",
+		Query: `SELECT count(*) FROM fnd_finding WHERE state = 'open' AND detected = 0`,
+	},
 	{ // patch credit for a version move names two different versions
 		Name: "findings.version_moved_versions",
 		Query: `SELECT count(*) FROM fnd_finding WHERE via = 'version_moved'
 			AND (ifnull(from_version, '') = '' OR ifnull(to_version, '') = '' OR from_version = to_version)`,
 	},
-	{ // the "By fix" group of a finding names its stored fix: fix_key is FixKey of the line's product and the stored fix kind and
-		// version (a key clipped at its 400-byte limit is left out)
+	{ // the "By fix" group of a finding names its stored fix: fix_key is FixKey of the line's product and the stored fix kind, version
+		// and channel when not public (a key clipped at its 400-byte limit is left out)
 		Name: "findings.fix_key_names_stored_fix",
 		Query: `SELECT count(*) FROM fnd_finding WHERE length(CAST(fix_key AS BLOB)) < 400
-			AND substr(fix_key, -length('|' || fix_kind || '|' || ifnull(fix_version, ''))) <> '|' || fix_kind || '|' || ifnull(fix_version, '')`,
+			AND substr(fix_key, -length(` + fixTailSQL + `)) <> ` + fixTailSQL,
 	},
 	{ // every stored value of an open vocabulary is one the Go type knows
 		Name: "findings.vocabulary",
 		Query: `SELECT count(*) FROM fnd_finding WHERE basis NOT IN (` + quoted(DetectionBases) + `)
 			OR ifnull(via, 'person') NOT IN (` + quoted(Vias) + `)
-			OR fix_kind NOT IN (` + quoted(knownFixKinds) + `)`,
+			OR fix_kind NOT IN (` + quoted(knownFixKinds) + `)
+			OR fix_channel NOT IN (` + quoted(FixChannels) + `)`,
 	},
 	{
 		Name:  "findings.event_vocabulary",
@@ -44,6 +49,9 @@ var invariants = []selfcheck.Invariant{
 		Query: `SELECT count(*) FROM fnd_question WHERE kind NOT IN (` + quoted(QuestionKinds) + `)`,
 	},
 }
+
+// fixTailSQL is the end of a stored fix_key that names the row's fix (FixKey).
+const fixTailSQL = `('|' || fix_kind || '|' || ifnull(fix_version, '') || CASE fix_channel WHEN 'public' THEN '' ELSE '|' || fix_channel END)`
 
 // catalogueInvariants hold between the findings and feeds' catalogue (and inventory's software lines): they read other modules'
 // tables, so they run on a box's whole database.

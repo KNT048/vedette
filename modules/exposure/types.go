@@ -139,6 +139,8 @@ type Target struct {
 	ParentID  string
 	ScopeMode ScopeMode
 	Enabled   bool
+	// Deep is the target's deep-scan settings (exp_deep_setting; the defaults without a row).
+	Deep DeepSettings
 	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
 	// of the box, or a target of the box that sits under the name where its record was found) and that token: the domain and token the
 	// executors' fence checks. proofAt is the name the record sits on when it is not proofDomain itself (the zone apex, or a parent
@@ -340,6 +342,12 @@ type Content struct {
 	// WebDisruptivePages are those of WebActivePages whose active scan ran the disruptive rules: an alert of a disruptive rule is
 	// "gone" only from one of these (a pass without them did not run its rule).
 	WebDisruptivePages []string `json:"-"`
+	// WebSkippedRules are "<plugin id>@<site>" of the rules the active scan left out of a page this run because of the target's
+	// settings (WebScan.SkippedRules): an alert of that rule on that page is not "gone".
+	WebSkippedRules []string `json:"-"`
+	// WebSkippedPaths are "<site> <path prefix>" of the web paths a pass of this run left out of a page because of the target's
+	// settings (ZAP never requested them): an alert of that site seen under one of them is not "gone".
+	WebSkippedPaths []string `json:"-"`
 	// webOK are the pages the passive web scan of this run read (a report with the page in it): the active pass takes these.
 	webOK []WebPage
 	// TemplatesRan are the "ip:port|template" of the templates that ran to the end this run and found nothing (TemplatesCovered);

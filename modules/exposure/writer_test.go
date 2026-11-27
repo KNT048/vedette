@@ -532,3 +532,34 @@ func TestWriter_TemplateCoverageIsPerTemplate(t *testing.T) {
 		t.Fatalf("tpl-a %q, tpl-b %q; want gone and open", state("tpl-a"), state("tpl-b"))
 	}
 }
+
+// A TRACE issue stored from the methods enumeration (an NVT that is no longer an allowlisted fact) is closed by the next complete
+// OpenVAS run that does not report it, like any other OpenVAS issue the engine stops reporting.
+func TestWriter_StoredTraceIssueOfTheEnumerationCloses(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	const ip = "198.51.100.42"
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO exp_target (id, kind, value, origin, method, token, verified_at, created_at)
+			VALUES ('xt-t', 'ip', ?, 'box', 'box_egress', '', ?, ?)`, ip, store.FormatTS(t0), store.FormatTS(t0))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	scan := Content{Ports: []PortRow{{IP: ip, Port: 80, Service: "http"}},
+		Services: []ServiceRow{{IP: ip, Port: 80, Name: "http", Method: "probed"}}}
+	first := scan
+	first.Greenbone = []GreenboneRow{{IP: ip, Port: "80/tcp", Severity: 2, Name: "The web server allows TRACE",
+		OID: "1.3.6.1.4.1.25623.1.0.153974", QoD: 80, Solution: "Disable the TRACE method."}}
+	e.replay("xt-t", "2026-11-19T02:00:00.000Z", first, GreenboneAddr{IP: ip, State: GBRunDone})
+	open := func() int {
+		return e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'openvas' AND state = 'open' AND title = 'The web server allows TRACE'`)
+	}
+	if open() != 1 {
+		t.Fatalf("%d TRACE issues open after the first run", open())
+	}
+	e.replay("xt-t", "2026-11-20T02:00:00.000Z", scan, GreenboneAddr{IP: ip, State: GBRunDone})
+	if open() != 0 {
+		t.Fatalf("%d TRACE issues still open after a complete run that did not report it", open())
+	}
+}

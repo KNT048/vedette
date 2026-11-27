@@ -115,10 +115,11 @@ type fakeSurface struct {
 	names   surface.Names   // the names the scan was told to reach
 	started chan struct{}   // set: the scan blocks until its context ends
 	ctx     context.Context // the context of that blocking scan, set before started is closed
+	opts    surface.Options // the target's settings the scan was given
 }
 
-func (f *fakeSurface) Domain(ctx context.Context, d string, names surface.Names, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
-	f.domain, f.names = d, names
+func (f *fakeSurface) DomainWith(ctx context.Context, d string, names surface.Names, may func(context.Context, netip.Addr) bool, o surface.Options) (surface.Result, error) {
+	f.domain, f.names, f.opts = d, names, o
 	for _, a := range []string{"203.0.113.10", "203.0.113.11"} {
 		if may(ctx, netip.MustParseAddr(a)) {
 			f.allowed = append(f.allowed, a)
@@ -127,8 +128,8 @@ func (f *fakeSurface) Domain(ctx context.Context, d string, names surface.Names,
 	return f.res, f.err
 }
 
-func (f *fakeSurface) IP(ctx context.Context, ip netip.Addr) (surface.Result, error) {
-	f.ip = ip
+func (f *fakeSurface) IPWith(ctx context.Context, ip netip.Addr, o surface.Options) (surface.Result, error) {
+	f.ip, f.opts = ip, o
 	if f.started != nil {
 		f.ctx = ctx
 		close(f.started)

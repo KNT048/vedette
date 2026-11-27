@@ -191,6 +191,9 @@ type Vuln struct {
 	// DistroLoading: the distributions one of whose feeds is on but holds no row yet (feeds' DistroLoading): a platform-limited
 	// CVE whose fixed list that distribution's data gives stays a question then, instead of NVD deciding (it would raise a false finding).
 	DistroLoading map[string]bool
+	// DistroOn: the distributions ("ubuntu", "debian") whose feed of fixed and affected rows is on and loaded or loading (feeds' DistroOn). A
+	// package such a distribution built is judged by its data alone (distroDecides); with its feeds off, NVD's ranges decide as before.
+	DistroOn map[string]bool
 }
 
 // RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
@@ -254,9 +257,10 @@ type DistroFix struct {
 	Distro  string // "ubuntu", "debian" or "alpine" (DistroAlpine)
 	Release string // "24.04", "12", "3.23" (an Alpine branch)
 	Package string // source package
-	Status  string // "fixed" or "not_affected"
+	Status  string // "fixed", "not_affected" or "open" (affected, no fix yet)
 	Fixed   string // the first fixed version (status fixed)
 	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
+	Reason  string // status open from Debian: why no security update comes (feeds.DistroReason*), "" otherwise
 }
 
 // Evidence is the explanation shown with a finding.
@@ -321,7 +325,10 @@ type Match struct {
 	Severity        Severity
 	Evidence        Evidence
 	why             string // The platform sentence of a match ruled out by the platform (MatchResult.OtherPlatform)
-	every           bool   // NVD lists every version of the product as affected: the version cannot change it (#803)
+	// upstream: a match on NVD's upstream ranges of a package the distribution built that its data has no word on yet (awaitingDistro):
+	// the version compared is the upstream one, never the package release, and nothing confirms it
+	upstream bool
+	every    bool // NVD lists every version of the product as affected: the version cannot change it (#803)
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
 	// installer"), "" otherwise. The agent's version is then compared with nothing, so an agent row is no evidence (confirmedMatch).
 	others string
@@ -1316,6 +1323,38 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	if d, ok := distroVerdict(in, v); ok { // The distribution's own word on its package comes before NVD's upstream ranges
 		return distroMatch(a, s, in, v, d, now)
 	}
+	if distroDecides(in, v) { // the distribution built it and has no word yet: NVD's upstream range decides, never confirmed
+		m, out := judgeRanges(a, s, in, v, key, now)
+		return awaitingDistro(a, s, in, v, m, out)
+	}
+	return judgeRanges(a, s, in, v, key, now)
+}
+
+// awaitingDistro is the upstream answer (judgeRanges) on a package the distribution built that its data has no word on yet (a CVE newer
+// than its last pull, a package name its rows spell otherwise, an entry it has not triaged): a missed exploited flaw costs more than a
+// suspected one, so a version inside NVD's range is still a finding, but never confirmed by the device (backports keep the upstream
+// number), and the evidence says why. The distribution's word, when it comes, closes or confirms it (distroVerdict decides first). A
+// proof that the version is outside the ranges says nothing either: only the distribution may close its own package.
+func awaitingDistro(a Asset, s Software, in swInfo, v Vuln, m Match, out outcome) (Match, outcome) {
+	switch out {
+	case outMatch:
+		m.upstream = true
+		m.Evidence.Agent, m.Evidence.Source = false, ""
+		_, rel := distroOf(in)
+		name := distroName(in)
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s %s from %s %s's packages. %s has not published its answer yet; based on the upstream version "+
+			"ranges, its upstream version %s is inside the range affected by %s. %s carries fixes under its own package releases, so this is "+
+			"not confirmed until %s answers.", clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), name, rel, name,
+			clean(in.ver), v.CVE, name, name)
+		return m, out
+	case outNotAffected:
+		return Match{}, outNone
+	}
+	return m, out
+}
+
+// judgeRanges is judge after the distribution's word: the platform list, the vendor's own rows, Windows' releases and NVD's ranges.
+func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time) (Match, outcome) {
 	if why, out := platformRuledOut(in, v.CVE); out { // The platform it runs on is not one the CVE affects; after the distribution's own word, which may contradict the hand list
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected

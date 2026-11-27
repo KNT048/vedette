@@ -157,7 +157,7 @@ export function SensorsSection() {
     ) },
   ]
   return (
-    <Section id="sensors" title={t('sensors.title')} description={install ? t('sensors.description') : undefined}
+    <Section id="sensors" label={t('sensors.title')} description={install ? t('sensors.description') : undefined}
       info={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI || q.data?.sensors.some((x) => x.span) ? '' : 'NoSpan'}Info`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
       <RequireModule module="sensor-passive" fallback={<ModuleOff module="sensor-passive">{t('sensors.off')}</ModuleOff>}>
         <QueryState query={q}>

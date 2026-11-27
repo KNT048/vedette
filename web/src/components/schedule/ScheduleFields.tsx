@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -12,6 +10,7 @@ import { useSchedulePreview } from './api'
 import { clockIn, DAYS, daysText, intervalProblem, intervalText, toSave, unitsFor, type Draft, type Unit } from './rule'
 import { WindowFields } from './WindowFields'
 import type { Freq, Schedule, WindowMode } from './types'
+import { ExpandToggle } from '@/components/common/ListParts'
 
 /** The box's time zone, the one every schedule is read in (Schedule.zone; the one the app writes dates in while it is not known). */
 export const orgZoneOf = (s: Schedule) => s.zone || (displayTimeZone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -135,9 +134,7 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
           ) : null}
 
           <div className="grid gap-3">
-            <Button variant="ghost" size="sm" className="w-fit" aria-expanded={more} aria-controls={id('more')} onClick={() => setMore(!more)}>
-              <ChevronDown className={more ? 'rotate-180' : ''} aria-hidden />{t('fields.more')}
-            </Button>
+            <ExpandToggle open={more} onToggle={() => setMore(!more)} controls={id('more')}>{t('fields.more')}</ExpandToggle>
             {more ? (
               <div id={id('more')} className="grid gap-4 border-l-2 border-rule pl-4">
                 {windows.length > 1 || d.window !== windows[0] ? (

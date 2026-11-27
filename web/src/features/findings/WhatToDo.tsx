@@ -39,8 +39,11 @@ export function storedFixText(t: TFunction<'findings'>, f: FindingDetail, view: 
   const o = { fixed: fix.version, product, device, version, kb: fix.ref ?? '' }
   switch (fix.kind) {
     case 'update': return t(version ? 'todo.fixUpdate' : 'todo.fixUpdateNoVersion', o)
-    case 'distro_update': return t(version ? 'todo.fixDistro' : 'todo.fixDistroNoVersion', o)
-    case 'os_update': return t(fix.ref ? 'todo.fixOsKb' : 'todo.fixOs', o)
+    case 'distro_update': return fix.channel === 'ubuntu_pro' ? t('todo.fixDistroPro', o) : t(version ? 'todo.fixDistro' : 'todo.fixDistroNoVersion', o)
+    case 'os_update': {
+      const line = t(fix.ref ? 'todo.fixOsKb' : 'todo.fixOs', o)
+      return fix.channel === 'esu' ? t('todo.fixOsEsu', { line }) : line
+    }
     case 'feature_update': return t('todo.fixFeature', o)
     case 'restart': return t('todo.fixRestart', o)
   }
@@ -73,7 +76,7 @@ function FixLine({ f, view, product, links }: { f: FindingDetail; view: View | u
       </div>
     )
   }
-  if (stored?.kind === 'none_yet') return <p className="text-sm font-medium">{t('todo.fixNoneYet', { product: stored.product || product })}</p>
+  if (stored?.kind === 'none_yet') return <p className="text-sm font-medium">{t(view?.verification.basis === 'package' ? 'todo.fixNoneYetDistro' : 'todo.fixNoneYet', { product: stored.product || product })}</p>
   if (fi) return <FixedInNote finding={f} />
   return <p className="text-sm">{links ? t('brief.fix') : t(f.kev ? 'rec.noVendorLink' : 'rec.noAdvisoryLink', { cve: f.cve, product })}</p>
 }

@@ -211,7 +211,7 @@ describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
     expect(screen.queryByText(/apt upgrade/)).not.toBeInTheDocument()
     k.unmount()
     const pro = note({ ...src, kind: 'distro', version: '1:2.25.1-1ubuntu3.14', fixed: '', distro: 'Ubuntu', distro_fixed: '1:2.25.1-1ubuntu3.14+esm6', distro_release: '20.04', distro_pro: true, source: 'Ubuntu security data' })
-    expect(screen.getByText(/Ubuntu Pro \(ESM\) only/)).toBeInTheDocument()
+    expect(screen.getByText(/Only Ubuntu Pro \(ESM\) has this fixed package.*sudo pro attach.*accept the risk or remove the package/)).toBeInTheDocument()
     pro.unmount()
     // A Windows release Microsoft no longer updates is told to take a feature update, never a build it cannot get
     const fu = note({ ...src, kind: 'feature_update', version: '10.0.22621.6060', fixed: '10.0.22631.6199', branches: [{ branch: 'Windows 11 23H2', fixed: '10.0.22631.6199' }] })
@@ -419,7 +419,7 @@ describe('findings: the device page\'s Findings tab', () => {
   it('shows this device\'s card only: its fix blocks, each CVE a link to its finding, Mark as handled… in place', async () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/devices/a-nas02?tab=findings')
-    expect(await screen.findByRole('heading', { name: 'Findings on this device' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Findings on this device' })).toBeInTheDocument()
     const card = await screen.findByRole('article', { name: 'NAS-PHOTOS' })
     await expandAll(card)
     expect(within(card).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/fv-nas02-ps-1')

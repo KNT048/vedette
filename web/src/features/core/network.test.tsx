@@ -218,7 +218,7 @@ describe('box network: the page', () => {
     cleanup()
     renderApp('/settings/network#box-address')
     expect(await screen.findByRole('tab', { name: 'Box address', selected: true }, T)).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { level: 2, name: 'Box address' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Box address' }, T)).toBeInTheDocument()
     cleanup()
     renderApp('/settings/network#ntp')
     expect(await screen.findByRole('tab', { name: 'Time', selected: true }, T)).toBeInTheDocument()

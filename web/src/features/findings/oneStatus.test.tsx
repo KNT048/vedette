@@ -7,6 +7,7 @@ import '@/lib/i18n'
 import { renderApp } from '@/test/render'
 import { Counter } from '@/components/common/Counter'
 import { pageSizes } from '@/components/common/Pager'
+import { ReopenedLine } from '@/components/common/status/ReopenedLine'
 import { questions, records } from './modelMocks'
 import { openNeeds } from './needsTestUtil'
 import { useFixTitle } from './parts'
@@ -40,13 +41,31 @@ describe('a finding reads the same in every list', () => {
 
   it('a fix with no release names no empty slot: "Install the distribution\'s security updates for Linux kernel"', () => {
     const title = renderHook(() => useFixTitle()).result.current
-    const f = (kind: Fix['kind'], version: string | null = null): Fix => ({ key: 'k', kind, product: 'Linux kernel', version, ref: null, url: null })
+    const f = (kind: Fix['kind'], version: string | null = null): Fix => ({ key: 'k', kind, product: 'Linux kernel', version, ref: null, channel: 'public', url: null })
     const out = [f('distro_update'), f('update'), f('os_update'), f('feature_update'), f('distro_update', '6.8.0-90.91')].map((x) => title(x))
     expect(out).toEqual([
       "Install the distribution's security updates for Linux kernel", 'Update Linux kernel to a fixed release', 'Install the latest cumulative update on Linux kernel',
       'Move Linux kernel to a later release', 'Install the Linux kernel package 6.8.0-90.91 or later',
     ])
     for (const s of out) expect(s).not.toMatch(/ {2}|package or later/)
+  })
+
+  it('a patched mark a newer reading reopens says when only Ubuntu Pro has the fixed package', () => {
+    const r = { why: 'still_detected' as const, at: '2026-11-26T08:51:00.000Z', by: null }
+    const pro = render(<ReopenedLine reopened={r} proOnly />)
+    expect(pro.getByTestId('reopened-line')).toHaveTextContent(/only Ubuntu Pro \(ESM\) has the fixed package/)
+    pro.unmount()
+    const plain = render(<ReopenedLine reopened={r} />)
+    expect(plain.getByTestId('reopened-line')).not.toHaveTextContent(/Ubuntu Pro/)
+    plain.unmount()
+  })
+
+  it('a fix only Ubuntu Pro or Windows ESU carries says so, never the bare "Install … or later"', () => {
+    const title = renderHook(() => useFixTitle()).result.current
+    const pro: Fix = { key: 'k', kind: 'distro_update', product: 'python3-pip', version: '25.1.1+dfsg-1ubuntu2+esm3', ref: null, channel: 'ubuntu_pro', url: null }
+    const esu: Fix = { key: 'k', kind: 'os_update', product: 'Windows 10 22H2', version: '10.0.19045.6575', ref: 'KB5066791', channel: 'esu', url: null }
+    expect(title(pro)).toBe('Install the python3-pip package 25.1.1+dfsg-1ubuntu2+esm3 from Ubuntu Pro (ESM): only Ubuntu Pro has this fix')
+    expect(title(esu)).toBe('Install KB5066791 on Windows 10 22H2 (needs an Extended Security Updates subscription)')
   })
 })
 

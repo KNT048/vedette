@@ -71,8 +71,11 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 	case user == SystemUser:
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveScheduled)
 		return
-	case !mode.Disruptive:
+	case !mode.Disruptive && mode.Off&(GroupDoS|GroupLogins|GroupChange) == 0:
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveOff)
+		return
+	case !mode.Disruptive: // the rules allow them, this target's settings turned every group off
+		rs.skip(ctx, stepKeyDisruptive, notSettings)
 		return
 	case ds == nil:
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveNoScanner)
@@ -137,7 +140,7 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 	failed, ran := false, false
 	for _, a := range addrs {
 		k := a.ip.String()
-		ports := slices.DeleteFunc(slices.Clone(open[k]), func(p int) bool { return s.lostPort(ctx, k, p) })
+		ports := slices.DeleteFunc(slices.Clone(open[k]), func(p int) bool { return s.lostPort(ctx, k, p) || a.st.Skips(p) })
 		if len(ports) == 0 { // every open port of it stopped answering earlier in the run: the note says so
 			if len(open[k]) > 0 {
 				notes = append(notes, clipText("Not run on "+k+". "+s.lostText(ctx, lt, map[string][]int{k: s.observerOf(ctx).lostOf()[k]}), maxLineText))

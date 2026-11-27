@@ -63,6 +63,12 @@ const (
 	notActiveCut       = "Active web scan (ZAP) reached its limit of 12 minutes on this page: the alerts it found until then are kept, and some rules did not run."
 	notActiveRunLimit  = "Active web scan (ZAP): %s not attacked: the active pass of one scan takes at most 60 minutes. Scan again to check %s."
 	notActiveDisrupt   = "Active web scan (ZAP) ran without its disruptive rules (denial of service, checks that may change data) on %s: they run only on this box's own public IP, in a scan a person starts."
+	// notActiveSettings is the line of the pages whose disruptive rules this target's settings removed: ZAP's disruptive rules are
+	// denial-of-service rules and rules that may change data (the host runs the class of each group allowed), so with both groups off
+	// none runs.
+	notActiveSettings = "Active web scan (ZAP) ran without its disruptive rules on %s. " + notSettings + " Its disruptive rules are denial-of-service checks and exploit checks that may change data, and both are off."
+	// notActiveOff is the line of an active web scan this target's settings turned off.
+	notActiveOff = "Active web scan (ZAP): " + notSettings
 	// notActiveHostRefused is a page the step asked the disruptive rules for and the host ran without them: its own check of the
 	// person's press or of the box's gateway (zapgrant.go), with the host's reason.
 	notActiveHostRefused = "Active web scan (ZAP) ran without its disruptive rules on %s: %s"
@@ -147,6 +153,13 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 	case !st.Mode.Full: // a surface scan has no active pass (a typed IP without its live proof runs at that depth)
 		rs.skip(ctx, stepKeyZAPActive, "The active web scan runs only in a deep scan.")
 		return c, nil
+	case !st.Mode.WebActive: // the target's settings turned the active web scan off
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveOff})
+		rs.skip(ctx, stepKeyZAPActive, notSettings)
+		return c, nil
+	case !s.webKeepsPaths(st): // its spider and rules would request the paths to skip (the passive step's line says so)
+		rs.skip(ctx, stepKeyZAPActive, notWebPaths)
+		return c, nil
 	case len(pages) == 0:
 		rs.skip(ctx, stepKeyZAPActive, "No web page was read by the passive web scan, so there is nothing to attack.")
 		return c, nil
@@ -155,6 +168,7 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 		rs.skip(ctx, stepKeyZAPActive, notActiveScheduled)
 		return c, nil
 	}
+	pages = slices.DeleteFunc(slices.Clone(pages), func(p WebPage) bool { return st.Skips(p.Port) }) // never a port the settings skip
 	aw, _ := s.cfg.Web.(ActiveWebScanner)
 	if aw == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveNoScanner})
@@ -179,7 +193,7 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 	step := activeTally{pages: len(pages)}
 	steps := stepsOf(ctx)
 	start := s.clock()
-	var scanned, gentle []string
+	var scanned, gentle, narrowed []string
 	var refused []hostRefusal // pages the host ran without the disruptive rules, by its reason
 	ok, failed, left := 0, 0, 0
 	for i, page := range pages {
@@ -204,8 +218,39 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 			left, step.note = len(pages)-i, notActiveTerms
 			break
 		}
+		if !mode.WebActive { // the settings turned the active web scan off while the run ran
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveOff})
+			left, step.note = len(pages)-i, notSettings
+			break
+		}
 		pst := st
-		pst.Mode = ScanMode{Full: true, Disruptive: mode.Disruptive && st.Mode.Disruptive && ownProvenPage(st, page)}
+		pst.Mode = mode.And(st.Mode) // never more than the run started with
+		if st.Kind == KindDomain {   // a page on an address that is an IP target too: that target's settings narrow it as well
+			it, found, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), page.IP.Unmap().String())
+			switch {
+			case err != nil:
+				s.cfg.Log.ErrorContext(ctx, "exposure: reading the settings of a page's address failed", "target", st.Value, "page", page.URL, "error", err)
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveFail, maxLineText)})
+				continue
+			case found && (it.Deep.Problem != nil || !it.Deep.WebActive || slices.Contains(it.Deep.SkipPorts, page.Port)):
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveOff+" (the settings of "+it.Value+")", maxLineText)})
+				continue
+			case found:
+				pst = withSettings(pst, it.Deep)
+			}
+			if !s.webKeepsPaths(pst) { // that target's web paths to skip, which this box's ZAP cannot leave out
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebPaths, maxLineText)})
+				continue
+			}
+		}
+		switch own := ownProvenPage(st, page); {
+		case own && pst.Mode.WebDisruptive():
+		case own && pst.Mode.Disruptive: // the box's own page, and the settings keep one of the two groups of ZAP's disruptive rules off
+			narrowed = append(narrowed, page.URL)
+			pst.Mode = pst.Mode.withoutDisruptive()
+		default:
+			pst.Mode = pst.Mode.withoutDisruptive()
+		}
 		tool := webActiveTool
 		if pst.Mode.Disruptive {
 			tool = webActiveToolDisruptive
@@ -241,6 +286,10 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 					rows[i].Disruptive = rough && (len(res.DisruptiveRules) == 0 || slices.Contains(res.DisruptiveRules, rows[i].PluginID))
 				}
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)
+				for _, r := range res.SkippedRules { // a rule the settings left out of the page did not look at it again
+					c.WebSkippedRules = append(c.WebSkippedRules, r+"@"+siteOf(page.URL))
+				}
+				c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, pst.SkipPaths)
 				if !res.CutShort { // a page cut short did not run every rule: an active alert it no longer reports is not "gone"
 					c.WebActivePages = append(c.WebActivePages, page.URL)
 					if rough {
@@ -292,8 +341,11 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 		}
 		break
 	}
-	if len(gentle) > 0 && st.Mode.Disruptive {
+	if gentle = slices.DeleteFunc(gentle, func(u string) bool { return slices.Contains(narrowed, u) }); len(gentle) > 0 && st.Mode.Disruptive {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(fmt.Sprintf(notActiveDisrupt, strings.Join(gentle, ", ")), maxLineText)})
+	}
+	if len(narrowed) > 0 {
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(fmt.Sprintf(notActiveSettings, strings.Join(narrowed, ", ")), maxLineText)})
 	}
 	for _, r := range refused {
 		line := fmt.Sprintf(notActiveHostRefused, strings.Join(r.pages, ", "), r.why)

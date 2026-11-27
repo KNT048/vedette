@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/modules/exposure"
@@ -32,12 +33,12 @@ import (
 // drops the run.
 type exposureServiceScan struct {
 	on   func() bool // sensor-active is switched on
-	scan func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own sensoractive.OwnEgress) (sensoractive.External, error)
+	scan func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error)
 	// scanDomain is sensor-active's ScanDomainIP: the deep scan of an address a verified domain's name resolves to, as a
 	// domain_ip job the worker's own fence checks. nil: such a step is refused (nothing sent).
-	scanDomain func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
+	scanDomain func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, set sensoractive.DeepSettings, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
 	// scanDisruptive is sensor-active's ScanDisruptive: the disruptive scripts on the open ports of the box's own IP. nil: refused.
-	scanDisruptive func(ctx context.Context, ip netip.Addr, ports []int, own sensoractive.OwnEgress) (sensoractive.External, error)
+	scanDisruptive func(ctx context.Context, ip netip.Addr, ports []int, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error)
 	gate           ownIPGate
 	modeNow        func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
@@ -62,9 +63,13 @@ const (
 	// Review r2 LOW-5: the worker's re-check during a deep scan stopped it; its ports had been probed, the results are discarded.
 	servicesNotOwnMid  = "this box stopped reaching the Internet through %s while the deep scan ran, so the deep scan was stopped and its results discarded."
 	servicesNoCheckMid = "the scan container could no longer check that %s is still this box's address (the public IP services did not answer), so the deep scan was stopped and its results discarded."
+	// servicesOldSettings: the worker does not run a target's deep-scan settings yet; the wider line is never sent instead.
+	servicesOldSettings = "the scan container does not apply this target's deep-scan settings (groups turned off, ports to skip, gentle speed): it is older than the rest of Vedette, so nothing was sent. Update the box, then scan again."
 	// The disruptive scripts: the terms no longer allow them right before the job, or the step was asked for another address.
 	servicesNotDisruptive = "the testing terms of %s no longer allow the disruptive checks (or this scan may not run them), so they were not sent."
 	servicesDisruptiveOwn = "the disruptive scripts run only on the box's own public IP."
+	// servicesNoPorts: every port the step was given is one the target's settings skip.
+	servicesNoPorts = "every open port is one this target's settings skip, so nothing was sent."
 )
 
 // ownGate is the core half of the fence as sensor-active asks it: exposure's gate with the proof it rests on (sensoractive.OwnProver),
@@ -97,16 +102,64 @@ func (g ownGate) ShapeNow(ctx context.Context, _ nmapargv.Kind) (nmapargv.Kind, 
 	return shapeOf(m), nil
 }
 
+// GroupsNow is the disruptive groups the target allows now (sensoractive.GroupGate): right before the disruptive scripts leave,
+// sensor-active narrows the run's groups to these. Without modeNow none (fail closed).
+func (g ownGate) GroupsNow(ctx context.Context) (nmapargv.Groups, error) {
+	if g.modeNow == nil {
+		return 0, nil
+	}
+	m, err := g.modeNow(ctx, g.actor, g.id)
+	if err != nil {
+		return 0, err
+	}
+	return modeGroups(m), nil
+}
+
 // shapeOf is the shape a scan mode allows, as the DeepGate says it: the K-4 scope keeps External exactly as before FULL-4; accepted
-// terms make it the deep scan, and the disruptive checks (when the run may do them) allow the disruptive scripts.
+// terms make it the deep scan, and the disruptive checks (when the run may do them, with any of their groups) allow the disruptive
+// scripts of those groups.
 func shapeOf(m exposure.ScanMode) nmapargv.Kind {
 	switch {
 	case !m.Full:
 		return nmapargv.External
-	case m.Disruptive:
+	case modeGroups(m) != 0:
 		return nmapargv.ExternalDisruptive
 	}
 	return nmapargv.ExternalFull
+}
+
+// nmapGroups are exposure's disruptive groups in g as nmapargv names them.
+func nmapGroups(dos, logins, change bool) nmapargv.Groups {
+	var out nmapargv.Groups
+	if dos {
+		out |= nmapargv.GroupDoS
+	}
+	if logins {
+		out |= nmapargv.GroupLogins
+	}
+	if change {
+		out |= nmapargv.GroupChange
+	}
+	return out
+}
+
+// modeGroups are the disruptive groups a scan mode allows (none without the disruptive checks).
+func modeGroups(m exposure.ScanMode) nmapargv.Groups {
+	if !m.Disruptive {
+		return 0
+	}
+	return nmapGroups(m.DoS, m.Logins, m.Change)
+}
+
+// fullSettings are the deep-scan settings of t's nmap runs of kind: the full sweep runs the script groups of the target's settings
+// (not the run's: a scheduled scan's full sweep runs them too, as before the settings), the default scan only skips ports.
+func fullSettings(t exposure.ScanTarget, kind nmapargv.Kind) sensoractive.DeepSettings {
+	set := sensoractive.DeepSettings{Groups: nmapargv.AllGroups, SkipPorts: t.SkipPorts}
+	if kind.IsFull() {
+		set.Groups = nmapGroups(t.Groups&exposure.GroupDoS != 0, t.Groups&exposure.GroupLogins != 0, t.Groups&exposure.GroupChange != 0)
+		set.Gentle = t.Gentle
+	}
+	return set
 }
 
 func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTarget, ip netip.Addr) (exposure.ServiceScan, error) {
@@ -129,9 +182,9 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		if !kind.IsFull() || a.scanDomain == nil {
 			return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
 		}
-		got, err = a.scanDomain(ctx, ip, kind, sensoractive.DomainIP{Scope: scopeOf(t.Domain), Chain: chainText(t.Domain)}, g)
+		got, err = a.scanDomain(ctx, ip, kind, fullSettings(t, kind), sensoractive.DomainIP{Scope: scopeOf(t.Domain), Chain: chainText(t.Domain)}, g)
 	} else {
-		got, err = a.scan(ctx, ip, kind, g)
+		got, err = a.scan(ctx, ip, kind, fullSettings(t, kind), g)
 	}
 	un, isDomain := domainErr(err, t.Domain, ip.String())
 	switch {
@@ -153,7 +206,8 @@ func (a exposureServiceScan) ScanDisruptive(ctx context.Context, t exposure.Scan
 	if a.on != nil && !a.on() {
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOff}
 	}
-	if t.Typed || t.Domain != nil || !t.Mode.Disruptive {
+	groups := modeGroups(t.Mode) // the scripts of the groups the run allows; sensor-active narrows them again right before the job
+	if t.Typed || t.Domain != nil || groups == 0 {
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesDisruptiveOwn}
 	}
 	if a.scanDisruptive == nil {
@@ -161,7 +215,12 @@ func (a exposureServiceScan) ScanDisruptive(ctx context.Context, t exposure.Scan
 	}
 	ctx, cancel := context.WithTimeout(ctx, exposure.DisruptiveTimeout)
 	defer cancel()
-	got, err := a.scanDisruptive(ctx, ip, ports, ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow})
+	ports = slices.DeleteFunc(slices.Clone(ports), t.Skips) // never a port the target's settings skip
+	if len(ports) == 0 {
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesNoPorts}
+	}
+	set := sensoractive.DeepSettings{Groups: groups, SkipPorts: t.SkipPorts, Gentle: t.Gentle}
+	got, err := a.scanDisruptive(ctx, ip, ports, set, ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow})
 	switch {
 	case err == nil:
 		return serviceScanOf(got, ip), nil
@@ -194,6 +253,8 @@ func servicesErr(err error, ip netip.Addr, bound time.Duration) error {
 		return &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
 	case errors.Is(err, sensoractive.ErrFullUnsupported):
 		return &exposure.Unavailable{Reason: servicesOldFull}
+	case errors.Is(err, sensoractive.ErrNarrowUnsupported):
+		return &exposure.Unavailable{Reason: servicesOldSettings}
 	case errors.Is(err, sensoractive.ErrUnavailable):
 		return &exposure.Unavailable{Reason: servicesNoWork}
 	case errors.Is(err, sensoractive.ErrWorkerRefused):
@@ -227,26 +288,26 @@ func serviceScanOf(got sensoractive.External, ip netip.Addr) exposure.ServiceSca
 func exposureServicesFor(d deps, gate ownIPGate, modeNow func(ctx context.Context, actor, id string) (exposure.ScanMode, error)) exposureServiceScan {
 	return exposureServiceScan{
 		on: func() bool { return d.Reg == nil || d.Reg.Enabled("sensor-active") },
-		scan: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own sensoractive.OwnEgress) (sensoractive.External, error) {
+		scan: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error) {
 			svc, err := sensorActiveService(ctx, d) // built once per database; it keeps ctx's values, never its end
 			if err != nil {
 				return sensoractive.External{}, err
 			}
-			return svc.ScanExternal(ctx, ip, kind, own)
+			return svc.ScanExternalWith(ctx, ip, kind, set, own)
 		},
-		scanDomain: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, dom sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error) {
+		scanDomain: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, set sensoractive.DeepSettings, dom sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error) {
 			svc, err := sensorActiveService(ctx, d)
 			if err != nil {
 				return sensoractive.External{}, err
 			}
-			return svc.ScanDomainIP(ctx, ip, kind, dom, gate)
+			return svc.ScanDomainIPWith(ctx, ip, kind, set, dom, gate)
 		},
-		scanDisruptive: func(ctx context.Context, ip netip.Addr, ports []int, own sensoractive.OwnEgress) (sensoractive.External, error) {
+		scanDisruptive: func(ctx context.Context, ip netip.Addr, ports []int, set sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error) {
 			svc, err := sensorActiveService(ctx, d)
 			if err != nil {
 				return sensoractive.External{}, err
 			}
-			return svc.ScanDisruptive(ctx, ip, ports, own)
+			return svc.ScanDisruptiveWith(ctx, ip, ports, set, own)
 		},
 		gate:    gate,
 		modeNow: modeNow,

@@ -97,7 +97,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 // steps. The fix comes first: it is the one step that ends the finding, the list's action is the same for every CVE on the list.
 func noticeAction(v findings.View, listAction string) string {
 	fx := v.Finding.Fix
-	if findings.FixWords(fx.Kind, v.FixProduct(), "", fx.Version, fx.Ref) != "" {
+	if findings.FixWords(fx, v.FixProduct(), "") != "" {
 		return plainText(v.FixText(), noticeActionMax)
 	}
 	return cmp.Or(plainText(listAction, noticeActionMax),

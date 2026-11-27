@@ -130,6 +130,8 @@ type zapPage struct {
 	typed *api.ExposureTyped
 	// provenAt is, for the box's own IP, the latest sighting of it as the box's egress that core's gate took it on (zero: none sent).
 	provenAt time.Time
+	// skip are the validated URL path prefixes ZAP never requests (api.ZapSettings.SkipPaths); nil: none.
+	skip []string
 }
 
 // zapURL checks that raw is exactly http(s)://host[:port]/ as exposure writes it (the port only when it is not the scheme's own) and
@@ -172,7 +174,15 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 	if !ok || host != a.Host || port != a.Port {
 		return zapPage{}, server.Invalid("url", "must be http(s)://<host>[:<port>]/ with the host and port of the request")
 	}
-	p := zapPage{url: a.URL, host: a.Host, ip: ip, port: a.Port, kind: a.Kind}
+	var paths []string
+	if a.Settings != nil {
+		paths = a.Settings.SkipPaths
+	}
+	skip, err := zapSkipPaths(paths)
+	if err != nil {
+		return zapPage{}, err
+	}
+	p := zapPage{url: a.URL, host: a.Host, ip: ip, port: a.Port, kind: a.Kind, skip: skip}
 	if a.ProvenAt != "" && (a.Kind != api.ZapKindIP || a.Typed != nil) {
 		return zapPage{}, server.Invalid("proven_at", "is for the box's own IP only (kind ip, not a typed IP)")
 	}
@@ -226,6 +236,27 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 	}
 	return p, nil
 }
+
+// zapSkipPaths validates the web paths to skip (api.ZapSettings.SkipPaths): each a URL path prefix as written, never a pattern.
+// "/" alone would leave out the page itself: refused, like a repeat.
+func zapSkipPaths(paths []string) ([]string, error) {
+	if len(paths) > api.ZapMaxSkipPaths {
+		return nil, server.Invalid("settings.skip_paths", fmt.Sprintf("must hold at most %d paths", api.ZapMaxSkipPaths))
+	}
+	for i, p := range paths {
+		if !zapSkipPathRE.MatchString(p) || len(p) > api.ZapMaxSkipPathLen || p == "/" || slices.Contains(paths[:i], p) {
+			return nil, server.Invalid("settings.skip_paths", fmt.Sprintf("must be distinct URL path prefixes other than / alone, each starting with /, at most %d "+
+				"characters of letters, digits and - . _ ~ %% ! & ' , ; = : @ /", api.ZapMaxSkipPathLen))
+		}
+	}
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	return slices.Clone(paths), nil
+}
+
+// zapSkipPathRE is a path to skip: the characters of a URL path, never those of a pattern, a query or a fragment.
+var zapSkipPathRE = regexp.MustCompile(`^/[A-Za-z0-9\-._~%!&',;=:@/]*$`)
 
 // ---- argv (validatePodman and validateNft accept exactly these) ----
 
@@ -497,6 +528,8 @@ type zapPass struct {
 	req        string // the request id of the run (RunContext.RequestID): zap.stop names it
 	actor      string // the run's actor label (RunContext.Actor): a grant holds only for runs of the actor it was minted for
 	grant      string // the grant of zap.authorize that came with a run asking for the disruptive rules
+	// noDoS, noChange and gentle are the deep-scan settings of an active run (api.ZapSettings): they only narrow its plan.
+	noDoS, noChange, gentle bool
 }
 
 func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (any, error) {
@@ -572,9 +605,11 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 			logf("the disruptive rules do not run on " + p.url + ": " + zapRefusalText(refused))
 		}
 	}
-	if pass.active {
+	opts := zapActiveOpts{disruptive: pass.disruptive, noDoS: pass.noDoS, noChange: pass.noChange, gentle: pass.gentle}
+	switch {
+	case pass.active:
 		// The plan is the host's own text, readable by the container's zap user (the folder is its; the file is root's, 0644).
-		if err := os.WriteFile(filepath.Join(wrk, zapPlanName), []byte(zapActivePlan(p, pass.disruptive)), 0o644); err != nil { //nolint:gosec // ZAP's user reads it in the container
+		if err := os.WriteFile(filepath.Join(wrk, zapPlanName), []byte(zapPlanActive(p, opts)), 0o644); err != nil { //nolint:gosec // ZAP's user reads it in the container
 			return nil, fail(api.CodeZapFailed, "The host could not write the plan of the active web scan.")
 		}
 		argv = p.activeArgv(wrk)
@@ -582,9 +617,17 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		if pass.disruptive {
 			rules = "the disruptive rules on (the box's own IP)"
 		}
-		logf("active web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + fmt.Sprintf(" (ZAP active scan: spider %d minutes, depth %d; active rules %d minutes at most, %d threads, %d ms between requests; %s)",
-			zapSpiderMinutes, zapSpiderDepth, zapActiveMinutes, zapThreadsPerHost, zapDelayMs, rules))
-	} else {
+		threads, delay := zapPace(opts)
+		logf("active web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + fmt.Sprintf(" (ZAP active scan: spider %d minutes, depth %d; active rules %d minutes at most, %d threads, %d ms between requests; %s%s)",
+			zapSpiderMinutes, zapSpiderDepth, zapActiveMinutes, threads, delay, rules, zapSettingsNote(p, opts)))
+	case len(p.skip) > 0:
+		// zap-baseline.py has no exclude: the passive pass runs as the host's own plan, with the paths to skip out of its context.
+		if err := os.WriteFile(filepath.Join(wrk, zapPlanName), []byte(zapPassivePlan(p)), 0o644); err != nil { //nolint:gosec // ZAP's user reads it in the container
+			return nil, fail(api.CodeZapFailed, "The host could not write the plan of the passive web scan.")
+		}
+		argv = p.activeArgv(wrk)
+		logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP passive plan, spider 1 minute, passive rules" + zapSettingsNote(p, opts) + ")")
+	default:
 		logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
 	}
 	res, code, err := o.zx()(ctx, binPodman, nil, argv...)
@@ -631,7 +674,8 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 			// disruptive when it has no grant).
 			cut = true
 		}
-		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs(), DisruptiveRefused: refused}, nil
+		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs(), DisruptiveRefused: refused,
+			SkippedRules: zapSkippedRules(p, opts)}, nil
 	}
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil
 }

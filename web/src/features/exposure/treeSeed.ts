@@ -4,7 +4,7 @@
 import { daysAgo } from '@/mocks/db'
 import { dayOf } from '@/lib/format'
 import { NOTICE_TEMPLATE, NOTICE_VERSION, TERMS_KEPT_VERSIONS, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION } from './contract'
-import type { Address, Consent, Host, Issue, NodeOrigin, ProofCheck, Scan, ScopeMode, Service, TargetKind, VerifyMethod } from './types'
+import type { Address, Consent, DeepSettings, Host, Issue, NodeOrigin, ProofCheck, Scan, ScopeMode, Service, TargetKind, VerifyMethod } from './types'
 
 /** A node as the mock stores it; proof state, blocked, counts and the newest scan are worked out on read. */
 export interface StoredNode {
@@ -25,6 +25,8 @@ export interface StoredNode {
   checks: number
   commitment: Consent | null
   terms: Consent | null
+  /** The deep-scan settings saved for the node; undefined while it has the defaults. */
+  deep_settings?: DeepSettings
 }
 
 export interface TreeRows {

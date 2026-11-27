@@ -20,6 +20,8 @@ func TestReportMailFixIsThePagesFixLine(t *testing.T) {
 		{reports.Fix{Kind: "update", Product: "FortiOS"}, "7.2.0", "Update FortiOS to a fixed release"},
 		{reports.Fix{Kind: "distro_update", Product: "openssl", Version: v("3.0.13-0ubuntu3.4")}, "3.0.13", "Install the openssl package 3.0.13-0ubuntu3.4 or later"},
 		{reports.Fix{Kind: "distro_update", Product: "openssl"}, "", "Install the distribution's security updates for openssl"},
+		{reports.Fix{Kind: "distro_update", Product: "python3-pip", Version: v("25.1.1+dfsg-1ubuntu2+esm3"), Channel: "ubuntu_pro"}, "", "Install the python3-pip package 25.1.1+dfsg-1ubuntu2+esm3 from Ubuntu Pro (ESM): only Ubuntu Pro has this fix"},
+		{reports.Fix{Kind: "os_update", Product: "Windows 10 22H2", Ref: v("KB5066791"), Channel: "esu"}, "", "Install KB5066791 on Windows 10 22H2 (needs an Extended Security Updates subscription)"},
 		{reports.Fix{Kind: "os_update", Product: "Windows 11 24H2", Version: v("10.0.26100.4061"), Ref: v("KB5058411")}, "", "Install KB5058411 on Windows 11 24H2"},
 		{reports.Fix{Kind: "os_update", Product: "Windows 11 24H2", Version: v("10.0.26100.4061")}, "", "Update Windows 11 24H2 to build 10.0.26100.4061"},
 		{reports.Fix{Kind: "os_update", Product: "Windows 11 24H2"}, "", "Install the latest cumulative update on Windows 11 24H2"},

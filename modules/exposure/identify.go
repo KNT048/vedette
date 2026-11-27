@@ -409,7 +409,8 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 				got = append(got, r)
 			}
 		}
-		res, got = s.dropPathServices(ctx, ip.String(), res, got) // INV-44: a port the box's own network answers is not the target's
+		got = slices.DeleteFunc(got, func(r ServiceRow) bool { return st.Skips(r.Port) }) // a port this target's settings skip is not observed
+		res, got = s.dropPathServices(ctx, ip.String(), res, got)                         // INV-44: a port the box's own network answers is not the target's
 		c.Services = append(c.Services, got...)
 		if !st.Mode.Full && (res.AnswersEverywhere || surfaceEverywhere) {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notAnswersEverywhereKept})
@@ -417,7 +418,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		// INV-22: the ports this scan checked on ip. A port whose -sV batch did not finish is never among them, whatever the scanner
 		// said: it got no service identification, so this scan cannot have missed a service there.
 		unfinished := sanitizeProbed(res.Unfinished)
-		probed := slices.DeleteFunc(sanitizeProbed(res.Probed), func(p int) bool { _, in := slices.BinarySearch(unfinished, p); return in })
+		probed := slices.DeleteFunc(sanitizeProbed(res.Probed), func(p int) bool { _, in := slices.BinarySearch(unfinished, p); return in || st.Skips(p) })
 		if !st.Mode.Full && len(probed) > 0 {
 			if covered := answeredPorts(probed, got, res.AnswersEverywhere || surfaceEverywhere); len(covered) > 0 {
 				if c.Probed == nil {
@@ -466,7 +467,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			c.ScriptsRan = append(c.ScriptsRan, ip.String())
 			vuln := 0
 			for _, r := range sanitizeScripts(res.Scripts) {
-				if r.IP == ip.String() {
+				if r.IP == ip.String() && !st.Skips(r.Port) {
 					c.Scripts = append(c.Scripts, r)
 					if r.vulnerable() {
 						vuln++

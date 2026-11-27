@@ -183,14 +183,32 @@ func historyEntry(e Event) HistoryEntry {
 	return h
 }
 
-// fixChangeNote says the fix a fix_changed event moved to, from its fix key (FixKey: "<product>|<kind>|<version>"), in the words the
-// fix is shown with elsewhere; "" when the key cannot be read.
+// fixChangeNote says the fix a fix_changed event moved to, from its fix key (FixKey: "<product>|<kind>|<version>", then "|<channel>"
+// for a fix only a subscription carries), in the words the fix is shown with elsewhere; "" when the key cannot be read.
 func fixChangeNote(key string) string {
 	parts := strings.Split(key, "|")
+	sub := ""
+	if n := len(parts); n >= 4 {
+		switch FixChannel(parts[n-1]) {
+		case ChannelUbuntuPro:
+			sub, parts = " (only Ubuntu Pro has it)", parts[:n-1]
+		case ChannelESU:
+			sub, parts = " (only with Extended Security Updates)", parts[:n-1]
+		}
+	}
 	if len(parts) < 3 {
 		return ""
 	}
 	kind, version := FixKind(parts[len(parts)-2]), parts[len(parts)-1]
+	note := fixKindNote(kind, version)
+	if sub != "" && version != "" && kind != FixUnknown && kind != FixNoneYet {
+		note = strings.TrimSuffix(note, ".") + sub + "."
+	}
+	return note
+}
+
+// fixKindNote is fixChangeNote's words for a fix kind and release.
+func fixKindNote(kind FixKind, version string) string {
 	switch {
 	case kind == FixNoneYet:
 		return "Now: no fix from the vendor yet."

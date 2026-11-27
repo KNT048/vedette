@@ -238,3 +238,110 @@ describe('exposure screens: issues', () => {
     expect(within(table).getAllByRole('button', { name: /^Mark as handled: / })[0]).toBeDisabled()
   })
 })
+
+describe('exposure screens: deep scan settings', () => {
+  const settingsOf = (id: string) => exposureTreeStore.get().find((n) => n.id === id)?.deep_settings
+  const openSettings = async () => {
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan settings' }))
+    return screen.findByRole('dialog', { name: /^Deep scan settings: / })
+  }
+  const base = { dos: false, logins: true, web_active: true, data_change: true, openvas: true, speed: 'normal' as const, skip_ports: [], skip_paths: [], updated_at: null, updated_by: null, problem: null }
+
+  it('a target without saved settings opens with the denial-of-service checks off and everything else on; the Deep scan dialog says so in one line', async () => {
+    renderApp('/exposure/xt-14')
+    const dialog = await openSettings()
+    expect(within(dialog).getByRole('switch', { name: 'Denial-of-service checks' })).not.toBeChecked()
+    for (const name of ['Password guessing and default logins', 'Active web attacks', 'Exploit checks that may change data']) expect(within(dialog).getByRole('switch', { name })).toBeChecked()
+    expect(within(dialog).getByRole('button', { name: 'Normal' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dialog).getByText('May slow down or crash a service or device. Off unless you turn it on.')).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Deep scan now' }))
+    expect(await screen.findByTestId('deep-summary')).toHaveTextContent('Denial-of-service checks: off · Normal Change')
+  })
+
+  it('Save sends the whole object: speed, ports and paths typed into their own lists', async () => {
+    renderApp('/exposure/xt-14')
+    const dialog = await openSettings()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Gentle' }))
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Ports to skip' }), '3389, 22{Enter}')
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Web paths to skip' }), '/admin/delete')
+    await userEvent.click(within(dialog).getByRole('switch', { name: 'Active web attacks' }))
+    expect(within(dialog).getByText('Its web checks also need Active web attacks, which is off.')).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save settings' })) // the path still in the box is added by Save
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(settingsOf('xt-14')).toMatchObject({ dos: false, logins: true, web_active: false, data_change: true, openvas: true, speed: 'gentle', skip_ports: [22, 3389], skip_paths: ['/admin/delete'] })
+    await userEvent.click(screen.getByRole('button', { name: 'Deep scan now' }))
+    expect(await screen.findByTestId('deep-summary')).toHaveTextContent('Denial-of-service checks: off · Active web attacks: off · Gentle · 2 ports skipped · 1 path skipped')
+  })
+
+  it('the summary line has Change, which closes the confirmation and opens the settings', async () => {
+    exposureTreeStore.update((l) => l.map((n) => (n.id === 'xt-14' ? { ...n, deep_settings: { ...base, speed: 'gentle' as const, skip_ports: [22, 80], logins: false } } : n)))
+    renderApp('/exposure/xt-14', { role: 'operator' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan now' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Deep scan 198.51.100.2' })
+    expect(within(confirm).getByTestId('deep-summary')).toHaveTextContent('Denial-of-service checks: off · Password guessing: off · Gentle · 2 ports skipped')
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Change' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Deep scan settings: 198.51.100.2' })
+    expect(screen.queryByRole('dialog', { name: 'Deep scan 198.51.100.2' })).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Gentle' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dialog).getByText('22')).toBeInTheDocument()
+  })
+
+  it('turning the denial-of-service checks on needs two-step sign-in, with the way there; with it, the change is saved', async () => {
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: false } : x)))
+    renderApp('/exposure/xt-14')
+    const dialog = await openSettings()
+    await userEvent.click(within(dialog).getByRole('switch', { name: 'Denial-of-service checks' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save settings' }))
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent('Turn on two-step sign-in for your account first')
+    expect(within(alert).getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/settings/account?tab=sign-in#two-step')
+    expect(settingsOf('xt-14')?.dos ?? false).toBe(false)
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: true } : x)))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(settingsOf('xt-14')?.dos).toBe(true)
+  })
+
+  it('a port or path the box would refuse is refused under its field, and nothing is saved', async () => {
+    renderApp('/exposure/xt-14')
+    const dialog = await openSettings()
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Ports to skip' }), '70000{Enter}')
+    expect(await within(dialog).findByText('"70000" is not a port number (1 to 65535).')).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Web paths to skip' }), 'admin{Enter}')
+    expect(await within(dialog).findByText('"admin" does not start with /.')).toBeInTheDocument()
+    await userEvent.clear(within(dialog).getByRole('textbox', { name: 'Web paths to skip' }))
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Web paths to skip' }), '/a*{Enter}')
+    expect(await within(dialog).findByText(/holds a character a path cannot have here/)).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save settings' }))
+    expect(screen.getByRole('dialog', { name: /^Deep scan settings: / })).toBeInTheDocument()
+    expect(settingsOf('xt-14')).toBeUndefined()
+  })
+
+  it('groups the target cannot run at all are off-limits with the scan bar\'s own reason; OpenVAS says the box switch is off', async () => {
+    exposureTreeStore.update((l) => l.map((n) => (n.id === 'xt-14' ? { ...n, origin: 'person' as const } : n))) // a typed-in IP
+    renderApp('/exposure/xt-14')
+    const dialog = await openSettings()
+    for (const name of ['Denial-of-service checks', 'Password guessing and default logins', 'Exploit checks that may change data']) expect(within(dialog).getByRole('switch', { name })).toBeDisabled()
+    expect(within(dialog).getAllByText('Disruptive checks are not included: they run only on this box\'s own public IP, and this address was typed in.')).toHaveLength(3)
+    expect(within(dialog).getByRole('switch', { name: 'Active web attacks' })).toBeEnabled()
+    expect(await within(dialog).findByText(/OpenVAS is turned off for the whole box/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('switch', { name: 'OpenVAS for this target' })).toBeDisabled()
+  })
+
+  it('a target without accepted testing terms says so, and the disruptive groups are off-limits', async () => {
+    renderApp('/exposure/xt-13')
+    const dialog = await openSettings()
+    expect(within(dialog).getAllByText(/Deep scans need the testing terms of this target to be accepted/).length).toBeGreaterThan(0)
+    expect(within(dialog).getByRole('switch', { name: 'Denial-of-service checks' })).toBeDisabled()
+  })
+
+  it('anyone but an administrator reads the settings and cannot change them', async () => {
+    renderApp('/exposure/xt-14', { role: 'operator' })
+    const dialog = await openSettings()
+    expect(within(dialog).getByRole('switch', { name: 'Active web attacks' })).toBeDisabled()
+    expect(within(dialog).queryByRole('button', { name: 'Save settings' })).toBeNull()
+    expect(within(dialog).getByText('Requires Admin role')).toBeInTheDocument()
+    expect(within(dialog).getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0)
+  })
+})

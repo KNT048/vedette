@@ -42,7 +42,9 @@ type Trigger struct {
 
 	Detection Detection // TrDetected
 
-	Via                    Via // TrGone
+	// Via, FromVersion, ToVersion: TrGone, how it went away; TrReopen, how the data last said it went away (the newest
+	// no_longer_detected event, or Vedette's own close), for a finding the latest match no longer detects.
+	Via                    Via
 	FromVersion, ToVersion string
 	// Corrected (TrGone, data_corrected): what the line reads now is a person's correction of what a source reads. It closes a finding
 	// a person confirmed (a person's newer word about the device, like "not installed"); a safe check's proof still holds against it.
@@ -95,6 +97,9 @@ type Detection struct {
 //     still shows.
 //   - handle, reopen, verify, unverify: a person's word, checked like the API reports it. Marking a finding the way Vedette already
 //     closed it takes it over with the person's note, except Vedette's patch credit, which stays (the person's note is an event).
+//     A finding is open only while the latest match detects it: a person who reopens one the device no longer has is recorded, and
+//     Vedette closes it again at once on the data's word, saying why (closeUndetected); gone also closes an open finding that is not
+//     detected (one reopened before this rule).
 //   - tick: an accepted risk whose last day is over opens again while detected, else Vedette closes it as corrected.
 //   - urgency: the layer, with an event when it changes.
 func Transition(f Finding, t Trigger) (Finding, []Event, error) {
@@ -256,7 +261,11 @@ func (t *transition) detected(d Detection) error {
 	case was.Via == ViaPerson && was.Resolution == ResolutionPatched:
 		if read.After(was.ResolvedAt) { // a reading taken after the person's mark still shows the flaw
 			t.open()
-			t.emit(SystemUser, EvReopened, EventDetail{Why: WhyStillDetected, ReadingAt: read.Format(tsLayout)})
+			d := EventDetail{Why: WhyStillDetected, ReadingAt: read.Format(tsLayout)}
+			if f.Fix.Chan() == ChannelUbuntuPro { // the mark keeps failing for one reason: the fixed package is not in the public archive
+				d.Note = "Only Ubuntu Pro (ESM) has the fixed package: without Ubuntu Pro the device keeps the affected one."
+			}
+			t.emit(SystemUser, EvReopened, d)
 		}
 	case was.Via == ViaPerson: // mitigated, accepted, false positive and not relevant hold while detected
 	case was.Via == ViaScanClear && (d.Basis == DetectBannerVersion || d.Basis == DetectStatement):
@@ -278,7 +287,8 @@ func (t *transition) gone(tr Trigger) error {
 		return fmt.Errorf("findings: no longer detected via %q", via)
 	}
 	f := &t.f
-	if f.State == "" || !f.Detected { // no row, or already not detected: only the edge changes anything
+	if f.State == "" || !f.Detected && f.State != StateOpen { // no row, or already not detected: only the edge changes anything (an open
+		// finding that is not detected closes: open means detected)
 		return nil
 	}
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
@@ -376,7 +386,55 @@ func (t *transition) reopen(tr Trigger) error {
 	}
 	t.open()
 	t.emit(t.actor, EvReopened, EventDetail{Why: WhyPerson, Note: note})
+	if !t.f.Detected {
+		t.closeUndetected(tr.Via, tr.FromVersion, tr.ToVersion)
+	}
 	return nil
+}
+
+// closeUndetected closes again a finding a person reopened that the latest match no longer detects, the way the data last said it went
+// away (data_corrected when that is not known), with Vedette's reason as the note: the person's reopen stays in the history, and the
+// finding never shows the advice of a reading the device has moved past.
+func (t *transition) closeUndetected(via Via, from, to string) {
+	was := t.before
+	if via == "" && was.Via != ViaPerson { // the caller did not say: Vedette's own close of the row
+		via, from, to = was.Via, was.FromVersion, was.ToVersion
+	}
+	by := SystemUser
+	switch {
+	case via == ViaNotInstalled && was.Via == ViaNotInstalled: // the person's "not installed" still holds on the line
+		by = was.ResolvedBy
+	case !via.Valid() || via == ViaPerson || via == ViaNotInstalled || via == ViaVersionMoved && (from == "" || to == "" || from == to):
+		via = ViaDataCorrected
+	}
+	if via != ViaVersionMoved {
+		from, to = "", ""
+	}
+	res := ResolutionNotRelevant
+	if via.Credit() {
+		res = ResolutionPatched
+	}
+	note := ""
+	if by == SystemUser {
+		note = undetectedNote(via, to)
+	}
+	t.close(res, via, by, note, time.Time{}, from, to)
+}
+
+// undetectedNote is why Vedette closed again a finding a person reopened: what the device's data shows now.
+func undetectedNote(via Via, to string) string {
+	const tail = " Vedette closed it again; it opens by itself if a later reading shows the flaw."
+	switch via {
+	case ViaVersionMoved:
+		return "The device no longer has this flaw: it now runs " + oneLine(to, 100) + ", which has the fix." + tail
+	case ViaSoftwareRemoved:
+		return "The device no longer has this software." + tail
+	case ViaDistroFixed:
+		return "The distribution's data shows the installed package has the fix." + tail
+	case ViaScanClear:
+		return "A safe check found the fix in place on the device." + tail
+	}
+	return "The latest check of the device no longer finds this flaw." + tail
 }
 
 func (t *transition) verify(tr Trigger) error {

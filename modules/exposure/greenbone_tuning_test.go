@@ -177,7 +177,7 @@ func TestOpenVASFactsHaveTitleAndFix(t *testing.T) {
 		"1.3.6.1.4.1.25623.1.0.10267":  "Remote SSH supported authentication: publickey,password",
 		"1.3.6.1.4.1.25623.1.0.117839": "The server offers diffie-hellman-group-exchange-sha256",
 		"1.3.6.1.4.1.25623.1.0.117414": "HTTP compression is enabled on /",
-		"1.3.6.1.4.1.25623.1.0.153974": "Supported methods: GET, HEAD, OPTIONS, TRACE",
+		"1.3.6.1.4.1.25623.1.0.11213":  "The web server has the following HTTP methods enabled: TRACE",
 		"1.3.6.1.4.1.25623.1.0.103140": "The certificate is self-signed",
 		"1.3.6.1.4.1.25623.1.0.103141": "The certificate subject does not match",
 		"1.3.6.1.4.1.25623.1.0.117764": "The certificate is not trusted",
@@ -207,6 +207,31 @@ func TestOpenVASFactsHaveTitleAndFix(t *testing.T) {
 	}
 	if len(detections) != len(gmpFacts) {
 		t.Errorf("%d fixtures for %d entries", len(detections), len(gmpFacts))
+	}
+}
+
+// The methods enumeration lists what the server did not refuse: on a port that answers 301 to every method it still names TRACE, and
+// that is no proof TRACE works. It raises no fact; only the NVT that confirms the echo does, and it then becomes the Low issue with its fix line.
+func TestOpenVASFacts_TraceNeedsTheEchoCheck(t *testing.T) {
+	t.Parallel()
+	rows, _, err := readReport(fxWrap(
+		fxResult("Allowed HTTP Methods Enumeration", "1.3.6.1.4.1.25623.1.0.153974", "80/tcp", 0, 80,
+			"Supported methods: GET, HEAD, POST, PUT, DELETE, TRACE"),
+	))
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("enumeration alone: rows %+v, %v", rows, err)
+	}
+	rows, _, err = readReport(fxWrap(
+		fxResult("HTTP Debugging Methods (TRACE/TRACK) Enabled", "1.3.6.1.4.1.25623.1.0.11213", "8080/tcp", 6, 99,
+			"The web server has the following HTTP methods enabled: TRACE"),
+	))
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("echo check: rows %+v, %v", rows, err)
+	}
+	is := openvasIssue(rows[0])
+	if is.severity != "low" || is.title != "The web server allows TRACE" || !strings.Contains(is.detail.Solution, "TraceEnable off") ||
+		len(is.cves) != 0 || !strings.Contains(is.key, ":8080@") {
+		t.Fatalf("issue = %+v", is)
 	}
 }
 

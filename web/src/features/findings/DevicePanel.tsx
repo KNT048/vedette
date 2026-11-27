@@ -6,8 +6,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
 import { useKeepListParams } from '@/components/common/listParams'
-import { ListSearch } from '@/components/common/Pager'
-import { Section } from '@/components/common/PageHeader'
+import { ListToolbar } from '@/components/common/ListParts'
 import { QueryState } from '@/components/common/States'
 import { StatusBadge } from '@/components/common/status'
 import { useModuleEnabled } from '@/lib/modules'
@@ -86,11 +85,12 @@ export function DeviceFindings({ assetId, summary }: { assetId: string; summary:
   const input = summary?.input ?? 0
   const done = handled.data?.total ?? 0
   return (
-    <Section id="device-findings" title={t('device.title')} stories={['S-MIT-1']}>
+    <section id="device-findings" aria-label={t('device.title')}>
       <div className="grid gap-3">
         {/* the toggles help only when the device has findings of two statuses or more (or a link brought one pressed) */}
-        {summary?.counts && (status || OPEN_FINDING_STATUSES.filter((s) => summary.counts![s] > 0).length > 1) ? <StatusFilter counts={summary.counts} /> : null}
-        {summary?.open || q ? <ListSearch value={q} onChange={setQ} label={t('device.search')} /> : null}
+        <ListToolbar search={summary?.open || q ? { value: q, onChange: setQ, label: t('device.search') } : undefined}>
+          {summary?.counts && (status || OPEN_FINDING_STATUSES.filter((s) => summary.counts![s] > 0).length > 1) ? <StatusFilter counts={summary.counts} /> : null}
+        </ListToolbar>
         <QueryState query={cards}>
           {(d) => {
             const card: DeviceCard | undefined = d.items.find((c) => c.device.id === assetId)
@@ -106,6 +106,6 @@ export function DeviceFindings({ assetId, summary }: { assetId: string; summary:
         ) : null}
       </div>
       {handling ? <HandleDialog {...handling} onClose={() => setHandling(null)} /> : null}
-    </Section>
+    </section>
   )
 }

@@ -2,7 +2,6 @@ import { useEffect, useId, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ChevronDown } from 'lucide-react'
 import { Card } from '@/components/common/Card'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { Notice, Section } from '@/components/common/PageHeader'
@@ -31,6 +30,7 @@ import { runHref } from './places'
 import { ScanNowButton } from './ScanNow'
 import { InfoLine } from '@/components/common/InfoLine'
 import type { Engine, EngineId, Scanning } from './types'
+import { ExpandToggle } from '@/components/common/ListParts'
 
 const GROUPS = ['discover', 'identify', 'vuln', 'traps'] as const
 const STATE_TONE: Record<Engine['state'], Tone> = { off: 'off', needs_setup: 'warn', starting: 'accent', ready: 'ok', running: 'accent', error: 'danger', unavailable: 'off' }
@@ -223,9 +223,7 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
       {e.id === 'nuclei' && e.enabled ? <VulnChecksButton targets="lan" showProgress={false} /> : null}
       {own ? (
         <div className="grid gap-3">
-          <Button variant="ghost" size="sm" className="w-fit" aria-expanded={open} aria-controls={panelId} aria-label={t('settingsOf', { name: name(e.id) })} onClick={() => onOpen(!open)}>
-            <ChevronDown className={open ? 'rotate-180' : ''} aria-hidden />{t('settings')}
-          </Button>
+          <ExpandToggle open={open} onToggle={() => onOpen(!open)} controls={panelId} label={t('settingsOf', { name: name(e.id) })}>{t('settings')}</ExpandToggle>
           {open ? <div id={panelId} className="min-w-0 border-l-2 border-rule pl-4">{own}</div> : null}
         </div>
       ) : null}

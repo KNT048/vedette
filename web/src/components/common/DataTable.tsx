@@ -8,7 +8,8 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Select } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { ListSearch, Pager, RangeText } from './Pager'
+import { ListSummary, ListToolbar } from './ListParts'
+import { Pager, RangeText } from './Pager'
 import { decodeSort, encodeSort, listKey, useListParams, type ListParams } from './listParams'
 
 export type { ColumnDef }
@@ -31,7 +32,7 @@ function useNarrow() {
  * pages, Next, Last, Go to page, rows per page); the search, the page and the size live in the URL under `urlKey`, so back, reload
  * and a shared link keep them. A list of cards (`list`) goes through the same search and pager: its columns name what the search reads.
  */
-export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, list: listRow, sortSelect, hiddenColumns, fillColumn, search = true, urlKey, resetPageOn, server }: {
+export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, list: listRow, sortSelect, hiddenColumns, fillColumn, search = true, urlKey, resetPageOn, server, summary, actions }: {
   data: T[]
   columns: ColumnDef<T, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   filterPlaceholder?: string
@@ -71,6 +72,10 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   /** The server pages the list: `data` is one page, `total` the rows of every page, and `list` (the page's useListParams) the page
    *  and size the page asked for. No search, sort or filter of the table's own: they would act on one page only. */
   server?: { total: number; list: ListParams; max?: number }
+  /** The list's one count line under its toolbar (ListSummary: "7 devices, 16 open findings"); its `data-count` is the list's URL key. */
+  summary?: ReactNode
+  /** The buttons that act on the list (Add target, Export CSV), at the right end of its toolbar, the primary one last. */
+  actions?: ReactNode
 }) {
   const { t } = useTranslation()
   const own = useListParams(urlKey ?? listKey(caption))
@@ -143,18 +148,21 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
 
   return (
     <div ref={top} className="grid scroll-mt-4 gap-3">
-      {showSearch || toolbar || paged || filtered ? (
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {showSearch ? <ListSearch value={list.q} onChange={(q) => list.set({ q, page: 0 })} label={filterPlaceholder ?? t('table.searchIn', { caption })} placeholder={filterPlaceholder ?? t('table.search')} /> : null}
-          {toolbar}
-          {paged || filter || (filtered && count > 0) ? (
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+      {showSearch || toolbar || actions || paged || filtered ? (
+        <ListToolbar search={showSearch ? { value: list.q, onChange: (q) => list.set({ q, page: 0 }), label: filterPlaceholder ?? t('table.searchIn', { caption }), placeholder: filterPlaceholder ?? t('table.search') } : undefined}
+          actions={actions || paged || filter || (filtered && count > 0) ? (
+            <>
+              {actions}
+              {paged || filter || (filtered && count > 0) ? <>
               <RangeText page={page} size={size} count={count} total={filter ? data.length : undefined} />
               <Pager page={page} pages={pages} onPage={(p) => setPage(p)} label={t('table.pagesTop', { caption })} size={size} onSize={setSize} sizeChanged={sizeChanged} maxSize={server?.max} />
-            </div>
-          ) : null}
-        </div>
+              </> : null}
+            </>
+          ) : undefined}>
+          {toolbar}
+        </ListToolbar>
       ) : null}
+      {summary ? <ListSummary id={urlKey ?? listKey(caption)}>{summary}</ListSummary> : null}
       {sortable.length > 0 ? (
         <Select className="w-full sm:w-auto sm:max-w-64" aria-label={t('table.sortBy')} value={sorting[0]?.id ?? ''}
           onChange={(e) => { const c = table.getColumn(e.target.value); setSorting(c ? [{ id: c.id, desc: c.getFirstSortDir() === 'desc' }] : []) }}>
@@ -173,7 +181,8 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
       <div className="relative overflow-x-auto rounded-md border border-rule bg-surface">
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">{caption}</caption>
-          <thead className="bg-sunken text-left">
+          {/* A list of one column (a list of cards) has nothing to name above it: its header is for screen readers only, as a `list` has none */}
+          <thead className={cn('bg-sunken text-left', table.getVisibleLeafColumns().length === 1 && 'sr-only')}>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((h) => {

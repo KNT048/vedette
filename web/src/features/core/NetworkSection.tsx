@@ -69,7 +69,7 @@ function Interfaces({ d }: { d: NetworkState }) {
     { id: 'address', header: t('network.interfaces.col.address'), accessorFn: (i) => i.address ?? '', cell: ({ row }) => row.original.address ?? <span className="text-muted">{row.original.role === 'span' ? t('network.interfaces.noIp') : '–'}</span> },
   ]
   return (
-    <Section id="interfaces" title={t('network.interfaces.title')} description={t('network.interfaces.desc')} stories={['S-CORE-8']}>
+    <Section id="interfaces" label={t('network.interfaces.title')} description={t('network.interfaces.desc')} stories={['S-CORE-8']}>
       <DataTable urlKey="network-interfaces" caption={t('network.interfaces.caption')} data={d.interfaces} columns={columns}
         mobileRow={(i) => (
           <div className="grid gap-2">
@@ -330,12 +330,12 @@ function Body({ d }: { d: NetworkState }) {
           </Section>
         ) },
         { id: 'box-address', label: t('network.tabs.boxAddress'), panel: (
-          <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} info={t('network.boxAddress.info')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
+          <Section id="box-address" label={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} info={t('network.boxAddress.info')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
             <BoxAddressForm key={d.box_address.address ?? ''} d={d} />
           </Section>
         ) },
         { id: 'time', label: t('network.tabs.time'), panel: (
-          <Section id="ntp" title={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
+          <Section id="ntp" label={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
             <NtpForm key={JSON.stringify(d.ntp)} d={d} />
             <div className="mt-3 flex items-center gap-1"><p className="text-meta text-muted">{t('network.ntp.privacyShort')} <Link to="/settings/privacy#flow-10" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p><InfoTip topic={t('network.ntp.title')}>{t('network.ntp.privacy')}</InfoTip></div>
           </Section>

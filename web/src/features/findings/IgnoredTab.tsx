@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { InfoTip } from '@/components/common/InfoTip'
-import { ListSearch } from '@/components/common/Pager'
+import { ListRow, ListToolbar } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { CveList } from '@/components/common/status'
@@ -25,18 +25,12 @@ function IgnoredDevice({ card }: { card: DeviceCard }) {
   const name = card.device.name
   const findings = card.blocks.flatMap((b) => b.findings)
   return (
-    <article aria-label={name} className="grid gap-2 py-1">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="grid gap-0.5">
-          <DeviceLine device={card.device} badge={false} />
-          <span className="text-meta text-muted">{t('byDevice.counts', { count: card.findings, cves: card.cves })}</span>
-        </span>
-        <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')}
+    <ListRow label={name} title={<DeviceLine device={card.device} badge={false} />} meta={[t('byDevice.counts', { count: card.findings, cves: card.cves })]}
+      actions={<Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')}
           aria-label={t('ignoredTab.restoreOf', { name })}
-          onClick={() => act.ignore.mutate(false, { onSuccess: () => toast.success(t('ignoredTab.restored', { name })), onError: (e) => toast.error(errMsg(e)) })}>{t('ignoredTab.restore')}</Button>
-      </div>
+          onClick={() => act.ignore.mutate(false, { onSuccess: () => toast.success(t('ignoredTab.restored', { name })), onError: (e) => toast.error(errMsg(e)) })}>{t('ignoredTab.restore')}</Button>}>
       <CveList label={t('ignoredTab.cvesOf', { name })} items={findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, to: `/findings/${encodeURIComponent(f.id)}` }))} />
-    </article>
+    </ListRow>
   )
 }
 
@@ -51,13 +45,13 @@ export function IgnoredTab() {
   ]
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('ignoredTab.search')} />
+      <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('ignoredTab.search') }}>
         <InfoTip topic={t('ignoredTab.about')}><p>{t('ignoredTab.intro')}</p></InfoTip>
-      </div>
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => d.total === 0 && !raw.q ? <EmptyState title={t('ignoredTab.none')} /> : (
           <DataTable urlKey="ignored" caption={t('ignoredTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
+            summary={t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}
             server={{ total: d.total, list, max: PAGE_MAX }} filtered={!!raw.q} onClearFilters={() => raw.set({ q: '', page: 0 })}
             mobileRow={(c) => <IgnoredDevice card={c} />} />
         )}

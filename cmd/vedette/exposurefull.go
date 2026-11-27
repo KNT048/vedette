@@ -52,11 +52,12 @@ type fullPort struct {
 	service, product, cpe string
 }
 
-// fullPorts merges exposure's jobs of depth full by port (a port with more than 32 CVEs has several), in their order.
-func fullPorts(ip netip.Addr, jobs []exposure.TemplateJob) []fullPort {
+// fullPorts merges exposure's jobs of depth full by port (a port with more than 32 CVEs has several), in their order; a port the
+// target's settings skip gets none.
+func fullPorts(ip netip.Addr, jobs []exposure.TemplateJob, skip []int) []fullPort {
 	var out []fullPort
 	for _, j := range jobs {
-		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != exposure.DepthFull {
+		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != exposure.DepthFull || slices.Contains(skip, j.Port) {
 			continue
 		}
 		i := slices.IndexFunc(out, func(p fullPort) bool { return p.port == j.Port })
@@ -75,11 +76,14 @@ var errNotFull = &exposure.Unavailable{Reason: templatesNotFull}
 func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	var out exposure.TemplateScan
 	products := pack.ProductTags(ix.Templates)
-	ports := fullPorts(ip, jobs)
+	ports := fullPorts(ip, jobs, t.SkipPorts)
+	if l := groupsOffLine(t.Mode); l != "" && len(ports) > 0 && t.Domain == nil && !t.Typed { // where the disruptive checks could run at all
+		out.NotChecked = append(out.NotChecked, l)
+	}
 	bounds := make([]int64, len(ports))
 	meter := &fullMeter{}
 	for i, p := range ports {
-		bounds[i] = portBound(ix, products, p, t.Mode.Disruptive)
+		bounds[i] = portBound(ix, products, p, tplFilter{m: t.Mode, paths: t.SkipPaths})
 		meter.plan += bounds[i]
 	}
 	meter.s = progress.NewSeries(ctx, progress.PhaseVulns, meter.plan)
@@ -148,17 +152,17 @@ func (m *fullMeter) reckon(was, now int64) int64 {
 // portBound is what fullPortScan can send to a port with the mode the scan started with (a later ModeNow is never more): a web port's
 // technologies templates and its plan with every tag they could find (reachableTags), up to exposure.FullTemplatesPerPort in all;
 // another port's plan as it is.
-func portBound(ix *pack.Index, products map[string]bool, p fullPort, disruptive bool) int64 {
+func portBound(ix *pack.Index, products map[string]bool, p fullPort, f tplFilter) int64 {
 	if p.target.Scheme == "" {
-		return int64(len(otherPlan(ix, p, disruptive)))
+		return int64(len(otherPlan(ix, p, f)))
 	}
 	tech := 0
 	for _, tp := range ix.Templates {
-		if tp.Tech() && tp.RunsAt(true, disruptive) {
+		if tp.Tech() && f.runs(tp) {
 			tech++
 		}
 	}
-	plan, _ := webPlan(ix, p, reachableTags(ix, products, p), disruptive, exposure.FullTemplatesPerPort-tech)
+	plan, _ := webPlan(ix, p, reachableTags(ix, products, p), f, exposure.FullTemplatesPerPort-tech)
 	return int64(tech + len(plan))
 }
 
@@ -191,6 +195,7 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 	sent := map[string]bool{}
 	var silent []string // review r1 M1: handed to nuclei, no line printed: not run
 	handed := 0
+	unknown := map[string]bool{}                                      // templates whose path could not be told against the web paths to skip (they ran)
 	run := func(tmpls []pack.Template) (map[string][]string, error) { // template id -> matcher names of its matching lines
 		found := map[string][]string{}
 		for c := range slices.Chunk(tmpls, nucleiargv.MaxFullTemplates) {
@@ -198,12 +203,19 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 			if err != nil {
 				return nil, err
 			}
-			c = slices.DeleteFunc(slices.Clone(c), func(tp pack.Template) bool { return sent[tp.ID] || !tp.RunsAt(true, m.Disruptive) })
+			c = slices.DeleteFunc(slices.Clone(c), func(tp pack.Template) bool {
+				return sent[tp.ID] || !tp.RunsAt(true, m.Disruptive) || !groupAllows(m, tp) || templatePathOf(tp, t.SkipPaths) == tplPathSkipped
+			})
+			for _, tp := range c {
+				if templatePathOf(tp, t.SkipPaths) == tplPathUnknown {
+					unknown[tp.ID] = true
+				}
+			}
 			if len(c) == 0 {
 				continue
 			}
 			jctx, end := meter.s.Job(ctx)
-			res, o, quiet, err := a.send(jctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive, domain: t.Domain})
+			res, o, quiet, err := a.send(jctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive, gentle: t.Gentle, domain: t.Domain})
 			end(int64(len(c)))
 			if err != nil {
 				return nil, err
@@ -228,17 +240,18 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 		return err
 	}
 	var plan []pack.Template
+	f := tplFilter{m: m, paths: t.SkipPaths} // the room of the port goes only to templates that may leave
 	if p.target.Scheme == "" {
-		plan = otherPlan(ix, p, m.Disruptive)
+		plan = otherPlan(ix, p, f)
 	} else {
-		tech := filterTemplates(ix, func(tp pack.Template) bool { return tp.Tech() && tp.RunsAt(true, m.Disruptive) })
+		tech := filterTemplates(ix, func(tp pack.Template) bool { return tp.Tech() && f.runs(tp) })
 		found, err := run(tech)
 		if err != nil {
 			return err
 		}
 		tags := foundTags(ix, products, found, p)
 		var capped int
-		plan, capped = webPlan(ix, p, tags, m.Disruptive, exposure.FullTemplatesPerPort-len(tech))
+		plan, capped = webPlan(ix, p, tags, f, exposure.FullTemplatesPerPort-len(tech))
 		if capped > 0 {
 			out.NotChecked = append(out.NotChecked, fmt.Sprintf(fullCapped, p.port, capped, exposure.FullTemplatesPerPort))
 		}
@@ -250,6 +263,9 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 	}
 	if len(silent) > 0 {
 		out.NotChecked = append(out.NotChecked, fmt.Sprintf(notRunFull, p.port, len(silent), handed))
+	}
+	if l := pathsLine(len(unknown), p.port, t.SkipPaths); l != "" {
+		out.NotChecked = append(out.NotChecked, l)
 	}
 	return err
 }
@@ -268,8 +284,7 @@ func (a exposureTemplateScan) modeNow(ctx context.Context, t exposure.ScanTarget
 	case !m.Full:
 		return exposure.ScanMode{}, errNotFull
 	}
-	m.Disruptive = m.Disruptive && t.Mode.Disruptive // never more than the run started with
-	return m, nil
+	return m.And(t.Mode), nil // never more than the run started with, group by group
 }
 
 func filterTemplates(ix *pack.Index, keep func(pack.Template) bool) []pack.Template {
@@ -326,17 +341,17 @@ func foundTags(ix *pack.Index, products map[string]bool, found map[string][]stri
 }
 
 // webCandidate says whether webPlan may choose tp for the web port p: not a technologies template (those run first), allowed by the
-// mode, not a network template, and a TLS check only on https.
-func webCandidate(tp pack.Template, p fullPort, disruptive bool) bool {
-	return !tp.Tech() && tp.RunsAt(true, disruptive) && !strings.HasPrefix(tp.Path, "network/") && (!strings.HasPrefix(tp.Path, "ssl/") || p.target.Scheme == "https")
+// mode and the target's settings (f), not a network template, and a TLS check only on https.
+func webCandidate(tp pack.Template, p fullPort, f tplFilter) bool {
+	return !tp.Tech() && f.runs(tp) && !strings.HasPrefix(tp.Path, "network/") && (!strings.HasPrefix(tp.Path, "ssl/") || p.target.Scheme == "https")
 }
 
 // webPlan is the second step of a web port: the KEV templates of its CVEs, the deep templates with a found tag, the generic ones,
 // then on https the TLS checks; no technologies template (they ran first), none twice, at most room. capped is how many were left out.
-func webPlan(ix *pack.Index, p fullPort, tags []string, disruptive bool, room int) (plan []pack.Template, capped int) {
+func webPlan(ix *pack.Index, p fullPort, tags []string, f tplFilter, room int) (plan []pack.Template, capped int) {
 	seen := map[string]bool{}
 	add := func(tp pack.Template) {
-		if seen[tp.ID] || !webCandidate(tp, p, disruptive) {
+		if seen[tp.ID] || !webCandidate(tp, p, f) {
 			return
 		}
 		seen[tp.ID] = true
@@ -347,7 +362,7 @@ func webPlan(ix *pack.Index, p fullPort, tags []string, disruptive bool, room in
 		plan = append(plan, tp)
 	}
 	for _, c := range p.cves {
-		for _, tp := range ix.FullForCVE(c, disruptive) {
+		for _, tp := range ix.FullForCVE(c, f.m.Disruptive) {
 			add(tp)
 		}
 	}
@@ -378,7 +393,7 @@ func webPlan(ix *pack.Index, p fullPort, tags []string, disruptive bool, room in
 // otherPlan is the plan of a port that is not web: the KEV templates of its CVEs and the network templates with a tag of the -sV
 // service name or product (a word of at least 3 letters that names something, pack.GenericTag), and the TLS checks when nmap saw
 // TLS ("ssl/…"). At most exposure.FullTemplatesPerPort.
-func otherPlan(ix *pack.Index, p fullPort, disruptive bool) []pack.Template {
+func otherPlan(ix *pack.Index, p fullPort, f tplFilter) []pack.Template {
 	var keys []string
 	for _, w := range append(words(p.service), words(p.product)...) {
 		if len(w) >= 3 && !pack.GenericTag(w) && !slices.Contains(keys, w) {
@@ -389,13 +404,13 @@ func otherPlan(ix *pack.Index, p fullPort, disruptive bool) []pack.Template {
 	seen := map[string]bool{}
 	var plan []pack.Template
 	add := func(tp pack.Template) {
-		if !seen[tp.ID] && tp.RunsAt(true, disruptive) && !strings.HasPrefix(tp.Path, "http/") && len(plan) < exposure.FullTemplatesPerPort {
+		if !seen[tp.ID] && f.runs(tp) && !strings.HasPrefix(tp.Path, "http/") && len(plan) < exposure.FullTemplatesPerPort {
 			seen[tp.ID] = true
 			plan = append(plan, tp)
 		}
 	}
 	for _, c := range p.cves {
-		for _, tp := range ix.FullForCVE(c, disruptive) {
+		for _, tp := range ix.FullForCVE(c, f.m.Disruptive) {
 			add(tp)
 		}
 	}

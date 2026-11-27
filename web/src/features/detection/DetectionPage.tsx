@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, ErrorState, Loading, QueryState } from '@/components/common/States'
 import { CveList } from '@/components/common/status'
@@ -15,6 +14,7 @@ import { useAlerts, useOverview } from './api'
 import { actionTarget } from './places'
 import { AlertLine, DeviceLink, severityText } from './parts'
 import { ALERT_WINDOWS, type Alert, type AlertSort, type AlertWindow, type Watcher } from './types'
+import { ListToolbar } from '@/components/common/ListParts'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 
@@ -200,14 +200,13 @@ function Alerts() {
   return (
     <Section id="alerts" title={t('alerts.title')}>
       <div className="grid gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <ListSearch value={list.q} onChange={(v) => list.set({ q: v, page: 0 })} label={t('alerts.search')} />
+        <ListToolbar search={{ value: list.q, onChange: (v) => list.set({ q: v, page: 0 }), label: t('alerts.search') }}>
           <Segmented label={t('alerts.window')} value={win} onChange={(v) => setParam('window', v, '7d')} options={ALERT_WINDOWS.map((w) => ({ value: w, label: t(`alerts.${WINDOW_LABEL[w]}`) }))} />
           <Select className="w-full sm:w-auto" aria-label={t('alerts.sortLabel')} value={sort} onChange={(e) => setParam('sort', e.target.value, 'last')}>
             <option value="last">{t('alerts.sortLast')}</option>
             <option value="count">{t('alerts.sortCount')}</option>
           </Select>
-        </div>
+        </ListToolbar>
         <QueryState query={q}>
           {(d) => d.total === 0 && !list.q ? <EmptyState title={t('alerts.empty')} /> : (
             <DataTable caption={t('alerts.caption')} data={d.items} columns={columns} pageSize={25} urlKey="alerts" server={{ total: d.total, list }}

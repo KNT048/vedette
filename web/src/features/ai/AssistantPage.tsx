@@ -118,7 +118,7 @@ function History() {
   const [filter, setFilter] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   return (
-    <Section title={t('history.title')} description={t('history.description')}>
+    <Section label={t('history.title')} description={t('history.description')}>
       <QueryState query={asks}>
         {(d) => {
           const items = [...d.items].sort((a, b) => b.asked_at.localeCompare(a.asked_at))

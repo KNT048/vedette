@@ -28324,6 +28324,17 @@ func (s *ExposureDeleteExposureTreeIDTermsOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -28536,6 +28547,105 @@ func (s ExposureDeleteExposureTreeIDTermsOKCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -34263,6 +34373,17 @@ func (s *ExposureGetExposureTreeIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -34475,6 +34596,105 @@ func (s ExposureGetExposureTreeIDOKCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposureGetExposureTreeIDOKDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposureGetExposureTreeIDOKDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -35571,6 +35791,17 @@ func (s *ExposureGetExposureTreeOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -35783,6 +36014,105 @@ func (s ExposureGetExposureTreeOKItemsItemCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -36235,6 +36565,17 @@ func (s *ExposurePatchExposureTreeIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -36447,6 +36788,105 @@ func (s ExposurePatchExposureTreeIDOKCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePatchExposureTreeIDOKDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -40448,6 +40888,17 @@ func (s *ExposurePostExposureTreeCreated) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -40660,6 +41111,105 @@ func (s ExposurePostExposureTreeCreatedCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePostExposureTreeCreatedDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTreeCreatedDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -41383,6 +41933,17 @@ func (s *ExposurePostExposureTreeIDVerifyOKNode) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -41595,6 +42156,105 @@ func (s ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -43034,6 +43694,879 @@ func (s ExposurePutExposureTargetsIDTermsOKValidity) Validate() error {
 	}
 }
 
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Blocked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "blocked",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Counts.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "counts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.LastScan.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_scan",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Origin.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "origin",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Proof.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "proof",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ScopeMode.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "scope_mode",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKBlocked) Validate() error {
+	switch s {
+	case "disabled":
+		return nil
+	case "proof":
+		return nil
+	case "no_commitment":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Hosts)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hosts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Issues)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "issues",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Services)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "services",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Web)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "web",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Worst.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "worst",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKKind) Validate() error {
+	switch s {
+	case "domain":
+		return nil
+	case "ip":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Counts.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "counts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Mode.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "mode",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ClosedServices)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "closed_services",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Hosts)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hosts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Issues)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "issues",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NewIssues)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "new_issues",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NewServices)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "new_services",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Services)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "services",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKLastScanMode) Validate() error {
+	switch s {
+	case "surface":
+		return nil
+	case "deep":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus) Validate() error {
+	switch s {
+	case "queued":
+		return nil
+	case "waiting":
+		return nil
+	case "running":
+		return nil
+	case "stopping":
+		return nil
+	case "done":
+		return nil
+	case "partial":
+		return nil
+	case "failed":
+		return nil
+	case "stopped":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger) Validate() error {
+	switch s {
+	case "manual":
+		return nil
+	case "schedule":
+		return nil
+	case "event":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKOrigin) Validate() error {
+	switch s {
+	case "person":
+		return nil
+	case "box":
+		return nil
+	case "discovered":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.File.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "file",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Method.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "method",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.PtrDomains == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ptr_domains",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Urls == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "urls",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKProofMethod) Validate() error {
+	switch s {
+	case "dns_txt":
+		return nil
+	case "box_egress":
+		return nil
+	case "ip_file":
+		return nil
+	case "ip_ptr":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKProofState) Validate() error {
+	switch s {
+	case "proven":
+		return nil
+	case "covered":
+		return nil
+	case "missing":
+		return nil
+	case "expired":
+		return nil
+	case "not_current":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsOKScopeMode) Validate() error {
+	switch s {
+	case "self":
+		return nil
+	case "all":
+		return nil
+	case "selected":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDDeepSettingsReqSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ExposurePutExposureTreeIDTermsOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -43066,6 +44599,17 @@ func (s *ExposurePutExposureTreeIDTermsOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "counts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.DeepSettings.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep_settings",
 			Error: err,
 		})
 	}
@@ -43282,6 +44826,105 @@ func (s ExposurePutExposureTreeIDTermsOKCountsWorst) Validate() error {
 	case "low":
 		return nil
 	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.SkipPaths == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPaths)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_paths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.SkipPorts == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    64,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.SkipPorts)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.SkipPorts {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           65535,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "skip_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Speed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "speed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed) Validate() error {
+	switch s {
+	case "normal":
+		return nil
+	case "gentle":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -51683,6 +53326,17 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -51720,6 +53374,19 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) Validate() error {
@@ -52521,6 +54188,17 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -52558,6 +54236,19 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsFixesOKItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsFixesOKItemsItemFixKind) Validate() error {
@@ -52890,6 +54581,17 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) Validate() erro
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -52927,6 +54629,19 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) Validate() erro
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) Validate() error {
@@ -56467,6 +58182,17 @@ func (s *FindingsGetFindingsIDViewOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -56504,6 +58230,19 @@ func (s *FindingsGetFindingsIDViewOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsIDViewOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsIDViewOKFixKind) Validate() error {
@@ -60900,6 +62639,17 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -60937,6 +62687,19 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsOverviewOKFirstItemBlockFixKind) Validate() error {
@@ -66634,6 +68397,17 @@ func (s *FindingsPostFindingsIDReopenOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -66671,6 +68445,19 @@ func (s *FindingsPostFindingsIDReopenOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDReopenOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsPostFindingsIDReopenOKFixKind) Validate() error {
@@ -67806,6 +69593,17 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -67843,6 +69641,19 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDUnverifyOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsPostFindingsIDUnverifyOKFixKind) Validate() error {
@@ -68943,6 +70754,17 @@ func (s *FindingsPostFindingsIDVerifyOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -68980,6 +70802,19 @@ func (s *FindingsPostFindingsIDVerifyOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDVerifyOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsPostFindingsIDVerifyOKFixKind) Validate() error {
@@ -95569,6 +97404,24 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -95606,6 +97459,19 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKNewItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) Validate() error {
@@ -96323,6 +98189,24 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Validate() error
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -96360,6 +98244,19 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Validate() error
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Validate() error {
@@ -97191,6 +99088,24 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -97228,6 +99143,19 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Validate() error {
@@ -99744,6 +101672,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -99781,6 +101727,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Validate() error {
@@ -100498,6 +102457,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Validat
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -100535,6 +102512,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Validat
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Validate() error {
@@ -101366,6 +103356,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Validate() err
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -101403,6 +103411,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Validate() err
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Validate() error {

@@ -93,7 +93,7 @@ const mostUrgent = (l: FindingRecord[]) => [...l].sort((a, b) => a.layer - b.lay
 
 function block(l: FindingRecord[]): FixBlock {
   const top = mostUrgent(l)
-  return { fix: { ...top.fix }, software: top.software, status: OPEN_STATUSES[top.layer - 1]!, cause: top.cve, severity: severityCounts(l), findings: [...l].sort(bySeverity).map(cveRow) }
+  return { fix: { channel: 'public' as const, ...top.fix }, software: top.software, status: OPEN_STATUSES[top.layer - 1]!, cause: top.cve, severity: severityCounts(l), findings: [...l].sort(bySeverity).map(cveRow) }
 }
 const groupBy = <T>(l: T[], key: (x: T) => string) => { const m = new Map<string, T[]>(); for (const x of l) m.set(key(x), [...(m.get(key(x)) ?? []), x]); return m }
 /** Urgency first, then the most findings, then the name: the order of cards and blocks. */
@@ -183,7 +183,7 @@ function view(r: FindingRecord & { asset: Asset }): View {
     verification: { verified: r.verified, basis: r.basis, by: r.verified_by, at: r.verified_at },
     handled: r.state === 'handled' ? { resolution: r.resolution!, via: r.via!, by: r.resolved_by!, at: r.resolved_at!, note: r.note, accepted_until: r.accepted_until, from_version: r.from_version, to_version: r.to_version } : null,
     reopened: r.state === 'open' && r.reopened ? { by: null, ...r.reopened } : null,
-    fix: { ...r.fix },
+    fix: { channel: 'public' as const, ...r.fix },
     same_cve: same.map((x) => ({ id: x.id, software: x.software, status: statusOf(x) })),
     first_seen: r.first_seen, last_seen: r.last_seen, events: r.events,
   }
@@ -238,11 +238,11 @@ export function fixCards(p: URLSearchParams): FixCards {
     const others = (d: typeof g) => { // the line's other steps, the most findings first, as the backend's otherSteps
       const sw = mostUrgent(d).software?.id
       const rest = sw ? l.filter((r) => r.asset_id === d[0]!.asset_id && r.software?.id === sw && r.fix.key !== top.fix.key) : []
-      return [...groupBy(rest, (r) => r.fix.key).values()].sort((a, b) => b.length - a.length || a[0]!.fix.key.localeCompare(b[0]!.fix.key)).map((x) => ({ ...x[0]!.fix }))
+      return [...groupBy(rest, (r) => r.fix.key).values()].sort((a, b) => b.length - a.length || a[0]!.fix.key.localeCompare(b[0]!.fix.key)).map((x) => ({ channel: 'public' as const, ...x[0]!.fix }))
     }
     const items = [...groupBy(g, (r) => r.asset_id).values()].map((d): FixDevice => ({ device: deviceRef(d[0]!.asset), software: mostUrgent(d).software, status: OPEN_STATUSES[mostUrgent(d).layer - 1]!, severity: severityCounts(d), findings: d.length, others: others(d) }))
       .sort((a, b) => byUrgency({ layer: layerOf(a.status), n: a.findings, name: a.device.name }, { layer: layerOf(b.status), n: b.findings, name: b.device.name }))
-    return { fix: { ...top.fix }, status: OPEN_STATUSES[top.layer - 1]!, cause: top.cve, devices: items.length, findings: g.length, severity: severityCounts(g), items }
+    return { fix: { channel: 'public' as const, ...top.fix }, status: OPEN_STATUSES[top.layer - 1]!, cause: top.cve, devices: items.length, findings: g.length, severity: severityCounts(g), items }
   }).sort((a, b) => byUrgency({ layer: layerOf(a.status), n: a.findings, name: a.fix.product }, { layer: layerOf(b.status), n: b.findings, name: b.fix.product }))
   return { items: slice(cards), total: cards.length, findings: l.length }
 }
@@ -417,7 +417,7 @@ export const modelHandlers = [
       const id = finding
       records.update((l) => [...l, {
         id, asset_id: x.asset_id, cve: x.cve!, software: x.software, verified: 'person', basis: 'person', verified_by: user, verified_at: at,
-        fix: { key: `${x.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown', product: x.software?.name ?? x.cve!, version: null, ref: null, url: x.url },
+        fix: { key: `${x.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown', product: x.software?.name ?? x.cve!, version: null, ref: null, channel: 'public', url: x.url },
         ...unhandled, layer: 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
         events: [event(user, 'created', { note: note || null }), event(user, 'confirmed', { note: note || null })],
       }])
@@ -467,7 +467,7 @@ export const modelHandlers = [
     if (!qs.length) return fail(404, 'not_found', 'Nothing is open on this device or software to accept the risk of.')
     const made = qs.filter((q) => q.cve).map((q) => ({
       id: newId('fv'), asset_id: q.asset_id, cve: q.cve!, software: q.software, verified: 'person' as const, basis: 'person' as const, verified_by: user, verified_at: at,
-      fix: { key: `${q.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown' as const, product: q.software?.name ?? q.cve!, version: null, ref: null, url: q.url },
+      fix: { key: `${q.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown' as const, product: q.software?.name ?? q.cve!, version: null, ref: null, channel: 'public' as const, url: q.url },
       ...unhandled, layer: 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
       state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
       events: [event(user, 'created', { note }), event(user, 'confirmed', { note }), event(user, 'handled', { resolution: 'accepted', via: 'person', note })],

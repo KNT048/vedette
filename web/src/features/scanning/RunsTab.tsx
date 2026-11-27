@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { QueryState } from '@/components/common/States'
 import { Select } from '@/components/ui/input'
@@ -14,6 +13,7 @@ import { runMoves, runWaits, useRunList } from './api'
 import { runHref } from './places'
 import { RunBar, RunStateChip, useKindLabel, useStartedBy } from './RunParts'
 import type { Run } from './types'
+import { ListToolbar } from '@/components/common/ListParts'
 
 const link = 'font-medium text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
 const PAGE = 25
@@ -86,8 +86,7 @@ export function RunsTab() {
   deviceOptions.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
   return (
     <div className="grid gap-3">
-      <div role="search" aria-label={t('runs.filters')} className="flex flex-wrap items-center gap-2">
-        <ListSearch value={list.q} onChange={(v) => list.set({ q: v, page: 0 })} label={t('runs.search')} />
+      <ListToolbar label={t('runs.filters')} search={{ value: list.q, onChange: (v) => list.set({ q: v, page: 0 }), label: t('runs.search') }}>
         <Select className="w-full sm:w-auto" aria-label={t('runs.kindFilter')} value={kind} onChange={(e) => setFilter('kind', e.target.value)}>
           <option value="">{t('runs.anyKind')}</option>
           {[...new Set([...KINDS, ...(kind ? [kind] : [])])].map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
@@ -100,7 +99,7 @@ export function RunsTab() {
           <option value="">{t('runs.anyDevice')}</option>
           {deviceOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </Select>
-      </div>
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => (
           <DataTable urlKey="runs" caption={t('runs.caption')} data={d.items} columns={columns} pageSize={PAGE} server={{ total: d.total, list }}

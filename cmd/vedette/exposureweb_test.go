@@ -283,7 +283,7 @@ func TestExposureWeb_ActiveSendsTheDisruptiveRulesOnlyForTheBoxsOwnIP(t *testing
 		r.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: rid, Size: 11, CutShort: true, DisruptiveRules: []int{7, 40018}})
 		return &fakeZapHost{run: r, report: []byte(`{"site":[]}`)}
 	}
-	deep := exposure.ScanMode{Full: true, Disruptive: true}
+	deep := modeAllGroups
 	ipT, domT := webIPTarget, webDomTarget
 	ipT.Mode, domT.Mode = deep, deep
 	ipT.Grant = "0123456789abcdef0123456789abcdef" // the host's grant of the press: without one the page asks for no disruptive rules

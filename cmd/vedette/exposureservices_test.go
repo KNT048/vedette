@@ -255,8 +255,8 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 func TestExposureServiceScanReasons(t *testing.T) {
 	t.Parallel()
 	ip := ownPublicIP
-	scanErr := func(err error) func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
-		return func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
+	scanErr := func(err error) func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.OwnEgress) (sensoractive.External, error) {
+		return func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.OwnEgress) (sensoractive.External, error) {
 			return sensoractive.External{}, err
 		}
 	}
@@ -265,7 +265,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 		sc   exposureServiceScan
 		want string
 	}{
-		"module off": {exposureServiceScan{on: func() bool { return false }, scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
+		"module off": {exposureServiceScan{on: func() bool { return false }, scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.OwnEgress) (sensoractive.External, error) {
 			panic("scanned while the module is off")
 		}, gate: yes}, "Active discovery module is off"},
 		"busy":             {exposureServiceScan{scan: scanErr(sensoractive.ErrBusy), gate: yes}, "busy with another scan"},
@@ -316,11 +316,11 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	}{
 		"terms not accepted":  {exposure.ScanMode{}, nmapargv.External, exposure.ServicesTimeout},
 		"deep":                {exposure.ScanMode{Full: true}, nmapargv.ExternalFull, exposure.FullServicesTimeout},
-		"deep and disruptive": {exposure.ScanMode{Full: true, Disruptive: true}, nmapargv.ExternalFull, exposure.FullServicesTimeout},
+		"deep and disruptive": {modeAllGroups, nmapargv.ExternalFull, exposure.FullServicesTimeout},
 	} {
 		var kind nmapargv.Kind
 		var given time.Duration
-		sc := exposureServiceScan{scan: func(ctx context.Context, _ netip.Addr, k nmapargv.Kind, _ sensoractive.OwnEgress) (sensoractive.External, error) {
+		sc := exposureServiceScan{scan: func(ctx context.Context, _ netip.Addr, k nmapargv.Kind, _ sensoractive.DeepSettings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
 			d, _ := ctx.Deadline()
 			kind, given = k, time.Until(d)
 			return sensoractive.External{}, nil
@@ -353,12 +353,12 @@ func TestExposureDisruptiveScriptsRunOnTheOpenPorts(t *testing.T) {
 	var ports []int
 	var given time.Duration
 	var fence sensoractive.OwnEgress
-	sc := exposureServiceScan{scanDisruptive: func(ctx context.Context, _ netip.Addr, p []int, own sensoractive.OwnEgress) (sensoractive.External, error) {
+	sc := exposureServiceScan{scanDisruptive: func(ctx context.Context, _ netip.Addr, p []int, _ sensoractive.DeepSettings, own sensoractive.OwnEgress) (sensoractive.External, error) {
 		d, _ := ctx.Deadline()
 		ports, given, fence = p, time.Until(d), own
 		return sensoractive.External{Ports: len(p), Probed: p, Scripts: []sensoractive.ExternalScript{{Port: 22, ID: "ssh-brute", Output: "Output not stored: it can hold credentials."}}}, nil
 	}}
-	st := exposure.ScanTarget{ID: "t1", User: "admin@acme.example", Mode: exposure.ScanMode{Full: true, Disruptive: true}}
+	st := exposure.ScanTarget{ID: "t1", User: "admin@acme.example", Mode: modeAllGroups}
 	got, err := sc.ScanDisruptive(t.Context(), st, ownPublicIP, []int{22, 443})
 	if err != nil || !slices.Equal(ports, []int{22, 443}) || len(got.Scripts) != 1 || got.Scripts[0].IP != ownPublicIP.String() {
 		t.Fatalf("got %+v %v, ports %v", got, err, ports)
@@ -373,7 +373,7 @@ func TestExposureDisruptiveScriptsRunOnTheOpenPorts(t *testing.T) {
 	if exposure.DisruptiveTimeout < nmapargv.DisruptiveHostTimeout+2*time.Minute+70*time.Second {
 		t.Fatalf("exposure %s against nmap's %s", exposure.DisruptiveTimeout, nmapargv.DisruptiveHostTimeout)
 	}
-	sc.scanDisruptive = func(context.Context, netip.Addr, []int, sensoractive.OwnEgress) (sensoractive.External, error) {
+	sc.scanDisruptive = func(context.Context, netip.Addr, []int, sensoractive.DeepSettings, sensoractive.OwnEgress) (sensoractive.External, error) {
 		return sensoractive.External{}, sensoractive.ErrNotDisruptive
 	}
 	var un *exposure.Unavailable
@@ -427,7 +427,9 @@ func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 		}
 	}
 	ctx := t.Context()
-	target := exposure.ScanTarget{ID: "t1", Kind: exposure.KindIP, Value: ownPublicIP.String(), User: "ops@acme.example", Mode: exposure.ScanMode{Full: true}}
+	// every group of the full sweep allowed by the target's settings: the line of before, which this worker runs
+	target := exposure.ScanTarget{ID: "t1", Kind: exposure.KindIP, Value: ownPublicIP.String(), User: "ops@acme.example", Mode: exposure.ScanMode{Full: true},
+		Groups: exposure.GroupDoS | exposure.GroupLogins | exposure.GroupChange}
 	got, err := sc.ScanServices(ctx, target, ownPublicIP)
 	if err != nil {
 		t.Fatal(err)

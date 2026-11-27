@@ -50043,6 +50043,9 @@ type ExposureDeleteExposureTreeIDTermsOK struct {
 	CreatedAt        time.Time                                              `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposureDeleteExposureTreeIDTermsOKDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                                    `json:"enabled"`
 	ID      string                                  `json:"id"`
@@ -50096,6 +50099,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOK) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposureDeleteExposureTreeIDTermsOK) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetDeepSettings() ExposureDeleteExposureTreeIDTermsOKDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -50191,6 +50199,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOK) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposureDeleteExposureTreeIDTermsOK) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetDeepSettings(val ExposureDeleteExposureTreeIDTermsOKDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -50512,6 +50525,190 @@ func (s *ExposureDeleteExposureTreeIDTermsOKCountsWorst) UnmarshalText(data []by
 		return nil
 	case ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo:
 		*s = ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposureDeleteExposureTreeIDTermsOKDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetSpeed() ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetSpeed(val ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedNormal ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed = "normal"
+	ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedGentle ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed values.
+func (ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed) AllValues() []ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed {
+	return []ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed{
+		ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedNormal,
+		ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeed(data) {
+	case ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedNormal:
+		*s = ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedNormal
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedGentle:
+		*s = ExposureDeleteExposureTreeIDTermsOKDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -60985,6 +61182,9 @@ type ExposureGetExposureTreeIDOK struct {
 	CreatedAt        time.Time                                      `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposureGetExposureTreeIDOKDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                            `json:"enabled"`
 	ID      string                          `json:"id"`
@@ -61038,6 +61238,11 @@ func (s *ExposureGetExposureTreeIDOK) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposureGetExposureTreeIDOK) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposureGetExposureTreeIDOK) GetDeepSettings() ExposureGetExposureTreeIDOKDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -61133,6 +61338,11 @@ func (s *ExposureGetExposureTreeIDOK) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposureGetExposureTreeIDOK) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposureGetExposureTreeIDOK) SetDeepSettings(val ExposureGetExposureTreeIDOKDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -61454,6 +61664,190 @@ func (s *ExposureGetExposureTreeIDOKCountsWorst) UnmarshalText(data []byte) erro
 		return nil
 	case ExposureGetExposureTreeIDOKCountsWorstInfo:
 		*s = ExposureGetExposureTreeIDOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposureGetExposureTreeIDOKDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposureGetExposureTreeIDOKDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetSpeed() ExposureGetExposureTreeIDOKDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetSpeed(val ExposureGetExposureTreeIDOKDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposureGetExposureTreeIDOKDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposureGetExposureTreeIDOKDeepSettingsSpeed string
+
+const (
+	ExposureGetExposureTreeIDOKDeepSettingsSpeedNormal ExposureGetExposureTreeIDOKDeepSettingsSpeed = "normal"
+	ExposureGetExposureTreeIDOKDeepSettingsSpeedGentle ExposureGetExposureTreeIDOKDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKDeepSettingsSpeed values.
+func (ExposureGetExposureTreeIDOKDeepSettingsSpeed) AllValues() []ExposureGetExposureTreeIDOKDeepSettingsSpeed {
+	return []ExposureGetExposureTreeIDOKDeepSettingsSpeed{
+		ExposureGetExposureTreeIDOKDeepSettingsSpeedNormal,
+		ExposureGetExposureTreeIDOKDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKDeepSettingsSpeed(data) {
+	case ExposureGetExposureTreeIDOKDeepSettingsSpeedNormal:
+		*s = ExposureGetExposureTreeIDOKDeepSettingsSpeedNormal
+		return nil
+	case ExposureGetExposureTreeIDOKDeepSettingsSpeedGentle:
+		*s = ExposureGetExposureTreeIDOKDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -63539,6 +63933,9 @@ type ExposureGetExposureTreeOKItemsItem struct {
 	CreatedAt        time.Time                                             `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposureGetExposureTreeOKItemsItemDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                                   `json:"enabled"`
 	ID      string                                 `json:"id"`
@@ -63592,6 +63989,11 @@ func (s *ExposureGetExposureTreeOKItemsItem) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposureGetExposureTreeOKItemsItem) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposureGetExposureTreeOKItemsItem) GetDeepSettings() ExposureGetExposureTreeOKItemsItemDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -63687,6 +64089,11 @@ func (s *ExposureGetExposureTreeOKItemsItem) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposureGetExposureTreeOKItemsItem) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposureGetExposureTreeOKItemsItem) SetDeepSettings(val ExposureGetExposureTreeOKItemsItemDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -64008,6 +64415,190 @@ func (s *ExposureGetExposureTreeOKItemsItemCountsWorst) UnmarshalText(data []byt
 		return nil
 	case ExposureGetExposureTreeOKItemsItemCountsWorstInfo:
 		*s = ExposureGetExposureTreeOKItemsItemCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposureGetExposureTreeOKItemsItemDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetSpeed() ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetSpeed(val ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed string
+
+const (
+	ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedNormal ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed = "normal"
+	ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedGentle ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed values.
+func (ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed) AllValues() []ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed {
+	return []ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed{
+		ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedNormal,
+		ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemDeepSettingsSpeed(data) {
+	case ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedNormal:
+		*s = ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedNormal
+		return nil
+	case ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedGentle:
+		*s = ExposureGetExposureTreeOKItemsItemDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65080,6 +65671,9 @@ type ExposurePatchExposureTreeIDOK struct {
 	CreatedAt        time.Time                                        `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposurePatchExposureTreeIDOKDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                              `json:"enabled"`
 	ID      string                            `json:"id"`
@@ -65133,6 +65727,11 @@ func (s *ExposurePatchExposureTreeIDOK) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposurePatchExposureTreeIDOK) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposurePatchExposureTreeIDOK) GetDeepSettings() ExposurePatchExposureTreeIDOKDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -65228,6 +65827,11 @@ func (s *ExposurePatchExposureTreeIDOK) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposurePatchExposureTreeIDOK) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposurePatchExposureTreeIDOK) SetDeepSettings(val ExposurePatchExposureTreeIDOKDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -65549,6 +66153,190 @@ func (s *ExposurePatchExposureTreeIDOKCountsWorst) UnmarshalText(data []byte) er
 		return nil
 	case ExposurePatchExposureTreeIDOKCountsWorstInfo:
 		*s = ExposurePatchExposureTreeIDOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposurePatchExposureTreeIDOKDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposurePatchExposureTreeIDOKDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetSpeed() ExposurePatchExposureTreeIDOKDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetSpeed(val ExposurePatchExposureTreeIDOKDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposurePatchExposureTreeIDOKDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposurePatchExposureTreeIDOKDeepSettingsSpeed string
+
+const (
+	ExposurePatchExposureTreeIDOKDeepSettingsSpeedNormal ExposurePatchExposureTreeIDOKDeepSettingsSpeed = "normal"
+	ExposurePatchExposureTreeIDOKDeepSettingsSpeedGentle ExposurePatchExposureTreeIDOKDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKDeepSettingsSpeed values.
+func (ExposurePatchExposureTreeIDOKDeepSettingsSpeed) AllValues() []ExposurePatchExposureTreeIDOKDeepSettingsSpeed {
+	return []ExposurePatchExposureTreeIDOKDeepSettingsSpeed{
+		ExposurePatchExposureTreeIDOKDeepSettingsSpeedNormal,
+		ExposurePatchExposureTreeIDOKDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKDeepSettingsSpeed(data) {
+	case ExposurePatchExposureTreeIDOKDeepSettingsSpeedNormal:
+		*s = ExposurePatchExposureTreeIDOKDeepSettingsSpeedNormal
+		return nil
+	case ExposurePatchExposureTreeIDOKDeepSettingsSpeedGentle:
+		*s = ExposurePatchExposureTreeIDOKDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -73918,6 +74706,9 @@ type ExposurePostExposureTreeCreated struct {
 	CreatedAt        time.Time                                          `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposurePostExposureTreeCreatedDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                                `json:"enabled"`
 	ID      string                              `json:"id"`
@@ -73971,6 +74762,11 @@ func (s *ExposurePostExposureTreeCreated) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposurePostExposureTreeCreated) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposurePostExposureTreeCreated) GetDeepSettings() ExposurePostExposureTreeCreatedDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -74066,6 +74862,11 @@ func (s *ExposurePostExposureTreeCreated) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposurePostExposureTreeCreated) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposurePostExposureTreeCreated) SetDeepSettings(val ExposurePostExposureTreeCreatedDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -74387,6 +75188,190 @@ func (s *ExposurePostExposureTreeCreatedCountsWorst) UnmarshalText(data []byte) 
 		return nil
 	case ExposurePostExposureTreeCreatedCountsWorstInfo:
 		*s = ExposurePostExposureTreeCreatedCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposurePostExposureTreeCreatedDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposurePostExposureTreeCreatedDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetSpeed() ExposurePostExposureTreeCreatedDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetSpeed(val ExposurePostExposureTreeCreatedDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposurePostExposureTreeCreatedDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposurePostExposureTreeCreatedDeepSettingsSpeed string
+
+const (
+	ExposurePostExposureTreeCreatedDeepSettingsSpeedNormal ExposurePostExposureTreeCreatedDeepSettingsSpeed = "normal"
+	ExposurePostExposureTreeCreatedDeepSettingsSpeedGentle ExposurePostExposureTreeCreatedDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedDeepSettingsSpeed values.
+func (ExposurePostExposureTreeCreatedDeepSettingsSpeed) AllValues() []ExposurePostExposureTreeCreatedDeepSettingsSpeed {
+	return []ExposurePostExposureTreeCreatedDeepSettingsSpeed{
+		ExposurePostExposureTreeCreatedDeepSettingsSpeedNormal,
+		ExposurePostExposureTreeCreatedDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedDeepSettingsSpeed(data) {
+	case ExposurePostExposureTreeCreatedDeepSettingsSpeedNormal:
+		*s = ExposurePostExposureTreeCreatedDeepSettingsSpeedNormal
+		return nil
+	case ExposurePostExposureTreeCreatedDeepSettingsSpeedGentle:
+		*s = ExposurePostExposureTreeCreatedDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -75904,6 +76889,9 @@ type ExposurePostExposureTreeIDVerifyOKNode struct {
 	CreatedAt        time.Time                                                 `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposurePostExposureTreeIDVerifyOKNodeDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                                       `json:"enabled"`
 	ID      string                                     `json:"id"`
@@ -75957,6 +76945,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNode) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposurePostExposureTreeIDVerifyOKNode) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetDeepSettings() ExposurePostExposureTreeIDVerifyOKNodeDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -76052,6 +77045,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNode) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposurePostExposureTreeIDVerifyOKNode) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetDeepSettings(val ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -76373,6 +77371,190 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) UnmarshalText(data [
 		return nil
 	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo:
 		*s = ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposurePostExposureTreeIDVerifyOKNodeDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetSpeed() ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetSpeed(val ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedNormal ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed = "normal"
+	ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedGentle ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed values.
+func (ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed {
+	return []ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed{
+		ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedNormal,
+		ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeed(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedNormal:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedNormal
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedGentle:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -79596,6 +80778,1889 @@ func (s *ExposurePutExposureTargetsIDTermsReq) SetVersion(val string) {
 	s.Version = val
 }
 
+type ExposurePutExposureTreeIDDeepSettingsOK struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposurePutExposureTreeIDDeepSettingsOKBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposurePutExposureTreeIDDeepSettingsOKCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposurePutExposureTreeIDDeepSettingsOKCounts              `json:"counts"`
+	CreatedAt        time.Time                                                  `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposurePutExposureTreeIDDeepSettingsOKDeepSettings `json:"deep_settings"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                                        `json:"enabled"`
+	ID      string                                      `json:"id"`
+	Kind    ExposurePutExposureTreeIDDeepSettingsOKKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposurePutExposureTreeIDDeepSettingsOKLastScan `json:"last_scan"`
+	Origin   ExposurePutExposureTreeIDDeepSettingsOKOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                                    `json:"parent_id"`
+	Proof    ExposurePutExposureTreeIDDeepSettingsOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposurePutExposureTreeIDDeepSettingsOKScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposurePutExposureTreeIDDeepSettingsOKTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposurePutExposureTreeIDDeepSettingsOKTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetBlocked() NilExposurePutExposureTreeIDDeepSettingsOKBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetCommitment() NilExposurePutExposureTreeIDDeepSettingsOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetCommitmentNotice() NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetCounts() ExposurePutExposureTreeIDDeepSettingsOKCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetDeep() bool {
+	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetDeepSettings() ExposurePutExposureTreeIDDeepSettingsOKDeepSettings {
+	return s.DeepSettings
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetKind() ExposurePutExposureTreeIDDeepSettingsOKKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetLastScan() NilExposurePutExposureTreeIDDeepSettingsOKLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetOrigin() ExposurePutExposureTreeIDDeepSettingsOKOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetProof() ExposurePutExposureTreeIDDeepSettingsOKProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetScopeMode() NilExposurePutExposureTreeIDDeepSettingsOKScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetTerms() NilExposurePutExposureTreeIDDeepSettingsOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetTermsNotice() ExposurePutExposureTreeIDDeepSettingsOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetBlocked(val NilExposurePutExposureTreeIDDeepSettingsOKBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetCommitment(val NilExposurePutExposureTreeIDDeepSettingsOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetCommitmentNotice(val NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetCounts(val ExposurePutExposureTreeIDDeepSettingsOKCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetDeepSettings(val ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) {
+	s.DeepSettings = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetKind(val ExposurePutExposureTreeIDDeepSettingsOKKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetLastScan(val NilExposurePutExposureTreeIDDeepSettingsOKLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetOrigin(val ExposurePutExposureTreeIDDeepSettingsOKOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetProof(val ExposurePutExposureTreeIDDeepSettingsOKProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetScopeMode(val NilExposurePutExposureTreeIDDeepSettingsOKScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetTerms(val NilExposurePutExposureTreeIDDeepSettingsOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetTermsNotice(val ExposurePutExposureTreeIDDeepSettingsOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTreeIDDeepSettingsOK) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKBlocked string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKBlockedDisabled     ExposurePutExposureTreeIDDeepSettingsOKBlocked = "disabled"
+	ExposurePutExposureTreeIDDeepSettingsOKBlockedProof        ExposurePutExposureTreeIDDeepSettingsOKBlocked = "proof"
+	ExposurePutExposureTreeIDDeepSettingsOKBlockedNoCommitment ExposurePutExposureTreeIDDeepSettingsOKBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKBlocked values.
+func (ExposurePutExposureTreeIDDeepSettingsOKBlocked) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKBlocked {
+	return []ExposurePutExposureTreeIDDeepSettingsOKBlocked{
+		ExposurePutExposureTreeIDDeepSettingsOKBlockedDisabled,
+		ExposurePutExposureTreeIDDeepSettingsOKBlockedProof,
+		ExposurePutExposureTreeIDDeepSettingsOKBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKBlockedDisabled:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKBlockedProof:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKBlocked) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKBlocked(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKBlockedDisabled:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKBlockedDisabled
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKBlockedProof:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKBlockedProof
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKBlockedNoCommitment:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) GetWorst() NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCounts) SetWorst(val NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst) {
+	s.Worst = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKCountsWorst string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKCountsWorstCritical ExposurePutExposureTreeIDDeepSettingsOKCountsWorst = "critical"
+	ExposurePutExposureTreeIDDeepSettingsOKCountsWorstHigh     ExposurePutExposureTreeIDDeepSettingsOKCountsWorst = "high"
+	ExposurePutExposureTreeIDDeepSettingsOKCountsWorstMedium   ExposurePutExposureTreeIDDeepSettingsOKCountsWorst = "medium"
+	ExposurePutExposureTreeIDDeepSettingsOKCountsWorstLow      ExposurePutExposureTreeIDDeepSettingsOKCountsWorst = "low"
+	ExposurePutExposureTreeIDDeepSettingsOKCountsWorstInfo     ExposurePutExposureTreeIDDeepSettingsOKCountsWorst = "info"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKCountsWorst values.
+func (ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKCountsWorst {
+	return []ExposurePutExposureTreeIDDeepSettingsOKCountsWorst{
+		ExposurePutExposureTreeIDDeepSettingsOKCountsWorstCritical,
+		ExposurePutExposureTreeIDDeepSettingsOKCountsWorstHigh,
+		ExposurePutExposureTreeIDDeepSettingsOKCountsWorstMedium,
+		ExposurePutExposureTreeIDDeepSettingsOKCountsWorstLow,
+		ExposurePutExposureTreeIDDeepSettingsOKCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstCritical:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstHigh:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstMedium:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstLow:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKCountsWorst(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstCritical:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKCountsWorstCritical
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstHigh:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKCountsWorstHigh
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstMedium:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKCountsWorstMedium
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstLow:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKCountsWorstLow
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKCountsWorstInfo:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposurePutExposureTreeIDDeepSettingsOKDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetSpeed() ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetSpeed(val ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedNormal ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed = "normal"
+	ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedGentle ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed values.
+func (ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed {
+	return []ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed{
+		ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedNormal,
+		ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeed(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedNormal:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedNormal
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedGentle:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKDeepSettingsSpeedGentle
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKKind string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKKindDomain ExposurePutExposureTreeIDDeepSettingsOKKind = "domain"
+	ExposurePutExposureTreeIDDeepSettingsOKKindIP     ExposurePutExposureTreeIDDeepSettingsOKKind = "ip"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKKind values.
+func (ExposurePutExposureTreeIDDeepSettingsOKKind) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKKind {
+	return []ExposurePutExposureTreeIDDeepSettingsOKKind{
+		ExposurePutExposureTreeIDDeepSettingsOKKindDomain,
+		ExposurePutExposureTreeIDDeepSettingsOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKKindDomain:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKKind(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKKindDomain:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKKindDomain
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKKindIP:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                              `json:"ended_at"`
+	Error   NilString                                                `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposurePutExposureTreeIDDeepSettingsOKLastScanMode `json:"mode"`
+	QueuedAt time.Time                                           `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                                 `json:"run_id"`
+	StartedAt  NilDateTime                                            `json:"started_at"`
+	Status     ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus  `json:"status"`
+	StopReason NilString                                              `json:"stop_reason"`
+	TargetID   string                                                 `json:"target_id"`
+	Trigger    ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetCounts() NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetMode() ExposurePutExposureTreeIDDeepSettingsOKLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetStatus() ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetTrigger() ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetCounts(val NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetMode(val ExposurePutExposureTreeIDDeepSettingsOKLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetStatus(val ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetTrigger(val ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposurePutExposureTreeIDDeepSettingsOKLastScanMode string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanModeSurface ExposurePutExposureTreeIDDeepSettingsOKLastScanMode = "surface"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanModeDeep    ExposurePutExposureTreeIDDeepSettingsOKLastScanMode = "deep"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKLastScanMode values.
+func (ExposurePutExposureTreeIDDeepSettingsOKLastScanMode) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKLastScanMode {
+	return []ExposurePutExposureTreeIDDeepSettingsOKLastScanMode{
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanModeSurface,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanModeSurface:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKLastScanMode(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanModeSurface:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanModeSurface
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanModeDeep:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusQueued   ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "queued"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusWaiting  ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "waiting"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusRunning  ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "running"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopping ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "stopping"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusDone     ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "done"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusPartial  ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "partial"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusFailed   ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "failed"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopped  ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus values.
+func (ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus {
+	return []ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus{
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusQueued,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusWaiting,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusRunning,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopping,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusDone,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusPartial,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusFailed,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusDone:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKLastScanStatus(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusQueued:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusQueued
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusWaiting:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusWaiting
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusRunning:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusRunning
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopping:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopping
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusDone:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusDone
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusPartial:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusPartial
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusFailed:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusFailed
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopped:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerManual   ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger = "manual"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerSchedule ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger = "schedule"
+	ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerEvent    ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger values.
+func (ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger {
+	return []ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger{
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerManual,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerSchedule,
+		ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKLastScanTrigger(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerManual:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerManual
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerSchedule:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerSchedule
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerEvent:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKOrigin string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKOriginPerson     ExposurePutExposureTreeIDDeepSettingsOKOrigin = "person"
+	ExposurePutExposureTreeIDDeepSettingsOKOriginBox        ExposurePutExposureTreeIDDeepSettingsOKOrigin = "box"
+	ExposurePutExposureTreeIDDeepSettingsOKOriginDiscovered ExposurePutExposureTreeIDDeepSettingsOKOrigin = "discovered"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKOrigin values.
+func (ExposurePutExposureTreeIDDeepSettingsOKOrigin) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKOrigin {
+	return []ExposurePutExposureTreeIDDeepSettingsOKOrigin{
+		ExposurePutExposureTreeIDDeepSettingsOKOriginPerson,
+		ExposurePutExposureTreeIDDeepSettingsOKOriginBox,
+		ExposurePutExposureTreeIDDeepSettingsOKOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKOriginPerson:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKOriginBox:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKOrigin(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKOriginPerson:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKOriginPerson
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKOriginBox:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKOriginBox
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKOriginDiscovered:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposurePutExposureTreeIDDeepSettingsOKProofDNS `json:"dns"`
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposurePutExposureTreeIDDeepSettingsOKProofFile      `json:"file"`
+	LastCheck NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposurePutExposureTreeIDDeepSettingsOKProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced `json:"replaced"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
+	State ExposurePutExposureTreeIDDeepSettingsOKProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetCoveredBy() NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetDNS() NilExposurePutExposureTreeIDDeepSettingsOKProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetFile() NilExposurePutExposureTreeIDDeepSettingsOKProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetLastCheck() NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetMethod() NilExposurePutExposureTreeIDDeepSettingsOKProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetReplaced returns the value of Replaced.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetReplaced() NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced {
+	return s.Replaced
+}
+
+// GetState returns the value of State.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetState() ExposurePutExposureTreeIDDeepSettingsOKProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetCoveredBy(val NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetDNS(val NilExposurePutExposureTreeIDDeepSettingsOKProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetFile(val NilExposurePutExposureTreeIDDeepSettingsOKProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetLastCheck(val NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetMethod(val NilExposurePutExposureTreeIDDeepSettingsOKProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetReplaced(val NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced) {
+	s.Replaced = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetState(val ExposurePutExposureTreeIDDeepSettingsOKProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProofMethod string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKProofMethodDNSTxt    ExposurePutExposureTreeIDDeepSettingsOKProofMethod = "dns_txt"
+	ExposurePutExposureTreeIDDeepSettingsOKProofMethodBoxEgress ExposurePutExposureTreeIDDeepSettingsOKProofMethod = "box_egress"
+	ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPFile    ExposurePutExposureTreeIDDeepSettingsOKProofMethod = "ip_file"
+	ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPPtr     ExposurePutExposureTreeIDDeepSettingsOKProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKProofMethod values.
+func (ExposurePutExposureTreeIDDeepSettingsOKProofMethod) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKProofMethod {
+	return []ExposurePutExposureTreeIDDeepSettingsOKProofMethod{
+		ExposurePutExposureTreeIDDeepSettingsOKProofMethodDNSTxt,
+		ExposurePutExposureTreeIDDeepSettingsOKProofMethodBoxEgress,
+		ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPFile,
+		ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPFile:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofMethod) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKProofMethod(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodDNSTxt:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofMethodDNSTxt
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodBoxEgress:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofMethodBoxEgress
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPFile:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPFile
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPPtr:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) SetBy(val string) {
+	s.By = val
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
+type ExposurePutExposureTreeIDDeepSettingsOKProofState string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKProofStateProven     ExposurePutExposureTreeIDDeepSettingsOKProofState = "proven"
+	ExposurePutExposureTreeIDDeepSettingsOKProofStateCovered    ExposurePutExposureTreeIDDeepSettingsOKProofState = "covered"
+	ExposurePutExposureTreeIDDeepSettingsOKProofStateMissing    ExposurePutExposureTreeIDDeepSettingsOKProofState = "missing"
+	ExposurePutExposureTreeIDDeepSettingsOKProofStateExpired    ExposurePutExposureTreeIDDeepSettingsOKProofState = "expired"
+	ExposurePutExposureTreeIDDeepSettingsOKProofStateNotCurrent ExposurePutExposureTreeIDDeepSettingsOKProofState = "not_current"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKProofState values.
+func (ExposurePutExposureTreeIDDeepSettingsOKProofState) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKProofState {
+	return []ExposurePutExposureTreeIDDeepSettingsOKProofState{
+		ExposurePutExposureTreeIDDeepSettingsOKProofStateProven,
+		ExposurePutExposureTreeIDDeepSettingsOKProofStateCovered,
+		ExposurePutExposureTreeIDDeepSettingsOKProofStateMissing,
+		ExposurePutExposureTreeIDDeepSettingsOKProofStateExpired,
+		ExposurePutExposureTreeIDDeepSettingsOKProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateProven:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateCovered:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKProofState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKProofState(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateProven:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofStateProven
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateCovered:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofStateCovered
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateMissing:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofStateMissing
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateExpired:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofStateExpired
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKProofStateNotCurrent:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKScopeMode string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelf     ExposurePutExposureTreeIDDeepSettingsOKScopeMode = "self"
+	ExposurePutExposureTreeIDDeepSettingsOKScopeModeAll      ExposurePutExposureTreeIDDeepSettingsOKScopeMode = "all"
+	ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelected ExposurePutExposureTreeIDDeepSettingsOKScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsOKScopeMode values.
+func (ExposurePutExposureTreeIDDeepSettingsOKScopeMode) AllValues() []ExposurePutExposureTreeIDDeepSettingsOKScopeMode {
+	return []ExposurePutExposureTreeIDDeepSettingsOKScopeMode{
+		ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelf,
+		ExposurePutExposureTreeIDDeepSettingsOKScopeModeAll,
+		ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsOKScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKScopeModeAll:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsOKScopeMode(data) {
+	case ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelf:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelf
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKScopeModeAll:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKScopeModeAll
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelected:
+		*s = ExposurePutExposureTreeIDDeepSettingsOKScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDDeepSettingsOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposurePutExposureTreeIDDeepSettingsOKTermsNotice struct {
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDDeepSettingsOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDDeepSettingsReq struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposurePutExposureTreeIDDeepSettingsReqSpeed `json:"speed"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetSpeed() ExposurePutExposureTreeIDDeepSettingsReqSpeed {
+	return s.Speed
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetSpeed(val ExposurePutExposureTreeIDDeepSettingsReqSpeed) {
+	s.Speed = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposurePutExposureTreeIDDeepSettingsReq) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposurePutExposureTreeIDDeepSettingsReqSpeed string
+
+const (
+	ExposurePutExposureTreeIDDeepSettingsReqSpeedNormal ExposurePutExposureTreeIDDeepSettingsReqSpeed = "normal"
+	ExposurePutExposureTreeIDDeepSettingsReqSpeedGentle ExposurePutExposureTreeIDDeepSettingsReqSpeed = "gentle"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDDeepSettingsReqSpeed values.
+func (ExposurePutExposureTreeIDDeepSettingsReqSpeed) AllValues() []ExposurePutExposureTreeIDDeepSettingsReqSpeed {
+	return []ExposurePutExposureTreeIDDeepSettingsReqSpeed{
+		ExposurePutExposureTreeIDDeepSettingsReqSpeedNormal,
+		ExposurePutExposureTreeIDDeepSettingsReqSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDDeepSettingsReqSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDDeepSettingsReqSpeedNormal:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDDeepSettingsReqSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDDeepSettingsReqSpeed) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDDeepSettingsReqSpeed(data) {
+	case ExposurePutExposureTreeIDDeepSettingsReqSpeedNormal:
+		*s = ExposurePutExposureTreeIDDeepSettingsReqSpeedNormal
+		return nil
+	case ExposurePutExposureTreeIDDeepSettingsReqSpeedGentle:
+		*s = ExposurePutExposureTreeIDDeepSettingsReqSpeedGentle
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePutExposureTreeIDTermsOK struct {
 	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
 	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
@@ -79610,6 +82675,9 @@ type ExposurePutExposureTreeIDTermsOK struct {
 	CreatedAt        time.Time                                           `json:"created_at"`
 	// Scans of this node are deep scans: the current testing terms are accepted.
 	Deep bool `json:"deep"`
+	// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+	// paths it leaves out.
+	DeepSettings ExposurePutExposureTreeIDTermsOKDeepSettings `json:"deep_settings"`
 	// The node is scanned, by Scan now and by its schedule.
 	Enabled bool                                 `json:"enabled"`
 	ID      string                               `json:"id"`
@@ -79663,6 +82731,11 @@ func (s *ExposurePutExposureTreeIDTermsOK) GetCreatedAt() time.Time {
 // GetDeep returns the value of Deep.
 func (s *ExposurePutExposureTreeIDTermsOK) GetDeep() bool {
 	return s.Deep
+}
+
+// GetDeepSettings returns the value of DeepSettings.
+func (s *ExposurePutExposureTreeIDTermsOK) GetDeepSettings() ExposurePutExposureTreeIDTermsOKDeepSettings {
+	return s.DeepSettings
 }
 
 // GetEnabled returns the value of Enabled.
@@ -79758,6 +82831,11 @@ func (s *ExposurePutExposureTreeIDTermsOK) SetCreatedAt(val time.Time) {
 // SetDeep sets the value of Deep.
 func (s *ExposurePutExposureTreeIDTermsOK) SetDeep(val bool) {
 	s.Deep = val
+}
+
+// SetDeepSettings sets the value of DeepSettings.
+func (s *ExposurePutExposureTreeIDTermsOK) SetDeepSettings(val ExposurePutExposureTreeIDTermsOKDeepSettings) {
+	s.DeepSettings = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -80079,6 +83157,190 @@ func (s *ExposurePutExposureTreeIDTermsOKCountsWorst) UnmarshalText(data []byte)
 		return nil
 	case ExposurePutExposureTreeIDTermsOKCountsWorstInfo:
 		*s = ExposurePutExposureTreeIDTermsOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web
+// paths it leaves out.
+type ExposurePutExposureTreeIDTermsOKDeepSettings struct {
+	// Exploit checks that send more than a harmless read and may create or change data.
+	DataChange bool `json:"data_change"`
+	// Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash
+	// a service.
+	Dos bool `json:"dos"`
+	// Password guessing and sign-ins with default or well-known passwords.
+	Logins bool `json:"logins"`
+	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
+	Openvas bool `json:"openvas"`
+	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
+	// again); null when they read fine.
+	Problem NilString `json:"problem"`
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
+	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	SkipPaths []string `json:"skip_paths"`
+	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
+	// that skipped them).
+	SkipPorts []int `json:"skip_ports"`
+	// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+	Speed ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed `json:"speed"`
+	// When the settings were saved; null while the target has the defaults.
+	UpdatedAt NilDateTime `json:"updated_at"`
+	// Who saved them; null while the target has the defaults.
+	UpdatedBy NilString `json:"updated_by"`
+	// The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and
+	// data_change.
+	WebActive bool `json:"web_active"`
+}
+
+// GetDataChange returns the value of DataChange.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetDataChange() bool {
+	return s.DataChange
+}
+
+// GetDos returns the value of Dos.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetDos() bool {
+	return s.Dos
+}
+
+// GetLogins returns the value of Logins.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetLogins() bool {
+	return s.Logins
+}
+
+// GetOpenvas returns the value of Openvas.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetOpenvas() bool {
+	return s.Openvas
+}
+
+// GetProblem returns the value of Problem.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetProblem() NilString {
+	return s.Problem
+}
+
+// GetSkipPaths returns the value of SkipPaths.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetSkipPaths() []string {
+	return s.SkipPaths
+}
+
+// GetSkipPorts returns the value of SkipPorts.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetSkipPorts() []int {
+	return s.SkipPorts
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetSpeed() ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed {
+	return s.Speed
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetUpdatedAt() NilDateTime {
+	return s.UpdatedAt
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetUpdatedBy() NilString {
+	return s.UpdatedBy
+}
+
+// GetWebActive returns the value of WebActive.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) GetWebActive() bool {
+	return s.WebActive
+}
+
+// SetDataChange sets the value of DataChange.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetDataChange(val bool) {
+	s.DataChange = val
+}
+
+// SetDos sets the value of Dos.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetDos(val bool) {
+	s.Dos = val
+}
+
+// SetLogins sets the value of Logins.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetLogins(val bool) {
+	s.Logins = val
+}
+
+// SetOpenvas sets the value of Openvas.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetOpenvas(val bool) {
+	s.Openvas = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetProblem(val NilString) {
+	s.Problem = val
+}
+
+// SetSkipPaths sets the value of SkipPaths.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetSkipPaths(val []string) {
+	s.SkipPaths = val
+}
+
+// SetSkipPorts sets the value of SkipPorts.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetSkipPorts(val []int) {
+	s.SkipPorts = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetSpeed(val ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed) {
+	s.Speed = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetUpdatedAt(val NilDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetUpdatedBy(val NilString) {
+	s.UpdatedBy = val
+}
+
+// SetWebActive sets the value of WebActive.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettings) SetWebActive(val bool) {
+	s.WebActive = val
+}
+
+// Gentle: the engines that can run slower do (OpenVAS runs fewer checks at once).
+type ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed string
+
+const (
+	ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedNormal ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed = "normal"
+	ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedGentle ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed = "gentle"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed values.
+func (ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed) AllValues() []ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed {
+	return []ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed{
+		ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedNormal,
+		ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedGentle,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedNormal:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedGentle:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKDeepSettingsSpeed(data) {
+	case ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedNormal:
+		*s = ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedNormal
+		return nil
+	case ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedGentle:
+		*s = ExposurePutExposureTreeIDTermsOKDeepSettingsSpeedGentle
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -92916,6 +96178,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerified) Un
 }
 
 type FindingsGetFindingsDevicesOKItemsItemBlocksItemFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -92934,6 +96201,11 @@ type FindingsGetFindingsDevicesOKItemsItemBlocksItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) GetChannel() FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -92966,6 +96238,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) GetVersion() NilStr
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetChannel(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetKey(val string) {
 	s.Key = val
@@ -92994,6 +96271,58 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetURL(val NilURI) 
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel string
+
+const (
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic    FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel = "public"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel = "ubuntu_pro"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu       FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel values.
+func (FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) AllValues() []FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel {
+	return []FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel{
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel(data) {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -94254,6 +97583,11 @@ func (s *FindingsGetFindingsFixesOKItemsItem) SetStatus(val FindingsGetFindingsF
 }
 
 type FindingsGetFindingsFixesOKItemsItemFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsFixesOKItemsItemFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -94272,6 +97606,11 @@ type FindingsGetFindingsFixesOKItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemFix) GetChannel() FindingsGetFindingsFixesOKItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -94304,6 +97643,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemFix) SetChannel(val FindingsGetFindingsFixesOKItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsFixesOKItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -94332,6 +97676,58 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsFixesOKItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsFixesOKItemsItemFixChannel string
+
+const (
+	FindingsGetFindingsFixesOKItemsItemFixChannelPublic    FindingsGetFindingsFixesOKItemsItemFixChannel = "public"
+	FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro FindingsGetFindingsFixesOKItemsItemFixChannel = "ubuntu_pro"
+	FindingsGetFindingsFixesOKItemsItemFixChannelEsu       FindingsGetFindingsFixesOKItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsFixesOKItemsItemFixChannel values.
+func (FindingsGetFindingsFixesOKItemsItemFixChannel) AllValues() []FindingsGetFindingsFixesOKItemsItemFixChannel {
+	return []FindingsGetFindingsFixesOKItemsItemFixChannel{
+		FindingsGetFindingsFixesOKItemsItemFixChannelPublic,
+		FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro,
+		FindingsGetFindingsFixesOKItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsFixesOKItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsFixesOKItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsFixesOKItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsFixesOKItemsItemFixChannel(data) {
+	case FindingsGetFindingsFixesOKItemsItemFixChannelPublic:
+		*s = FindingsGetFindingsFixesOKItemsItemFixChannelPublic
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro:
+		*s = FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelEsu:
+		*s = FindingsGetFindingsFixesOKItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -95215,6 +98611,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKind) UnmarshalText(d
 }
 
 type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -95233,6 +98634,11 @@ type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetChannel() FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -95265,6 +98671,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetVersion() Ni
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetChannel(val FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetKey(val string) {
 	s.Key = val
@@ -95293,6 +98704,58 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetURL(val NilU
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel string
+
+const (
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic    FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel = "public"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel = "ubuntu_pro"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel values.
+func (FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) AllValues() []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel {
+	return []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel{
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel(data) {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -102604,6 +106067,11 @@ func (s *FindingsGetFindingsIDViewOKEventsItemVia) UnmarshalText(data []byte) er
 }
 
 type FindingsGetFindingsIDViewOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsIDViewOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -102622,6 +106090,11 @@ type FindingsGetFindingsIDViewOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsIDViewOKFix) GetChannel() FindingsGetFindingsIDViewOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -102654,6 +106127,11 @@ func (s *FindingsGetFindingsIDViewOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsIDViewOKFix) SetChannel(val FindingsGetFindingsIDViewOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsIDViewOKFix) SetKey(val string) {
 	s.Key = val
@@ -102682,6 +106160,58 @@ func (s *FindingsGetFindingsIDViewOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsIDViewOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsIDViewOKFixChannel string
+
+const (
+	FindingsGetFindingsIDViewOKFixChannelPublic    FindingsGetFindingsIDViewOKFixChannel = "public"
+	FindingsGetFindingsIDViewOKFixChannelUbuntuPro FindingsGetFindingsIDViewOKFixChannel = "ubuntu_pro"
+	FindingsGetFindingsIDViewOKFixChannelEsu       FindingsGetFindingsIDViewOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKFixChannel values.
+func (FindingsGetFindingsIDViewOKFixChannel) AllValues() []FindingsGetFindingsIDViewOKFixChannel {
+	return []FindingsGetFindingsIDViewOKFixChannel{
+		FindingsGetFindingsIDViewOKFixChannelPublic,
+		FindingsGetFindingsIDViewOKFixChannelUbuntuPro,
+		FindingsGetFindingsIDViewOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKFixChannel(data) {
+	case FindingsGetFindingsIDViewOKFixChannelPublic:
+		*s = FindingsGetFindingsIDViewOKFixChannelPublic
+		return nil
+	case FindingsGetFindingsIDViewOKFixChannelUbuntuPro:
+		*s = FindingsGetFindingsIDViewOKFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsIDViewOKFixChannelEsu:
+		*s = FindingsGetFindingsIDViewOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -112091,6 +115621,11 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerified) Unmars
 }
 
 type FindingsGetFindingsOverviewOKFirstItemBlockFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsOverviewOKFirstItemBlockFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -112109,6 +115644,11 @@ type FindingsGetFindingsOverviewOKFirstItemBlockFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) GetChannel() FindingsGetFindingsOverviewOKFirstItemBlockFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -112141,6 +115681,11 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) GetVersion() NilString 
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetChannel(val FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetKey(val string) {
 	s.Key = val
@@ -112169,6 +115714,58 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsOverviewOKFirstItemBlockFixChannel string
+
+const (
+	FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic    FindingsGetFindingsOverviewOKFirstItemBlockFixChannel = "public"
+	FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro FindingsGetFindingsOverviewOKFirstItemBlockFixChannel = "ubuntu_pro"
+	FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu       FindingsGetFindingsOverviewOKFirstItemBlockFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsOverviewOKFirstItemBlockFixChannel values.
+func (FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) AllValues() []FindingsGetFindingsOverviewOKFirstItemBlockFixChannel {
+	return []FindingsGetFindingsOverviewOKFirstItemBlockFixChannel{
+		FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic,
+		FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro,
+		FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOverviewOKFirstItemBlockFixChannel(data) {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -123627,6 +127224,11 @@ func (s *FindingsPostFindingsIDReopenOKEventsItemVia) UnmarshalText(data []byte)
 }
 
 type FindingsPostFindingsIDReopenOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsPostFindingsIDReopenOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -123645,6 +127247,11 @@ type FindingsPostFindingsIDReopenOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsPostFindingsIDReopenOKFix) GetChannel() FindingsPostFindingsIDReopenOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -123677,6 +127284,11 @@ func (s *FindingsPostFindingsIDReopenOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsPostFindingsIDReopenOKFix) SetChannel(val FindingsPostFindingsIDReopenOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsPostFindingsIDReopenOKFix) SetKey(val string) {
 	s.Key = val
@@ -123705,6 +127317,58 @@ func (s *FindingsPostFindingsIDReopenOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsPostFindingsIDReopenOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsPostFindingsIDReopenOKFixChannel string
+
+const (
+	FindingsPostFindingsIDReopenOKFixChannelPublic    FindingsPostFindingsIDReopenOKFixChannel = "public"
+	FindingsPostFindingsIDReopenOKFixChannelUbuntuPro FindingsPostFindingsIDReopenOKFixChannel = "ubuntu_pro"
+	FindingsPostFindingsIDReopenOKFixChannelEsu       FindingsPostFindingsIDReopenOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKFixChannel values.
+func (FindingsPostFindingsIDReopenOKFixChannel) AllValues() []FindingsPostFindingsIDReopenOKFixChannel {
+	return []FindingsPostFindingsIDReopenOKFixChannel{
+		FindingsPostFindingsIDReopenOKFixChannelPublic,
+		FindingsPostFindingsIDReopenOKFixChannelUbuntuPro,
+		FindingsPostFindingsIDReopenOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKFixChannel(data) {
+	case FindingsPostFindingsIDReopenOKFixChannelPublic:
+		*s = FindingsPostFindingsIDReopenOKFixChannelPublic
+		return nil
+	case FindingsPostFindingsIDReopenOKFixChannelUbuntuPro:
+		*s = FindingsPostFindingsIDReopenOKFixChannelUbuntuPro
+		return nil
+	case FindingsPostFindingsIDReopenOKFixChannelEsu:
+		*s = FindingsPostFindingsIDReopenOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -126218,6 +129882,11 @@ func (s *FindingsPostFindingsIDUnverifyOKEventsItemVia) UnmarshalText(data []byt
 }
 
 type FindingsPostFindingsIDUnverifyOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsPostFindingsIDUnverifyOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -126236,6 +129905,11 @@ type FindingsPostFindingsIDUnverifyOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsPostFindingsIDUnverifyOKFix) GetChannel() FindingsPostFindingsIDUnverifyOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -126268,6 +129942,11 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsPostFindingsIDUnverifyOKFix) SetChannel(val FindingsPostFindingsIDUnverifyOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsPostFindingsIDUnverifyOKFix) SetKey(val string) {
 	s.Key = val
@@ -126296,6 +129975,58 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsPostFindingsIDUnverifyOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsPostFindingsIDUnverifyOKFixChannel string
+
+const (
+	FindingsPostFindingsIDUnverifyOKFixChannelPublic    FindingsPostFindingsIDUnverifyOKFixChannel = "public"
+	FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro FindingsPostFindingsIDUnverifyOKFixChannel = "ubuntu_pro"
+	FindingsPostFindingsIDUnverifyOKFixChannelEsu       FindingsPostFindingsIDUnverifyOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKFixChannel values.
+func (FindingsPostFindingsIDUnverifyOKFixChannel) AllValues() []FindingsPostFindingsIDUnverifyOKFixChannel {
+	return []FindingsPostFindingsIDUnverifyOKFixChannel{
+		FindingsPostFindingsIDUnverifyOKFixChannelPublic,
+		FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro,
+		FindingsPostFindingsIDUnverifyOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKFixChannel(data) {
+	case FindingsPostFindingsIDUnverifyOKFixChannelPublic:
+		*s = FindingsPostFindingsIDUnverifyOKFixChannelPublic
+		return nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro:
+		*s = FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro
+		return nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelEsu:
+		*s = FindingsPostFindingsIDUnverifyOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -128795,6 +132526,11 @@ func (s *FindingsPostFindingsIDVerifyOKEventsItemVia) UnmarshalText(data []byte)
 }
 
 type FindingsPostFindingsIDVerifyOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsPostFindingsIDVerifyOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -128813,6 +132549,11 @@ type FindingsPostFindingsIDVerifyOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsPostFindingsIDVerifyOKFix) GetChannel() FindingsPostFindingsIDVerifyOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -128845,6 +132586,11 @@ func (s *FindingsPostFindingsIDVerifyOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsPostFindingsIDVerifyOKFix) SetChannel(val FindingsPostFindingsIDVerifyOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsPostFindingsIDVerifyOKFix) SetKey(val string) {
 	s.Key = val
@@ -128873,6 +132619,58 @@ func (s *FindingsPostFindingsIDVerifyOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsPostFindingsIDVerifyOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsPostFindingsIDVerifyOKFixChannel string
+
+const (
+	FindingsPostFindingsIDVerifyOKFixChannelPublic    FindingsPostFindingsIDVerifyOKFixChannel = "public"
+	FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro FindingsPostFindingsIDVerifyOKFixChannel = "ubuntu_pro"
+	FindingsPostFindingsIDVerifyOKFixChannelEsu       FindingsPostFindingsIDVerifyOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKFixChannel values.
+func (FindingsPostFindingsIDVerifyOKFixChannel) AllValues() []FindingsPostFindingsIDVerifyOKFixChannel {
+	return []FindingsPostFindingsIDVerifyOKFixChannel{
+		FindingsPostFindingsIDVerifyOKFixChannelPublic,
+		FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro,
+		FindingsPostFindingsIDVerifyOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKFixChannel(data) {
+	case FindingsPostFindingsIDVerifyOKFixChannelPublic:
+		*s = FindingsPostFindingsIDVerifyOKFixChannelPublic
+		return nil
+	case FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro:
+		*s = FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro
+		return nil
+	case FindingsPostFindingsIDVerifyOKFixChannelEsu:
+		*s = FindingsPostFindingsIDVerifyOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -181959,6 +185757,636 @@ func (o NilExposurePutExposureTargetsIDTermsOKValidity) Or(d ExposurePutExposure
 	return d
 }
 
+// NewNilExposurePutExposureTreeIDDeepSettingsOKBlocked returns new NilExposurePutExposureTreeIDDeepSettingsOKBlocked with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKBlocked(v ExposurePutExposureTreeIDDeepSettingsOKBlocked) NilExposurePutExposureTreeIDDeepSettingsOKBlocked {
+	return NilExposurePutExposureTreeIDDeepSettingsOKBlocked{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKBlocked is nullable ExposurePutExposureTreeIDDeepSettingsOKBlocked.
+type NilExposurePutExposureTreeIDDeepSettingsOKBlocked struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKBlocked) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKBlocked) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKBlocked) Get() (v ExposurePutExposureTreeIDDeepSettingsOKBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKBlocked) Or(d ExposurePutExposureTreeIDDeepSettingsOKBlocked) ExposurePutExposureTreeIDDeepSettingsOKBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKCommitment returns new NilExposurePutExposureTreeIDDeepSettingsOKCommitment with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKCommitment(v ExposurePutExposureTreeIDDeepSettingsOKCommitment) NilExposurePutExposureTreeIDDeepSettingsOKCommitment {
+	return NilExposurePutExposureTreeIDDeepSettingsOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKCommitment is nullable ExposurePutExposureTreeIDDeepSettingsOKCommitment.
+type NilExposurePutExposureTreeIDDeepSettingsOKCommitment struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKCommitment) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCommitment) Get() (v ExposurePutExposureTreeIDDeepSettingsOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCommitment) Or(d ExposurePutExposureTreeIDDeepSettingsOKCommitment) ExposurePutExposureTreeIDDeepSettingsOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice returns new NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice(v ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice {
+	return NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice is nullable ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice.
+type NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) Get() (v ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) Or(d ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice) ExposurePutExposureTreeIDDeepSettingsOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKCountsWorst returns new NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKCountsWorst(v ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst {
+	return NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst is nullable ExposurePutExposureTreeIDDeepSettingsOKCountsWorst.
+type NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst) Get() (v ExposurePutExposureTreeIDDeepSettingsOKCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKCountsWorst) Or(d ExposurePutExposureTreeIDDeepSettingsOKCountsWorst) ExposurePutExposureTreeIDDeepSettingsOKCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKLastScan returns new NilExposurePutExposureTreeIDDeepSettingsOKLastScan with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKLastScan(v ExposurePutExposureTreeIDDeepSettingsOKLastScan) NilExposurePutExposureTreeIDDeepSettingsOKLastScan {
+	return NilExposurePutExposureTreeIDDeepSettingsOKLastScan{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKLastScan is nullable ExposurePutExposureTreeIDDeepSettingsOKLastScan.
+type NilExposurePutExposureTreeIDDeepSettingsOKLastScan struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKLastScan) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKLastScan) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKLastScan) Get() (v ExposurePutExposureTreeIDDeepSettingsOKLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKLastScan) Or(d ExposurePutExposureTreeIDDeepSettingsOKLastScan) ExposurePutExposureTreeIDDeepSettingsOKLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts returns new NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts(v ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts {
+	return NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts is nullable ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts.
+type NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) Get() (v ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) Or(d ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts) ExposurePutExposureTreeIDDeepSettingsOKLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy returns new NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy(v ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy {
+	return NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy is nullable ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy.
+type NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) Get() (v ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) Or(d ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy) ExposurePutExposureTreeIDDeepSettingsOKProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKProofDNS returns new NilExposurePutExposureTreeIDDeepSettingsOKProofDNS with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKProofDNS(v ExposurePutExposureTreeIDDeepSettingsOKProofDNS) NilExposurePutExposureTreeIDDeepSettingsOKProofDNS {
+	return NilExposurePutExposureTreeIDDeepSettingsOKProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKProofDNS is nullable ExposurePutExposureTreeIDDeepSettingsOKProofDNS.
+type NilExposurePutExposureTreeIDDeepSettingsOKProofDNS struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofDNS) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofDNS) Get() (v ExposurePutExposureTreeIDDeepSettingsOKProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofDNS) Or(d ExposurePutExposureTreeIDDeepSettingsOKProofDNS) ExposurePutExposureTreeIDDeepSettingsOKProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKProofFile returns new NilExposurePutExposureTreeIDDeepSettingsOKProofFile with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKProofFile(v ExposurePutExposureTreeIDDeepSettingsOKProofFile) NilExposurePutExposureTreeIDDeepSettingsOKProofFile {
+	return NilExposurePutExposureTreeIDDeepSettingsOKProofFile{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKProofFile is nullable ExposurePutExposureTreeIDDeepSettingsOKProofFile.
+type NilExposurePutExposureTreeIDDeepSettingsOKProofFile struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofFile) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofFile) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofFile) Get() (v ExposurePutExposureTreeIDDeepSettingsOKProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofFile) Or(d ExposurePutExposureTreeIDDeepSettingsOKProofFile) ExposurePutExposureTreeIDDeepSettingsOKProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck returns new NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck(v ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck {
+	return NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck is nullable ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck.
+type NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) Get() (v ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) Or(d ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck) ExposurePutExposureTreeIDDeepSettingsOKProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKProofMethod returns new NilExposurePutExposureTreeIDDeepSettingsOKProofMethod with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKProofMethod(v ExposurePutExposureTreeIDDeepSettingsOKProofMethod) NilExposurePutExposureTreeIDDeepSettingsOKProofMethod {
+	return NilExposurePutExposureTreeIDDeepSettingsOKProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKProofMethod is nullable ExposurePutExposureTreeIDDeepSettingsOKProofMethod.
+type NilExposurePutExposureTreeIDDeepSettingsOKProofMethod struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofMethod) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofMethod) Get() (v ExposurePutExposureTreeIDDeepSettingsOKProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofMethod) Or(d ExposurePutExposureTreeIDDeepSettingsOKProofMethod) ExposurePutExposureTreeIDDeepSettingsOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKProofReplaced returns new NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKProofReplaced(v ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced {
+	return NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced is nullable ExposurePutExposureTreeIDDeepSettingsOKProofReplaced.
+type NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced) Get() (v ExposurePutExposureTreeIDDeepSettingsOKProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKProofReplaced) Or(d ExposurePutExposureTreeIDDeepSettingsOKProofReplaced) ExposurePutExposureTreeIDDeepSettingsOKProofReplaced {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKScopeMode returns new NilExposurePutExposureTreeIDDeepSettingsOKScopeMode with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKScopeMode(v ExposurePutExposureTreeIDDeepSettingsOKScopeMode) NilExposurePutExposureTreeIDDeepSettingsOKScopeMode {
+	return NilExposurePutExposureTreeIDDeepSettingsOKScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKScopeMode is nullable ExposurePutExposureTreeIDDeepSettingsOKScopeMode.
+type NilExposurePutExposureTreeIDDeepSettingsOKScopeMode struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKScopeMode) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKScopeMode) Get() (v ExposurePutExposureTreeIDDeepSettingsOKScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKScopeMode) Or(d ExposurePutExposureTreeIDDeepSettingsOKScopeMode) ExposurePutExposureTreeIDDeepSettingsOKScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDDeepSettingsOKTerms returns new NilExposurePutExposureTreeIDDeepSettingsOKTerms with value set to v.
+func NewNilExposurePutExposureTreeIDDeepSettingsOKTerms(v ExposurePutExposureTreeIDDeepSettingsOKTerms) NilExposurePutExposureTreeIDDeepSettingsOKTerms {
+	return NilExposurePutExposureTreeIDDeepSettingsOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDDeepSettingsOKTerms is nullable ExposurePutExposureTreeIDDeepSettingsOKTerms.
+type NilExposurePutExposureTreeIDDeepSettingsOKTerms struct {
+	Value ExposurePutExposureTreeIDDeepSettingsOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKTerms) SetTo(v ExposurePutExposureTreeIDDeepSettingsOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDDeepSettingsOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDDeepSettingsOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKTerms) Get() (v ExposurePutExposureTreeIDDeepSettingsOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDDeepSettingsOKTerms) Or(d ExposurePutExposureTreeIDDeepSettingsOKTerms) ExposurePutExposureTreeIDDeepSettingsOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureTreeIDTermsOKBlocked returns new NilExposurePutExposureTreeIDTermsOKBlocked with value set to v.
 func NewNilExposurePutExposureTreeIDTermsOKBlocked(v ExposurePutExposureTreeIDTermsOKBlocked) NilExposurePutExposureTreeIDTermsOKBlocked {
 	return NilExposurePutExposureTreeIDTermsOKBlocked{
@@ -211501,6 +215929,52 @@ func (o OptReportsGetReportsDocumentOKNew) Or(d ReportsGetReportsDocumentOKNew) 
 	return d
 }
 
+// NewOptReportsGetReportsDocumentOKNewItemsItemFixChannel returns new OptReportsGetReportsDocumentOKNewItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsDocumentOKNewItemsItemFixChannel(v ReportsGetReportsDocumentOKNewItemsItemFixChannel) OptReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	return OptReportsGetReportsDocumentOKNewItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKNewItemsItemFixChannel is optional ReportsGetReportsDocumentOKNewItemsItemFixChannel.
+type OptReportsGetReportsDocumentOKNewItemsItemFixChannel struct {
+	Value ReportsGetReportsDocumentOKNewItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKNewItemsItemFixChannel was set.
+func (o OptReportsGetReportsDocumentOKNewItemsItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKNewItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsDocumentOKNewItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKNewItemsItemFixChannel) SetTo(v ReportsGetReportsDocumentOKNewItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKNewItemsItemFixChannel) Get() (v ReportsGetReportsDocumentOKNewItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKNewItemsItemFixChannel) Or(d ReportsGetReportsDocumentOKNewItemsItemFixChannel) ReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsDocumentOKOpen returns new OptReportsGetReportsDocumentOKOpen with value set to v.
 func NewOptReportsGetReportsDocumentOKOpen(v ReportsGetReportsDocumentOKOpen) OptReportsGetReportsDocumentOKOpen {
 	return OptReportsGetReportsDocumentOKOpen{
@@ -211547,6 +216021,52 @@ func (o OptReportsGetReportsDocumentOKOpen) Or(d ReportsGetReportsDocumentOKOpen
 	return d
 }
 
+// NewOptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel returns new OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel(v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	return OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel is optional ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel.
+type OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel struct {
+	Value ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel was set.
+func (o OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) SetTo(v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Get() (v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Or(d ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsDocumentOKSummary returns new OptReportsGetReportsDocumentOKSummary with value set to v.
 func NewOptReportsGetReportsDocumentOKSummary(v ReportsGetReportsDocumentOKSummary) OptReportsGetReportsDocumentOKSummary {
 	return OptReportsGetReportsDocumentOKSummary{
@@ -211587,6 +216107,52 @@ func (o OptReportsGetReportsDocumentOKSummary) Get() (v ReportsGetReportsDocumen
 
 // Or returns value if set, or given parameter if does not.
 func (o OptReportsGetReportsDocumentOKSummary) Or(d ReportsGetReportsDocumentOKSummary) ReportsGetReportsDocumentOKSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKSummaryFirstItemFixChannel returns new OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel with value set to v.
+func NewOptReportsGetReportsDocumentOKSummaryFirstItemFixChannel(v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
+	return OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel is optional ReportsGetReportsDocumentOKSummaryFirstItemFixChannel.
+type OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel struct {
+	Value ReportsGetReportsDocumentOKSummaryFirstItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel was set.
+func (o OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Reset() {
+	var v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) SetTo(v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Get() (v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Or(d ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) ReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -211823,6 +216389,52 @@ func (o OptReportsGetReportsHistoryIDOKDocumentNew) Or(d ReportsGetReportsHistor
 	return d
 }
 
+// NewOptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel returns new OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel(v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	return OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel is optional ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel.
+type OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel struct {
+	Value ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) SetTo(v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Get() (v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Or(d ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsHistoryIDOKDocumentOpen returns new OptReportsGetReportsHistoryIDOKDocumentOpen with value set to v.
 func NewOptReportsGetReportsHistoryIDOKDocumentOpen(v ReportsGetReportsHistoryIDOKDocumentOpen) OptReportsGetReportsHistoryIDOKDocumentOpen {
 	return OptReportsGetReportsHistoryIDOKDocumentOpen{
@@ -211869,6 +216481,54 @@ func (o OptReportsGetReportsHistoryIDOKDocumentOpen) Or(d ReportsGetReportsHisto
 	return d
 }
 
+// NewOptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel returns new OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel(v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	return OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel is optional ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel.
+type OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel struct {
+	Value ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) SetTo(v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Get() (v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Or(d ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsHistoryIDOKDocumentSummary returns new OptReportsGetReportsHistoryIDOKDocumentSummary with value set to v.
 func NewOptReportsGetReportsHistoryIDOKDocumentSummary(v ReportsGetReportsHistoryIDOKDocumentSummary) OptReportsGetReportsHistoryIDOKDocumentSummary {
 	return OptReportsGetReportsHistoryIDOKDocumentSummary{
@@ -211909,6 +216569,52 @@ func (o OptReportsGetReportsHistoryIDOKDocumentSummary) Get() (v ReportsGetRepor
 
 // Or returns value if set, or given parameter if does not.
 func (o OptReportsGetReportsHistoryIDOKDocumentSummary) Or(d ReportsGetReportsHistoryIDOKDocumentSummary) ReportsGetReportsHistoryIDOKDocumentSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel returns new OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel(v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
+	return OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel is optional ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel.
+type OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel struct {
+	Value ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) SetTo(v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Get() (v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Or(d ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -215128,6 +219834,10 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) SetName(val string) {
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsDocumentOKNewItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                         `json:"key"`
 	Kind ReportsGetReportsDocumentOKNewItemsItemFixKind `json:"kind"`
@@ -215140,6 +219850,11 @@ type ReportsGetReportsDocumentOKNewItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetChannel() OptReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -215172,6 +219887,11 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetChannel(val OptReportsGetReportsDocumentOKNewItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -215200,6 +219920,57 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsDocumentOKNewItemsItemFixChannel string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic    ReportsGetReportsDocumentOKNewItemsItemFixChannel = "public"
+	ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro ReportsGetReportsDocumentOKNewItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu       ReportsGetReportsDocumentOKNewItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemFixChannel values.
+func (ReportsGetReportsDocumentOKNewItemsItemFixChannel) AllValues() []ReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	return []ReportsGetReportsDocumentOKNewItemsItemFixChannel{
+		ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic,
+		ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemFixChannel(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemFixKind string
@@ -216121,6 +220892,10 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) SetName(val s
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                    `json:"key"`
 	Kind ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind `json:"kind"`
@@ -216133,6 +220908,11 @@ type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetChannel() OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -216165,6 +220945,11 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetVersion() Nil
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetChannel(val OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -216193,6 +220978,57 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetURL(val NilUR
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic    ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel = "public"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind string
@@ -217435,6 +222271,10 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) SetName(val str
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                             `json:"key"`
 	Kind ReportsGetReportsDocumentOKSummaryFirstItemFixKind `json:"kind"`
@@ -217447,6 +222287,11 @@ type ReportsGetReportsDocumentOKSummaryFirstItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetChannel() OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -217479,6 +222324,11 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetVersion() NilString 
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetChannel(val OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKey(val string) {
 	s.Key = val
@@ -217507,6 +222357,57 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsDocumentOKSummaryFirstItemFixChannel string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic    ReportsGetReportsDocumentOKSummaryFirstItemFixChannel = "public"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro ReportsGetReportsDocumentOKSummaryFirstItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu       ReportsGetReportsDocumentOKSummaryFirstItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemFixChannel values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemFixChannel{
+		ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemFixChannel(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemFixKind string
@@ -220362,6 +225263,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) SetName(val str
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                  `json:"key"`
 	Kind ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind `json:"kind"`
@@ -220374,6 +225279,11 @@ type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetChannel() OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -220406,6 +225316,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetVersion() NilSt
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetChannel(val OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -220434,6 +225349,57 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetURL(val NilURI)
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic    ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel = "public"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind string
@@ -221355,6 +226321,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) SetN
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                             `json:"key"`
 	Kind ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind `json:"kind"`
@@ -221367,6 +226337,11 @@ type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetChannel() OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -221399,6 +226374,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetVers
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetChannel(val OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -221427,6 +226407,57 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetURL(
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic    ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel = "public"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind string
@@ -222669,6 +227700,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) SetNam
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                      `json:"key"`
 	Kind ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind `json:"kind"`
@@ -222681,6 +227716,11 @@ type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetChannel() OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -222713,6 +227753,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetVersion() N
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetChannel(val OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKey(val string) {
 	s.Key = val
@@ -222741,6 +227786,57 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetURL(val Nil
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic    ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel = "public"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind string

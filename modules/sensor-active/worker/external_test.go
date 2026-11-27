@@ -188,7 +188,7 @@ func TestFullJobsRunOnlyOnTheBoxsOwnIP(t *testing.T) {
 		}{
 			"the box's own IP":     {job("8.8.8.8", nmapargv.FullRate), "8.8.8.8", "done", "", 1},
 			"another address":      {job("8.8.8.8", nmapargv.FullRate), "1.1.1.1", "refused", "not_own_ip", worker.EgressRounds},
-			"another rate":         {job("8.8.8.8", nmapargv.ExternalRate), "8.8.8.8", "refused", "invalid_job", 0},
+			"another rate":         {job("8.8.8.8", 200), "8.8.8.8", "refused", "invalid_job", 0},
 			"a LAN address":        {job("192.168.10.20", nmapargv.FullRate), "192.168.10.20", "refused", "invalid_job", 0},
 			"two public adresses":  {sensorlink.Job{ID: id1, Shape: kind.Name(), Rate: nmapargv.FullRate, Targets: []string{"8.8.8.8", "1.1.1.1"}, TimeoutS: 60}, "8.8.8.8", "refused", "invalid_job", 0},
 			"another nmap version": {job("8.8.8.8", nmapargv.FullRate), "8.8.8.8", "refused", "invalid_job", 0}, // review r2 LOW-3

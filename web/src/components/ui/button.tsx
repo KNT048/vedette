@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
   // A busy button keeps its full colour (it is working, not unavailable): only a disabled one that is not busy fades
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors disabled:pointer-events-none [&:disabled:not([aria-busy=true])]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium no-underline transition-colors disabled:pointer-events-none [&:disabled:not([aria-busy=true])]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {

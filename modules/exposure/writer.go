@@ -926,7 +926,8 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		if !ok {
 			continue
 		}
-		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.key, i.service_id IS NOT NULL, coalesce(x.ip, ''), coalesce(x.port, 0), coalesce(json_extract(i.detail, '$.zap.pass'), ''), coalesce(json_extract(i.detail, '$.zap.disruptive'), 0) = 1 FROM exp_issue i
+		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.key, i.service_id IS NOT NULL, coalesce(x.ip, ''), coalesce(x.port, 0), coalesce(json_extract(i.detail, '$.zap.pass'), ''), coalesce(json_extract(i.detail, '$.zap.disruptive'), 0) = 1,
+			coalesce(json_extract(i.detail, '$.evidence'), '[]') FROM exp_issue i
 			LEFT JOIN exp_service x ON x.id = i.service_id WHERE i.target_id = ? AND i.engine = ? AND i.state = 'open'`, target, string(e))
 		if err != nil {
 			return nil, nil, fmt.Errorf("issues of %s: %w", e, err)
@@ -935,9 +936,13 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		for rows.Next() {
 			var id string
 			var w issueWhere
-			if err := rows.Scan(&id, &w.key, &w.service, &w.ip, &w.port, &w.pass, &w.disruptive); err != nil {
+			var evidence string
+			if err := rows.Scan(&id, &w.key, &w.service, &w.ip, &w.port, &w.pass, &w.disruptive, &evidence); err != nil {
 				_ = rows.Close()
 				return nil, nil, err
+			}
+			if e == EngineZAP && json.Unmarshal([]byte(evidence), &w.evidence) != nil {
+				w.evidence, w.evidenceBad = nil, true // unreadable: as if under every path skipped, never gone because of one
 			}
 			if w.service {
 				w.seen = seenNow[svcIDs[portKey(w.ip, w.port)]]
@@ -974,6 +979,9 @@ type issueWhere struct {
 	pass    string // a ZAP issue's pass (IssueZAP.Pass): "active" is covered only by the active scan
 	// disruptive: an active ZAP issue of a disruptive rule (IssueZAP.Disruptive), covered only by an active scan that ran them
 	disruptive bool
+	// evidence are a ZAP issue's URLs (IssueDetail.Evidence): one under a web path this run skipped was not looked at again
+	evidence    []string
+	evidenceBad bool // the evidence could not be read
 }
 
 // coverFunc says the engine probed where the issue is in this run: only then does an issue it no longer reports go.
@@ -1021,6 +1029,16 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 	for _, u := range c.WebDisruptivePages {
 		disruptivePages[siteOf(u)] = true
 	}
+	skippedRules := map[string]bool{}
+	for _, k := range c.WebSkippedRules {
+		skippedRules[k] = true
+	}
+	skippedPaths := map[string][]string{} // the web paths each site's passes left out
+	for _, k := range c.WebSkippedPaths {
+		if site, prefix, ok := strings.Cut(k, " "); ok {
+			skippedPaths[site] = append(skippedPaths[site], prefix)
+		}
+	}
 	open, compared := map[string]bool{}, map[string]bool{}
 	for _, p := range c.Ports {
 		open[portKey(p.IP, p.Port)] = true
@@ -1048,9 +1066,12 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 			return x.ip != "" && tplRan[portKey(x.ip, x.port)+"|"+x.key]
 		},
 		EngineZAP: func(x issueWhere) bool { // an alert of the active rules goes only when the active scan looked at its page again
-			_, site, ok := strings.Cut(x.key, "@")
-			if x.pass == passActive { // and one of a disruptive rule only when that scan ran the disruptive rules
-				return ok && activePages[siteOf(site)] && (!x.disruptive || disruptivePages[siteOf(site)])
+			plugin, site, ok := strings.Cut(x.key, "@")
+			if skip := skippedPaths[siteOf(site)]; ok && len(skip) > 0 && (x.evidenceBad || underSkippedPath(x.evidence, skip)) { // seen where this run's passes never requested
+				return false
+			}
+			if x.pass == passActive { // and one of a disruptive rule only when that scan ran the disruptive rules, and never one of a rule the settings left out
+				return ok && activePages[siteOf(site)] && (!x.disruptive || disruptivePages[siteOf(site)]) && !skippedRules[plugin+"@"+siteOf(site)]
 			}
 			return ok && pages[siteOf(site)]
 		},

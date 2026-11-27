@@ -3,6 +3,7 @@ package findings
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"time"
 )
 
@@ -186,14 +187,37 @@ const (
 // changes it: the match pass, a safe check, a person.
 func Announced(f Finding) bool { return f.Urgency >= 1 && f.Urgency < UrgencyUpdate }
 
+// FixChannel is where a fix is published (fnd_finding.fix_channel). A closed vocabulary (the column's CHECK).
+type FixChannel string
+
+// The channels of a fix.
+const (
+	ChannelPublic    FixChannel = "public"     // the vendor's or the distribution's ordinary updates
+	ChannelUbuntuPro FixChannel = "ubuntu_pro" // only Ubuntu Pro (ESM) carries the fixed package
+	ChannelESU       FixChannel = "esu"        // only Windows Extended Security Updates carry the fixed build
+)
+
+// FixChannels lists every channel.
+var FixChannels = []FixChannel{ChannelPublic, ChannelUbuntuPro, ChannelESU}
+
 // Fix is the fix of a finding as the match pass stores it.
 type Fix struct {
 	Kind    FixKind
-	Version string // "" = none
-	Ref     string // "" = none
+	Version string     // "" = none
+	Ref     string     // "" = none
+	Channel FixChannel // "" reads ChannelPublic
 }
 
-// FixKey is the "By fix" group of a fix of product productKey: the same key on every device the same fix applies to; never empty.
+// Chan is the fix's channel, ChannelPublic when not set.
+func (f Fix) Chan() FixChannel {
+	if f.Channel == "" {
+		return ChannelPublic
+	}
+	return f.Channel
+}
+
+// FixKey is the "By fix" group of a fix of product productKey: the same key on every device the same fix applies to; never empty. A
+// fix only a subscription carries (Ubuntu Pro, Windows ESU) is its own group: the key ends in "|<channel>".
 func FixKey(productKey string, f Fix) string {
 	k := f.Kind
 	if k == "" {
@@ -202,7 +226,11 @@ func FixKey(productKey string, f Fix) string {
 	if productKey == "" {
 		productKey = "unknown"
 	}
-	return clipBytes(productKey+"|"+string(k)+"|"+f.Version, 400)
+	key := productKey + "|" + string(k) + "|" + f.Version
+	if c := f.Chan(); c != ChannelPublic {
+		key += "|" + string(c)
+	}
+	return clipBytes(key, 400)
 }
 
 // Finding is one row of fnd_finding.
@@ -264,6 +292,8 @@ func (f Finding) Validate() error {
 		return bad("bad range origin %q", f.RangeOrigin)
 	case !validWord(string(f.Fix.Kind)):
 		return bad("bad fix kind %q", f.Fix.Kind)
+	case !slices.Contains(FixChannels, f.Fix.Chan()):
+		return bad("bad fix channel %q", f.Fix.Channel)
 	case f.FixKey == "":
 		return bad("no fix key")
 	case f.Urgency < 1 || f.Urgency > 5:

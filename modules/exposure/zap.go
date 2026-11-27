@@ -113,6 +113,9 @@ type WebScan struct {
 	// (its own checks: no grant of a person's press that holds, or the box's gateway behind carrier-grade NAT or unreadable): the
 	// plain reason. The page then counts as a page of a pass without them.
 	DisruptiveRefused string
+	// SkippedRules (active scan only) are the ZAP plugin ids the host left out of this page, or ran with weaker payloads, because of
+	// the target's deep-scan settings: an alert of one of them is not "gone" from this page.
+	SkippedRules []string
 }
 
 // Limits of the passive web scan (INV-24).
@@ -555,6 +558,9 @@ func webPages(st ScanTarget, c Content) (pages, skipped []WebPage) {
 		}
 	}
 	for _, w := range web {
+		if st.Skips(w.port) { // a port this target's settings skip gets no page
+			continue
+		}
 		if st.Kind == KindIP {
 			add(WebPage{URL: pageURL(w.tls, w.ip.String(), w.port), Host: w.ip.String(), IP: w.ip, Port: w.port}, w)
 			continue
@@ -622,6 +628,50 @@ func pageURL(tls bool, host string, port int) string {
 	return fmt.Sprintf("%s://%s:%d/", scheme, host, port)
 }
 
+// PathExcluder is implemented by a WebScanner whose ZAP runs leave out the URL path prefixes of ScanTarget.SkipPaths (its spider and
+// its rules never request them). Without it, a scan with paths to skip sends ZAP nothing: its spider follows links wherever they go.
+type PathExcluder interface {
+	ExcludesPaths() bool
+}
+
+// notWebPaths is the line of a ZAP step left out because this box's ZAP cannot leave out the target's web paths to skip.
+const notWebPaths = notSettings + " This target has web paths to skip, and this box's web scan cannot leave them out yet, so it did not run (it follows links wherever they go)."
+
+// addSkippedPaths adds the web paths to skip of a pass on page to list (Content.WebSkippedPaths), each once.
+func addSkippedPaths(list []string, page string, paths []string) []string {
+	for _, p := range paths {
+		if k := siteOf(page) + " " + p; !slices.Contains(list, k) {
+			list = append(list, k)
+		}
+	}
+	return list
+}
+
+// underSkippedPath says one of urls (an issue's evidence) is under a path prefix of prefixes, as the host's excludes match it: the
+// prefix as written, in any case, at the start of the URL's path.
+func underSkippedPath(urls, prefixes []string) bool {
+	for _, raw := range urls {
+		u, err := url.Parse(raw)
+		if err != nil {
+			continue
+		}
+		p := strings.ToLower(u.EscapedPath())
+		if slices.ContainsFunc(prefixes, func(prefix string) bool { return strings.HasPrefix(p, strings.ToLower(prefix)) }) {
+			return true
+		}
+	}
+	return false
+}
+
+// webKeepsPaths says the web scans may run on st: it has no web path to skip, or the web scanner leaves them out.
+func (s *Service) webKeepsPaths(st ScanTarget) bool {
+	if len(st.SkipPaths) == 0 {
+		return true
+	}
+	pe, ok := s.cfg.Web.(PathExcluder)
+	return ok && pe.ExcludesPaths()
+}
+
 // webPassive is the web step of a scan (INV-24), after service identification and before the snapshot is stored: ZAP's baseline on
 // each page webPages lists, one after the other, each page in the probe log first. Without a WebScanner the scan records
 // notSetUpWeb. Like identify it ends the scan only when the run is stopped: a page that failed, was unavailable or whose report could
@@ -630,6 +680,10 @@ func pageURL(tls bool, host string, port int) string {
 func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Content, error) {
 	if s.cfg.Web == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notSetUpWeb})
+		return c, nil
+	}
+	if !s.webKeepsPaths(st) { // its spider would follow links into the paths to skip
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: "Passive web scan (ZAP): " + notWebPaths})
 		return c, nil
 	}
 	pages, skipped := webPages(st, c)
@@ -687,6 +741,25 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	rs := runStepsOf(ctx)
 	for i, page := range pages {
 		rs.say(stepKeyZAP, fmt.Sprintf("page %d of %d: %s", i+1, len(pages), page.URL))
+		pst := st
+		if st.Kind == KindDomain { // a page on an address that is an IP target too: that target's web paths to skip apply as well
+			it, found, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), page.IP.Unmap().String())
+			switch {
+			case err != nil:
+				s.cfg.Log.ErrorContext(ctx, "exposure: reading the settings of a page's address failed", "target", st.Value, "page", page.URL, "error", err)
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebFail, maxLineText)})
+				continue
+			case found && it.Deep.Problem != nil:
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+deepSettingsUnread, maxLineText)})
+				continue
+			case found:
+				pst.SkipPaths = intersect(DeepSettings{SkipPaths: st.SkipPaths}, it.Deep).SkipPaths
+			}
+			if !s.webKeepsPaths(pst) { // that target's paths, which this box's ZAP cannot leave out
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebPaths, maxLineText)})
+				continue
+			}
+		}
 		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil { // LEGAL §3: logged before ZAP starts
 			if ctx.Err() != nil {
 				return c, err
@@ -698,11 +771,12 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		}
 		wctx, cancel := context.WithTimeout(ctx, WebScanTimeout)
 		steps.begin(StepZAP, false)
-		res, err := s.cfg.Web.Baseline(wctx, st, page)
+		res, err := s.cfg.Web.Baseline(wctx, pst, page)
 		slow := wctx.Err() != nil
 		cancel()
 		if err == nil {
 			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
+			c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, pst.SkipPaths)
 			switch {
 			case perr == nil:
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)

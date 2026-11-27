@@ -1,6 +1,7 @@
 // What the screens say about a target node, worked out once from its fields: where it sits in the tree, whether its
 // ownership holds, and whether something waits on a person.
-import type { TargetNode } from './types'
+import type { TFunction } from 'i18next'
+import type { DeepSettings, TargetNode } from './types'
 
 /** How deep each node sits in the tree (0 at the top), from the parent links of the list. */
 export function depths(items: Pick<TargetNode, 'id' | 'parent_id'>[]): Map<string, number> {
@@ -29,3 +30,22 @@ export const boxIp = (n: Pick<TargetNode, 'kind' | 'origin'>) => n.kind === 'ip'
 
 /** The run page of a scan (the shared runs: its steps, log and Stop). */
 export const runHref = (runId: string) => `/runs/${encodeURIComponent(runId)}`
+
+export type Group = 'dos' | 'logins' | 'web_active' | 'data_change' | 'openvas'
+export const GROUPS: Group[] = ['dos', 'logins', 'web_active', 'data_change', 'openvas']
+/** The groups that only run where the box may test disruptively (the box's own public IP, terms accepted with them). */
+export const DISRUPTIVE: Group[] = ['dos', 'logins', 'data_change']
+
+/**
+ * What a deep scan of a node will run, in one line: the denial-of-service group always (it is off unless turned on), the other groups
+ * only when they are off, the speed, and how many ports and paths are left out. A group the node cannot run at all counts as off.
+ */
+export function deepSummary(t: TFunction, s: DeepSettings, disruptive: boolean): string {
+  const on = (g: Group) => s[g] && (disruptive || !DISRUPTIVE.includes(g))
+  const parts = [t(`deepSettings.summary.dos.${on('dos') ? 'on' : 'off'}`)]
+  for (const g of GROUPS.slice(1)) if (!on(g)) parts.push(t(`deepSettings.summary.${g}Off`))
+  parts.push(t(`deepSettings.speed.${s.speed}`))
+  if (s.skip_ports.length) parts.push(t('deepSettings.summary.ports', { count: s.skip_ports.length }))
+  if (s.skip_paths.length) parts.push(t('deepSettings.summary.paths', { count: s.skip_paths.length }))
+  return parts.join(' · ')
+}

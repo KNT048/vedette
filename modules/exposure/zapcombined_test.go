@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	corerun "github.com/knt048/vedette/core/run"
@@ -24,15 +25,26 @@ type combinedWeb struct {
 	noCombined bool         // an older host: every one-run call is refused
 	refusals   int
 	hookC      func()
+	clock      func() time.Time
+	hangFirst  bool        // the first one-run call never answers: the step's own wait for the page runs out
+	startedAt  []time.Time // the run's clock at each one-run call
 }
 
 // combinedRules are the active rules the fake host says it ran (its report's 10036 is a passive rule: the passive pass read it).
 var combinedRules = []string{"40012", "40018", "40019", "40020", "40021", "40022", "40027"}
 
-func (c *combinedWeb) Combined(_ context.Context, st ScanTarget, p WebPage) (WebScan, WebScan, error, error) {
+func (c *combinedWeb) Combined(ctx context.Context, st ScanTarget, p WebPage) (WebScan, WebScan, error, error) {
 	if c.noCombined {
 		c.refusals++
 		return WebScan{}, WebScan{}, nil, ErrNoCombined
+	}
+	if c.clock != nil {
+		c.startedAt = append(c.startedAt, c.clock())
+	}
+	if c.hangFirst && len(c.pages) == 0 {
+		c.pages = append(c.pages, p.URL)
+		<-ctx.Done()
+		return WebScan{}, WebScan{}, nil, ctx.Err()
 	}
 	if c.hookC != nil {
 		c.hookC()
@@ -46,7 +58,7 @@ func (c *combinedWeb) Combined(_ context.Context, st ScanTarget, p WebPage) (Web
 }
 
 func (e *env) wireCombined(active func(string) []byte) *combinedWeb {
-	w := &combinedWeb{activeWeb: e.wireActive(active)}
+	w := &combinedWeb{activeWeb: e.wireActive(active), clock: e.clock.Now}
 	e.svc.cfg.Web = w
 	return w
 }
@@ -200,6 +212,51 @@ func TestWebCombined_TheRunLimitCountsFromTheFirstPage(t *testing.T) {
 	}
 	if st, note := e.runStep(stepNameZAPAct); st.Status != corerun.Partial || !strings.HasSuffix(note, "1 page not attacked.") {
 		t.Fatalf("the active step: %s %q", st.Status, note)
+	}
+}
+
+// A page whose one run the step gave up on (its wait ran out) is a "Not checked" line of that page only: the pages after it still run,
+// as after a baseline that ran out of time.
+func TestWebCombined_APageOutOfTimeLeavesTheNextPagesRunning(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := newEnv(t)
+		w := e.wireCombined(xssReport)
+		w.hangFirst = true
+		id := e.committedIP(ipA).ID
+		e.acceptTerms(id, true)
+		s, err := e.svc.Scan(e.ctx(), "admin@acme.example", id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(w.pages) != 3 {
+			t.Fatalf("one-run calls %q: the pages after the one out of time were dropped", w.pages)
+		}
+		if !lineWith(notChecked(s), notWebSlowAhead) || len(s.WebPages) != 2 {
+			t.Fatalf("pages %q, not checked %q", s.WebPages, notChecked(s))
+		}
+	})
+}
+
+// A page starts in one run only while that whole run (CombinedScanTimeout, the passive part included) still fits in the active
+// pass's 60 minutes; a page that no longer fits gets its baseline, and its active scan alone when that still fits.
+func TestWebCombined_OneRunStartsOnlyWhenItFits(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	w := e.wireCombined(xssReport)
+	w.hookC = func() { e.advance(37 * time.Minute) } // 37 + 21 fits in 60, 37 + 25 does not
+	id := e.committedIP(ipA).ID
+	e.acceptTerms(id, true)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	for _, at := range w.startedAt {
+		if at.Sub(w.startedAt[0])+CombinedScanTimeout > ActiveRunLimit {
+			t.Fatalf("a one run started at %s after the first, past the active pass's %s: starts %v", at.Sub(w.startedAt[0]), ActiveRunLimit, w.startedAt)
+		}
+	}
+	if len(w.pages) != 1 || len(w.asked) != 2 || len(w.calls) != 2 {
+		t.Fatalf("one-run %q, baseline %q, active %q", w.pages, w.asked, w.urls)
 	}
 }
 

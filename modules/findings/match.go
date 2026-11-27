@@ -347,6 +347,8 @@ type Match struct {
 	// the version compared is the upstream one, never the package release, and nothing confirms it
 	upstream bool
 	every    bool // NVD lists every version of the product as affected: the version cannot change it (#803)
+	// agreed: the verdict rests on every reading of the record giving it (everyReading); the sentence names them. "" otherwise.
+	agreed string
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
 	// installer"), "" otherwise. The agent's version is then compared with nothing, so an agent row is no evidence (confirmedMatch).
 	others string
@@ -1126,7 +1128,7 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
+	if out == outNotAffected && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}
@@ -1442,6 +1444,15 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed && !pastRecordFix(in, v, key) {
 		tri, proof = Unknown, proofNone // the CNA's list may skip branches: outside it proves nothing, unless past a fix of a train it covers
 	}
+	agreed := "" // the readings every one of which gave the verdict (everyReading)
+	if tri == Unknown && !schemed && !isWin && in.given && ps.ask == askNone && !ps.below {
+		if ag, ok := everyReading(in, v, key, s.Display); ok {
+			tri, within, agreed = ag.t, ag.within, ag.says
+			if tri == No {
+				proof = proofRange
+			}
+		}
+	}
 	switch {
 	case tri == No && schemed:
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
@@ -1468,7 +1479,10 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if b := in.installClause(v, key, nil); b != "" && proof == proofRange && !isWin {
 			note = strings.Replace(note, ". Vedette closed this", fmt.Sprintf(" (NVD's rows for other builds do not apply: %s). Vedette closed this", b), 1)
 		}
-		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}
+		if agreed != "" {
+			note = "Not affected: " + agreed + ". Vedette closed this by itself and reopens it if a later match says the device is affected."
+		}
+		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed}
 		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
 			m.provedOn = strings.TrimSpace(in.ver)
 		}
@@ -1504,6 +1518,10 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if lined.decides() {
 			m.Evidence.Summary = lineAffectedNote(a, s, v, lined)
 		}
+		if agreed != "" {
+			m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists %s for the normal release and for later ESR lines only; %s"+suspectedClause, name, sw, v.rangesBy(true), v.CVE, agreed)
+			m.agreed = agreed
+		}
 		if pinned != "" {
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s)"+suspectedClause, name, sw, v.CVE, pinned, clean(within.String()))
 		}
@@ -1512,7 +1530,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		}
 		// The device's own agent reports what is installed; a detection, not a guess. Not when NVD gives no end to the range
 		// (every version: no fix to name). A platform condition still open is no match at all (outQuestion).
-		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") {
+		if s.Source == "agent" && pinned == "" && agreed == "" && (within.EndExcl != "" || within.EndIncl != "") {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 			if schemed {

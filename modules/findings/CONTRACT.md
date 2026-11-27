@@ -274,7 +274,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version known affected, not a fix) on a train it covers (OSV's introduced/fixed): past a row from
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
-  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
+  train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
+  so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an
+  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
@@ -306,8 +310,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   alone decides. A row the derived attribute satisfies is read without that pin; a row about another build does not apply (`judge`): for
   Mozilla, NVD lists the ESR rows whenever an ESR is affected, so an ESR build inside only the plain rows is not affected, except when
   the CVE lists ESR rows and none spans the build's ESR line: Mozilla lists supported ESR lines only, so an end-of-life line
-  (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153; an exact ESR row lists its own line only) stays asked whether that
-  line is affected (`detail.attribute` `unlisted_line`, never the edition: `TestMatchAsset_UnlistedESRLineStaysAsked`). A platform's
+  (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153; an exact ESR row lists its own line only) is not proved
+  unaffected. A line older than every listed ESR line is a version finding when both readings say affected: as the normal release the
+  version is inside the plain row, and as ESR line M it carries the code of release M.0, inside the plain row too (`unlistedLineReadings`;
+  the evidence says "decided under every reading"); otherwise, and for a line between the listed ones, it stays asked whether that
+  line is affected (`detail.attribute` `unlisted_line`, never the edition: `TestMatchAsset_UnlistedESRLine`). A platform's
   "-" alone is every build (Visual Studio Code); beside named systems (Office's "-" and "macos") it is the build for none of them. A
   derived attribute is the device's evidence (the finding is verified `device`) and the evidence names it. What is not derivable stays
   pinned (#906): a version inside the range of every edition NVD lists is a version finding whichever it runs (`pinnedInside`); inside

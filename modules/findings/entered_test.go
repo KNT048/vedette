@@ -161,9 +161,11 @@ func TestMatchAsset_EditionOfTheBuildDecides(t *testing.T) {
 
 // A Mozilla ESR build of a line no ESR row of the CVE spans is not "not affected": Mozilla lists only supported ESR lines, so an
 // end-of-life one (Thunderbird 115 once 128 and 140 shipped; Firefox ESR 140 between the listed 115 and 153) is absent whether or not
-// its code has the flaw. Its plain row is then no proof either way and the CVE stays asked, as an older release line does for an exact list. An ESR
-// line the rows reach, or a CVE with plain rows only (no supported ESR is affected, so the code is newer than every ESR), is decided.
-func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
+// its code has the flaw. A line older than every listed one is decided when both readings say affected (everyReading): as the normal
+// release the version is inside the plain row, and as ESR line M it carries release M.0's code, inside the plain row too. A line between
+// the listed ones stays asked. An ESR line the rows reach, or a CVE with plain rows only (no supported ESR is affected, so the code is
+// newer than every ESR), is decided by the rows.
+func TestMatchAsset_UnlistedESRLine(t *testing.T) {
 	t.Parallel()
 	tb := func(edition string, r VersionRange) Affected {
 		return Affected{CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:" + edition + ":*:*:*", Range: r}
@@ -175,16 +177,18 @@ func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
 		rows []Affected
 		want string // "finding", "question", "none"
 	}{
-		{"ESR rows from 140 only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "question"},
+		{"ESR rows from 140 only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "finding"},
 		{"ESR rows from 140 and 153", []Affected{tb("-", VersionRange{EndExcl: "157.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.17.0"}),
-			tb("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}, "question"},
+			tb("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}, "finding"},
+		{"ESR rows from 140, a plain row from inside line 115", []Affected{tb("-", VersionRange{StartIncl: "115.5.0", EndExcl: "152.0.0"}),
+			tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "question"},
 		{"an ESR row reaching 115", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "115.1.0", EndExcl: "115.42.0"}),
 			tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "finding"},
 		{"an ESR row fixed on 115 before this build", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{EndExcl: "115.5.0"})}, "none"},
 		{"plain rows only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"})}, "none"},
 		// NVD also writes an ESR row as one exact build (CVE-2026-5731: thunderbird 140.9.0 esr): it lists line 140 only
 		{"an exact ESR build of 140", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}),
-			{CPE: "cpe:2.3:a:mozilla:thunderbird:140.9.0:*:*:*:esr:*:*:*"}}, "question"},
+			{CPE: "cpe:2.3:a:mozilla:thunderbird:140.9.0:*:*:*:esr:*:*:*"}}, "finding"},
 	} {
 		r := MatchAsset(row, []Vuln{{CVE: "CVE-2099-0211", NVDAnswered: true, Published: uncNew, Affected: tc.rows}}, nil, t0)
 		got := "none"

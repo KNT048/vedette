@@ -82,7 +82,8 @@ func saveWindow(ctx context.Context, tx *sql.Tx, everyAge bool, by string, now t
 // since is the window's start as an SQL literal: store.FormatTS writes digits and the separators "-:.TZ" only.
 func (w Window) since() string { return "'" + store.FormatTS(w.Cutoff) + "'" }
 
-// keptSignalsSQL is the CVEs of the feeds_signal rows that keep their CVE whatever its age: a qualifying exploited signal; a qualifying
+// keptSignalsSQL is the CVEs of the feeds_signal rows that keep their CVE whatever its age: a qualifying exploited signal; an intrusion
+// alert of this network that named it in the window (SignalAttackedHere, by its latest alert); a qualifying
 // public exploit of a dated source whose first_seen is inside the window; a qualifying signal of another source that this box first
 // stored inside the window (stored_at) while it has held entries of that source since before it (the source's oldest stored_at). Every
 // qualifying signal while every age is reported. sources, when not empty, limits the rows to those sources (constants of this package).
@@ -97,8 +98,9 @@ func (w Window) keptSignalsSQL(sources []string) string {
 	c, dated := w.since(), `('`+strings.Join(datedSignalSources, `', '`)+`')`
 	return `SELECT s.cve FROM feeds_signal s JOIN (SELECT source, min(stored_at) AS watched FROM feeds_signal GROUP BY source) b ON b.source = s.source
 WHERE s.qualifies = 1` + only + ` AND (s.kind = '` + SignalExploited + `'
- OR s.source IN ` + dated + ` AND s.first_seen >= ` + c + `
- OR s.source NOT IN ` + dated + ` AND s.stored_at >= ` + c + ` AND b.watched < ` + c + `)`
+ OR s.kind = '` + SignalAttackedHere + `' AND s.last_seen >= ` + c + `
+ OR s.kind = '` + SignalPublicExploit + `' AND s.source IN ` + dated + ` AND s.first_seen >= ` + c + `
+ OR s.kind = '` + SignalPublicExploit + `' AND s.source NOT IN ` + dated + ` AND s.stored_at >= ` + c + ` AND b.watched < ` + c + `)`
 }
 
 // keptSQL is the CVEs the window keeps whatever their publication day: an exploited-list entry, an exploited signal, a public exploit
@@ -143,4 +145,63 @@ AND c.published IS NOT NULL AND c.published < ? AND c.cve NOT IN (`+w.keptSQL()+
 		return nil, fmt.Errorf("feeds: the reporting window: %w", err)
 	}
 	return got, nil
+}
+
+// SignalAttackedHere is the kind of the signal this box builds from its own intrusion alerts: an alert named the CVE (source
+// attackedHereSource). first_seen and last_seen are the first and the latest alert that named it, kept here so the reporting window
+// never depends on how long the alerts themselves are kept. It keeps the CVE inside the window until 12 months after last_seen.
+const SignalAttackedHere = "attacked_here"
+
+// attackedHereSource is the source of SignalAttackedHere: this box's intrusion alerts. Never a public list: never asked for by ID.
+const attackedHereSource = "intrusion-alerts"
+
+// attackedHereName is the name the CVE page gives the source.
+const attackedHereName = "This network's intrusion alerts"
+
+// attackNoteSpan is how far back the pull job's maintenance reads the alerts at each check (Deps.Attacked): a box off for a few days
+// still notes what came in meanwhile, and a note never moves a date back.
+const attackNoteSpan = 30 * 24 * time.Hour
+
+// AttackSeen is a CVE the box's intrusion alerts named, and when the first and the latest of them fired.
+type AttackSeen struct {
+	CVE         string
+	First, Last time.Time
+}
+
+// noteAttacks keeps the alerts' CVEs as SignalAttackedHere signals: a new CVE gets its first and latest alert, a known one the earlier
+// first and the later latest. A name that is not a CVE ID is skipped.
+func noteAttacks(ctx context.Context, tx *sql.Tx, seen []AttackSeen, now time.Time) error {
+	stamp := store.FormatTS(now)
+	for _, a := range seen {
+		if !cveRE.MatchString(a.CVE) || a.First.IsZero() || a.Last.IsZero() {
+			continue
+		}
+		f, l := a.First, a.Last
+		if l.After(now) {
+			l = now // an alert dated in the future
+		}
+		if f.After(l) {
+			f = l
+		}
+		first, last := store.FormatTS(f), store.FormatTS(l)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies, url)
+VALUES (?, ?, ?, ?, ?, ?, 1, '')
+ON CONFLICT(cve, kind, source) DO UPDATE SET first_seen = min(first_seen, excluded.first_seen), last_seen = max(last_seen, excluded.last_seen)`,
+			a.CVE, SignalAttackedHere, attackedHereSource, first, stamp, last); err != nil {
+			return fmt.Errorf("feeds: note an attacked CVE: %w", err)
+		}
+	}
+	return nil
+}
+
+// noteAlerts reads the CVEs the intrusion alerts named in the last attackNoteSpan (Deps.Attacked) and keeps them (noteAttacks).
+func (s *Service) noteAlerts(ctx context.Context, now time.Time) error {
+	if s.Attacked == nil {
+		return nil
+	}
+	seen, err := s.Attacked(ctx, now.Add(-attackNoteSpan))
+	if err != nil || len(seen) == 0 {
+		return err
+	}
+	return s.DB.Write(ctx, func(tx *sql.Tx) error { return noteAttacks(ctx, tx, seen, now) })
 }

@@ -248,6 +248,7 @@ func ReadSourceNames(ctx context.Context, q *sql.DB) (map[string]string, error) 
 		}
 		out[id] = name
 	}
+	out[attackedHereSource] = attackedHereName
 	return out, errors.Join(rows.Err(), rows.Close())
 }
 

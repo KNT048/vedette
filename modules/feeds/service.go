@@ -95,6 +95,10 @@ type Deps struct {
 	// Pins lists the CVEs an open finding references: the catalogue keeps them whatever their age (the retention rule). nil: none.
 	// They are only kept, never asked of a source by id.
 	Pins func(ctx context.Context) ([]string, error)
+	// Attacked lists the CVEs this box's intrusion alerts named since a time, with their first and latest alert (the ids module's
+	// alerts, through wiring): the reporting window keeps such a CVE for 12 months after its latest alert (SignalAttackedHere). nil:
+	// none (no intrusion detection).
+	Attacked func(ctx context.Context, since time.Time) ([]AttackSeen, error)
 	// DataDir is where the module keeps work files (the CVE Program's daily archive while it downloads); "": the system's
 	// temporary folder.
 	DataDir string
@@ -202,6 +206,9 @@ func (s *Service) pinned(ctx context.Context) ([]string, error) {
 func (s *Service) maintain(ctx context.Context, now time.Time) error {
 	if err := s.st.maintain(ctx, now); err != nil {
 		return err
+	}
+	if err := s.noteAlerts(ctx, now); err != nil { // before the prune: an alert keeps its CVE in the window
+		s.Log.WarnContext(ctx, "noting the CVEs of the intrusion alerts failed", "error", err)
 	}
 	pinned, err := s.pinned(ctx)
 	if err != nil {

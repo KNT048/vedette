@@ -141,18 +141,23 @@ func (s *Store) recentOwed(ctx context.Context, url string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	w, err := s.Window(ctx, time.Now())
+	now := time.Now()
+	w, err := s.Window(ctx, now)
 	if err != nil {
 		return false, err
 	}
-	return !recentComplete(cur, url) || walkRunning(walk, url) || recentComplete(cur, url) && everyAgeOwed(w, walk, url), nil
+	return !recentComplete(cur, url) || walkRunning(walk, url) || recentComplete(cur, url) && everyAgeOwed(w, walk, url, now), nil
 }
 
 // everyAgeOwed is true when an administrator switched on the CVEs of every age after the last pass over NVD's whole set began (or
-// none ran): that pass stored only the older CVEs the window kept, so one more pass reads the whole set and stores every record.
-func everyAgeOwed(w Window, last *recentCursor, url string) bool {
-	return w.EveryAge && (last == nil || last.URL != url || last.From.Before(w.Since))
+// none ran): that pass stored only the older CVEs the window kept, so one more pass reads the whole set and stores every record. Not
+// within everyAgeCooldown of the last pass's start: switching off and on again does not read the whole set twice in a day.
+func everyAgeOwed(w Window, last *recentCursor, url string, now time.Time) bool {
+	return w.EveryAge && (last == nil || last.URL != url || last.From.Before(w.Since) && now.Sub(last.From) >= everyAgeCooldown)
 }
+
+// everyAgeCooldown is the least time between two whole reads (NVD's set, the CVE Program's list) that the every-age switch starts.
+const everyAgeCooldown = 24 * time.Hour
 
 // recentIdleText is the progress line of nvd-recent while no pull is running and the data is not complete: where the
 // next pull goes on, from the cursor; "" when the data is complete or cannot be read. next: the line says the next 5-minute
@@ -548,7 +553,7 @@ func (s *Service) catchUp(ctx context.Context, rp *recentPull, now time.Time, wa
 		if err != nil {
 			return err
 		}
-		if !everyAgeOwed(w, walk, url) && (n < walkMissing || walk != nil && walk.URL == url && now.Sub(walk.Until) < walkAgain) {
+		if !everyAgeOwed(w, walk, url, now) && (n < walkMissing || walk != nil && walk.URL == url && now.Sub(walk.Until) < walkAgain) {
 			return s.askMissing(ctx, rp, now, waitTurn, missingPerPull, false)
 		}
 		walk = &recentCursor{URL: url, Mode: modeWalk, From: now, To: now, Until: now}

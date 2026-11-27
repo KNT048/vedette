@@ -190,7 +190,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   standard record shape; shapes not decided yet are skipped with the rule that will decide them). The CVEs of the pass's match set it
   set aside as outside the reporting window (M-15) are counted apart (`Coverage.outside_window`), never as pairs or as undecided.
 - **M-15 The reporting window.** Feeds marks a catalogue CVE of the match set that is outside its reporting window (feeds INV-34:
-  published before the last 12 months, no exploited-list entry, no exploited signal, no public exploit dated in the last 12 months, and
+  published before the last 12 months, no exploited-list entry, no exploited signal, no public exploit dated in the last 12 months, no
+  intrusion alert of this network naming it in the last 12 months, and
   CVEs of every age not reported): `Vuln.OutsideWindow`. The matcher never reads such an entry (`inWindow`, in the pass, the match of
   one device and `matchOne`): it is no finding and no question (not "undecided": out of scope). Every detected finding of it goes away
   through Transition as `not_relevant` via `outside_window` by Vedette (`closeOutside`, before the devices are matched; its event and

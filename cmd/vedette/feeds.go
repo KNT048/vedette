@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
+	idsmodule "github.com/knt048/vedette/modules/ids"
 	"github.com/knt048/vedette/modules/notify"
 )
 
@@ -39,7 +41,14 @@ func feedsService(d deps) (*feeds.Service, error) {
 	}
 	db := d.DB
 	fd.Pins = func(ctx context.Context) ([]string, error) { return findings.PinnedCVEs(ctx, db) } // the catalogue keeps a finding's CVE
-	if d.Bus != nil {                                                                             // a nil *events.Bus inside the interface would not compare equal to nil
+	// the CVEs this network's intrusion alerts named: the reporting window keeps them for 12 months after the latest alert
+	fd.Attacked = func(ctx context.Context, since time.Time) ([]feeds.AttackSeen, error) {
+		if d.Reg != nil && !d.Reg.Enabled(idsmodule.ModuleID) {
+			return nil, nil
+		}
+		return attacksSeen(ctx, db, since)
+	}
+	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		fd.Events = d.Bus
 	}
 	if d.Schedules != nil { // a nil *schedule.Service inside the field would not compare equal to nil
@@ -114,4 +123,30 @@ func learnWindowsReleases(ctx context.Context, d deps) {
 	if err != nil && ctx.Err() == nil {
 		d.Log.ErrorContext(ctx, "feeds: reading the Windows releases failed", "error", err)
 	}
+}
+
+// attacksSeen is, per CVE, the first and the latest intrusion alert since a time that named it (ids.ReadAttacked, one row per CVE and
+// destination address).
+func attacksSeen(ctx context.Context, db *store.DB, since time.Time) ([]feeds.AttackSeen, error) {
+	as, err := idsmodule.ReadAttacked(ctx, db.Reader(), since)
+	if err != nil {
+		return nil, err
+	}
+	at := map[string]int{}
+	var out []feeds.AttackSeen
+	for _, a := range as {
+		i, ok := at[a.CVE]
+		if !ok {
+			at[a.CVE] = len(out)
+			out = append(out, feeds.AttackSeen{CVE: a.CVE, First: a.FirstSeen, Last: a.LastSeen})
+			continue
+		}
+		if a.FirstSeen.Before(out[i].First) {
+			out[i].First = a.FirstSeen
+		}
+		if a.LastSeen.After(out[i].Last) {
+			out[i].Last = a.LastSeen
+		}
+	}
+	return out, nil
 }

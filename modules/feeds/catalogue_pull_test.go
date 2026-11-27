@@ -308,11 +308,29 @@ func TestCataloguePull_EveryAgeReadsTheWholeSetOnce(t *testing.T) {
 	if got := held(t, e); !slices.Equal(got, []string{"CVE-2019-0001", "CVE-2019-0002"}) {
 		t.Fatalf("catalogue %v", got)
 	}
-	e.setNow(e.clock().Add(8 * 24 * time.Hour))
+	// switched off and on again within a day: no second read of the whole set before 24 hours have passed since the first began
+	e.setNow(e.clock().Add(time.Hour))
+	for _, on := range []bool{false, true} {
+		write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, on, "admin@example.test", e.clock()) })
+	}
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
 		t.Fatal(err)
 	}
 	if got := n.requests("walk"); len(got) != 1 {
-		t.Fatalf("a second walk: %v", got)
+		t.Fatalf("a second read within a day: %v", got)
+	}
+	e.setNow(e.clock().Add(24 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("the switch's read after the cooldown: %v", got)
+	}
+	e.setNow(e.clock().Add(8 * 24 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("a read with no new switch: %v", got)
 	}
 }

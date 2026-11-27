@@ -170,7 +170,7 @@
   "window": {
     "title": "Which CVEs Vedette reports",
     "description": "CVEs published in the last 12 months, and older ones only while they are exploited in the wild.",
-    "descriptionInfo": "By default Vedette reports, and keeps the data of, the CVEs published in the last 12 months, and an older CVE only while there is evidence of exploitation in the wild: an exploited list (CISA KEV, VulnCheck KEV, your own lists) or a vendor saying it is exploited. Old flaws on those lists are what attackers use most, so they never age out. A public exploit (Exploit-DB, Metasploit, a proof of concept) keeps an older CVE only when it came out in the last 12 months. Older CVEs without any of that are not findings or questions.",
+    "descriptionInfo": "By default Vedette reports, and keeps the data of, the CVEs published in the last 12 months, and an older CVE only while there is evidence of exploitation in the wild: an exploited list (CISA KEV, VulnCheck KEV, your own lists) or a vendor saying it is exploited. Old flaws on those lists are what attackers use most, so they never age out. A public exploit (Exploit-DB, Metasploit, a proof of concept) keeps an older CVE only when it came out in the last 12 months, and this network's own intrusion alerts keep a CVE they name for 12 months after the latest one. Older CVEs without any of that are not findings or questions.",
     "everyAge": "Report CVEs of every age",
     "offHelp": "Off (the default). Switch it on to report every CVE, also old ones nobody is known to exploit.",
     "onHelp": "On: every CVE NVD and the CVE Program publish is reported, whatever its age. The vulnerability data is about 2.5 times larger (about 0.9 GB instead of about 0.35 GB).",

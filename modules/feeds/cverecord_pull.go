@@ -503,12 +503,13 @@ func (s *Store) recordsOwed(ctx context.Context, feedURL string) (bool, error) {
 	if cur == nil || cur.Mode == modeFill || cur.URL != recordCursorURL(feedURL) {
 		return true, nil
 	}
-	w, err := s.Window(ctx, time.Now())
+	now := time.Now()
+	w, err := s.Window(ctx, now)
 	if err != nil || !w.EveryAge {
 		return false, err
 	}
 	last, err := s.nvdCursor(ctx, selectorRecordAll)
-	return err == nil && (last == nil || last.From.Before(w.Since)), err
+	return err == nil && (last == nil || last.From.Before(w.Since) && now.Sub(last.From) >= everyAgeCooldown), err
 }
 
 // recordsBulk loads the whole list when the box has none, its data is older than the change log reaches, its address changed, an older
@@ -604,13 +605,14 @@ func (s *Service) recordsOwn(ctx context.Context, run *recordRun, cur recentCurs
 
 // recordsEveryAge starts a read of the whole list when an administrator switched on the CVEs of every age (w.EveryAge) after the last
 // read that stored them began: the records of the older CVEs were read and left out then. Only once the whole list is read (an
-// unfinished read goes on as it is); the start is kept in feeds_nvd_cursor (selectorRecordAll), so it runs once per switch.
+// unfinished read goes on as it is); the start is kept in feeds_nvd_cursor (selectorRecordAll), so it runs once per switch, and not
+// within everyAgeCooldown of the last such read.
 func (s *Service) recordsEveryAge(ctx context.Context, run *recordRun, cur recentCursor, w Window, now time.Time) (started bool, err error) {
 	if !w.EveryAge || cur.Mode != modeDone || cur.URL != recordCursorURL(run.src.URL) {
 		return false, nil
 	}
 	last, err := s.st.nvdCursor(ctx, selectorRecordAll)
-	if err != nil || last != nil && !last.From.Before(w.Since) {
+	if err != nil || last != nil && (!last.From.Before(w.Since) || now.Sub(last.From) < everyAgeCooldown) {
 		return false, err
 	}
 	if err := s.saveRecordCursorAt(ctx, run, selectorRecordAll, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeDone, From: now, To: now, Until: now}); err != nil {

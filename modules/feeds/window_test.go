@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"context"
 	"database/sql"
 	"maps"
 	"slices"
@@ -187,5 +188,65 @@ func TestWindow_OnlyADateThatMeansTheExploitAppearedRenews(t *testing.T) {
 	put("CVE-2018-0105", nucleiFeedID, longAgo, longAgo)
 	if got, want := outside(), []string{"CVE-2018-0104", "CVE-2018-0105"}; !slices.Equal(got, want) {
 		t.Fatalf("a box that has watched the sources for two years: outside %v, want %v", got, want)
+	}
+}
+
+// The box's own intrusion alerts naming a CVE are evidence of exploitation on this network: they keep the CVE inside the window, at
+// any age, for 12 months after the latest alert that names it. The date is the feeds signal noteAttacks keeps (attacked_here), never
+// the alerts themselves, so it outlives the alerts' retention.
+func TestWindow_AnAlertOnThisNetworkKeepsTheCVEForTwelveMonths(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	now := epoch0
+	cves := []string{"CVE-2016-0201", "CVE-2016-0202", "CVE-2016-0203"}
+	write(t, db, func(tx *sql.Tx) error {
+		var recs []NVDRecord
+		for _, c := range cves {
+			recs = append(recs, NVDRecord{CVE: c, Published: now.AddDate(-10, 0, 0), LastModified: now, Status: "Analyzed"})
+		}
+		if _, err := writeNVDRecords(t.Context(), tx, recs, retention{all: true}, now); err != nil {
+			return err
+		}
+		for _, c := range cves { // an exploit as old as the flaw, and nothing else
+			if err := putSignal(t.Context(), tx, c, SignalPublicExploit, exploitDBFeedID, store.FormatTS(now.AddDate(-10, 0, 0)), store.FormatTS(now), true, ""); err != nil {
+				return err
+			}
+		}
+		return noteAttacks(t.Context(), tx, []AttackSeen{
+			{CVE: "CVE-2016-0201", First: now.AddDate(0, -3, 0), Last: now.AddDate(0, 0, -10)},  // alerted 10 days ago
+			{CVE: "CVE-2016-0202", First: now.AddDate(0, -14, 0), Last: now.AddDate(0, -13, 0)}, // last alerted 13 months ago
+			{CVE: "not-a-cve", First: now, Last: now},
+		}, now)
+	})
+	got, err := s.OutsideWindow(t.Context(), cves, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"CVE-2016-0202", "CVE-2016-0203"}; !slices.Equal(slices.Sorted(maps.Keys(got)), want) {
+		t.Fatalf("outside %v, want %v", slices.Sorted(maps.Keys(got)), want)
+	}
+	// a later alert moves the date on, an older read never moves it back
+	write(t, db, func(tx *sql.Tx) error {
+		return noteAttacks(t.Context(), tx, []AttackSeen{{CVE: "CVE-2016-0202", First: now.AddDate(0, 0, -2), Last: now.AddDate(0, 0, -1)},
+			{CVE: "CVE-2016-0201", First: now.AddDate(0, -5, 0), Last: now.AddDate(0, -4, 0)}}, now)
+	})
+	if n := count(t, db, `SELECT count(*) FROM feeds_signal WHERE kind = 'attacked_here' AND qualifies = 1 AND (
+		cve = 'CVE-2016-0201' AND first_seen = ? AND last_seen = ? OR cve = 'CVE-2016-0202' AND first_seen = ? AND last_seen = ?)`,
+		store.FormatTS(now.AddDate(0, -5, 0)), store.FormatTS(now.AddDate(0, 0, -10)), store.FormatTS(now.AddDate(0, -14, 0)), store.FormatTS(now.AddDate(0, 0, -1))); n != 2 {
+		t.Fatalf("%d signals with the right dates", n)
+	}
+	if got, err := s.OutsideWindow(t.Context(), cves, now); err != nil || len(got) != 1 || !got["CVE-2016-0203"] {
+		t.Fatalf("after the new alert: %v %v", got, err)
+	}
+	// the pull job's maintenance notes what the alerts saw
+	e := newEnv(t)
+	e.svc.Attacked = func(context.Context, time.Time) ([]AttackSeen, error) {
+		return []AttackSeen{{CVE: "CVE-2016-0201", First: e.clock().AddDate(0, 0, -1), Last: e.clock()}}, nil
+	}
+	if err := e.svc.maintain(t.Context(), e.clock()); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_signal WHERE kind = 'attacked_here' AND cve = 'CVE-2016-0201'`); n != 1 {
+		t.Fatal("maintenance did not note the alert")
 	}
 }

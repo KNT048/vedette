@@ -176,8 +176,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   check the box settled) as affected or not affected; else why it is undecided: its undecided reason, `ai_proposal`, or an unnamed class
   (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is
   told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
-  pass finds unchanged keeps the counts of its last full match; the sum of the last pass is kept in memory and served by
-  `GET /findings/coverage` (admin, counts only, Settings → Diagnostics). Counting reads the pass's readings and the rows its write left and
+  pass finds unchanged keeps the counts of its last full match; the sum of each pass is one row of `fnd_coverage_run` (the newest 30
+  kept, in the data export) and `GET /findings/coverage` (admin, counts only, Settings → Diagnostics) serves the last one. Counting reads the pass's readings and the rows its write left and
   changes no finding or question. The test-only build tag `holdout` runs the matcher without the catalogue's CPE aliases, so the same pass
   shows what rests on catalogue rows. `TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue` (made-up products in every
   standard record shape; shapes not decided yet are skipped with the rule that will decide them).

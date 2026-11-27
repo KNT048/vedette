@@ -33,9 +33,12 @@ func (h *FindingHandlers) FindingsGetFindingsPossibleAudit(ctx context.Context) 
 }
 
 // FindingsGetFindingsCoverage implements findings_get_findings_coverage (admin): the decision coverage of the last match pass, at null
-// before the first one.
-func (h *FindingHandlers) FindingsGetFindingsCoverage(context.Context) (*oas.FindingsGetFindingsCoverageOK, error) {
-	c, ok := h.svc.Coverage()
+// when no pass was counted yet.
+func (h *FindingHandlers) FindingsGetFindingsCoverage(ctx context.Context) (*oas.FindingsGetFindingsCoverageOK, error) {
+	c, ok, err := h.svc.Coverage(ctx)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
 	var at *time.Time
 	if ok {
 		at = &c.At

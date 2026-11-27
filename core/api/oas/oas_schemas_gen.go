@@ -95580,7 +95580,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) SetVersion(val NilStrin
 // Decision coverage of the last match pass: what decided each related (line, CVE) pair, why the rest
 // is undecided, and how each line is identified. Counts only, no device data.
 type FindingsGetFindingsCoverageOK struct {
-	// When the match pass ended; null before the first pass since the box started (every count 0).
+	// When the match pass ended; null when no pass was counted yet (every count 0).
 	At NilDateTime `json:"at"`
 	// Decided pairs by source, the most first.
 	Decided []FindingsGetFindingsCoverageOKDecidedItem `json:"decided"`

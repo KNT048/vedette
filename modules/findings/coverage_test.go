@@ -1,10 +1,12 @@
 package findings
 
 import (
+	"log/slog"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/productid"
 )
 
@@ -131,6 +133,18 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 		want.Possible = []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1}}
 		checkCoverage(t, e.svc, want)
 	}
+	// Each pass is a row; a service started again on the same database serves the newest until its own first pass
+	if n := e.count(`SELECT count(*) FROM fnd_coverage_run`); n != 3 {
+		t.Errorf("%d coverage rows after three passes, want 3", n)
+	}
+	again, err := NewService(ServiceConfig{DB: e.db, Audit: audit.New(nil), Publisher: e.pub, Inventory: e.inv, Feeds: e.feeds, Log: slog.New(slog.DiscardHandler), Clock: func() time.Time { return *e.clock }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok, err := again.Coverage(t.Context()); err != nil || !ok || !got.At.Equal(e.clock.UTC().Truncate(time.Millisecond)) {
+		t.Errorf("after a restart: %v at %v, err %v, want the stored pass at %v", ok, got.At, err, *e.clock)
+	}
+	checkCoverage(t, again, want)
 	// A device that leaves the inventory leaves the counts
 	e.inv.match = map[string]Asset{}
 	e.advance(ReconcileEvery)
@@ -144,9 +158,9 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 // checkCoverage compares the last pass's coverage with want, its time aside.
 func checkCoverage(t *testing.T, svc *Service, want Coverage) {
 	t.Helper()
-	got, ok := svc.Coverage()
-	if !ok {
-		t.Fatal("no coverage after a pass")
+	got, ok, err := svc.Coverage(t.Context())
+	if err != nil || !ok {
+		t.Fatalf("no coverage after a pass: %v", err)
 	}
 	got.At = time.Time{}
 	if !reflect.DeepEqual(got, want) {

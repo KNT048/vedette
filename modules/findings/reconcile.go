@@ -567,6 +567,12 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	s.stamps.keepOnly(matched)
 	if len(vulns) > 0 {
 		s.covers.pass(matched, s.now().UTC())
+		if err := s.storeCoverage(ctx); err != nil { // counts only: the pass's writes stand
+			if ctx.Err() != nil {
+				return res, ctx.Err()
+			}
+			failed = append(failed, err)
+		}
 	}
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {

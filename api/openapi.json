@@ -54637,7 +54637,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "When the match pass ended; null before the first pass since the box started (every count 0)"
+                      "description": "When the match pass ended; null when no pass was counted yet (every count 0)"
                     },
                     "devices": {
                       "type": "integer",

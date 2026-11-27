@@ -26,7 +26,7 @@ describe('Settings → Diagnostics', () => {
     server.use(http.get(`${API}/findings/coverage`, () => HttpResponse.json({ at: null, devices: 0, lines: 0, pairs: 0, decided: [], possible: [],
       identity: [{ method: 'stated', lines: 0 }, { method: 'catalogue', lines: 0 }, { method: 'record', lines: 0 }, { method: 'none', lines: 0 }] })))
     renderApp('/settings/diagnostics')
-    expect(await screen.findByText(/^No match pass has run since the box started\./, {}, T)).toBeInTheDocument()
+    expect(await screen.findByText(/^No match pass has been counted yet\./, {}, T)).toBeInTheDocument()
   })
 
   it('is for an admin only', async () => {

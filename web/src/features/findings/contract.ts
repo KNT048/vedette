@@ -547,7 +547,7 @@ export const UndecidedGroup = z.object({
 })
 const coverageCount = z.number().int().min(0)
 export const Coverage = z.object({
-  at: iso.nullable().describe('When the match pass ended; null before the first pass since the box started (every count 0)'),
+  at: iso.nullable().describe('When the match pass ended; null when no pass was counted yet (every count 0)'),
   devices: coverageCount.describe('Devices the pass matched (a device the pass found unchanged keeps the counts of its last full match)'),
   lines: coverageCount.describe('Their software lines, and the network OS a device states without one'),
   pairs: coverageCount.describe('(software line, CVE) pairs the catalogue relates on them'),

@@ -2,12 +2,18 @@ package findings
 
 import (
 	"cmp"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/store"
 )
 
 // Decision coverage (M-14). Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched,
@@ -16,8 +22,8 @@ import (
 // an AI proposal waiting for a person is ai_proposal). A pair the matcher reached that ended as neither a finding, a question nor a
 // proof is counted under a CoverageOther class: it is undecided and no one is told why, so its target is zero. Beside it, the identity coverage
 // counts the software lines by how the box knows what product they are (CoverageIdentity*). The counts are of the readings the pass
-// made: a device the pass found unchanged keeps the counts of its last full match. They are counted only, never written, and change no
-// finding or question.
+// made: a device the pass found unchanged keeps the counts of its last full match. Each pass's sum is one row of fnd_coverage_run; the
+// counting changes no finding or question.
 
 // The identity methods of a software line.
 const (
@@ -161,8 +167,58 @@ func (c *covers) get() (Coverage, bool) {
 	return *c.last, true
 }
 
-// Coverage is the decision coverage of the last match pass; false (every count 0) before the first pass since the service started.
-func (s *Service) Coverage() (Coverage, bool) { return s.covers.get() }
+// coverageKeep is how many passes fnd_coverage_run keeps (the newest).
+const coverageKeep = 30
+
+// Coverage is the decision coverage of the last match pass: the one this service ran, else the newest stored (a pass before the box
+// restarted); false (every count 0) when there is none.
+func (s *Service) Coverage(ctx context.Context) (Coverage, bool, error) {
+	if c, ok := s.covers.get(); ok {
+		return c, true, nil
+	}
+	none, _ := s.covers.get()
+	var at, raw string
+	err := s.rd(ctx).QueryRowContext(ctx, `SELECT ran_at, counts FROM fnd_coverage_run ORDER BY id DESC LIMIT 1`).Scan(&at, &raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return none, false, nil
+	}
+	if err != nil {
+		return none, false, fmt.Errorf("findings: reading the last coverage: %w", err)
+	}
+	c := none
+	t, err := parseTS(at)
+	if err != nil || json.Unmarshal([]byte(raw), &c) != nil {
+		return none, false, nil // an unreadable row: as if none (the next pass writes a new one)
+	}
+	c.At = t
+	return c, true, nil
+}
+
+// storeCoverage records the coverage of a pass (fnd_coverage_run) and keeps the newest coverageKeep.
+func (s *Service) storeCoverage(ctx context.Context) error {
+	c, ok := s.covers.get()
+	if !ok {
+		return nil
+	}
+	at := c.At
+	c.At = time.Time{}
+	b, err := json.Marshal(struct {
+		Coverage
+		At struct{} `json:"at,omitzero"`
+	}{Coverage: c})
+	if err != nil {
+		return fmt.Errorf("findings: coverage counts: %w", err)
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_coverage_run (ran_at, counts) VALUES (?, ?)`, store.FormatTS(at), string(b)); err != nil {
+			return fmt.Errorf("findings: storing the coverage: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_coverage_run WHERE id NOT IN (SELECT id FROM fnd_coverage_run ORDER BY id DESC LIMIT ?)`, coverageKeep); err != nil {
+			return fmt.Errorf("findings: pruning coverage runs: %w", err)
+		}
+		return nil
+	})
+}
 
 // pairState is what decided one (line, CVE) pair, or why it is undecided.
 type pairState struct {

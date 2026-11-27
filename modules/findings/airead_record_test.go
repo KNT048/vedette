@@ -259,7 +259,7 @@ func TestMarkVendorPages_OnlyTheVendorsTagOrHost(t *testing.T) {
 // A sentence that names several products of the record pairs each release with the product named just before it: a bound the answer
 // gives for this product that the sentence pairs with another product ("fixed in Browser ESR 115.42 and Mail 140.17" read for the mail
 // client's line 115) is the other product's, so the reading is an inference (no bound, no fix, opens only); for the browser's line 115
-// the same sentence states its own fix.
+// the same sentence states its bound, but names another product's release too, so it opens with no fix.
 func TestLineReading_ABoundPairedWithAnotherProductIsAnInference(t *testing.T) {
 	t.Parallel()
 	const both = "This flaw was fixed in Quillfeather Browser ESR 115.42 and Quillfeather Mail 140.17."
@@ -269,7 +269,9 @@ func TestLineReading_ABoundPairedWithAnotherProductIsAnInference(t *testing.T) {
 		fix              string // the opened finding's fix ("" none opened)
 	}{
 		{"Mail", "115.9.0", BasisInferred, "", ""},
-		{"Browser", "115.9.0", BasisStated, "115.42", "115.42"},
+		// the sentence pairs 115.42 with the browser, but 140.17 with the mail client: not every release follows the browser's name, so
+		// the reading opens with no fix (it may give none, nor settle anything)
+		{"Browser", "115.9.0", BasisUnpaired, "115.42", "-"},
 	} {
 		t.Run(tc.product, func(t *testing.T) {
 			t.Parallel()
@@ -402,5 +404,59 @@ func TestLineReading_AReleaseTheQuotePairsWithAnotherProductIsAnInference(t *tes
 				t.Errorf("basis %s, fix %+v: want the stated fix 2.3", st.Basis, fix)
 			}
 		})
+	}
+}
+
+// The closing side is strict: an AI reading settles "not affected" (or gives a fix) only when every version in its quote follows this
+// product's own name as the record or the catalogue writes it (only spaces, or the record's own edition word for it, between). Anything
+// else the vendor's page calls not affected is an AI proposal a person confirms or rejects; "affected" still opens.
+func TestLineReading_OnlyAVersionNamedWithThisProductSettles(t *testing.T) {
+	t.Parallel()
+	const url = "https://www.quillfeather.com/security/QF-2026-01"
+	for _, tc := range []struct {
+		name, quote string
+		want        string // PossibleSettled or PossibleProposal
+	}{
+		{"another product's name before the version", "Quillfeather Mail Server 115.42 is not affected.", PossibleProposal},
+		{"this product's name before the version", "Quillfeather Mail 115.42 is not affected.", PossibleSettled},
+		{"this product's edition word between", "Quillfeather Mail ESR 115.42 is not affected.", PossibleSettled},
+		{"no name before the version", "Release 115.42 is not affected.", PossibleProposal},
+		{"two versions, one not named with this product", "Quillfeather Mail 115.42 and 115.43 are not affected.", PossibleProposal},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorld(t, "115.42")
+			r := fc.records[cveQuill]
+			r.Rows = append(r.Rows, RecordRow{Vendor: "quillfeather", Product: "mail", Edition: "esr", Text: "quillfeather mail (edition esr): affected from 140.0 before 140.17.0 [nvd]"})
+			fc.records[cveQuill] = r
+			fc.pages[cveQuill] = []FetchedPage{{URL: url, Status: "ok", Text: cveQuill + ". " + tc.quote}}
+			fc.verdicts[cveQuill+"|115.42"] = ProposeVerdict{Status: StatementNotAffected, Line: "115.42", Quote: tc.quote, Source: 1, Reason: "Not affected."}
+			runCheck(t, e)
+			it := quillItem(t, e)
+			if it.State != tc.want {
+				t.Fatalf("state %s (check %+v), want %s", it.State, it.Check, tc.want)
+			}
+			if tc.want == PossibleProposal && (it.Check == nil || it.Check.Verdict != VerdictNotAffected || PossibleCause(it, e.svc.ReadState(t.Context())) != CauseNeedsPerson) {
+				t.Errorf("proposal %+v: want the AI's not affected for a person", it.Check)
+			}
+		})
+	}
+}
+
+// A fix the quote states is the finding's fix only when the release follows this product's own name; otherwise the finding opens with
+// no fix.
+func TestLineStatement_AFixOnlyFromAReleaseNamedWithThisProduct(t *testing.T) {
+	t.Parallel()
+	id := CheckID{Product: "quillfeather|mail", Line: "115.9.0", Version: "115.9.0"}
+	st := LineStatement{Status: StatementFixed, Basis: BasisUnpaired, FixedIn: "115.42", StatedLine: "115", Quote: "Fixed in 115.42.", QuoteFound: true}
+	if got := st.verdictFor(id); got != VerdictAffected {
+		t.Errorf("unpaired fixed: %q, want affected (opens)", got)
+	}
+	if f := st.fix(id); f.Kind != FixUnknown {
+		t.Errorf("unpaired reading's fix %+v, want none", f)
+	}
+	st.Basis = BasisStated
+	if f := st.fix(id); f.Version != "115.42" {
+		t.Errorf("stated reading's fix %+v, want 115.42", f)
 	}
 }

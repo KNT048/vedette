@@ -520,8 +520,10 @@ func TestAboutCVE_AdvisoryIDsOfAReference(t *testing.T) {
 	}
 }
 
-// A fix release the quote states ("before X" on the version's own train) is the finding's fix even when the AI gave no fixed_in; a
-// version at or past that X is not inside what the sentence calls affected, so the reading opens no finding for it.
+// A fix release the quote states ("before X" on the version's own train) is the finding's fix even when the AI gave no fixed_in, but only
+// from a reading whose every release follows the product's own name (basis stated): "DSM 7.2.1 versions before 7.2.1-69057-6" names
+// no product before 7.2.1-69057-6, so the finding opens with no fix. A version at or past that X is not inside what the sentence calls
+// affected, so the reading opens no finding for it.
 func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
 	t.Parallel()
 	const quote = "DSM 7.2.1 versions before 7.2.1-69057-6 are affected."
@@ -530,11 +532,15 @@ func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
 	fc.pages["CVE-2026-82002"][0].Text = "CVE-2026-82002: " + quote // names DSM only: the box's own reader leaves it to the AI
 	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = affected
 	runCheck(t, e)
-	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-82002' AND range_origin = 'ai_read' AND fix_kind = 'update' AND fix_version = '7.2.1-69057-6'`); n != 1 {
-		t.Errorf("%d findings with the quoted fix 7.2.1-69057-6, want 1", n)
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-82002' AND range_origin = 'ai_read' AND fix_kind = 'unknown'`); n != 1 {
+		t.Errorf("%d findings opened with no fix, want 1", n)
+	}
+	id := CheckID{Product: "synology|diskstation manager", Line: "7.2.1", Version: "7.2.1-69057-5"}
+	st := LineStatement{Status: StatementAffected, Basis: BasisStated, StatedLine: "7.2.1", Quote: quote, QuoteFound: true}
+	if f := st.fix(id); f.Version != "7.2.1-69057-6" {
+		t.Errorf("a stated reading's quoted fix %+v, want 7.2.1-69057-6", f)
 	}
 	past := CheckID{Product: "synology|diskstation manager", Line: "7.2.1", Version: "7.2.1-69057-7"}
-	st := LineStatement{Status: StatementAffected, StatedLine: "7.2.1", Quote: quote, QuoteFound: true}
 	if v := st.verdictFor(past); v != "" {
 		t.Errorf("a version past the quoted fix: %q, want nothing decided", v)
 	}

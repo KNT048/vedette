@@ -36,11 +36,13 @@ const (
 	StatementUnsure      = "unsure"
 )
 
-// The bases of a reading (fnd_line_statement.basis): stated, the text states it for this product; inferred, the AI inferred it from
-// another product's release line of the same record (ProposeVerdict.InferredFrom). An inferred reading only opens: never a fix, never
-// "not affected".
+// The bases of a reading (fnd_line_statement.basis): stated, the text states it for this product and every version of the quote follows
+// this product's own name (namedWithThisProduct); unpaired, the text states it but a version of the quote does not follow this product's
+// name, so it opens a finding, gives no fix, and a "not affected" is an AI proposal a person confirms; inferred, the AI inferred it from
+// another product's release line of the same record (ProposeVerdict.InferredFrom): it only opens, never a fix, never "not affected".
 const (
 	BasisStated   = "stated"
+	BasisUnpaired = "unpaired"
 	BasisInferred = "inferred"
 )
 
@@ -57,7 +59,7 @@ type LineStatement struct {
 	StatedLine                string // the release line as the AI wrote it ("8.6"); used only when the quote names it
 	RecordHash, PageHash      string
 	Status                    string
-	Basis                     string // BasisStated or BasisInferred ("" reads as stated)
+	Basis                     string // BasisStated, BasisUnpaired or BasisInferred ("" reads as stated)
 	Introduced, FixedIn, Last string // each "" unless the quote or the cited page names it
 	Reason, Quote, URL, Host  string // Host "" when the quote is from the CVE record
 	VendorPage, QuoteFound    bool
@@ -140,7 +142,7 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 	if !checkKeyRE.MatchString(st.Key) {
 		return fmt.Errorf("findings: bad reading key %q", st.Key)
 	}
-	if st.Basis != "" && st.Basis != BasisStated && st.Basis != BasisInferred {
+	if st.Basis != "" && st.Basis != BasisStated && st.Basis != BasisUnpaired && st.Basis != BasisInferred {
 		return fmt.Errorf("findings: bad reading basis %q", st.Basis)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL AND statement_key <> ?`,
@@ -387,10 +389,10 @@ func (st LineStatement) namedByRelease(id CheckID) bool {
 
 // fix is the fix a finding the reading opened says for id: the stated fixed release, kept only when the quote names it; else the
 // release a "before X" of the quote names on id's own train, when id is before it; none for a reading inferred from another product's
-// line (BasisInferred).
+// line (BasisInferred) or one whose quote does not pair its versions with this product's name (BasisUnpaired).
 func (st LineStatement) fix(id CheckID) Fix {
-	if st.Basis == BasisInferred {
-		return Fix{Kind: FixUnknown} // the releases the quote names are another product's: none of this one's
+	if st.Basis != BasisStated && st.Basis != "" {
+		return Fix{Kind: FixUnknown} // a release the quote does not pair with this product's own name may be another product's
 	}
 	if st.FixedIn != "" && namesToken(st.Quote, st.FixedIn) {
 		return Fix{Kind: FixUpdate, Version: st.FixedIn}
@@ -427,9 +429,10 @@ func versionBefore(id CheckID, x string) (before, ok bool) {
 	return c < 0, ok
 }
 
-// settles says a "not affected" of the reading may settle the CVE without a person: the vendor's own page (exploited CVEs never).
+// settles says a "not affected" of the reading may settle the CVE without a person: the vendor's own page, a quote whose every version
+// follows this product's own name (BasisStated), and never an exploited CVE; any other "not affected" is a proposal a person confirms.
 func (st LineStatement) settles(exploited bool) bool {
-	return st.VendorPage && !exploited
+	return st.VendorPage && !exploited && (st.Basis == BasisStated || st.Basis == "")
 }
 
 // asCheck is the reading as the lists show a check of a possible CVE: decided by the AI, the verdict it gives this version (unsure when

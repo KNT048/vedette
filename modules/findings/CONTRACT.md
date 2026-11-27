@@ -275,8 +275,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`POST /findings/possible/checks/{key}/reject` with the reading's key, audit `findings.ai_reading_rejected`: every device of the CVE is
   matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`); past the stated fix on the same
   line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`: tagged vendor-advisory or on
-  the vendor's host, never by what a path reads, `TestMarkVendorPages_OnlyTheVendorsTagOrHost`) and never an exploited one
-  (a proposal a person confirms one by one); anything else decides nothing. A reading is read again when the record changes (the old one
+  the vendor's host, never by what a path reads, `TestMarkVendorPages_OnlyTheVendorsTagOrHost`), only when every version of the quote
+  follows this product's own name as the record or the catalogue writes it, with only spaces or its own edition word between
+  (`basis stated`, `namedWithThisProduct`: "Mail 115.42", "Mail ESR 115.42"; never "Mail Server 115.42", "fixed in 115.42" or a quote with
+  a second version not so named, which are `basis unpaired`), and never an exploited one; any other such "not affected" is an AI proposal
+  a person confirms or rejects (`TestLineReading_OnlyAVersionNamedWithThisProductSettles`). The fix of a finding a reading opened comes
+  only from a `stated` reading (`TestLineStatement_AFixOnlyFromAReleaseNamedWithThisProduct`); readings stored before the basis existed
+  are `unpaired` until read again. Anything else decides nothing. A reading is read again when the record changes (the old one
   applies until then), after 30 days when `unsure`, and its page is fetched again after 30 days (no AI call when its text is unchanged:
   `seen_at`). A finding the reading opened has no question, so the match notes its line when due (`noteReadingDue`) for the next check.
   `TestLineReading_*`, `TestLineStatement_VerdictFor`.

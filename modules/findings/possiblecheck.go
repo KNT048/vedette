@@ -100,6 +100,7 @@ type CVERecordText struct {
 // RecordRow is one affected row of a CVE record as a person reads it, with the product it is about (the record's words).
 type RecordRow struct {
 	Vendor, Product string
+	Edition         string // the edition the row's CPE pins (sw_edition, "esr"), "" when none
 	Text            string // "acme widget (edition esr): affected from 3.0 before 3.4.2 [nvd]"
 }
 
@@ -908,12 +909,8 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 					versions = append(versions, u.id.Release())
 				}
 			}
-			edition := ""
-			if l.units[0].q.Detail.Attribute == AttrUnlistedLine {
-				edition = mozillaESR // the edition is known, its line is what the rows do not list
-			}
 			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line,
-				Edition: edition})
+				Edition: edition(l.units[0].q)})
 		}
 		var keys []string
 		for _, l := range part {
@@ -977,10 +974,114 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 				st.Status = StatementUnsure // the record has a row of this product on the line: its own row, not another product's, decides
 				st.Reason = oneLine("The record has a row of this product on line "+st.StatedLine+", so another product's line decides nothing: "+st.Reason, 600)
 			}
+			if st.Basis == BasisStated && !namedWithThisProduct(st.Quote, ownNames(rec, l.units[0].id.Product), ownEditions(rec, l.units[0].id.Product, edition(l.units[0].q))) {
+				st.Basis = BasisUnpaired // a version the quote does not pair with this product's own name: it may open, never settle or fix
+			}
 			res.readings = append(res.readings, st)
 		}
 	}
 	return res
+}
+
+// edition is the build's edition as a CPE sw_edition the reading tells the AI (ProposeItem.Edition), "" when none.
+func edition(q Question) string {
+	if q.Detail.Attribute == AttrUnlistedLine {
+		return mozillaESR // the edition is known, its line is what the rows do not list
+	}
+	return ""
+}
+
+// ownNames is how the record and the catalogue name the product (lower case, words joined by spaces): the product key's name, the
+// catalogue's display name, product name and other names, and the product of the record's own rows.
+func ownNames(rec CVERecordText, product string) []string {
+	vendor, name, _ := strings.Cut(product, "|")
+	var out []string
+	add := func(n string) {
+		n = strings.Join(strings.Fields(strings.ToLower(strings.ReplaceAll(n, "_", " "))), " ")
+		if len(n) >= 2 && !slices.Contains(out, n) {
+			out = append(out, n)
+		}
+	}
+	add(name)
+	if p, ok := productid.ByKey(product); ok {
+		add(p.Display)
+		add(p.Product)
+		for _, a := range p.Also { // the catalogue's other names of the product ("Synology|DSM")
+			_, n, _ := strings.Cut(a, "|")
+			add(n)
+		}
+	}
+	for _, r := range rec.Rows {
+		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
+			add(r.Product)
+		}
+	}
+	return out
+}
+
+// ownEditions is the edition words the record's own rows of the product pin, and the build's edition the box knows (lower case).
+func ownEditions(rec CVERecordText, product, known string) []string {
+	vendor, name, _ := strings.Cut(product, "|")
+	var out []string
+	for _, e := range append([]string{known}, func() []string {
+		var es []string
+		for _, r := range rec.Rows {
+			if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
+				es = append(es, r.Edition)
+			}
+		}
+		return es
+	}()...) {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" && !slices.Contains(out, e) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// namedWithThisProduct says every version in quote follows one of the product's own names (names), with only spaces, or one of its own
+// edition words, between ("Mail 115.42", "Mail ESR 115.42"): only such a quote may settle "not affected" or give a fix. A quote with no
+// version, a version after another name ("Mail Server 115.42", a name the record does not know) or after no name ("fixed in 115.42") is
+// not.
+func namedWithThisProduct(quote string, names, editions []string) bool {
+	q := strings.ToLower(quote)
+	spans := reVersionToken.FindAllStringIndex(q, -1)
+	if len(spans) == 0 {
+		return false
+	}
+	endsWithName := func(p string) bool {
+		for _, n := range names {
+			if strings.HasSuffix(p, n) && (len(p) == len(n) || !isAlnum(p[len(p)-len(n)-1])) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, sp := range spans {
+		before := q[:sp[0]]
+		p := strings.TrimRight(before, " \t")
+		if len(p) == len(before) {
+			return false // no space before the version ("v115.42", "(115.42")
+		}
+		if endsWithName(p) {
+			continue
+		}
+		ok := false
+		for _, e := range editions {
+			if !strings.HasSuffix(p, e) || len(p) > len(e) && isAlnum(p[len(p)-len(e)-1]) {
+				continue
+			}
+			rest := p[:len(p)-len(e)]
+			if r := strings.TrimRight(rest, " \t"); len(r) < len(rest) && endsWithName(r) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // linesToAsk groups the units by release line (product and line), with the newest stored reading of each line.

@@ -48,7 +48,11 @@ func (c possibleChecker) Record(ctx context.Context, cve string) (findings.CVERe
 	}
 	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution}
 	for _, r := range b.Ranges {
-		out.Rows = append(out.Rows, findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r)})
+		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r)}
+		if f := strings.Split(r.CPE, ":"); len(f) == 13 && f[9] != "*" && f[9] != "-" {
+			row.Edition = f[9] // the edition the row's CPE pins (sw_edition)
+		}
+		out.Rows = append(out.Rows, row)
 	}
 	for _, r := range b.References {
 		out.Refs = append(out.Refs, findings.RefLink{URL: r.URL, Tags: r.Tags})

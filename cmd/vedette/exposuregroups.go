@@ -163,14 +163,8 @@ func requestPathOf(line string, skip []string) tplPathVerdict {
 	return tplPathRuns
 }
 
-// Lines of the templates the web paths to skip kept out of a port: every one is left out, none is sent.
-const (
-	notPathSkipped = "nuclei left out %d templates on port %d for this target's web paths to skip (%s): each sends a request under one of them."
-	notPathMixed   = "nuclei left out %d templates on port %d for this target's web paths to skip (%s): %d send a request under one of them, %d a request whose path is only built while they run, so it could be under one."
-	notPathUnknown = "nuclei left out %d templates on port %d for this target's web paths to skip (%s): each sends a request whose path is only built while it runs, so it could be under one."
-)
-
-// pathsLine is the line of the templates left out of port for the web paths to skip, by verdict; "" when there is none.
+// pathsLine is the line of the templates left out of port for the web paths to skip, by verdict; "" when there is none. Every one
+// of them is left out: none is sent.
 func pathsLine(left map[string]tplPathVerdict, port int, skip []string) string {
 	skipped, unknown := 0, 0
 	for _, v := range left {
@@ -181,16 +175,17 @@ func pathsLine(left map[string]tplPathVerdict, port int, skip []string) string {
 			unknown++
 		}
 	}
-	paths := strings.Join(skip, ", ")
-	switch {
-	case skipped+unknown == 0:
+	if skipped+unknown == 0 {
 		return ""
-	case unknown == 0:
-		return fmt.Sprintf(notPathSkipped, skipped, port, paths)
-	case skipped == 0:
-		return fmt.Sprintf(notPathUnknown, unknown, port, paths)
 	}
-	return fmt.Sprintf(notPathMixed, skipped+unknown, port, paths, skipped, unknown)
+	why := "each sends a request under one of them"
+	switch {
+	case skipped == 0:
+		why = "each sends a request whose path is only built while it runs, so it could be under one"
+	case unknown > 0:
+		why = fmt.Sprintf("%d send a request under one of them, %d a request whose path is only built while it runs, so it could be under one", skipped, unknown)
+	}
+	return fmt.Sprintf("nuclei left out %s on port %d for this target's web paths to skip (%s): %s.", count(skipped+unknown, "template", "templates"), port, strings.Join(skip, ", "), why)
 }
 
 // groupsOffLine is the line of the disruptive groups this target's settings turned off for nuclei, "" when none.

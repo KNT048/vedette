@@ -259865,6 +259865,10 @@ func (s *InventoryGetInventoryDevicesIDOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("removal_keeps")
+		e.Bool(s.RemovalKeeps)
+	}
+	{
 		e.FieldStart("risk")
 		s.Risk.Encode(e)
 	}
@@ -259878,7 +259882,7 @@ func (s *InventoryGetInventoryDevicesIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOK = [12]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOK = [13]string{
 	0:  "addresses",
 	1:  "agent",
 	2:  "asset",
@@ -259888,9 +259892,10 @@ var jsonFieldsNameOfInventoryGetInventoryDevicesIDOK = [12]string{
 	6:  "manual_at",
 	7:  "observations",
 	8:  "possible_same",
-	9:  "risk",
-	10: "risk_unavailable",
-	11: "suspicious",
+	9:  "removal_keeps",
+	10: "risk",
+	11: "risk_unavailable",
+	12: "suspicious",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOK from json.
@@ -260036,8 +260041,20 @@ func (s *InventoryGetInventoryDevicesIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"possible_same\"")
 			}
-		case "risk":
+		case "removal_keeps":
 			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.RemovalKeeps = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"removal_keeps\"")
+			}
+		case "risk":
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -260047,7 +260064,7 @@ func (s *InventoryGetInventoryDevicesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "risk_unavailable":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.RiskUnavailable = bool(v)
@@ -260059,7 +260076,7 @@ func (s *InventoryGetInventoryDevicesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"risk_unavailable\"")
 			}
 		case "suspicious":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Suspicious = bool(v)
@@ -260081,7 +260098,7 @@ func (s *InventoryGetInventoryDevicesIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

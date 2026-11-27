@@ -68930,6 +68930,10 @@
                       },
                       "description": "Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address, or a device added by hand without an address runs the OS a found device runs at the same release; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)"
                     },
+                    "removal_keeps": {
+                      "type": "boolean",
+                      "description": "Removing the device would keep it out of discovery: it has a fixed (burned-in or stable) card on one of its addresses, or no card at all and an address. false for a device known only by private Wi-Fi addresses, which comes back when it is seen again"
+                    },
                     "agent": {
                       "type": "boolean",
                       "description": "An osquery agent is bound to the device and the Agents module is on: removing it asks whether to stop the agent too (DELETE ?agent=); with the module off it is false and a removal keeps the device out as one with no agent"
@@ -68999,6 +69003,7 @@
                     "manual_at",
                     "kinds",
                     "possible_same",
+                    "removal_keeps",
                     "agent",
                     "addresses"
                   ],

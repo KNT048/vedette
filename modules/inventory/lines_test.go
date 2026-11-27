@@ -30,6 +30,7 @@ func newLineCase(t *testing.T) *lineCase {
 func (c *lineCase) send(src observe.Source, scope []string, items ...observe.Software) {
 	c.t.Helper()
 	c.e.tick(time.Minute)
+	sightedBy(c.e.ctx(), c.t, c.e.svc, c.hint, src)
 	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, src, scope, items); err != nil {
 		c.t.Fatal(err)
 	}
@@ -100,6 +101,7 @@ func TestSoftwareLines_AgentSourcesAreApart(t *testing.T) {
 	if l2 := c.line("OpenSSH"); l2.ID != l.ID || ver(l2) != "9.6p1" || len(l2.AlsoSeen) != 0 {
 		t.Fatalf("after Wazuh's empty list: %+v", l2)
 	}
+	sightedBy(t.Context(), t, c.e.svc, c.hint, observe.Agent)
 	if err := c.e.svc.ReplaceSoftware(c.e.ctx(), c.hint, observe.Agent, nil, []observe.Software{ssh("1", "")}); err == nil {
 		t.Fatal("a list from the agent class must name its agent")
 	}
@@ -250,6 +252,7 @@ func TestSoftwareLines_MergeLosesNoReading(t *testing.T) {
 		{b, observe.Nmap, []observe.Software{ssh("9.6", "tcp/22"), {Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.24.0", Instance: "tcp/80", Confidence: 0.8}}},
 	} {
 		e.tick(time.Minute)
+		sightedBy(t.Context(), t, e.svc, s.h, s.src)
 		if err := e.svc.ReplaceSoftware(e.ctx(), s.h, s.src, nil, s.items); err != nil {
 			t.Fatal(err)
 		}
@@ -355,10 +358,12 @@ func TestSoftwareLines_MergeKeepsTheMarkAndTheHistory(t *testing.T) {
 	e := newEnv(t)
 	a, b := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.83")}, observe.AssetHint{IP: netip.MustParseAddr("192.0.2.84")}
 	e.tick(time.Minute)
+	sightedBy(t.Context(), t, e.svc, a, observe.Nmap)
 	if err := e.svc.ReplaceSoftware(e.ctx(), a, observe.Nmap, nil, []observe.Software{ssh("9.6", "tcp/22")}); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(time.Minute)
+	sightedBy(t.Context(), t, e.svc, b, observe.Nmap)
 	if err := e.svc.ReplaceSoftware(e.ctx(), b, observe.Nmap, nil, []observe.Software{ssh("9.6", "tcp/22")}); err != nil {
 		t.Fatal(err)
 	}
@@ -399,6 +404,7 @@ func TestSoftwareLines_MergeDatesReadingsByRelease(t *testing.T) {
 		send := func(h observe.AssetHint, v string) {
 			t.Helper()
 			e.tick(time.Minute)
+			sightedBy(t.Context(), t, e.svc, h, observe.Nmap)
 			if err := e.svc.ReplaceSoftware(e.ctx(), h, observe.Nmap, nil, []observe.Software{ssh(v, "tcp/22")}); err != nil {
 				t.Fatal(err)
 			}

@@ -15,6 +15,7 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.40")}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, []observe.Software{
 		{Display: "Apple iOS 15", Vendor: "apple", Product: "iphone os", Version: "15", CPE: "cpe:/o:apple:iphone_os:15", Confidence: 0.9},
 		{Display: "Windows 10 1607", Vendor: "microsoft", Product: "windows 10", Version: "1607", CPE: "cpe:/o:microsoft:windows_10:1607", Confidence: 0.9},
@@ -47,6 +48,7 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	}
 	// Review H1: an OS nmap only guessed is stored and shown, with no key at all: it raises no finding.
 	guess := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.41")}
+	sightedBy(t.Context(), t, e.svc, guess, observe.Nmap)
 	if err := e.svc.ReplaceSoftware(e.ctx(), guess, observe.Nmap, nil, []observe.Software{
 		{Display: "Linux 5.4 - 5.15", Vendor: "linux", Product: "linux kernel", CPE: "cpe:/o:linux:linux_kernel", Confidence: 0.9, Guess: true},
 	}); err != nil {

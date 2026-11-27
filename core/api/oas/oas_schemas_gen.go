@@ -150271,7 +150271,11 @@ type InventoryGetInventoryDevicesIDOK struct {
 	// other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or
 	// burned-in MACs from one block of a maker on network gear (reason).
 	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
-	Risk         NilInventoryGetInventoryDevicesIDOKRisk            `json:"risk"`
+	// Removing the device would keep it out of discovery: it has a fixed (burned-in or stable) card on one
+	// of its addresses, or no card at all and an address. false for a device known only by private Wi-Fi
+	// addresses, which comes back when it is seen again.
+	RemovalKeeps bool                                    `json:"removal_keeps"`
+	Risk         NilInventoryGetInventoryDevicesIDOKRisk `json:"risk"`
 	// The badge could not be read (the findings module failed).
 	RiskUnavailable bool `json:"risk_unavailable"`
 	Suspicious      bool `json:"suspicious"`
@@ -150320,6 +150324,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetObservations() []InventoryGetInven
 // GetPossibleSame returns the value of PossibleSame.
 func (s *InventoryGetInventoryDevicesIDOK) GetPossibleSame() []InventoryGetInventoryDevicesIDOKPossibleSameItem {
 	return s.PossibleSame
+}
+
+// GetRemovalKeeps returns the value of RemovalKeeps.
+func (s *InventoryGetInventoryDevicesIDOK) GetRemovalKeeps() bool {
+	return s.RemovalKeeps
 }
 
 // GetRisk returns the value of Risk.
@@ -150380,6 +150389,11 @@ func (s *InventoryGetInventoryDevicesIDOK) SetObservations(val []InventoryGetInv
 // SetPossibleSame sets the value of PossibleSame.
 func (s *InventoryGetInventoryDevicesIDOK) SetPossibleSame(val []InventoryGetInventoryDevicesIDOKPossibleSameItem) {
 	s.PossibleSame = val
+}
+
+// SetRemovalKeeps sets the value of RemovalKeeps.
+func (s *InventoryGetInventoryDevicesIDOK) SetRemovalKeeps(val bool) {
+	s.RemovalKeeps = val
 }
 
 // SetRisk sets the value of Risk.

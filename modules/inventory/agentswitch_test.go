@@ -25,6 +25,7 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	send := func(src observe.Source, items ...observe.Software) {
 		t.Helper()
 		e.tick(time.Minute)
+		sightedBy(ctx, t, e.svc, hint, src)
 		if err := e.svc.ReplaceSoftware(ctx, hint, src, nil, items); err != nil {
 			t.Fatal(err)
 		}
@@ -32,6 +33,7 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	nginx := observe.Software{Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.24.0", Confidence: 1, Packaged: true}
 	send(observe.Osquery, ssh("9.6p1", ""), nginx)
 	send(observe.Nmap, ssh("9.6p1", "tcp/22"))
+	sightedBy(ctx, t, e.svc, hint, observe.Agent)
 	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +86,7 @@ func TestAgentSwitch_RefusesTheAgentsDataAndIsAudited(t *testing.T) {
 	// refused: a new list, open ports and observations of the agents do not reach the device
 	send(observe.Osquery, ssh("9.9p1", ""), nginx)
 	send(observe.Wazuh, nginx)
+	sightedBy(ctx, t, e.svc, hint, observe.Agent)
 	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, []observe.Service{{Port: 443, Proto: "tcp", Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}

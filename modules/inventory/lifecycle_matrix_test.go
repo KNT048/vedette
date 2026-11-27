@@ -1,6 +1,8 @@
 package inventory_test
 
 import (
+	"context"
+	"database/sql"
 	"net/netip"
 	"slices"
 	"strings"
@@ -10,6 +12,15 @@ import (
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
+
+// sightedBy records what a report sends before its lists (agent-intake's pull and a device check record the device's facts first): a
+// list by address only attaches to the device its report's observations made, never makes one (INV-59).
+func sightedBy(ctx context.Context, t testing.TB, svc *inventory.Service, hint observe.AssetHint, src observe.Source) {
+	t.Helper()
+	if err := svc.Record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Kind, Value: "unknown", Source: observe.ClassOf(src), Confidence: 0.1}}); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // ok fails the test on an error.
 func (e *env) ok(err error) {
@@ -268,6 +279,20 @@ func TestContract_INV59_ARemovalKeepsTheDeviceOut(t *testing.T) {
 		}
 	})
 
+	t.Run("an agent that brings back a device kept by its address clears its Removed entry", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		e.record(byAddress(ip, "build01.corp.example")...)
+		e.ok(e.svc.DeleteDevice(e.ctx(), "it@acme.example", e.list("", "false").Items[0].ID, ""))
+		if len(removed(e)) != 1 {
+			t.Fatal("the address was not kept")
+		}
+		e.record(osq(ip)...) // the person installed an osquery agent on it
+		if e.idByMAC(burnt1) == "" || len(removed(e)) != 0 {
+			t.Fatalf("the agent brought the device back but its removal is still listed: %+v", removed(e))
+		}
+	})
+
 	t.Run("the machine's own agent brings it back", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)
@@ -312,6 +337,16 @@ func TestContract_INV59_EveryWayBackIsChecked(t *testing.T) {
 				[]observe.Software{{Display: "7-Zip 24.08", Vendor: "7-zip", Product: "7-zip", Version: "24.08", Confidence: 0.9}}))
 			if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = ?`, ip); n != 0 {
 				e.t.Fatalf("the removed machine's software list made a device at its address (%d)", n)
+			}
+		}},
+		{"a Wazuh-shaped report and its software list from a new address", func(e *env) {
+			h := observe.AssetHint{IP: addr2} // DHCP gave the removed machine another address
+			e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "pc-01", Source: observe.Agent, Confidence: 0.9},
+				observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
+			e.ok(e.svc.ReplaceSoftware(e.ctx(), h, observe.Wazuh, nil,
+				[]observe.Software{{Display: "7-Zip 24.08", Vendor: "7-zip", Product: "7-zip", Version: "24.08", Confidence: 0.9}}))
+			if n := e.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`); n != 0 {
+				e.t.Fatalf("the removed machine's software list made a device at its new address (%d)", n)
 			}
 		}},
 		{"a Wazuh-shaped report at the address of another device", func(e *env) {
@@ -403,5 +438,34 @@ func TestContract_INV59_ARowThatSawTheRemovedCardDoesNotTakeIt(t *testing.T) {
 	e.record(byAddress(ip2, "pc-01.corp.example")...)
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE mac = ?`, card); n != 0 {
 		t.Fatalf("the removed card is back as the MAC of another row (%d)", n)
+	}
+}
+
+// The device page says whether a removal would keep the device out (Detail.removal_keeps), by the same rule the removal keeps
+// (removedIdentifiers): a fixed card on any of its addresses, or an address when it has no card at all; a private Wi-Fi address only
+// keeps nothing. A device whose main card is private but that has a fixed card on another address is kept out by that one.
+func TestContract_INV59_TheDevicePageSaysWhatARemovalKeeps(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(dhcp("c2:31:86:3f:8c:71", "10.0.10.71", "laptop")...)
+	id := e.idByMAC("c2:31:86:3f:8c:71")
+	if e.detail(id).RemovalKeeps {
+		t.Fatal("a device known only by a private address: a removal keeps nothing, the page must not say otherwise")
+	}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO inv_asset_address (id, asset_id, ip, mac, source, first_seen, last_seen)
+			VALUES ('ad-71', ?, '10.0.10.72', '3c:22:fb:00:00:72', 'passive', '2026-11-09T10:00:00.000Z', '2026-11-09T10:00:00.000Z')`, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !e.detail(id).RemovalKeeps {
+		t.Fatal("its docking-station card is fixed: a removal keeps it out, the page must say so")
+	}
+	e.record(byAddress("10.0.10.73", "routed.corp.example")...)
+	for _, d := range e.list("", "false").Items {
+		if d.IP == "10.0.10.73" && !e.detail(d.ID).RemovalKeeps {
+			t.Fatal("a device with no card is kept out by its address")
+		}
 	}
 }

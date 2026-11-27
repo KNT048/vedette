@@ -36,7 +36,9 @@ func TestRetentionOfAgentSoftware(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Osquery)
 	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}))
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.6}}))
 	for end := e.now.Add(29 * 24 * time.Hour); e.now.Before(end); e.tick(time.Hour) { // the job every hour
 		must(e.svc.PruneAgentSoftware(e.ctx()))
@@ -61,6 +63,7 @@ func TestTimeCountsOnlyWhileTheModulesAreOn(t *testing.T) {
 	g := &gate{on: map[string]bool{"agent-intake": false}}
 	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.31")}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Osquery)
 	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
@@ -105,6 +108,7 @@ func TestReportedSoftwareStays(t *testing.T) {
 	list := []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}
 	for h := range 100 * 24 {
 		if h%(24*7) == 0 { // the agent reports the same list once a week
+			sightedBy(t.Context(), t, e.svc, hint, observe.Osquery)
 			if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, list); err != nil {
 				t.Fatal(err)
 			}
@@ -171,13 +175,16 @@ func TestPruneOfRemovedLinesGoesThroughTheLifecycle(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.6}}))
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, nil)) // the scan no longer sees it: removed
 	removed := e.count(`SELECT count(*) FROM inv_software WHERE state = 'removed'`)
 	if removed != 1 {
 		t.Fatalf("%d removed lines", removed)
 	}
 	e.tick(inventory.RemovedSoftwareRetention + time.Hour)
+	sightedBy(t.Context(), t, e.svc, hint, observe.Osquery)
 	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}))
 	for range 31 * 24 { // the participant fails every run: the removed line stays, the agent's stale list still expires
 		if err := e.svc.PruneAgentSoftware(e.ctx()); !errors.Is(err, fail) {

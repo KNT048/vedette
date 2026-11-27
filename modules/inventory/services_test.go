@@ -126,6 +126,7 @@ func TestContract_INV23_ServiceBounds(t *testing.T) {
 	for i := range full {
 		full[i] = observe.Service{Port: 65535 - i, Proto: "udp", Name: strings.Repeat("n", 100), Product: strings.Repeat("p", 200), Version: strings.Repeat("1", 100), Confidence: 1}
 	}
+	sightedBy(t.Context(), t, e.svc, observe.AssetHint{IP: ipSvc}, observe.Nmap)
 	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, full); err != nil {
 		t.Fatalf("the largest list: %v", err)
 	}
@@ -138,6 +139,7 @@ func TestContract_INV23_ServiceBounds(t *testing.T) {
 		{Port: 22, Proto: "tcp", Name: "ssh", Product: "Open\u202eHSS", Confidence: 0.5},
 		{Port: 80, Proto: "tcp", Name: "http\ufe0f", Confidence: 0.5},
 	}
+	sightedBy(t.Context(), t, e2.svc, observe.AssetHint{IP: ipSvc}, observe.Nmap)
 	if err := e2.svc.ReplaceServices(e2.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, items); err != nil {
 		t.Fatal(err)
 	}
@@ -167,10 +169,12 @@ func TestPruneServicesRemovesOnlyRowsNotSeenFor90Days(t *testing.T) {
 	e := newEnv(t)
 	ctx := e.ctx()
 	other := netip.MustParseAddr("192.168.10.21")
+	sightedBy(t.Context(), t, e.svc, observe.AssetHint{IP: ipSvc}, observe.Nmap)
 	if err := e.svc.ReplaceServices(ctx, observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}}); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(60 * 24 * time.Hour)
+	sightedBy(t.Context(), t, e.svc, observe.AssetHint{IP: other}, observe.Nmap)
 	if err := e.svc.ReplaceServices(ctx, observe.AssetHint{IP: other}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 80, Proto: "tcp", Name: "http", Confidence: 0.5}}); err != nil {
 		t.Fatal(err)
 	}
@@ -213,11 +217,13 @@ func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
 		{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.95},
 		{Port: 8080, Proto: "tcp", Name: "http-proxy", Product: "Squid http proxy", Version: "5.7", Confidence: 0.76},
 	}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, full); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
 	gentle := []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.29}, {Port: 9100, Proto: "tcp", Name: "jetdirect", Confidence: 0.29}}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	if err := e.svc.AddServices(ctx, hint, observe.Nmap, gentle); err != nil {
 		t.Fatal(err)
 	}
@@ -236,6 +242,7 @@ func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
 		t.Fatal("port 8080, not in the partial look, was touched")
 	}
 	// A partial look that read the product of a port (the weekly -sV follow-up) updates it; a version changes
+	sightedBy(t.Context(), t, e.svc, hint, observe.Nmap)
 	if err := e.svc.AddServices(ctx, hint, observe.Nmap, []observe.Service{{Port: 8080, Proto: "tcp", Name: "http-proxy", Product: "Squid http proxy", Version: "6.10", Confidence: 0.8}}); err != nil {
 		t.Fatal(err)
 	}

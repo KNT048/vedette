@@ -529,8 +529,13 @@ function samePairs(): { a: Asset; b: Asset; why: string }[] {
 }
 const sameRef = (a: Asset) => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, last_seen: a.last_seen, never_seen: neverSeen(a) })
 /** A device's addresses besides its main one (inventory INV-57): a merge keeps the merged device's address here, a split takes one out. */
-const addrStore = collection<Record<string, DeviceAddress[]>>('inv_addresses', () => ({}))
+export const addrStore = collection<Record<string, DeviceAddress[]>>('inv_addresses', () => ({}))
 /** Every address of a device as the box lists them: the main one first, then the others. */
+/** What a removal would keep (inventory removedIdentifiers): a fixed card on any of its addresses, or an address when it has no card. */
+const removalKeeps = (a: Asset) => {
+  const macs = addressesOf(a).map((x) => x.mac).filter((m): m is string => !!m)
+  return macs.length ? macs.some((m) => !isPrivateMac(m)) : addressesOf(a).some((x) => !!x.ip)
+}
 function addressesOf(a: Asset): DeviceAddress[] {
   const ip = a.ip && a.ip !== '—' ? a.ip : null
   const main: DeviceAddress[] = ip || a.mac ? [{ ip, mac: a.mac ?? null, main: true, source: hasAgent(a) ? 'agent' : a.origin === 'manual' ? 'manual' : 'passive', first_seen: a.first_seen, last_seen: a.last_seen, agent: hasAgent(a) }] : []
@@ -1026,7 +1031,7 @@ export const handlers = [
     // INV-46: the newest manual observation or manual software row; a device added by hand with neither: when it was added
     const manualAt = [...observations.filter((o) => o.source === 'manual').map((o) => o.seen_at), ...a.software.filter((s) => s.source === 'manual' && s.set_at).map((s) => s.set_at!)]
       .reduce<string | null>((m, t) => (!m || t > m ? t : m), null) ?? (a.origin === 'manual' ? a.first_seen : null)
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id), addresses: addressesOf(a), agent: hasAgentNode(a) && isOn('agent-intake') } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id), addresses: addressesOf(a), agent: hasAgentNode(a) && isOn('agent-intake'), removal_keeps: removalKeeps(a) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {
@@ -1248,7 +1253,7 @@ export const handlers = [
     if (stop) removedNodes.update((l) => [...l, a.id])
     // The removal stays, as the backend keeps it (INV-59): a burned-in MAC, or the address of a device with no MAC. "Remove only" of a
     // device whose agent keeps reporting keeps nothing, and neither does a private Wi-Fi address (it rotates)
-    if ((!node || stop) && (a.mac ? !isPrivateMac(a.mac) : a.ip !== '—')) {
+    if ((!node || stop) && removalKeeps(a)) {
       removedStore.update((l) => [{ id: newId('rm'), name: nameOf(a, a.kind), ip: a.ip !== '—' ? a.ip : null, agent: stop ? 'stopped' as const : 'none' as const, removed_by: 'admin@example.test', removed_at: nowIso(), identifiers: 1 }, ...l])
     }
     assetsStore.update((l) => l.filter((x) => x.id !== a.id))

@@ -360,6 +360,9 @@ type Detail struct {
 	DetectedDiffers []Differs `json:"detected_differs"`
 	// Addresses are every address of the device, the main one first (INV-57).
 	Addresses []Address `json:"addresses"`
+	// RemovalKeeps: removing the device would keep it out of discovery (INV-59, removedIdentifiers): it has a fixed card on one of its
+	// addresses, or no card at all and an address. A device known only by private Wi-Fi addresses would come back, and the dialog says so.
+	RemovalKeeps bool `json:"removal_keeps"`
 	// Agent: an osquery agent is bound to the device and the Agents module is on, so removing it asks whether to stop the agent too
 	// (DeleteDevice).
 	Agent bool `json:"agent"`

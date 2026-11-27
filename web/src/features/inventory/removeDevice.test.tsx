@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { assetsStore, modulesStore } from '@/mocks/stores'
 import type { Asset } from '@/lib/types'
+import { addrStore } from './mocks'
 
 // Removing a device (S-INV-3): the removal stays, so it is listed under Removed in To review, where Forget lets the device come back.
 // A device whose osquery agent reports asks what happens to the agent, and says what each choice does: an administrator can stop it
@@ -77,6 +78,24 @@ describe('removing a device', () => {
     const dialog = await openRemove(user)
     expect(within(dialog).queryByTestId('delete-agent-choice')).toBeNull()
     expect(dialog).toHaveTextContent('Discovery keeps it out from now on')
+  })
+
+  it('a device with a private main address and a fixed card on another address is said to be kept out, and is', async () => {
+    const now = new Date().toISOString()
+    assetsStore.update((l) => [...l.filter((a) => a.id !== 'a-rp2'), {
+      id: 'a-rp2', site: 'hq', ip: '10.0.10.74', mac: '6a:b2:19:00:00:0a', hostname: 'Sales-Laptop', kind: 'laptop', vendor: null, model: null, os: null,
+      software: [], services: [], first_seen: now, last_seen: now, approved: true, fragile: false, origin: 'discovered',
+    } as Asset])
+    addrStore.update((m) => ({ ...m, 'a-rp2': [{ ip: '10.0.10.75', mac: '3c:22:fb:00:00:75', main: false, source: 'passive', first_seen: now, last_seen: now, agent: false }] }))
+    const user = userEvent.setup()
+    renderApp('/devices/a-rp2', { role: 'admin' })
+    const dialog = await openRemove(user)
+    expect(dialog).toHaveTextContent('Discovery keeps it out from now on')
+    expect(dialog).not.toHaveTextContent('private Wi-Fi address')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove from list' }))
+    await waitFor(() => expect(assetsStore.get().some((a) => a.id === 'a-rp2')).toBe(false), T)
+    const removed = await (await fetch(`${location.origin}/api/v1/inventory/removed`)).json() as { items: unknown[] }
+    expect(removed.items).toHaveLength(1)
   })
 
   it('a device known only by a private Wi-Fi address is not said to be kept out, and no removal is kept', async () => {

@@ -503,7 +503,7 @@ function Approval({ d }: { d: DeviceDetail }) {
       {d.asset.state === 'seen' ? t('approval.quietBody') : t('approval.body')}
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={d.asset.mac} findings={d.findings_count} pending={act.ignore.isPending}
         onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, onError: fail })} />
-      <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending} agent={d.agent} privateMac={d.asset.private_mac} keepsOut={d.asset.ip !== '—' || !!d.asset.mac}
+      <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending} agent={d.agent} privateMac={d.asset.private_mac} keepsOut={d.removal_keeps}
         onConfirm={(agent) => act.remove.mutate(agent, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: fail })} />
     </Notice>
   )
@@ -605,7 +605,7 @@ function Body() {
         <MergeFlow start={{ pickFor: { id: a.id, label: name, name: a.name, hostname: a.hostname, vendor: a.vendor, model: a.model, macs: (d.addresses ?? []).map((x) => x.mac).filter((x): x is string => !!x) },
           suggested: (d.possible_same ?? []).map((p) => ({ id: p.id, reason: p.reason, why: p.why })) }} onClose={() => setMerging(false)} onMerged={onMerged} />
       ) : null}
-      <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending} agent={d.agent} privateMac={a.private_mac} keepsOut={a.ip !== '—' || !!a.mac}
+      <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending} agent={d.agent} privateMac={a.private_mac} keepsOut={d.removal_keeps}
         onConfirm={(agent) => act.remove.mutate(agent, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: (e) => toast.error(errMsg(e)) })} />
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={a.mac} findings={d.findings_count} pending={act.ignore.isPending}
         onConfirm={() => act.ignore.mutate(true, { onSuccess: () => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, onError: (e) => toast.error(errMsg(e)) })} />

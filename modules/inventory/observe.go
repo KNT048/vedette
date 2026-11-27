@@ -967,6 +967,7 @@ const (
 	staleHandList  = "inventory: a list by address only is not given to the hand-added device at that address: another machine was seen there since it was added (on the device page: merge it when it is that machine; else delete the hand-added device, or keep it, and the machine's own lists by address only stay held)"
 	staleHandNoKey = "inventory: an agent report by address only, with no card and no key, is not given to the hand-added device at that address: another machine was seen there since it was added"
 	staleRemoved   = "inventory: a sighting of a device a person removed makes no device (Devices, To review, Removed: forget the removal to see it again)"
+	staleKeyless   = "inventory: a list by address only with no card and no key makes no device: it attaches only to the device its report's observations made"
 )
 
 // staleLog logs, at most once an hour per device and reason (one of the stale* messages), that a report by address only was not given
@@ -993,6 +994,8 @@ func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed
 			s.log.InfoContext(ctx, staleHandNoKey, args...)
 		case staleRemoved:
 			s.log.InfoContext(ctx, staleRemoved, args...)
+		case staleKeyless:
+			s.log.InfoContext(ctx, staleKeyless, args...)
 		default:
 			s.log.InfoContext(ctx, staleSwept, args...)
 		}

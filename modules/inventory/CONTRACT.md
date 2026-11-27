@@ -153,10 +153,14 @@ detail is in its doc comment.
   (`resolve`'s insert, `ownDevice`). A sighting that names a kept card (its hint's MAC, or a mac value the same report states, as
   Wazuh and an agent by address send it) reaches nothing, so it neither makes a device nor binds the card to one; one with no card
   makes no device at a kept address (another machine given the address is a new device), nor at the address a removed device was
-  last shown at (a device check that was running when it was removed, a Wazuh list by address). No device takes a kept card as its
-  MAC from an observation stored before the removal (`RecomputeAsset`). An osquery agent's report is a person's act: admitted, and it
-  forgets the removals of its cards (audit `inventory.removal_forget`); a stopped agent on a shared token cannot enrol again
-  (`RemovedAgent`, agent-intake INV-27). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
+  last shown at (a device check that was running when it was removed). A list (software, services) with neither a card nor an agent
+  key never makes a device: it only attaches to the device its report's observations made (a list is what a device runs, not who it
+  is), so a Wazuh list from the removed machine's new DHCP address makes nothing. No device takes a kept card as its MAC from an
+  observation stored before the removal (`RecomputeAsset`). An osquery agent's report is a person's act: admitted, and it forgets the
+  removals of its cards and of the address where it makes the device, so the Removed list does not name it (audit
+  `inventory.removal_forget`). By design a re-enrolled agent (the person ran the install command again) brings a removed device back,
+  and so does any enrolled node that reports the card: a node is a credential a person handed out. A stopped agent on a shared token
+  cannot enrol again (`RemovedAgent`, agent-intake INV-27). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
   only move identifiers between devices that exist, and an SNMP read with a device hint carries no MAC, so neither can bring one
   back. A person undoes a removal by forgetting it (`GET /inventory/removed`, `DELETE /inventory/removed/{id}`) or by adding a device by
   hand at a kept address, which forgets only removals kept by that address (a removed card stays out though the address is reused).
@@ -212,7 +216,8 @@ detail is in its doc comment.
   resolves every touched line (INV-52). An OS guess is stored without a match key (POST-2d); an item with a CPE but no key takes the
   curated product of that CPE (POST-2c).
 - **PRE-2b / POST-2b** `ReplaceServices`, `AddServices`: a hint with a MAC or an IPv4; the device is found by MAC, then IP, or
-  created unapproved.
+  created unapproved; a list by address only with no agent key attaches to an existing device and creates none (INV-59), as for
+  `ReplaceSoftware`.
 - **PRE-3 / POST-3** `ScanPolicy`: whether discovery may scan a device, at what rate, and why (INV-5, 7, 8); never the box.
   `VulnScanPolicy` (PRE-3b): `explicit` only when a person picked exactly this device. POST-3c/3d: the careful and fragile flags.
 - **PRE-4 / POST-4** `PATCH /inventory/devices/{id}`: operator; a kind or fragile edit adds a manual observation; a name sets

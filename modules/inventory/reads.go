@@ -460,7 +460,12 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
+	macs, ips, err := removedIdentifiers(ctx, db, id) // what a removal would keep (INV-59), for the remove dialog's words
+	if err != nil {
+		return Detail{}, err
+	}
 	return Detail{
+		RemovalKeeps:    len(macs)+len(ips) > 0,
 		Agent:           agent && s.agentsOn(),
 		Addresses:       addrs,
 		DetectedDiffers: differs,

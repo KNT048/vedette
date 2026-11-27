@@ -41,7 +41,7 @@ type RemovedDevice struct {
 // removedIdentifiers are what identified device id, read inside tx before its row goes: every MAC of the device that is no private
 // (rotating) one; for a device with no MAC at all (a routed subnet, a device added by hand), every address of it. A private MAC
 // blocks nothing, so it is not kept, and neither is the address of a device that has one: the next phone at that address is another.
-func removedIdentifiers(ctx context.Context, tx *sql.Tx, id string) (macs, ips []string, err error) {
+func removedIdentifiers(ctx context.Context, tx querier, id string) (macs, ips []string, err error) {
 	read := func(q string) ([]string, error) {
 		rows, err := tx.QueryContext(ctx, q, id)
 		if err != nil {
@@ -197,7 +197,8 @@ func (s *Service) RemovedAgent(ctx context.Context, key string) (bool, error) {
 // same report states: Wazuh and an agent by address send their card as a value) is dropped whole, so it neither makes a device nor binds
 // the card to one, wherever it would go. A sighting with no card makes no device at an address a removal kept. An osquery agent's report
 // (a node a person enrolled; a stopped one cannot enrol again: RemovedAgent) is a person's act: it is admitted and forgets the removals
-// of its cards, audited. A sighting or list with no card and no key (a device check by address, Wazuh's software and services) makes no
+// of its cards, and of the address where it makes a device, audited. Any enrolled node does: a node is a credential a person handed out,
+// and running the install command again is how a person brings a removed machine back. A sighting or list with no card and no key (a device check by address, Wazuh's software and services) makes no
 // device at the address a removed device was last shown at. Dropped sightings are logged at most hourly.
 func (s *Service) admit(ctx context.Context, tx *sql.Tx, c cleanObs, creating bool) (bool, error) {
 	cards := slices.Clone(c.claims)
@@ -207,15 +208,21 @@ func (s *Service) admit(ctx context.Context, tx *sql.Tx, c cleanObs, creating bo
 		}
 	}
 	if c.agent != "" {
+		forget := func(kind, value string) error {
+			n, err := forgetRemoved(ctx, tx, kind, value)
+			if err != nil || n == 0 {
+				return err
+			}
+			return s.auditTx(ctx, tx, systemActor, "inventory.removal_forget", value, "its osquery agent reports again")
+		}
 		for _, m := range append(cards, c.agentMACs...) {
-			n, err := forgetRemoved(ctx, tx, "mac", m)
-			if err != nil {
+			if err := forget("mac", m); err != nil {
 				return false, err
 			}
-			if n > 0 {
-				if err := s.auditTx(ctx, tx, systemActor, "inventory.removal_forget", m, "its osquery agent reports again"); err != nil {
-					return false, err
-				}
+		}
+		if creating && c.ip.IsValid() { // it makes the device at an address a removal kept: that removal is undone too
+			if err := forget("ip", c.ip.String()); err != nil {
+				return false, err
 			}
 		}
 		return true, nil
@@ -234,6 +241,13 @@ func (s *Service) admit(ctx context.Context, tx *sql.Tx, c cleanObs, creating bo
 			}
 			return !hit, err
 		}
+	}
+	if creating && c.list && len(cards) == 0 {
+		// a list (software, services) with neither a card nor an agent key never makes a device: a list is what a device runs, not who
+		// it is. The same report's observations, which name its card, come first (Wazuh's pull, a device check) and make the device when
+		// one may be made; when they made none (a removed card, wherever DHCP put the machine since), the list has no device either.
+		s.staleLog(ctx, c.ip.String(), c, "", staleKeyless)
+		return false, nil
 	}
 	if creating && len(cards) == 0 && c.ip.IsValid() {
 		// a sighting or list by address only, with no card to check (a device check that was running when the device was removed, Wazuh's

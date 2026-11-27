@@ -181,6 +181,7 @@ func storeUnderOld(t *testing.T, b *boxStart, svc *Service) stored {
 	t.Helper()
 	ctx := t.Context()
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.10")}
+	sightedBy(t.Context(), t, svc, hint, observe.Osquery)
 	if err := svc.ReplaceSoftware(ctx, hint, observe.Osquery, nil, []observe.Software{
 		javaItem(t, "Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)"), javaItem(t, "Eclipse Temurin JDK with Hotspot 8u452-b09 (x64)"),
 	}); err != nil {
@@ -406,6 +407,7 @@ func TestReidentify_ALineTakesTheIdentityAnotherLeaves(t *testing.T) {
 	var devices []pair
 	for i := range 6 { // ids are random: six devices give both orders of the two lines
 		hint := observe.AssetHint{IP: netip.AddrFrom4([4]byte{192, 0, 2, byte(100 + i)})}
+		sightedBy(t.Context(), t, svc, hint, observe.Nmap)
 		if err := svc.ReplaceSoftware(t.Context(), hint, observe.Nmap, nil, []observe.Software{
 			{Display: "Foo 1.0", Vendor: "Acme", Product: "Foo", Version: "1.0", Instance: "tcp/1", Confidence: 0.8},
 			{Display: "Bar 2.0", Vendor: "Acme", Product: "Bar", Version: "2.0", Instance: "tcp/2", Confidence: 0.8},
@@ -477,5 +479,14 @@ func TestReidentify_AFailingDeviceIsSkippedAndTriedAgain(t *testing.T) {
 	if err := b.db.Reader().QueryRowContext(t.Context(), `SELECT revision, target, after FROM inv_catalogue_pass`).Scan(&rev, &target, &after); err != nil ||
 		rev != catalogueRevision() || target != "" || after != "" {
 		t.Fatalf("pass state %q %q %q %v", rev, target, after, err)
+	}
+}
+
+// sightedBy records what a report sends before its lists (agent-intake's pull and a device check record the device's facts first): a
+// list by address only attaches to the device its report's observations made, never makes one (INV-59).
+func sightedBy(ctx context.Context, t testing.TB, svc *Service, hint observe.AssetHint, src observe.Source) {
+	t.Helper()
+	if err := svc.Record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Kind, Value: "unknown", Source: observe.ClassOf(src), Confidence: 0.1}}); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -422,6 +422,8 @@
     "noteInfo": "Phones and laptops pick one per network and may change it, so the address can differ the next time and a device seen again under a new address is joined to this one by its host name when that name is its own."
   },
   "obs": {
+    "summary_one": "{{count}} observation",
+    "summary_other": "{{count}} observations",
     "title": "All observations",
     "description": "Every value recorded for this device, with its source and confidence.",
     "descriptionInfo": "Each time a sensor, a scan or you record a value, it is added here.",
@@ -444,6 +446,8 @@
     }
   },
   "services": {
+    "summary_one": "{{count}} open service",
+    "summary_other": "{{count}} open services",
     "title": "Open services",
     "description": "Open ports found by scans of this device, or listed by its agent or by the box itself.",
     "descriptionInfo": "A normal scan replaces this list with the ports it found open: nmap's 1000 most common ports and the usual alternate admin ports (SSH on 22222, HTTPS on 10443 and the like). Once a week a device that is not fragile gets a scan of every port, in the scan window.",
@@ -468,6 +472,8 @@
     "detail": "What it says"
   },
   "software": {
+    "summary_one": "{{count}} software item",
+    "summary_other": "{{count}} software items",
     "title": "Software",
     "description": "The more exact the version, the more accurate the alerts.",
     "descriptionInfo": "Open findings lists the exploited vulnerabilities Vedette matched to this software's version and that are still open.",

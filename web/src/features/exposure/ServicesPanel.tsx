@@ -52,8 +52,8 @@ function ServicesTable({ node, services, issues, gateway }: { node: TargetNode; 
     <div className="grid gap-3">
       {gateway && open.length > 0 ? <GatewayNote g={gateway} /> : null}
       {noWeb ? <p className="max-w-3xl text-meta text-muted">{t('services.noWeb', { ports: [...new Set(open.map((s) => s.port))].sort((a, b) => a - b).join(', ') })}</p> : null}
-      <Segmented<View> className="w-fit" label={t('services.view')} value={view} onChange={setView} options={VIEWS.map((v) => ({ value: v, label: t(`services.views.${v}`, { count: services.filter((s) => s.state === v).length }) }))} />
-      <DataTable urlKey="exposure-services" resetPageOn={view} caption={t('services.caption', { value: node.value })} data={rows} columns={columns} pageSize={25}
+      <DataTable urlKey="exposure-services" resetPageOn={view}
+        toolbar={<Segmented<View> className="w-fit" label={t('services.view')} value={view} onChange={setView} options={VIEWS.map((v) => ({ value: v, label: t(`services.views.${v}`, { count: services.filter((s) => s.state === v).length }) }))} />} caption={t('services.caption', { value: node.value })} data={rows} columns={columns} pageSize={25}
         initialSort={[{ id: 'port', desc: false }]}
         mobileRow={(s) => (
           <div className="grid gap-1.5">

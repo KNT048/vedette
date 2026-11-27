@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -41,7 +42,8 @@ function TargetLoader() {
   const q = useNode(id)
   return (
     <>
-      <Link to="/exposure" className="mb-3 inline-flex items-center gap-1 text-meta text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('target.back')}</Link>
+      {/* the way back while the target loads or fails; once it shows, its header carries the same breadcrumbs (docs/UI.md §3) */}
+      {q.data ? null : <div className="mb-3"><Breadcrumbs items={[{ label: t('common:shell.exposure'), to: '/exposure' }]} /></div>}
       <QueryState query={q}>{(n) => <TargetView node={n} />}</QueryState>
     </>
   )
@@ -93,7 +95,7 @@ function TargetView({ node }: { node: TargetNode }) {
   const live = isLive(node.last_scan)
   return (
     <>
-      <PageHeader title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
+      <PageHeader breadcrumbs={[{ label: t('common:shell.exposure'), to: '/exposure' }]} title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
         meta={<span className="flex flex-wrap items-center gap-2">
           <ProofChip node={node} />
           {parent ? <span className="text-meta">{t('target.under')} <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${encodeURIComponent(parent.id)}`}>{parent.value}</Link></span> : null}

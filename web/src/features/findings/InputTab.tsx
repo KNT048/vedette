@@ -9,9 +9,9 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ChevronDown, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
+import { ExpandToggle, LeadSpacer, ListRow, ListToolbar } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge, VerificationLine } from '@/components/common/status'
@@ -22,7 +22,7 @@ import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
 import { AddDeviceDialog } from '@/features/inventory/AddDeviceDialog'
 import { useStartRun } from '@/features/scan/api'
-import { useAnswer, useAnswered, useIgnoreQuestions, useInputList, useUnanswer, useVerify } from './api'
+import { useAnswer, useAnswered, useIgnoreQuestions, useInputList, useOverview, useUnanswer, useVerify } from './api'
 import { AcceptRiskDialog } from './AcceptRiskDialog'
 import { AskDialog, type Ask } from './AskDialog'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
@@ -52,13 +52,8 @@ function useRoles() {
 function NotAddedItem({ i, link }: { i: Item<'device_not_added'>; link: boolean }) {
   const { t } = useTranslation('findings')
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="grid gap-0.5">
-        <DeviceLine device={i.device} status={i.status} link={link} />
-        <span className="text-meta text-muted">{t('queue.notAdded', { count: i.findings })}</span>
-      </div>
-      <NotAdded asset={asAsset(i.device)} findings={i.findings} />
-    </div>
+    <ListRow label={i.device.name} lead={<LeadSpacer />} title={<DeviceLine device={i.device} status={i.status} link={link} />} meta={[t('queue.notAdded', { count: i.findings })]}
+      actions={<NotAdded asset={asAsset(i.device)} findings={i.findings} />} />
   )
 }
 
@@ -67,10 +62,8 @@ function NotAddedItem({ i, link }: { i: Item<'device_not_added'>; link: boolean 
 function NotAddedGroupItem({ i }: { i: Item<'devices_not_added'> }) {
   const { t } = useTranslation('findings')
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-sm">{t('queue.notAddedGroup', { count: i.count })}</p>
-      <Link to="/devices?tab=review" className={cn(buttonVariants({ size: 'sm' }))}>{t('queue.review')}</Link>
-    </div>
+    <ListRow lead={<LeadSpacer />} title={t('queue.notAddedGroup', { count: i.count })}
+      actions={<Link to="/devices?tab=review" className={cn(buttonVariants({ size: 'sm' }))}>{t('queue.review')}</Link>} />
   )
 }
 
@@ -315,33 +308,25 @@ function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
   const others = i.entries.length - lines.length
   const panel = `needs-${i.id.replace(/[^\w-]/g, '_')}`
   return (
-    <article aria-label={t('queue.deviceCard', { device: i.device.name })} className="grid gap-2 py-1">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {/* empty-guard: the other-items count is read only when the card has no software line and not only the cannot-check item, so it is at least 1 */}
-          <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)} className="-ml-2 h-auto min-h-8 justify-start gap-1.5 whitespace-normal py-1 text-left">
-            <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} />
-            <span className="text-sm font-semibold [overflow-wrap:anywhere]">{i.device.name}</span>
-            <span className="font-normal text-muted">{lines.length ? t('queue.deviceSummary', { lines: lines.length, cves }) : i.entries.every((e) => e.kind === 'device_unchecked') ? t('queue.deviceSummaryUnchecked') : t('queue.deviceSummaryOther', { count: others })}</span>
-          </Button>
-          {link ? <Link to={`/devices/${encodeURIComponent(i.device.id)}`} className="text-meta text-accent underline-offset-4 hover:underline">{t('queue.openDevice')}</Link> : null}
-        </div>
-        {lines.length ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreDeviceOf', { device: i.device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignoreAll')}</Button>
-            <Button size="sm" disabled={!r.admin} title={r.needAdmin} aria-label={t('queue.acceptDeviceOf', { device: i.device.name })} onClick={() => setAccepting(true)}>{t('queue.acceptAll')}</Button>
-          </div>
-        ) : null}
-      </div>
+    <ListRow label={t('queue.deviceCard', { device: i.device.name })}
+      lead={<ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls={panel} label={t('queue.toggle', { device: i.device.name })} />}
+      title={<DeviceLine device={i.device} badge={false} link={link} />}
+      meta={[lines.length ? t('queue.deviceSummary', { lines: lines.length, cves }) : i.entries.every((e) => e.kind === 'device_unchecked') ? t('queue.deviceSummaryUnchecked') : t('queue.deviceSummaryOther', { count: others })]}
+      actions={lines.length ? (
+        <>
+          <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreDeviceOf', { device: i.device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignoreAll')}</Button>
+          <Button size="sm" disabled={!r.admin} title={r.needAdmin} aria-label={t('queue.acceptDeviceOf', { device: i.device.name })} onClick={() => setAccepting(true)}>{t('queue.acceptAll')}</Button>
+        </>
+      ) : null}>
       {open ? (
-        <ul id={panel} aria-label={t('queue.entriesOf', { device: i.device.name })} className="ml-6 grid divide-y divide-rule border-l border-rule pl-3">
+        <ul id={panel} aria-label={t('queue.entriesOf', { device: i.device.name })} className="grid divide-y divide-rule">
           {i.entries.map((e) => e.kind === 'software_group' ? <SoftwareEntry key={e.id} g={e} device={i.device} />
             : <li key={e.id} className="py-3">{e.kind === 'unconfirmed' ? <UnconfirmedItem i={e} link={false} /> : <UncheckedItem i={e} link={false} />}</li>)}
         </ul>
       ) : null}
       {ignoring ? <IgnoreDialog device={i.device} line={null} count={cves} onClose={() => setIgnoring(false)} /> : null}
       {accepting ? <AcceptRiskDialog device={i.device} what={t('queue.everythingWaiting')} count={cves} onClose={() => setAccepting(false)} /> : null}
-    </article>
+    </ListRow>
   )
 }
 
@@ -414,6 +399,7 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
   const list = useMemo(() => ({ ...raw, size: raw.size === undefined ? undefined : Math.min(raw.size, PAGE_MAX) }), [raw])
   const size = list.size ?? PAGE_DEFAULT
   const q = useInputList({ q: raw.q, device }, { offset: list.page * size, limit: size })
+  const overview = useOverview().data?.input // the tab's own count (its badge), so the summary and the badge agree
   const links = useMemo(() => deviceLinks(q.data?.items ?? []), [q.data])
   const columns: ColumnDef<InputItem>[] = [
     { id: 'item', header: t('queue.col'), cell: ({ row: { original: i } }) => <QueueItem i={i} linkDevice={links.has(i.id)} /> },
@@ -423,13 +409,13 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
   const clear = () => { raw.set({ q: '', page: 0 }); onDevice('') }
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('queue.search')} />
+      <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('queue.search') }}>
         {device ? <Button size="sm" onClick={() => onDevice('')}><X />{t('byDevice.clearDevice', { device: named ?? t('byDevice.thisDevice') })}</Button> : null}
-      </div>
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => d.total === 0 && !filtered ? <EmptyState title={t('queue.empty')}>{t('queue.emptyBody')}</EmptyState> : (
           <DataTable urlKey="input" caption={t('queue.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
+            summary={t('queue.summary', { count: filtered ? d.total : (overview ?? d.total) })}
             server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} linkDevice={links.has(i.id)} />} />
         )}
       </QueryState>

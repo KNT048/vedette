@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -223,7 +223,7 @@ function RenameForm({ d, onClose }: { d: DeviceDetail; onClose: () => void }) {
   )
 }
 
-const Observations = memo(function Observations({ list }: { list: Observation[] }) {
+const Observations = memo(function Observations({ list, info }: { list: Observation[]; info?: ReactNode }) {
   const { t } = useTranslation('inventory')
   const columns: ColumnDef<Observation>[] = [
     { id: 'field', header: t('obs.field'), accessorFn: (o) => t(`obs.fields.${o.field}`), cell: ({ getValue }) => <span className="whitespace-nowrap font-medium">{getValue() as string}</span> },
@@ -234,6 +234,7 @@ const Observations = memo(function Observations({ list }: { list: Observation[] 
   ]
   return (
     <DataTable urlKey="observations" caption={t('obs.caption')} data={list} columns={columns} pageSize={100}
+      summary={list.length ? <>{t('obs.summary', { count: list.length })}{info ? <InfoTip topic={t('obs.title')}>{info}</InfoTip> : null}</> : null}
       mobileRow={(o) => (
         <div className="grid gap-1">
           <div className="flex items-start justify-between gap-3">
@@ -254,7 +255,7 @@ const Observations = memo(function Observations({ list }: { list: Observation[] 
  *  sensor scans the rest. */
 type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
 
-const Services = memo(function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: DeviceDetail['asset'] }) {
+const Services = memo(function Services({ list, by, asset, info }: { list: Service[]; by: PortsBy; asset: DeviceDetail['asset']; info?: ReactNode }) {
   const { t } = useTranslation(['inventory', 'findings', 'scanning'])
   const scanning = useScanning().data
   // On the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
@@ -283,6 +284,7 @@ const Services = memo(function Services({ list, by, asset }: { list: Service[]; 
   ]
   return (
     <DataTable urlKey="services" caption={t('services.caption')} data={list} columns={columns}
+      summary={<>{t('services.summary', { count: list.length })}{info ? <InfoTip topic={t('services.title')}>{info}</InfoTip> : null}</>}
       mobileRow={(sv) => (
         <div className="grid gap-1">
           <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}{where ? <span className="ml-2 font-normal tabular-nums text-muted">{where(sv)}</span> : null}</span>
@@ -306,7 +308,7 @@ function AlsoSeenLine({ also }: { also: AlsoSeen[] }) {
 
 // The tables' cells are drawn by functions made on each render, so a table drawn again mounts its cells again (an open row menu
 // closes). The page's header and tab counts change as the findings answer arrives: the tables are drawn again only when their device does.
-const SoftwareList = memo(function SoftwareList({ d }: { d: DeviceDetail }) {
+const SoftwareList = memo(function SoftwareList({ d, info, listActions }: { d: DeviceDetail; info?: ReactNode; listActions?: ReactNode }) {
   const { t } = useTranslation(['inventory', 'findings', 'scanning'])
   const can = useCan('operator')
   const act = useDeviceAction(d.asset.id)
@@ -431,7 +433,8 @@ const SoftwareList = memo(function SoftwareList({ d }: { d: DeviceDetail }) {
   return (
     <>
       {osBox ?? <OsNeeds assetId={d.asset.id} needs={needs} />}
-      <DataTable urlKey="software" caption={t('software.caption')} data={list} columns={columns}
+      <DataTable urlKey="software" caption={t('software.caption')} data={list} columns={columns} actions={listActions}
+        summary={list.length ? <>{t('software.summary', { count: list.length })}{info ? <InfoTip topic={t('software.title')}>{info}</InfoTip> : null}</> : null}
         mobileRow={(sw) => (
           <div className="flex items-start justify-between gap-3">
             <div className="grid min-w-0 gap-1">
@@ -552,18 +555,18 @@ function Body() {
         ) },
         ...(findingsOn ? [{ id: 'findings', label: t('findings:device.tab'), badge: summary ? tabCount(summary.open, t('findings:device.tabCount')) : undefined, panel: <DeviceFindings assetId={a.id} summary={summary} /> }] : []),
         { id: 'software', label: t('detail.tabs.software'), badge: tabCount(a.software.length, t('detail.tabs.softwareCount')), panel: (
-          <Section id="software" title={t('software.title')} info={<><p>{t('software.description')}</p><p>{t('software.descriptionInfo')}</p></>}
-            actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
-            <SoftwareList d={d} />
-          </Section>
+          <section id="software" aria-label={t('software.title')}>
+            <SoftwareList d={d} info={<><p>{t('software.description')}</p><p>{t('software.descriptionInfo')}</p></>}
+              listActions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>} />
+          </section>
         ) },
         { id: 'services', label: t('detail.tabs.services'), badge: tabCount(a.services.length, t('detail.tabs.servicesCount')), panel: (
-          <Section id="services" title={t('services.title')} info={<><p>{t('services.description')}</p><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
+          <section id="services" aria-label={t('services.title')}><Services info={<><p>{t('services.description')}</p><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>} asset={a} list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></section>
         ) },
         { id: 'observations', label: t('detail.tabs.observations'), panel: (
-          <Section id="obs" title={t('obs.title')} info={<><p>{t('obs.description')}</p><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>
-            <Observations list={d.observations} />
-          </Section>
+          <section id="obs" aria-label={t('obs.title')}>
+            <Observations list={d.observations} info={<><p>{t('obs.description')}</p><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>} />
+          </section>
         ) },
       ]} />
       {/* Ignore and Remove live in one place: a waiting device has them in its notice above, every other device here; the box has

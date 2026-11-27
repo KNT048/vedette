@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListSearch } from '@/components/common/Pager'
+import { ListToolbar } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { QueryState } from '@/components/common/States'
 import { FindingStatusLines, HandledLine, SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
@@ -32,7 +32,7 @@ function Reopen({ r }: { r: HandledRow }) {
   const on = { cve: r.cve, device: r.device.name }
   return (
     <>
-      <Button size="sm" variant="ghost" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+      <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
         aria-label={t('handledTab.reopenOf', on)} onClick={(e) => { e.stopPropagation(); setOpen(true) }}>{t('handledTab.reopen')}</Button>
       {open ? (
         <AskDialog title={t('handledTab.reopenTitle', on)} description={t('handledTab.reopenBody')} submit={t('handledTab.reopen')} done={t('handledTab.reopened', on)}
@@ -82,7 +82,7 @@ export function HandledTab({ device }: { device: string }) {
   ]
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('handledTab.search') }}>
         <div className="max-w-full overflow-x-auto">
           <Segmented<Resolution | ''> label={t('handledTab.resolution')} value={resolution} onChange={(v) => set('resolution', v)}
             options={[{ value: '', label: t('handledTab.all') }, ...FINDING_RESOLUTIONS.map((r) => ({ value: r, label: label(r) }))]} />
@@ -91,8 +91,7 @@ export function HandledTab({ device }: { device: string }) {
           <option value="">{t('handledTab.anyTime')}</option>
           {PERIODS.map((p) => <option key={p} value={p}>{t('handledTab.lastDays', { count: Number(p) })}</option>)}
         </Select>
-        <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('handledTab.search')} />
-      </div>
+      </ListToolbar>
       <QueryState query={q}>
         {(d) => (
           <>
@@ -105,6 +104,7 @@ export function HandledTab({ device }: { device: string }) {
             </p>
           ) : null}
           <DataTable urlKey="handled" caption={t('handledTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
+            summary={d.total ? t('handledTab.summary', { count: d.total }) : null}
             server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${resolution}|${period}|${device}|${corrections}`} empty={t('handledTab.empty')}
             mobileRow={(r) => (
               <div className="grid gap-1.5">

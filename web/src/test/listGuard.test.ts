@@ -85,7 +85,7 @@ describe('list guard: one shared search box and pager', () => {
   })
 
   it('a table whose search box is off sits on a page with a search of its own (ListSearch or TokenSearch)', () => {
-    const bad = files.filter((f) => /<DataTable[\s\S]{0,400}?search=\{false\}/.test(f.text) && !/<(?:ListSearch|TokenSearch)\b|<DeviceSearch\b/.test(f.text)).map((f) => f.file)
+    const bad = files.filter((f) => /<DataTable[\s\S]{0,400}?search=\{false\}/.test(f.text) && !/<(?:ListSearch|TokenSearch|ListToolbar)\b|<DeviceSearch\b/.test(f.text)).map((f) => f.file)
     expect(bad).toEqual([])
   })
 

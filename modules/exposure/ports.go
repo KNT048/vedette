@@ -99,10 +99,6 @@ type ScanTarget struct {
 	// Grant is, on a page of the active web scan that asks for the disruptive rules, the host's grant of the person's press that
 	// started the scan (DisruptiveGranter); "" when none came. The host runs the disruptive rules only with one that holds.
 	Grant string
-	// NoTech are, on a page whose passive and active scans run in one ZAP run (CombinedWebScanner), the technologies (ZAP's names)
-	// this run positively identified the page as not running on (webTechAbsent): the active scan leaves out the rules that test only
-	// them. nil: every rule.
-	NoTech []string
 	// dropped says why deepGate took the disruptive checks out of a step the run allowed them on (dropNotOwn, dropCNAME, dropNAT);
 	// "" when it did not. Only the lines of the deep scan read it.
 	dropped string

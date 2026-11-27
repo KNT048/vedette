@@ -530,10 +530,8 @@ type zapPass struct {
 	grant      string // the grant of zap.authorize that came with a run asking for the disruptive rules
 	// noDoS, noChange and gentle are the deep-scan settings of an active run (api.ZapSettings): they only narrow its plan.
 	noDoS, noChange, gentle bool
-	// passive runs the page's passive pass in the same active run (api.ZapActiveArgs.Passive); tech are the technologies its active
-	// scan leaves out (TechExclude).
+	// passive runs the page's passive pass in the same active run (api.ZapActiveArgs.Passive).
 	passive bool
-	tech    []string
 }
 
 func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (any, error) {
@@ -612,7 +610,7 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 			logf("the disruptive rules do not run on " + p.url + ": " + zapRefusalText(refused))
 		}
 	}
-	opts := zapActiveOpts{disruptive: pass.disruptive, noDoS: pass.noDoS, noChange: pass.noChange, gentle: pass.gentle, passive: pass.passive, tech: pass.tech}
+	opts := zapActiveOpts{disruptive: pass.disruptive, noDoS: pass.noDoS, noChange: pass.noChange, gentle: pass.gentle, passive: pass.passive}
 	switch {
 	case pass.active:
 		// The plan is the host's own text, readable by the container's zap user (the folder is its; the file is root's, 0644).

@@ -32,7 +32,7 @@ func TestExposureWeb_CombinedIsOneRunWithBothReports(t *testing.T) {
 	h := combinedHost(t, api.ZapActiveResult{ReportID: webActiveRID, PassiveReportID: webPassiveRID, Rules: []int{40012, 40019}, SkippedRules: []int{40021}})
 	w := exposureWebScan{host: h}
 	tg := webIPTarget
-	tg.Mode, tg.NoTech = modeAllGroups, []string{"Oracle"}
+	tg.Mode = modeAllGroups
 	passive, active, activeErr, err := w.Combined(t.Context(), tg, webIPPage)
 	if err != nil || activeErr != nil {
 		t.Fatal(err, activeErr)
@@ -41,12 +41,12 @@ func TestExposureWeb_CombinedIsOneRunWithBothReports(t *testing.T) {
 		!slices.Equal(active.SkippedRules, []string{"40021"}) {
 		t.Fatalf("passive %q, active %+v", passive.Report, active)
 	}
-	if len(h.active) != 1 || !h.active[0].Passive || !slices.Equal(h.active[0].TechExclude, []string{"Oracle"}) {
-		t.Fatalf("one zap.active with passive and the technologies: %+v", h.active)
+	if len(h.active) != 1 || !h.active[0].Passive {
+		t.Fatalf("one zap.active with passive: %+v", h.active)
 	}
-	// Active and Baseline never send the new fields: an older host takes them as before
+	// Active never sends passive: an older host takes it as before
 	h2 := combinedHost(t, api.ZapActiveResult{ReportID: webActiveRID})
-	if _, err := (exposureWebScan{host: h2}).Active(t.Context(), tg, webIPPage); err != nil || h2.active[0].Passive || h2.active[0].TechExclude != nil {
+	if _, err := (exposureWebScan{host: h2}).Active(t.Context(), tg, webIPPage); err != nil || h2.active[0].Passive {
 		t.Fatalf("Active sent %+v (%v)", h2.active, err)
 	}
 }
@@ -76,20 +76,6 @@ func TestExposureWeb_CombinedOnAnOlderHost(t *testing.T) {
 		_, _, _, err := (exposureWebScan{host: h}).Combined(t.Context(), webIPTarget, webIPPage)
 		if !errors.Is(err, exposure.ErrNoCombined) || len(h.stops) != 0 {
 			t.Fatalf("%s: %v, stops %v", code, err, h.stops)
-		}
-	}
-}
-
-// Every technology core may leave out is one the host takes.
-func TestExposureWeb_CoreTechnologiesAreTheHosts(t *testing.T) {
-	t.Parallel()
-	techs := exposure.WebTechs()
-	if len(techs) == 0 {
-		t.Fatal("no technology")
-	}
-	for _, tech := range techs {
-		if !slices.Contains(api.ZapTechs, tech) {
-			t.Errorf("%q is not a technology of the host", tech)
 		}
 	}
 }

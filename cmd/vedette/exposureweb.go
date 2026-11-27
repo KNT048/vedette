@@ -202,8 +202,7 @@ func (w exposureWebScan) Active(ctx context.Context, t exposure.ScanTarget, page
 
 var _ exposure.CombinedWebScanner = exposureWebScan{}
 
-// Combined is exposure's CombinedWebScanner over zap.active with passive (and the technologies t.NoTech left out of the active scan):
-// one ZAP run for both scans of the page. A host older than the field refuses the args before it starts anything: that is
+// Combined is exposure's CombinedWebScanner over zap.active with passive: one ZAP run for both scans of the page. A host older than the field refuses the args before it starts anything: that is
 // exposure.ErrNoCombined, and the step runs Baseline and Active one after the other as before.
 func (w exposureWebScan) Combined(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (passive, active exposure.WebScan, activeErr, err error) {
 	out, err := w.run(ctx, t, page, true, true)
@@ -288,7 +287,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		aa.Settings = zapSettingsOf(t, true, aa.Disruptive)
 		sentSettings = aa.Settings != nil
 		if combined {
-			aa.Passive, aa.TechExclude = true, slices.Clone(t.NoTech)
+			aa.Passive = true
 		}
 		run, err = w.host.ZapActive(ctx, aa, id, actor)
 	} else {
@@ -303,7 +302,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			w.stop(ctx, id, actor)
 			return zapRunOut{}, ctx.Err()
 		case combined && errors.As(err, &he) && (he.Code == api.CodeUnknownCommand || he.Code == api.CodeInvalidArgs):
-			// a host older than passive (or a technology it does not know) refuses the args: nothing started, the step runs both
+			// a host older than passive refuses the args: nothing started, the step runs both
 			// scans one after the other, and the baseline and the active scan then say what an older host refuses of the rest
 			return zapRunOut{}, exposure.ErrNoCombined
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||

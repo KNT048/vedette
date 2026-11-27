@@ -188,15 +188,7 @@ type ZapActiveArgs struct {
 	// and comes back as ZapActiveResult.PassiveReportID, also when the active part then ends without its report. A host older than
 	// the field refuses the run (an unknown field): nothing is started, and core runs zap.baseline and zap.active one after the other.
 	Passive bool `json:"passive,omitempty"`
-	// TechExclude are technologies (ZapTechs) core positively knows the page does not run on: the active scan's context leaves them
-	// out (ZAP's context technology.exclude), so the rules that only test them skip, and ZapActiveResult.SkippedRules names those
-	// rules. Only with Passive. Empty: every technology, every rule.
-	TechExclude []string `json:"tech_exclude,omitempty"`
 }
-
-// ZapTechs are the technologies zap.active takes in TechExclude: ZAP's own names (https://www.zaproxy.org/techtags/, the last part),
-// each the database of a time-based SQL injection rule of the host's rule split.
-var ZapTechs = []string{"HypersonicSQL", "Microsoft SQL Server", "MySQL", "Oracle", "PostgreSQL"}
 
 // ZapAuthorizeArgs are the args of zap.authorize: the box's own public IPv4 address the person's scan is of.
 type ZapAuthorizeArgs struct {

@@ -74,7 +74,7 @@ func TestZapCombined_OnePlanSpiderPassiveThenActive(t *testing.T) {
 			t.Fatalf("the last report is the active one: %s", r)
 		}
 		if strings.Count(plan, "- name: ") != 1 || strings.Contains(plan, "technology") || strings.Count(plan, "context: page") != 2 {
-			t.Fatalf("one context, every technology, for the spider and the active scan: %s", plan)
+			t.Fatalf("one context, for the spider and the active scan: %s", plan)
 		}
 		for _, prefix := range p.skip {
 			ex := zapQuote(zapExcludeRE(p.url, prefix))
@@ -114,89 +114,20 @@ func maps2Equal(a, b map[int]string) bool {
 	return true
 }
 
-// Technologies leave rules out only when core names them: the active scan then runs in a second context of the same URL, include and
-// excludes, whose technology leaves them out; the spider and the passive rules keep the page's context with every technology. The
-// rules that skip or narrow are named in the result's skipped rules. Without technologies: no technology line, no rule skipped.
-func TestZapCombined_TechnologyOnlyWhenNamed(t *testing.T) {
-	t.Parallel()
-	p := skipPage(t)
-	none := zapActiveOpts{passive: true}
-	if plan := zapPlanActive(p, none); strings.Contains(plan, "technology") || strings.Contains(plan, "context: active") {
-		t.Fatalf("no technology named, none left out: %s", plan)
-	}
-	if got := zapSkippedRules(p, none); slices.ContainsFunc(got, func(id int) bool { return id >= 40018 && id <= 40027 }) {
-		t.Fatalf("no technology named, no SQL injection rule skipped: %v", got)
-	}
-	o := zapActiveOpts{passive: true, tech: []string{"HypersonicSQL", "Microsoft SQL Server", "Oracle"}}
-	plan := zapPlanActive(p, o)
-	if strings.Count(plan, "- name: ") != 2 || !strings.Contains(plan, "    - name: active\n") || strings.Count(plan, "excludePaths:") != 2 {
-		t.Fatalf("a second context with the same excludes: %s", plan)
-	}
-	if !strings.Contains(plan, "      technology:\n        exclude:\n          - \"HypersonicSQL\"\n          - \"Microsoft SQL Server\"\n          - \"Oracle\"\n") || strings.Count(plan, "technology:") != 1 {
-		t.Fatalf("the technologies left out: %s", plan)
-	}
-	if !strings.Contains(planJob(t, plan, "spider", 0), "context: page\n") || !strings.Contains(planJob(t, plan, "activeScan", 0), "context: active\n") {
-		t.Fatalf("the spider keeps every technology, the active scan leaves them out: %s", plan)
-	}
-	got := zapSkippedRules(p, o)
-	for _, id := range []int{40018, 40020, 40021, 40027} {
-		if !slices.Contains(got, id) {
-			t.Errorf("rule %d is not named as left out or narrowed: %v", id, got)
-		}
-	}
-	for _, id := range []int{40019, 40022} {
-		if slices.Contains(got, id) {
-			t.Errorf("rule %d (a database not left out) is named: %v", id, got)
-		}
-	}
-	// a run without passive never takes technologies (the plan is the active plan as before)
-	if plan := zapPlanActive(p, zapActiveOpts{tech: o.tech}); strings.Contains(plan, "technology") {
-		t.Fatalf("technology without passive: %s", plan)
-	}
-}
-
-// Every technology the API takes turns off a rule of the host's rule split that runs on every page.
-func TestZapTechRulesCoverTheAPI(t *testing.T) {
-	t.Parallel()
-	var keys []string
-	for k, id := range zapTechRules {
-		keys = append(keys, k)
-		i := slices.IndexFunc(zapActiveRules, func(r zapRule) bool { return r.id == id })
-		if i < 0 || zapActiveRules[i].class != zapRuleOn {
-			t.Errorf("%s: rule %d is not a rule that runs on every page", k, id)
-		}
-	}
-	slices.Sort(keys)
-	if !slices.Equal(keys, api.ZapTechs) {
-		t.Fatalf("the technologies of the rules %q, of the API %q", keys, api.ZapTechs)
-	}
-}
-
-// The args: technologies only with passive, each a name of the API's list, once.
+// The args: passive is taken with every kind of page; with the disruptive rules only as before.
 func TestZapCombined_Args(t *testing.T) {
 	t.Parallel()
-	base := api.ZapActiveArgs{ZapBaselineArgs: api.ZapBaselineArgs{URL: "https://" + zapTestIP + ":8443/", Host: zapTestIP, IP: zapTestIP, Port: 8443, Kind: api.ZapKindIP}}
-	ok := base
-	ok.Passive, ok.TechExclude = true, []string{"Oracle", "Microsoft SQL Server"}
-	if _, err := zapActiveArgs(ok); err != nil {
+	a := api.ZapActiveArgs{ZapBaselineArgs: api.ZapBaselineArgs{URL: "https://" + zapTestIP + ":8443/", Host: zapTestIP, IP: zapTestIP, Port: 8443, Kind: api.ZapKindIP}, Passive: true}
+	if _, err := zapActiveArgs(a); err != nil {
 		t.Fatal(err)
 	}
-	passive := base
-	passive.Passive = true
-	if _, err := zapActiveArgs(passive); err != nil {
+	d := api.ZapActiveArgs{ZapBaselineArgs: api.ZapBaselineArgs{URL: "https://www.example.com/", Host: "www.example.com", IP: zapTestIP, Port: 443, Kind: api.ZapKindDomain, Domain: "example.com", TXTToken: zapTestTok}, Passive: true}
+	if _, err := zapActiveArgs(d); err != nil {
 		t.Fatal(err)
 	}
-	for name, tech := range map[string][]string{"unknown": {"SQLite"}, "twice": {"Oracle", "Oracle"}, "a pattern": {"Db.*"}, "case": {"oracle"}} {
-		a := base
-		a.Passive, a.TechExclude = true, tech
-		if _, err := zapActiveArgs(a); err == nil {
-			t.Errorf("%s: %q accepted", name, tech)
-		}
-	}
-	noPassive := base
-	noPassive.TechExclude = []string{"Oracle"}
-	if _, err := zapActiveArgs(noPassive); err == nil {
-		t.Error("technologies without passive accepted")
+	d.Disruptive = true
+	if _, err := zapActiveArgs(d); err == nil {
+		t.Fatal("disruptive on a domain's page accepted with passive")
 	}
 }
 
@@ -206,7 +137,7 @@ func TestZapCombined_OneRunBothReports(t *testing.T) {
 	t.Parallel()
 	w := newZapWorld(t, Deps{})
 	w.passive, w.report = []byte(`{"site":[{"passive":1}]}`), []byte(`{"site":[{"active":1}]}`)
-	got, err := w.o.zapRun(t.Context(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true, passive: true, tech: []string{"Oracle"}})
+	got, err := w.o.zapRun(t.Context(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true, passive: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,10 +154,10 @@ func TestZapCombined_OneRunBothReports(t *testing.T) {
 			t.Fatalf("report %s: %q %v", id, b, err)
 		}
 	}
-	if !slices.Equal(res.Rules, zapPlanRules(zapActivePage(t, api.ZapKindIP), zapActiveOpts{})) || len(res.Rules) == 0 || !slices.Contains(res.SkippedRules, 40021) {
+	if !slices.Equal(res.Rules, zapPlanRules(zapActivePage(t, api.ZapKindIP), zapActiveOpts{})) || len(res.Rules) == 0 || len(res.SkippedRules) != 0 {
 		t.Fatalf("rules %v, skipped %v", res.Rules, res.SkippedRules)
 	}
-	if got := planJobs(w.plan); !slices.Contains(got, "passiveScan-wait") || !strings.Contains(w.plan, "context: active") {
+	if got := planJobs(w.plan); !slices.Contains(got, "passiveScan-wait") || !strings.Contains(w.plan, `reportFile: "passive.json"`) {
 		t.Fatalf("the run's plan: %s", w.plan)
 	}
 	w.cleanedUp(t)

@@ -150,6 +150,9 @@ const (
 	notWebTarpit  = "Passive web scan (ZAP) did not run: this address answers on more ports than a normal box exposes, so its web ports cannot be told apart."
 	notWebFail    = "Passive web scan (ZAP) failed, so the page was not checked. The box log has the error."
 	notWebSlow    = "Passive web scan (ZAP) did not finish within 8 minutes, so the page was not checked."
+	// notActiveNotRead is a page attacked in one run with its passive scan whose passive report gave no page or could not be read:
+	// the active pass takes only pages the passive scan read, so its active results are not used (and close nothing).
+	notActiveNotRead = "Active web scan (ZAP) ran in the same run as the passive scan, but that run's passive report gave no page that could be read, so its active results are not used."
 	// notWebSlowAhead is notWebSlow of a page whose passive and active scans ran in one ZAP run (CombinedScanTimeout).
 	notWebSlowAhead = "Web scan (ZAP, passive and active rules in one run) did not finish within 25 minutes, so the page was not checked."
 	notWebUnread    = "Passive web scan (ZAP) returned a report that could not be read, so the page was not checked."
@@ -743,7 +746,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act 
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notWebNoLog})
 		return c, nil
 	}
-	var scanned []string
+	var scanned, together []string // together: the pages read in one run with their active scan
 	alerts := 0
 	steps := stepsOf(ctx) // INV-30: each page ZAP is asked for is a call of the ZAP step
 	rs := runStepsOf(ctx)
@@ -771,7 +774,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act 
 		call, ahead := activeCall{}, false
 		if !noAhead {
 			var err error
-			if call, ahead, err = s.aheadCall(ctx, act, pst, c, page, c.webAheadAt); err != nil {
+			if call, ahead, err = s.aheadCall(ctx, act, pst, page, c.webAheadAt); err != nil {
 				return c, err
 			}
 		}
@@ -800,6 +803,9 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act 
 				c.WebPages = append(c.WebPages, page.URL)
 				c.webOK = append(c.webOK, page)
 				scanned, alerts = append(scanned, page.URL), alerts+len(rows)
+				if c.webAhead[page.URL] != nil {
+					together = append(together, page.URL)
+				}
 				steps.end(StepZAP, callRan, len(rows), s.clock())
 			case errors.Is(perr, ErrNoPage): // ZAP ran and found no page there
 				c.WebPages = append(c.WebPages, page.URL)
@@ -809,6 +815,9 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act 
 				s.cfg.Log.ErrorContext(ctx, "exposure: unreadable ZAP report", "target", st.Value, "page", page.URL, "error", perr)
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebUnread, maxLineText)})
 				steps.end(StepZAP, callFailed, 0, s.clock())
+			}
+			if perr != nil && c.webAhead[page.URL] != nil { // attacked in the same run, but the active pass takes only pages read here
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveNotRead, maxLineText)})
 			}
 			continue
 		}
@@ -857,8 +866,15 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act 
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: fmt.Sprintf("%s of the web scan are not shown: only %d are kept, the ones to fix first, then the highest risk.", plural(len(c.WebFindings)-maxWebFindings, "alert"), maxWebFindings)})
 	}
 	if len(scanned) > 0 {
+		how := "ZAP baseline: spider and passive rules, no form sent"
+		switch {
+		case len(together) == len(scanned):
+			how = "ZAP: passive rules on the pages of the active scan's spider, in the same run"
+		case len(together) > 0:
+			how = "ZAP: spider and passive rules, no form sent, except on " + strings.Join(together, ", ") + ", read by the active scan's spider in the same run"
+		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "web", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
-			"Passive web scan (ZAP baseline: spider and passive rules, no form sent) of %s: %s. %s.", plural(len(scanned), "page"), strings.Join(scanned, ", "), plural(alerts, "alert")), maxLineText)})
+			"Passive web scan (%s) of %s: %s. %s.", how, plural(len(scanned), "page"), strings.Join(scanned, ", "), plural(alerts, "alert")), maxLineText)})
 	}
 	return c, nil
 }

@@ -447,7 +447,7 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 // takes anyway, decided by the same checks the active pass makes (aheadCall), right before the run.
 
 // CombinedWebScanner is implemented by an ActiveWebScanner that runs a page's passive and active scans in one ZAP run. t is the
-// active scan's target (activeCall.st, with NoTech). passive is the passive report as Baseline returns it; active is the active
+// active scan's target (activeCall.st). passive is the passive report as Baseline returns it; active is the active
 // scan's outcome as Active returns it, with Rules (the ids of the rules it ran: the alerts of its report that are not of these are
 // the passive ones of the same run), or activeErr when the active part ended without its report (ErrActiveTimedOut when the host's
 // time ran out; the passive report stands either way). err is the run's own error, as Baseline's (no report at all); ErrNoCombined
@@ -479,8 +479,8 @@ type aheadRun struct {
 // (CombinedWebScanner) and the active pass would take the page anyway, by the same checks and in the same order (webActive's and
 // activeTarget's, made now, right before the run), its time (ActiveRunLimit, which the whole run of CombinedScanTimeout must fit in)
 // counted from at (the first such page; zero: none yet), and the passive pass's web paths to skip the same as the active one's (one
-// run, one context). passive is the target of the page's passive scan. The call's NoTech are what this run positively identified the page as not running on (webTechAbsent).
-func (s *Service) aheadCall(ctx context.Context, st, passive ScanTarget, c Content, page WebPage, at time.Time) (activeCall, bool, error) {
+// run, one context). passive is the target of the page's passive scan.
+func (s *Service) aheadCall(ctx context.Context, st, passive ScanTarget, page WebPage, at time.Time) (activeCall, bool, error) {
 	_, combined := s.cfg.Web.(CombinedWebScanner)
 	_, active := s.cfg.Web.(ActiveWebScanner)
 	_, logs := s.cfg.Probes.(WebProbeLog)
@@ -493,13 +493,9 @@ func (s *Service) aheadCall(ctx context.Context, st, passive ScanTarget, c Conte
 	if err != nil || call.line != "" || !slices.Equal(call.st.SkipPaths, passive.SkipPaths) {
 		return activeCall{}, false, err
 	}
-	call.st.NoTech = webTechAbsent(c, page)
 	call.tool = webCombinedTool
 	if call.st.Mode.Disruptive {
 		call.tool = webCombinedToolDisruptive
-	}
-	if len(call.st.NoTech) > 0 {
-		call.tool += "; rules of " + strings.Join(call.st.NoTech, ", ") + " left out (identified as not this site's)"
 	}
 	return call, true, nil
 }

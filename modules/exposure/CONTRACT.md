@@ -317,7 +317,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `TestExposureWeb_AStoppedScanStopsZAPOnTheHost`), `cmd/vedette/exposureweb_grant_test.go`.
 - **INV-24b** One ZAP run per page for both scans: a page whose active scan the run takes anyway (`aheadCall`: the checks of
   INV-24a and `activeTarget`, made right before the run: a person's deep scan, the terms and the settings read now, the port not
-  skipped, the active pass's 60 minutes counted from the first such page, the passive and active web paths to skip the same) runs
+  skipped, the whole run (`CombinedScanTimeout`, 25 minutes) fitting in the active pass's 60 minutes counted from the first such
+  page, the passive and active web paths to skip the same) runs
   its passive and active scans in one ZAP run (`CombinedWebScanner`, host `zap.active` with `passive`): one probe-log row for both
   before it starts, one ZAP start and one spider. The passive step reads its passive report as it reads the baseline's; the active
   pass takes the active outcome (`Content.webAhead`) instead of running the page again, keeps only the alerts of the rules the host
@@ -325,11 +326,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   results stand when the active part ends without its report (`ErrActiveTimedOut`, or another error: the active step's line says
   the page's active results are not known). A scheduled scan, a surface scan, a target whose active scan is off and a scanner
   without it run the baseline alone; a host that refuses the run before starting (`ErrNoCombined`, older than `passive`) makes
-  the rest of the pass run the baseline then the active scan as before. The active scan leaves out a technology only when this run
-  positively identified, on the page's own address and port, a product that never runs on it (`webTechAbsent`: a nuclei template
-  that matched, or nmap's product from a probe; never a title or a guess): GitLab leaves out Oracle, Microsoft SQL Server and
-  HyperSQL (not MySQL, which it ran on until 12.1); the rules that skip or narrow are skipped rules of the page, so an issue of
-  theirs is not closed by it. `TestWebCombined_*`, `TestWebTechAbsent`, `TestExposureWeb_Combined*`.
+  the rest of the pass run the baseline then the active scan as before. A one-run page whose passive report gives no page or cannot
+  be read is not taken by the active pass and says so (`notActiveNotRead`); nothing of it closes. The passive check line says
+  which pages were read by the active scan's spider (which sends forms) instead of "no form sent". `TestWebCombined_*`,
+  `TestExposureWeb_Combined*`.
 - **INV-25** Greenbone (OpenVAS) is optional and off by default; it runs as its own unmodified project beside Vedette and is
   driven over GMP. Each address has a time cap (INV-25a). Its probe log row, written before the task starts, is completed once the
   scan ended: `matched` (results), `not_matched` (it scanned, no result), `not_run` (it never started scanning); a failure, a stop

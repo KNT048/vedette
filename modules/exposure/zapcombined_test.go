@@ -2,8 +2,6 @@ package exposure
 
 import (
 	"context"
-	"net/netip"
-	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -260,69 +258,55 @@ func TestWebCombined_OneRunStartsOnlyWhenItFits(t *testing.T) {
 	}
 }
 
-// A technology is left out only on the page where this run positively identified a product that never runs on it: never on a guess,
-// never on another page.
-func TestWebCombined_TechnologyOnlyWhenIdentified(t *testing.T) {
+// The passive check line says how the pages were read: on pages read in one run with the active scan the spider sends forms (with
+// GET, or posted with the disruptive rules), so the line no longer says "no form sent" for them.
+func TestWebCombined_TheCheckLineSaysHowThePagesWereRead(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	w := e.wireCombined(emptyReport)
-	svcs := webServices()
-	for i := range svcs {
-		if svcs[i].Port == 443 {
-			svcs[i].Product = "GitLab"
-		}
-	}
-	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: svcs, Ports: 98}}
+	e.wireCombined(emptyReport)
 	id := e.committedIP(ipA).ID
 	e.acceptTerms(id, true)
-	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", id)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(w.pages) != 3 {
-		t.Fatalf("one-run calls %q", w.pages)
-	}
-	left := 0
-	for i, tg := range w.targets {
-		want := []string(nil)
-		if w.pages[i] == "https://"+ipA+"/" {
-			want, left = []string{"HypersonicSQL", "Microsoft SQL Server", "Oracle"}, left+1
-		}
-		if !slices.Equal(tg.NoTech, want) {
-			t.Fatalf("%s: technologies left out %q, want %q", w.pages[i], tg.NoTech, want)
-		}
-		if row := w.log.rows[i]; (want != nil) != strings.Contains(row.Tool, "left out") {
-			t.Fatalf("%s: probe row %q", w.pages[i], row.Tool)
+	var line string
+	for _, c := range s.Checks {
+		if strings.HasPrefix(c.Text, "Passive web scan") {
+			line = c.Text
 		}
 	}
-	if left != 1 {
-		t.Fatalf("the identified page was not scanned: %q", w.pages)
+	if !strings.Contains(line, "passive rules on the pages of the active scan's spider, in the same run") || strings.Contains(line, "no form sent") {
+		t.Fatalf("the passive check line: %q", line)
 	}
 }
 
-func TestWebTechAbsent(t *testing.T) {
+// A page attacked in one run whose passive report cannot be read is not read by the passive pass, so the active pass does not take
+// it: a line says its active results are not used, and nothing of it is counted or closed.
+func TestWebCombined_AnUnreadPassiveReportSaysTheActiveResultsAreNotUsed(t *testing.T) {
 	t.Parallel()
-	page := WebPage{URL: "https://203.0.113.7:10443/", Host: "203.0.113.7", IP: netip.MustParseAddr("203.0.113.7"), Port: 10443}
-	gitlab := []string{"HypersonicSQL", "Microsoft SQL Server", "Oracle"}
-	for name, tc := range map[string]struct {
-		c    Content
-		want []string
-	}{
-		"nothing identified":          {Content{}, nil},
-		"nuclei matched":              {Content{Templates: []TemplateRow{{IP: "203.0.113.7", Port: 10443, Template: "gitlab-detect", Outcome: OutcomeMatched}}}, gitlab},
-		"nuclei did not match":        {Content{Templates: []TemplateRow{{IP: "203.0.113.7", Port: 10443, Template: "gitlab-detect", Outcome: OutcomeNoMatch}}}, nil},
-		"another port":                {Content{Templates: []TemplateRow{{IP: "203.0.113.7", Port: 443, Template: "gitlab-detect", Outcome: OutcomeMatched}}}, nil},
-		"another address":             {Content{Templates: []TemplateRow{{IP: "203.0.113.8", Port: 10443, Template: "gitlab-detect", Outcome: OutcomeMatched}}}, nil},
-		"nmap named it from a probe":  {Content{Services: []ServiceRow{{IP: "203.0.113.7", Port: 10443, Name: "https", Product: "GitLab", Method: "probed"}}}, gitlab},
-		"nmap by the port only":       {Content{Services: []ServiceRow{{IP: "203.0.113.7", Port: 10443, Name: "https", Product: "GitLab", Method: "table"}}}, nil},
-		"a title is not an identity":  {Content{Ports: []PortRow{{IP: "203.0.113.7", Port: 10443, Title: "Sign in · GitLab"}}}, nil},
-		"another product of the port": {Content{Services: []ServiceRow{{IP: "203.0.113.7", Port: 10443, Name: "https", Product: "nginx", Method: "probed"}}}, nil},
-	} {
-		got := webTechAbsent(tc.c, page)
-		if !slices.Equal(got, tc.want) {
-			t.Errorf("%s: %q, want %q", name, got, tc.want)
+	e := newEnv(t)
+	w := e.wireCombined(xssReport)
+	w.report = func(string) []byte { return []byte("not a report") }
+	id := e.committedIP(ipA).ID
+	e.acceptTerms(id, true)
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(w.pages) != 3 || len(s.WebFindings) != 0 {
+		t.Fatalf("one-run calls %q, findings %+v", w.pages, s.WebFindings)
+	}
+	n := 0
+	for _, l := range notChecked(s) {
+		if strings.HasSuffix(l, notActiveNotRead) {
+			n++
 		}
-		if slices.Contains(got, "MySQL") || slices.Contains(got, "PostgreSQL") {
-			t.Errorf("%s: a database GitLab ran on is left out: %q", name, got)
-		}
+	}
+	if n != 3 {
+		t.Fatalf("%d lines of active results not used: %q", n, notChecked(s))
+	}
+	if st, _ := e.runStep(stepNameZAPAct); st.Status != corerun.Skipped {
+		t.Fatalf("the active step: %s", st.Status)
 	}
 }

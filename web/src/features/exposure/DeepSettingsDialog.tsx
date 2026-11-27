@@ -13,7 +13,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { useCan } from '@/lib/session'
 import { useGreenbone, useSaveDeepSettings } from './api'
 import { MAX_SKIP_PATHS, MAX_SKIP_PORTS } from './contract'
-import { deepSummary, DISRUPTIVE, GROUPS, type Group } from './node'
+import { DISRUPTIVE, GROUPS, type Group } from './node'
 import { useScope } from './ScanBar'
 import type { DeepSettings, DeepSettingsBody, TargetNode } from './types'
 

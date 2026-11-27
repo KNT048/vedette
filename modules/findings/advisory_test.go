@@ -31,3 +31,15 @@ func TestReadAdvisory_TextRangesOnlyFromAPageAboutThisCVE(t *testing.T) {
 		}
 	}
 }
+
+// A quote names the version only as a whole version: "7.4.10" does not name 7.4.1, so a proposal resting on it is not confident.
+func TestQuoteNamesRange_WholeVersionOnly(t *testing.T) {
+	t.Parallel()
+	id := CheckID{Product: "fortinet|fortios", Line: "7.4.1", Version: "7.4.1"}
+	if quoteNamesRange("FortiOS 7.4.10 and earlier are affected", id) {
+		t.Error("7.4.10 named 7.4.1")
+	}
+	if !quoteNamesRange("FortiOS 7.4.1 and earlier are affected", id) {
+		t.Error("7.4.1 not named")
+	}
+}

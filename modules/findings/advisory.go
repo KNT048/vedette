@@ -317,7 +317,9 @@ func foldSpace(s string) string { return strings.ToLower(strings.Join(strings.Fi
 // range word ("before", "through", "prior to", "earlier than", "from", "up to"). A lexical check of the quote, not a reading of it.
 func quoteNamesRange(quote string, id CheckID) bool {
 	low := strings.ToLower(quote)
-	names := strings.Contains(low, strings.ToLower(id.Version)) || id.Line != "" && regexp.MustCompile(`(?:^|[^0-9.])`+regexp.QuoteMeta(strings.ToLower(id.Line))+`(?:$|[^0-9])`).MatchString(low)
+	// the version as a whole ("7.4.10" does not name 7.4.1; a sentence's last period may follow it), the line also inside a release
+	version := regexp.MustCompile(`(?:^|[^0-9a-z.])` + regexp.QuoteMeta(strings.ToLower(id.Version)) + `(?:$|[^0-9a-z.]|\.(?:$|[^0-9a-z]))`)
+	names := id.Version != "" && version.MatchString(low) || id.Line != "" && regexp.MustCompile(`(?:^|[^0-9.])`+regexp.QuoteMeta(strings.ToLower(id.Line))+`(?:$|[^0-9])`).MatchString(low)
 	if !names {
 		return false
 	}

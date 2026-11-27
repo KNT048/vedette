@@ -61,6 +61,7 @@ export type ScanCounts = z.infer<typeof C.ScanCounts>
 export type Scan = z.infer<typeof C.Scan>
 export type Severity = z.infer<typeof C.Severity>
 export type NodeBlock = z.infer<typeof C.NodeBlock>
+export type DeepSettings = z.infer<typeof C.DeepSettings>
 export type TargetNode = z.infer<typeof C.TargetNode>
 export type TargetTree = z.infer<typeof C.TargetTree>
 export type HostSource = z.infer<typeof C.HostSource>

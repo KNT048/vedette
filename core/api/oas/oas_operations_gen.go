@@ -181,6 +181,7 @@ const (
 	ExposurePutExposureBoxIPSettingsOperation                OperationName = "ExposurePutExposureBoxIPSettings"
 	ExposurePutExposureGreenboneOperation                    OperationName = "ExposurePutExposureGreenbone"
 	ExposurePutExposureTargetsIDTermsOperation               OperationName = "ExposurePutExposureTargetsIDTerms"
+	ExposurePutExposureTreeIDDeepSettingsOperation           OperationName = "ExposurePutExposureTreeIDDeepSettings"
 	ExposurePutExposureTreeIDTermsOperation                  OperationName = "ExposurePutExposureTreeIDTerms"
 	FeedsDeleteFeedsCustomIDOperation                        OperationName = "FeedsDeleteFeedsCustomID"
 	FeedsGetFeedsCveIDOperation                              OperationName = "FeedsGetFeedsCveID"

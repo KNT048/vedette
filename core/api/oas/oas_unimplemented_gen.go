@@ -1839,6 +1839,20 @@ func (UnimplementedHandler) ExposurePutExposureTargetsIDTerms(ctx context.Contex
 	return r, ht.ErrNotImplemented
 }
 
+// ExposurePutExposureTreeIDDeepSettings implements exposure_put_exposure_tree_id_deep_settings operation.
+//
+// Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs
+// only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in
+// (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path
+// that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more
+// than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one.
+// Audited (exposure.deep_settings, before and after).
+//
+// PUT /exposure/tree/{id}/deep-settings
+func (UnimplementedHandler) ExposurePutExposureTreeIDDeepSettings(ctx context.Context, req *ExposurePutExposureTreeIDDeepSettingsReq, params ExposurePutExposureTreeIDDeepSettingsParams) (r *ExposurePutExposureTreeIDDeepSettingsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ExposurePutExposureTreeIDTerms implements exposure_put_exposure_tree_id_terms operation.
 //
 // Accept the testing terms of a node whose proof holds (proven, covered, or the box's own IP it does

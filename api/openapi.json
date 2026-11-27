@@ -32556,6 +32556,99 @@
                             "type": "boolean",
                             "description": "Scans of this node are deep scans: the current testing terms are accepted"
                           },
+                          "deep_settings": {
+                            "type": "object",
+                            "properties": {
+                              "dos": {
+                                "type": "boolean",
+                                "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                              },
+                              "logins": {
+                                "type": "boolean",
+                                "description": "Password guessing and sign-ins with default or well-known passwords"
+                              },
+                              "web_active": {
+                                "type": "boolean",
+                                "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                              },
+                              "data_change": {
+                                "type": "boolean",
+                                "description": "Exploit checks that send more than a harmless read and may create or change data"
+                              },
+                              "openvas": {
+                                "type": "boolean",
+                                "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                              },
+                              "speed": {
+                                "type": "string",
+                                "enum": [
+                                  "normal",
+                                  "gentle"
+                                ],
+                                "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                              },
+                              "skip_ports": {
+                                "maxItems": 64,
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 65535
+                                },
+                                "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                              },
+                              "skip_paths": {
+                                "maxItems": 20,
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                              },
+                              "updated_at": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "When the settings were saved; null while the target has the defaults"
+                              },
+                              "updated_by": {
+                                "description": "Who saved them; null while the target has the defaults",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "problem": {
+                                "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "dos",
+                              "logins",
+                              "web_active",
+                              "data_change",
+                              "openvas",
+                              "speed",
+                              "skip_ports",
+                              "skip_paths",
+                              "updated_at",
+                              "updated_by",
+                              "problem"
+                            ],
+                            "additionalProperties": false,
+                            "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                          },
                           "blocked": {
                             "anyOf": [
                               {
@@ -32816,6 +32909,7 @@
                           "terms_notice",
                           "terms_warning",
                           "deep",
+                          "deep_settings",
                           "blocked",
                           "last_scan",
                           "counts"
@@ -33472,6 +33566,99 @@
                       "type": "boolean",
                       "description": "Scans of this node are deep scans: the current testing terms are accepted"
                     },
+                    "deep_settings": {
+                      "type": "object",
+                      "properties": {
+                        "dos": {
+                          "type": "boolean",
+                          "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                        },
+                        "logins": {
+                          "type": "boolean",
+                          "description": "Password guessing and sign-ins with default or well-known passwords"
+                        },
+                        "web_active": {
+                          "type": "boolean",
+                          "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                        },
+                        "data_change": {
+                          "type": "boolean",
+                          "description": "Exploit checks that send more than a harmless read and may create or change data"
+                        },
+                        "openvas": {
+                          "type": "boolean",
+                          "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                        },
+                        "speed": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "gentle"
+                          ],
+                          "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                        },
+                        "skip_ports": {
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                          },
+                          "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                        },
+                        "skip_paths": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the settings were saved; null while the target has the defaults"
+                        },
+                        "updated_by": {
+                          "description": "Who saved them; null while the target has the defaults",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "problem": {
+                          "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dos",
+                        "logins",
+                        "web_active",
+                        "data_change",
+                        "openvas",
+                        "speed",
+                        "skip_ports",
+                        "skip_paths",
+                        "updated_at",
+                        "updated_by",
+                        "problem"
+                      ],
+                      "additionalProperties": false,
+                      "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                    },
                     "blocked": {
                       "anyOf": [
                         {
@@ -33732,6 +33919,7 @@
                     "terms_notice",
                     "terms_warning",
                     "deep",
+                    "deep_settings",
                     "blocked",
                     "last_scan",
                     "counts"
@@ -34263,6 +34451,99 @@
                       "type": "boolean",
                       "description": "Scans of this node are deep scans: the current testing terms are accepted"
                     },
+                    "deep_settings": {
+                      "type": "object",
+                      "properties": {
+                        "dos": {
+                          "type": "boolean",
+                          "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                        },
+                        "logins": {
+                          "type": "boolean",
+                          "description": "Password guessing and sign-ins with default or well-known passwords"
+                        },
+                        "web_active": {
+                          "type": "boolean",
+                          "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                        },
+                        "data_change": {
+                          "type": "boolean",
+                          "description": "Exploit checks that send more than a harmless read and may create or change data"
+                        },
+                        "openvas": {
+                          "type": "boolean",
+                          "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                        },
+                        "speed": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "gentle"
+                          ],
+                          "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                        },
+                        "skip_ports": {
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                          },
+                          "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                        },
+                        "skip_paths": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the settings were saved; null while the target has the defaults"
+                        },
+                        "updated_by": {
+                          "description": "Who saved them; null while the target has the defaults",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "problem": {
+                          "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dos",
+                        "logins",
+                        "web_active",
+                        "data_change",
+                        "openvas",
+                        "speed",
+                        "skip_ports",
+                        "skip_paths",
+                        "updated_at",
+                        "updated_by",
+                        "problem"
+                      ],
+                      "additionalProperties": false,
+                      "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                    },
                     "blocked": {
                       "anyOf": [
                         {
@@ -34523,6 +34804,7 @@
                     "terms_notice",
                     "terms_warning",
                     "deep",
+                    "deep_settings",
                     "blocked",
                     "last_scan",
                     "counts"
@@ -35036,6 +35318,99 @@
                       "type": "boolean",
                       "description": "Scans of this node are deep scans: the current testing terms are accepted"
                     },
+                    "deep_settings": {
+                      "type": "object",
+                      "properties": {
+                        "dos": {
+                          "type": "boolean",
+                          "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                        },
+                        "logins": {
+                          "type": "boolean",
+                          "description": "Password guessing and sign-ins with default or well-known passwords"
+                        },
+                        "web_active": {
+                          "type": "boolean",
+                          "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                        },
+                        "data_change": {
+                          "type": "boolean",
+                          "description": "Exploit checks that send more than a harmless read and may create or change data"
+                        },
+                        "openvas": {
+                          "type": "boolean",
+                          "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                        },
+                        "speed": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "gentle"
+                          ],
+                          "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                        },
+                        "skip_ports": {
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                          },
+                          "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                        },
+                        "skip_paths": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the settings were saved; null while the target has the defaults"
+                        },
+                        "updated_by": {
+                          "description": "Who saved them; null while the target has the defaults",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "problem": {
+                          "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dos",
+                        "logins",
+                        "web_active",
+                        "data_change",
+                        "openvas",
+                        "speed",
+                        "skip_ports",
+                        "skip_paths",
+                        "updated_at",
+                        "updated_by",
+                        "problem"
+                      ],
+                      "additionalProperties": false,
+                      "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                    },
                     "blocked": {
                       "anyOf": [
                         {
@@ -35296,6 +35671,7 @@
                     "terms_notice",
                     "terms_warning",
                     "deep",
+                    "deep_settings",
                     "blocked",
                     "last_scan",
                     "counts"
@@ -35403,6 +35779,912 @@
                   },
                   "required": [
                     "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exposure/tree/{id}/deep-settings": {
+      "put": {
+        "operationId": "exposure_put_exposure_tree_id_deep_settings",
+        "summary": "Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one. Audited (exposure.deep_settings, before and after)",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dos": {
+                    "type": "boolean",
+                    "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                  },
+                  "logins": {
+                    "type": "boolean",
+                    "description": "Password guessing and sign-ins with default or well-known passwords"
+                  },
+                  "web_active": {
+                    "type": "boolean",
+                    "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                  },
+                  "data_change": {
+                    "type": "boolean",
+                    "description": "Exploit checks that send more than a harmless read and may create or change data"
+                  },
+                  "openvas": {
+                    "type": "boolean",
+                    "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                  },
+                  "speed": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "gentle"
+                    ],
+                    "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                  },
+                  "skip_ports": {
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 65535
+                    },
+                    "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                  },
+                  "skip_paths": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                  }
+                },
+                "required": [
+                  "dos",
+                  "logins",
+                  "web_active",
+                  "data_change",
+                  "openvas",
+                  "speed",
+                  "skip_ports",
+                  "skip_paths"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "parent_id": {
+                      "description": "The domain target this node sits under; null at the top of the tree",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "schedule_key": {
+                      "type": "string",
+                      "description": "The key of its schedule in the shared schedules: exposure.target:<id>"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "domain",
+                        "ip"
+                      ]
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "person",
+                        "box",
+                        "discovered"
+                      ]
+                    },
+                    "scope_mode": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "self",
+                            "all",
+                            "selected"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domains: self scans only this name; all this name and every name found under it; selected this name and the names chosen (Host.selected). null for an IP"
+                    },
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "The node is scanned, by Scan now and by its schedule"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "proof": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "proven",
+                            "covered",
+                            "missing",
+                            "expired",
+                            "not_current"
+                          ],
+                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
+                        },
+                        "method": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "dns_txt",
+                                "box_egress",
+                                "ip_file",
+                                "ip_ptr"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "How this node proves itself; null when covered by an ancestor or not proven yet"
+                        },
+                        "covered_by": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The ancestor whose proof covers this node; null unless state is covered"
+                        },
+                        "verified_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When this node's own proof was last found"
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
+                        },
+                        "next_check_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the box checks the proof again by itself; null when it does not"
+                        },
+                        "last_check": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "ok": {
+                                  "type": "boolean"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "at",
+                                "ok",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "dns": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "zone": {
+                                  "type": "string",
+                                  "description": "The registered domain: the DNS zone the record is added in"
+                                },
+                                "host": {
+                                  "type": "string",
+                                  "description": "The name to type in that zone: \"@\" for the zone apex"
+                                },
+                                "alt_host": {
+                                  "description": "The alternative name that proves this target only, \"_vedette-verify\" or \"_vedette-verify.<label>\"; null when it would pass 253 characters",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "description": "The whole TXT value: vedette-verify=<token>"
+                                }
+                              },
+                              "required": [
+                                "zone",
+                                "host",
+                                "alt_host",
+                                "value"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Domain not covered by an ancestor: where its TXT record goes; null otherwise"
+                        },
+                        "file": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "urls": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "The two addresses the box asks, http and https, on the IP"
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "description": "The token: the whole content of /.well-known/vedette-verify.txt"
+                                },
+                                "ptr_domains": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the IP, proves it too"
+                                }
+                              },
+                              "required": [
+                                "urls",
+                                "content",
+                                "ptr_domains"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                        },
+                        "replaced": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "by": {
+                                  "type": "string",
+                                  "description": "The box's current egress address"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box was first seen going out through it"
+                                }
+                              },
+                              "required": [
+                                "by",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "method",
+                        "covered_by",
+                        "verified_at",
+                        "expires_at",
+                        "next_check_at",
+                        "last_check",
+                        "dns",
+                        "file",
+                        "replaced"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "commitment": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The exact text accepted, with the target in it"
+                            },
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "disruptive": {
+                              "type": "boolean",
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text",
+                            "by",
+                            "at",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The scan confirmation recorded by the first Scan now of an administrator; null when none"
+                    },
+                    "terms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The exact text accepted, with the target in it"
+                            },
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "disruptive": {
+                              "type": "boolean",
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text",
+                            "by",
+                            "at",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The accepted testing terms; null when none"
+                    },
+                    "commitment_notice": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The sentence the next Scan now of an administrator confirms; null once the node has a commitment of the current sentence"
+                    },
+                    "terms_notice": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "text"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The current testing terms for this node, to accept or read again"
+                    },
+                    "terms_warning": {
+                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "deep": {
+                      "type": "boolean",
+                      "description": "Scans of this node are deep scans: the current testing terms are accepted"
+                    },
+                    "deep_settings": {
+                      "type": "object",
+                      "properties": {
+                        "dos": {
+                          "type": "boolean",
+                          "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                        },
+                        "logins": {
+                          "type": "boolean",
+                          "description": "Password guessing and sign-ins with default or well-known passwords"
+                        },
+                        "web_active": {
+                          "type": "boolean",
+                          "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                        },
+                        "data_change": {
+                          "type": "boolean",
+                          "description": "Exploit checks that send more than a harmless read and may create or change data"
+                        },
+                        "openvas": {
+                          "type": "boolean",
+                          "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                        },
+                        "speed": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "gentle"
+                          ],
+                          "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                        },
+                        "skip_ports": {
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                          },
+                          "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                        },
+                        "skip_paths": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the settings were saved; null while the target has the defaults"
+                        },
+                        "updated_by": {
+                          "description": "Who saved them; null while the target has the defaults",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "problem": {
+                          "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dos",
+                        "logins",
+                        "web_active",
+                        "data_change",
+                        "openvas",
+                        "speed",
+                        "skip_ports",
+                        "skip_paths",
+                        "updated_at",
+                        "updated_by",
+                        "problem"
+                      ],
+                      "additionalProperties": false,
+                      "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                    },
+                    "blocked": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "disabled",
+                            "proof",
+                            "no_commitment"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now records it, an operator's is refused); null when it can be scanned"
+                    },
+                    "last_scan": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "run_id": {
+                              "type": "string",
+                              "description": "The shared run: its steps, items and log are read there, and it is stopped there"
+                            },
+                            "target_id": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "queued",
+                                "waiting",
+                                "running",
+                                "stopping",
+                                "done",
+                                "partial",
+                                "failed",
+                                "stopped"
+                              ]
+                            },
+                            "trigger": {
+                              "type": "string",
+                              "enum": [
+                                "manual",
+                                "schedule",
+                                "event"
+                              ]
+                            },
+                            "requested_by": {
+                              "type": "string",
+                              "description": "Who asked (an e-mail), or system for a scheduled scan"
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "surface",
+                                "deep"
+                              ],
+                              "description": "deep when the current testing terms of the target are accepted; surface otherwise"
+                            },
+                            "queued_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "started_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "ended_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "waiting_for": {
+                              "description": "Set only while status is waiting, e.g. \"the scan window (opens 23:00)\"",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "stop_reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "error": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "counts": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "hosts": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "services": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991,
+                                      "description": "Open services after the scan"
+                                    },
+                                    "new_services": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "closed_services": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "issues": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991,
+                                      "description": "Open issues after the scan"
+                                    },
+                                    "new_issues": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "hosts",
+                                    "services",
+                                    "new_services",
+                                    "closed_services",
+                                    "issues",
+                                    "new_issues"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "What the scan left; null until it ends done or partial"
+                            }
+                          },
+                          "required": [
+                            "run_id",
+                            "target_id",
+                            "status",
+                            "trigger",
+                            "requested_by",
+                            "mode",
+                            "queued_at",
+                            "started_at",
+                            "ended_at",
+                            "waiting_for",
+                            "stop_reason",
+                            "error",
+                            "counts"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The newest run of this node, live or ended; null when never scanned"
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "hosts": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Names found under the node"
+                        },
+                        "services": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Open services"
+                        },
+                        "web": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Open services that answered HTTP"
+                        },
+                        "issues": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Open issues"
+                        },
+                        "worst": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "critical",
+                                "high",
+                                "medium",
+                                "low",
+                                "info"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The highest severity among open issues; null when none"
+                        }
+                      },
+                      "required": [
+                        "hosts",
+                        "services",
+                        "web",
+                        "issues",
+                        "worst"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "parent_id",
+                    "schedule_key",
+                    "kind",
+                    "value",
+                    "origin",
+                    "scope_mode",
+                    "enabled",
+                    "created_at",
+                    "proof",
+                    "commitment",
+                    "terms",
+                    "commitment_notice",
+                    "terms_notice",
+                    "terms_warning",
+                    "deep",
+                    "deep_settings",
+                    "blocked",
+                    "last_scan",
+                    "counts"
                   ],
                   "additionalProperties": false
                 }
@@ -36974,6 +38256,99 @@
                       "type": "boolean",
                       "description": "Scans of this node are deep scans: the current testing terms are accepted"
                     },
+                    "deep_settings": {
+                      "type": "object",
+                      "properties": {
+                        "dos": {
+                          "type": "boolean",
+                          "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                        },
+                        "logins": {
+                          "type": "boolean",
+                          "description": "Password guessing and sign-ins with default or well-known passwords"
+                        },
+                        "web_active": {
+                          "type": "boolean",
+                          "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                        },
+                        "data_change": {
+                          "type": "boolean",
+                          "description": "Exploit checks that send more than a harmless read and may create or change data"
+                        },
+                        "openvas": {
+                          "type": "boolean",
+                          "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                        },
+                        "speed": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "gentle"
+                          ],
+                          "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                        },
+                        "skip_ports": {
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                          },
+                          "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                        },
+                        "skip_paths": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the settings were saved; null while the target has the defaults"
+                        },
+                        "updated_by": {
+                          "description": "Who saved them; null while the target has the defaults",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "problem": {
+                          "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dos",
+                        "logins",
+                        "web_active",
+                        "data_change",
+                        "openvas",
+                        "speed",
+                        "skip_ports",
+                        "skip_paths",
+                        "updated_at",
+                        "updated_by",
+                        "problem"
+                      ],
+                      "additionalProperties": false,
+                      "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                    },
                     "blocked": {
                       "anyOf": [
                         {
@@ -37234,6 +38609,7 @@
                     "terms_notice",
                     "terms_warning",
                     "deep",
+                    "deep_settings",
                     "blocked",
                     "last_scan",
                     "counts"
@@ -37738,6 +39114,99 @@
                       "type": "boolean",
                       "description": "Scans of this node are deep scans: the current testing terms are accepted"
                     },
+                    "deep_settings": {
+                      "type": "object",
+                      "properties": {
+                        "dos": {
+                          "type": "boolean",
+                          "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                        },
+                        "logins": {
+                          "type": "boolean",
+                          "description": "Password guessing and sign-ins with default or well-known passwords"
+                        },
+                        "web_active": {
+                          "type": "boolean",
+                          "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                        },
+                        "data_change": {
+                          "type": "boolean",
+                          "description": "Exploit checks that send more than a harmless read and may create or change data"
+                        },
+                        "openvas": {
+                          "type": "boolean",
+                          "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                        },
+                        "speed": {
+                          "type": "string",
+                          "enum": [
+                            "normal",
+                            "gentle"
+                          ],
+                          "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                        },
+                        "skip_ports": {
+                          "maxItems": 64,
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                          },
+                          "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                        },
+                        "skip_paths": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the settings were saved; null while the target has the defaults"
+                        },
+                        "updated_by": {
+                          "description": "Who saved them; null while the target has the defaults",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "problem": {
+                          "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dos",
+                        "logins",
+                        "web_active",
+                        "data_change",
+                        "openvas",
+                        "speed",
+                        "skip_ports",
+                        "skip_paths",
+                        "updated_at",
+                        "updated_by",
+                        "problem"
+                      ],
+                      "additionalProperties": false,
+                      "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                    },
                     "blocked": {
                       "anyOf": [
                         {
@@ -37998,6 +39467,7 @@
                     "terms_notice",
                     "terms_warning",
                     "deep",
+                    "deep_settings",
                     "blocked",
                     "last_scan",
                     "counts"
@@ -38490,6 +39960,99 @@
                           "type": "boolean",
                           "description": "Scans of this node are deep scans: the current testing terms are accepted"
                         },
+                        "deep_settings": {
+                          "type": "object",
+                          "properties": {
+                            "dos": {
+                              "type": "boolean",
+                              "description": "Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service"
+                            },
+                            "logins": {
+                              "type": "boolean",
+                              "description": "Password guessing and sign-ins with default or well-known passwords"
+                            },
+                            "web_active": {
+                              "type": "boolean",
+                              "description": "The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change"
+                            },
+                            "data_change": {
+                              "type": "boolean",
+                              "description": "Exploit checks that send more than a harmless read and may create or change data"
+                            },
+                            "openvas": {
+                              "type": "boolean",
+                              "description": "OpenVAS on this target; it still needs the box-wide OpenVAS switch on"
+                            },
+                            "speed": {
+                              "type": "string",
+                              "enum": [
+                                "normal",
+                                "gentle"
+                              ],
+                              "description": "gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)"
+                            },
+                            "skip_ports": {
+                              "maxItems": 64,
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 65535
+                              },
+                              "description": "TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)"
+                            },
+                            "skip_paths": {
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                            },
+                            "updated_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "When the settings were saved; null while the target has the defaults"
+                            },
+                            "updated_by": {
+                              "description": "Who saved them; null while the target has the defaults",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "problem": {
+                              "description": "Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "dos",
+                            "logins",
+                            "web_active",
+                            "data_change",
+                            "openvas",
+                            "speed",
+                            "skip_ports",
+                            "skip_paths",
+                            "updated_at",
+                            "updated_by",
+                            "problem"
+                          ],
+                          "additionalProperties": false,
+                          "description": "How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out"
+                        },
                         "blocked": {
                           "anyOf": [
                             {
@@ -38750,6 +40313,7 @@
                         "terms_notice",
                         "terms_warning",
                         "deep",
+                        "deep_settings",
                         "blocked",
                         "last_scan",
                         "counts"

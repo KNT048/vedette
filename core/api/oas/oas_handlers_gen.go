@@ -23936,6 +23936,167 @@ func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, 
 	}
 }
 
+// handleExposurePutExposureTreeIDDeepSettingsRequest handles exposure_put_exposure_tree_id_deep_settings operation.
+//
+// Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs
+// only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in
+// (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path
+// that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more
+// than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one.
+// Audited (exposure.deep_settings, before and after).
+//
+// PUT /exposure/tree/{id}/deep-settings
+func (s *Server) handleExposurePutExposureTreeIDDeepSettingsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePutExposureTreeIDDeepSettingsOperation,
+			ID:   "exposure_put_exposure_tree_id_deep_settings",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePutExposureTreeIDDeepSettingsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeExposurePutExposureTreeIDDeepSettingsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeExposurePutExposureTreeIDDeepSettingsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ExposurePutExposureTreeIDDeepSettingsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePutExposureTreeIDDeepSettingsOperation,
+			OperationSummary: "Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one. Audited (exposure.deep_settings, before and after)",
+			OperationID:      "exposure_put_exposure_tree_id_deep_settings",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ExposurePutExposureTreeIDDeepSettingsReq
+			Params   = ExposurePutExposureTreeIDDeepSettingsParams
+			Response = *ExposurePutExposureTreeIDDeepSettingsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExposurePutExposureTreeIDDeepSettingsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePutExposureTreeIDDeepSettings(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePutExposureTreeIDDeepSettings(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePutExposureTreeIDDeepSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposurePutExposureTreeIDTermsRequest handles exposure_put_exposure_tree_id_terms operation.
 //
 // Accept the testing terms of a node whose proof holds (proven, covered, or the box's own IP it does

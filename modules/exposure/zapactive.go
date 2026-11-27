@@ -477,16 +477,16 @@ type aheadRun struct {
 
 // aheadCall says whether the active scan of page runs in the same ZAP run as its passive scan, and how: only when the scanner can
 // (CombinedWebScanner) and the active pass would take the page anyway, by the same checks and in the same order (webActive's and
-// activeTarget's, made now, right before the run), its time (ActiveRunLimit) counted from at (the first such page; zero: none yet),
-// and the passive pass's web paths to skip the same as the active one's (one run, one context). passive is the target of the page's
-// passive scan. The call's NoTech are what this run positively identified the page as not running on (webTechAbsent).
+// activeTarget's, made now, right before the run), its time (ActiveRunLimit, which the whole run of CombinedScanTimeout must fit in)
+// counted from at (the first such page; zero: none yet), and the passive pass's web paths to skip the same as the active one's (one
+// run, one context). passive is the target of the page's passive scan. The call's NoTech are what this run positively identified the page as not running on (webTechAbsent).
 func (s *Service) aheadCall(ctx context.Context, st, passive ScanTarget, c Content, page WebPage, at time.Time) (activeCall, bool, error) {
 	_, combined := s.cfg.Web.(CombinedWebScanner)
 	_, active := s.cfg.Web.(ActiveWebScanner)
 	_, logs := s.cfg.Probes.(WebProbeLog)
 	switch {
 	case !combined || !active || !logs, !st.Mode.Full, !st.Mode.WebActive, !s.webKeepsPaths(st), st.User == SystemUser, st.Skips(page.Port),
-		!at.IsZero() && s.clock().Sub(at)+ActiveScanTimeout > ActiveRunLimit:
+		!at.IsZero() && s.clock().Sub(at)+CombinedScanTimeout > ActiveRunLimit: // the whole run, its passive part included, must fit
 		return activeCall{}, false, nil
 	}
 	call, err := s.activeTarget(ctx, st, page)

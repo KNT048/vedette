@@ -834,6 +834,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content, act 
 			continue
 		case slow && ahead:
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebSlowAhead, maxLineText)})
+			continue
 		case slow:
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebSlow, maxLineText)})
 			continue

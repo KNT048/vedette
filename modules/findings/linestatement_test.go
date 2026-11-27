@@ -622,6 +622,20 @@ func TestPossible_AHeldItemSaysUntilWhenAndWhy(t *testing.T) {
 	if held["CVE-2026-82003"] != nil {
 		t.Errorf("a CVE that was read is held: %+v", held["CVE-2026-82003"])
 	}
+	// the line says when the automatic reading reads it again: while that reading cannot run (switched off, today's reads used up, no
+	// profile), it would promise a reading that does not come, so the row keeps its cause's own sentence instead
+	for _, c := range []struct {
+		name   string
+		budget ReadBudget
+		ready  error
+	}{{"switched off", ReadBudget{}, nil}, {"reads used up", ReadBudget{Auto: true, Reached: true}, nil},
+		{"no profile", ReadBudget{Auto: true}, errors.New("no profile for explaining findings")}} {
+		fc.budget, fc.ready = c.budget, c.ready
+		if h := heldOf()["CVE-2026-82002"]; h != nil {
+			t.Errorf("%s: the row still says the automatic reading reads it again: %+v", c.name, h)
+		}
+	}
+	fc.budget, fc.ready = ReadBudget{Auto: true}, nil
 	fc.refuse = nil
 	runCheck(t, e)
 	if h := heldOf()["CVE-2026-82002"]; h != nil {

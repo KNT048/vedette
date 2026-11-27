@@ -119585,8 +119585,9 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	Exploited bool `json:"exploited"`
 	// Older_line: the newest fixed release of each newer line.
 	Fixes []string `json:"fixes"`
-	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not held
-	// or settled.
+	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not
+	// held, settled, or while the automatic reading cannot run (switched off, today's reads used up, no AI
+	// profile).
 	Held NilFindingsGetFindingsPossibleOKItemsItemHeld `json:"held"`
 	// The question (confirm: POST /findings/possible/{id}/confirm; answer: POST
 	// /findings/questions/{id}/answer).

@@ -269,7 +269,7 @@ type PossibleRowJS struct {
 	Checkable bool           `json:"checkable"`
 	Bulk      bool           `json:"bulk"`
 	Cause     *string        `json:"cause"` // PossibleCause; null for a settled row
-	Held      *HeldJS        `json:"held"`  // the automatic reading leaves it until a time; null when not held or settled
+	Held      *HeldJS        `json:"held"`  // the automatic reading leaves it until a time; null when not held, settled, or that reading cannot run now
 }
 
 // HeldJS is contract.ts PossibleHeld.
@@ -400,7 +400,8 @@ func possibleRow(it PossibleItem, ref refs, rs ReadState) PossibleRowJS {
 	}
 	if c := PossibleCause(it, rs); c != "" {
 		r.Cause = &c
-		if it.Held != nil {
+		// it says when the automatic reading reads it again: only while that reading can run (otherwise the cause says what waits)
+		if it.Held != nil && rs.Ready && rs.Auto && !rs.BudgetReached {
 			r.Held = &HeldJS{Until: store.FormatTS(it.Held.Until), Reason: it.Held.Reason}
 		}
 	}

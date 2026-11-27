@@ -256,7 +256,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   also within one CVE; a hook's refusal neither counts nor resets. The run ending its own time stops it (`CheckStop`). The ai module paces
   the automatic calls below the runaway fuse (ai INV-4), so a person's Explain in the same minute is not refused. A held item's row says
   until when and why (`PossibleRow.held`: `until` and a `reason` of the closed list `HeldReasons`: `hook_refused`, `answer_unusable`,
-  `ai_failed`; never the provider's words; its cause stays as P-8 names it). A person's check reads held items at once; an answer clears
+  `ai_failed`; never the provider's words; its cause stays as P-8 names it); `held` is null while the automatic reading cannot run
+  (switched off, today's reads used up, no AI profile), so the row never promises a reading that does not come. A person's check reads held items at once; an answer clears
   the hold (kept in memory only; a restart forgets it). `TestAutoRead_RunsOnlyWhenSwitchedOn`,
   `TestAutoRead_ARefusedItemDoesNotStopTheNext`, `TestPossibleCheck_TheAIFailingInARowStopsTheRun`,
   `TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE`, `TestPossibleCheck_UnusableAnswersInARowStopTheRun`,

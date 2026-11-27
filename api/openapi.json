@@ -60632,7 +60632,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The automatic AI reading leaves it for now (its last call was refused or failed); null when not held or settled"
+                            "description": "The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today's reads used up, no AI profile)"
                           }
                         },
                         "required": [

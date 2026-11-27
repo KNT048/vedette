@@ -102,6 +102,8 @@ const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidate
 const autoReads = collection<{ on: boolean; daily: number; today: number }>('ai_auto_read', () => ({ on: true, daily: 300, today: 42 }), () => ({ on: true, daily: 300, today: 0 }))
 /** Today's automatic reads are used up (the possible findings' cause ai_budget). */
 export const autoReadReached = () => { const a = autoReads.get(); return a.on && a.today >= a.daily }
+/** The automatic reading runs by itself (Settings, AI assistant). */
+export const autoReadOn = () => autoReads.get().on
 const view = (): AiConfigView => { const c = aiConfigStore.get(); const autoRead = autoReads.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady(),
   auto_read: autoRead.on, daily_reads: autoRead.daily, reads_today: Math.min(autoRead.today, autoRead.daily) } }
 

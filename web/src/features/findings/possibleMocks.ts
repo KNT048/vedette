@@ -10,7 +10,7 @@ import { aiCandidates, isOn } from '@/mocks/stores'
 import { checkKeyOf, POSSIBLE_EXPLOITED, seedPossibleChecks, type CheckRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { assetOf, deviceRef, event, isIgnored, questions, records, severityOf, unhandled } from './modelMocks'
-import { autoReadReached } from '@/features/ai/mocks'
+import { autoReadOn, autoReadReached } from '@/features/ai/mocks'
 import type { PossibleCause, PossibleCheck, PossibleCheckRun, PossibleCheckState, PossibleCounts, PossibleList, PossibleRow, UndecidedReason } from './types'
 
 export const checks = collection<Record<string, CheckRecord>>('fnd_possible_check', seedPossibleChecks, () => ({}))
@@ -101,6 +101,7 @@ const HELD: Record<string, { reason: NonNullable<PossibleRow['held']>['reason'];
 function heldOf(it: Item): PossibleRow['held'] {
   const h = HELD[it.cve]
   if (!h || !it.key || it.check || it.state === 'settled') return null
+  if (!aiReady() || !autoReadOn() || autoReadReached()) return null // the reading cannot run now: the cause says what waits
   const until = new Date(Date.parse(nowIso()) + h.hours * 3_600_000)
   until.setUTCMinutes(0, 0, 0)
   return { until: until.toISOString(), reason: h.reason }

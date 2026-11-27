@@ -546,7 +546,7 @@ export const PossibleRow = z.object({
   check: PossibleCheck.nullable(), checkable: z.boolean().describe('A check of its advisories can still run for it'),
   bulk: z.boolean().describe('proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not affected (one by one)'),
   cause: PossibleCause.nullable().describe('Why it is still possible; null for a settled row'),
-  held: PossibleHeld.nullable().describe('The automatic AI reading leaves it for now (its last call was refused or failed); null when not held or settled'),
+  held: PossibleHeld.nullable().describe('The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today\'s reads used up, no AI profile)'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
   possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once)'),

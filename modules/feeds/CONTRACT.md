@@ -120,8 +120,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   written with a hyphen in a bound ("lessThan": "Tika 1.0-1.23"); a range written with a hyphen in `version` (`hyphenRead`, after the
   product's name too) from the first release through the second, as CISA's ADP and NVD read it ("1.0-1.23", "14.1.0-14.1.0.5",
   "1.0.0-6.6.1", "1.1.0-1.1.0g"; "6.2.0-6.2.0" is that release), while a release with a package revision or build after the hyphen
-  stays one release ("0.6.9-5", "9.3.1-2.1", "3.1.1-190328", versionType rpm or deb, a release the product's version scheme reads:
-  NetScaler's "14.1-73.37") and a string that can be either ("0.154-3.1", "20-30.05.24", "v9.20-v9.26") keeps the product unusable,
+  stays one release ("0.6.9-5", "8.0.0-8", "9.3.1-2.1", "3.1.1-190328", versionType rpm or deb, a release the product's version
+  scheme reads: NetScaler's "14.1-73.37", a package's file name "dovecot22-2.2.13-3.7.1", `packageFile`) and a string that can be either ("0.154-3.1", "20-30.05.24", "v9.20-v9.26") keeps the product unusable,
   never read narrower than the record means (`TestParseCVERecord_HyphenRange`, `TestEntryRows_HyphenReleaseOfAScheme`); a list after lessThan
   (lessThanOrEqual) with one release per release train, trains strictly up as written ("1.20.4,2.0.2") or strictly down in a
   list of three or more ("1.46.0, 1.45.4, 1.43.9"): one row per train, each later one

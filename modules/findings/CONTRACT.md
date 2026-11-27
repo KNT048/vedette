@@ -254,10 +254,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   answered an error, the hooks could not finish in time: they decided nothing) does the same with an hour's wait; `aiFailStreak` (3)
   such calls in a row, or unusable answers (`ItemRefused.Systemic`: outside the schema, cut off), with no answer between, stop the run,
   also within one CVE; a hook's refusal neither counts nor resets. The run ending its own time stops it (`CheckStop`). The ai module paces
-  the automatic calls below the runaway fuse (ai INV-4), so a person's Explain in the same minute is not refused. A person's check reads
-  held items at once; an answer clears the hold (kept in memory only). `TestAutoRead_RunsOnlyWhenSwitchedOn`,
+  the automatic calls below the runaway fuse (ai INV-4), so a person's Explain in the same minute is not refused. A held item's row says
+  until when and why (`PossibleRow.held`: `until` and a `reason` of the closed list `HeldReasons`: `hook_refused`, `answer_unusable`,
+  `ai_failed`; never the provider's words; its cause stays as P-8 names it). A person's check reads held items at once; an answer clears
+  the hold (kept in memory only; a restart forgets it). `TestAutoRead_RunsOnlyWhenSwitchedOn`,
   `TestAutoRead_ARefusedItemDoesNotStopTheNext`, `TestPossibleCheck_TheAIFailingInARowStopsTheRun`,
-  `TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE`, `TestPossibleCheck_UnusableAnswersInARowStopTheRun`.
+  `TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE`, `TestPossibleCheck_UnusableAnswersInARowStopTheRun`,
+  `TestPossible_AHeldItemSaysUntilWhenAndWhy`.
 - **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
   possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The

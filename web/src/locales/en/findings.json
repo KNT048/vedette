@@ -664,6 +664,14 @@
       "readUndecided": "Read by AI from {{host}}: undecided",
       "readUnverified": "Read by AI from {{host}}: quote not found"
     },
+    "held": {
+      "line": "The AI reads this again after {{when}}: {{reason}}.",
+      "reason": {
+        "hook_refused": "a hook in Settings, AI assistant stopped the text it would send",
+        "answer_unusable": "its last answer was not in the format Vedette needs or was cut off",
+        "ai_failed": "the AI provider did not answer"
+      }
+    },
     "cause": {
       "vendor_silent": "No page from the vendor states more than the CVE record for this release line.",
       "page_unreadable": "The vendor's page could not be read (it may need a browser, or it refused the box).",

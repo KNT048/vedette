@@ -36,6 +36,8 @@ type PossibleItem struct {
 	Due bool
 	// Unread says the last check could read none of the CVE's pages (they failed; the next check tries again).
 	Unread bool
+	// Held says the automatic reading leaves it until a time, and why (its last AI call was refused or failed); nil when not held.
+	Held *Held
 }
 
 // Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
@@ -79,7 +81,7 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 	if err != nil {
 		return nil, err
 	}
-	in := causeInputs{checks: checks, readings: readings, exploited: exploited, unread: s.unreadKeys(), now: s.now()}
+	in := causeInputs{checks: checks, readings: readings, exploited: exploited, unread: s.unreadKeys(), held: s.heldKeys(s.now()), now: s.now()}
 	var out []PossibleItem
 	add := func(q Question, cve string) {
 		if cve == "" || had[lineKey(cve, q.SoftwareID)] {
@@ -114,6 +116,7 @@ type causeInputs struct {
 	readings  map[string]lineReading
 	exploited map[string]bool
 	unread    map[string]bool
+	held      map[string]Held // the check keys the automatic reading leaves for now (possible.go only; the coverage does not read it)
 	rs        ReadState
 	now       time.Time
 }
@@ -126,6 +129,9 @@ func possibleItemOf(q Question, cve string, in causeInputs) PossibleItem {
 		return it
 	}
 	it.Unread = in.unread[q.CheckKey]
+	if h, ok := in.held[q.CheckKey]; ok {
+		it.Held = &h
+	}
 	c, ok := in.checks[q.CheckKey]
 	r, read := in.readings[q.CheckKey]
 	it.Due = q.Detail.Check != nil && (!read || r.due(*q.Detail.Check, in.now))
@@ -263,6 +269,13 @@ type PossibleRowJS struct {
 	Checkable bool           `json:"checkable"`
 	Bulk      bool           `json:"bulk"`
 	Cause     *string        `json:"cause"` // PossibleCause; null for a settled row
+	Held      *HeldJS        `json:"held"`  // the automatic reading leaves it until a time; null when not held or settled
+}
+
+// HeldJS is contract.ts PossibleHeld.
+type HeldJS struct {
+	Until  string `json:"until"`
+	Reason string `json:"reason"` // one of HeldReasons
 }
 
 // CheckJS is contract.ts PossibleCheck: a check's verdict as the lists show it, with the pages it read.
@@ -387,6 +400,9 @@ func possibleRow(it PossibleItem, ref refs, rs ReadState) PossibleRowJS {
 	}
 	if c := PossibleCause(it, rs); c != "" {
 		r.Cause = &c
+		if it.Held != nil {
+			r.Held = &HeldJS{Until: store.FormatTS(it.Held.Until), Reason: it.Held.Reason}
+		}
 	}
 	if r.Undecided == nil {
 		r.Undecided = &Undecided{Reason: UndecidedRangesDoNotCover}

@@ -47,6 +47,20 @@ describe('Possible findings in By device and By fix', () => {
     expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(possibleCounts().possible)
   })
 
+  it('a CVE the automatic AI reading leaves for now says until when and why, in plain words', async () => {
+    renderApp('/findings?tab=device')
+    const s = await section()
+    await openRow(s, /^Show or hide the possible CVEs of RT-BACKUP/)
+    const line = await within(s).findByRole('article', { name: 'MikroTik RouterOS 7.14' }, T)
+    const rows = within(line).getAllByTestId('possible-row')
+    const row = rows.find((r) => r.textContent?.includes('CVE-2026-240104'))!
+    const held = within(row).getByTestId('possible-held')
+    expect(held).toHaveAttribute('data-reason', 'answer_unusable')
+    expect(held.textContent).toMatch(/^The AI reads this again after .+: its last answer was not in the format Vedette needs or was cut off\.$/)
+    // a row that is not held says nothing of it
+    expect(within(rows.find((r) => r.textContent?.includes('CVE-2026-240101'))!).queryByTestId('possible-held')).toBeNull()
+  })
+
   it('a device with 30 possible CVEs lists its line once, exploited first, the first 8 then "Show all 30 CVEs"', async () => {
     renderApp('/findings?tab=device')
     const s = await section()

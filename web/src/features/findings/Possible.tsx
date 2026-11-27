@@ -21,7 +21,7 @@ import { QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { fmtDate } from '@/lib/format'
+import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
@@ -394,7 +394,12 @@ export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled
         (settled && r.check) || !perCve ? null : reason(r),
         // the second line: the quote of what settled it, or what holds the CVE (its cause)
         settled ? (r.check?.quote ? <span key="quote" className="[overflow-wrap:anywhere]">“{r.check.quote}”</span> : null)
-          : r.cause ? <span key="cause" data-testid="possible-cause" data-cause={r.cause}>{cause(r)}</span> : null,
+          : r.cause ? <span key="cause">
+            <span data-testid="possible-cause" data-cause={r.cause}>{cause(r)}</span>
+            {/* the automatic reading leaves it for now: until when and why, in plain words */}
+            {r.held ? <> <span data-testid="possible-held" data-reason={r.held.reason}>
+              {t('possible.held.line', { when: fmtDateTime(r.held.until), reason: t(`possible.held.reason.${r.held.reason}`) })}</span></> : null}
+          </span> : null,
       ]}
       actions={r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <AnswerMenu r={r} /> : null}>
       {open && r.check ? <div id={panel}><CheckDetails check={r.check} /></div> : null}

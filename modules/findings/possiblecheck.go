@@ -237,14 +237,57 @@ func (s *Service) markUnread(keys []string, unread bool, now time.Time) {
 	}
 }
 
-// heldItem is why the automatic reading leaves an item for now, and until when.
+// heldItem is why the automatic reading leaves an item for now, and until when: kind is one of HeldReasons (what a person reads),
+// reason the error of the call (the log's).
 type heldItem struct {
 	until  time.Time
+	kind   string
 	reason string
 }
 
-// hold notes the keys whose call was refused or failed (until the time given), or clears them after an answer (zero until).
-func (s *Service) hold(keys []string, until time.Time, reason string) {
+// Why the automatic reading leaves an item for now (Held.Reason), a closed list a person reads as a label (never the provider's words).
+const (
+	HeldHookRefused    = "hook_refused"    // a hook stopped the text of its call
+	HeldAnswerUnusable = "answer_unusable" // the AI's answer was outside the format or cut off
+	HeldAIFailed       = "ai_failed"       // the AI provider failed, or the hooks could not finish in time
+)
+
+// HeldReasons is the closed list of Held.Reason.
+var HeldReasons = []string{HeldHookRefused, HeldAnswerUnusable, HeldAIFailed}
+
+// Held is until when the automatic reading leaves an item, and why (one of HeldReasons).
+type Held struct {
+	Until  time.Time
+	Reason string
+}
+
+// heldKind is the HeldReasons entry of a call's error.
+func heldKind(err error) string {
+	if refused := (*ItemRefused)(nil); errors.As(err, &refused) {
+		if refused.Systemic {
+			return HeldAnswerUnusable
+		}
+		return HeldHookRefused
+	}
+	return HeldAIFailed
+}
+
+// heldKeys is the check keys the automatic reading leaves at now, with until when and why.
+func (s *Service) heldKeys(now time.Time) map[string]Held {
+	s.check.mu.Lock()
+	defer s.check.mu.Unlock()
+	out := map[string]Held{}
+	for k, h := range s.check.held {
+		if now.Before(h.until) {
+			out[k] = Held{Until: h.until, Reason: h.kind}
+		}
+	}
+	return out
+}
+
+// hold notes the keys whose call was refused or failed (until the time given, kind one of HeldReasons), or clears them after an answer
+// (zero until).
+func (s *Service) hold(keys []string, until time.Time, kind, reason string) {
 	s.check.mu.Lock()
 	defer s.check.mu.Unlock()
 	if s.check.held == nil {
@@ -254,7 +297,7 @@ func (s *Service) hold(keys []string, until time.Time, reason string) {
 		if until.IsZero() {
 			delete(s.check.held, k)
 		} else {
-			s.check.held[k] = heldItem{until: until, reason: reason}
+			s.check.held[k] = heldItem{until: until, kind: kind, reason: reason}
 		}
 	}
 }
@@ -694,7 +737,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			} else {
 				*streak++
 			}
-			s.hold(keys, now.Add(wait), why)
+			s.hold(keys, now.Add(wait), heldKind(err), why)
 			s.cfg.Log.InfoContext(ctx, "findings: an AI reading of a possible CVE was not made", "cve", cve,
 				"items", len(keys), "retry_after", wait.String(), "reason", clipBytes(why, 300))
 			if *streak >= aiFailStreak { // the AI answers nothing at all: the run stops here, the items left wait for the next run
@@ -705,7 +748,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			continue
 		}
 		*streak = 0
-		s.hold(keys, time.Time{}, "")
+		s.hold(keys, time.Time{}, "", "")
 		byIndex := map[int]ProposeVerdict{}
 		for _, v := range ans.Verdicts {
 			byIndex[v.Index] = v

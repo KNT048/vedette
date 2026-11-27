@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/store"
 )
 
 // The DSM line 7.2.1 as the vendor's page states it in words the box's own reader does not parse (so the AI reads it).
@@ -590,6 +592,40 @@ func TestAutoRead_ARefusedItemDoesNotStopTheNext(t *testing.T) {
 	}
 	if len(e.svc.check.held) != 0 {
 		t.Errorf("held after an answer: %v", e.svc.check.held)
+	}
+}
+
+// A held item says on its row until when the automatic reading leaves it and why, as a label of a closed list (never the provider's
+// words); an answer clears it.
+func TestPossible_AHeldItemSaysUntilWhenAndWhy(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	fc.pages["CVE-2026-82003"] = []FetchedPage{{URL: dsmPageURL + "#82003", Status: "ok", Text: "CVE-2026-82003 concerns Synology DiskStation Manager (DSM) 7.2; see the release notes."}}
+	fc.refuse = map[string]error{"CVE-2026-82002": &ItemRefused{Reason: "The AI answered, but not in the format Vedette needs (HTTP 502 from upstream).", RetryAfter: 24 * time.Hour, Systemic: true}}
+	autoReadToEnd(t, e)
+	heldOf := func() map[string]*HeldJS {
+		list, err := e.svc.Possible(t.Context(), PossibleFilter{}, Page{Limit: PageMax})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]*HeldJS{}
+		for _, r := range list.Items {
+			out[r.CVE] = r.Held
+		}
+		return out
+	}
+	held := heldOf()
+	h := held["CVE-2026-82002"]
+	if h == nil || h.Reason != HeldAnswerUnusable || h.Until != store.FormatTS(e.svc.now().Add(24*time.Hour)) {
+		t.Fatalf("held %+v, want answer_unusable until a day from now", h)
+	}
+	if held["CVE-2026-82003"] != nil {
+		t.Errorf("a CVE that was read is held: %+v", held["CVE-2026-82003"])
+	}
+	fc.refuse = nil
+	runCheck(t, e)
+	if h := heldOf()["CVE-2026-82002"]; h != nil {
+		t.Errorf("still held after an answer: %+v", h)
 	}
 }
 

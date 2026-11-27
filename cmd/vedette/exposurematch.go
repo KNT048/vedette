@@ -203,6 +203,8 @@ func (m exposureMatcher) match(ctx context.Context, svcs []exposure.ServiceRow) 
 		if err != nil {
 			return exposure.Matches{}, nil, err
 		}
+		// a CVE outside the reporting window is set aside here as findings' matcher sets it aside on a device
+		list = slices.DeleteFunc(slices.Clone(list), func(v findings.Vuln) bool { return v.OutsideWindow })
 	}
 	byCVE := make(map[string]*findings.Vuln, len(list))
 	for i := range list {

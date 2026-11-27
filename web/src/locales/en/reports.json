@@ -485,7 +485,9 @@
       "data_corrected_one": "{{count}} match corrected",
       "data_corrected_other": "{{count}} matches corrected",
       "not_installed_one": "{{count}} software not installed",
-      "not_installed_other": "{{count}} software not installed"
+      "not_installed_other": "{{count}} software not installed",
+      "outside_window_one": "{{count}} outside the reporting window",
+      "outside_window_other": "{{count}} outside the reporting window"
     },
     "handledFound": "Vedette saw {{count}} of them itself, without anyone telling it.",
     "moreHandled_one": "{{count}} more handled finding is not listed.",

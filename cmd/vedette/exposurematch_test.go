@@ -492,3 +492,38 @@ func TestExposureMatcher_CatalogueIsReadOncePerStamp(t *testing.T) {
 		t.Fatalf("a new stamp: %d reads, %v", reads, err)
 	}
 }
+
+// A catalogue CVE outside the reporting window (findings.Vuln.OutsideWindow) is set aside on a public service as on a device: not
+// listed, not a gap, not ruled out.
+func TestExposureMatcher_OutsideTheWindowIsNotListed(t *testing.T) {
+	t.Parallel()
+	vulns := exposureGolden(t)
+	set := slices.Clone(vulns)
+	for i := range set {
+		if set[i].CVE == "CVE-2021-42013" {
+			set[i].OutsideWindow = true
+		}
+	}
+	m := exposureMatcher{
+		vulns:     func(context.Context) ([]findings.Vuln, error) { return vulns, nil },
+		catalogue: func(context.Context, findings.MatchScope) ([]findings.Vuln, error) { return set, nil },
+		now:       func() time.Time { return time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC) },
+	}
+	got, err := m.Match(t.Context(), exposureFixtureServices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cves []string
+	for _, v := range got.Vulns {
+		cves = append(cves, v.CVE)
+	}
+	for _, g := range got.Gaps {
+		cves = append(cves, g.CVEs...)
+	}
+	for _, r := range got.RuledOut {
+		cves = append(cves, r.CVE)
+	}
+	if !slices.Contains(cves, "CVE-2021-41773") || slices.Contains(cves, "CVE-2021-42013") {
+		t.Fatalf("listed %v: want CVE-2021-41773 and never the CVE outside the window", cves)
+	}
+}

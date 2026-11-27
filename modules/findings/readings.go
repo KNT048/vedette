@@ -139,9 +139,10 @@ func joinVersions(vs []string) string {
 //   - it names only the trains its writer tested: a row's fixed release (an excluded end, OSV's fixed) is a release of its own train
 //     (its first two numbers), so a version of that train at or past it carries the fix, whichever train the row started on.
 //
-// Both say not affected when the version is on the train of a row's fixed release, at or past it, and no row starts above it on that
-// train (a later row of the train would say the fix did not hold). An inclusive end ("through 4.8.2") states the last version known
-// affected, not a fix, and a version on another train than every fix stays undecided: the list may have skipped it.
+// Both say not affected when the version is on the train of a row's fixed release, at or past it, no row starts above it on that
+// train and no row lists a release of that train at or after the fix as affected (a later row of the train would say the fix did not
+// hold). An inclusive end ("through 4.8.2") states the last version known affected, not a fix, and a version on another train than
+// every fix stays undecided: the list may have skipped it.
 func fixTrainReadings(in swInfo, v Vuln, key []identity, name string) (agreement, bool) {
 	var rows []Affected
 	listed, beside := recordRows(in, v, key, false), recordRows(in, v, key, true)
@@ -160,6 +161,7 @@ func fixTrainReadings(in swInfo, v Vuln, key []identity, name string) (agreement
 	}
 	sib := siblingsOf(&v)
 	fix := ""
+	var through []string // inclusive ends (the last release known affected) on the version's train
 	for _, af := range rows {
 		c, err := af.cpe()
 		if err != nil {
@@ -186,6 +188,11 @@ func fixTrainReadings(in swInfo, v Vuln, key []identity, name string) (agreement
 				return agreement{}, false // a row of the version's own train starts above it
 			}
 		}
+		if r.EndIncl != "" {
+			if et := majorMinor(r.EndIncl); et != nil && *et == *vt {
+				through = append(through, r.EndIncl)
+			}
+		}
 		if r.EndExcl == "" {
 			continue
 		}
@@ -198,6 +205,11 @@ func fixTrainReadings(in swInfo, v Vuln, key []identity, name string) (agreement
 	}
 	if fix == "" {
 		return agreement{}, false
+	}
+	for _, last := range through {
+		if compareOr(last, fix) >= 0 {
+			return agreement{}, false // a release of the train at or after the fix is listed affected: the fix did not hold, no later one is stated
+		}
 	}
 	t := *vt
 	return agreement{t: No, says: fmt.Sprintf("version %s of %s is at or past %s, the release the CVE.org record states fixed on its own release "+

@@ -142,6 +142,23 @@ describe('Add a device', () => {
     expect(within(dlg).getByText('Pick the product the device is.')).toBeInTheDocument()
   })
 
+  it('SNMP on an address already in the list: the notice names the device and turns SNMP on for it, or opens it', async () => {
+    enableModule('sensor-active', true)
+    const user = userEvent.setup()
+    renderApp('/devices?add=snmp', { role: 'admin' })
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.type(await within(dlg).findByLabelText('Community', undefined, T), 'public')
+    await user.type(within(dlg).getByLabelText('Device IP address'), '192.168.10.1')
+    await user.type(within(dlg).getByRole('combobox', { name: 'What the device is' }), 'mikrotik')
+    await user.click((await screen.findAllByRole('option', { name: /MikroTik/ }, T))[0]!)
+    await user.click(within(dlg).getByRole('button', { name: 'Add device and turn SNMP on' }))
+    const alert = await within(dlg).findByRole('alert', undefined, T)
+    expect(alert).toHaveTextContent('192.168.10.1 is already in the list as')
+    expect(within(alert).getByRole('link', { name: /^Open / })).toBeInTheDocument()
+    await user.click(within(alert).getByRole('button', { name: 'Turn SNMP on for it' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add a device' })).toBeNull(), T)
+  })
+
   it('osquery: the person picks the system first, then sees the one command; the manual way is folded until opened', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()

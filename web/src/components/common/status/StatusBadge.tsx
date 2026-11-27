@@ -59,7 +59,7 @@ export function StatusBadge({ code, count, until, to, className }: {
   // a badge inside a clickable row opens its own target, not the row's
   return (
     <Link to={to} onClick={(e: MouseEvent) => e.stopPropagation()}
-      className={cn('inline-flex w-fit shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent', className)}>
+      className={cn('inline-flex w-fit shrink-0 rounded-sm no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent', className)}>
       {badge}
     </Link>
   )

@@ -1971,6 +1971,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	multi := isMultiProduct(v.Product)
 	result := No
 	applicable, undecidable := false, false
+	// decided: a row of the software's own said Yes or No; aside: a row of another release branch did not compare with the version
+	// (otherBranch) and was set aside. Rows set aside never decide alone: with no row deciding, the answer stays Unknown.
+	decided, aside := false, false
 	var yes *VersionRange // the range the version is inside that explains the finding and names its fix (explainsBetter)
 	jv, isJ := junosParse(in.ver)
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means
@@ -2025,15 +2028,23 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			// of it that shipped an affected package: the release is not the version of that package, so it neither
 			// proves nor rules out (a kernel CVE stays a product finding, medium).
 			t = Unknown
+		case t == Unknown && own && (!isJ || !isJunos(c)) && otherBranch(c, af.Range, in.ver):
+			// A row of another release branch the version does not compare with (OpenSSL's "1.1.1" to "1.1.1zk" beside its 3.x
+			// ranges, against 3.5.0): it cannot hold the version, whatever its letters mean, so it is set aside and the rows that
+			// compare decide.
+			aside = true
+			continue
 		}
 		switch t {
 		case Yes:
+			decided = true
 			if yes == nil || explainsBetter(r, *yes) {
 				yes = &r
 			}
 		case Unknown:
 			result = Unknown
 		case No:
+			decided = true
 			trainOnly = trainOnly || dottedListGuess(c, af.Range, in.ver)
 			beyond = beyond && (osScheme(c) != schemeDotted || dottedAfter(c, af.Range, in.ver))
 		}
@@ -2058,7 +2069,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		}
 		return No, VersionRange{}, false, proofNone // NVD lists other products only: no finding, but no proof (its list can lag the advisory)
 	}
-	if !applicable || undecidable && result == No {
+	if !applicable || undecidable && result == No || aside && !decided {
 		return Unknown, VersionRange{}, every, proofNone
 	}
 	if junosSeen && result == No { // NVD's Junos lists have gaps: a missing update is not a proof (#703)
@@ -2078,6 +2089,48 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing
 	}
 	return result, VersionRange{}, every, proofNone
+}
+
+// otherBranch says row c with range r lies inside one release branch that is not version ver's: every bound starts with the same
+// numbers (OpenSSL's "1.1.1" to "1.1.1zk", or an exact release), and ver starts with other numbers in the same notation ("3.5.0"). Such
+// a row cannot hold ver whatever its letters or pins mean. A range open on one side spans other branches ("before 1.1.1zk"), a version
+// of the same numbers is of the branch ("1.1.1w"), and a row in another notation ("2016" against "16.0.1", schemeClash) or of a
+// network OS's own scheme is not another branch: none of them is.
+func otherBranch(c CPE, r VersionRange, ver string) bool {
+	if osScheme(c) != "" || isPlaceholder(ver) { // a placeholder ("0", "0.0.0") is no version, so of no branch
+		return false
+	}
+	if r.IsZero() {
+		lit, ok := c.Version.Literal()
+		if !ok {
+			return false
+		}
+		r = VersionRange{StartIncl: lit, EndIncl: lit}
+	}
+	if r.StartIncl+r.StartExcl == "" || r.EndIncl+r.EndExcl == "" || schemeClash(r, ver) {
+		return false
+	}
+	v, ok := dottedTrain(ver)
+	if !ok {
+		return false
+	}
+	var branch []uint64
+	for _, b := range []string{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl} {
+		if b == "" {
+			continue
+		}
+		n, ok := dottedTrain(b)
+		if !ok || branch != nil && !slices.Equal(n, branch) {
+			return false
+		}
+		branch = n
+	}
+	for i := range min(len(v), len(branch)) {
+		if v[i] != branch[i] {
+			return true
+		}
+	}
+	return false // "2.4" and "2.4.57": the version may be of the branch
 }
 
 // recordDecided says the CVE record's rows read beside NVD's (AffectedOnly) are what call the line affected: without them decide does

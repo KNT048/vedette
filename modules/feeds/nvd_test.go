@@ -27,11 +27,11 @@ func TestParseNVD_RealAnswer(t *testing.T) {
 	}
 	recs := byCVE(d)
 	ios := recs["CVE-2016-4655"].Affected
-	if len(ios) != 2 || ios[0] != (AffectedRow{CPE: "cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:*", EndExcl: "9.3.5"}) {
+	if len(ios) != 2 || !ios[0].sameSpan(AffectedRow{CPE: "cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:*", EndExcl: "9.3.5"}) {
 		t.Fatalf("CVE-2016-4655 = %+v", ios)
 	}
 	fgt := recs["CVE-2024-21762"].Affected
-	if !slices.Contains(fgt, AffectedRow{CPE: "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", StartIncl: "7.2.0", EndExcl: "7.2.7"}) {
+	if !slices.ContainsFunc(fgt, AffectedRow{CPE: "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", StartIncl: "7.2.0", EndExcl: "7.2.7"}.sameSpan) {
 		t.Fatalf("CVE-2024-21762 = %+v", fgt)
 	}
 	// INV-28: NVD's own 3.1 score, even where the CNA's Secondary entry comes first with another score (Ubuntu's 8.8 for CVE-2021-3493)

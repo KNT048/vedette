@@ -64976,6 +64976,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) Validate() error {
 		return nil
 	case "product_not_named":
 		return nil
+	case "named_as_platform_only":
+		return nil
 	case "exact_releases_only":
 		return nil
 	case "ranges_do_not_decide":
@@ -66388,6 +66390,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Validate() error 
 	case "no_ranges":
 		return nil
 	case "product_not_named":
+		return nil
+	case "named_as_platform_only":
 		return nil
 	case "exact_releases_only":
 		return nil

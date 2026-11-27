@@ -52,6 +52,15 @@ type AffectedRow struct {
 	// LineFix is the release a CVE record states fixed above the row's end, for the release line the row ends on (Range.LineFix); ""
 	// for NVD's rows.
 	LineFix string
+	// Platforms are the operating systems ("microsoft:windows") of NVD's "running on" condition of the row's configuration, as stored
+	// (NVDRecord.Platforms); nil for none and for the CVE record's rows. Read by the matcher only: never compared (sameSpan).
+	Platforms []string
+}
+
+// sameSpan says two rows name the same CPE and bounds and are read alike (every field but Platforms).
+func (r AffectedRow) sameSpan(o AffectedRow) bool {
+	return r.CPE == o.CPE && r.StartIncl == o.StartIncl && r.StartExcl == o.StartExcl && r.EndIncl == o.EndIncl && r.EndExcl == o.EndExcl &&
+		r.AffectedOnly == o.AffectedOnly && r.VendorList == o.VendorList && r.LineFix == o.LineFix
 }
 
 // NVDRecord is one CVE as NVD's record gives it, as the catalogue keeps it.

@@ -159,7 +159,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   An entry limited to operating systems (platforms "Windows", "macOS", "Linux", "Android", "iOS", beside processor words or not) of a
   product without a version scheme gives each row once per system, the system in `platforms` (`recordSystems`); the match reads it as
   the CPE's target_sw (`kevRecordRow`, `Range.MatchRow`), so the row speaks for that system only. NVD's running-on platforms are not
-  read so. An entry naming any other platform (a model) still leaves its product's generic rows out. `TestRecordSystems_EntryLimitedToSystems`.
+  read so: they reach the matcher with their NVD row (`AffectedRow.Platforms`, `KevAffected`, `Range.MatchRow`) as the environment
+  the row's product runs on, never as an affected product (findings P-2). `TestKevAffected_CarriesNVDsRunningOnSystems`. An entry naming any other platform (a model) still leaves its product's generic rows out. `TestRecordSystems_EntryLimitedToSystems`.
   An entry whose only unaffected statements are single versions above the end of every affected row it lists ("0 through 6.49.18",
   "7.0.0 through 7.11.2", "7.24.0 unaffected"; a fixed release per train, "7.21.5" and "7.23.1" above 7.20.8) keeps the highest of them,
   when it is on the release line (first number) the highest row ends on, as `fixed` of that row (`highestAbove`, `lineFixOf`, OSV's

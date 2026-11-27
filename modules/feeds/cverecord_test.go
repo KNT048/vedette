@@ -605,8 +605,8 @@ func TestRecordRanges_ExploitedListView(t *testing.T) {
 	})
 	aff, err := s.KevAffected(t.Context())
 	const pcpe = "cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:*"
-	if err != nil || !slices.Equal(aff["CVE-2024-3400"], []AffectedRow{{CPE: pcpe, StartIncl: "10.2.0", EndExcl: "10.2.9-h1", VendorList: true},
-		{CPE: pcpe, StartIncl: "11.0.0", EndExcl: "11.0.4-h1", VendorList: true}, {CPE: pcpe, StartIncl: "11.1.0", EndExcl: "11.1.2-h3", VendorList: true}}) || !slices.Equal(aff["CVE-2026-1000"], []AffectedRow{{CPE: `cpe:2.3:*:acme:gateway:15.2\(4\)M3:*:*:*:*:*:*:*`}}) ||
+	if err != nil || !slices.EqualFunc(aff["CVE-2024-3400"], []AffectedRow{{CPE: pcpe, StartIncl: "10.2.0", EndExcl: "10.2.9-h1", VendorList: true},
+		{CPE: pcpe, StartIncl: "11.0.0", EndExcl: "11.0.4-h1", VendorList: true}, {CPE: pcpe, StartIncl: "11.1.0", EndExcl: "11.1.2-h3", VendorList: true}}, AffectedRow.sameSpan) || !slices.EqualFunc(aff["CVE-2026-1000"], []AffectedRow{{CPE: `cpe:2.3:*:acme:gateway:15.2\(4\)M3:*:*:*:*:*:*:*`}}, AffectedRow.sameSpan) ||
 		aff["CVE-2026-1001"] != nil || aff["CVE-2026-1002"] != nil {
 		t.Fatalf("KevAffected = %+v %v", aff, err)
 	}

@@ -178,3 +178,31 @@ func TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs(t *testing.T)
 		t.Fatalf("exploited: %+v", r.New)
 	}
 }
+
+// Ubuntu's own build of a package it took from Debian experimental carries "~exp" before its mark ("1.14-1~exp2ubuntu1.1"): Ubuntu's
+// data names such builds as fixed releases, so a device below one is affected and one at it is fixed, not left undecided.
+func TestMatchAsset_UbuntuBuildOfAnExperimentalUploadIsItsOwn(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 27, 10, 0, 0, 0, time.UTC)
+	v := Vuln{CVE: "CVE-2026-60031", NVDAnswered: true, Origin: RangeNVD, DistroOn: map[string]bool{"ubuntu": true}, Published: now.AddDate(0, -1, 0),
+		Affected: []Affected{{CPE: "cpe:2.3:a:gnu:gzip:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "1.15"}}},
+		Distro:   []DistroFix{{Distro: "ubuntu", Release: "26.04", Package: "gzip", Status: "fixed", Fixed: "1.14-1~exp2ubuntu1.1"}}}
+	on := func(pkgVer string) (Asset, MatchResult) {
+		a := Asset{ID: "a", Name: "web-01", OS: "Ubuntu 26.04.1 LTS", Software: []Software{{ID: "s-gz", Display: "gzip", Vendor: "GNU", Product: "gzip",
+			Version: "1.14", Source: "agent", Packaged: true, PkgVersion: pkgVer, PkgSource: "gzip"}}}
+		return a, MatchAsset(a, []Vuln{v}, nil, now)
+	}
+	if _, r := on("1.14-1~exp2ubuntu1"); len(r.New) != 1 {
+		t.Errorf("below Ubuntu's fixed release: %+v", r)
+	}
+	if a, r := on("1.14-1~exp2ubuntu1.1"); len(r.New) != 0 {
+		t.Errorf("at Ubuntu's fixed release: %+v", r)
+	} else if d, ok := distroVerdict(swInfoOn(a.Software[0], a), v); !ok || d.kind != distroFixedHere {
+		t.Errorf("at Ubuntu's fixed release: %+v %v", d, ok)
+	}
+	if a, r := on("1.14-1~exp2ubuntu1~ppa1"); len(r.New) != 0 {
+		t.Errorf("a PPA build: %+v", r)
+	} else if _, ok := distroVerdict(swInfoOn(a.Software[0], a), v); ok {
+		t.Error("a PPA build took Ubuntu's word")
+	}
+}

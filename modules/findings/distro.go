@@ -310,14 +310,15 @@ var debianArch = map[string]bool{"amd64": true, "arm64": true, "i386": true, "ar
 // "2.4.58-1ubuntu8.8") while being another build, so the word applies only to a revision the distribution itself builds,
 // and anything else is left to NVD:
 //   - Ubuntu: a revision with Ubuntu's own mark ("3ubuntu13.14", "0ubuntu0.24.04.1", "1ubuntu0.1~22.04.1", "2build1",
-//     "+esm6"), or a plain Debian revision ("43.43" of a kernel, "2" of a package Ubuntu took from Debian unchanged) for a fix;
+//     "+esm6", "1~exp2ubuntu1.1" of an upload Ubuntu took from Debian experimental), or a plain Debian revision ("43.43" of a
+//     kernel, "2" of a package Ubuntu took from Debian unchanged) for a fix;
 //   - Debian: a plain revision, optionally a stable update ("+deb12u3", "~deb12u1") and a binNMU ("+b1").
 //
 // A PPA (~ppa, ondrej's +deb.sury.org), a backport (~bpo12+1), a vendor suffix (~noble, ~ubuntu.24.04, ~bookworm) or a
 // native version with no revision does not match. "Not affected" has no version to compare, so on Ubuntu it needs
 // Ubuntu's own mark (a plain revision may be a vendor's own .deb).
 var (
-	ubuntuOwnRE = regexp.MustCompile(`^[0-9][0-9.]*((build|ubuntu)[0-9][0-9.]*)+(\+esm[0-9]+)?(~[0-9][0-9.]*)*$`)
+	ubuntuOwnRE = regexp.MustCompile(`^[0-9][0-9.]*(~exp[0-9]+)?((build|ubuntu)[0-9][0-9.]*)+(\+esm[0-9]+)?(~[0-9][0-9.]*)*$`)
 	debianOwnRE = regexp.MustCompile(`^[0-9][0-9.]*([+~]deb[0-9]+u[0-9]+)?(\+b[0-9]+)?$`)
 )
 

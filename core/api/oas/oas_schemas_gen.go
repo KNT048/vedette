@@ -117162,6 +117162,9 @@ func (s *FindingsPostFindingsHandleOK) SetSkipped(val int) {
 }
 
 type FindingsPostFindingsHandleReq struct {
+	// True: keep "patched" although the latest reading still shows an affected version (after 409
+	// still_reported); the finding opens again if the next reading still shows it.
+	Confirm OptBool `json:"confirm"`
 	// With fix: that device.
 	Device OptString `json:"device"`
 	// With device: the Fix.key whose open findings on the device are handled.
@@ -117179,6 +117182,11 @@ type FindingsPostFindingsHandleReq struct {
 	Software OptString `json:"software"`
 	// Accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until).
 	Until OptDate `json:"until"`
+}
+
+// GetConfirm returns the value of Confirm.
+func (s *FindingsPostFindingsHandleReq) GetConfirm() OptBool {
+	return s.Confirm
 }
 
 // GetDevice returns the value of Device.
@@ -117214,6 +117222,11 @@ func (s *FindingsPostFindingsHandleReq) GetSoftware() OptString {
 // GetUntil returns the value of Until.
 func (s *FindingsPostFindingsHandleReq) GetUntil() OptDate {
 	return s.Until
+}
+
+// SetConfirm sets the value of Confirm.
+func (s *FindingsPostFindingsHandleReq) SetConfirm(val OptBool) {
+	s.Confirm = val
 }
 
 // SetDevice sets the value of Device.
@@ -149320,6 +149333,12 @@ type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	// A person said this software is not installed on the device: it matches nothing; what the device runs
 	// (the assistant, MCP) leaves it out and the export marks it.
 	NotInstalled bool `json:"not_installed"`
+	// The line is a distribution package (the device runs a Linux distribution, or a source read it from a
+	// package database): a person gives its package release as the package manager shows it. false on
+	// firmware and on software with only the vendor's release (Junos OS, an application on a device with
+	// no distribution): the person gives the version as the vendor writes it, and a package release is
+	// refused (400 not_a_package).
+	PackageLine bool `json:"package_line"`
 	// Read from the operating system's package database.
 	Packaged bool `json:"packaged"`
 	// The full package release: an agent's packaged reading ("1:9.6p1-3ubuntu13.14") or a person's entry
@@ -149398,6 +149417,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetKevCves() []strin
 // GetNotInstalled returns the value of NotInstalled.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetNotInstalled() bool {
 	return s.NotInstalled
+}
+
+// GetPackageLine returns the value of PackageLine.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetPackageLine() bool {
+	return s.PackageLine
 }
 
 // GetPackaged returns the value of Packaged.
@@ -149503,6 +149527,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetKevCves(val []str
 // SetNotInstalled sets the value of NotInstalled.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetNotInstalled(val bool) {
 	s.NotInstalled = val
+}
+
+// SetPackageLine sets the value of PackageLine.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetPackageLine(val bool) {
+	s.PackageLine = val
 }
 
 // SetPackaged sets the value of Packaged.
@@ -160527,12 +160556,24 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 }
 
 type InventoryPatchInventoryDevicesIDSoftwareSidOK struct {
-	Ok bool `json:"ok"`
+	// False: the line already said this; nothing was written and nothing is matched again.
+	Changed bool `json:"changed"`
+	Ok      bool `json:"ok"`
+}
+
+// GetChanged returns the value of Changed.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) GetChanged() bool {
+	return s.Changed
 }
 
 // GetOk returns the value of Ok.
 func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) GetOk() bool {
 	return s.Ok
+}
+
+// SetChanged sets the value of Changed.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) SetChanged(val bool) {
+	s.Changed = val
 }
 
 // SetOk sets the value of Ok.
@@ -160543,6 +160584,9 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) SetOk(val bool) {
 type InventoryPatchInventoryDevicesIDSoftwareSidReq struct {
 	// Another product, from GET /inventory/catalog.
 	CatalogID OptString `json:"catalog_id"`
+	// True: keep the version although the device itself states another release (after 409
+	// contradicts_device).
+	Confirm OptBool `json:"confirm"`
 	// True: the software is not installed on the device (INV-41 (6)); send it alone. false or absent: no
 	// change.
 	NotInstalled OptBool `json:"not_installed"`
@@ -160559,6 +160603,11 @@ type InventoryPatchInventoryDevicesIDSoftwareSidReq struct {
 // GetCatalogID returns the value of CatalogID.
 func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetCatalogID() OptString {
 	return s.CatalogID
+}
+
+// GetConfirm returns the value of Confirm.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetConfirm() OptBool {
+	return s.Confirm
 }
 
 // GetNotInstalled returns the value of NotInstalled.
@@ -160589,6 +160638,11 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetVersion() OptString 
 // SetCatalogID sets the value of CatalogID.
 func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetCatalogID(val OptString) {
 	s.CatalogID = val
+}
+
+// SetConfirm sets the value of Confirm.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetConfirm(val OptBool) {
+	s.Confirm = val
 }
 
 // SetNotInstalled sets the value of NotInstalled.

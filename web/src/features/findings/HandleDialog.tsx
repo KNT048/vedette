@@ -4,11 +4,13 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Textarea } from '@/components/ui/input'
 import { SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
+import { ApiError } from '@/lib/api'
 import { FINDING_RESOLUTIONS } from '@/lib/statusCodes'
 import { AcceptUntil } from './AcceptRisk'
 import { untilOk } from './accept'
@@ -45,14 +47,16 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
   const [error, setError] = useState<string | undefined>()
   const [untilError, setUntilError] = useState<string | undefined>()
   const [pickError, setPickError] = useState<string | undefined>()
+  // "patched" on a finding the device's latest reading still shows: the box says so once (409 still_reported) and the person keeps it
+  const [still, setStill] = useState<string | undefined>()
   const accept = resolution === 'accepted'
   const needNote = !!resolution && NOTE_NEEDED.includes(resolution)
   const chosen = rows.filter((r) => picked.has(r.id))
   const cves = new Set(chosen.map((r) => r.cve)).size
   const all = chosen.length === rows.length
-  const toggle = (rid: string, on: boolean) => { setPickError(undefined); setPicked((s) => { const n = new Set(s); if (on) n.add(rid); else n.delete(rid); return n }) }
+  const toggle = (rid: string, on: boolean) => { setPickError(undefined); setStill(undefined); setPicked((s) => { const n = new Set(s); if (on) n.add(rid); else n.delete(rid); return n }) }
 
-  function submit() {
+  function submit(confirm = false) {
     const noPick = chosen.length === 0
     const tooMany = !(fix && complete && all) && chosen.length > MAX_HANDLE
     setPickError(noPick ? t('handle.pickOne') : tooMany ? t('handle.tooMany', { max: MAX_HANDLE }) : undefined)
@@ -67,7 +71,7 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
     if (first) document.getElementById(first)?.focus()
     if (first || !resolution) return
     const target = fix && complete && all ? { device: device.id, fix, ...(software ? { software } : {}) } : { ids: chosen.map((r) => r.id) }
-    const body: HandleInput = { ...target, resolution, note: note.trim(), ...(accept ? { until } : {}) }
+    const body: HandleInput = { ...target, resolution, note: note.trim(), ...(accept ? { until } : {}), ...(confirm ? { confirm: true } : {}) }
     handle.mutate(body, {
       onSuccess: (r) => {
         // the status as its badge says it: "Risk accepted until 31 Dec 2026", not the option's "Accept the risk until…"
@@ -75,7 +79,7 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
         toast.success(r.skipped > 0 ? `${done} ${t('handle.skipped', { count: r.skipped })}` : done)
         onClose()
       },
-      onError: (e) => setError(errMsg(e)),
+      onError: (e) => { if (e instanceof ApiError && e.code === 'still_reported') setStill(e.message); else setError(errMsg(e)) },
     })
   }
 
@@ -100,7 +104,7 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
           </fieldset>
         ) : null}
         <RadioGroup value={resolution ?? ''} aria-label={t('handle.how')} aria-invalid={!!howError}
-          onValueChange={(v) => { setResolution(v as Resolution); setError(undefined); setUntilError(undefined); setHowError(undefined) }}>
+          onValueChange={(v) => { setResolution(v as Resolution); setError(undefined); setUntilError(undefined); setHowError(undefined); setStill(undefined) }}>
           {resolutions.map((r) => (
             <div key={r} className="flex items-start gap-2.5">
               <RadioItem id={`${id}-r-${r}`} value={r} className="mt-1" />
@@ -117,9 +121,13 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
           <Textarea id={`${id}-note`} value={note} maxLength={500} onChange={(e) => { setNote(e.target.value); setError(undefined) }}
             aria-invalid={!!error} aria-describedby={error ? `${id}-note-error` : undefined} />
         </Field>
+        {still ? (
+          <Notice tone="warn" role="alert" className="mb-0" title={still}
+            actions={<Button size="sm" busy={handle.isPending} busyLabel={t('common:busy.saving')} onClick={() => submit(true)}>{t('handle.patchedAnyway')}</Button>} />
+        ) : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
-          <Button variant="primary" disabled={chosen.length === 0} busy={handle.isPending} busyLabel={t('common:busy.saving')} onClick={submit}>{t('handle.submit', { count: chosen.length })}</Button>
+          <Button variant="primary" disabled={chosen.length === 0} busy={handle.isPending} busyLabel={t('common:busy.saving')} onClick={() => submit()}>{t('handle.submit', { count: chosen.length })}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

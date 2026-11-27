@@ -209765,6 +209765,12 @@ func (s *FindingsPostFindingsHandleReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsHandleReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.Confirm.Set {
+			e.FieldStart("confirm")
+			s.Confirm.Encode(e)
+		}
+	}
+	{
 		if s.Device.Set {
 			e.FieldStart("device")
 			s.Device.Encode(e)
@@ -209808,14 +209814,15 @@ func (s *FindingsPostFindingsHandleReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsHandleReq = [7]string{
-	0: "device",
-	1: "fix",
-	2: "ids",
-	3: "note",
-	4: "resolution",
-	5: "software",
-	6: "until",
+var jsonFieldsNameOfFindingsPostFindingsHandleReq = [8]string{
+	0: "confirm",
+	1: "device",
+	2: "fix",
+	3: "ids",
+	4: "note",
+	5: "resolution",
+	6: "software",
+	7: "until",
 }
 
 // Decode decodes FindingsPostFindingsHandleReq from json.
@@ -209827,6 +209834,16 @@ func (s *FindingsPostFindingsHandleReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "confirm":
+			if err := func() error {
+				s.Confirm.Reset()
+				if err := s.Confirm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"confirm\"")
+			}
 		case "device":
 			if err := func() error {
 				s.Device.Reset()
@@ -209867,7 +209884,7 @@ func (s *FindingsPostFindingsHandleReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ids\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -209879,7 +209896,7 @@ func (s *FindingsPostFindingsHandleReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "resolution":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Resolution.Decode(d); err != nil {
 					return err
@@ -209918,7 +209935,7 @@ func (s *FindingsPostFindingsHandleReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011000,
+		0b00110000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -256244,6 +256261,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) encodeFields(e *jx.E
 		e.Bool(s.NotInstalled)
 	}
 	{
+		e.FieldStart("package_line")
+		e.Bool(s.PackageLine)
+	}
+	{
 		e.FieldStart("packaged")
 		e.Bool(s.Packaged)
 	}
@@ -256279,7 +256300,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItem = [21]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItem = [22]string{
 	0:  "also_seen",
 	1:  "basis",
 	2:  "can_correct",
@@ -256293,14 +256314,15 @@ var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItem = [21]stri
 	10: "id",
 	11: "kev_cves",
 	12: "not_installed",
-	13: "packaged",
-	14: "pkg_version",
-	15: "product",
-	16: "seen_at",
-	17: "set_by",
-	18: "source",
-	19: "vendor",
-	20: "version",
+	13: "package_line",
+	14: "packaged",
+	15: "pkg_version",
+	16: "product",
+	17: "seen_at",
+	18: "set_by",
+	19: "source",
+	20: "vendor",
+	21: "version",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAssetSoftwareItem from json.
@@ -256476,8 +256498,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"not_installed\"")
 			}
-		case "packaged":
+		case "package_line":
 			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.PackageLine = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"package_line\"")
+			}
+		case "packaged":
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Bool()
 				s.Packaged = bool(v)
@@ -256499,7 +256533,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"pkg_version\"")
 			}
 		case "product":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -256511,7 +256545,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "seen_at":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.SeenAt = v
@@ -256523,7 +256557,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"seen_at\"")
 			}
 		case "set_by":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SetBy = string(v)
@@ -256535,7 +256569,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"set_by\"")
 			}
 		case "source":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -256545,7 +256579,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "vendor":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -256557,7 +256591,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"vendor\"")
 			}
 		case "version":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -256577,8 +256611,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) Decode(d *jx.Decoder
 	var failures []validate.FieldError
 	for i, mask := range [3]uint8{
 		0b10111101,
-		0b10111111,
-		0b00011111,
+		0b01111111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -268702,13 +268736,18 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("changed")
+		e.Bool(s.Changed)
+	}
+	{
 		e.FieldStart("ok")
 		e.Bool(true)
 	}
 }
 
-var jsonFieldsNameOfInventoryPatchInventoryDevicesIDSoftwareSidOK = [1]string{
-	0: "ok",
+var jsonFieldsNameOfInventoryPatchInventoryDevicesIDSoftwareSidOK = [2]string{
+	0: "changed",
+	1: "ok",
 }
 
 // Decode decodes InventoryPatchInventoryDevicesIDSoftwareSidOK from json.
@@ -268720,8 +268759,20 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "ok":
+		case "changed":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Changed = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ok = bool(v)
@@ -268742,7 +268793,7 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -268804,6 +268855,12 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) encodeFields(e *jx.Enco
 		}
 	}
 	{
+		if s.Confirm.Set {
+			e.FieldStart("confirm")
+			s.Confirm.Encode(e)
+		}
+	}
+	{
 		if s.NotInstalled.Set {
 			e.FieldStart("not_installed")
 			s.NotInstalled.Encode(e)
@@ -268835,13 +268892,14 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfInventoryPatchInventoryDevicesIDSoftwareSidReq = [6]string{
+var jsonFieldsNameOfInventoryPatchInventoryDevicesIDSoftwareSidReq = [7]string{
 	0: "catalog_id",
-	1: "not_installed",
-	2: "pkg_version",
-	3: "product",
-	4: "vendor",
-	5: "version",
+	1: "confirm",
+	2: "not_installed",
+	3: "pkg_version",
+	4: "product",
+	5: "vendor",
+	6: "version",
 }
 
 // Decode decodes InventoryPatchInventoryDevicesIDSoftwareSidReq from json.
@@ -268861,6 +268919,16 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) Decode(d *jx.Decoder) e
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"catalog_id\"")
+			}
+		case "confirm":
+			if err := func() error {
+				s.Confirm.Reset()
+				if err := s.Confirm.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"confirm\"")
 			}
 		case "not_installed":
 			if err := func() error {

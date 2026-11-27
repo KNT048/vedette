@@ -56,6 +56,9 @@ var readingsDecls = map[string]bool{
 	"modules/inventory/reidentify.go:deviceSoftware":  true,
 	"modules/inventory/reidentify.go:applyIdentities": true,
 	"modules/inventory/reidentify.go:bareBannerNames": true, // a write job: a scan reading's stored name loses the version it repeats
+	// a write job: a person's entries stored before they were checked against their line lose a stray package release and get an author
+	"modules/inventory/claimcleanup.go:CleanStoredClaims": true,
+	"modules/inventory/claimcleanup.go:cleanDeviceClaims": true,
 	// a self-check (read-only, vedette selfcheck): a finding's matched version must be one its line runs, and the matcher also matches
 	// a line's other live readings (an older second install), so the check reads them as the matcher's input does
 	"modules/findings/selfcheck.go:catalogueInvariants": true,

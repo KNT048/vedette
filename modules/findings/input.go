@@ -250,7 +250,16 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	if err != nil {
 		return nil, err
 	}
+	// a device nobody added is one item, its own card (Add device or Ignore first): its urgent findings and questions are not listed
+	// again under a second card of the same device
+	waiting := make(map[string]bool, len(notAdded))
+	for _, id := range notAdded {
+		waiting[id] = true
+	}
 	for i, v := range vs {
+		if waiting[v.Finding.AssetID] {
+			continue
+		}
 		cve := v.Finding.CVE
 		check := v.SafeCheck
 		basis := v.Finding.Basis
@@ -263,6 +272,9 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	}
 	var distro map[string][]DistroFix
 	for i, x := range qs {
+		if waiting[x.AssetID] {
+			continue
+		}
 		if x.Kind == QuestionNothingToCheck {
 			if a := ref.device(x.AssetID); a.Approved && !a.Box { // a device waiting to be added, or the box, is not asked about
 				out = append(out, InputItemJS{Kind: "device_unchecked", ID: x.ID, Device: deviceRef(a), rank: [3]int{0, statusRank(nil) + 1, i}})

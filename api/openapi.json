@@ -55403,7 +55403,7 @@
     "/findings/handle": {
       "post": {
         "operationId": "findings_post_findings_handle",
-        "summary": "Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing",
+        "summary": "Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing. 409 still_reported: patched on a finding the device's latest reading still shows inside the affected versions (the message names the reading); nothing is written, and the same request with confirm keeps the mark",
         "tags": [
           "findings"
         ],
@@ -55465,6 +55465,10 @@
                     "type": "string",
                     "format": "date",
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "confirm": {
+                    "description": "true: keep \"patched\" although the latest reading still shows an affected version (after 409 still_reported); the finding opens again if the next reading still shows it",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -66557,6 +66561,10 @@
                               "can_correct": {
                                 "type": "boolean",
                                 "description": "A person may give this line a version (INV-52): PATCH /inventory/devices/{id}/software/{sid} with { version }, whatever source it was read from; true on every line"
+                              },
+                              "package_line": {
+                                "type": "boolean",
+                                "description": "The line is a distribution package (the device runs a Linux distribution, or a source read it from a package database): a person gives its package release as the package manager shows it. false on firmware and on software with only the vendor's release (Junos OS, an application on a device with no distribution): the person gives the version as the vendor writes it, and a package release is refused (400 not_a_package)"
                               }
                             },
                             "required": [
@@ -66577,7 +66585,8 @@
                               "differs",
                               "corrected",
                               "corrected_from",
-                              "can_correct"
+                              "can_correct",
+                              "package_line"
                             ],
                             "additionalProperties": false
                           },
@@ -68554,7 +68563,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id_software_sid",
-        "summary": "Change a software row (INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. `not_installed: true` (alone) on a reported row, or on its correction, says the software is not installed (INV-41 (6)): a correction of the same kind that replaces the row with nothing while the row stays reported; its open findings close (findings INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it. Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change; not_installed with another field; not_installed on a row a person added, which DELETE removes), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software; 409 box_device (not_installed on the box's own software)",
+        "summary": "Change a software row (INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. `not_installed: true` (alone) on a reported row, or on its correction, says the software is not installed (INV-41 (6)): a correction of the same kind that replaces the row with nothing while the row stays reported; its open findings close (findings INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it. Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change; not_installed with another field; not_installed on a row a person added, which DELETE removes), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product, not_a_package (a package release on a line that is no distribution package, SoftwareLine.package_line false, unless the text itself is a distribution's release). 409 duplicate_software; 409 box_device (not_installed on the box's own software); 409 contradicts_device (the version differs from the release the device itself states: its agent, its SNMP answer, the OS it states over LLDP; the message names it; send confirm to keep the version). An edit that changes nothing writes nothing: changed false",
         "tags": [
           "inventory"
         ],
@@ -68614,6 +68623,10 @@
                   "not_installed": {
                     "description": "true: the software is not installed on the device (INV-41 (6)); send it alone. false or absent: no change",
                     "type": "boolean"
+                  },
+                  "confirm": {
+                    "description": "true: keep the version although the device itself states another release (after 409 contradicts_device)",
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -68632,10 +68645,15 @@
                     "ok": {
                       "type": "boolean",
                       "const": true
+                    },
+                    "changed": {
+                      "type": "boolean",
+                      "description": "false: the line already said this; nothing was written and nothing is matched again"
                     }
                   },
                   "required": [
-                    "ok"
+                    "ok",
+                    "changed"
                   ],
                   "additionalProperties": false
                 }

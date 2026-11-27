@@ -255,7 +255,10 @@ func newerThanListed(own []Affected, ver string) bool {
 //   - no_nvd_versions: those that name it give no version, or no range that decides (only exact versions, only a start, or a
 //     partial CVE.org list);
 //   - not_comparable: an entry naming it has a range with an end and the row's version did not compare with it, or the row is a
-//     network OS whose version has no order (scheme): only then can typing the version as the vendor writes it help.
+//     network OS whose version has no order (scheme): only then can typing the version as the vendor writes it help. When the
+//     version scheme the catalogue declares for the product reads the version as written (Junos "15.1R7.9", schemeReads), typing it
+//     again changes nothing: it is no_nvd_versions instead (the entries name the product, none decides this release), which a
+//     person answers per CVE.
 func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReason, bool) {
 	if len(v.Affected) == 0 { // before NVD answered too: Vedette has no NVD data for it yet, and says so at once (review r1 H2 of #939)
 		return UncheckedNoNVDData, true
@@ -276,11 +279,30 @@ func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReaso
 	case !slices.ContainsFunc(own, versionEvidence):
 		return UncheckedNoNVDVersions, true
 	case scheme || !versionKnown(in.ver):
+		if schemeReads(s, in) {
+			return UncheckedNoNVDVersions, true // see below
+		}
 		return UncheckedNotComparable, true
 	case v.RangesFrom == RangesCVEOrgPartial || !slices.ContainsFunc(own, func(af Affected) bool { return endBound(af.Range) }):
 		return UncheckedNoNVDVersions, true
+	case schemeReads(s, in): // a range with an end did not decide a release the product's scheme reads: none of the entries decides it
+		return UncheckedNoNVDVersions, true
 	}
 	return UncheckedNotComparable, true
+}
+
+// schemeReads says the version scheme the catalogue declares for the row's product reads its version as the vendor writes it.
+func schemeReads(s Software, in swInfo) bool {
+	p, ok := productid.ResolveStored(s.Vendor, s.Product, s.Display, s.CPE)
+	if !ok || p.Scheme == "" || !versionGiven(in.ver) {
+		return false
+	}
+	sc, ok := versionscheme.Lookup(p.Scheme)
+	if !ok {
+		return false
+	}
+	_, ok = sc.Installed(in.ver, statedBuild(s))
+	return ok
 }
 
 // versionEvidence says whether an NVD entry gives a version: a range bound, or a version in its CPE.

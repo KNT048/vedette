@@ -27590,7 +27590,9 @@ func (s *Server) handleFindingsGetFindingsOverviewRequest(args [0]string, argsEs
 //
 // Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
 // one fix on one device; findings that already have this handling are skipped; one history and audit
-// row per finding, all or nothing.
+// row per finding, all or nothing. 409 still_reported: patched on a finding the device's latest
+// reading still shows inside the affected versions (the message names the reading); nothing is
+// written, and the same request with confirm keeps the mark.
 //
 // POST /findings/handle
 func (s *Server) handleFindingsPostFindingsHandleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27674,7 +27676,7 @@ func (s *Server) handleFindingsPostFindingsHandleRequest(args [0]string, argsEsc
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsHandleOperation,
-			OperationSummary: "Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing",
+			OperationSummary: "Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing. 409 still_reported: patched on a finding the device's latest reading still shows inside the affected versions (the message names the reading); nothing is written, and the same request with confirm keeps the mark",
 			OperationID:      "findings_post_findings_handle",
 			Body:             request,
 			RawBody:          rawBody,
@@ -34337,8 +34339,12 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 // INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it.
 // Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change;
 // not_installed with another field; not_installed on a row a person added, which DELETE removes),
-// bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409
-// duplicate_software; 409 box_device (not_installed on the box's own software).
+// bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product, not_a_package (a
+// package release on a line that is no distribution package, SoftwareLine.package_line false, unless
+// the text itself is a distribution's release). 409 duplicate_software; 409 box_device (not_installed
+// on the box's own software); 409 contradicts_device (the version differs from the release the device
+// itself states: its agent, its SNMP answer, the OS it states over LLDP; the message names it; send
+// confirm to keep the version). An edit that changes nothing writes nothing: changed false.
 //
 // PATCH /inventory/devices/{id}/software/{sid}
 func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34432,7 +34438,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPatchInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Change a software row (INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. `not_installed: true` (alone) on a reported row, or on its correction, says the software is not installed (INV-41 (6)): a correction of the same kind that replaces the row with nothing while the row stays reported; its open findings close (findings INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it. Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change; not_installed with another field; not_installed on a row a person added, which DELETE removes), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software; 409 box_device (not_installed on the box's own software)",
+			OperationSummary: "Change a software row (INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. `not_installed: true` (alone) on a reported row, or on its correction, says the software is not installed (INV-41 (6)): a correction of the same kind that replaces the row with nothing while the row stays reported; its open findings close (findings INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it. Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change; not_installed with another field; not_installed on a row a person added, which DELETE removes), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product, not_a_package (a package release on a line that is no distribution package, SoftwareLine.package_line false, unless the text itself is a distribution's release). 409 duplicate_software; 409 box_device (not_installed on the box's own software); 409 contradicts_device (the version differs from the release the device itself states: its agent, its SNMP answer, the OS it states over LLDP; the message names it; send confirm to keep the version). An edit that changes nothing writes nothing: changed false",
 			OperationID:      "inventory_patch_inventory_devices_id_software_sid",
 			Body:             request,
 			RawBody:          rawBody,

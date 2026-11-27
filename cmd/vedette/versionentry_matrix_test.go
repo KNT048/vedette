@@ -151,7 +151,9 @@ func TestVersionEntryMatrix(t *testing.T) {
 			if err := s.d.DB.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = ? AND cve = ?`, asset, ranged).Scan(&id); err != nil {
 				t.Fatal(err)
 			}
-			if _, _, err := s.d.Findings.Handle(t.Context(), []string{id}, findings.ResolutionPatched, "", time.Time{}, person); err != nil {
+			// the release the person entered is still inside the range, so "patched" is said back to them first (still_reported, the
+			// next row); they keep it, and the mark is what this row watches
+			if _, _, err := s.d.Findings.HandleConfirmed(t.Context(), []string{id}, findings.ResolutionPatched, "", time.Time{}, person); err != nil {
 				t.Fatal(err)
 			}
 			if err := edit(t, s, asset, line, inventory.SoftwareEdit{PkgVersion: str(junos)}); err != nil {
@@ -338,6 +340,45 @@ func TestVersionEntryMatrix(t *testing.T) {
 			_ = edit(t, s, asset, line, inventory.SoftwareEdit{Version: str(junos)})
 			if n := s.count(`SELECT count(*) FROM fnd_question WHERE software_id = ? AND cve = ? AND answer = 'not_affected'`, line, bare); n != 1 {
 				t.Errorf("the answer for release %s was dropped although the line runs that release throughout", junos)
+			}
+		}},
+		// The switch deleted and found again by the passive sensor alone: a device nobody added, with no address, no software line,
+		// and the OS it states in its LLDP frame. Its firmware release is matched like any stated OS, and the device is one item of
+		// every list, never two.
+		{"firmware / passive only, no address, not added / no person action: OS-level findings, the device listed once", func(t *testing.T, s *stack) {
+			junosFeeds(t, s)
+			ctx := t.Context()
+			const mac = "3c:8a:b0:00:71:20"
+			var batch []observe.Observation
+			for f, v := range map[observe.Field]string{observe.MAC: mac, observe.Vendor: "Juniper Networks", observe.Kind: "switch", observe.OS: "JUNOS " + junos} {
+				batch = append(batch, observe.Observation{AssetHint: observe.AssetHint{MAC: mac}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.5,
+					SeenAt: time.Now().UTC()})
+			}
+			if err := s.d.Inventory.Record(ctx, batch); err != nil {
+				t.Fatal(err)
+			}
+			var asset string
+			if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value = ?`, mac).Scan(&asset); err != nil {
+				t.Fatal(err)
+			}
+			if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if got := finding(t, s, asset, ranged); got.basis != string(findings.DetectDeviceVersion) || got.state != string(findings.StateOpen) {
+				t.Errorf("%+v: want the release the switch states, matched and open", got)
+			}
+			in, err := s.d.Findings.Input(ctx, "", "", findings.Page{Limit: findings.PageMax})
+			if err != nil {
+				t.Fatal(err)
+			}
+			n := 0
+			for _, it := range in.Items {
+				if it.Device.ID == asset {
+					n++
+				}
+			}
+			if n != 1 {
+				t.Errorf("the switch is %d items of Needs your input, want 1", n)
 			}
 		}},
 		{"distribution package / agent on Ubuntu below the distribution's fix: confirmed by the device", func(t *testing.T, s *stack) {

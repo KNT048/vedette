@@ -840,7 +840,7 @@ func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string,
 		kind = suggestedKind(in.Kind, a) // feeds' suggestion
 	}
 	var o outbox
-	id, err := s.createManual(ctx, tx, &o, a, kind)
+	id, err := s.createManual(ctx, tx, &o, actor, a, kind)
 	if err != nil {
 		return "", err
 	}

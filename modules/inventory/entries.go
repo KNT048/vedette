@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/orgtime"
+	"github.com/knt048/vedette/core/pkgrel"
 	"github.com/knt048/vedette/core/productid"
 )
 
@@ -28,6 +30,9 @@ type SoftwareEdit struct {
 	// NotInstalled: the person says the software is not installed on the device (INV-41 (6)). It takes no other field; a later
 	// version, release or product a person gives makes the line installed again (the person says what is there).
 	NotInstalled bool
+	// Confirm: save the version although the device's own statement reads another release (409 contradicts_device names it). A person
+	// may give a wrong version; the box says so once, with the evidence, and the person decides.
+	Confirm bool
 }
 
 func (e SoftwareEdit) product() bool { return e.CatalogID != "" || e.Vendor != "" || e.Product != "" }
@@ -91,31 +96,44 @@ func trainOf(productKey, version string) string {
 	return ""
 }
 
-// EditSoftware changes what a person says about a software line of a device (INV-41, INV-52): its version or package release (the
+// EditSoftware is Edit without its "changed" answer.
+func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID string, e SoftwareEdit) error {
+	_, err := s.Edit(ctx, actor, assetID, softwareID, e)
+	return err
+}
+
+// Edit changes what a person says about a software line of a device (INV-41, INV-52): its version or package release (the
 // person's entry, which is the line until a newer reading), another product (the entry goes to that product's line and this one is
 // marked not installed), or that it is not installed. What the person does not change is kept: the CPE, the packaged flag and the
 // source package, and the package release while the version stays. The device's findings are matched again after the commit.
-func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID string, e SoftwareEdit) error {
+//
+// What a person gives is a claim checked against the line's evidence (packageLine, contradiction):
+//   - a package release only goes on a distribution package (400 not_a_package on firmware or a plain vendor release: Junos has
+//     one release string, and a second copy of it in the package field is no evidence of anything);
+//   - a version the device's own statement (its agent, its SNMP answer, the OS it states over LLDP) reads as another release is
+//     refused once with that evidence (409 contradicts_device) unless the person confirms it;
+//   - an edit that changes nothing is no new reading: nothing is written, no event, no rematch, and changed is false.
+func (s *Service) Edit(ctx context.Context, actor, assetID, softwareID string, e SoftwareEdit) (changed bool, err error) {
 	if err := s.requireDevice(ctx, assetID); err != nil {
-		return err
+		return false, err
 	}
 	if e.Version == nil && e.PkgVersion == nil && !e.product() && !e.NotInstalled {
-		return badRequest("bad_edit", "Say what to change: the product, the version or the package release, or that it is not installed.")
+		return false, badRequest("bad_edit", "Say what to change: the product, the version or the package release, or that it is not installed.")
 	}
 	if e.NotInstalled && (e.Version != nil || e.PkgVersion != nil || e.product()) {
-		return badRequest("bad_edit", "\"Not installed\" takes no version, package release or product: send it alone.")
+		return false, badRequest("bad_edit", "\"Not installed\" takes no version, package release or product: send it alone.")
 	}
 	if e.Version != nil {
 		v := strings.TrimSpace(*e.Version)
 		if v != "" && !versionRE.MatchString(v) {
-			return badRequest("bad_version", "The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.")
+			return false, badRequest("bad_version", "The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.")
 		}
 		e.Version = &v
 	}
 	if e.PkgVersion != nil {
 		v := strings.TrimSpace(*e.PkgVersion)
 		if v != "" && !pkgVersionRE.MatchString(v) {
-			return badRequest("bad_pkg_version", badPkgVersion)
+			return false, badRequest("bad_pkg_version", badPkgVersion)
 		}
 		e.PkgVersion = &v
 	}
@@ -123,23 +141,24 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 	if e.product() {
 		c, err := s.Catalog(ctx)
 		if err != nil {
-			return err
+			return false, err
 		}
 		var aerr *apierr.Error
 		if cat, aerr = resolveProduct(c, AddInput{CatalogID: e.CatalogID, Vendor: e.Vendor, Product: e.Product}); aerr != nil {
-			return aerr
+			return false, aerr
 		}
 	}
 	if e.NotInstalled {
 		var box bool
 		if err := s.db.Reader().QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, assetID).Scan(&box); err != nil {
-			return fmt.Errorf("inventory: read device: %w", err)
+			return false, fmt.Errorf("inventory: read device: %w", err)
 		}
 		if box { // the box reads its own package list: what it reports is installed
-			return conflict("box_device", "This is the Vedette box itself: it reads its own software, so a row cannot be marked not installed.")
+			return false, conflict("box_device", "This is the Vedette box itself: it reads its own software, so a row cannot be marked not installed.")
 		}
 	}
-	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		changed = false
 		ok, err := assetExists(ctx, tx, assetID)
 		if err != nil {
 			return err
@@ -156,10 +175,80 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 			return err
 		}
 		if e.NotInstalled {
+			changed = l.state != stateNotInstalled
 			return s.markNotInstalledTx(ctx, tx, o, actor, l, rs)
 		}
-		return s.editEntryTx(ctx, tx, o, actor, l, rs, e, cat, false)
+		if err := s.checkClaim(ctx, tx, l, rs, e, cat); err != nil {
+			return err
+		}
+		changed, err = s.editEntryTx(ctx, tx, o, actor, l, rs, e, cat, false)
+		return err
 	})
+	return changed, err
+}
+
+// checkClaim checks what a person gives a line against the line's evidence before it is written: a package release only on a
+// distribution package (packageLine), and a version the device's own statement reads otherwise only when the person confirms it.
+func (s *Service) checkClaim(ctx context.Context, tx *sql.Tx, l lineRow, rs []Reading, e SoftwareEdit, cat *catEntry) error {
+	if cat != nil {
+		return nil // another product: nothing of this line's evidence is about it
+	}
+	if e.PkgVersion != nil && *e.PkgVersion != "" {
+		var osName string
+		if err := tx.QueryRowContext(ctx, `SELECT ifnull(os, '') FROM inv_asset WHERE id = ?`, l.assetID).Scan(&osName); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if !packageLine(osName, rs) && !pkgrel.Release(*e.PkgVersion) {
+			return badRequest("not_a_package", fmt.Sprintf("%s on this device is not a distribution package, so it has no package release. Give its version as the vendor writes it instead.",
+				cmp.Or(l.display, "This software")))
+		}
+	}
+	if e.Confirm || e.Version == nil || *e.Version == "" {
+		return nil
+	}
+	det := detectedOf(rs)
+	if det == nil || readingRank(*det) < rankDeviceStated || det.Version == "" || pkgrel.Same(det.Version, det.PkgVersion, *e.Version, "") {
+		return nil
+	}
+	if cur := entryOf(rs); cur != nil && cur.Version == *e.Version {
+		return nil // the person's entry already says it: confirmed before
+	}
+	return conflict("contradicts_device", fmt.Sprintf("The device itself reports %s (%s, %s), not %s. Save %s anyway if the device's own report is out of date: it is replaced when the device reports a newer release.",
+		swText(det.Display, det.Version, ""), statedBy(det.Source), correctionDay(det.SeenAt, orgtime.At(ctx, s.zone)), *e.Version, *e.Version))
+}
+
+// rankDeviceStated is the readingRank of a reading the device itself states: its agent, its SNMP answer, the OS it states over LLDP on
+// its own vendor's card. A banner or a passive guess ranks below it.
+const rankDeviceStated = 5
+
+// statedBy names how the device stated a reading, for a person.
+func statedBy(source string) string {
+	switch {
+	case agentSource(source):
+		return "its agent"
+	case source == "snmp":
+		return "its SNMP answer"
+	case source == "passive":
+		return "its LLDP announcement"
+	}
+	return sourceClass(source)
+}
+
+// packageLine says a line is a distribution's package, so a package release can be given for it: the device runs a Linux
+// distribution (its OS names one), or a source read the line from a package database or with a package release. Firmware (Junos OS)
+// and an application with only an upstream version on a device with no distribution are not: their version is the vendor's release.
+// A text that is itself a distribution's package release ("10.2_p1-r1", "1:9.6p1-3ubuntu13.4") is also accepted on any line
+// (pkgrel.Release): its shape says what it is. Findings reads a manual package release the same way (pkgBuilt).
+func packageLine(osName string, rs []Reading) bool {
+	if pkgrel.Distro(osName) != "" {
+		return true
+	}
+	for _, r := range rs {
+		if !r.entry() && (r.Packaged || r.PkgVersion != "") {
+			return true
+		}
+	}
+	return false
 }
 
 // markNotInstalledTx marks a line not installed (INV-41 (6)): it matches nothing until a source reads something new on it.
@@ -223,7 +312,7 @@ func (s *Service) announceSoftware(ctx context.Context, tx *sql.Tx, o *outbox, a
 
 // editEntryTx writes the person's entry of a line: the version and package release they give, or another product.
 // versionOnly is SetSoftwareVersion's edit: its own audit row ("7.2.5 → 7.4.8").
-func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor string, l lineRow, rs []Reading, e SoftwareEdit, cat *catEntry, versionOnly bool) error {
+func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor string, l lineRow, rs []Reading, e SoftwareEdit, cat *catEntry, versionOnly bool) (bool, error) {
 	cur := entryOf(rs)
 	base := Reading{}
 	switch {
@@ -238,7 +327,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	var shownVersion, shownPkg, shownSource, shownDisplay string
 	if err := tx.QueryRowContext(ctx, `SELECT ifnull(version, ''), ifnull(pkg_version, ''), source, display FROM inv_software WHERE id = ?`, l.id).
 		Scan(&shownVersion, &shownPkg, &shownSource, &shownDisplay); err != nil {
-		return fmt.Errorf("inventory: read software: %w", err)
+		return false, fmt.Errorf("inventory: read software: %w", err)
 	}
 	next := Reading{Source: sourceManual, Display: base.Display, Version: base.Version, PkgVersion: base.PkgVersion, PkgSource: base.PkgSource, CPE: base.CPE,
 		Packaged: base.Packaged, Confidence: 1, SetBy: actor}
@@ -282,11 +371,11 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	}
 	same := cur != nil && cur.Version == next.Version && cur.PkgVersion == next.PkgVersion && cur.Display == next.Display
 	if same && target.productKey == l.productKey && target.line == l.line && l.state == statePresent {
-		return nil // nothing changes: no audit row, no rematch
+		return false, nil // nothing changes: no audit row, no rematch
 	}
 	before, err := deviceKeys(ctx, tx, l.assetID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	now := s.now()
 	next.FirstSeen, next.SeenAt = now, now
@@ -294,54 +383,54 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	if target.productKey == l.productKey && target.line == l.line {
 		if l.state == stateNotInstalled { // the person now says what is installed
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ?`, l.id); err != nil {
-				return fmt.Errorf("inventory: correct software: %w", err)
+				return false, fmt.Errorf("inventory: correct software: %w", err)
 			}
 		}
 		if err := putReading(ctx, tx, l.id, next, itemEvidence{}); err != nil { // a person's edit: the entry follows its line
-			return err
+			return false, err
 		}
 		if err := softwareEvent(ctx, tx, l.assetID, l.id, l.productKey, next.Display, now, "entry_set", releaseText(shownVersion, shownPkg), releaseText(next.Version, next.PkgVersion), sourceManual, actor); err != nil {
-			return err
+			return false, err
 		}
 	} else {
 		if target.vendor == "" { // the same product on another train keeps the line's names
 			if err := tx.QueryRowContext(ctx, `SELECT vendor, product FROM inv_software WHERE id = ?`, l.id).Scan(&target.vendor, &target.product); err != nil {
-				return fmt.Errorf("inventory: read software: %w", err)
+				return false, fmt.Errorf("inventory: read software: %w", err)
 			}
 		}
 		id, err := s.lineOf(ctx, tx, l.assetID, target, next)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ? AND state = 'not_installed'`, id); err != nil {
-			return fmt.Errorf("inventory: correct software: %w", err)
+			return false, fmt.Errorf("inventory: correct software: %w", err)
 		}
 		if err := putReading(ctx, tx, id, next, itemEvidence{}); err != nil {
-			return err
+			return false, err
 		}
 		if err := softwareEvent(ctx, tx, l.assetID, id, target.productKey, next.Display, now, "entry_set", "", releaseText(next.Version, next.PkgVersion), sourceManual, actor); err != nil {
-			return err
+			return false, err
 		}
 		if cur != nil { // the entry moved: this line is back to its sources
 			if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = 'manual'`, l.id); err != nil {
-				return fmt.Errorf("inventory: correct software: %w", err)
+				return false, fmt.Errorf("inventory: correct software: %w", err)
 			}
 		}
 		if other && detectedOf(rs) != nil && l.state == statePresent { // the sources' product is not what runs there
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'not_installed', not_installed_at = ?, not_installed_by = ? WHERE id = ?`, now, nullStr(actor), l.id); err != nil {
-				return fmt.Errorf("inventory: correct software: %w", err)
+				return false, fmt.Errorf("inventory: correct software: %w", err)
 			}
 			if err := softwareEvent(ctx, tx, l.assetID, l.id, l.productKey, l.display, now, "marked_not_installed", l.version, "", "", actor); err != nil {
-				return err
+				return false, err
 			}
 		}
 		lines = append(lines, id)
 	}
 	if err := s.settled(ctx, tx, o, l.assetID, before, lines...); err != nil {
-		return err
+		return false, err
 	}
 	if versionOnly {
-		return s.auditTx(ctx, tx, actor, "inventory.set_software_version", deviceName(ctx, tx, l.assetID)+": "+shownDisplay,
+		return true, s.auditTx(ctx, tx, actor, "inventory.set_software_version", deviceName(ctx, tx, l.assetID)+": "+shownDisplay,
 			cmp.Or(cur.Version, "no version")+" → "+cmp.Or(next.Version, "no version"))
 	}
 	from := swText(shownDisplay, shownVersion, shownPkg) + " (" + sourceClass(shownSource) + ")"
@@ -351,7 +440,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	case cur != nil:
 		from = swText(cur.Display, cur.Version, cur.PkgVersion)
 	}
-	return s.auditTx(ctx, tx, actor, "inventory.correct_software", deviceName(ctx, tx, l.assetID)+": "+shownDisplay, from+" → "+swText(next.Display, next.Version, next.PkgVersion))
+	return true, s.auditTx(ctx, tx, actor, "inventory.correct_software", deviceName(ctx, tx, l.assetID)+": "+shownDisplay, from+" → "+swText(next.Display, next.Version, next.PkgVersion))
 }
 
 // addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is true when the device
@@ -479,7 +568,8 @@ func (s *Service) SetSoftwareVersion(ctx context.Context, actor, assetID, softwa
 			return nil // nothing changes: no audit row, no rematch
 		}
 		v := version
-		return s.editEntryTx(ctx, tx, o, actor, l, rs, SoftwareEdit{Version: &v}, nil, true)
+		_, err = s.editEntryTx(ctx, tx, o, actor, l, rs, SoftwareEdit{Version: &v}, nil, true)
+		return err
 	})
 }
 

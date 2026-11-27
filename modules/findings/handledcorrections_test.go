@@ -20,7 +20,7 @@ func TestHandled_LeavesOutVedettesMatchCorrections(t *testing.T) {
 	if len(fs) < 4 {
 		t.Fatalf("want at least 4 findings on web-01, got %d", len(fs))
 	}
-	if _, _, err := e.svc.Handle(ctx, []string{fs[0].ID}, ResolutionPatched, "updated by hand", time.Time{}, "ana@example.com"); err != nil {
+	if _, _, err := e.svc.HandleConfirmed(ctx, []string{fs[0].ID}, ResolutionPatched, "updated by hand", time.Time{}, "ana@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	at := e.clock.UTC().Format("2006-01-02T15:04:05.000Z")

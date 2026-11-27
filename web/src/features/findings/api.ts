@@ -114,7 +114,7 @@ function useModelWrite<V, R>(fn: (v: V) => Promise<R>) {
   return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }); void qc.invalidateQueries({ queryKey: ['inventory'] }) } })
 }
 /** The handle request: findings of one device, by ids or by one of its fixes. */
-export type HandleInput = ({ ids: string[] } | { device: string; fix: string; software?: string }) & { resolution: Resolution; note: string; until?: string }
+export type HandleInput = ({ ids: string[] } | { device: string; fix: string; software?: string }) & { resolution: Resolution; note: string; until?: string; confirm?: boolean }
 export const useHandle = () => useModelWrite((v: HandleInput) => api.post<{ handled: number; skipped: number }>('/findings/handle', v))
 export const useReopen = () => useModelWrite((v: { id: string; note: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/reopen`, { note: v.note }))
 export const useVerify = () => useModelWrite((v: { id: string; note: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/verify`, { note: v.note }))

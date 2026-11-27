@@ -567,6 +567,7 @@
   },
   "handle": {
     "title": "Mark as handled",
+    "patchedAnyway": "Mark patched anyway",
     "which": "Findings",
     "how": "How was it handled?",
     "scope_one": "Acts on {{count}} finding ({{cves}} CVE) on one device: {{device}}.",

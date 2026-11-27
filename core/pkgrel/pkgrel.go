@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/core/apkver"
+	"github.com/knt048/vedette/core/debver"
 )
 
 var (
@@ -81,4 +82,52 @@ func epochOf(v string) string {
 		return e
 	}
 	return ""
+}
+
+// The Linux distribution families an OS name can name, as platform ids, with the words that name them.
+var distroWords = []struct {
+	id string
+	re *regexp.Regexp
+}{
+	{"alpine", regexp.MustCompile(`(?i)\balpine\b`)},
+	{"ubuntu", regexp.MustCompile(`(?i)\bubuntu\b`)},
+	{"debian", regexp.MustCompile(`(?i)\b(debian|raspbian)\b`)},
+	{"rhel", regexp.MustCompile(`(?i)\b(red ?hat|rhel|centos|rocky|almalinux|oracle linux|fedora|amazon linux)\b`)},
+	{"suse", regexp.MustCompile(`(?i)\b(open)?suse\b|\bsles\b`)},
+}
+
+// Distro is the Linux distribution family an OS name names ("alpine", "ubuntu", "debian", "rhel", "suse"), "" for none (Windows, a
+// network OS such as Junos, an unknown OS). Only a distribution builds packages whose release differs from the upstream version.
+func Distro(osName string) string {
+	for _, w := range distroWords {
+		if w.re.MatchString(osName) {
+			return w.id
+		}
+	}
+	return ""
+}
+
+// distroMarkRE is a distribution's mark inside a package revision ("2.4.52-1ubuntu4", "1.1.1n-0+deb11u5", "1.2-3.el9").
+var distroMarkRE = regexp.MustCompile(`(?i)ubuntu|[+~.-]deb\d|\.(el|fc)\d`)
+
+// Marked says a release text carries a distribution's mark in its revision ("2ubuntu3.8", "+deb12u3", ".el9").
+func Marked(v string) bool { return distroMarkRE.MatchString(v) }
+
+// Release says a text is a distribution's package release by its own shape: Alpine's apk ("10.2_p1-r1", also after a package
+// name: "openssh-10.2_p1-r1"), a release with a distribution's mark ("1:10.2p1-2ubuntu3.8", "9.2p1-2+deb12u3", "8.7p1-38.el9"), or a
+// Debian version with an epoch ("1:9.2p1-2"). A vendor's release ("15.1R7.9", "v7.2.13", "9.6") is not one.
+func Release(p string) bool {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return false
+	}
+	if apkver.Valid(p) {
+		return true
+	}
+	for j := 0; j+1 < len(p); j++ {
+		if p[j] == '-' && p[j+1] >= '0' && p[j+1] <= '9' && apkver.Valid(p[j+1:]) {
+			return true
+		}
+	}
+	return Marked(p) || epochRE.MatchString(p) && debver.Valid(p)
 }

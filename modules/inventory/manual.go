@@ -100,8 +100,9 @@ func checkAdd(c *Catalog, in AddInput, requireProduct bool) (addChecked, *apierr
 }
 
 // createManual inserts a declared device with its observations and software (INV-4, INV-5): approved, never
-// scanned, source "manual" at confidence 1.
-func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a addChecked, kind string) (string, error) {
+// scanned, source "manual" at confidence 1. actor is the person who added it: the author of the version it was added with, so that
+// version is their word like any version a person gives a line (set_by).
+func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, actor string, a addChecked, kind string) (string, error) {
 	if a.ip != "" {
 		dup, err := addressHolder(ctx, tx, a.ip) // its main address or one of its others (INV-57)
 		if err != nil {
@@ -143,7 +144,7 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	if a.entry != nil {
 		sw := SoftwareItem{Display: a.entry.display, Vendor: a.entry.vendor, Product: a.entry.product, Version: a.version, KevKeys: a.entry.kev, Confidence: 1}
-		if _, _, err := s.addEntryTx(ctx, tx, "", id, sw); err != nil {
+		if _, _, err := s.addEntryTx(ctx, tx, actor, id, sw); err != nil {
 			return "", err
 		}
 		after, err := deviceKeys(ctx, tx, id)
@@ -193,7 +194,7 @@ func (s *Service) AddDevice(ctx context.Context, actor string, in AddInput) (Add
 	}
 	var res AddResult
 	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		id, err := s.createManual(ctx, tx, o, a, "")
+		id, err := s.createManual(ctx, tx, o, actor, a, "")
 		if err != nil {
 			return err
 		}

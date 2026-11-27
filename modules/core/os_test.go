@@ -839,7 +839,7 @@ func TestBackupDownloadStreamsTheHostsFileAndHoldsNoKey(t *testing.T) {
 	t.Parallel()
 	e := newOSEnv(t, osOpts{})
 	e.setZone("Asia/Ho_Chi_Minh") // the file is named by the organization's day and time to the minute: two the same day differ
-	before := len(e.actions())
+	before := countAction(e.actions(), "data.backup")
 	r := e.admin.get("/core/data/backup")
 	if r.Code != 200 {
 		t.Fatalf("backup = %d %s", r.Code, r.Raw)
@@ -882,9 +882,22 @@ func TestBackupDownloadStreamsTheHostsFileAndHoldsNoKey(t *testing.T) {
 	if d := e.snapshotDirs(); len(d) != 0 {
 		t.Errorf("snapshot directories left after the call: %v", d)
 	}
-	if got := e.actions(); len(got) != before+1 || got[len(got)-1] != "data.backup" {
+	if got := e.actions(); countAction(got, "data.backup") != before+1 {
 		t.Errorf("audit rows: %v", got)
 	}
+}
+
+// countAction counts one action in the audit trail. Background jobs (the time-zone
+// reading, for one) add rows of their own while a test runs, so a test checks its
+// own action instead of the total.
+func countAction(actions []string, action string) int {
+	n := 0
+	for _, a := range actions {
+		if a == action {
+			n++
+		}
+	}
+	return n
 }
 
 func keysOf(m map[string][]byte) []string {

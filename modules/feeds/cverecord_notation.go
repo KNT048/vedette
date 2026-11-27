@@ -16,7 +16,10 @@ import (
 //   - The product's name in front of the version ("openssl-1.1.0", "iOS 12.3", "react-router >= 7.0.0, < 7.12.0", an npm package's
 //     scoped name "@xmldom/xmldom < 0.8.12" of product "xmldom"): dropped when it is the entry's product, alone or after its vendor
 //     (withoutProduct). Another name (another package of the same advisory, a marketing name) is not dropped, nor a name before a
-//     range written with a hyphen ("Tika 1.0-1.23", hyphenRange).
+//     range written with a hyphen in a bound ("lessThan": "Tika 1.0-1.23").
+//   - A range written with a hyphen in "version" ("1.0-1.23", "14.1.0-14.1.0.5", after the product's name too): from the first
+//     release through the second (hyphenRead), as CISA's ADP rewrites such entries in its enrichment ("4.0.0-4.2.7" -> version 4.0.0,
+//     lessThanOrEqual 4.2.7) and NVD's configurations read them. A package revision or build after the hyphen stays one release.
 //   - A list after lessThan or lessThanOrEqual with one fixed (or last affected) release per release train ("1.20.4,2.0.2,2.1.2"):
 //     one row per train (trainEnds), only when every item is a plain dotted number of the same length and the trains go strictly up as
 //     written (or strictly down, in a list of three or more).
@@ -38,13 +41,26 @@ type notedVersion struct {
 
 // recordNotation reads one affected version of entry a (the notations above). ok is false when a notation is recognised but does not
 // read (the entry is then unusable); a version in no notation is returned as written.
-func recordNotation(a cnaAffected, v cnaVersion) (out []notedVersion, ok bool) {
+// reads is the product's version scheme (entryRows).
+func recordNotation(a cnaAffected, v cnaVersion, reads func(start, end string, incl bool) bool) (out []notedVersion, ok bool) {
 	n := notedVersion{start: withoutProduct(strings.TrimSpace(v.Version), a)}
 	switch {
 	case v.LessThan != nil:
 		n.end, n.bounded = withoutProduct(strings.TrimSpace(*v.LessThan), a), true
 	case v.LessThanOrEqual != nil:
 		n.end, n.incl, n.bounded = withoutProduct(strings.TrimSpace(*v.LessThanOrEqual), a), true, true
+	default:
+		s := strings.TrimSpace(v.Version)
+		if rest := withoutName(s, a); !packageFile(s, rest) {
+			switch kind, from, to := hyphenRead(rest, v.VersionType, reads); kind {
+			case hyphenRange:
+				return []notedVersion{{start: from, end: to, incl: true, bounded: true}}, true
+			case hyphenOne:
+				return []notedVersion{{start: from}}, true
+			case hyphenUnsure:
+				return nil, false
+			}
+		}
 	}
 	if strings.ContainsAny(n.start, "<>=") {
 		if n.bounded {
@@ -119,16 +135,31 @@ func comparedVersion(s string) bool {
 	return cnaVersionOK(s) && d != "" && d[0] >= '0' && d[0] <= '9' && (!commitRE.MatchString(d) || !strings.ContainsAny(d, "abcdef"))
 }
 
-// withoutProduct is s without the entry's product name in front ("openssl-1.1.0" of product OpenSSL is "1.1.0"): the name ends where
-// a comparator or a dotted version begins after a blank, hyphen or underscore, and it is the entry's product, its vendor and product,
-// or an npm package whose name after its scope is the product. Anything else is returned as written.
+// withoutProduct is s without the entry's product name in front (withoutName), unless what follows the name is a range written with a
+// hyphen ("Tika 1.0-1.23"): a bound or a fixed release cannot be a range, so it stays as written (unusable). recordNotation reads
+// such a range in "version" itself. A package's file name is not one (packageFile).
 func withoutProduct(s string, a cnaAffected) string {
+	rest := withoutName(s, a)
+	if kind, _, _ := hyphenRead(rest, "", nil); rest != s && kind != hyphenNone && !packageFile(s, rest) {
+		return s
+	}
+	return rest
+}
+
+// packageFile says the version rest of s (withoutName) follows the product's name joined to it by a hyphen: a package's file name,
+// name-version-release ("dovecot22-2.2.13-3.7.1", "openstack-neutron-7.2.0-12.1"), so the hyphen after the version starts the
+// package's release, never a range. A range after the product's name is written with a blank ("Apache Tika 1.0-1.23").
+func packageFile(s, rest string) bool {
+	return rest != s && len(rest) < len(s) && s[len(s)-len(rest)-1] == '-'
+}
+
+// withoutName is s without the entry's product name in front ("openssl-1.1.0" of product OpenSSL is "1.1.0"): the name ends where a
+// comparator or a dotted version begins after a blank, hyphen or underscore, and it is the entry's product, its vendor and product,
+// or an npm package whose name after its scope is the product. Anything else is returned as written.
+func withoutName(s string, a cnaAffected) string {
 	i := versionStart(s)
 	if i <= 0 || !strings.ContainsAny(s[i:], ".<>=") {
 		return s // "Office 2016", "Android-11": an edition's name, not a release of the product
-	}
-	if hyphenRange(s[i:]) {
-		return s // "Tika 1.0-1.23": a range, which the version without the name would read as one release
 	}
 	name := strings.TrimRight(s[:i], " -_")
 	product := nameKey(a.Product)
@@ -147,18 +178,77 @@ func withoutProduct(s string, a cnaAffected) string {
 	return s
 }
 
-// hyphenRangeRE is two plain dotted releases joined by a hyphen ("1.0-1.23", "14.1.0-14.1.0.5").
-var hyphenRangeRE = regexp.MustCompile(`^[vV]?([0-9]+(?:\.[0-9]+)+)-([0-9]+(?:\.[0-9]+)+)$`)
+// hyphenRE is two releases joined by one hyphen: dotted numbers, each may have a "v" in front, the second may end in a letter release
+// ("1.1.0-1.1.0g").
+var hyphenRE = regexp.MustCompile(`^([vV]?)([0-9]{1,9}(?:\.[0-9]{1,9}){0,5})-([vV]?)([0-9]{1,9}(?:\.[0-9]{1,9}){0,5})([a-z]{0,2})$`)
 
-// hyphenRange says s is a range written with a hyphen: two plain dotted releases, the second above the first. A release with a
-// package revision after the hyphen ("9.3.1-2.1") is below its own release and is not one.
-func hyphenRange(s string) bool {
-	m := hyphenRangeRE.FindStringSubmatch(s)
-	if m == nil {
-		return false
+// How hyphenRead reads a version written with a hyphen.
+type hyphenKind int
+
+const (
+	hyphenNone   hyphenKind = iota // no range: another text, or one release with a package revision or build after the hyphen
+	hyphenRange                    // the first release through the second
+	hyphenOne                      // the same release written twice ("6.2.0-6.2.0"): that release
+	hyphenUnsure                   // a range or a release with a revision; read either way it may be narrower than the record means
+)
+
+// revisionTypes are the versionType words of package schemes in which a hyphen starts the package's revision ("1.0-1.5": release 1.5
+// of 1.0).
+var revisionTypes = map[string]bool{"rpm": true, "deb": true, "dpkg": true, "debian": true}
+
+// hyphenRead reads a version "A-B" of an entry's "version" field (no lessThan), A and B dotted numbers. CVE JSON 5 has no range
+// notation inside "version" (a range is version + lessThan or lessThanOrEqual), yet CNAs write one there ("1.0-1.23",
+// "14.1.0-14.1.0.5", "3.9.0-5.4.1"), and the same notation writes a release with its package revision or build ("0.6.9-5",
+// "9.3.1-2.1", "3.1.1-190328", "4.15.0-38.41"). Read from the record's shape only:
+//   - one release: a versionType whose scheme puts a revision after the hyphen (rpm, deb), a version the product's scheme reads as one
+//     release (reads: NetScaler's "14.1-73.37"), a single number after the hyphen (a revision or build, "8.0.0-8" too), B below A
+//     ("9.3.1-2.1": a revision is below its own release), or a package's file name (packageFile: the caller does not call it);
+//   - the same release twice: that release;
+//   - a range from A through B: B a letter release of A ("1.1.0-1.1.0g"), or A zero ("0-0.7.0", "0.0-2.2": the earliest version),
+//     or B above A with the same first number ("12.0.0-12.1.1", "17.1-17.12"), or B of three numbers or more above A ("1.0.0-6.6.1";
+//     a revision of three numbers after a release occurs in the CVE list only in a package's file name);
+//   - unsure: B of two numbers with a higher first number ("5.1-19.2" a range, "0.154-3.1" a revision), or A a single number other
+//     than 0 ("20-30.05.24"). The entry is then unusable, never read narrower than the record means. A range of releases written with
+//     a "v" ("v9.20-v9.26") is kept as written, and entryRows refuses it as any range it cannot order.
+func hyphenRead(s, versionType string, reads func(start, end string, incl bool) bool) (kind hyphenKind, from, to string) {
+	m := hyphenRE.FindStringSubmatch(s)
+	if m == nil || revisionTypes[strings.ToLower(strings.TrimSpace(versionType))] || reads != nil && reads(s, s, true) {
+		return hyphenNone, "", ""
 	}
-	c, ok := cmpLead(m[1], m[2])
-	return ok && c < 0
+	x, okX := leadNums(m[2])
+	y, okY := leadNums(m[4])
+	if !okX || !okY {
+		return hyphenNone, "", ""
+	}
+	from, to = m[1]+m[2], m[3]+m[4]+m[5]
+	c := slices.Compare(padded(x, len(y)), padded(y, len(x)))
+	switch {
+	case len(y) == 1:
+		return hyphenNone, "", "" // a revision or build of release A ("0.6.9-5", "8.0.0-8": not the release 8.0.0 written twice)
+	case c == 0 && m[5] != "":
+		kind = hyphenRange // "1.1.0-1.1.0g": a letter-release branch (entryRows' letterBranch)
+	case c == 0:
+		kind = hyphenOne
+	case c > 0:
+		return hyphenNone, "", "" // a revision or build of release A
+	case !slices.ContainsFunc(x, func(n int) bool { return n != 0 }):
+		kind = hyphenRange // "0.0-2.2": from the first release (CVE JSON 5: "0 denotes the earliest possible version")
+	case len(x) == 1:
+		return hyphenUnsure, "", ""
+	case x[0] == y[0] || len(y) >= 3:
+		kind = hyphenRange
+	default:
+		return hyphenUnsure, "", ""
+	}
+	return kind, from, to
+}
+
+// padded is nums with zeros up to n parts ("1.0" is "1.0.0").
+func padded(nums []int, n int) []int {
+	for len(nums) < n {
+		nums = append(nums, 0)
+	}
+	return nums
 }
 
 // versionStart is where a version or comparator begins after a name in s: an operator, or a digit ("v" and a digit) right after a

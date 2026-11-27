@@ -33,6 +33,7 @@ type AnsweredJS struct {
 	Answer   string         `json:"answer"`
 	By       string         `json:"by"`
 	At       string         `json:"at"`
+	Check    *CheckJS       `json:"check"` // the check of its evidence (a confirmed AI proposal, an advisory); nil when none
 }
 
 // AnsweredList is contract.ts AnsweredList.
@@ -83,6 +84,10 @@ func (s *Service) Answered(ctx context.Context, device string, p Page) (Answered
 		if err != nil {
 			return err
 		}
+		checks, err := checksFor(ctx, s.rd(ctx), qs)
+		if err != nil {
+			return err
+		}
 		for _, x := range qs {
 			it := AnsweredJS{ID: x.ID, Question: string(x.Kind), Device: deviceRef(ref.device(x.AssetID)), CVEs: max(x.Cves, 1),
 				Answer: x.Answer, By: x.AnsweredBy, At: store.FormatTS(x.AnsweredAt)}
@@ -96,6 +101,9 @@ func (s *Service) Answered(ctx context.Context, device string, p Page) (Answered
 			if x.CVE != "" {
 				cve := x.CVE
 				it.CVE = &cve
+			}
+			if c, ok := checks[x.CheckKey]; ok && x.CheckKey != "" {
+				it.Check = checkJS(&c)
 			}
 			out.Items = append(out.Items, it)
 		}

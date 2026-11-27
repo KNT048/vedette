@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -29,6 +30,9 @@ type View struct {
 	Reasons []ViewReason // every layer of 1..4 that applies at or below the stored layer, most urgent first
 	Events  []Event      // oldest first
 	Same    []View       // the other findings of this CVE on this device (another software line)
+	// AICheck is the AI's check a person confirmed as affected (range origin ai_confirmed): the pages it read, its quote and model;
+	// nil for a finding of any other origin.
+	AICheck *Check
 }
 
 // ViewReason is one urgency layer that applies, with its source as people name it.
@@ -69,7 +73,45 @@ func (s *Service) View(ctx context.Context, id string) (View, error) {
 		s.cfg.Log.WarnContext(ctx, "findings: the reasons of a finding could not be read", "finding", f.ID, "error", err)
 		v.Reasons = nil // the status stands on the stored layer; only its reasons line is missing
 	}
+	if f.RangeOrigin == RangeAIConfirmed {
+		if v.AICheck, err = confirmedAICheck(ctx, q, f); err != nil {
+			s.cfg.Log.WarnContext(ctx, "findings: the AI check of a finding could not be read", "finding", f.ID, "error", err)
+			v.AICheck = nil // the finding stands; only its "AI checked" line is missing
+		}
+	}
 	return v, nil
+}
+
+// confirmedAICheck is the AI check behind a finding a person confirmed from an AI proposal: the check of the question of the same
+// (device, CVE, line) answered affected, when the AI decided it; nil when none is stored.
+func confirmedAICheck(ctx context.Context, q querier, f Finding) (*Check, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+questionColumns+` FROM fnd_question WHERE asset_id = ? AND cve = ? AND ifnull(software_id, '') = ?
+		AND answer = ? ORDER BY answered_at DESC, rowid DESC`, f.AssetID, f.CVE, f.SoftwareID, AnswerAffected)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading the confirmed question: %w", err)
+	}
+	var qs []Question
+	for rows.Next() {
+		x, err := scanQuestion(rows)
+		if err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("findings: reading the confirmed question: %w", err)
+		}
+		qs = append(qs, x)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("findings: reading the confirmed question: %w", err)
+	}
+	checks, err := checksFor(ctx, q, qs)
+	if err != nil {
+		return nil, err
+	}
+	for _, x := range qs {
+		if c, ok := checks[x.CheckKey]; ok && x.CheckKey != "" && c.DecidedBy == DecidedAI {
+			return &c, nil
+		}
+	}
+	return nil, nil
 }
 
 // views adds the device, the line and the severity to findings, with one read of each source.
@@ -607,6 +649,7 @@ type ViewJS struct {
 	FirstSeen    string         `json:"first_seen"`
 	LastSeen     string         `json:"last_seen"`
 	Events       []eventJS      `json:"events"`
+	AICheck      *CheckJS       `json:"ai_check"`
 }
 
 // JSON is the view as the API sends it.
@@ -615,7 +658,7 @@ func (v View) JSON() ViewJS {
 	out := ViewJS{ID: f.ID, CVE: f.CVE, Device: deviceRef(v.Device), Software: softwareRef(v), Status: v.Status(), Urgency: urgencyOf(v),
 		Severity: severityJS(v.Severity), Verification: verificationOf(f, v.Events), Handled: handledOf(f), Reopened: reopenedOf(f, v.Events),
 		Fix: fixOf(f.FixKey, f.Fix, productName(f, v.Line)), SameCVE: []sameJS{}, FirstSeen: store.FormatTS(f.FirstSeen),
-		LastSeen: store.FormatTS(f.LastSeen), Events: []eventJS{}}
+		LastSeen: store.FormatTS(f.LastSeen), Events: []eventJS{}, AICheck: checkJS(v.AICheck)}
 	for _, o := range v.Same {
 		out.SameCVE = append(out.SameCVE, sameJS{ID: o.Finding.ID, Software: softwareRef(o), Status: o.Status()})
 	}

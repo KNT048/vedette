@@ -675,6 +675,8 @@ type ownRow struct {
 	info  swInfo
 	keys  []string
 	named map[int]bool
+	// numbering: whether the row's version is of the chosen product's numbering (aiNumbering), computed once; 0 until then.
+	numbering int8
 }
 
 // entryRead is one entry's reading of every row of the device (matchOne on each), before the findings the device has decide what
@@ -771,9 +773,10 @@ func (d *devMatch) read(vi int) *entryRead {
 		}
 		info, nm := infos[i], named[i][vi]
 		m, out := matchOne(a, s, info, v, keyed, key, nm, now)
+		held := false // the chosen product's range holds a version of another numbering (aiGuard)
 		if d.own != nil && d.own[i] != nil {
 			var byAI bool
-			if m, out, byAI = d.aiGuard(i, vi, ek, key, m, out); !byAI { // the row reads as its own names alone read it, here too
+			if m, out, byAI, held = d.aiGuard(i, vi, ek, key, m, out); !byAI { // the row reads as its own names alone read it, here too
 				info, nm = d.own[i].info, d.own[i].named[vi]
 			}
 		}
@@ -790,7 +793,12 @@ func (d *devMatch) read(vi int) *entryRead {
 			}
 			continue
 		}
-		if out == outRuledOut || out == outNone && nm {
+		switch {
+		case held && out == outNone: // the line's own names say nothing: possible, for the version's numbering
+			u := uncheckedOf(s, v, UncheckedNotComparable)
+			u.aiNumbering = true
+			e.unchecked = append(e.unchecked, u)
+		case out == outRuledOut || out == outNone && nm:
 			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
 				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
 			}
@@ -846,8 +854,10 @@ func (d *devMatch) read(vi int) *entryRead {
 // product: the AI's choice only opens. A version inside the chosen product's ranges (a match with version evidence) is a finding,
 // labelled with the identity (Evidence.Identity), unless the row's own names already decide the entry; anything else the chosen
 // product's ranges say (outside them, a version needed, a question) decides nothing, and the row reads as its own names alone read it:
-// a pair the box has no other word on stays as it was, possible when it was possible, and nothing is closed on the AI's word.
-func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out outcome) (Match, outcome, bool) {
+// a pair the box has no other word on stays as it was, possible when it was possible, and nothing is closed on the AI's word. The
+// identity proves the product, not the version's numbering: a version inside the range that is not of the product's numbering
+// (aiNumbering) opens nothing either, and held says so (the CVE is possible for the version's numbering).
+func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out outcome) (Match, outcome, bool, bool) {
 	r, s, v := d.own[i], d.sws[i], d.vulns[vi]
 	keyed := keyedBy(r.keys, ek)
 	if keyed && key == nil {
@@ -855,12 +865,15 @@ func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out 
 	}
 	m0, out0 := matchOne(d.a, s, r.info, v, keyed, key, r.named[vi], d.now)
 	if out == outMatch && versionBacked(m) && out0 != outNotAffected && (out0 != outMatch || !versionBacked(m0)) {
+		if !d.aiNumbering(i) {
+			return m0, out0, false, true
+		}
 		m.Evidence.Identity = s.AIProduct.note()
 		m.Evidence.Summary = strings.TrimSpace(m.Evidence.Summary + " No standard data names this software: the AI identified it as " +
 			clean(cmpNonEmpty(s.AIProduct.Title, s.AIProduct.Product)) + " among the products of Vedette's catalogue.")
-		return m, out, true
+		return m, out, true, false
 	}
-	return m0, out0, false
+	return m0, out0, false, false
 }
 
 // result is the MatchResult of the entries idx of the list (every entry, in list order, when idx is nil) for a device that has a

@@ -299,7 +299,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
   have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
   (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only
-  opens. A version inside its ranges is a finding unless the line's own names decide the CVE; the finding's evidence carries the
+  opens. A version inside its ranges is a finding unless the line's own names decide the CVE, or the version is not of the product's
+  numbering (`aiNumbering`: its first number is below the lowest first number any release the product's rows on the list name, so
+  the identity proves the product but not the release; the CVE is then possible, undecided `version_scheme_mismatch`, with the
+  product's rows, and nothing opens); the finding's evidence carries the
   identity (`Evidence.Identity`), it is never confirmed by the version alone (suspected: the device states its version, not that the
   CVE is about this software), and the view says "Identified by AI as <title>" (`View.identity`, with the AI's reason and model). What
   its ranges say otherwise (outside, a version needed, a question) decides nothing: the pair reads as the line's own names read it, so

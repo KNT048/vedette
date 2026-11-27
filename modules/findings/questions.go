@@ -55,6 +55,9 @@ type Unchecked struct {
 	Attribute string
 	// undecided is the machine-readable reason no verdict was reached and the rows that were read (explainUnchecked); nil before it.
 	undecided *Undecided
+	// aiNumbering: not_comparable of a line the AI identified, whose version is inside the chosen product's range but not of its
+	// numbering (devMatch.aiGuard): undecided for the version's numbering, with the chosen product's rows.
+	aiNumbering bool
 }
 
 // explainUnchecked adds to each unchecked row with no version data its question needs (no_nvd_data, no_nvd_versions) what the reason
@@ -87,6 +90,10 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			continue
 		}
 		s, in := d.sws[i], d.infos[i]
+		if u.aiNumbering { // the chosen product's rows held it: they are the rows read
+			u.undecided = undecidedOf(*u, rowEntries(s, in, v))
+			continue
+		}
 		if d.own != nil && d.own[i] != nil { // a row the AI identified is unchecked only as its own names read it (aiGuard)
 			in = d.own[i].info
 		}

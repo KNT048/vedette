@@ -116,9 +116,10 @@ type observer struct {
 	alive    map[string]map[int]bool // address, port: the newest liveness answer (true: accepted)
 	lost     map[string][]int        // address: the ports that answered earlier in the run and stopped
 	recheck  map[string]map[int]string
-	cuts     map[string]string // address: why a probe step meant for it failed (service identification of a default scan)
-	leftOut  map[string][]int  // address: the ports found open there that the network answers (left out of the results)
-	skipped  map[string][]int  // address: the ports a second target's settings skip there (a domain's address that is an IP target too)
+	cuts     map[string]string       // address: why a probe step meant for it failed (service identification of a default scan)
+	leftOut  map[string][]int        // address: the ports found open there that the network answers (left out of the results)
+	skipped  map[string][]int        // address: the ports a second target's settings skip there (a domain's address that is an IP target too)
+	reused   map[string]*reuseSource // address: the deep scan of it a domain's step reused (INV-47)
 }
 
 type observerKey struct{}

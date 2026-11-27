@@ -587,6 +587,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	rs.record(ctx, "", runOn, "")
 	s.recordVerdicts(ctx, x, wr.verdicts)
 	s.recordNames(ctx, x, wr.probed)
+	s.recordReused(ctx, x)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
 			if a.Deep != "" {
@@ -798,7 +799,8 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	m := vulnSet{Content: c, ID: runID}
 	ranMatch := s.withVulns(ctx, &m)
 	c = m.Content // with the comparison's lines, and without the web alerts Vedette's rule list treats as noise
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), verdicts: vs,
+	reused, reusedAt := s.observerOf(ctx).reusedWrite()
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), verdicts: vs, reused: reused, reusedAt: reusedAt,
 		gone: cov.gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP) || steps.ran(StepZAPActive), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {

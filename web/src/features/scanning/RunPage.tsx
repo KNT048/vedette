@@ -26,6 +26,7 @@ function subjectHref(kind: string, id: string | null): string | null {
   if (!id) return null
   if (kind === 'device') return `/devices/${encodeURIComponent(id)}`
   if (kind === 'target') return `/exposure/${encodeURIComponent(id)}`
+  if (kind === 'run') return runHref(id) // a run this one reused (an address's own deep scan)
   return null
 }
 

@@ -221,7 +221,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   container that runs it in two runs, `PortsFirstScanner`, the "Find open ports" step is the port scan of every TCP port alone and
   the service step runs -sV and the scripts only on the open ports it found, without the ports the target's settings skip and those
   the box's own network answers (INV-44); when none is left the service step is skipped ("Not needed: the port scan found no open
-  TCP port of this address…") and no second run is sent; a port that opens between the two runs is seen by the next scan; an
+  TCP port of this address…") and no second run is sent; a port that opens between the two runs is seen by the next scan; a port the port scan found open that the service run then does not
+  see open is neither open nor missed on that scan (no verdict but unknown, never closed on it; the service step is partly done and
+  says so, `TestDeepScanNeverClosesAPortItsPortScanFoundOpen`); an
   older scan container (`ErrPortsFirstUnsupported`) gets the one run on every port as before; `TestDeepScanWithNoOpenPortSkipsTheServiceStep`,
   `TestDeepScanReadsOnlyTheTargetsOwnOpenPorts`, `TestDeepScanFallsBackToOneRunOnAnOlderWorker`), the templates,
   ZAP passive, ZAP active, the comparison and the save, OpenVAS, and last nmap's disruptive scripts (`nmap_disruptive`: the dos,

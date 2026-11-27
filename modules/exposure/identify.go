@@ -291,6 +291,9 @@ const (
 	notDeepGaveUpSplit = "The deep scan's nmap run did not finish within nmap's limit for one address (%d minutes for the port scan of every TCP port, %d for the services and scripts on the open ones), so no service versions were read. Services may still be open there; scan again later."
 	// notServicesNoOpen is the service step of a deep scan whose port scan found no open port of the target: nothing was sent.
 	notServicesNoOpen = "Not needed: the port scan found no open TCP port of this address, so there was no service to identify and no port for nmap's scripts."
+	// notServicesGone: ports the port scan found open that the service run then did not see open (they stopped answering between
+	// the two runs): the scan says nothing about them (%s: the ports, %s: it or them).
+	notServicesGone = "The port scan found %s open that the service identification moments later did not, so this scan says nothing about %s."
 )
 
 // Limits of the script results kept per scan. sensor-active already cut each output to
@@ -462,6 +465,13 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		// INV-22: the ports this scan checked on ip. A port whose -sV batch did not finish is never among them, whatever the scanner
 		// said: it got no service identification, so this scan cannot have missed a service there.
 		unfinished := sanitizeProbed(res.Unfinished)
+		var gone []int // the split's port scan found these open, its service run did not: not missed by the sweep, not read either
+		if res.Split {
+			gone = slices.DeleteFunc(slices.Clone(res.Listed), func(p int) bool {
+				return slices.ContainsFunc(got, func(r ServiceRow) bool { return r.Port == p })
+			})
+			unfinished = sanitizeProbed(append(unfinished, gone...))
+		}
 		probed := slices.DeleteFunc(sanitizeProbed(res.Probed), func(p int) bool { _, in := slices.BinarySearch(unfinished, p); return in || st.Skips(p) })
 		if !st.Mode.Full && len(probed) > 0 {
 			if covered := answeredPorts(probed, got, res.AnswersEverywhere || surfaceEverywhere); len(covered) > 0 {
@@ -489,6 +499,9 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			}
 			var trusted bool
 			trusted, cut = sweepVerdict(c.Ports, swept, ip.String(), res.Refused, unfinished)
+			if len(gone) > 0 {
+				cut = fmt.Sprintf(notServicesGone, plural(len(gone), "TCP port"), itThem(len(gone), "it", "them"))
+			}
 			ob.noteSweep(ip.String(), sweepFacts{ran: cut == "", trusted: trusted && len(unfinished) == 0, cut: cut, unfin: unfinished})
 		}
 		if res.Refused { // a closed port answered: the address was reachable in this scan
@@ -535,9 +548,12 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		} else {
 			rs.end(ctx, stepKeyPorts, corerun.Done, portsNote(st.Mode.Full, len(got), len(probed)))
 		}
-		if noOpen {
+		switch {
+		case noOpen:
 			rs.skip(ctx, stepKeyServices, notServicesNoOpen)
-		} else {
+		case len(gone) > 0: // the port step of the split ended before the service run: this step says what it could not read
+			rs.end(ctx, stepKeyServices, corerun.Partial, text+" "+cut)
+		default:
 			rs.end(ctx, stepKeyServices, corerun.Done, text)
 		}
 	case ctx.Err() != nil: // the run was stopped: nothing is stored

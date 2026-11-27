@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -51,6 +52,9 @@ type Check struct {
 	CheckedAt  time.Time
 	RejectedBy string
 	RejectedAt time.Time
+	// Stale says the check was made on older evidence of the CVE record (checksFor): it applies until a check of the question's own
+	// evidence replaces it.
+	Stale bool
 }
 
 // CheckSource is one page a check read (or tried to).
@@ -133,6 +137,70 @@ func checksOf(ctx context.Context, q querier, keys []string) (map[string]Check, 
 	return out, rows.Err()
 }
 
+// checksFor is the check that applies to each question with a check identity, by the question's key: the check of its own evidence,
+// else the last check of the same CVE, product, release line and release (version and stated build) made on older evidence of the CVE
+// record, marked Stale. A change of the record alone never drops a verdict, in either direction: an advisory's finding stays detected
+// and a proposal stays a proposal until a check of the new evidence replaces it.
+func checksFor(ctx context.Context, q querier, qs []Question) (map[string]Check, error) {
+	var keys []string
+	for _, x := range qs {
+		if x.CheckKey != "" {
+			keys = append(keys, x.CheckKey)
+		}
+	}
+	out, err := checksOf(ctx, q, keys)
+	if err != nil {
+		return nil, err
+	}
+	identity := func(cve, product, line, release string) string {
+		return cve + "\x1f" + clipBytes(product, 300) + "\x1f" + clipBytes(line, 200) + "\x1f" + clipBytes(release, 200)
+	}
+	var cves []string
+	for _, x := range qs {
+		if _, ok := out[x.CheckKey]; !ok && x.CheckKey != "" && x.Detail.Check != nil && !slices.Contains(cves, x.CVE) {
+			cves = append(cves, x.CVE)
+		}
+	}
+	if len(cves) == 0 {
+		return out, nil
+	}
+	b, err := json.Marshal(cves)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.QueryContext(ctx, `SELECT `+checkColumns+` FROM fnd_possible_check WHERE cve IN (SELECT value FROM json_each(?))
+		ORDER BY checked_at DESC, rowid DESC`, string(b))
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading checks: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	last := map[string]Check{}
+	for rows.Next() {
+		c, err := scanCheck(rows)
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading checks: %w", err)
+		}
+		// the version column holds the release (CheckID.Release), so a check of another build never applies
+		if k := identity(c.CVE, c.ID.Product, c.ID.Line, c.ID.Version); last[k].Key == "" {
+			last[k] = c
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("findings: reading checks: %w", err)
+	}
+	for _, x := range qs {
+		if _, ok := out[x.CheckKey]; ok || x.CheckKey == "" || x.Detail.Check == nil {
+			continue
+		}
+		id := x.Detail.Check
+		if c, ok := last[identity(x.CVE, id.Product, id.Line, id.Release())]; ok {
+			c.Stale = true
+			out[x.CheckKey] = c
+		}
+	}
+	return out, nil
+}
+
 // insertCheck stores one check; a key already checked keeps its first check (a key is checked once).
 func insertCheck(ctx context.Context, tx *sql.Tx, c Check) (bool, error) {
 	if !checkKeyRE.MatchString(c.Key) {
@@ -208,13 +276,7 @@ func lineDetection(a Asset, lines map[string]line, sw string, v Vuln, origin str
 func (s *Service) checkedDetections(ctx context.Context, tx *sql.Tx, a Asset, lines map[string]line, byCVE map[string]Vuln, qs []Question,
 	existing []Finding, now time.Time) (dets map[string]Detection, keep []Question, err error) {
 	dets = map[string]Detection{}
-	var keys []string
-	for _, q := range qs {
-		if q.CheckKey != "" {
-			keys = append(keys, q.CheckKey)
-		}
-	}
-	checks, err := checksOf(ctx, tx, keys)
+	checks, err := checksFor(ctx, tx, qs)
 	if err != nil {
 		return nil, nil, err
 	}

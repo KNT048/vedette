@@ -40,6 +40,8 @@ var (
 	reLineRange = regexp.MustCompile(`(?i)\b([0-9]+(?:\.[0-9]+)*[A-Za-z0-9]*)\s+versions?\s+(?:from\s+([0-9][0-9A-Za-z.\-_]*[0-9A-Za-z])\s+)?(?:before|prior to|earlier than)\s+([0-9][0-9A-Za-z.\-_]*[0-9A-Za-z])`)
 	// "versions 7.0.0 through 7.0.12", "from 7.0.0 through 7.0.12"
 	reThrough = regexp.MustCompile(`(?i)\b(?:versions?|from)\s+([0-9][0-9A-Za-z.\-_]*[0-9A-Za-z])\s+(?:through|to)\s+([0-9][0-9A-Za-z.\-_]*[0-9A-Za-z])`)
+	// the verb right before a reThrough match that makes it an upgrade path ("upgrade from X to Y", "customers should update from")
+	reUpgradeVerb = regexp.MustCompile(`(?i)\b(?:upgrad[a-z]*|updat[a-z]*|migrat[a-z]*|move|moving|switch[a-z]*|transition[a-z]*)\s+(?:[a-z]+\s+){0,2}$`)
 )
 
 // textRanges reads the ranges a page's text states, each with the sentence it is in.
@@ -52,8 +54,11 @@ func textRanges(text string) []textRange {
 		for _, m := range reLineRange.FindAllStringSubmatch(sentence, -1) {
 			out = append(out, textRange{line: m[1], start: m[2], end: m[3], quote: sentence})
 		}
-		for _, m := range reThrough.FindAllStringSubmatch(sentence, -1) {
-			out = append(out, textRange{start: m[1], end: m[2], endIncl: true, quote: sentence})
+		for _, m := range reThrough.FindAllStringSubmatchIndex(sentence, -1) {
+			if reUpgradeVerb.MatchString(sentence[:m[0]]) { // "upgrade from 7.2 to 7.2.1-69057-5": the path to the fix, not a range
+				continue
+			}
+			out = append(out, textRange{start: sentence[m[2]:m[3]], end: sentence[m[4]:m[5]], endIncl: true, quote: sentence})
 		}
 	}
 	return out
@@ -106,9 +111,10 @@ func readAdvisory(pages []FetchedPage, id CheckID, cve string) (v advisoryVerdic
 			}
 			continue
 		}
-		// "not affected" from plain text needs a page about this CVE alone: on a page that names others, the ranges read may be another
-		// CVE's while this one's are in words the box cannot read (a CSAF document's ranges are the CVE's own)
-		if verdict, quote, decided := judgeTextRanges(rs, id.Version, id.Build, scheme); decided && (verdict == VerdictAffected || p.JSON || !others) {
+		// "not affected" needs the vendor's own advisory (a third party's page may be wrong or out of date: "affected" from any page fails
+		// safe), and from plain text a page about this CVE alone: on a page that names others, the ranges read may be another CVE's
+		// while this one's are in words the box cannot read (a CSAF document's ranges are the CVE's own)
+		if verdict, quote, decided := judgeTextRanges(rs, id.Version, id.Build, scheme); decided && (verdict == VerdictAffected || p.Vendor && (p.JSON || !others)) {
 			return advisoryVerdict{verdict: verdict, quote: quote, url: p.URL}, true, nil
 		}
 		if unparsed == nil {

@@ -165,18 +165,25 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `fnd_possible_check.detail`) and grouped by `GET /findings/possible/audit`. `TestPossible_Count_EveryPossibleCVEHasAReason`.
 - **P-3 Check identity.** The match pass gives each checkable question (one CVE, a line with a version, no_range_data, older_line or a
   not_comparable no build attribute decides, NVD answered) `check_key`: the CVE, product, release line, exact version and the CVE record's
-  stamp (`feeds.RecordStamps`). A changed version or record gives a new key. `TestPossibleCheck_KeyFollowsTheEvidence`.
+  stamp (`feeds.RecordStamps`). A changed version or record gives a new key. `TestPossibleCheck_KeyFollowsTheEvidence`. A changed
+  record alone never drops a verdict: the last check of the same CVE, product, release line and release (version and stated build) keeps
+  applying, either way, until a check of the new key replaces it, and the CVE is checkable again (`checksFor`).
+  `TestPossibleCheck_ARecordChangeKeepsTheLastVerdict`.
 - **P-4 The app first.** A check (`POST /findings/possible/check`, operator, one at a time, at most 40 keys, in the background) reads each
-  key once (`fnd_possible_check`): the box fetches the CVE's reference pages (https, by tag, never an Exploit page; through the ai module's
-  guarded fetcher) and reads a CSAF advisory or a vendor's plain-text ranges itself (`readAdvisory`); a decision there is the box's own
+  key once (`fnd_possible_check`): the box fetches the CVE's reference pages (https, by the catalogue's tags, never an exploit page;
+  through the ai module's guarded fetcher) and reads a CSAF advisory or a vendor's plain-text ranges itself (`readAdvisory`; "not
+  affected" only from the vendor's own advisory: a reference tagged vendor-advisory or a page on the vendor's host; "affected" from any
+  page, `TestPossibleCheck_NotAffectedOnlyFromTheVendorsAdvisory`); a decision there is the box's own
   (`decided_by advisory`, quoted) and the next match applies it like range data (affected: a finding, range origin `advisory`, its basis
   and confirmation from who stated the version; not affected: the question stays, listed as settled). Only the rest goes to the AI
   (`decided_by ai`): a proposal, `confident` when its quote is in the page word for word and names a range of the version's line, else
-  `likely`; unsure keeps the CVE possible with the reason. A failed or budget-stopped call stores nothing. The AI request carries no device
-  data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
+  `likely`; unsure keeps the CVE possible with the reason. A failed or budget-stopped call stores nothing. No page read: no AI call and
+  nothing stored (the next check fetches again); no reference the box may read: stored undecided (`no_reference_page`, `decided_by
+  structured`) without an AI call (`TestPossibleCheck_NoPageReadNoAICall`). The AI request carries no device data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
 - **P-5 A person decides proposals.** Confirm one (`POST /findings/possible/{id}/confirm`; affected needs an admin) records the finding
   (range origin `ai_confirmed`, kept by the match while the answer applies; its confirmation from the version's source, never from the AI)
-  or answers not affected; confirm a class at once (`POST /findings/possible/confirm`), never an exploited CVE proposed not affected; reject
+  or answers not affected; confirm a class at once (`POST /findings/possible/confirm`), never an exploited CVE proposed not affected (an
+  exploited list that cannot be read confirms nothing); reject
   (`POST /findings/possible/checks/{key}/reject`) makes it possible again and is not checked again for the same evidence. An exploited CVE
   never vanishes: `TestPossibleCheck_Count_ExploitedNeverVanish`.
 

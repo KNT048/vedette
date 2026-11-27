@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ type fakeChecker struct {
 	verdicts map[string]ProposeVerdict // by CVE + "|" + version: what the AI answers
 	stop     *CheckStop
 	sent     []ProposeRequest
+	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
@@ -24,7 +26,11 @@ func (f *fakeChecker) Ready(context.Context) error { return f.ready }
 func (f *fakeChecker) Record(_ context.Context, cve string) (CVERecordText, error) {
 	var refs []RefLink
 	for _, p := range f.pages[cve] {
-		refs = append(refs, RefLink{URL: p.URL, Tags: []string{"Vendor Advisory"}})
+		tags, ok := f.tags[p.URL]
+		if !ok {
+			tags = []string{"vendor-advisory"}
+		}
+		refs = append(refs, RefLink{URL: p.URL, Tags: tags})
 	}
 	return CVERecordText{Description: "A flaw in Synology DiskStation Manager.", Refs: refs}, nil
 }
@@ -162,14 +168,14 @@ func TestPossible_NeverHidesOrDoublesAFinding(t *testing.T) {
 }
 
 // The app decides first: a vendor's advisory the box reads decides without AI (and the match applies it: a finding with the advisory as
-// its range origin); only what it leaves goes to the AI, in one call per CVE, as proposals; an unsure answer keeps the CVE possible
-// with a reason. A second check sends nothing: every key was checked.
+// its range origin); only what it leaves goes to the AI, in one call per CVE, as proposals. A CVE whose page could not be read is not
+// sent to the AI and is not stored (not checked). A second check sends nothing: every key was checked.
 func TestPossibleCheck_AppFirstThenAIProposalsOnce(t *testing.T) {
 	t.Parallel()
 	e, fc := possibleWorld(t)
 	run := runCheck(t, e)
-	if run.Advisory != 1 || run.Proposals != 1 || run.Undecided != 1 || run.Stopped != nil {
-		t.Errorf("run %+v: want 1 decided from the advisory, 1 proposal, 1 undecided", run)
+	if run.Advisory != 1 || run.Proposals != 1 || run.Failed != 1 || run.Stopped != nil {
+		t.Errorf("run %+v: want 1 decided from the advisory, 1 proposal, 1 not checked", run)
 	}
 	for _, req := range fc.sent {
 		if req.CVE == "CVE-2026-82001" {
@@ -193,8 +199,8 @@ func TestPossibleCheck_AppFirstThenAIProposalsOnce(t *testing.T) {
 	if c := rows["CVE-2026-82002"]; c.DecidedBy != DecidedAI || c.Verdict != VerdictNotAffected || c.Confidence != ConfidenceLikely || c.Model == "" {
 		t.Errorf("82002 check %+v: want an AI proposal, not affected, likely (the quote names no 7.2.1 range)", c)
 	}
-	if c := rows["CVE-2026-82003"]; c.Verdict != VerdictUnsure || c.Undecided == nil || c.Undecided.Reason != UndecidedFetchFailed {
-		t.Errorf("82003 check %+v: want unsure with fetch_failed (its page could not be read)", c)
+	if c, ok := rows["CVE-2026-82003"]; ok {
+		t.Errorf("82003 check %+v: want none (its page could not be read)", c)
 	}
 	p := possibleByCVE(t, e)
 	if p["CVE-2026-82002"].State != PossibleProposal || p["CVE-2026-82003"].State != PossibleOpen {
@@ -439,5 +445,202 @@ func TestPossibleCheck_KeyCarriesTheStatedBuild(t *testing.T) {
 	}
 	if k = keys(); k["esx-02"] == "" || k["esx-01"] == k["esx-02"] {
 		t.Errorf("8.0 Update 3 and 8.0 Update 1 share the check key %v", k)
+	}
+}
+
+// The references are read in the order of their tags as the catalogue stores them (the CVE record's words, which NVD's tags are
+// stored in too: vendor-advisory, patch, third-party-advisory), and one tagged exploit is never read.
+func TestChooseRefs_ReadsTheCatalogueTagWords(t *testing.T) {
+	t.Parallel()
+	refs := []RefLink{
+		{URL: "https://lists.example.net/msg"},
+		{URL: "https://blog.example.org/post", Tags: []string{"third-party-advisory"}},
+		{URL: "https://poc.example.com/x", Tags: []string{"exploit"}},
+		{URL: "https://advisories.example.com/a1", Tags: []string{"vendor-advisory"}},
+	}
+	got := chooseRefs(refs, "synology|diskstation manager")
+	want := []string{"https://advisories.example.com/a1", "https://blog.example.org/post", "https://lists.example.net/msg"}
+	if !slices.Equal(got, want) {
+		t.Errorf("chooseRefs = %v, want %v", got, want)
+	}
+}
+
+// "Not affected" is settled only from the vendor's own advisory (a reference tagged vendor-advisory, or a page on the vendor's own
+// host): a third party's page that seems to place the version past the fix leaves the CVE to the AI. "Affected" from any page stands.
+func TestPossibleCheck_NotAffectedOnlyFromTheVendorsAdvisory(t *testing.T) {
+	t.Parallel()
+	const blog = "https://blog.example.org/dsm-flaw"
+	fixed := "CVE-2026-82003 in Synology DiskStation Manager: 7.2.1 versions before 7.2.1-69057-2 are affected."
+	for _, tc := range []struct {
+		name, text string
+		tags       []string
+		want       string // the stored check's decided_by and verdict
+	}{
+		{"third party, fixed", fixed, []string{"third-party-advisory"}, "ai"},
+		{"vendor-tagged, fixed", fixed, []string{"vendor-advisory"}, "advisory not_affected"},
+		{"third party, affected", "CVE-2026-82003 in Synology DiskStation Manager: 7.2.1 versions before 7.2.1-69057-9 are affected.",
+			[]string{"third-party-advisory"}, "advisory affected"},
+	} {
+		e, fc := possibleWorld(t)
+		fc.pages["CVE-2026-82003"] = []FetchedPage{{URL: blog, Status: "ok", Text: tc.text}}
+		fc.tags = map[string][]string{blog: tc.tags}
+		runCheck(t, e)
+		var by, verdict string
+		if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT decided_by, verdict FROM fnd_possible_check WHERE cve = 'CVE-2026-82003'`).Scan(&by, &verdict); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := by + " " + verdict; !strings.HasPrefix(got, tc.want) {
+			t.Errorf("%s: check %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// When no reference page could be read, the AI is not asked (it would see the record alone) and nothing is stored: the next check
+// tries the pages again, which costs fetches only. A CVE with no reference the box may read is not sent to the AI either; it is
+// stored undecided (no_reference_page) until its record changes.
+func TestPossibleCheck_NoPageReadNoAICall(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	run := runCheck(t, e)
+	for _, req := range fc.sent {
+		if len(fc.pages[req.CVE]) == 0 || req.CVE == "CVE-2026-82003" {
+			t.Errorf("the AI was asked about %s, whose pages were not read", req.CVE)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_possible_check WHERE cve = 'CVE-2026-82003'`); n != 0 {
+		t.Errorf("%d checks stored for a CVE whose page could not be read", n)
+	}
+	if run.Failed == 0 {
+		t.Errorf("run %+v: the CVE whose page could not be read is not counted as not checked", run)
+	}
+	if !possibleByCVE(t, e)["CVE-2026-82003"].Checkable() {
+		t.Error("a CVE whose page could not be read is not checkable again")
+	}
+	rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve, decided_by, verdict, detail FROM fnd_possible_check`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	noRefs := 0
+	for rows.Next() {
+		var cve, by, verdict, detail string
+		if err := rows.Scan(&cve, &by, &verdict, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if len(fc.pages[cve]) > 0 {
+			continue
+		}
+		noRefs++
+		if by != DecidedStructured || verdict != VerdictUnsure || !strings.Contains(detail, UndecidedNoReference) {
+			t.Errorf("%s (no reference): check %s %s %s, want structured unsure %s", cve, by, verdict, detail, UndecidedNoReference)
+		}
+	}
+	if noRefs == 0 {
+		t.Error("the fixture has no possible CVE without a reference")
+	}
+}
+
+// A change of the CVE record alone never closes a finding a check decided, nor drops a proposal: the last verdict for the same CVE,
+// product, release line and release keeps applying until a check on the new evidence replaces it (the CVE is checkable again).
+func TestPossibleCheck_ARecordChangeKeepsTheLastVerdict(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	runCheck(t, e)
+	const open = `SELECT count(*) FROM fnd_finding WHERE asset_id = 'nas-01' AND cve = 'CVE-2026-82001' AND range_origin = 'advisory' AND state = 'open'`
+	if e.count(open) != 1 {
+		t.Fatal("the advisory did not decide CVE-2026-82001")
+	}
+	for i := range e.feeds.vulns {
+		if c := e.feeds.vulns[i].CVE; c == "CVE-2026-82001" || c == "CVE-2026-82002" {
+			e.feeds.vulns[i].Stamp = "a new reference"
+		}
+	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if e.count(open) != 1 {
+		t.Error("a change of the CVE record closed the finding the vendor's advisory decided")
+	}
+	it := possibleByCVE(t, e)["CVE-2026-82002"]
+	if it.State != PossibleProposal || it.Check == nil || !it.Checkable() {
+		t.Fatalf("82002 after a record change: state %s, check %v, checkable %v; want the proposal kept and checkable", it.State, it.Check != nil, it.Checkable())
+	}
+	calls := len(fc.sent)
+	runCheck(t, e)
+	asked := false
+	for _, req := range fc.sent[calls:] {
+		asked = asked || req.CVE == "CVE-2026-82002"
+	}
+	if !asked {
+		t.Error("the check on the new evidence did not ask about CVE-2026-82002 again")
+	}
+	it = possibleByCVE(t, e)["CVE-2026-82002"]
+	if it.Check == nil || it.Check.Key != it.Question.CheckKey || it.Checkable() {
+		t.Errorf("82002 after the new check: check %+v; want the new evidence's check, not checkable", it.Check)
+	}
+	if e.count(open) != 1 {
+		t.Error("the new check closed the finding")
+	}
+}
+
+// Confirming proposals in bulk fails closed: when the exploited list cannot be read, nothing is confirmed (an exploited CVE proposed
+// not affected is confirmed one by one only).
+func TestConfirmProposals_FailClosedWhenTheExploitedListCannotBeRead(t *testing.T) {
+	t.Parallel()
+	e, _ := possibleWorld(t)
+	e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
+	runCheck(t, e)
+	it := possibleByCVE(t, e)["CVE-2026-82002"]
+	if !it.Bulk() {
+		t.Fatalf("82002 (on no exploited list) is not offered in bulk: %+v", it)
+	}
+	reads := 0
+	e.feeds.vulnsErr = func() error {
+		reads++
+		if reads > 1 {
+			return errors.New("the catalogue is locked")
+		}
+		return nil
+	}
+	n, err := e.svc.ConfirmProposals(t.Context(), "", VerdictNotAffected, ConfidenceLikely, "ana@example.com", true)
+	if err == nil || n != 0 {
+		t.Errorf("bulk confirm with the exploited list unreadable: %d confirmed, error %v; want none and an error", n, err)
+	}
+	if c := e.count(`SELECT count(*) FROM fnd_question WHERE id = '` + it.Question.ID + `' AND answer IS NOT NULL`); c != 0 {
+		t.Error("the proposal was confirmed while the exploited list could not be read")
+	}
+}
+
+// Confirming "affected" on a CVE of no exploited list records the finding from the CVE's catalogue entry (its fixes and urgency), as
+// the next match does: the match does not have to rebuild it.
+func TestConfirmProposal_AffectedOnACatalogueCVEUsesItsRecord(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
+	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = ProposeVerdict{Verdict: VerdictAffected, Reason: "DSM 7.2 is affected.", Quote: "DSM 7.2 is not affected by this issue", Source: 1}
+	runCheck(t, e)
+	it := possibleByCVE(t, e)["CVE-2026-82002"]
+	if it.State != PossibleProposal {
+		t.Fatalf("82002: %s, want a proposal", it.State)
+	}
+	id, err := e.svc.ConfirmProposal(t.Context(), it.Question.ID, "ana@example.com", true)
+	if err != nil || id == "" {
+		t.Fatalf("confirm: %q, %v", id, err)
+	}
+	read := func() string {
+		t.Helper()
+		var s string
+		if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT fix_kind || '|' || fix_key || '|' || urgency || '|' || ifnull(fix_version, '') FROM fnd_finding WHERE id = ?`, id).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	confirmed := read()
+	t.Logf("confirmed: %s", confirmed)
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if matched := read(); matched != confirmed {
+		t.Errorf("the confirmed finding %q differs from what the match makes of it %q", confirmed, matched)
 	}
 }

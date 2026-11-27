@@ -33,8 +33,11 @@ type PossibleItem struct {
 	State     string
 }
 
-// Checkable says the item can be checked now: its evidence has a check identity and no check is stored for it.
-func (it PossibleItem) Checkable() bool { return it.Question.CheckKey != "" && it.Check == nil }
+// Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
+// only one made on older evidence of the CVE record, which applies until a new check replaces it).
+func (it PossibleItem) Checkable() bool {
+	return it.Question.CheckKey != "" && (it.Check == nil || it.Check.Stale)
+}
 
 // Bulk says a proposal may be confirmed together with others of its class: never an exploited CVE proposed "not affected" (a person
 // confirms that one row by row).
@@ -49,13 +52,7 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 	if err != nil {
 		return nil, err
 	}
-	var keys []string
-	for _, q := range qs {
-		if q.CheckKey != "" {
-			keys = append(keys, q.CheckKey)
-		}
-	}
-	checks, err := checksOf(ctx, s.rd(ctx), keys)
+	checks, err := checksFor(ctx, s.rd(ctx), qs)
 	if err != nil {
 		return nil, err
 	}

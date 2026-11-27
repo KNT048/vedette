@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -71,6 +72,9 @@ type RefLink struct {
 type FetchedPage struct {
 	URL, Title, Status, Note, Text string
 	JSON                           bool
+	// Vendor says the page is the vendor's own advisory: its reference is tagged vendor-advisory or it is on the vendor's host
+	// (vendorHost). Only such a page may settle "not affected"; findings sets it from the CVE record.
+	Vendor bool
 }
 
 // ProposeItem is one product version of a CVE the AI is asked about (no device data).
@@ -330,6 +334,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 	if len(urls) > 0 {
 		pages = s.cfg.Checker.Fetch(ctx, urls)
 	}
+	markVendorPages(pages, rec.Refs, group[0].id.Product)
 	read := slices.ContainsFunc(pages, func(p FetchedPage) bool { return p.Status == "ok" })
 	sources := make([]CheckSource, 0, len(pages))
 	for _, p := range pages {
@@ -348,8 +353,18 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 		unparsed[u.key] = why
 		ask = append(ask, u)
 	}
-	if len(ask) == 0 {
+	switch {
+	case len(ask) == 0:
 		return checks, 0, ""
+	case len(urls) == 0: // no reference the box may read: the AI would see the record alone; undecided until the record changes
+		for _, u := range ask {
+			checks = append(checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure,
+				Reason: "The CVE record lists no reference page the box can read.", Undecided: &Undecided{Reason: UndecidedNoReference},
+				CheckedBy: actor, CheckedAt: now})
+		}
+		return checks, 0, ""
+	case !read: // no page answered: no AI call and nothing stored, so the next check tries the pages again (fetches cost no tokens)
+		return checks, len(ask), ""
 	}
 	okPages := slices.DeleteFunc(slices.Clone(pages), func(p FetchedPage) bool { return p.Status != "ok" })
 	for start := 0; start < len(ask); start += possibleCheckItems {
@@ -389,9 +404,6 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 			switch {
 			case c.Verdict == VerdictUnsure:
 				c.Undecided = cmpUndecided(unparsed[u.key], &Undecided{Reason: UndecidedAIUnsure})
-				if !read {
-					c.Undecided = noPageReason(len(urls))
-				}
 			case found && quoteNamesRange(c.Quote, u.id):
 				c.Confidence = ConfidenceConfident
 			default:
@@ -426,12 +438,37 @@ func cmpUndecided(a, b *Undecided) *Undecided {
 	return b
 }
 
-// noPageReason is the undecided reason of a CVE whose pages could not be read: none it may read, or none answered.
-func noPageReason(urls int) *Undecided {
-	if urls == 0 {
-		return &Undecided{Reason: UndecidedNoReference}
+// markVendorPages marks the pages that are the vendor's own advisory (FetchedPage.Vendor): the reference is tagged vendor-advisory, or
+// the page is on the vendor's host.
+func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
+	vendor, _, _ := strings.Cut(product, "|")
+	for i := range pages {
+		for _, r := range refs {
+			if r.URL == pages[i].URL && slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "vendor-advisory" }) {
+				pages[i].Vendor = true
+			}
+		}
+		if u, err := url.Parse(pages[i].URL); err == nil && vendorHost(u.Hostname(), vendor) {
+			pages[i].Vendor = true
+		}
 	}
-	return &Undecided{Reason: UndecidedFetchFailed}
+}
+
+// vendorHost says host is the vendor's own: the label before its top-level domain (or before a country's second level, as in
+// juniper.co.jp) is the vendor's name in letters and digits ("paloaltonetworks.com" for Palo Alto Networks). A host that carries the
+// vendor's word elsewhere (juniper.example.com) is not.
+func vendorHost(host, vendor string) bool {
+	v := productid.Norm(vendor)
+	labels := strings.Split(strings.TrimSuffix(strings.ToLower(host), "."), ".")
+	n := len(labels)
+	if v == "" || n < 2 {
+		return false
+	}
+	i := n - 2
+	if n >= 3 && len(labels[n-1]) == 2 && slices.Contains([]string{"co", "com", "net", "org", "ac", "ne", "or", "gov"}, labels[n-2]) {
+		i = n - 3
+	}
+	return productid.Norm(labels[i]) == v
 }
 
 // undecidedRows is the range rows the match read for the question, as text for the AI and the audit.
@@ -470,8 +507,12 @@ func advisoryReason(v advisoryVerdict) string {
 	return "The vendor's advisory states the fixed release of this version's release line, and this version is at or past it."
 }
 
-// The tags of the references a check reads, in the order it reads them; a page tagged Exploit is never fetched.
-var refTagOrder = []string{"Vendor Advisory", "Release Notes", "Patch", "Mitigation", "Third Party Advisory"}
+// The tags of the references a check reads, in the order it reads them, in the catalogue's words (the CVE record's, which NVD's tags
+// are stored in too); a page tagged exploit is never fetched.
+var refTagOrder = []string{"vendor-advisory", "release-notes", "patch", "mitigation", "third-party-advisory"}
+
+// refTag is a reference tag in the catalogue's words: lower case, words joined by dashes ("Vendor Advisory" is vendor-advisory).
+func refTag(t string) string { return strings.ToLower(strings.Join(strings.Fields(t), "-")) }
 
 // chooseRefs picks the references a check reads, best first: https only, by tag (refTagOrder; untagged after them), a host that names
 // the product's vendor first among equals; never one tagged Exploit. At most five, of which the fetcher reads three.
@@ -484,12 +525,12 @@ func chooseRefs(refs []RefLink, product string) []string {
 	}
 	var cs []cand
 	for _, r := range refs {
-		if !strings.HasPrefix(strings.ToLower(r.URL), "https://") || slices.ContainsFunc(r.Tags, func(t string) bool { return strings.EqualFold(t, "Exploit") }) {
+		if !strings.HasPrefix(strings.ToLower(r.URL), "https://") || slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "exploit" }) {
 			continue
 		}
 		rank := len(refTagOrder) * 2
 		for i, t := range refTagOrder {
-			if slices.ContainsFunc(r.Tags, func(x string) bool { return strings.EqualFold(x, t) }) {
+			if slices.ContainsFunc(r.Tags, func(x string) bool { return refTag(x) == t }) {
 				rank = min(rank, i*2)
 			}
 		}
@@ -538,7 +579,7 @@ func (s *Service) ConfirmProposal(ctx context.Context, questionID, user string, 
 	var found string
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		var err error
-		found, err = s.confirmOne(ctx, tx, questionID, user, now, emit, false, admin)
+		found, err = s.confirmOne(ctx, tx, questionID, user, now, emit, nil, admin)
 		return err
 	})
 	return found, err
@@ -569,11 +610,17 @@ func (s *Service) ConfirmProposals(ctx context.Context, device, verdict, confide
 	if len(ids) > MaxBulk {
 		ids = ids[:MaxBulk]
 	}
+	// read once, and fail closed: an exploited CVE proposed not affected is never confirmed in bulk, so a list that cannot be read
+	// confirms nothing
+	exploited, err := s.exploitedSet(ctx)
+	if err != nil {
+		return 0, err
+	}
 	n := 0
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		n = 0
 		for _, id := range ids {
-			if _, err := s.confirmOne(ctx, tx, id, user, now, emit, true, admin); err != nil {
+			if _, err := s.confirmOne(ctx, tx, id, user, now, emit, exploited, admin); err != nil {
 				if errors.Is(err, ErrNoProposal) {
 					continue
 				}
@@ -586,8 +633,10 @@ func (s *Service) ConfirmProposals(ctx context.Context, device, verdict, confide
 	return n, err
 }
 
-// confirmOne confirms the proposal of one question inside a write.
-func (s *Service) confirmOne(ctx context.Context, tx *sql.Tx, questionID, user string, now time.Time, emit func(string, any), bulk, admin bool) (string, error) {
+// confirmOne confirms the proposal of one question inside a write. exploited is set when the confirmation is one of a bulk: an
+// exploited CVE proposed not affected is then refused (ErrProposalPerRow).
+func (s *Service) confirmOne(ctx context.Context, tx *sql.Tx, questionID, user string, now time.Time, emit func(string, any), exploited map[string]bool,
+	admin bool) (string, error) {
 	q, err := scanQuestion(tx.QueryRowContext(ctx, `SELECT `+questionColumns+` FROM fnd_question WHERE id = ?`, questionID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNoProposal
@@ -598,7 +647,7 @@ func (s *Service) confirmOne(ctx context.Context, tx *sql.Tx, questionID, user s
 	if q.Answer != "" || q.CheckKey == "" || q.CVE == "" {
 		return "", ErrNoProposal
 	}
-	cs, err := checksOf(ctx, tx, []string{q.CheckKey})
+	cs, err := checksFor(ctx, tx, []Question{q})
 	if err != nil {
 		return "", err
 	}
@@ -609,10 +658,8 @@ func (s *Service) confirmOne(ctx context.Context, tx *sql.Tx, questionID, user s
 	if c.Verdict == VerdictAffected && !admin {
 		return "", ErrNeedsAdmin
 	}
-	if bulk && c.Verdict == VerdictNotAffected {
-		if ex, err := s.exploitedSet(ctx); err == nil && ex[q.CVE] {
-			return "", ErrProposalPerRow
-		}
+	if exploited != nil && c.Verdict == VerdictNotAffected && exploited[q.CVE] {
+		return "", ErrProposalPerRow
 	}
 	found := ""
 	answer := AnswerNotAffected
@@ -626,13 +673,14 @@ func (s *Service) confirmOne(ctx context.Context, tx *sql.Tx, questionID, user s
 			return "", ErrNoProposal
 		}
 		lines := deviceLines(a)
+		// the CVE's entry as the match reads it (an exploited list's, or the catalogue's for a CVE on none): its fix and urgency
+		vs, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, []string{q.CVE}))
+		if err != nil {
+			return "", fmt.Errorf("findings: reading the catalogue: %w", err)
+		}
 		v := Vuln{CVE: q.CVE}
-		if vs, err := s.cfg.Feeds.Vulns(ctx); err == nil {
-			for _, x := range vs {
-				if x.CVE == q.CVE {
-					v = x
-				}
-			}
+		if i := slices.IndexFunc(vs, func(x Vuln) bool { return x.CVE == q.CVE }); i >= 0 {
+			v = vs[i]
 		}
 		d, okD := lineDetection(a, lines, q.SoftwareID, v, RangeAIConfirmed, Evidence{Summary: aiConfirmedNote(Question{AnsweredBy: user, Detail: q.Detail}, c), CheckedAt: now})
 		if !okD {

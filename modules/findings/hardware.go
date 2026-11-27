@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/knt048/vedette/core/productid"
 )
@@ -25,8 +26,8 @@ type hardwareName struct {
 }
 
 var (
-	// deviceModelRE is the first model word of what a device states ("Acme Networks ZX4200-48T": ZX, 4200).
-	deviceModelRE = regexp.MustCompile(`(?:^|[^A-Za-z0-9])([A-Za-z]{1,12})-?([0-9]{2,6})(?:[^0-9]|$)`)
+	// deviceModelRE is a model word of what a device states ("Acme Networks ZX4200-48T": ZX, 4200).
+	deviceModelRE = regexp.MustCompile(`^([A-Za-z]{1,12})-?([0-9]{2,6})(?:[^0-9]|$)`)
 	familyNameRE  = regexp.MustCompile(`^[A-Za-z]{1,12}$`)
 	// modelNameRE is a model or numbered series word: letters, an optional hyphen, a number (k for thousands), the rest of the word.
 	modelNameRE = regexp.MustCompile(`^([A-Za-z]{1,12})-?([0-9]{1,6})([kK]?)([A-Za-z0-9-]*)$`)
@@ -41,13 +42,19 @@ var (
 	seriesRE = regexp.MustCompile(`\s+Series(?:\s+with\s+[A-Za-z0-9-]{1,40})?$`)
 )
 
-// deviceModel is the model a device states, read as a hardware name; ok is false when it states none with a number.
-func deviceModel(model string) (hardwareName, bool) {
-	m := deviceModelRE.FindStringSubmatch(model)
-	if m == nil {
-		return hardwareName{}, false
+// deviceModels are the model words a device states, read as hardware names ("Chassis AB12 ZX4200": AB12 and ZX4200; at most 16):
+// any of them may be the device's model. None when it states no word with a number.
+func deviceModels(model string) []hardwareName {
+	var out []hardwareName
+	for _, w := range strings.FieldsFunc(model, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' }) {
+		if m := deviceModelRE.FindStringSubmatch(w); m != nil {
+			out = append(out, hardwareName{letters: strings.ToLower(m[1]), number: strings.TrimLeft(m[2], "0")})
+			if len(out) == 16 {
+				break
+			}
+		}
 	}
-	return hardwareName{letters: strings.ToLower(m[1]), number: strings.TrimLeft(m[2], "0")}, true
+	return out
 }
 
 // platformHardware reads one platform of a record row as a family or a model; ok is false for a name of another shape.
@@ -83,8 +90,8 @@ func platformHardware(p string) (hardwareName, bool) {
 // otherHardware says every platform a record row is limited to names hardware the device's model is not: the row is not about the
 // device. False when the model is not known, a platform is not read (hardware rules above), or any platform may be the device's.
 func otherHardware(model string, platforms []string) bool {
-	dev, ok := deviceModel(model)
-	if !ok || len(platforms) == 0 {
+	devs := deviceModels(model)
+	if len(devs) == 0 || len(platforms) == 0 {
 		return false
 	}
 	names := make([]hardwareName, 0, len(platforms))
@@ -95,7 +102,9 @@ func otherHardware(model string, platforms []string) bool {
 		}
 		names = append(names, h)
 	}
-	return !slices.ContainsFunc(names, func(h hardwareName) bool { return mayBe(dev, h, names) })
+	return !slices.ContainsFunc(devs, func(dev hardwareName) bool {
+		return slices.ContainsFunc(names, func(h hardwareName) bool { return mayBe(dev, h, names) })
+	})
 }
 
 // mayBe says the device's model may be hardware h of the list names.

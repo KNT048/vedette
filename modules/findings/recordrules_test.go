@@ -50,6 +50,9 @@ func TestOtherHardware(t *testing.T) {
 		{"QRX5800", []string{"QRX5400-5800"}, false},
 		{"QRX5220", []string{"QRX5220-128C"}, false},
 		{"ZX4200-48T", []string{"QRX5220-128C"}, true},
+		{"Chassis AB12 ZX4200", []string{"ZX Series"}, false}, // every model word the device states counts, not only the first
+		{"Rev A12, ZX4200-48T", []string{"ZX4200"}, false},
+		{"Chassis AB12 ZX4200", []string{"QRX Series"}, true},
 		{"ZX4200-48T", nil, false},
 		{"", []string{"QRX Series"}, false},                 // the device's model is not known
 		{"Virtual Platform", []string{"QRX Series"}, false}, // no model number

@@ -43,8 +43,10 @@ func TestParseCVERecord_RecordNotation(t *testing.T) {
 			[]span{{ee: "12.3", def: k}}, 0},
 		{"vendor and product name", `{"vendor":"Acme","product":"Ledger","versions":[{"version":"Acme Ledger <1.10.11","status":"affected"}]}`,
 			[]span{{ee: "1.10.11", def: k}}, 0},
-		{"an npm package's scope", `{"vendor":"acme","product":"ledger","versions":[{"version":"ledger <= 0.6.0","status":"affected"},{"version":"@acme/ledger < 0.8.12","status":"affected"}]}`,
+		{"an npm package's scope", `{"vendor":"acme","product":"ledger","versions":[{"version":"ledger <= 0.6.0","status":"affected"},{"version":"@ledgerjs/ledger < 0.8.12","status":"affected"}]}`,
 			[]span{{ei: "0.6.0", def: k}, {ee: "0.8.12", def: k}}, 0},
+		{"product name at a change", `{"vendor":"acme","product":"Ledger","versions":[{"version":"ledger-1.0","lessThan":"ledger-2.0","status":"affected","changes":[{"at":"ledger-2.0","status":"unaffected"}]}]}`,
+			[]span{{si: "1.0", ee: "2.0", fixed: "2.0", def: k}}, 0},
 
 		// a list of fixes after lessThan, one per release train
 		{"one fix per train", `{"vendor":"acme","product":"stream","defaultStatus":"unaffected","versions":[{"version":"1.15.0","lessThan":"1.20.4,2.0.2,2.1.2,2.2.1","status":"affected","versionType":"semver"}]}`,
@@ -53,6 +55,10 @@ func TestParseCVERecord_RecordNotation(t *testing.T) {
 			[]span{{ee: "2025.11.7", def: u}, {si: "2025.12", ee: "2026.1.3", def: u}}, 0},
 		{"last affected release per train", `{"vendor":"acme","product":"stream","versions":[{"version":"0","lessThanOrEqual":"1.43.6, 1.44.3","status":"affected"}]}`,
 			[]span{{ei: "1.43.6", def: k}, {si: "1.44", ei: "1.44.3", def: k}}, 0},
+		{"a fix that is its train's first release", `{"vendor":"acme","product":"stream","defaultStatus":"unaffected","versions":[{"version":"0","lessThan":"1.46.0, 1.45.4, 1.43.9","status":"affected"}]}`,
+			[]span{{ee: "1.43.9", def: u}, {si: "1.44", ee: "1.45.4", def: u}}, 0},
+		{"a last affected release that is its train's first", `{"vendor":"acme","product":"stream","versions":[{"version":"0","lessThanOrEqual":"1.9.5, 1.10.0","status":"affected"}]}`,
+			[]span{{ei: "1.9.5", def: k}, {si: "1.10.0", ei: "1.10.0", def: k}}, 0},
 
 		// what the grammar does not cover keeps the product unusable
 		{"a list of one train (another component's numbers)", `{"vendor":"acme","product":"Acme Runtime","versions":[{"version":"10.0.0","lessThan":"10.0.111, 10.0.400","status":"affected","versionType":"custom"}]}`, nil, 1},
@@ -67,6 +73,7 @@ func TestParseCVERecord_RecordNotation(t *testing.T) {
 		{"a version before its comparator", `{"vendor":"acme","product":"ledger","versions":[{"version":"12.2 <= 13.0","status":"affected"}]}`, nil, 1},
 		{"two lower bounds", `{"vendor":"acme","product":"ledger","versions":[{"version":">= 1.0, > 2.0","status":"affected"}]}`, nil, 1},
 		{"= with another clause", `{"vendor":"acme","product":"ledger","versions":[{"version":"= 1.0, < 2.0","status":"affected"}]}`, nil, 1},
+		{"two upper bounds", `{"vendor":"acme","product":"ledger","versions":[{"version":"< 2.3, < 1.5","status":"affected"}]}`, nil, 1},
 		{"three clauses", `{"vendor":"acme","product":"ledger","versions":[{"version":">= 1.0, < 2.0, < 3.0","status":"affected"}]}`, nil, 1},
 		{"a reversed comparator range", `{"vendor":"acme","product":"ledger","versions":[{"version":">= 3.0, < 2.0","status":"affected"}]}`, nil, 1},
 		{"an empty exclusive range", `{"vendor":"acme","product":"ledger","versions":[{"version":"> 2.0, <= 2.0","status":"affected"}]}`, nil, 1},
@@ -77,6 +84,8 @@ func TestParseCVERecord_RecordNotation(t *testing.T) {
 		{"a comparator beside lessThan", `{"vendor":"acme","product":"ledger","versions":[{"version":">= 1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
 		{"another package's versions", `{"vendor":"acme","product":"ledger","versions":[{"version":"@acme/portal >= 2.29.1, < 2.51.5","status":"affected"},{"version":"ledger >= 5.43.0, < 5.121.0","status":"affected"}]}`, nil, 1},
 		{"an edition's name, not a release", `{"vendor":"acme","product":"Ledger","defaultStatus":"unaffected","versions":[{"version":"Ledger 2016","status":"affected"}]}`, nil, 1},
+		{"a range after the product's name, written with a hyphen", `{"vendor":"acme","product":"Ledger","versions":[{"version":"Ledger 1.0-1.23","status":"affected"}]}`, nil, 1},
+		{"a fixed release with the product's name inside an affected range", `{"vendor":"acme","product":"Ledger","versions":[{"version":"2.0","lessThan":"3.0","status":"affected"},{"version":"Ledger 2.4.1","status":"unaffected"}]}`, nil, 1},
 		{"a name that is not the product's", `{"vendor":"acme","product":"Ledger OS","versions":[{"version":"unspecified","lessThan":"Ledger OS Mojave 10.14.5","status":"affected"}]}`, nil, 1},
 	} {
 		got, err := ParseCVERecord(record(c.affected), "CVE-2026-1000")

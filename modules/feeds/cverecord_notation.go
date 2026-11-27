@@ -15,7 +15,8 @@ import (
 //     one lower and one upper bound, or one "=" alone (comparatorBounds).
 //   - The product's name in front of the version ("openssl-1.1.0", "iOS 12.3", "react-router >= 7.0.0, < 7.12.0", an npm package's
 //     scoped name "@xmldom/xmldom < 0.8.12" of product "xmldom"): dropped when it is the entry's product, alone or after its vendor
-//     (withoutProduct). Another name (another package of the same advisory, a marketing name) is not dropped.
+//     (withoutProduct). Another name (another package of the same advisory, a marketing name) is not dropped, nor a name before a
+//     range written with a hyphen ("Tika 1.0-1.23", hyphenRange).
 //   - A list after lessThan or lessThanOrEqual with one fixed (or last affected) release per release train ("1.20.4,2.0.2,2.1.2"):
 //     one row per train (trainEnds), only when every item is a plain dotted number of the same length and each lies on its own train.
 //     A list of one train ("10.0.111, 10.0.400": .NET's records write the SDK's numbers on the runtime) stays unusable: it cannot be
@@ -125,6 +126,9 @@ func withoutProduct(s string, a cnaAffected) string {
 	if i <= 0 || !strings.ContainsAny(s[i:], ".<>=") {
 		return s // "Office 2016", "Android-11": an edition's name, not a release of the product
 	}
+	if hyphenRange(s[i:]) {
+		return s // "Tika 1.0-1.23": a range, which the version without the name would read as one release
+	}
 	name := strings.TrimRight(s[:i], " -_")
 	product := nameKey(a.Product)
 	if product == "" {
@@ -140,6 +144,20 @@ func withoutProduct(s string, a cnaAffected) string {
 		}
 	}
 	return s
+}
+
+// hyphenRangeRE is two plain dotted releases joined by a hyphen ("1.0-1.23", "14.1.0-14.1.0.5").
+var hyphenRangeRE = regexp.MustCompile(`^[vV]?([0-9]+(?:\.[0-9]+)+)-([0-9]+(?:\.[0-9]+)+)$`)
+
+// hyphenRange says s is a range written with a hyphen: two plain dotted releases, the second above the first. A release with a
+// package revision after the hyphen ("9.3.1-2.1") is below its own release and is not one.
+func hyphenRange(s string) bool {
+	m := hyphenRangeRE.FindStringSubmatch(s)
+	if m == nil {
+		return false
+	}
+	c, ok := cmpLead(m[1], m[2])
+	return ok && c < 0
 }
 
 // versionStart is where a version or comparator begins after a name in s: an operator, or a digit ("v" and a digit) right after a
@@ -175,8 +193,10 @@ var trainEndRE = regexp.MustCompile(`^[0-9]{1,9}(?:\.[0-9]{1,9}){1,5}$`)
 
 // trainEnds reads a list of releases after lessThan (lessThanOrEqual) as one release per train: the train of "1.20.4" is 1.20. The
 // first row runs from the entry's start to the lowest release; each next one from the train after the one before it ("1.21") to its
-// own release, so a train no item names between two listed ones stays affected (the affected side wins). Read only when every item
-// is a plain dotted number of the same length and each lies on a train of its own, above the entry's start.
+// own release, so a train no item names between two listed ones stays affected (the affected side wins). An item that is its train's
+// first release ("1.46.0" after "1.45.4") gives no row after lessThan (none of that train is affected) and that one release after
+// lessThanOrEqual. Read only when every item is a plain dotted number of the same length and each lies on a train of its own, above
+// the entry's start.
 func trainEnds(n notedVersion) ([]notedVersion, bool) {
 	items := strings.Split(n.end, ",")
 	type item struct {
@@ -214,7 +234,14 @@ func trainEnds(n notedVersion) ([]notedVersion, bool) {
 	}
 	out := []notedVersion{{start: start, end: ends[0].s, incl: n.incl, bounded: true}}
 	for i := 1; i < len(ends); i++ {
-		out = append(out, notedVersion{start: nextTrain(ends[i-1].nums), end: ends[i].s, incl: n.incl, bounded: true})
+		from := nextTrain(ends[i-1].nums)
+		if c, _ := cmpLead(from, ends[i].s); c == 0 { // the item is its train's first release ("1.46.0" after "1.45.4")
+			if !n.incl {
+				continue // fixed from the train's first release: no release of that train is affected
+			}
+			from = ends[i].s // the train's first release is its last affected one
+		}
+		out = append(out, notedVersion{start: from, end: ends[i].s, incl: n.incl, bounded: true})
 	}
 	return out, true
 }

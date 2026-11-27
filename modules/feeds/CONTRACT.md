@@ -116,9 +116,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   A version a CNA writes in a notation of its own inside the version fields is read into the bounds the fields would give
   (`recordNotation`): GitHub's advisory comparators in `version` ("= 8.9.6.1", "< 8.9.6.4", ">= 2.0, < 2.3.1"; `=`, `<`, `<=`,
   `>`, `>=`, two clauses joined by a comma are both required, at most one lower and one upper bound); the entry's product name in
-  front of a version ("openssl-1.1.0", "iOS 12.3", an npm package "@scope/product"), never another name; a list after lessThan
+  front of a version ("openssl-1.1.0", "iOS 12.3", an npm package "@scope/product"), never another name and never before a range
+  written with a hyphen ("Tika 1.0-1.23"); a list after lessThan
   (lessThanOrEqual) with one release per release train ("1.20.4,2.0.2"): one row per train, each later one from the train after
-  the one before it, so an unlisted train between two listed ones stays affected. A list whose items are not plain dotted numbers of
+  the one before it, so an unlisted train between two listed ones stays affected; an item that is its train's first release
+  ("1.46.0" after "1.45.4") gives no row after lessThan and that one release after lessThanOrEqual. A list whose items are not plain dotted numbers of
   one length on distinct trains ("10.0.111, 10.0.400": .NET writes the SDK's numbers on the runtime; "2.4.9, 2.4.8-p5") and any
   other text keeps the product unusable, as before. `TestParseCVERecord_RecordNotation`.
   For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",

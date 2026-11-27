@@ -79,8 +79,9 @@ type ItemRefused struct {
 func (e *ItemRefused) Error() string { return e.Reason }
 
 // possibleRetry is how long the automatic reading leaves items whose call failed for a reason Propose did not name (the provider
-// answered an error): the next run after it reads them again. aiFailStreak such calls in a row, with no answer between, mean the AI
-// is not answering at all: the run stops there instead of failing every item that is left.
+// answered an error, the hooks could not finish in time): the next run after it reads them again. aiFailStreak such calls in a row, or
+// answers that could not be used (ItemRefused Systemic), with no answer between, mean the AI is not answering at all: the run stops
+// there instead of failing every item that is left. The identification of software keeps the same streak.
 const (
 	possibleRetry = time.Hour
 	aiFailStreak  = 3
@@ -568,8 +569,8 @@ type lineAsk struct {
 
 // checkCVE checks the units of one CVE: the pages first, then the AI, once per release line, for what they leave. stop is set when the
 // run must stop (the AI unavailable, a budget reached, aiFailStreak failed calls in a row): what was decided so far is returned. streak
-// is the run's count of AI calls in a row that failed for a reason Propose did not name, with no answer between: an answer sets it to 0,
-// a refused call (ItemRefused) leaves it, since it says nothing about the AI.
+// is the run's count of AI calls in a row that failed for a reason Propose did not name or whose answer was not usable (ItemRefused
+// Systemic), with no answer between: an answer sets it to 0, a call a hook refused leaves it, since it says nothing about the AI.
 func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string, streak *int) (res cveCheck) {
 	cve := group[0].cve
 	now := s.now()
@@ -687,6 +688,9 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			wait, why := possibleRetry, err.Error()
 			if refused := (*ItemRefused)(nil); errors.As(err, &refused) {
 				wait = max(refused.RetryAfter, possibleRetry)
+				if refused.Systemic {
+					*streak++
+				}
 			} else {
 				*streak++
 			}

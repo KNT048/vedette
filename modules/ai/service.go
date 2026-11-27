@@ -225,6 +225,7 @@ type Service struct {
 	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse)
 	pauseMonth string                 // the month the reasons in pauseNoted belong to (fuseMu)
 	pauseNoted map[string]bool        // the reasons of scheduled-job stops already logged this month (fuseMu): one line a month per reason
+	autoNext   time.Time              // the earliest start of the next automatic reading or identification call (fuseMu, paceAuto)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -235,6 +236,9 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
+	}
+	if cfg.Sleep == nil {
+		cfg.Sleep = sleep
 	}
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)

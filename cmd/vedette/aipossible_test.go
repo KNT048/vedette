@@ -128,7 +128,7 @@ func TestAICallError_SortsRefusalsStopsAndFailures(t *testing.T) {
 		{apierr.New(http.StatusGatewayTimeout, "ai_timeout", "slow"), other},
 		{errors.New("plain"), other},
 	} {
-		got := aiCallError(tc.err)
+		got := aiCallError(t.Context(), tc.err)
 		var r *findings.ItemRefused
 		var s *findings.CheckStop
 		kind := other

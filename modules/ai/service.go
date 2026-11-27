@@ -91,6 +91,9 @@ type Config struct {
 	Log     *slog.Logger
 
 	Clock func() time.Time // nil = time.Now
+	// Sleep waits d on Clock, or until ctx ends (its error then): how the automatic reading keeps its pace. nil = a timer; a test with
+	// its own clock moves it instead.
+	Sleep func(ctx context.Context, d time.Duration) error
 	// Zone returns the IANA name of the box time zone (core_org.timezone). The meter reads it once when the service starts: a
 	// change of zone applies after a restart. nil or empty or unknown = DefaultTimeZone.
 	Zone func(context.Context) string
@@ -222,6 +225,7 @@ type Service struct {
 	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse)
 	pauseMonth string                 // the month the reasons in pauseNoted belong to (fuseMu)
 	pauseNoted map[string]bool        // the reasons of scheduled-job stops already logged this month (fuseMu): one line a month per reason
+	autoNext   time.Time              // the earliest start of the next automatic reading or identification call (fuseMu, paceAuto)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -232,6 +236,9 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
+	}
+	if cfg.Sleep == nil {
+		cfg.Sleep = sleep
 	}
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)

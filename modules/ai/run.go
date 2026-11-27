@@ -80,6 +80,15 @@ func apiCutOff(msg string) error    { return apierr.New(http.StatusBadGateway, "
 func apiBadFormat(msg string) error { return apierr.New(http.StatusBadGateway, "ai_bad_format", msg) }
 func apiTimeout(msg string) error   { return apierr.New(http.StatusGatewayTimeout, "ai_timeout", msg) }
 
+// apiHooksLate is the block of a call whose hooks could not finish in time: they decided nothing, so the same call may pass later
+// (retry_after says when to try again; a hook's decision carries none, and a background run holds such items for an hour, not a day).
+func apiHooksLate(msg string) error {
+	return apierr.New(http.StatusConflict, "blocked_by_hook", msg).With("retry_after", hooksLateRetry)
+}
+
+// hooksLateRetry is the seconds after which a call whose hooks ran out of time is worth trying again.
+const hooksLateRetry = 60
+
 // hooksHint ends every message about a hook: what the person can do, and who can change the hook.
 const hooksHint = " Rephrase and try again; an administrator can adjust the hooks in Settings, AI assistant, Hooks."
 
@@ -206,8 +215,8 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 // them; a block of public text the box fetched itself (DataBlock.public) goes through the customer's own hooks only, the question always
 // through all of them. Any block, hold or failed run stops the call (fail closed): nothing is sent. stop says which part was stopped (the question,
 // or the data from a named source) and why; matched is set when a hook matched it (a rephrase or a change of the hook helps), not
-// when the hooks could not run.
-func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string, matched bool) {
+// when the hooks could not run; late when they could not finish in time (they decided nothing: the same call may pass later).
+func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string, matched, late bool) {
 	// The same deadline as the after_ai pass, for the whole pass: a hook that cannot finish is a block (fail closed).
 	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
@@ -222,7 +231,7 @@ func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (q
 			return "", false
 		}
 		if err != nil {
-			stop = "The text of " + where + " could not be checked against the hooks in time, so it was not sent. Try again."
+			stop, late = "The text of "+where+" could not be checked against the hooks in time, so it was not sent. Try again.", true
 			return "", false
 		}
 		names = append(names, r.Names()...)
@@ -234,17 +243,17 @@ func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (q
 	}
 	q, ok := run(spec.Question, "the question", false)
 	if !ok {
-		return "", nil, dedupe(names), stop, matched
+		return "", nil, dedupe(names), stop, matched, late
 	}
 	for _, d := range spec.Data {
 		t, ok := run(d.Text, fmt.Sprintf("the data sent with it (%s)", clipRunes(cleanLine(d.Source, 80), 80)), d.public)
 		if !ok {
-			return "", nil, dedupe(names), stop, matched
+			return "", nil, dedupe(names), stop, matched, late
 		}
 		d.Text = t
 		data = append(data, d)
 	}
-	return q, data, dedupe(names), "", false
+	return q, data, dedupe(names), "", false, false
 }
 
 func dedupe(in []string) []string {
@@ -313,7 +322,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		know = &k
 	}
-	question, data, hookNames, stop, matched := s.guard(ctx, hooks, spec)
+	question, data, hookNames, stop, matched, late := s.guard(ctx, hooks, spec)
 	entry.Hooks = dedupe(append(append(append(append(hookNames, mem.names...), mem.leftNames...), know.names...), know.leftNames...))
 	if stop == "" && len(know.refs) > 0 {
 		data = append([]DataBlock{know.block}, data...)
@@ -329,6 +338,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		msg := "The AI was not asked: " + stop
 		if matched {
 			msg += hooksHint
+		}
+		if late {
+			return JobResult{}, apiHooksLate(msg)
 		}
 		return JobResult{}, apiBlocked(msg)
 	}
@@ -396,7 +408,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		entry.Result, entry.Summary = ResultError, fmt.Sprintf("The answer was cut off at the output limit (%s tokens) and was discarded.", number(limit))
 		bad = apiCutOff(fmt.Sprintf("The AI's answer was cut off at the output limit (%s tokens), so it was not used. Try again; if it keeps happening, use a model for %s that writes shorter answers.", number(limit), spec.Job.Name()))
 	case herr != nil:
-		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: it could not be checked against the hooks.", apiBlocked("The AI answered, but the answer could not be checked against the hooks in time, so it was not used. Try again.")
+		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: it could not be checked against the hooks.", apiHooksLate("The AI answered, but the answer could not be checked against the hooks in time, so it was not used. Try again.")
 	case (after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld) && spec.AnswerWhenBlocked:
 		entry.Result, entry.Summary, blocked = ResultBlockedByHook, "The answer was not used: "+after.Text, true
 	case after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld:

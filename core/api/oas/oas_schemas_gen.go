@@ -119750,6 +119750,10 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	Exploited bool `json:"exploited"`
 	// Older_line: the newest fixed release of each newer line.
 	Fixes []string `json:"fixes"`
+	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not
+	// held, settled, or while the automatic reading cannot run (switched off, today's reads used up, no AI
+	// profile).
+	Held NilFindingsGetFindingsPossibleOKItemsItemHeld `json:"held"`
 	// The question (confirm: POST /findings/possible/{id}/confirm; answer: POST
 	// /findings/questions/{id}/answer).
 	ID string `json:"id"`
@@ -119810,6 +119814,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) GetExploited() bool {
 // GetFixes returns the value of Fixes.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetFixes() []string {
 	return s.Fixes
+}
+
+// GetHeld returns the value of Held.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetHeld() NilFindingsGetFindingsPossibleOKItemsItemHeld {
+	return s.Held
 }
 
 // GetID returns the value of ID.
@@ -119885,6 +119894,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetExploited(val bool) {
 // SetFixes sets the value of Fixes.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetFixes(val []string) {
 	s.Fixes = val
+}
+
+// SetHeld sets the value of Held.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetHeld(val NilFindingsGetFindingsPossibleOKItemsItemHeld) {
+	s.Held = val
 }
 
 // SetID sets the value of ID.
@@ -121307,6 +121321,87 @@ func (s *FindingsGetFindingsPossibleOKItemsItemDeviceKind) UnmarshalText(data []
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown:
 		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The automatic AI reading leaves this CVE until a time, and why.
+type FindingsGetFindingsPossibleOKItemsItemHeld struct {
+	// Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable
+	// (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks
+	// could not finish in time).
+	Reason FindingsGetFindingsPossibleOKItemsItemHeldReason `json:"reason"`
+	// The automatic reading reads it again after this time; a person's check reads it at once.
+	Until time.Time `json:"until"`
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsPossibleOKItemsItemHeld) GetReason() FindingsGetFindingsPossibleOKItemsItemHeldReason {
+	return s.Reason
+}
+
+// GetUntil returns the value of Until.
+func (s *FindingsGetFindingsPossibleOKItemsItemHeld) GetUntil() time.Time {
+	return s.Until
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsPossibleOKItemsItemHeld) SetReason(val FindingsGetFindingsPossibleOKItemsItemHeldReason) {
+	s.Reason = val
+}
+
+// SetUntil sets the value of Until.
+func (s *FindingsGetFindingsPossibleOKItemsItemHeld) SetUntil(val time.Time) {
+	s.Until = val
+}
+
+// Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable
+// (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks
+// could not finish in time).
+type FindingsGetFindingsPossibleOKItemsItemHeldReason string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemHeldReasonHookRefused    FindingsGetFindingsPossibleOKItemsItemHeldReason = "hook_refused"
+	FindingsGetFindingsPossibleOKItemsItemHeldReasonAnswerUnusable FindingsGetFindingsPossibleOKItemsItemHeldReason = "answer_unusable"
+	FindingsGetFindingsPossibleOKItemsItemHeldReasonAiFailed       FindingsGetFindingsPossibleOKItemsItemHeldReason = "ai_failed"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemHeldReason values.
+func (FindingsGetFindingsPossibleOKItemsItemHeldReason) AllValues() []FindingsGetFindingsPossibleOKItemsItemHeldReason {
+	return []FindingsGetFindingsPossibleOKItemsItemHeldReason{
+		FindingsGetFindingsPossibleOKItemsItemHeldReasonHookRefused,
+		FindingsGetFindingsPossibleOKItemsItemHeldReasonAnswerUnusable,
+		FindingsGetFindingsPossibleOKItemsItemHeldReasonAiFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemHeldReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemHeldReasonHookRefused:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemHeldReasonAnswerUnusable:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemHeldReasonAiFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemHeldReason) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemHeldReason(data) {
+	case FindingsGetFindingsPossibleOKItemsItemHeldReasonHookRefused:
+		*s = FindingsGetFindingsPossibleOKItemsItemHeldReasonHookRefused
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemHeldReasonAnswerUnusable:
+		*s = FindingsGetFindingsPossibleOKItemsItemHeldReasonAnswerUnusable
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemHeldReasonAiFailed:
+		*s = FindingsGetFindingsPossibleOKItemsItemHeldReasonAiFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -197897,6 +197992,51 @@ func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReading) Get() (v Findings
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReading) Or(d FindingsGetFindingsPossibleOKItemsItemCheckReading) FindingsGetFindingsPossibleOKItemsItemCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemHeld returns new NilFindingsGetFindingsPossibleOKItemsItemHeld with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemHeld(v FindingsGetFindingsPossibleOKItemsItemHeld) NilFindingsGetFindingsPossibleOKItemsItemHeld {
+	return NilFindingsGetFindingsPossibleOKItemsItemHeld{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemHeld is nullable FindingsGetFindingsPossibleOKItemsItemHeld.
+type NilFindingsGetFindingsPossibleOKItemsItemHeld struct {
+	Value FindingsGetFindingsPossibleOKItemsItemHeld
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemHeld) SetTo(v FindingsGetFindingsPossibleOKItemsItemHeld) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemHeld) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemHeld) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemHeld
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemHeld) Get() (v FindingsGetFindingsPossibleOKItemsItemHeld, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemHeld) Or(d FindingsGetFindingsPossibleOKItemsItemHeld) FindingsGetFindingsPossibleOKItemsItemHeld {
 	if v, ok := o.Get(); ok {
 		return v
 	}

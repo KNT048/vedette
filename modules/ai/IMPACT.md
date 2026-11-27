@@ -167,3 +167,8 @@
 - **findings** (P-9, through `cmd/vedette/aipossible.go` `softwareIdentifier`): a choice is a candidate id findings offered, `none` or `unsure`; findings stores it per software name and lets only an offered id open findings. Renaming the choices or the schema breaks every stored identification.
 - The automatic identification shares the daily number of automatic reads (at most half of it): `AutoReadState` counts the rows whose summary starts with the count tags `autoReadSummary` and `autoIdentifySummary` (failed calls too, `JobSpec.countTag`); changing either resets the count of the day. The `match` answer (`exact`, `family`) decides whether findings opens anything.
 - PRIVACY.md flow 3 and Settings → Privacy say what an identification call sends (publisher, scrubbed display name, version, candidates) and how to turn it off (the same switch).
+
+## Modifying: the automatic pace (`paceAuto`, `autoPerMinute`, `Config.Sleep`) or the fuse (`fuseCalls`)
+- The automatic reading and identification keep below the `explain-finding` fuse so a person's Explain in the same minute is not refused; raising the pace or lowering the fuse brings that back (`TestProposePossible_TheAutomaticReadingLeavesAPersonRoomInEveryMinute`).
+- **findings**: a run's time (`possibleCheckTimeout`, `identityRunTimeout`, 15 minutes) must hold its most calls at the pace (200 units, 100 names); a run whose time ends while it waits stops (`aiCallError` → `CheckStop`).
+- The error codes findings sorts (`cmd/vedette/aipossible.go` `aiCallError`): `blocked_by_hook` with `retry_after` (hooks out of time) is a failure for an hour, without it a refusal for a day; `ai_bad_format`/`ai_cut_off` are refusals that count toward the run's stop after 3 in a row.

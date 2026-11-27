@@ -60778,6 +60778,40 @@
                               }
                             ],
                             "description": "Why it is still possible; null for a settled row"
+                          },
+                          "held": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "until": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The automatic reading reads it again after this time; a person's check reads it at once"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "hook_refused",
+                                      "answer_unusable",
+                                      "ai_failed"
+                                    ],
+                                    "description": "Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks could not finish in time)"
+                                  }
+                                },
+                                "required": [
+                                  "until",
+                                  "reason"
+                                ],
+                                "additionalProperties": false,
+                                "description": "The automatic AI reading leaves this CVE until a time, and why"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today's reads used up, no AI profile)"
                           }
                         },
                         "required": [
@@ -60795,7 +60829,8 @@
                           "check",
                           "checkable",
                           "bulk",
-                          "cause"
+                          "cause",
+                          "held"
                         ],
                         "additionalProperties": false,
                         "description": "One possible CVE of one software line of one device"

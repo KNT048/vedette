@@ -70,7 +70,7 @@ func (c possibleChecker) Propose(ctx context.Context, actor string, req findings
 	}
 	ans, err := c.ai.ProposePossible(ctx, actor, r)
 	if err != nil {
-		return findings.ProposeAnswer{}, aiCallError(err)
+		return findings.ProposeAnswer{}, aiCallError(ctx, err)
 	}
 	out := findings.ProposeAnswer{Model: ans.Model, Profile: ans.Profile, ActivityID: ans.ActivityID}
 	for _, v := range ans.Verdicts {
@@ -85,17 +85,26 @@ func (c possibleChecker) Propose(ctx context.Context, actor string, req findings
 const refusedRetry = 24 * time.Hour
 
 // aiCallError sorts the error of one call of a background AI run over items (the reading of advisories, the identification of
-// software), the same way for both: a refusal of that call's text or answer (a hook, an answer outside the schema or cut off) is that
-// call's items alone (findings.ItemRefused) and the run goes on with the next items; the AI unavailable (no profile, the skill or the
-// reading switched off, the provider unreachable), a budget reached or the runaway fuse stops the run (findings.CheckStop); anything
-// else is that call's failure, and its items wait for a later run.
-func aiCallError(err error) error {
+// software), the same way for both: a refusal of that call's text or answer (a hook's decision, an answer outside the schema or cut off)
+// is that call's items alone (findings.ItemRefused) and the run goes on with the next items; an unusable answer is Systemic too (several
+// in a row stop the run: the model cannot do the reading). The AI unavailable (no profile, the skill or the reading switched off, the
+// provider unreachable), a budget reached, the runaway fuse or the run's own time up (ctx ended) stops the run (findings.CheckStop).
+// Anything else, hooks that could not finish in time among them (they decided nothing: retry_after), is that call's failure, and its
+// items wait for a later run.
+func aiCallError(ctx context.Context, err error) error {
+	if ctx.Err() != nil {
+		return &findings.CheckStop{Reason: "The run took longer than it may and stopped; it goes on at the next run."}
+	}
 	ae, ok := apierr.As(err)
 	switch {
 	case !ok:
 		return err
-	case ae.Code == "blocked_by_hook", ae.Code == "ai_bad_format", ae.Code == "ai_cut_off":
+	case ae.Code == "blocked_by_hook" && ae.Extra["retry_after"] != nil:
+		return err
+	case ae.Code == "blocked_by_hook":
 		return &findings.ItemRefused{Reason: ae.Message, RetryAfter: refusedRetry}
+	case ae.Code == "ai_bad_format", ae.Code == "ai_cut_off":
+		return &findings.ItemRefused{Reason: ae.Message, RetryAfter: refusedRetry, Systemic: true}
 	case ae.Status == http.StatusConflict, ae.Status == http.StatusTooManyRequests, ae.Code == "unreachable":
 		return &findings.CheckStop{Reason: ae.Message}
 	}
@@ -144,7 +153,7 @@ func (c softwareIdentifier) Identify(ctx context.Context, actor string, req find
 	}
 	ans, err := c.ai.IdentifyProducts(ctx, actor, items)
 	if err != nil {
-		return findings.IdentifyAnswer{}, aiCallError(err)
+		return findings.IdentifyAnswer{}, aiCallError(ctx, err)
 	}
 	out := findings.IdentifyAnswer{Model: ans.Model, ActivityID: ans.ActivityID}
 	for _, ch := range ans.Choices {

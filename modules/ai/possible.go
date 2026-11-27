@@ -259,13 +259,17 @@ func (s *Service) dailyReadsReached() error {
 }
 
 // ProposePossible asks the AI for the vendor's statement for each item's release line from the public text: one call, one activity row
-// (INV-17). actor "system" is the automatic reading: it runs only while Settings has it on and today's reads are not used up.
+// (INV-17). actor "system" is the automatic reading: it runs only while Settings has it on and today's reads are not used up, at its
+// pace (paceAuto), so a person's Explain in the same minute is never refused by the job's runaway fuse.
 // Errors are those of RunJob (409 ai_unavailable, 429 budget_reached or rate_limited) and 429 budget_reached for today's reads.
 func (s *Service) ProposePossible(ctx context.Context, actor string, req PossibleRequest) (PossibleAnswer, error) {
 	if !cveRE.MatchString(req.CVE) || len(req.Items) == 0 {
 		return PossibleAnswer{}, fmt.Errorf("ai: propose: invalid request")
 	}
 	if actor == "system" {
+		if err := s.paceAuto(ctx); err != nil {
+			return PossibleAnswer{}, err
+		}
 		st := s.AutoReadState(ctx)
 		if !st.Auto {
 			return PossibleAnswer{}, apierr.New(http.StatusConflict, "ai_unavailable", "The automatic reading of vendor advisories is switched off in Settings, AI assistant.")

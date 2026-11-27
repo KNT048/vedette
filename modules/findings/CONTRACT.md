@@ -261,10 +261,18 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   reconcile pass, not on its own timer. Only a real stop ends a run (`CheckStop`: the AI unavailable, the reading switched off, a budget
   or the runaway fuse, the provider unreachable). A call refused for its own text or answer (`ItemRefused`: a hook, an answer outside the
   schema or cut off) is that call's items alone: the run goes on with the next item, and the automatic reading leaves those items until
-  their retry time (a day), so one item that cannot be read is never first again at every run. Any other failed call does the same with
-  an hour's wait; `aiFailStreak` (3) such calls in a row, with no answer between, stop the run, also within one CVE. A person's check reads held items at
-  once; an answer clears the hold (kept in memory only). `TestAutoRead_RunsOnlyWhenSwitchedOn`, `TestAutoRead_ARefusedItemDoesNotStopTheNext`,
-  `TestPossibleCheck_TheAIFailingInARowStopsTheRun`, `TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE`.
+  their retry time (a day), so one item that cannot be read is never first again at every run. Any other failed call (the provider
+  answered an error, the hooks could not finish in time: they decided nothing) does the same with an hour's wait; `aiFailStreak` (3)
+  such calls in a row, or unusable answers (`ItemRefused.Systemic`: outside the schema, cut off), with no answer between, stop the run,
+  also within one CVE; a hook's refusal neither counts nor resets. The run ending its own time stops it (`CheckStop`). The ai module paces
+  the automatic calls below the runaway fuse (ai INV-4), so a person's Explain in the same minute is not refused. A held item's row says
+  until when and why (`PossibleRow.held`: `until` and a `reason` of the closed list `HeldReasons`: `hook_refused`, `answer_unusable`,
+  `ai_failed`; never the provider's words; its cause stays as P-8 names it); `held` is null while the automatic reading cannot run
+  (switched off, today's reads used up, no AI profile), so the row never promises a reading that does not come. A person's check reads held items at once; an answer clears
+  the hold (kept in memory only; a restart forgets it). `TestAutoRead_RunsOnlyWhenSwitchedOn`,
+  `TestAutoRead_ARefusedItemDoesNotStopTheNext`, `TestPossibleCheck_TheAIFailingInARowStopsTheRun`,
+  `TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE`, `TestPossibleCheck_UnusableAnswersInARowStopTheRun`,
+  `TestPossible_AHeldItemSaysUntilWhenAndWhy`.
 - **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
   possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
@@ -285,8 +293,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `fnd_identity` serves every device. It is asked again (`askAgain`) only when the chosen product left the candidates, or, for `none` and
   `unsure`, after 30 days, or after 7 days when a product it was not offered entered the top 5 (the top 5 are kept as short hashes); other
   candidates coming and going ask nothing. A call that fails after it was sent (an answer outside the schema, the provider) makes its
-  names wait a day and the run goes on with the next names (a call a hook refused too); a budget, the runaway fuse, a missing profile
-  or an unreachable provider stops the run (the binary's `aiCallError`, the same rule as P-7). Every call that reached the
+  names wait a day and the run goes on with the next names (a call a hook refused too); `aiFailStreak` failed calls in a row (a hook's
+  refusal aside) stop it, as in P-7 (`TestAIIdentity_FailingInARowStopsThePass`); a budget, the runaway fuse, a missing profile or an
+  unreachable provider stops the run (the binary's `aiCallError`, the same rule as P-7). Every call that reached the
   provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
   have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
   (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only

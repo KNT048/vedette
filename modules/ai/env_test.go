@@ -145,6 +145,12 @@ type clock struct {
 
 func (c *clock) Now() time.Time { c.mu.Lock(); defer c.mu.Unlock(); return c.t.Add(0) }
 
+// sleep is how the service waits in a test: the clock moves on at once, nothing waits.
+func (c *clock) sleep(ctx context.Context, d time.Duration) error {
+	c.Add(d)
+	return ctx.Err()
+}
+
 // Add moves the clock of the box, forward or back.
 func (c *clock) Add(d time.Duration) {
 	c.mu.Lock()
@@ -211,7 +217,8 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.NewTextHandler(e.logBuf, nil)), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Updates: e.data, Conns: e.conns, ConnTargets: e.conns.targets, AskTimeout: e.askTimeout, LogDigest: e.logs.read, LogAround: e.logs.readAround})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.NewTextHandler(e.logBuf, nil)), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Updates: e.data, Conns: e.conns, ConnTargets: e.conns.targets, AskTimeout: e.askTimeout, LogDigest: e.logs.read, LogAround: e.logs.readAround,
+		Sleep: e.clock.sleep})
 	if err != nil {
 		e.t.Fatal(err)
 	}

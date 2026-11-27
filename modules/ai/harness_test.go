@@ -645,6 +645,9 @@ func TestContract_INV17_HooksThatRunOutOfTimeBlockTheAnswerAndTheRowIsStillWritt
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be checked") {
 		t.Fatalf("message = %q", msg)
 	}
+	if m["error"].(map[string]any)["retry_after"] == nil { // the hooks did not decide: the same call may pass later
+		t.Errorf("hooks out of time carry no retry_after: %v", m)
+	}
 	rows := a.activity()
 	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn == 0 {
 		t.Fatalf("rows = %+v", rows)
@@ -681,7 +684,9 @@ func TestContract_INV12_AfterAISeesWhatIsStored(t *testing.T) {
 	// the format check later removes the control character and turns the line break into a space: the hooks must see that form
 	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"The secret is hunt\u0001er2 and the access\nlog.","refs":[]},{"key":"fix","text":"x","refs":[]},{"key":"workaround","text":"y","refs":[]},{"key":"urgency","text":"z","refs":[]}]}`)
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Secret", "after_ai", "keywords", "hunter2", "block", "A secret was in the answer."), 200, "")
-	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
+	if m := a.explain("CVE-2022-27593", 409, "blocked_by_hook"); m["error"].(map[string]any)["retry_after"] != nil { // a hook's decision stands
+		t.Errorf("a hook's block carries retry_after: %v", m)
+	}
 	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Log", "after_ai", "keywords", "access log", "block", "A log was in the answer."), 200, "")
 	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
@@ -707,6 +712,9 @@ func TestContract_INV12_BeforeAIHooksHaveADeadlineToo(t *testing.T) {
 	m := a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not sent") {
 		t.Fatalf("message = %q", msg)
+	}
+	if m["error"].(map[string]any)["retry_after"] == nil {
+		t.Errorf("hooks out of time carry no retry_after: %v", m)
 	}
 	if a.fake.total() != 0 {
 		t.Fatal("the provider was called")

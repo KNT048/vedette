@@ -402,7 +402,8 @@ type identityDue struct {
 // identify asks the AI about the names of asks that are due (askAgain), the names whose candidates include an exploited-list product
 // first, then the most CVEs; stores what the box verified, and matches again the devices (devices: by name) whose lines got a product.
 // It returns how many names got one that opens. A budget or a missing profile stops it; what was stored stays. A call that fails after
-// it was sent costs its names a day's wait (identityFailedWait) and the run goes on with the next names.
+// it was sent costs its names a day's wait (identityFailedWait) and the run goes on with the next names; aiFailStreak such calls in a row
+// (a hook's refusal of a call's text aside) stop it.
 func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[nameKey][]string) (int, error) {
 	names, err := s.cfg.Identifier.Products(ctx)
 	if err != nil {
@@ -454,6 +455,7 @@ func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[
 	scrub := newScrubber(private)
 	linked := 0
 	touched := map[string]bool{}
+	streak := 0 // calls in a row that failed with no answer between (aiFailStreak, as the reading of advisories)
 	for i := 0; i < len(due); i += identityBatch {
 		batch := due[i:min(i+identityBatch, len(due))]
 		req := IdentifyRequest{}
@@ -477,8 +479,16 @@ func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[
 			}
 			s.ident.fail(keys, now.Add(identityFailedWait))
 			s.cfg.Log.WarnContext(ctx, "findings: an identification call failed; its software waits a day", "names", len(batch), "error", err)
+			if refused := (*ItemRefused)(nil); !errors.As(err, &refused) || refused.Systemic {
+				streak++
+			}
+			if streak >= aiFailStreak { // the AI answers nothing at all: the names left wait for the next pass
+				s.cfg.Log.WarnContext(ctx, "findings: the identification stopped after failed calls in a row", "calls", streak)
+				break
+			}
 			continue
 		}
+		streak = 0
 		rows := verifyChoices(batch, ans, now)
 		if err := s.storeIdentities(ctx, rows); err != nil {
 			return linked, err

@@ -3,6 +3,7 @@ package ai_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/ai"
 )
@@ -139,5 +140,37 @@ func TestProposePossible_PublicPagesGoThroughTheCustomersHooksOnly(t *testing.T)
 	}
 	if len(a.fake.reqs) != n {
 		t.Error("a call a hook stopped was sent")
+	}
+}
+
+// The automatic reading shares the explain-finding job's runaway fuse with a person's Explain: it is paced below the fuse, so a fast
+// provider never lets a background run use up the minute. Its calls are spread out (never more than the background share in any
+// minute) and a person's call between them is never refused.
+func TestProposePossible_TheAutomaticReadingLeavesAPersonRoomInEveryMinute(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"items":[{"index":0,"status":"unsure","introduced":"","fixed_in":"","last_affected":"","line":"","reason":"No range.","quote":"","source":0}]}`)
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":6000000,"redact_pii":true,"auto_read":true,"daily_reads":500}`, 200, "")
+	req := ai.PossibleRequest{CVE: "CVE-2099-72001", Description: "A flaw in Junos OS.",
+		Items: []ai.PossibleItem{{Index: 0, Vendor: "juniper", Product: "Junos OS", Version: "21.4R3-S6", Line: "21.4"}},
+		Pages: []ai.RefPage{{URL: "https://supportportal.example/JSA1", Status: "ok", Text: "Junos OS 21.4 is affected by this issue."}}}
+	const background = 70
+	var at []time.Time
+	for i := range background {
+		if _, err := a.svc.ProposePossible(a.ctx(), "system", req); err != nil {
+			t.Fatalf("automatic call %d: %v", i+1, err)
+		}
+		at = append(at, a.clock.Now())
+		if i%3 == 2 { // a person explains a finding now and then while the reading runs
+			if _, err := a.svc.ProposePossible(a.ctx(), "it@acme.example", req); err != nil {
+				t.Fatalf("a person's call after %d automatic calls was refused: %v", i+1, err)
+			}
+		}
+	}
+	// the background share of a minute: two thirds of the fuse, the rest is a person's
+	for i := 20; i < len(at); i++ {
+		if d := at[i].Sub(at[i-20]); d < time.Minute {
+			t.Fatalf("21 automatic calls within %s (calls %d to %d): want at most 20 in any minute", d, i-19, i+1)
+		}
 	}
 }

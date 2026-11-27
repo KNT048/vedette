@@ -65654,6 +65654,24 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Held.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "held",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Kind.Validate(); err != nil {
 			return err
 		}
@@ -66146,6 +66164,42 @@ func (s FindingsGetFindingsPossibleOKItemsItemDeviceKind) Validate() error {
 	case "cloud_service":
 		return nil
 	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsGetFindingsPossibleOKItemsItemHeld) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsPossibleOKItemsItemHeldReason) Validate() error {
+	switch s {
+	case "hook_refused":
+		return nil
+	case "answer_unusable":
+		return nil
+	case "ai_failed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

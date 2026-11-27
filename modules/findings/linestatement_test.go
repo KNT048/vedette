@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/store"
 )
 
 // The DSM line 7.2.1 as the vendor's page states it in words the box's own reader does not parse (so the AI reads it).
@@ -593,6 +595,54 @@ func TestAutoRead_ARefusedItemDoesNotStopTheNext(t *testing.T) {
 	}
 }
 
+// A held item says on its row until when the automatic reading leaves it and why, as a label of a closed list (never the provider's
+// words); an answer clears it.
+func TestPossible_AHeldItemSaysUntilWhenAndWhy(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	fc.pages["CVE-2026-82003"] = []FetchedPage{{URL: dsmPageURL + "#82003", Status: "ok", Text: "CVE-2026-82003 concerns Synology DiskStation Manager (DSM) 7.2; see the release notes."}}
+	fc.refuse = map[string]error{"CVE-2026-82002": &ItemRefused{Reason: "The AI answered, but not in the format Vedette needs (HTTP 502 from upstream).", RetryAfter: 24 * time.Hour, Systemic: true}}
+	autoReadToEnd(t, e)
+	heldOf := func() map[string]*HeldJS {
+		list, err := e.svc.Possible(t.Context(), PossibleFilter{}, Page{Limit: PageMax})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]*HeldJS{}
+		for _, r := range list.Items {
+			out[r.CVE] = r.Held
+		}
+		return out
+	}
+	held := heldOf()
+	h := held["CVE-2026-82002"]
+	if h == nil || h.Reason != HeldAnswerUnusable || h.Until != store.FormatTS(e.svc.now().Add(24*time.Hour)) {
+		t.Fatalf("held %+v, want answer_unusable until a day from now", h)
+	}
+	if held["CVE-2026-82003"] != nil {
+		t.Errorf("a CVE that was read is held: %+v", held["CVE-2026-82003"])
+	}
+	// the line says when the automatic reading reads it again: while that reading cannot run (switched off, today's reads used up, no
+	// profile), it would promise a reading that does not come, so the row keeps its cause's own sentence instead
+	for _, c := range []struct {
+		name   string
+		budget ReadBudget
+		ready  error
+	}{{"switched off", ReadBudget{}, nil}, {"reads used up", ReadBudget{Auto: true, Reached: true}, nil},
+		{"no profile", ReadBudget{Auto: true}, errors.New("no profile for explaining findings")}} {
+		fc.budget, fc.ready = c.budget, c.ready
+		if h := heldOf()["CVE-2026-82002"]; h != nil {
+			t.Errorf("%s: the row still says the automatic reading reads it again: %+v", c.name, h)
+		}
+	}
+	fc.budget, fc.ready = ReadBudget{Auto: true}, nil
+	fc.refuse = nil
+	runCheck(t, e)
+	if h := heldOf()["CVE-2026-82002"]; h != nil {
+		t.Errorf("still held after an answer: %+v", h)
+	}
+}
+
 // A call that fails for a reason Propose does not name (the provider answered an error) is that item's failure too, left for the next
 // run; only aiFailStreak such failures in a row stop the run, since the AI then answers nothing at all.
 func TestPossibleCheck_TheAIFailingInARowStopsTheRun(t *testing.T) {
@@ -615,6 +665,40 @@ func TestPossibleCheck_TheAIFailingInARowStopsTheRun(t *testing.T) {
 	}
 	if h, ok := e.svc.check.held["k-CVE-2026-91000"]; !ok || h.reason == "" || !h.until.After(e.svc.now()) {
 		t.Errorf("the failed item is not held with its reason and retry time: %+v", h)
+	}
+}
+
+// An answer the box cannot use (outside the schema, cut off) is held per item like a hook's refusal, but several in a row mean the
+// provider cannot do the reading at all: aiFailStreak of them stop the run, so a model that cannot answer in the schema does not spend
+// every read left of the day in one run. A hook's refusal is about the item's text and never stops it.
+func TestPossibleCheck_UnusableAnswersInARowStopTheRun(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name     string
+		systemic bool
+		calls    int
+	}{{"unusable answers", true, aiFailStreak}, {"hook refusals", false, 5}} {
+		t.Run(c.name, func(t *testing.T) {
+			e, fc := possibleWorld(t)
+			var units []checkUnit
+			fc.refuse = map[string]error{}
+			for i := range 5 {
+				cve := fmt.Sprintf("CVE-2026-9120%d", i)
+				fc.pages[cve] = []FetchedPage{{URL: dsmPageURL + "#" + cve, Status: "ok", Text: cve + " concerns Synology DiskStation Manager (DSM) 7.2."}}
+				fc.refuse[cve] = &ItemRefused{Reason: "The AI answered, but not in the format Vedette needs.", RetryAfter: 24 * time.Hour, Systemic: c.systemic}
+				units = append(units, checkUnit{key: "k-" + cve, cve: cve, id: CheckID{Product: "synology|diskstation_manager", Line: "7.2.1", Version: "7.2.1-69057-5", Record: "r"},
+					devs: []string{"nas-01"}})
+			}
+			e.svc.check.run = &CheckRun{Running: true}
+			e.svc.runPossibleCheck(t.Context(), units, SystemUser)
+			run := *e.svc.check.run
+			if len(fc.sent) != c.calls || (run.Stopped != nil) != c.systemic {
+				t.Fatalf("run %+v after %d calls: want %d calls, stopped %v", run, len(fc.sent), c.calls, c.systemic)
+			}
+			if h, ok := e.svc.check.held["k-CVE-2026-91200"]; !ok || h.until.Before(e.svc.now().Add(24*time.Hour)) {
+				t.Errorf("the refused item is not held for a day: %+v", h)
+			}
+		})
 	}
 }
 

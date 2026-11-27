@@ -532,6 +532,11 @@ export const Undecided = z.object({
   text: z.string().optional().describe('Up to 500 characters of advisory text the box could not read as ranges'),
   url: z.string().optional().describe('The page text is from'),
 }).describe('Why a CVE stays possible and what blocked the decision')
+export const PossibleHeld = z.object({
+  until: iso.describe('The automatic reading reads it again after this time; a person\'s check reads it at once'),
+  reason: z.enum(['hook_refused', 'answer_unusable', 'ai_failed'])
+    .describe('Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks could not finish in time)'),
+}).describe('The automatic AI reading leaves this CVE until a time, and why')
 export const PossibleRow = z.object({
   id: z.string().describe('The question (confirm: POST /findings/possible/{id}/confirm; answer: POST /findings/questions/{id}/answer)'),
   cve, kind: QuestionKind, device: DeviceRef, software: SoftwareRef.nullable(), severity: CveSeverity.nullable(),
@@ -541,6 +546,7 @@ export const PossibleRow = z.object({
   check: PossibleCheck.nullable(), checkable: z.boolean().describe('A check of its advisories can still run for it'),
   bulk: z.boolean().describe('proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not affected (one by one)'),
   cause: PossibleCause.nullable().describe('Why it is still possible; null for a settled row'),
+  held: PossibleHeld.nullable().describe('The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today\'s reads used up, no AI profile)'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
   possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once)'),

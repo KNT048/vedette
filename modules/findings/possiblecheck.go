@@ -67,17 +67,21 @@ func (e *CheckStop) Error() string { return e.Reason }
 
 // ItemRefused is a Propose error about the items of that one call only (a hook stopped its text, the answer was not usable): the check
 // goes on with the next item, and the automatic reading leaves these items until RetryAfter has passed, so one item that cannot be read
-// is never first again at every run. Reason is the sentence a person reads.
+// is never first again at every run. Reason is the sentence a person reads. Systemic is set when the provider's answer was not usable
+// (outside the schema, cut off): that may be the model rather than the item, so such calls count toward aiFailStreak too; a hook's
+// refusal is about the item's own text and does not.
 type ItemRefused struct {
 	Reason     string
 	RetryAfter time.Duration
+	Systemic   bool
 }
 
 func (e *ItemRefused) Error() string { return e.Reason }
 
 // possibleRetry is how long the automatic reading leaves items whose call failed for a reason Propose did not name (the provider
-// answered an error): the next run after it reads them again. aiFailStreak such calls in a row, with no answer between, mean the AI
-// is not answering at all: the run stops there instead of failing every item that is left.
+// answered an error, the hooks could not finish in time): the next run after it reads them again. aiFailStreak such calls in a row, or
+// answers that could not be used (ItemRefused Systemic), with no answer between, mean the AI is not answering at all: the run stops
+// there instead of failing every item that is left. The identification of software keeps the same streak.
 const (
 	possibleRetry = time.Hour
 	aiFailStreak  = 3
@@ -233,14 +237,57 @@ func (s *Service) markUnread(keys []string, unread bool, now time.Time) {
 	}
 }
 
-// heldItem is why the automatic reading leaves an item for now, and until when.
+// heldItem is why the automatic reading leaves an item for now, and until when: kind is one of HeldReasons (what a person reads),
+// reason the error of the call (the log's).
 type heldItem struct {
 	until  time.Time
+	kind   string
 	reason string
 }
 
-// hold notes the keys whose call was refused or failed (until the time given), or clears them after an answer (zero until).
-func (s *Service) hold(keys []string, until time.Time, reason string) {
+// Why the automatic reading leaves an item for now (Held.Reason), a closed list a person reads as a label (never the provider's words).
+const (
+	HeldHookRefused    = "hook_refused"    // a hook stopped the text of its call
+	HeldAnswerUnusable = "answer_unusable" // the AI's answer was outside the format or cut off
+	HeldAIFailed       = "ai_failed"       // the AI provider failed, or the hooks could not finish in time
+)
+
+// HeldReasons is the closed list of Held.Reason.
+var HeldReasons = []string{HeldHookRefused, HeldAnswerUnusable, HeldAIFailed}
+
+// Held is until when the automatic reading leaves an item, and why (one of HeldReasons).
+type Held struct {
+	Until  time.Time
+	Reason string
+}
+
+// heldKind is the HeldReasons entry of a call's error.
+func heldKind(err error) string {
+	if refused := (*ItemRefused)(nil); errors.As(err, &refused) {
+		if refused.Systemic {
+			return HeldAnswerUnusable
+		}
+		return HeldHookRefused
+	}
+	return HeldAIFailed
+}
+
+// heldKeys is the check keys the automatic reading leaves at now, with until when and why.
+func (s *Service) heldKeys(now time.Time) map[string]Held {
+	s.check.mu.Lock()
+	defer s.check.mu.Unlock()
+	out := map[string]Held{}
+	for k, h := range s.check.held {
+		if now.Before(h.until) {
+			out[k] = Held{Until: h.until, Reason: h.kind}
+		}
+	}
+	return out
+}
+
+// hold notes the keys whose call was refused or failed (until the time given, kind one of HeldReasons), or clears them after an answer
+// (zero until).
+func (s *Service) hold(keys []string, until time.Time, kind, reason string) {
 	s.check.mu.Lock()
 	defer s.check.mu.Unlock()
 	if s.check.held == nil {
@@ -250,7 +297,7 @@ func (s *Service) hold(keys []string, until time.Time, reason string) {
 		if until.IsZero() {
 			delete(s.check.held, k)
 		} else {
-			s.check.held[k] = heldItem{until: until, reason: reason}
+			s.check.held[k] = heldItem{until: until, kind: kind, reason: reason}
 		}
 	}
 }
@@ -565,8 +612,8 @@ type lineAsk struct {
 
 // checkCVE checks the units of one CVE: the pages first, then the AI, once per release line, for what they leave. stop is set when the
 // run must stop (the AI unavailable, a budget reached, aiFailStreak failed calls in a row): what was decided so far is returned. streak
-// is the run's count of AI calls in a row that failed for a reason Propose did not name, with no answer between: an answer sets it to 0,
-// a refused call (ItemRefused) leaves it, since it says nothing about the AI.
+// is the run's count of AI calls in a row that failed for a reason Propose did not name or whose answer was not usable (ItemRefused
+// Systemic), with no answer between: an answer sets it to 0, a call a hook refused leaves it, since it says nothing about the AI.
 func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string, streak *int) (res cveCheck) {
 	cve := group[0].cve
 	now := s.now()
@@ -684,10 +731,13 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			wait, why := possibleRetry, err.Error()
 			if refused := (*ItemRefused)(nil); errors.As(err, &refused) {
 				wait = max(refused.RetryAfter, possibleRetry)
+				if refused.Systemic {
+					*streak++
+				}
 			} else {
 				*streak++
 			}
-			s.hold(keys, now.Add(wait), why)
+			s.hold(keys, now.Add(wait), heldKind(err), why)
 			s.cfg.Log.InfoContext(ctx, "findings: an AI reading of a possible CVE was not made", "cve", cve,
 				"items", len(keys), "retry_after", wait.String(), "reason", clipBytes(why, 300))
 			if *streak >= aiFailStreak { // the AI answers nothing at all: the run stops here, the items left wait for the next run
@@ -698,7 +748,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			continue
 		}
 		*streak = 0
-		s.hold(keys, time.Time{}, "")
+		s.hold(keys, time.Time{}, "", "")
 		byIndex := map[int]ProposeVerdict{}
 		for _, v := range ans.Verdicts {
 			byIndex[v.Index] = v

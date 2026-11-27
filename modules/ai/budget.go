@@ -31,7 +31,41 @@ const (
 	budgetWatch       = 5 * time.Minute // how often the alert job compares the meter with the budgets
 	fuseCalls         = 30              // calls of one job in one minute before the fuse trips: no person or schedule makes that many
 	fuseSpan          = time.Minute
+	// autoPerMinute is the pace of the automatic reading and identification (actor "system", explain-finding): they share the job's
+	// fuse with a person's Explain, so they keep to two thirds of it and a person always has the rest of the minute.
+	autoPerMinute = fuseCalls * 2 / 3
+	autoGap       = fuseSpan / autoPerMinute // one automatic call every 3 s at most
 )
+
+// paceAuto waits for the next turn of an automatic call (autoGap after the one before it, on the job clock), so the background runs
+// never use more than autoPerMinute of a minute's fuse, whatever the provider's speed. Two runs at once (reading and identification)
+// share the pace. It returns ctx's error when the caller's time ends while it waits.
+func (s *Service) paceAuto(ctx context.Context) error {
+	now := s.cfg.Clock()
+	s.fuseMu.Lock()
+	slot := now
+	if s.autoNext.After(now) && s.autoNext.Sub(now) <= fuseSpan { // further ahead: the clock was set back, start again from now
+		slot = s.autoNext
+	}
+	s.autoNext = slot.Add(autoGap)
+	s.fuseMu.Unlock()
+	if wait := slot.Sub(now); wait > 0 {
+		return s.cfg.Sleep(ctx, wait)
+	}
+	return ctx.Err()
+}
+
+// sleep waits d, or until ctx ends (its error then): the Sleep of the box.
+func sleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
 
 // renewDay is the day the budget starts again, as people read it ("1 Dec 2026"): the first of next month in the zone of the meter.
 func (s *Service) renewDay() string { return orgtime.Day(s.meter.Renews(), s.loc) }

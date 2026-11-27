@@ -10,7 +10,7 @@ import { aiCandidates, isOn } from '@/mocks/stores'
 import { checkKeyOf, POSSIBLE_EXPLOITED, seedPossibleChecks, type CheckRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { assetOf, deviceRef, event, isIgnored, questions, records, severityOf, unhandled } from './modelMocks'
-import { autoReadReached } from '@/features/ai/mocks'
+import { autoReadOn, autoReadReached } from '@/features/ai/mocks'
 import type { PossibleCause, PossibleCheck, PossibleCheckRun, PossibleCheckState, PossibleCounts, PossibleList, PossibleRow, UndecidedReason } from './types'
 
 export const checks = collection<Record<string, CheckRecord>>('fnd_possible_check', seedPossibleChecks, () => ({}))
@@ -92,6 +92,21 @@ export function possibleCounts(device?: string): PossibleCounts {
   return c
 }
 
+/** A few CVEs the automatic reading leaves for now (the server keeps this in memory): why, and how many hours until it reads them again. */
+const HELD: Record<string, { reason: NonNullable<PossibleRow['held']>['reason']; hours: number }> = {
+  'CVE-2026-240104': { reason: 'answer_unusable', hours: 20 },
+  'CVE-2026-240105': { reason: 'ai_failed', hours: 1 },
+  'CVE-2026-240106': { reason: 'hook_refused', hours: 23 },
+}
+function heldOf(it: Item): PossibleRow['held'] {
+  const h = HELD[it.cve]
+  if (!h || !it.key || it.check || it.state === 'settled') return null
+  if (!aiReady() || !autoReadOn() || autoReadReached()) return null // the reading cannot run now: the cause says what waits
+  const until = new Date(Date.parse(nowIso()) + h.hours * 3_600_000)
+  until.setUTCMinutes(0, 0, 0)
+  return { until: until.toISOString(), reason: h.reason }
+}
+
 function row(it: Item): PossibleRow {
   const exploited = POSSIBLE_EXPLOITED.has(it.cve)
   return {
@@ -99,6 +114,7 @@ function row(it: Item): PossibleRow {
     exploited, state: it.state, undecided: undecidedOf(it.q), line: it.q.line ?? null, fixes: it.q.fixes ?? [], check: it.check, checkable: checkable(it),
     bulk: it.state === 'proposal' && !(exploited && it.check?.verdict === 'not_affected'),
     cause: causeOf(it),
+    held: heldOf(it),
   }
 }
 

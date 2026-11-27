@@ -88,6 +88,9 @@ func (s *Service) IdentifyProducts(ctx context.Context, actor string, items []Id
 		}
 	}
 	if actor == "system" {
+		if err := s.paceAuto(ctx); err != nil { // the reading's pace, shared with it
+			return IdentifyAnswer{}, err
+		}
 		st := s.AutoReadState(ctx)
 		if !st.Auto {
 			return IdentifyAnswer{}, apierr.New(http.StatusConflict, "ai_unavailable", "The automatic reading is switched off in Settings, AI assistant.")

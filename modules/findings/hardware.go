@@ -17,7 +17,7 @@ import (
 // models inside it one by one ("ZX4100", "ZX4400" beside it): then it is one model. A device's model belongs to a family with its
 // letters, to a model with its letters and number, to a series with its letters and a number that starts with the series' digits
 // before its trailing zeros. Letters one inside the other ("vQRX" and "QRX") are not told apart. Letters are a name's only when they
-// hold two capitals at least ("QRX", "vQRX"; not "All Series"). A model word without "Series" whose letters are none of the device's
+// hold two capitals at least ("QRX", "vQRX"; not "All Series"), and "all" in any case is never a name ("ALL Series"). A model word without "Series" whose letters are none of the device's
 // ("MPC10E" beside a ZX480) may be a part the device carries (a line card, a module), not other hardware, so it never rules the device
 // out, and neither does a part named after the hardware it fits ("ZX2K-MPC11E"). x stands for any digit ("ZX92xx"). A parenthesis or a
 // "with" qualifier is read only when it names no hardware outside the platform (remarkOf). A device that states a word of letters and
@@ -83,7 +83,8 @@ func platformHardware(p string) (hardwareName, bool) {
 		remark, p = p[m[2]:m[3]], p[:m[0]]
 	}
 	h, with, ok := platformShape(p)
-	if !ok || !capitalsRE.MatchString(h.letters) || !remarkOf(h, remark, true) || !remarkOf(h, with, false) {
+	if !ok || !capitalsRE.MatchString(h.letters) || strings.EqualFold(h.letters, "all") ||
+		!remarkOf(h, remark, true) || !remarkOf(h, with, false) {
 		return hardwareName{}, false
 	}
 	h.letters = strings.ToLower(h.letters)

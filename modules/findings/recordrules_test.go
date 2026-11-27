@@ -79,6 +79,10 @@ func TestOtherHardware(t *testing.T) {
 		{"QRX345", []string{"QRX Series (QRX300)"}, false},
 		{"ZX4200-48T", []string{"All Series"}, false}, // a plain word, not a family's letters
 		{"ZX4200-48T", []string{"Other Series"}, false},
+		{"ZX4200-48T", []string{"ALL Series"}, false}, // "all" in any case is never a family
+		{"ZX4200-48T", []string{"all Series"}, false},
+		{"ZX4200-48T", []string{"ALL 4000 Series"}, false},
+		{"ZX4200-48T", []string{"QRX Series", "ALL Series"}, false},
 		{"ZX4200-48T", []string{"all platforms"}, false},
 		{"ZX4200-48T", []string{"QRX/NX Series"}, false},
 		{"NX150", []string{"QRX1500/NX150"}, false},

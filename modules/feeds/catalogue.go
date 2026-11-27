@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -295,17 +296,23 @@ func sameNVDRanges(ctx context.Context, tx *sql.Tx, r NVDRecord) (bool, error) {
 // a finding, its history or a report; it does not put the CVE inside the window (Store.OutsideWindow). It also drops the EPSS history
 // older than epssHistKeep days and of CVEs no list or signal names.
 func pruneCatalogue(ctx context.Context, tx *sql.Tx, now time.Time, pinned []string) error {
-	pins, err := json.Marshal(append([]string{}, pinned...))
-	if err != nil {
-		return fmt.Errorf("feeds: prune catalogue: %w", err)
-	}
 	w, err := windowOf(ctx, tx, now)
 	if err != nil {
 		return err
 	}
+	keep, err := stringSet(ctx, tx, w.keptSQL())
+	if err != nil {
+		return err
+	}
+	for _, c := range pinned {
+		keep[c] = true
+	}
+	held, err := json.Marshal(slices.Collect(maps.Keys(keep)))
+	if err != nil {
+		return fmt.Errorf("feeds: prune catalogue: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve WHERE (nvd_status = 'Rejected' OR ?1 = 0 AND (published IS NULL OR published < ?2))
-AND cve NOT IN (`+w.keptSQL()+`)
-AND cve NOT IN (SELECT value FROM json_each(?3))`, boolInt(w.EveryAge), store.FormatTS(w.Cutoff), string(pins)); err != nil {
+AND cve NOT IN (SELECT value FROM json_each(?3))`, boolInt(w.EveryAge), store.FormatTS(w.Cutoff), string(held)); err != nil {
 		return fmt.Errorf("feeds: prune catalogue: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss_hist WHERE day < ? OR cve NOT IN (SELECT cve FROM feeds_kev UNION SELECT cve FROM feeds_signal)`,

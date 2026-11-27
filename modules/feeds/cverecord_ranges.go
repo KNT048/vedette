@@ -21,10 +21,12 @@ import (
 // alone is that exact version ([v, v]), a start of "0", "*" or "n/a" is no start, an end of "*" is no end. fixed is the end of a
 // lessThan range whose change at that end says unaffected (the CNA states the fixed release). version_type is the entry's versionType.
 // Whatever cannot be compared without guessing makes the whole product's rows from that container unusable (counted, none stored):
-// git commits, wildcards and text ("3.x", "< 2.4", "all"), a reversed range, a status change inside a range or an unaffected version
+// git commits, wildcards and text ("3.x", "before 2.4", "all"), a reversed range, a status change inside a range or an unaffected version
 // inside an affected one (a hotfix hole), "affected except the listed versions", an entry limited to some operating systems or models
 // (platforms other than processors: anyPlatform). "n/a" and "unspecified" say nothing and are passed over; "all versions" is every
-// version.
+// version. Versions a CNA writes in a notation of its own inside these fields (GitHub's comparators "< 2.4", ">= 2.0, < 2.3.1"; the
+// product's name in front, "openssl-1.1.0"; a fix per release train after lessThan, "1.20.4,2.0.2") are read first
+// (recordNotation, cverecord_notation.go); one that does not read makes the product unusable, as above.
 //
 // default_status is the entry's defaultStatus (affected, unaffected, or unknown when absent; on these rows "unaffected" only from the
 // vendor's own CNA, ownCNA, else unknown): a product's list is complete when every row says affected or unaffected. An entry of the product that gives no row and does not say what an unlisted version is makes all of
@@ -634,11 +636,10 @@ func entryRows(a cnaAffected, reads func(start, end string, incl bool) bool) (ro
 	var fixed []string // the unaffected versions the entry lists
 	partial := false   // a letter-release version was left out
 	for _, v := range a.Versions {
-		start := strings.TrimSpace(v.Version)
 		switch strings.ToLower(strings.TrimSpace(v.Status)) {
 		case "affected":
 		case "unaffected":
-			if cnaVersionOK(start) && start != "0" {
+			if start := withoutProduct(strings.TrimSpace(v.Version), a); cnaVersionOK(start) && start != "0" {
 				fixed = append(fixed, start)
 			}
 			continue
@@ -649,71 +650,75 @@ func entryRows(a cnaAffected, reads func(start, end string, incl bool) bool) (ro
 		if vt == "git" || v.LessThan != nil && v.LessThanOrEqual != nil {
 			return nil, false, false
 		}
-		end, incl, bounded := "", false, v.LessThan != nil || v.LessThanOrEqual != nil
-		switch {
-		case v.LessThan != nil:
-			end = strings.TrimSpace(*v.LessThan)
-		case v.LessThanOrEqual != nil:
-			end, incl = strings.TrimSpace(*v.LessThanOrEqual), true
-		}
-		changedAtEnd := false
-		for _, c := range v.Changes {
-			if strings.TrimSpace(c.At) != end || !strings.EqualFold(strings.TrimSpace(c.Status), "unaffected") || incl {
-				return nil, false, false // a status change inside the range (a hotfix): holes
-			}
-			changedAtEnd = true
-		}
-		r := Range{VersionType: recordWord(vt)}
-		if !bounded {
-			switch w := strings.ToLower(start); {
-			case saysNothing[w]:
-				continue // "n/a", "unspecified": no version to compare
-			case everyVersion[w]:
-				rows = append(rows, r) // "all versions": every version, as the CNA says
-				spans = append(spans, cnaSpan{})
-				continue
-			case !cnaVersionOK(start) || start == "0":
-				return nil, false, false
-			}
-			r.StartIncl, r.EndIncl = start, start
-			rows = append(rows, r)
-			spans = append(spans, cnaSpan{start: start, end: start, incl: true})
-			continue
-		}
-		switch {
-		case end == "*": // "and every later version"
-			end = ""
-		case !cnaVersionOK(end):
+		noted, ok := recordNotation(a, v) // a CNA's own notation inside the fields (cverecord_notation.go)
+		if !ok {
 			return nil, false, false
-		case incl:
-			r.EndIncl = end
-		default:
-			r.EndExcl = end
-			if changedAtEnd {
-				r.Fixed = end
-			}
 		}
-		switch strings.ToLower(start) {
-		case "", "0", "*", "n/a", "unspecified": // "affected below the end"
-			start = ""
-		default:
-			if !cnaVersionOK(start) {
-				return nil, false, false
+		for _, n := range noted {
+			start, end, incl, bounded := n.start, n.end, n.incl, n.bounded
+			changedAtEnd := false
+			for _, c := range v.Changes {
+				if withoutProduct(strings.TrimSpace(c.At), a) != end || !strings.EqualFold(strings.TrimSpace(c.Status), "unaffected") || incl {
+					return nil, false, false // a status change inside the range (a hotfix): holes
+				}
+				changedAtEnd = true
 			}
-			r.StartIncl = start
-		}
-		if start != "" && end != "" { // a reversed, empty or unordered range is a typo, not data
-			c, ok := cmpLead(start, end)
-			if ok && c == 0 && start != end && letterBranch(start, end) && (reads == nil || !reads(start, end, incl)) {
-				partial = true // one letter-release branch ("1.1.1" to "1.1.1zk"): this version is left out, not the entry
+			r := Range{VersionType: recordWord(vt)}
+			if !bounded {
+				switch w := strings.ToLower(start); {
+				case saysNothing[w]:
+					continue // "n/a", "unspecified": no version to compare
+				case everyVersion[w]:
+					rows = append(rows, r) // "all versions": every version, as the CNA says
+					spans = append(spans, cnaSpan{})
+					continue
+				case !cnaVersionOK(start) || start == "0":
+					return nil, false, false
+				}
+				r.StartIncl, r.EndIncl = start, start
+				rows = append(rows, r)
+				spans = append(spans, cnaSpan{start: start, end: start, incl: true})
 				continue
 			}
-			if !ok || c > 0 || c == 0 && (start != end || !incl) { // equal numbers, other texts ("3.0.5-h2" to "3.0.5-h1"): no order to trust
+			switch {
+			case end == "*": // "and every later version"
+				end = ""
+			case !cnaVersionOK(end):
 				return nil, false, false
+			case incl:
+				r.EndIncl = end
+			default:
+				r.EndExcl = end
+				if changedAtEnd {
+					r.Fixed = end
+				}
 			}
+			switch strings.ToLower(start) {
+			case "", "0", "*", "n/a", "unspecified": // "affected below the end"
+				start = ""
+			default:
+				if !cnaVersionOK(start) {
+					return nil, false, false
+				}
+				if n.startExcl {
+					r.StartExcl = start
+				} else {
+					r.StartIncl = start
+				}
+			}
+			if start != "" && end != "" { // a reversed, empty or unordered range is a typo, not data
+				c, ok := cmpLead(start, end)
+				if ok && c == 0 && start != end && !n.startExcl && letterBranch(start, end) && (reads == nil || !reads(start, end, incl)) {
+					partial = true // one letter-release branch ("1.1.1" to "1.1.1zk"): this version is left out, not the entry
+					continue
+				}
+				if !ok || c > 0 || c == 0 && (start != end || !incl || n.startExcl) { // equal numbers, other texts ("3.0.5-h2" to "3.0.5-h1"): no order to trust
+					return nil, false, false
+				}
+			}
+			rows = append(rows, r)
+			spans = append(spans, cnaSpan{start: start, end: end, incl: incl})
 		}
-		rows = append(rows, r)
-		spans = append(spans, cnaSpan{start: start, end: end, incl: incl})
 	}
 	for _, f := range fixed { // an unaffected version inside an affected range: a backported fix the rows cannot say
 		for _, sp := range spans {

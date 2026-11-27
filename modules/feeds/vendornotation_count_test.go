@@ -209,11 +209,13 @@ func auditNotations(t *testing.T) notationAudit {
 
 // The counts of this reader. Before it, the reader dropped all 115 refused products: no row kept, none read by a scheme; the 139 CNA
 // rows of recordSkipVendors' vendors (all Microsoft's in this sample) were stored and read by no view, as they still are.
+// Before the record notations were read (cverecord_notation.go): 115 refused products, 650 rows, 86 display-only; the 16 read
+// since are GitHub's comparators ("< 1.84.0", ">= 1.1.0, < 1.3.21") and Zyxel's ("<= 2.90(ABTQ.1)C0").
 const (
-	notationRefused      = 115
-	notationRefusedRows  = 650
+	notationRefused      = 99
+	notationRefusedRows  = 633
 	notationSchemeRows   = 62
-	notationDisplayOnly  = 86
+	notationDisplayOnly  = 70
 	notationDropped      = 17
 	notationSkipVendors  = 0
 	notationSkipRows     = 139

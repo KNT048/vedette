@@ -113,6 +113,17 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   are read. Only where the product's version scheme cannot read that range: a product whose scheme reads it keeps the rule before
   (its rows kept as the vendor states them, which the scheme reads). `TestParseCVERecord_Ranges`,
   `TestEntryRows_LetterBranchOnlyWhereTheSchemeCannotReadIt`.
+  A version a CNA writes in a notation of its own inside the version fields is read into the bounds the fields would give
+  (`recordNotation`): GitHub's advisory comparators in `version` ("= 8.9.6.1", "< 8.9.6.4", ">= 2.0, < 2.3.1"; `=`, `<`, `<=`,
+  `>`, `>=`, two clauses joined by a comma are both required, at most one lower and one upper bound); the entry's product name in
+  front of a version ("openssl-1.1.0", "iOS 12.3", an npm package "@scope/product"), never another name and never before a range
+  written with a hyphen ("Tika 1.0-1.23"); a list after lessThan
+  (lessThanOrEqual) with one release per release train, trains strictly up as written ("1.20.4,2.0.2") or strictly down in a
+  list of three or more ("1.46.0, 1.45.4, 1.43.9"): one row per train, each later one
+  from the train after the one before it, so an unlisted train between two listed ones stays affected; an item that is its train's
+  first release ("1.46.0" after "1.45.4") gives no row after lessThan and that one release after lessThanOrEqual. A list whose items
+  are not plain dotted numbers of one length on trains in that order ("10.0.111, 10.0.400": .NET writes the SDK's numbers on the
+  runtime; two items newest first, "3.11.4, 3.2.0", can be two products' releases; "2.4.9, 2.4.8-p5") and any other text keeps the product unusable, as before. `TestParseCVERecord_RecordNotation`.
   For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",
   and that no reader of affected ranges reads (`RangeScheme` refuses them; `StatementScheme` reads them): a range the vendor states
   unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`), which holds for every device: kept only beside

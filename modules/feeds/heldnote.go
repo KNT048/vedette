@@ -30,6 +30,8 @@ var heldNotes = map[string]func(context.Context, *sql.Tx) (string, error){
 	alpineOSVFeedID:     heldDistro(alpineOSVFeedID),
 	winRelFeedID:        heldWinRel,
 	pocGitHubFeedID:     heldPoC,
+	nodeLineFeedID:      func(ctx context.Context, tx *sql.Tx) (string, error) { return lineHeld(ctx, tx, nodeLineFeedID) },
+	eolFeedID:           func(ctx context.Context, tx *sql.Tx) (string, error) { return supportHeld(ctx, tx, eolFeedID) },
 }
 
 // heldFrom names, for each feed of heldNotes, the feeds whose data its sentence counts. That data is written only by a pull of one
@@ -44,6 +46,8 @@ var heldFrom = map[string][]string{
 	alpineOSVFeedID:     {alpineOSVFeedID, kevFeedID, vulnCheckFeedID},
 	winRelFeedID:        {winRelFeedID},
 	pocGitHubFeedID:     {pocGitHubFeedID},
+	nodeLineFeedID:      {nodeLineFeedID, nvdFeedID, recentFeedID, cveOrgFeedID}, // the catalogue's pruning drops statements of CVEs it no longer keeps
+	eolFeedID:           {eolFeedID},
 }
 
 // heldCache keeps each feed's sentence with the key it was counted under: a distribution feed's count reads every row of the feed

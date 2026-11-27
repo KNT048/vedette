@@ -1,0 +1,9 @@
+{
+ "_about": "Vendor sources that state, per release line of a product, whether a CVE affects the line (the feeds module's line sources), and how each is read. sources: source (the built-in feed id), products (catalogue product ids the source speaks for), listed (what a row states: semver_range = a vulnerable and a patched semver range per release line), absent (what a release line the source does not list for a CVE it covers means: unaffected_if_supported = not affected when the vendor supported the line on the day the CVE was published, by the product's line support; unknown = nothing), ref (where the vendor describes the data). support: sources of line support only (release, end of support), never of a CVE verdict: source (the built-in feed id) and products (catalogue product id: the product's name at that source). Read by modules/feeds and checked by its tests; a vendor's convention is data, never code.",
+ "sources": [
+  {"source": "nodejs-security-wg", "products": ["nodejs"], "listed": "semver_range", "absent": "unaffected_if_supported", "ref": "https://github.com/nodejs/security-wg/tree/main/vuln/core"}
+ ],
+ "support": [
+  {"source": "endoflife-date", "products": {"nodejs": "nodejs"}}
+ ]
+}

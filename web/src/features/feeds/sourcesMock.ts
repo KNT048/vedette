@@ -29,6 +29,9 @@ const DEFS: Def[] = [
   // Alpine says which apk release fixes an exploited CVE, per branch (OSV.dev's conversion of Alpine's secdb); fetched only while a device states Alpine
   { id: 'alpine-osv', name: 'Alpine fixed versions', kind: 'vulnerabilities', format: 'json', url: 'https://osv-vulnerabilities.storage.googleapis.com/Alpine/all.zip', license: 'CC BY-SA 4.0, Alpine Linux security database, converted by OSV.dev.', records: 1472 },
   { id: 'windows-releases', name: 'Windows releases', kind: 'vulnerabilities', format: 'lines', url: 'https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information', license: "Facts from Microsoft's public Windows release information pages, Microsoft Terms of Use. Not endorsed by Microsoft.", records: 6 },
+  // Vendor statements per release line (which lines a CVE affects), and release-line support dates (never a CVE verdict)
+  { id: 'nodejs-security-wg', name: 'Node.js release lines', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/nodejs/security-wg/main/vuln/core/index.json', license: 'MIT, Node.js security working group (nodejs/security-wg). Facts only: CVE ids and the affected and patched release lines.', records: 186 },
+  { id: 'endoflife-date', name: 'endoflife.date release support', kind: 'vulnerabilities', format: 'json', url: 'https://endoflife.date/api/v1/products/full', license: 'MIT, endoflife.date. Facts only: release lines and their support dates; never a CVE verdict.', records: 23 },
   { id: 'nuclei-templates', name: 'nuclei-templates', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json', license: 'MIT', records: 3920 },
   // Public-exploit indexes: facts only (CVE id, date, link, star and author counts), never exploit code
   { id: 'metasploit', name: 'Metasploit modules', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/rapid7/metasploit-framework/master/db/modules_metadata_base.json', license: 'BSD-3-Clause, Rapid7 metasploit-framework module metadata. Facts only; no module code is fetched.', records: 3215 },
@@ -73,6 +76,8 @@ const HELD: Record<string, string> = {
   'ubuntu-osv': 'Counts one record per package, release and CVE: 312 exploited CVEs and 1,204 other CVEs of the packages your devices run.',
   'ubuntu-vex': 'Counts one record per package, release and CVE: 401 exploited CVEs.',
   'alpine-osv': 'Counts one record per package, release and CVE: 288 exploited CVEs.',
+  'nodejs-security-wg': 'Per release line, 160 catalogue CVEs (412 line statements).',
+  'endoflife-date': 'Support dates of 23 release lines; used only to tell which lines a vendor still assesses, never as a CVE verdict.',
   'windows-releases': "6 Windows releases on Microsoft's release information pages, with 412 monthly updates, the newest of 11 Nov 2026.",
 }
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {

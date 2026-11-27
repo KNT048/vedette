@@ -513,7 +513,43 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	if err := a.withSchemed(ctx, out); err != nil {
 		return nil, err
 	}
+	if err := a.withLines(ctx, out); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// withLines adds to each entry of vulns what the vendor line sources that are on state about its CVE (findings M-13): the rows per
+// release line, the products they speak about it for (with the source's convention and freshness) and the support of those
+// products' lines. An entry no line source speaks about is left without any.
+func (a findingsFeeds) withLines(ctx context.Context, vulns []findings.Vuln) error {
+	at := make(map[string]int, len(vulns))
+	cves := make([]string, len(vulns))
+	for i, v := range vulns {
+		cves[i], at[v.CVE] = v.CVE, i
+		vulns[i].Lines, vulns[i].LineCovers, vulns[i].LineSupport = nil, nil, nil // a copy of a cached entry shares its slices
+	}
+	rows, covers, support, err := a.st.LineData(ctx, cves, time.Now())
+	if err != nil {
+		return err
+	}
+	sup := map[string][]findings.LineSupport{}
+	for _, l := range support {
+		sup[l.Product] = append(sup[l.Product], findings.LineSupport{Source: l.Source, Product: l.Product, Line: l.Line, Released: l.Released, AssessedUntil: l.AssessedUntil})
+	}
+	for _, c := range covers {
+		i := at[c.CVE]
+		vulns[i].LineCovers = append(vulns[i].LineCovers, findings.LineCover{Source: c.Source, Product: c.Product, Ref: c.Ref, StatedAt: c.StatedAt, Absent: c.Absent, Stale: c.Stale})
+		if !slices.ContainsFunc(vulns[i].LineSupport, func(l findings.LineSupport) bool { return l.Product == c.Product }) {
+			vulns[i].LineSupport = append(vulns[i].LineSupport, sup[c.Product]...)
+		}
+	}
+	for _, r := range rows {
+		i := at[r.CVE]
+		vulns[i].Lines = append(vulns[i].Lines, findings.LineRow{Source: r.Source, Product: r.Product, Line: r.Line, Status: r.Status,
+			Introduced: r.Introduced, LastAffected: r.LastAffected, Fixed: r.Fixed, Explicit: r.Explicit, Platforms: r.Platforms})
+	}
+	return nil
 }
 
 // catalogueEntries is MatchSet's part beyond the exploited lists (listed): the catalogue CVEs the scope reaches, each once.
@@ -546,7 +582,17 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	if err != nil {
 		return nil, err
 	}
-	for _, c := range slices.Concat(schemeCVEs, distroCVEs) {
+	var lineProducts []string // the catalogue products of the scope a vendor line source may speak about
+	for _, key := range feeds.LineProducts() {
+		if p, ok := productid.ByKey(key); ok && scope.Keep(p.Vendor, p.Product, false) {
+			lineProducts = append(lineProducts, key)
+		}
+	}
+	lineCVEs, err := a.st.LineCVEs(ctx, lineProducts)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range slices.Concat(schemeCVEs, distroCVEs, lineCVEs) {
 		reached[c] = true
 	}
 	var pins []string

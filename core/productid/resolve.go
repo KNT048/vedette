@@ -208,6 +208,18 @@ func (p Product) Line(version string) string {
 	return ""
 }
 
+// Canonical is version in the vendor's own notation: the rewrite of the first VersionMap row whose expression matches it, else the
+// version as reported ("8.0.4910.10" -> "1.8.0_491" for Java on Windows). Read before Line by the matcher's line verdicts.
+func (p Product) Canonical(version string) string {
+	v := strings.TrimSpace(version)
+	for _, m := range p.VersionMap {
+		if sub := m.re.FindStringSubmatchIndex(v); sub != nil {
+			return string(m.re.ExpandString(nil, m.to, v, sub))
+		}
+	}
+	return v
+}
+
 // leadingNumbers is the dotted numbers a version starts with ("8.0.19-1ubuntu1" -> 8, 0, 19), without leading zeros.
 func leadingNumbers(v string) []string {
 	var out []string

@@ -128,6 +128,17 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   older than the one it would read, at most once per 24 hours (the start time is kept in `feeds_nvd_cursor`, row `cve_record_own`, so a
   restart does not reset it), through the same download, rate and fetch log as any whole-list read; that read stamps the CVEs the list
   does not hold, so they start no second one.
+- **INV-40** Vendor statements per release line come from line sources declared in `content/catalog/line-sources.json` (the feed, its
+  catalogue products, what a listed row states and what a line it does not list means: `unaffected_if_supported` or `unknown`), never
+  from per-product code. The Node.js security working group's index (`nodejs-security-wg`) is read into `feeds_line_cve` (the source
+  speaks about the CVE for the product, with the day of its statement and the advisory link) and `feeds_line_status` (one row per
+  release line its vulnerable range names: from the start it gives, up to the release its patched range gives for that line; limited to
+  the platforms the entry names). An entry whose ranges do not read, name one line twice or disagree is dropped whole and counted, never
+  stored in part. Only catalogue CVEs are kept (INV-34; the catalogue's pruning drops the rest), and a statement that did not change keeps
+  its day, so an unchanged index changes nothing for findings. endoflife.date (`endoflife-date`) fills `feeds_line_support` (release day,
+  end of security support, latest release) of the products the file names, and is never a CVE verdict. `LineData` gives findings the
+  rows, covers and support of the sources that are on; a cover is `Stale` when its source is more than a day past its interval.
+  `TestParseNodeLines_Count`, `TestParseNodeLines_FailsClosed`, `TestParseEOL_Count`, `TestLineSourcesPull`.
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
   the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the

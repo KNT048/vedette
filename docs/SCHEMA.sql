@@ -597,6 +597,43 @@ CREATE INDEX feeds_signal_kind_idx ON feeds_signal (kind, qualifies, cve);
 
 CREATE INDEX feeds_signal_source_idx ON feeds_signal (source, kind);
 
+CREATE TABLE feeds_line_cve (
+    source_id TEXT NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
+    product   TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 60),
+    cve       TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    stated_at TEXT NOT NULL CHECK (stated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    ref       TEXT NOT NULL DEFAULT '' CHECK (length(ref) <= 500),
+    PRIMARY KEY (source_id, product, cve)
+) WITHOUT ROWID;
+
+CREATE INDEX feeds_line_cve_cve_idx ON feeds_line_cve (cve);
+
+CREATE TABLE feeds_line_status (
+    source_id     TEXT    NOT NULL,
+    product       TEXT    NOT NULL,
+    cve           TEXT    NOT NULL,
+    line          TEXT    NOT NULL CHECK (length(line) BETWEEN 1 AND 40),
+    status        TEXT    NOT NULL CHECK (status IN ('affected', 'fixed', 'unaffected', 'hidden')),
+    introduced    TEXT    NOT NULL DEFAULT '' CHECK (length(introduced) <= 100),
+    last_affected TEXT    NOT NULL DEFAULT '' CHECK (length(last_affected) <= 100),
+    fixed         TEXT    NOT NULL DEFAULT '' CHECK (length(fixed) <= 100),
+    explicit      INTEGER NOT NULL CHECK (explicit IN (0, 1)),
+    platforms     TEXT    CHECK (platforms IS NULL OR (json_valid(platforms) AND json_type(platforms) = 'array')),
+    PRIMARY KEY (source_id, product, cve, line),
+    FOREIGN KEY (source_id, product, cve) REFERENCES feeds_line_cve (source_id, product, cve) ON DELETE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE feeds_line_support (
+    product        TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 60),
+    line           TEXT NOT NULL CHECK (length(line) BETWEEN 1 AND 40),
+    source_id      TEXT NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
+    released       TEXT NOT NULL CHECK (released GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    assessed_until TEXT CHECK (assessed_until IS NULL OR assessed_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    eol            TEXT CHECK (eol IS NULL OR eol GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    last_release   TEXT CHECK (last_release IS NULL OR last_release GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    PRIMARY KEY (product, line, source_id)
+) WITHOUT ROWID;
+
 -- module inventory
 
 CREATE TABLE inv_observation (

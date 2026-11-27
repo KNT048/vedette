@@ -268,7 +268,9 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 	}
 	d.Fix = FixOf(a, l.sw, v)
 	if d.Basis != DetectScan && d.Basis != DetectPackage {
-		if r, ok := schemeJudge(a, l.sw, swInfoOn(l.sw, a), v); ok && r.origin != "" { // the vendor's rows decided it
+		if lineJudge(a, l.sw, swInfoOn(l.sw, a), v).decides() { // a vendor's release-line statement decided it (M-13)
+			d.RangeOrigin = RangeVendorLine
+		} else if r, ok := schemeJudge(a, l.sw, swInfoOn(l.sw, a), v); ok && r.origin != "" { // the vendor's rows decided it
 			d.RangeOrigin = r.origin
 		}
 	}

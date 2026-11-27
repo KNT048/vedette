@@ -595,7 +595,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(j.Ports) > 0 && kind != nmapargv.PortVersions && kind != nmapargv.External && kind != nmapargv.ExternalDisruptive {
+	if len(j.Ports) > 0 && kind != nmapargv.PortVersions && kind != nmapargv.External && kind != nmapargv.ExternalDisruptive && kind != nmapargv.ExternalFull {
 		return nil, fmt.Errorf("a %s job carries no ports", j.Shape)
 	}
 	batch := kind == nmapargv.External && len(j.Ports) > 0 // an external -sV batch: its ports and its host timeout
@@ -620,7 +620,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if batch {
 		argv, err = nmapargv.BuildBatch(j.Rate, j.Ports, time.Duration(j.HostTimeoutS)*time.Second, targets)
 	} else {
-		argv, err = nmapargv.BuildNarrow(kind, j.Rate, j.Ports, n, targets) // port_versions: its 1..20 ports; external_disruptive: its 1..40
+		argv, err = nmapargv.BuildNarrow(kind, j.Rate, j.Ports, n, targets) // port_versions: its 1..20 ports; external_disruptive and external_full on open ports: 1..40
 	}
 	if err != nil {
 		return nil, err
@@ -648,7 +648,7 @@ func (w *Worker) beat(ctx context.Context) {
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true, Narrow: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil,
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true, Narrow: full, FullPorts: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil,
 		OwnProof: true} // core's proof of the box's own IP is read by the own-IP fence of every external and own_ip job
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {

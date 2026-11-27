@@ -27,10 +27,13 @@ import (
 // (a verified, committed, current IP target), not the LAN scope's: the LAN settings, window and scope do not apply, and nothing
 // is written to the inventory. What holds: one nmap at a time on the box (runMu), the own-IP fence right before the job is handed
 // out (and again in the worker), the probe row before the job (INV-9, LEGAL §3), the XML limits (INV-7) and a tighter port bound.
-// A target whose testing terms are accepted gets the deep scan instead (sensor-active INV-19): nmapargv.ExternalFull, every TCP
-// port with nmap's reviewed scripts, sent only after core's DeepGate said the terms still allow it; when the run allows the
-// disruptive checks, nmapargv.ExternalDisruptive is its last step (ScanDisruptive): the disruptive scripts on the open ports the full
-// run found, sent only after DeepGate said the terms still allow them.
+// A target whose testing terms are accepted gets the deep scan instead (sensor-active INV-19), each run sent only after core's
+// DeepGate said the terms still allow it: the port scan of every TCP port (nmapargv.ExternalFullPorts, ScanFullPortsWith), then -sV
+// and nmap's reviewed scripts on the open ports it found (nmapargv.ExternalFull with a port list, ScanFullOnWith; exposure leaves
+// out the ports the target's settings skip and those its own network answers, and runs nothing when none is left). A worker that
+// does not say full_ports gets the one ExternalFull run on every port instead (ScanExternalWith), as before. When the run allows the
+// disruptive checks, nmapargv.ExternalDisruptive is its last step (ScanDisruptive): the disruptive scripts on the open ports the
+// full run found.
 
 // KindExternal is the kind of the scan events of a service scan for exposure.
 const KindExternal = "external"
@@ -59,6 +62,9 @@ var (
 	// ErrNarrowUnsupported: the worker's latest heartbeat does not say it runs a target's deep-scan settings (nmap.narrow): a line
 	// narrowed by them, or at the gentle rate, is not sent (never the wider line instead).
 	ErrNarrowUnsupported = errors.New("sensoractive: the scan container's worker is older and does not run a target's deep-scan settings")
+	// ErrFullPortsUnsupported: the worker's latest heartbeat does not say it runs a deep scan in two runs (nmap.full_ports: an
+	// older worker, while an update runs). Nothing was sent: the caller runs the one full run on every port instead.
+	ErrFullPortsUnsupported = errors.New("sensoractive: the scan container's worker is older and runs the deep scan in one run")
 	// ErrPortsUnsupported: the worker is older and takes no port list, so the -sV follow-up of the weekly scan of every
 	// port is not sent (its open ports are recorded without versions).
 	ErrPortsUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no port_versions job")
@@ -193,12 +199,25 @@ func batchTimeout(left time.Duration) (time.Duration, bool) {
 	return h, h >= nmapargv.BatchMinTimeout
 }
 
-// boundsOf is the time a run of kind needs and its bound without a deadline.
-func boundsOf(kind nmapargv.Kind) (need, run time.Duration) {
-	if kind == nmapargv.ExternalDisruptive {
+// fullListNeed is the least time the full line on open ports needs; fullPortsNeed that of the deep scan's port scan, which also
+// keeps room for the run on open ports after it (core's checks before it included): a port scan whose follow-up cannot fit is not
+// started.
+const (
+	fullListNeed  = externalStep + nmapargv.FullListHostTimeout
+	fullPortsNeed = externalStep + nmapargv.FullPortsHostTimeout + coreFenceTime + fullListNeed
+)
+
+// boundsOf is the time a run of kind needs and its bound without a deadline; ports are the run's port list (ExternalFull on open
+// ports has one).
+func boundsOf(kind nmapargv.Kind, ports []int) (need, run time.Duration) {
+	switch {
+	case kind == nmapargv.ExternalDisruptive:
 		return externalStep + nmapargv.DisruptiveHostTimeout, disruptiveRun
-	}
-	if kind.IsFull() {
+	case kind == nmapargv.ExternalFullPorts: // without a deadline, the deep step's bound: both runs fit
+		return fullPortsNeed, fullRun
+	case kind == nmapargv.ExternalFull && len(ports) > 0:
+		return fullListNeed, nmapargv.FullListHostTimeout + 10*time.Minute
+	case kind.IsFull():
 		return fullNeed, fullRun
 	}
 	return externalNeed, externalRun
@@ -275,6 +294,39 @@ func (s *Service) ScanExternalWith(ctx context.Context, ip netip.Addr, kind nmap
 	return s.scanExternal(ctx, ip, kind, nil, st, own, nil)
 }
 
+// FullPortsProber is implemented by a Prober that can say whether its worker runs a deep scan in two runs (*Dispatcher: the
+// heartbeat's nmap.full_ports). A Prober without it runs nmap here with this build's grammar, which knows both runs.
+type FullPortsProber interface {
+	RunsFullPorts() bool
+}
+
+// runsFullPorts says the deep scan's two runs can be sent.
+func (s *Service) runsFullPorts() bool {
+	p, ok := s.prober.(FullPortsProber)
+	return !ok || p.RunsFullPorts()
+}
+
+// ScanFullPortsWith is the first run of a deep scan of ip, the box's own verified public IP: the port scan of every TCP port
+// (nmapargv.ExternalFullPorts) under the target's settings (its skipped ports; the gentle rate), behind the same fences as every full
+// run. Its result holds the open ports (Services, named by nmap's port table only: no -sV ran), Ports (65535 less the skipped ones)
+// and Refused; more than commonports.MaxBelievableOpen open is ErrAnswersEverywhere. A worker that does not run the two runs gets
+// nothing (ErrFullPortsUnsupported, before the slot).
+func (s *Service) ScanFullPortsWith(ctx context.Context, ip netip.Addr, st DeepSettings, own OwnEgress) (External, error) {
+	return s.scanExternal(ctx, ip, nmapargv.ExternalFullPorts, nil, st, own, nil)
+}
+
+// ScanFullOnWith is the second run of a deep scan of ip: -sV and the reviewed scripts of the groups st allows (nmapargv.ExternalFull)
+// on ports, the open ports the port scan found (1..commonports.MaxBelievableOpen, ascending; a port st skips is left out, and none
+// left is an error: the caller does not start the run then). Same fences; its result is the full run's on those ports (Probed:
+// ports).
+func (s *Service) ScanFullOnWith(ctx context.Context, ip netip.Addr, ports []int, st DeepSettings, own OwnEgress) (External, error) {
+	ports = slices.DeleteFunc(slices.Clone(ports), st.skips)
+	if len(ports) == 0 {
+		return External{}, errors.New("sensoractive: the full run on open ports needs at least one port")
+	}
+	return s.scanExternal(ctx, ip, nmapargv.ExternalFull, ports, st, own, nil)
+}
+
 // ScanDisruptive is the last step of a deep scan of ip, the box's own verified public IP, whose run allows the disruptive checks:
 // nmapargv.ExternalDisruptive on ports, the open TCP ports the scan's full run found (1..commonports.MaxBelievableOpen). The same
 // fences as ScanExternal of a full shape: own's own-IP check and its DeepGate right before the job is handed out (the terms must
@@ -315,6 +367,18 @@ func (s *Service) ScanDomainIP(ctx context.Context, ip netip.Addr, kind nmapargv
 
 // ScanDomainIPWith is ScanDomainIP narrowed by a target's deep-scan settings.
 func (s *Service) ScanDomainIPWith(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, st DeepSettings, d DomainIP, gate DeepGate) (External, error) {
+	return s.ScanDomainIPOn(ctx, ip, kind, nil, st, d, gate)
+}
+
+// ScanDomainIPOn is ScanDomainIPWith of one of a deep scan's two runs: kind nmapargv.ExternalFullPorts (no ports), or
+// nmapargv.ExternalFull on ports, the open ports the port scan found (a port st skips left out); nil ports with ExternalFull is
+// the one run on every port.
+func (s *Service) ScanDomainIPOn(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, st DeepSettings, d DomainIP, gate DeepGate) (External, error) {
+	if ports != nil {
+		if ports = slices.DeleteFunc(slices.Clone(ports), st.skips); len(ports) == 0 || kind != nmapargv.ExternalFull {
+			return External{}, fmt.Errorf("sensoractive: a domain_ip run on open ports is %s on at least one port", nmapargv.ExternalFull.Name())
+		}
+	}
 	if !kind.IsFull() {
 		return External{}, fmt.Errorf("sensoractive: a domain_ip run is a full shape, not %s", kind.Name())
 	}
@@ -324,7 +388,7 @@ func (s *Service) ScanDomainIPWith(ctx context.Context, ip netip.Addr, kind nmap
 	if kind == nmapargv.ExternalDisruptive {
 		return External{}, fmt.Errorf("sensoractive: a domain_ip run is %s, never the disruptive scripts", nmapargv.ExternalFull.Name())
 	}
-	return s.scanExternal(ctx, ip, kind, nil, st, domainGate{gate}, &d)
+	return s.scanExternal(ctx, ip, kind, ports, st, domainGate{gate}, &d)
 }
 
 // domainGate is the OwnEgress of a domain_ip run: never asked (probeExternal skips it), its DeepGate is the caller's.
@@ -343,7 +407,10 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	if own == nil {
 		return External{}, ErrNotOwnIP
 	}
-	need, budget := boundsOf(kind)
+	if (kind == nmapargv.ExternalFullPorts || kind == nmapargv.ExternalFull && len(ports) > 0) && !s.runsFullPorts() {
+		return External{}, ErrFullPortsUnsupported // before the slot: the caller runs the one full run instead
+	}
+	need, budget := boundsOf(kind, ports)
 	wait := min(busyWait, left(ctx, budget)-need-coreFenceTime)
 	if wait < 0 {
 		return External{}, ErrNoTime
@@ -353,8 +420,11 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	}
 	got := make(chan External, 1) // the work hands its result over: the caller may stop waiting before the work ends
 	title := "Service scan of " + ip.String() + " for External exposure"
-	if kind == nmapargv.ExternalDisruptive {
+	switch kind {
+	case nmapargv.ExternalDisruptive:
 		title = "Disruptive nmap scripts on " + ip.String() + " for External exposure"
+	case nmapargv.ExternalFullPorts:
+		title = "Port scan of every TCP port of " + ip.String() + " for External exposure"
 	}
 	err := s.doWork(ctx, run.Spec{Kind: RunService, Title: title, Trigger: run.Event,
 		TriggerNote: "an exposure scan", Subject: &run.Subject{Kind: "address", ID: ip.String(), Label: ip.String()}},
@@ -443,7 +513,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 			return External{}, err
 		}
 	}
-	need, run := boundsOf(kind)
+	need, run := boundsOf(kind, ports)
 	if left(ctx, run) < need {
 		return External{}, ErrNoTime
 	}
@@ -918,7 +988,7 @@ func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, 
 	args, err := nmapargv.BuildNarrow(kind, rate, nil, n, targets)
 	flags, ferr := nmapargv.FlagsNarrow(kind, rate, nil, n)
 	switch {
-	case kind == nmapargv.ExternalDisruptive: // the disruptive scripts of the groups allowed on the full run's open ports
+	case kind == nmapargv.ExternalDisruptive, kind == nmapargv.ExternalFull && b.ports != nil: // the scripts on the open ports found
 		args, err = nmapargv.BuildNarrow(kind, rate, b.ports, n, targets)
 		flags, ferr = nmapargv.FlagsNarrow(kind, rate, b.ports, n)
 	case b.ports != nil:
@@ -1127,8 +1197,9 @@ func externalServicesOf(h host) []ExternalService {
 	return out
 }
 
-// externalOf reads the result of a full run (every TCP port, -p-; the disruptive scripts' run: ports only): the services of its open
-// ports (more than commonports.MaxBelievableOpen is ErrAnswersEverywhere) and its script results (of an open port, or of the host).
+// externalOf reads the result of a full run (every TCP port, -p-; the deep scan's port scan: every TCP port, no -sV, no script; the
+// full line on open ports and the disruptive scripts' run: ports only): the services of its open ports (more than
+// commonports.MaxBelievableOpen is ErrAnswersEverywhere) and its script results (of an open port, or of the host).
 // The External shape's two runs are read by discoveryOf and versionsOf.
 // skip are the ports a full run named in --exclude-ports: an answer from one of them is not believed.
 func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports, skip []int) (External, error) {
@@ -1136,7 +1207,7 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports, skip []i
 		return External{}, fmt.Errorf("sensoractive: %s is not a full shape", kind.Name())
 	}
 	asked := func(p int) bool { return p >= 1 && p <= 65535 && !slices.Contains(skip, p) }
-	if kind == nmapargv.ExternalDisruptive {
+	if ports != nil {
 		asked = func(p int) bool { return slices.Contains(ports, p) }
 	}
 	h, err := externalHost(hosts, ip, asked)
@@ -1144,8 +1215,11 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports, skip []i
 		return External{}, err
 	}
 	ext := External{Services: externalServicesOf(h), Ports: 65535 - len(skip), Scripts: []ExternalScript{}, Refused: h.closed > 0}
-	if kind == nmapargv.ExternalDisruptive {
+	if ports != nil {
 		ext.Ports, ext.Probed = len(ports), slices.Clone(ports)
+	}
+	if kind == nmapargv.ExternalFullPorts && len(h.scripts) > 0 { // the port scan runs no script
+		return External{}, fmt.Errorf("%w: a script result of a port scan", errXMLInvalid)
 	}
 	if len(ext.Services) > commonports.MaxBelievableOpen { // A router or SYN proxy answering for every port
 		return External{}, ErrAnswersEverywhere

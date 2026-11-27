@@ -217,7 +217,15 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP`, `TestUnanswered_ResetsAreAnAnswer`, `TestUnanswered_OnlyRowsOfTheNetworkSayNothing`.
 - **INV-43** The deep scan runs its light checks before its heavy ones, so a ban or an overloaded firewall costs only the last
   steps (`scanPlan`, the one source of the order the run page shows): the runner, nmap's sweep of every TCP port with service
-  identification and the reviewed safe scripts (`external_full`; the later steps need the ports and the services), the templates,
+  identification and the reviewed safe scripts (`external_full`; the later steps need the ports and the services; with a scan
+  container that runs it in two runs, `PortsFirstScanner`, the "Find open ports" step is the port scan of every TCP port alone and
+  the service step runs -sV and the scripts only on the open ports it found, without the ports the target's settings skip and those
+  the box's own network answers (INV-44); when none is left the service step is skipped ("Not needed: the port scan found no open
+  TCP port of this address…") and no second run is sent; a port that opens between the two runs is seen by the next scan; a port the port scan found open that the service run then does not
+  see open is neither open nor missed on that scan (no verdict but unknown, never closed on it; the service step is partly done and
+  says so, `TestDeepScanNeverClosesAPortItsPortScanFoundOpen`); an
+  older scan container (`ErrPortsFirstUnsupported`) gets the one run on every port as before; `TestDeepScanWithNoOpenPortSkipsTheServiceStep`,
+  `TestDeepScanReadsOnlyTheTargetsOwnOpenPorts`, `TestDeepScanFallsBackToOneRunOnAnOlderWorker`), the templates,
   ZAP passive, ZAP active, the comparison and the save, OpenVAS, and last nmap's disruptive scripts (`nmap_disruptive`: the dos,
   brute and the login and crash checks, `external_disruptive`) on the open ports the scan found, only when the run allows the
   disruptive checks (a person's scan, the terms include them, the box's own IP not behind carrier-grade NAT, `runMode`), the gate

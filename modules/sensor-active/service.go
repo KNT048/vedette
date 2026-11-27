@@ -756,11 +756,21 @@ func (s *Service) insertProbe(ctx context.Context, runID string, kind nmapargv.K
 }
 
 // insertProbeFlags is insertProbe with the flag part already built (an external -sV batch carries its host timeout).
+// storedShape is the shape a probe row stores for kind: its name, except the deep scan's port scan, which is stored as the deep
+// scan's shape (external_full) it is the first run of; the row's flags say which line ran (INV-9). The shapes the probe log takes
+// are fixed by its schema.
+func storedShape(kind nmapargv.Kind) string {
+	if kind == nmapargv.ExternalFullPorts {
+		return nmapargv.ExternalFull.Name()
+	}
+	return kind.Name()
+}
+
 func (s *Service) insertProbeFlags(ctx context.Context, runID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote, flags []string) (int64, error) {
 	var id int64
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.now(), nullable(runID), kind.Name(), rate, len(targets), strings.Join(append(flags, nmapargv.StatsFlags()...), " "), compactTargets(targets), note.with("started"))
+			s.now(), nullable(runID), storedShape(kind), rate, len(targets), strings.Join(append(flags, nmapargv.StatsFlags()...), " "), compactTargets(targets), note.with("started"))
 		if err != nil {
 			return err
 		}

@@ -183,21 +183,18 @@ func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob, t 
 		}
 		var tmpls []pack.Template
 		var refused []string
-		unknown := 0
+		left := map[string]tplPathVerdict{}
 		for _, cve := range j.CVEs {
 			all := ix.ForCVE(cve)
 			ok := 0
 			for _, tp := range all {
 				pv := templatePathOf(tp, t.SkipPaths)
-				if tp.OwnIP && pv == tplPathSkipped { // under a web path the target skips: left out, not refused
-					ok++
+				if tp.OwnIP && pv != tplPathRuns { // a request under a web path the target skips, or one that could be: left out, not refused
+					left[tp.ID], ok = pv, ok+1
 					continue
 				}
-				if tp.OwnIP && pv != tplPathSkipped && !slices.ContainsFunc(tmpls, func(x pack.Template) bool { return x.ID == tp.ID }) {
+				if tp.OwnIP && !slices.ContainsFunc(tmpls, func(x pack.Template) bool { return x.ID == tp.ID }) {
 					tmpls, ok = append(tmpls, tp), ok+1
-					if pv == tplPathUnknown {
-						unknown++
-					}
 				}
 			}
 			if len(all) > 0 && ok == 0 {
@@ -207,7 +204,7 @@ func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob, t 
 		if len(refused) > 0 {
 			notes = append(notes, fmt.Sprintf(notReadOnly, namesOf(refused), j.Port))
 		}
-		if l := pathsLine(unknown, j.Port, t.SkipPaths); l != "" {
+		if l := pathsLine(left, j.Port, t.SkipPaths); l != "" {
 			notes = append(notes, l)
 		}
 		target := nucleiargv.Target{Host: ip.String(), Port: j.Port, Scheme: j.Scheme}

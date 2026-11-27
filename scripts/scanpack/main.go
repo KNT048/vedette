@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -410,6 +411,9 @@ func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) 
 		cve = firstCVE(info)
 	}
 	t := pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, Sets: sets, OwnIP: ownIP}
+	if strings.HasPrefix(rel, "http/") {
+		t.Requests = requestsOf(doc)
+	}
 	if fs != "" {
 		t.Name, t.Severity = nameOf(info), severityOf(info)
 		t.Generic = fs == pack.SetDeep && genericDir(rel) && !namesProduct(info)
@@ -856,4 +860,132 @@ func requestOf(doc map[string]any) string {
 		line = line[:200]
 	}
 	return line
+}
+
+// requestsOf is pack.Template.Requests of an http template: every request line it can send, in the order of the file, each once.
+// A path: entry is its block's method (GET when none) and the path; a raw request is its request line without the HTTP version. An
+// inline payload or a variable whose value is plain text is put in where a line names it ({{name}}), every value of it, so the
+// list holds every request the payloads make (a superset when the attack pairs them, never less). A line over 200 bytes is cut and
+// ends with cutMark. pack.RequestUnknown stands for what cannot be listed: more than pack.MaxRequests lines, a line that is not
+// printable, a fuzzing block, a block with neither path nor raw, and an unsafe raw block that follows redirects. nuclei runs with
+// -dr, which turns off redirects for its http client, but an unsafe raw request goes through its raw client, which follows them
+// when the block says redirects: true; such a request can reach a path the server names.
+func requestsOf(doc map[string]any) []string {
+	blocks, _ := doc["http"].([]any)
+	vars := map[string][]string{}
+	if vm, ok := doc["variables"].(map[string]any); ok {
+		for k, v := range vm {
+			if s, ok := scalar(v); ok && !strings.Contains(s, "{{") {
+				vars[k] = []string{s}
+			}
+		}
+	}
+	var out []string
+	unknown := len(blocks) == 0
+	add := func(lines []string, ok bool) {
+		if !ok {
+			unknown = true
+			return
+		}
+		for _, l := range lines {
+			if len(l) > 200 { // cut, and the rest marked as built while it runs: core then judges the path by what is kept
+				l = l[:200-len(cutMark)] + cutMark
+			}
+			switch {
+			case !requestRE.MatchString(l):
+				unknown = true
+			case !slices.Contains(out, l):
+				out = append(out, l)
+			}
+		}
+	}
+	for _, b := range blocks {
+		m, ok := b.(map[string]any)
+		if !ok {
+			unknown = true
+			continue
+		}
+		_, fuzz := m["fuzzing"]
+		paths, _ := m["path"].([]any)
+		raws, _ := m["raw"].([]any)
+		if fuzz || len(paths) == 0 && len(raws) == 0 || m["unsafe"] == true && (m["redirects"] == true || m["host-redirects"] == true) {
+			unknown = true
+		}
+		values := maps.Clone(vars)
+		if pm, ok := m["payloads"].(map[string]any); ok {
+			for k, v := range pm {
+				l, _ := v.([]any)
+				for _, e := range l {
+					if s, ok := scalar(e); ok && !slices.Contains(values[k], s) {
+						values[k] = append(values[k], s)
+					}
+				}
+			}
+		}
+		method, _ := m["method"].(string)
+		if method = strings.ToUpper(strings.TrimSpace(method)); method == "" {
+			method = "GET"
+		}
+		for _, p := range paths {
+			ps, ok := p.(string)
+			add(expandLine(method+" "+strings.TrimSpace(ps), values, ok))
+		}
+		for _, r := range raws {
+			rs, _ := r.(string)
+			f := strings.Fields(firstLine(rs))
+			add(expandLine(strings.Join(f[:min(len(f), 2)], " "), values, len(f) >= 2))
+		}
+		if len(out) > pack.MaxRequests {
+			break
+		}
+	}
+	if unknown || len(out) > pack.MaxRequests {
+		out = append(out[:min(len(out), pack.MaxRequests-1)], pack.RequestUnknown)
+	}
+	return out
+}
+
+// cutMark ends a request line cut at 200 bytes: an expression, so core reads what follows the kept part as unknown.
+const cutMark = "{{...}}"
+
+// exprNameRE is a {{name}} expression that names a payload or a variable (no function call, no operator).
+var exprNameRE = regexp.MustCompile(`\{\{\s*([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}`)
+
+// expandLine is line with each {{name}} of values put in, every combination of the values it names; ok false (nothing listed) when
+// ok is false or the combinations are more than pack.MaxRequests.
+func expandLine(line string, values map[string][]string, ok bool) ([]string, bool) {
+	if !ok {
+		return nil, false
+	}
+	out := []string{line}
+	seen := map[string]bool{}
+	for _, sm := range exprNameRE.FindAllStringSubmatch(line, -1) {
+		vs := values[sm[1]]
+		if len(vs) == 0 || seen[sm[0]] {
+			continue // none: built while the template runs, the line keeps it and core cannot tell its path
+		}
+		seen[sm[0]] = true
+		if len(out)*len(vs) > pack.MaxRequests {
+			return nil, false
+		}
+		var next []string
+		for _, l := range out {
+			for _, v := range vs {
+				next = append(next, strings.ReplaceAll(l, sm[0], v))
+			}
+		}
+		out = next
+	}
+	return out, true
+}
+
+// scalar is a YAML string, number or bool as text.
+func scalar(v any) (string, bool) {
+	switch x := v.(type) {
+	case string:
+		return x, true
+	case int, int64, uint64, float64, bool:
+		return fmt.Sprint(x), true
+	}
+	return "", false
 }

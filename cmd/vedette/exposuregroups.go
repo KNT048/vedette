@@ -66,22 +66,35 @@ func groupAllows(m exposure.ScanMode, tp pack.Template) bool {
 
 // tplFilter is what may leave for one port of a deep scan: the template's set at the mode's depth (RunsAt), its group (groupAllows)
 // and the web paths to skip. The planners choose only such templates, so a port's room is never spent on one the send would drop.
+// left, when not nil, collects the templates that only the paths kept out, with their verdict (for pathsLine).
 type tplFilter struct {
 	m     exposure.ScanMode
 	paths []string
+	left  map[string]tplPathVerdict
 }
 
 func (f tplFilter) runs(tp pack.Template) bool {
-	return tp.RunsAt(true, f.m.Disruptive) && groupAllows(f.m, tp) && templatePathOf(tp, f.paths) != tplPathSkipped
+	if !tp.RunsAt(true, f.m.Disruptive) || !groupAllows(f.m, tp) {
+		return false
+	}
+	v := templatePathOf(tp, f.paths)
+	if v != tplPathRuns && f.left != nil {
+		f.left[tp.ID] = v
+	}
+	return v == tplPathRuns
 }
 
-// requestRE is the first request line of a template as the index keeps it: the method, then the URL as written.
+// requestRE is a request line as the index keeps it: the method, then the URL as written.
 var requestRE = regexp.MustCompile(`^[A-Z]+ (\S*)`)
 
-// tplPathVerdict says whether tp's first request goes under one of skip (a URL path prefix): skipped (it does), judged (it does not),
-// or unknown when the path is built while the template runs ({{BaseURL}}{{paths}}, {{path}}, a raw request to {{Host}}:{{Port}}),
-// so it cannot be told. A template outside http/ sends no web path. Only the first request is in the index: a template's later
-// requests are not seen (best effort, as the settings page says).
+// tplPathVerdict says whether a template may run on a target with web paths to skip (URL path prefixes, matched as written): it
+// runs only when every request it can send is known and outside every prefix. Skipped: a request goes under one. Unknown: a
+// request's path is built while the template runs ({{BaseURL}}{{paths}} with no value in the pack, {{randstr}}, a raw request
+// to {{Host}}:{{Port}}, pack.RequestUnknown), so it could go under one; it is left out too (fail closed). The index lists every
+// request of an http template (pack.Template.Requests); an index built before that list has only the first request line, so
+// a template there is unknown unless that line is already under a prefix. A template outside http/ sends no web path. nuclei
+// runs with -dr (no redirect followed), and the builder marks the one exception, an unsafe raw request with redirects: true,
+// as unknown.
 type tplPathVerdict int
 
 const (
@@ -94,7 +107,27 @@ func templatePathOf(tp pack.Template, skip []string) tplPathVerdict {
 	if len(skip) == 0 || !strings.HasPrefix(tp.Path, "http/") {
 		return tplPathRuns
 	}
-	m := requestRE.FindStringSubmatch(tp.Request)
+	if len(tp.Requests) == 0 { // an older index: the later requests are not known
+		if requestPathOf(tp.Request, skip) == tplPathSkipped {
+			return tplPathSkipped
+		}
+		return tplPathUnknown
+	}
+	verdict := tplPathRuns
+	for _, r := range tp.Requests {
+		switch requestPathOf(r, skip) {
+		case tplPathSkipped:
+			return tplPathSkipped
+		case tplPathUnknown:
+			verdict = tplPathUnknown
+		}
+	}
+	return verdict
+}
+
+// requestPathOf is the verdict of one request line against skip.
+func requestPathOf(line string, skip []string) tplPathVerdict {
+	m := requestRE.FindStringSubmatch(line)
 	if m == nil {
 		return tplPathUnknown
 	}
@@ -130,15 +163,34 @@ func templatePathOf(tp pack.Template, skip []string) tplPathVerdict {
 	return tplPathRuns
 }
 
-// notPathUnknown is the line of the templates whose path could not be told against the web paths to skip: they ran.
-const notPathUnknown = "nuclei could not filter %d templates by path on port %d: their first request's path is built while they run, so they ran although this target has web paths to skip (%s)."
+// Lines of the templates the web paths to skip kept out of a port: every one is left out, none is sent.
+const (
+	notPathSkipped = "nuclei left out %d templates on port %d for this target's web paths to skip (%s): each sends a request under one of them."
+	notPathMixed   = "nuclei left out %d templates on port %d for this target's web paths to skip (%s): %d send a request under one of them, %d a request whose path is only built while they run, so it could be under one."
+	notPathUnknown = "nuclei left out %d templates on port %d for this target's web paths to skip (%s): each sends a request whose path is only built while it runs, so it could be under one."
+)
 
-// pathsLine is notPathUnknown for port, "" when n is 0.
-func pathsLine(n, port int, skip []string) string {
-	if n == 0 {
-		return ""
+// pathsLine is the line of the templates left out of port for the web paths to skip, by verdict; "" when there is none.
+func pathsLine(left map[string]tplPathVerdict, port int, skip []string) string {
+	skipped, unknown := 0, 0
+	for _, v := range left {
+		switch v {
+		case tplPathSkipped:
+			skipped++
+		case tplPathUnknown:
+			unknown++
+		}
 	}
-	return fmt.Sprintf(notPathUnknown, n, port, strings.Join(skip, ", "))
+	paths := strings.Join(skip, ", ")
+	switch {
+	case skipped+unknown == 0:
+		return ""
+	case unknown == 0:
+		return fmt.Sprintf(notPathSkipped, skipped, port, paths)
+	case skipped == 0:
+		return fmt.Sprintf(notPathUnknown, unknown, port, paths)
+	}
+	return fmt.Sprintf(notPathMixed, skipped+unknown, port, paths, skipped, unknown)
 }
 
 // groupsOffLine is the line of the disruptive groups this target's settings turned off for nuclei, "" when none.

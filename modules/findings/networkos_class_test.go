@@ -117,8 +117,8 @@ func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 	}
 	// Outcomes that name the cases this test was written for.
 	named := map[[2]string]string{
-		{"JUNOS 15.1R7.9", "CVE-2015-5477"}:        "unchecked:not_comparable", // "15.1:r": the device's own release, no number
-		{"JUNOS 18.4R3-S1", "CVE-2015-5477"}:       "not_affected",             // after every release NVD lists ("12.1r" too)
+		{"JUNOS 15.1R7.9", "CVE-2015-5477"}:        "unchecked:no_nvd_versions", // "15.1:r": the release is readable, NVD lists none that decides it
+		{"JUNOS 18.4R3-S1", "CVE-2015-5477"}:       "not_affected",              // after every release NVD lists ("12.1r" too)
 		{"JUNOS 23.2R1", "CVE-2015-5477"}:          "not_affected",
 		{"Cisco IOS XE 17.3.1", "CVE-2018-0167"}:   "not_affected",             // "up to 15.2(6)e0a", "up to 15.6.3m1", "5.2.0.base"
 		{"Cisco IOS XE 17.9.4a", "CVE-2023-20273"}: "unchecked:not_comparable", // NVD lists 17.9.4: 17.9.4a may be a rebuild it left out

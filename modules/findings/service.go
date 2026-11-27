@@ -855,6 +855,75 @@ func (s *Service) matchOne(ctx context.Context, assetID, cve string) (Asset, Mat
 // device (else ErrManyDevices). A finding that already has this handling is skipped. One event and one audit row per finding, all
 // or nothing.
 func (s *Service) Handle(ctx context.Context, ids []string, res Resolution, note string, until time.Time, user string) (handled, skipped int, err error) {
+	return s.handle(ctx, ids, res, note, until, user, false)
+}
+
+// HandleConfirmed is Handle after the person saw what still contradicts their "patched" (ErrStillReported) and keeps it.
+func (s *Service) HandleConfirmed(ctx context.Context, ids []string, res Resolution, note string, until time.Time, user string) (handled, skipped int, err error) {
+	return s.handle(ctx, ids, res, note, until, user, true)
+}
+
+// stillReported says the latest match still detects f on a version reading: the version the device (or a banner, or a person's entry)
+// reports now is inside the affected range. A person's "patched" on it contradicts that evidence (contract M-3): it is said once with
+// the evidence, and kept only when the person confirms it (the next reading that still shows the version opens it again).
+func stillReported(f Finding) bool {
+	if !f.Open() || !f.Detected || f.SoftwareID == "" || f.MatchedVersion == "" {
+		return false
+	}
+	switch f.Basis {
+	case DetectDeviceVersion, DetectPackage, DetectBannerVersion, DetectStatement:
+		return true
+	}
+	return false
+}
+
+// stillReportedError names the reading that still shows the affected version, for one finding or several.
+func stillReportedError(fs []Finding) error {
+	f := fs[0]
+	what := "The latest reading"
+	if r := f.Evidence; r != nil && r.Read != nil {
+		switch src := r.Read.Source; {
+		case src == SourceAgent || src == "osquery" || src == "wazuh" || src == "box":
+			what = "The device's agent"
+		case src == SourceSNMP:
+			what = "The device's SNMP answer"
+		case src == "manual":
+			what = "The version entered for it"
+		case f.Basis == DetectDeviceVersion:
+			what = "The device's own announcement"
+		case src != "":
+			what = "The latest " + src + " reading"
+		}
+		if !r.Read.At.IsZero() {
+			what += " (" + orgtime.CalendarDay(r.Read.At) + ")"
+		}
+	}
+	if len(fs) == 1 {
+		return &APIError{"still_reported", 409, fmt.Sprintf("%s still shows %s, inside the affected versions of %s. Mark it patched anyway if the device was updated after that: it opens again if the next reading still shows %s.",
+			what, f.MatchedVersion, f.CVE, f.MatchedVersion)}
+	}
+	return &APIError{"still_reported", 409, fmt.Sprintf("%d of the selected findings are still reported by the device (%s shows %s): %s. Mark them patched anyway if the device was updated after that: they open again if the next reading still shows that version.",
+		len(fs), what, f.MatchedVersion, shortCVEList(fs, stillListMax))}
+}
+
+// stillListMax is how many CVEs one still_reported answer names before "and N more".
+const stillListMax = 5
+
+// shortCVEList names the CVEs of fs, each once, in their order: at most n, then "and N more".
+func shortCVEList(fs []Finding, n int) string {
+	var cves []string
+	for _, f := range fs {
+		if !slices.Contains(cves, f.CVE) {
+			cves = append(cves, f.CVE)
+		}
+	}
+	if len(cves) <= n {
+		return strings.Join(cves, ", ")
+	}
+	return fmt.Sprintf("%s and %d more", strings.Join(cves[:n], ", "), len(cves)-n)
+}
+
+func (s *Service) handle(ctx context.Context, ids []string, res Resolution, note string, until time.Time, user string, confirm bool) (handled, skipped int, err error) {
 	if err := ValidUser(user); err != nil {
 		return 0, 0, err
 	}
@@ -865,6 +934,7 @@ func (s *Service) Handle(ctx context.Context, ids []string, res Resolution, note
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		handled, skipped = 0, 0
 		device := ""
+		var still []Finding
 		for _, id := range uniq {
 			f, err := loadFinding(ctx, tx, id)
 			if err != nil {
@@ -874,6 +944,9 @@ func (s *Service) Handle(ctx context.Context, ids []string, res Resolution, note
 				return ErrManyDevices
 			}
 			device = f.AssetID
+			if res == ResolutionPatched && !confirm && stillReported(f) {
+				still = append(still, f) // said after every other check of the request, and nothing is written
+			}
 			_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrHandle, At: now, Actor: user, Resolution: res, Note: note, Until: until}, emit)
 			if err != nil {
 				return err
@@ -883,6 +956,9 @@ func (s *Service) Handle(ctx context.Context, ids []string, res Resolution, note
 				continue
 			}
 			handled++
+		}
+		if len(still) > 0 {
+			return stillReportedError(still) // the write rolls back
 		}
 		return nil
 	})

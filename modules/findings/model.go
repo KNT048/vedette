@@ -128,9 +128,12 @@ func (f Finding) proofHolds() bool {
 	return f.Verified.sticky() && (f.Verified != VerifiedPerson || !f.byEntry)
 }
 
-// entryConfirms says a detection rests on the version a person entered (basis statement, with the person who entered it): the
-// person's word, so the match records it as confirmed by them (VerifiedPerson), never queued for their confirmation.
-func (d Detection) entryConfirms() bool { return d.Basis == DetectStatement && d.SetBy != "" }
+// entryConfirms says a detection rests on the version a person entered (basis statement, with the person who entered it), or on the
+// distribution package release a person gave (basis package, the distribution's data deciding on that release): the person's word,
+// so the match records it as confirmed by them (VerifiedPerson), never queued for their confirmation.
+func (d Detection) entryConfirms() bool {
+	return (d.Basis == DetectStatement || d.Basis == DetectPackage) && d.SetBy != ""
+}
 
 // DetectionBasis is what a detection rests on (fnd_finding.basis). An open vocabulary.
 type DetectionBasis string

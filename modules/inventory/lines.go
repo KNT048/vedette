@@ -364,8 +364,12 @@ func (s *Service) settleLine(ctx context.Context, tx *sql.Tx, lineID, now string
 		out.kept = kept
 	}
 	if l.state != stateRemoved && (e.Version != l.version || e.PkgVersion != l.pkgVersion) {
-		if err := softwareEvent(ctx, tx, l.assetID, lineID, l.productKey, e.Display, now, "version_changed", releaseText(l.version, l.pkgVersion), releaseText(e.Version, e.PkgVersion), e.Source, e.SetBy); err != nil {
-			return out, err
+		// the history names a release a person can read: a package release equal to the version reads as the version, so a change
+		// that only adds or drops such a copy is no version change to tell ("15.1R7.9 → 15.1R7.9" says nothing)
+		if from, to := releaseText(l.version, l.pkgVersion), releaseText(e.Version, e.PkgVersion); from != to {
+			if err := softwareEvent(ctx, tx, l.assetID, lineID, l.productKey, e.Display, now, "version_changed", from, to, e.Source, e.SetBy); err != nil {
+				return out, err
+			}
 		}
 		out.changed = true
 	}

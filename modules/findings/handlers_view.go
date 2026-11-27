@@ -146,7 +146,11 @@ func (h *FindingHandlers) FindingsPostFindingsHandle(ctx context.Context, req *o
 	} else if !until.IsZero() {
 		return nil, ToAPIError(ErrBadUntil)
 	}
-	n, skipped, err := h.svc.Handle(ctx, ids, res, req.Note, until, p.Email)
+	handle := h.svc.Handle
+	if req.Confirm.Or(false) {
+		handle = h.svc.HandleConfirmed // the person saw what still shows the version (409 still_reported) and keeps "patched"
+	}
+	n, skipped, err := handle(ctx, ids, res, req.Note, until, p.Email)
 	if err != nil {
 		return nil, ToAPIError(err)
 	}

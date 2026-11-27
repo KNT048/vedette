@@ -605,6 +605,26 @@ describe('findings: "I updated <software>" (S-MIT-1, item 14)', () => {
     expect(await within(dlg).findByText('FortiOS 7.4.5 is already on SRV-AD. Remove the older FortiOS on the device page instead.')).toBeInTheDocument()
   })
 
+  it('a version the device itself states otherwise is said back once, and "Save anyway" keeps it', async () => {
+    const sent: unknown[] = []
+    server.use(device('manual'), http.patch('*/api/v1/inventory/devices/:id/software/:sid', async ({ request }) => {
+      const body = await request.json() as { confirm?: boolean }
+      sent.push(body)
+      if (!body.confirm) return HttpResponse.json({ error: { code: 'contradicts_device', message: 'The device itself reports FortiOS 7.2.0 (its SNMP answer, 27 Nov 2026), not 7.4.5.' } }, { status: 409 })
+      findingsStore.update((l) => l.map((f) => (f.id === 'f-3' ? { ...f, status: 'not_relevant' as const, resolved_by: 'system' } : f)))
+      return HttpResponse.json({ ok: true, changed: true })
+    }))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated FortiOS' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
+    await userEvent.type(within(dlg).getByLabelText('New version'), '7.4.5')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
+    expect(await within(dlg).findByText(/^The device itself reports FortiOS 7\.2\.0/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save anyway' }))
+    expect(await within(dlg).findByRole('status')).toHaveTextContent(/^Version 7\.4\.5 saved\./)
+    expect(sent).toEqual([{ version: '7.4.5' }, { version: '7.4.5', confirm: true }])
+  })
+
   it('software a scan reads: the button is "Check this device now" itself, with its busy state, no detour', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'sensor-active' ? { ...m, enabled: true } : m)))
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, enabled: true }, scope_confirmed_at: st.scope_confirmed_at ?? '2026-11-01T00:00:00.000Z' }))

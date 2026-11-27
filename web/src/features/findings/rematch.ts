@@ -49,10 +49,10 @@ export function useSetVersion(assetId: string) {
   const qc = useQueryClient()
   const list = () => api.get<List>(`/findings?asset=${encodeURIComponent(assetId)}`).then((d) => d.items)
   return useMutation({
-    mutationFn: async ({ sid, version, cves }: { sid: string; version: string; cves: string[] }): Promise<Outcome> => {
+    mutationFn: async ({ sid, version, cves, confirm }: { sid: string; version: string; cves: string[]; confirm?: boolean }): Promise<Outcome> => {
       const set = new Set(cves)
       const before = await list()
-      await api.patch(`/inventory/devices/${encodeURIComponent(assetId)}/software/${encodeURIComponent(sid)}`, { version })
+      await api.patch(`/inventory/devices/${encodeURIComponent(assetId)}/software/${encodeURIComponent(sid)}`, { version, ...(confirm ? { confirm: true } : {}) })
       let after = before
       try {
         for (let i = 0; i < POLLS; i++) {

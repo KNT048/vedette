@@ -254,7 +254,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 					}
 					var err error
 					if st.person == "patched" {
-						_, _, err = e.svc.Handle(t.Context(), []string{f.ID}, ResolutionPatched, "", time.Time{}, "pat@example.com")
+						_, _, err = e.svc.HandleConfirmed(t.Context(), []string{f.ID}, ResolutionPatched, "", time.Time{}, "pat@example.com")
 					} else {
 						_, err = e.svc.Reopen(t.Context(), f.ID, "", "pat@example.com")
 					}

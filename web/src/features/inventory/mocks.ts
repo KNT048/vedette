@@ -403,6 +403,12 @@ const sameRelease = (x: { version?: string | null; pkg_version?: string | null }
   const p = upstreamOf(x.pkg_version || x.version || ''), q = upstreamOf(y.pkg_version || y.version || '')
   return !!p && !!q && (p === q || (q.startsWith(p) && /^p\d*$/.test(q.slice(p.length))) || (p.startsWith(q) && /^p\d*$/.test(p.slice(q.length))))
 }
+/** The server's packageLine: a distribution package when the device runs a Linux distribution or a source read the line from a
+ *  package database or with a package release (a person's own entry does not count). */
+const DISTRO_RE = /\b(alpine|ubuntu|debian|raspbian|red ?hat|rhel|centos|rocky|almalinux|oracle linux|fedora|amazon linux|(open)?suse|sles)\b/i
+const packageLine = (a: Asset, g: Software[]) => DISTRO_RE.test(a.os?.value ?? '') || g.some((o) => o.source !== 'manual' && (o.source === 'agent' || !!o.pkg_version))
+/** A package release's own shape says it is one (pkgrel.Release): apk, a distribution's mark, a Debian epoch. */
+const PKG_RELEASE_RE = /-r\d+$|ubuntu|[+~.-]deb\d|\.(el|fc)\d|^\d+:/i
 export function linesOf(a: Asset): SoftwareLine[] {
   const groups = new Map<string, Software[]>()
   for (const s of a.software) { const k = `${s.vendor}|${s.product}`.toLowerCase(); groups.set(k, [...(groups.get(k) ?? []), s]) }
@@ -426,6 +432,7 @@ export function linesOf(a: Asset): SoftwareLine[] {
       set_by: top.source === 'manual' ? (currentUser()?.email ?? '') : '', seen_at: at(top), not_installed: !!marked, also_seen: marked ? [] : also,
       differs: !marked && g.some((o) => o !== top && o !== det && !o.not_installed && o.source !== 'manual' && !sameRelease(top, o)), corrected: !marked && top === corr && disagrees,
       corrected_from: !marked && top === corr && disagrees && det ? { source: det.source, version: det.version ?? '', pkg_version: det.pkg_version ?? '' } : null, can_correct: true,
+      package_line: packageLine(a, g),
       ...(corr ? { correction: { set_at: corr.set_at ?? nowIso(), set_by: currentUser()?.email ?? '', active: true, disagrees, ...(marked ? { not_installed: true } : {}),
         detected: det ? { id: det.id, display: det.display, version: det.version, pkg_version: det.pkg_version ?? null, source: det.source, seen_at: at(det) } : null } } : {}),
     }
@@ -1345,6 +1352,14 @@ export const handlers = [
     if (pkg === null || (pkg && !/^[A-Za-z0-9.:+~_-]{1,100}$/.test(pkg))) return fail(400, 'bad_pkg_version', 'The package release may only contain letters, digits and . : + ~ _ -, up to 100 characters, as the package manager prints it. Example 10.2_p1-r1.')
     const sw = a.software.find((s) => s.id === params.sid)
     if (!sw) return fail(404, 'not_found', 'No such software on this device.')
+    const line = linesOf(a).find((l) => l.id === sw.id || a.software.find((c) => c.corrects === sw.id)?.id === l.id)
+    if (pkg && line && !line.package_line && !PKG_RELEASE_RE.test(pkg)) {
+      return fail(400, 'not_a_package', `${sw.display} on this device is not a distribution package, so it has no package release. Give its version as the vendor writes it instead.`)
+    }
+    const cur = sw.source === 'manual' ? sw : a.software.find((c) => c.corrects === sw.id)
+    if (cur && (version === undefined || (version || null) === cur.version) && (pkg === undefined || (pkg || null) === (cur.pkg_version ?? null))) {
+      return HttpResponse.json({ ok: true, changed: false }) // nothing changes: nothing written, nothing matched again
+    }
     const next = (s: Software): Software => ({ ...s, not_installed: false, ...(version !== undefined ? { version: version || null } : {}), ...(pkg !== undefined ? { pkg_version: pkg || null } : {}) })
     if (sw.source === 'manual') {
       assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...next(s), set_at: nowIso() } : s)) } : x)))
@@ -1357,7 +1372,7 @@ export const handlers = [
     reopenNotInstalled(a.id) // a person now says what is installed (INV-41 (6))
     audit(sw.source === 'manual' && !sw.corrects ? 'inventory.set_software_version' : 'inventory.correct_software', `${nameOf(a, a.kind)}: ${sw.display}`,
       [version !== undefined ? `version ${version || 'none'}` : '', pkg !== undefined ? `package ${pkg || 'none'}` : ''].filter(Boolean).join(', '))
-    return HttpResponse.json({ ok: true })
+    return HttpResponse.json({ ok: true, changed: true })
   }),
 
   http.delete(`${API}/inventory/devices/:id/software/:sid`, ({ params, request }) => {

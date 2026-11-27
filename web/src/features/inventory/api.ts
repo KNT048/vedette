@@ -133,9 +133,9 @@ export function useDeviceAction(id: string) {
     patch: useMutation({ mutationFn: (b: { name?: string; kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string; os?: string }) => api.patch(base, b), onSuccess: inv }),
     addSoftware: useMutation({ mutationFn: (b: Omit<AddDeviceInput, 'name' | 'ip'>) => api.post<{ kev_cves: number }>(`${base}/software`, b), onSuccess: inv }),
     removeSoftware: useMutation({ mutationFn: (sid: string) => api.del(`${base}/software/${encodeURIComponent(sid)}`), onSuccess: inv }),
-    setVersion: useMutation({ mutationFn: (b: { sid: string; version: string }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version }), onSuccess: inv }),
+    setVersion: useMutation({ mutationFn: (b: { sid: string; version: string; confirm?: boolean }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version, ...(b.confirm ? { confirm: true } : {}) }), onSuccess: inv }),
     /** INV-41: the package release (and/or version) of a row; on a row a sensor or agent reported this is a person's correction. */
-    correct: useMutation({ mutationFn: ({ sid, ...b }: { sid: string; version?: string; pkg_version?: string }) => api.patch(`${base}/software/${encodeURIComponent(sid)}`, b), onSuccess: inv }),
+    correct: useMutation({ mutationFn: ({ sid, ...b }: { sid: string; version?: string; pkg_version?: string; confirm?: boolean }) => api.patch<{ ok: true; changed?: boolean }>(`${base}/software/${encodeURIComponent(sid)}`, b), onSuccess: inv }),
     /** INV-41 (6): the person says a row a scan, SNMP or an agent reported is not installed (its findings close); Clear = removeSoftware on the correction. */
     notInstalled: useMutation({ mutationFn: (sid: string) => api.patch(`${base}/software/${encodeURIComponent(sid)}`, { not_installed: true }), onSuccess: inv }),
   }

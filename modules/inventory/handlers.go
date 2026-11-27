@@ -342,17 +342,19 @@ func (h *Handlers) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	e := SoftwareEdit{CatalogID: req.CatalogID.Or(""), Vendor: req.Vendor.Or(""), Product: req.Product.Or(""), NotInstalled: req.NotInstalled.Or(false)}
+	e := SoftwareEdit{CatalogID: req.CatalogID.Or(""), Vendor: req.Vendor.Or(""), Product: req.Product.Or(""), NotInstalled: req.NotInstalled.Or(false),
+		Confirm: req.Confirm.Or(false)}
 	if v, ok := req.Version.Get(); ok {
 		e.Version = &v
 	}
 	if v, ok := req.PkgVersion.Get(); ok {
 		e.PkgVersion = &v
 	}
-	if err := h.svc.EditSoftware(ctx, who, params.ID, params.Sid, e); err != nil {
+	changed, err := h.svc.Edit(ctx, who, params.ID, params.Sid, e)
+	if err != nil {
 		return nil, fail(err)
 	}
-	return &oas.InventoryPatchInventoryDevicesIDSoftwareSidOK{Ok: true}, nil
+	return &oas.InventoryPatchInventoryDevicesIDSoftwareSidOK{Ok: true, Changed: changed}, nil
 }
 
 // InventoryDeleteInventoryDevicesIDSoftwareSid implements DELETE /inventory/devices/{id}/software/{sid} (operator).

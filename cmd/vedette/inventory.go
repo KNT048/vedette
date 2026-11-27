@@ -135,7 +135,11 @@ func inventoryJobs(d deps) []jobs.Job {
 		{Module: "inventory", Name: "declared-os-reconcile", Every: 24 * time.Hour, Run: svc.ReconcileDeclaredOS},
 		// After an update whose product catalogue differs, the stored software lines are identified again in the background (INV-58);
 		// with the lines up to date a run reads one row.
-		{Module: "inventory", Name: "catalogue-reidentify", Every: 24 * time.Hour, Run: svc.ReidentifyLines}} // normal jobs
+		{Module: "inventory", Name: "catalogue-reidentify", Every: 24 * time.Hour, Run: svc.ReidentifyLines},
+		// A person's entries stored before every entry was checked against its line: a package release on a line that is no
+		// distribution package is dropped, an entry with no author is marked as entered by an unknown person; with nothing left to
+		// clean a run reads one query.
+		{Module: "inventory", Name: "entry-cleanup", Every: 24 * time.Hour, Run: svc.CleanStoredClaims}} // normal jobs
 }
 
 // boxPackages is inventory's BoxPackages (S-INV-5): vedette-host's GET /v1/state/packages, mapped to software exactly like an

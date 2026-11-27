@@ -1,10 +1,11 @@
 package findings
 
 import (
-	"regexp"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/pkgrel"
 )
 
 // FixedIn is what NVD's affected versions say about the fix of one finding, for the device it is on: the
@@ -437,10 +438,8 @@ func distroName(in swInfo) string {
 	return ""
 }
 
-var distroMark = regexp.MustCompile(`(?i)ubuntu|[+~.-]deb\d|\.(el|fc)\d`)
-
 // distroMarked says the version string is a distribution package's ("2.4.52-1ubuntu4", "1.1.1n-0+deb11u5", "1.2-3.el9").
-func distroMarked(v string) bool { return distroMark.MatchString(v) }
+func distroMarked(v string) bool { return pkgrel.Marked(v) }
 
 // lineOf names the release line of a range by its start ("7.0.0" -> "7.0"), "" when it has none or it is not a plain
 // dotted version.

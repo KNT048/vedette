@@ -194,8 +194,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   page, `TestPossibleCheck_NotAffectedOnlyFromTheVendorsAdvisory`); a decision there is the box's own
   (`decided_by advisory`, quoted) and the next match applies it like range data (affected: a finding, range origin `advisory`, its basis
   and confirmation from who stated the version; not affected: the question stays, listed as settled). Only the rest goes to the AI
-  (`decided_by ai`): a proposal, `confident` when its quote is in the page word for word and names a range of the version's line, else
-  `likely`; unsure keeps the CVE possible with the reason. A failed or budget-stopped call stores nothing. No page read: no AI call and
+  (P-6: a reading of the release line; checks `decided_by ai` stored before P-6 stay proposals, `confident` or `likely`); unsure keeps the
+  CVE possible with the reason. A failed or budget-stopped call stores nothing. No page read: no AI call and
   nothing stored (the next check fetches again); no reference the box may read: stored undecided (`no_reference_page`, `decided_by
   structured`) without an AI call (`TestPossibleCheck_NoPageReadNoAICall`). A page whose text has no CVE id and no version number, or
   names neither the CVE nor the product (a script-rendered portal's shell), is not read; when every reference is such a page, the CVE is
@@ -207,6 +207,31 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   exploited list that cannot be read confirms nothing); reject
   (`POST /findings/possible/checks/{key}/reject`) makes it possible again and is not checked again for the same evidence. An exploited CVE
   never vanishes: `TestPossibleCheck_Count_ExploitedNeverVanish`.
+- **P-6 The AI reads the vendor's statement for the release line.** What the box's own reading leaves goes to the AI once per release
+  line (product and line; the versions on it named together), not per version: it answers by schema the vendor's statement for the line
+  (`affected`, `fixed` with `fixed_in`, `not_affected`, `unsure`; `introduced`, `fixed_in`, `last_affected`, `line`, a verbatim `quote`, the
+  page's number). The box keeps it in `fnd_line_statement` (`LineStatement`), keyed by the CVE, product, line, the CVE record's stamp
+  (`CheckID.Record`) and the cited page's text hash: `quote_found` when the quote is in the text the box fetched itself, word for word;
+  a bound only when the quote names it; `fixed` with no named bound is `unsure`. Only the newest reading of a (CVE, product, line) is kept;
+  one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
+  to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
+  scheme or the generic order (`verdictFor`). Asymmetry: inside the stated affected releases is a finding by itself (range origin
+  `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names: `LineStatement.fix`), rejected in one click
+  (`POST /findings/possible/checks/{key}/reject` with the reading's key, audit `findings.ai_reading_rejected`: every device of the CVE is
+  matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`); past the stated fix on the same
+  line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`) and never an exploited one
+  (a proposal a person confirms one by one); anything else decides nothing. A reading is read again when the record changes (the old one
+  applies until then), after 30 days when `unsure`, and its page is fetched again after 30 days (no AI call when its text is unchanged:
+  `seen_at`). A finding the reading opened has no question, so the match notes its line when due (`noteReadingDue`) for the next check.
+  `TestLineReading_*`, `TestLineStatement_VerdictFor`.
+- **P-7 The reading runs by itself.** After each reconcile pass the box starts the automatic reading (`AutoRead`, actor `system`, at most
+  200 evidence identities, exploited CVEs first, then the highest CVSS score) while a check can run, the AI settings have it on and its
+  reads for today are not used up (`PossibleChecker.Budget`); a person's check still runs as before. `TestAutoRead_RunsOnlyWhenSwitchedOn`.
+- **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
+  possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
+  come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
+  list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`).
+  `TestPossibleCause_EveryPossibleRowHasOne`, `TestLineReading_CauseWithoutAIAndWithTheBudgetUsedUp`.
 
 ## Invariants
 

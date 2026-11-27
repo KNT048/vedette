@@ -55,6 +55,9 @@ type Check struct {
 	// Stale says the check was made on older evidence of the CVE record (checksFor): it applies until a check of the question's own
 	// evidence replaces it.
 	Stale bool
+	// Reading is the AI's reading of the vendor's statement for the line this check shows (fnd_line_statement); nil for a check of
+	// fnd_possible_check.
+	Reading *LineStatement
 }
 
 // CheckSource is one page a check read (or tried to).
@@ -270,13 +273,18 @@ func lineDetection(a Asset, lines map[string]line, sw string, v Vuln, origin str
 }
 
 // checkedDetections is what the checks of a device's questions decide in the match pass (the one writer of detection, M-2): a question
-// the box settled from the vendor's advisory as affected is a finding (range origin advisory) and no longer a question; a finding a
+// the box settled from the vendor's advisory as affected is a finding (range origin advisory) and no longer a question, and so is one the
+// AI's reading of the vendor's statement for the line places inside the affected releases (range origin ai_read); a finding a
 // person confirmed from an AI proposal stays detected while the person's answer applies (range origin ai_confirmed). A check that says
 // "not affected" leaves the question in place: the lists show it settled, with the reason, and a person can still answer it.
 func (s *Service) checkedDetections(ctx context.Context, tx *sql.Tx, a Asset, lines map[string]line, byCVE map[string]Vuln, qs []Question,
 	existing []Finding, now time.Time) (dets map[string]Detection, keep []Question, err error) {
 	dets = map[string]Detection{}
 	checks, err := checksFor(ctx, tx, qs)
+	if err != nil {
+		return nil, nil, err
+	}
+	readings, err := readingsFor(ctx, tx, qs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -312,6 +320,18 @@ func (s *Service) checkedDetections(ctx context.Context, tx *sql.Tx, a Asset, li
 			if d, ok := lineDetection(a, lines, q.SoftwareID, v, RangeAdvisory, Evidence{Summary: advisoryNote(a, q, c), CheckedAt: now}); ok {
 				dets[k] = d
 				continue // a finding now, no longer a question
+			}
+		}
+		// the AI's reading of the vendor's statement for the line: affected opens the finding (a person can reject the reading)
+		if r, ok := readings[q.CheckKey]; ok && r.applied != nil && q.Detail.Check != nil && !(c.Settled() && !c.Stale) &&
+			r.applied.verdictFor(*q.Detail.Check) == VerdictAffected {
+			if d, ok := lineDetection(a, lines, q.SoftwareID, v, RangeAIRead, Evidence{Summary: aiReadNote(q, *r.applied), CheckedAt: now}); ok {
+				d.Fix = r.applied.fix() // the fix the quote names, never one the AI only proposed
+				dets[k] = d
+				if r.due(*q.Detail.Check, now) {
+					s.noteReadingDue(q) // the finding stands on it until a new reading replaces it
+				}
+				continue
 			}
 		}
 		keep = append(keep, q)

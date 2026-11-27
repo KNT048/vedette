@@ -88,6 +88,10 @@ func (s *Service) Answered(ctx context.Context, device string, p Page) (Answered
 		if err != nil {
 			return err
 		}
+		readings, err := readingsFor(ctx, s.rd(ctx), qs)
+		if err != nil {
+			return err
+		}
 		for _, x := range qs {
 			it := AnsweredJS{ID: x.ID, Question: string(x.Kind), Device: deviceRef(ref.device(x.AssetID)), CVEs: max(x.Cves, 1),
 				Answer: x.Answer, By: x.AnsweredBy, At: store.FormatTS(x.AnsweredAt)}
@@ -105,6 +109,9 @@ func (s *Service) Answered(ctx context.Context, device string, p Page) (Answered
 			// only a check stored by the time of the answer: one made later (for another device sharing the evidence) was not
 			// what the person answered against
 			if c, ok := checks[x.CheckKey]; ok && x.CheckKey != "" && !c.CheckedAt.After(x.AnsweredAt) {
+				it.Check = checkJS(&c)
+			} else if r, ok := readings[x.CheckKey]; ok && r.applied != nil && x.Detail.Check != nil && !r.applied.AskedAt.After(x.AnsweredAt) {
+				c := r.applied.asCheck(*x.Detail.Check) // a person confirmed the AI's reading of the line
 				it.Check = checkJS(&c)
 			}
 			out.Items = append(out.Items, it)

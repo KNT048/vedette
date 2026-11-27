@@ -43,7 +43,8 @@ func keyQuestions(qs []Question, lines map[string]line, byCVE map[string]Vuln) {
 		}
 		build := statedBuild(l.sw) // ESXi 8.0 Update 1 and Update 3 are both version 8.0: the build tells them apart
 		id := CheckID{Product: product, Line: releaseLine(product, q.Detail.Version, build), Version: q.Detail.Version, Build: build,
-			Evidence: hashHex("v1\x1f" + CheckID{Version: q.Detail.Version, Build: build}.Release() + "\x1f" + byCVE[q.CVE].Stamp)}
+			Evidence: hashHex("v1\x1f" + CheckID{Version: q.Detail.Version, Build: build}.Release() + "\x1f" + byCVE[q.CVE].Stamp),
+			Record:   recordHash(byCVE[q.CVE].Stamp)}
 		q.Detail.Check, q.CheckKey = &id, checkKey(q.CVE, id)
 	}
 }

@@ -637,6 +637,10 @@
     "askedAgain": "Asked again: {{cve}} on {{device}} is possible again.",
     "aiChecked": "AI checked",
     "aiCheckedTopic": "How the AI checked it",
+    "aiRead": "Read by AI from {{host}}",
+    "aiReadTopic": "What the AI read",
+    "aiReadReject": "Reject the AI's reading from {{host}}",
+    "aiReadRejected": "Rejected. The finding closes on every device of this release line, and the CVE is possible again.",
     "chip": {
       "model": "Model: {{model}}",
       "advisory_affected": "Affected per the vendor advisory",
@@ -647,7 +651,25 @@
       "proposal_affected_confident": "AI proposal: affected (confident)",
       "proposal_affected_likely": "AI proposal: affected (likely)",
       "proposal_not_affected_confident": "AI proposal: not affected (confident)",
-      "proposal_not_affected_likely": "AI proposal: not affected (likely)"
+      "proposal_not_affected_likely": "AI proposal: not affected (likely)",
+      "theRecord": "the CVE record",
+      "readRejected": "AI reading rejected",
+      "readNotAffected": "Not affected per {{host}} (read by AI)",
+      "readAffected": "Affected per {{host}} (read by AI)",
+      "readThirdParty": "{{host}} says not affected (not the vendor's page)",
+      "readUndecided": "Read by AI from {{host}}: undecided",
+      "readUnverified": "Read by AI from {{host}}: quote not found"
+    },
+    "cause": {
+      "vendor_silent": "No page from the vendor states more than the CVE record for this release line.",
+      "page_unreadable": "The vendor's page could not be read (it may need a browser, or it refused the box).",
+      "needs_reading": "The vendor's advisory needs reading. With an AI provider set up, Vedette reads it by itself; otherwise add one in Settings, AI assistant.",
+      "ai_unsure": "The AI read the vendor's pages and could not tell, or its quote was not on the page.",
+      "ai_budget": "The AI reads it when its budget allows: today's automatic reads or this month's budget are used up.",
+      "identity_unproven": "Vedette cannot tie this software to a product the CVE records name.",
+      "version_needed": "Vedette needs the exact version, build, edition, system or package release.",
+      "pending_nvd": "Vedette decides it by itself once NVD lists them.",
+      "needs_person": "A person decides: confirm or reject what the AI read, or answer it yourself."
     },
     "reason": {
       "no_version": "Vedette does not know the version of {{software}}.",

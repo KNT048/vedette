@@ -10,7 +10,8 @@ import { aiCandidates, isOn } from '@/mocks/stores'
 import { checkKeyOf, POSSIBLE_EXPLOITED, seedPossibleChecks, type CheckRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { assetOf, deviceRef, event, isIgnored, questions, records, severityOf, unhandled } from './modelMocks'
-import type { PossibleCheckRun, PossibleCheckState, PossibleCounts, PossibleList, PossibleRow, UndecidedReason } from './types'
+import { autoReadReached } from '@/features/ai/mocks'
+import type { PossibleCause, PossibleCheck, PossibleCheckRun, PossibleCheckState, PossibleCounts, PossibleList, PossibleRow, UndecidedReason } from './types'
 
 export const checks = collection<Record<string, CheckRecord>>('fnd_possible_check', seedPossibleChecks, () => ({}))
 /** The last check run (the box keeps it in memory since it started). */
@@ -35,7 +36,10 @@ function items(device?: string | null): Item[] {
       if (had.has(`${q.asset_id}|${cve}|${q.software?.id ?? ''}`)) continue
       const key = checkKeyOf(q, cve)
       const check = key ? cs[key] ?? null : null
-      const state = !check ? 'possible' : check.decided_by !== 'ai' && check.verdict === 'not_affected' ? 'settled'
+      // the AI's reading of the vendor's page: not affected settles the CVE unless it is exploited (a person confirms that one)
+      const read = !!check?.reading && check.verdict === 'not_affected' && !check.rejected
+      const state = !check ? 'possible' : read ? (POSSIBLE_EXPLOITED.has(cve) ? 'proposal' : 'settled')
+        : check.decided_by !== 'ai' && check.verdict === 'not_affected' ? 'settled'
         : check.decided_by === 'ai' && !check.rejected && check.verdict !== 'unsure' ? 'proposal' : 'possible'
       out.push({ q, cve, key, check, state })
     }
@@ -46,6 +50,27 @@ function items(device?: string | null): Item[] {
 
 const checkable = (it: Item) => !!it.key && !it.check
 
+const VERSION_REASONS: UndecidedReason[] = ['no_version', 'platform_unknown', 'package_unknown', 'attribute_unknown']
+/** Why the CVE is still possible (the server's PossibleCause, in short); null for a settled row. */
+function causeOf(it: Item): PossibleCause | null {
+  const reason = undecidedOf(it.q).reason
+  const c = it.check
+  if (it.state === 'settled') return null
+  if (it.state === 'proposal') return 'needs_person'
+  if (reason === 'nvd_pending') return 'pending_nvd'
+  if (['version_needed', 'platform', 'package_release'].includes(it.q.kind) || VERSION_REASONS.includes(reason)) return 'version_needed'
+  if (c) {
+    if (c.rejected) return 'needs_person'
+    if (c.reading) return c.reading.status === 'unsure' || !c.reading.quote_found ? 'ai_unsure' : 'vendor_silent'
+    if (c.decided_by === 'structured') return 'page_unreadable'
+    if (c.decided_by === 'ai') return 'ai_unsure'
+  }
+  if (!it.key) return 'identity_unproven'
+  if (!aiReady()) return 'needs_reading'
+  return autoReadReached() ? 'ai_budget' : 'needs_reading'
+}
+const CAUSES: PossibleCause[] = ['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget', 'identity_unproven', 'version_needed', 'pending_nvd', 'needs_person']
+
 /** The check of a question about one CVE stored by the time of its answer (the Answered list names a confirmed AI proposal by it);
  *  null when none. */
 export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
@@ -55,10 +80,12 @@ export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
 }
 
 export function possibleCounts(device?: string): PossibleCounts {
-  const c = { possible: 0, proposals: 0, unchecked: 0, settled: 0 }
+  const c = { possible: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
   for (const it of items(device)) {
     if (it.state === 'settled') { c.settled++; continue }
     c.possible++
+    const cause = causeOf(it)
+    if (cause) c.causes[cause]++
     if (it.state === 'proposal') c.proposals++
     if (checkable(it)) c.unchecked++
   }
@@ -71,6 +98,7 @@ function row(it: Item): PossibleRow {
     id: it.q.id, cve: it.cve, kind: it.q.kind, device: deviceRef(assetOf(it.q.asset_id)!), software: it.q.software, severity: severityOf(it.cve) ?? severityGuess(it.cve),
     exploited, state: it.state, undecided: undecidedOf(it.q), line: it.q.line ?? null, fixes: it.q.fixes ?? [], check: it.check, checkable: checkable(it),
     bulk: it.state === 'proposal' && !(exploited && it.check?.verdict === 'not_affected'),
+    cause: causeOf(it),
   }
 }
 
@@ -101,17 +129,21 @@ function advance() {
   const cs = { ...checks.get() }
   for (const key of next) {
     const n = parseInt(key.slice(0, 4), 16) % 10
-    const base = { key, checked_by: run.by, checked_at: nowIso(), rejected: false, model: null, confidence: null, quote: '', reason: '' }
+    const base = { key, checked_by: run.by, checked_at: nowIso(), rejected: false, model: null, confidence: null, quote: '', reason: '', reading: null }
     const src = [{ url: 'https://vendor.example.com/security/advisory', title: 'Vendor security advisory', status: 'ok' as const, cited: true }]
     if (n < 3) {
       cs[key] = { ...base, decided_by: 'advisory', verdict: 'not_affected', reason: 'The vendor lists the affected releases from a newer branch on; this version is older.', quote: 'Affected: versions from 8.0 before 8.2.1', sources: src }
       run.advisory++
     } else if (n < 8) {
+      // the AI's reading of the vendor's statement for the release line, its quote found on the page
       const affected = n % 2 === 0
-      cs[key] = { ...base, decided_by: 'ai', verdict: affected ? 'affected' : 'not_affected', confidence: n < 6 ? 'confident' : 'likely', model: 'qwen3:8b', sources: src,
-        reason: affected ? 'The advisory names a range that covers this version.' : 'The advisory limits it to a feature this version does not have.',
-        quote: affected ? 'All releases before the fixed version are affected.' : 'Only builds with the optional module are affected.' }
-      run.proposals++
+      const reading = { status: affected ? 'fixed' as const : 'not_affected' as const, line: 'line', stated_line: null, introduced: null, fixed_in: affected ? '8.2.1' : null,
+        last_affected: null, host: 'vendor.example.com', vendor_page: true, quote_found: true }
+      cs[key] = { ...base, decided_by: 'ai', verdict: affected ? 'affected' : 'not_affected', confidence: 'confident', model: 'qwen3:8b', sources: src, reading,
+        reason: affected ? 'The vendor states the fix of this release line; this version is older.' : 'The vendor states this release line is not affected.',
+        quote: affected ? 'All releases of this line before 8.2.1 are affected.' : 'This release line is not affected by the issue.' }
+      if (affected) openByReading(key, cs[key]!)
+      run.readings++
     } else {
       cs[key] = { ...base, decided_by: 'ai', verdict: 'unsure', model: 'qwen3:8b', sources: src, reason: 'The pages do not name the versions of this product.' }
       run.undecided++
@@ -168,7 +200,7 @@ export const possibleHandlers = [
     const b = await body<{ device: string }>(request)
     const keys = [...new Set(items(b.device || null).filter(checkable).map((it) => it.key))].slice(0, 40)
     if (!keys.length) return fail(409, 'nothing_to_check', 'Every possible finding was checked for its current evidence.')
-    runs.set({ running: true, total: keys.length, done: 0, advisory: 0, proposals: 0, undecided: 0, failed: 0, stopped: null, by: who(), started_at: nowIso(), finished_at: null, keys })
+    runs.set({ running: true, total: keys.length, done: 0, advisory: 0, proposals: 0, readings: 0, undecided: 0, failed: 0, stopped: null, by: who(), started_at: nowIso(), finished_at: null, keys })
     audit('findings.possible_checked', b.device || 'all', `checking ${keys.length} possible findings`)
     return HttpResponse.json(runView())
   }),
@@ -192,12 +224,42 @@ export const possibleHandlers = [
     const denied = guard('operator'); if (denied) return denied
     const key = String(params.key)
     const c = checks.get()[key]
-    if (!/^[0-9a-f]{64}$/.test(key) || !c || c.decided_by !== 'ai' || c.verdict === 'unsure' || c.rejected) return fail(404, 'not_found', NO_PROPOSAL)
+    if (!/^[0-9a-f]{64}$/.test(key) || !c || c.decided_by !== 'ai' || (c.verdict === 'unsure' && !c.reading) || c.rejected) return fail(404, 'not_found', NO_PROPOSAL)
     checks.update((m) => ({ ...m, [key]: { ...c, rejected: true } }))
+    if (c.reading) {
+      // the finding the reading opened closes on every device of the line; its CVE is possible again
+      const at = nowIso()
+      records.update((l) => l.map((r) => (r.ai_check?.key === key && r.state === 'open' ? { ...r, state: 'handled' as const, resolution: 'not_relevant' as const, via: 'data_corrected' as const,
+        resolved_by: 'system', resolved_at: at, ai_check: { ...r.ai_check, rejected: true }, events: [...r.events, event('system', 'handled', { note: 'A person rejected the AI\'s reading of the vendor\'s statement.' })] } : r)))
+      restore.get()[key]?.forEach((q) => questions.update((l) => (l.some((x) => x.id === q.id) ? l : [...l, q])))
+      audit('findings.ai_reading_rejected', key, `rejected the AI's reading of ${c.reading.host ?? 'the CVE record'} (${c.reading.status.replace('_', ' ')})`)
+      return HttpResponse.json({ ok: true })
+    }
     audit('findings.proposal_rejected', key, `rejected the AI proposal ${c.verdict.replace('_', ' ')}`)
     return HttpResponse.json({ ok: true })
   }),
 ]
+
+/** The questions a finding opened by the AI's reading took the place of, by the reading's key: back when a person rejects it. */
+const restore = collection<Record<string, QuestionRecord[]>>('fnd_ai_read_questions', () => ({}))
+
+/** The AI's verified "affected" opens the finding by itself, labelled with the page's host; the question it answered leaves the list. */
+export function openByReading(key: string, check: PossibleCheck) {
+  const at = nowIso()
+  const hit = items().filter((it) => it.key === key)
+  for (const it of hit) {
+    const note = `Read by AI from ${check.reading?.host ?? 'the CVE record'}: the vendor's statement lists ${it.q.software?.name ?? ''} ${it.q.software?.version ?? ''} as affected by ${it.cve}: "${check.quote}".`
+    records.update((l) => [...l, {
+      id: newId('fv'), asset_id: it.q.asset_id, cve: it.cve, software: it.q.software, verified: 'device', basis: 'device_version', verified_by: null, verified_at: at,
+      fix: { key: `${it.q.software?.name.toLowerCase() ?? 'unknown'}|update|${check.reading?.fixed_in ?? ''}`, kind: check.reading?.fixed_in ? 'update' : 'unknown', product: it.q.software?.name ?? it.cve,
+        version: check.reading?.fixed_in ?? null, ref: null, channel: 'public', url: check.sources[0]?.url ?? null },
+      ...unhandled, layer: POSSIBLE_EXPLOITED.has(it.cve) ? 2 as const : 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
+      events: [event('system', 'created', { note })], ai_check: check,
+    }])
+  }
+  restore.update((m) => ({ ...m, [key]: hit.map((it) => it.q) }))
+  questions.update((l) => l.filter((q) => !hit.some((it) => it.q.id === q.id)))
+}
 
 /** A person's yes to a proposal: affected records the finding (its confirmation from how the version is known, never the AI), not
  *  affected answers the question. */

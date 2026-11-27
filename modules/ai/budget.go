@@ -76,6 +76,11 @@ func (s *Service) scheduledPause(ctx context.Context, job Job) error {
 	return s.budgetReached(msg)
 }
 
+// scheduledPaused says scheduled jobs are held by this month's budget now (scheduledPause would stop them), without noting it.
+func (s *Service) scheduledPaused() bool {
+	return s.meter.UsedUp() || s.meter.Reached(scheduledPausePct)
+}
+
 // noteScheduledStop writes the one box log line a month per reason for a scheduled job that is stopped by a budget; the rest are silent.
 func (s *Service) noteScheduledStop(ctx context.Context, job Job, why string) {
 	month := s.cfg.Clock().In(s.loc).Format("2006-01")

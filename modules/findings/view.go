@@ -30,8 +30,8 @@ type View struct {
 	Reasons []ViewReason // every layer of 1..4 that applies at or below the stored layer, most urgent first
 	Events  []Event      // oldest first
 	Same    []View       // the other findings of this CVE on this device (another software line)
-	// AICheck is the AI's check a person confirmed as affected (range origin ai_confirmed): the pages it read, its quote and model;
-	// nil for a finding of any other origin.
+	// AICheck is the AI's check a person confirmed as affected (range origin ai_confirmed), or the AI's reading of the vendor's statement
+	// that opened the finding (range origin ai_read, Check.Reading set): the pages it read, its quote and model; nil for any other origin.
 	AICheck *Check
 }
 
@@ -79,7 +79,36 @@ func (s *Service) View(ctx context.Context, id string) (View, error) {
 			v.AICheck = nil // the finding stands; only its "AI checked" line is missing
 		}
 	}
+	if f.RangeOrigin == RangeAIRead {
+		if v.AICheck, err = aiReadCheck(ctx, q, f); err != nil {
+			s.cfg.Log.WarnContext(ctx, "findings: the AI reading of a finding could not be read", "finding", f.ID, "error", err)
+			v.AICheck = nil // the finding stands; only its "Read by AI" line is missing
+		}
+	}
 	return v, nil
+}
+
+// aiReadCheck is the AI's reading of the vendor's statement a finding of range origin ai_read rests on: the newest reading of its CVE and
+// product (the start of its fix key) that places the version the match compared inside the affected releases; nil when none is stored.
+func aiReadCheck(ctx context.Context, q querier, f Finding) (*Check, error) {
+	sts, err := statementsOf(ctx, q, []string{f.CVE})
+	if err != nil {
+		return nil, err
+	}
+	for _, st := range sts {
+		if st.RejectedBy != "" || !strings.HasPrefix(f.FixKey, st.Product+"|") {
+			continue
+		}
+		id := CheckID{Product: st.Product, Version: f.MatchedVersion, Line: releaseLine(st.Product, f.MatchedVersion, "")}
+		if st.Line != id.Line && !st.coversLine(id) {
+			id.Line = st.Line // the reading of the line the match keyed: its bounds decide the version as they did in the match
+		}
+		if st.verdictFor(id) == VerdictAffected {
+			c := st.asCheck(id)
+			return &c, nil
+		}
+	}
+	return nil, nil
 }
 
 // confirmedAICheck is the AI check behind a finding a person confirmed from an AI proposal: the check of the question of the same

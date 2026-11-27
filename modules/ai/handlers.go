@@ -57,7 +57,19 @@ func (h *AIHandlers) AiPutAiConfig(ctx context.Context, req *oas.AiPutAiConfigRe
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.svc.SetConfig(ctx, who, Settings{Tier: Tier(req.Tier), MonthlyBudget: req.MonthlyBudget, RedactPII: req.RedactPii})
+	in := Settings{Tier: Tier(req.Tier), MonthlyBudget: req.MonthlyBudget, RedactPII: req.RedactPii}
+	cur := h.svc.snap.Load().cfg // the automatic reading's settings stay as saved unless the request names them
+	in.AutoReadOff, in.DailyReads = cur.AutoReadOff, cur.DailyReads
+	if v, ok := req.AutoRead.Get(); ok {
+		in.AutoReadOff = !v
+	}
+	if v, ok := req.DailyReads.Get(); ok {
+		if v < 1 {
+			return nil, mapErr(perr("invalid_daily_reads", "The automatic reads a day must be a whole number from 1 to %d.", MaxDailyReads))
+		}
+		in.DailyReads = v
+	}
+	v, err := h.svc.SetConfig(ctx, who, in)
 	if err != nil {
 		return nil, err
 	}

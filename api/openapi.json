@@ -1550,6 +1550,22 @@
                         "response-plan"
                       ],
                       "description": "Which jobs have a usable, permitted profile"
+                    },
+                    "auto_read": {
+                      "type": "boolean",
+                      "description": "After each match pass the AI reads the vendor advisories of possible findings by itself (exploited first, then CVSS), sending only public data; off: only a person's \"Check with AI\" reads them"
+                    },
+                    "daily_reads": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5000,
+                      "description": "The automatic reading's AI calls a day (default 300); it also stops with scheduled jobs at 80 % of the monthly budget"
+                    },
+                    "reads_today": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "The automatic reading's AI calls so far today (box time zone)"
                     }
                   },
                   "required": [
@@ -1560,7 +1576,10 @@
                     "renews_on",
                     "redact_pii",
                     "tier_estimates",
-                    "jobs_ready"
+                    "jobs_ready",
+                    "auto_read",
+                    "daily_reads",
+                    "reads_today"
                   ],
                   "additionalProperties": false
                 }
@@ -1581,7 +1600,7 @@
       },
       "put": {
         "operationId": "ai_put_ai_config",
-        "summary": "Save token tier, shared monthly budget and PII redaction",
+        "summary": "Save token tier, shared monthly budget, PII redaction and the automatic reading of vendor advisories (on or off, calls a day)",
         "tags": [
           "ai"
         ],
@@ -1611,6 +1630,16 @@
                   },
                   "redact_pii": {
                     "type": "boolean"
+                  },
+                  "auto_read": {
+                    "description": "Absent: unchanged",
+                    "type": "boolean"
+                  },
+                  "daily_reads": {
+                    "description": "Absent: unchanged",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000
                   }
                 },
                 "required": [
@@ -1718,6 +1747,22 @@
                         "response-plan"
                       ],
                       "description": "Which jobs have a usable, permitted profile"
+                    },
+                    "auto_read": {
+                      "type": "boolean",
+                      "description": "After each match pass the AI reads the vendor advisories of possible findings by itself (exploited first, then CVSS), sending only public data; off: only a person's \"Check with AI\" reads them"
+                    },
+                    "daily_reads": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5000,
+                      "description": "The automatic reading's AI calls a day (default 300); it also stops with scheduled jobs at 80 % of the monthly budget"
+                    },
+                    "reads_today": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "The automatic reading's AI calls so far today (box time zone)"
                     }
                   },
                   "required": [
@@ -1728,7 +1773,10 @@
                     "renews_on",
                     "redact_pii",
                     "tier_estimates",
-                    "jobs_ready"
+                    "jobs_ready",
+                    "auto_read",
+                    "daily_reads",
+                    "reads_today"
                   ],
                   "additionalProperties": false
                 }
@@ -51119,7 +51167,90 @@
                             },
                             "rejected": {
                               "type": "boolean",
-                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                              "description": "A person rejected this AI proposal or reading: the CVE is possible again"
+                            },
+                            "reading": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "affected",
+                                        "fixed",
+                                        "not_affected",
+                                        "unsure"
+                                      ],
+                                      "description": "What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure"
+                                    },
+                                    "line": {
+                                      "type": "string",
+                                      "description": "The release line the reading is keyed by (the product's scheme line, else the version)"
+                                    },
+                                    "stated_line": {
+                                      "description": "The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "introduced": {
+                                      "description": "The first affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "fixed_in": {
+                                      "description": "The release that fixes it; null unless the quote names it (only then is it the finding's fix)",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "last_affected": {
+                                      "description": "The last affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "host": {
+                                      "description": "The host of the page the quote is from; null when it is from the CVE record",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "vendor_page": {
+                                      "type": "boolean",
+                                      "description": "The page is the vendor's own advisory: only then may \"not affected\" settle the CVE (never an exploited one)"
+                                    },
+                                    "quote_found": {
+                                      "type": "boolean",
+                                      "description": "The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing"
+                                    }
+                                  },
+                                  "required": [
+                                    "status",
+                                    "line",
+                                    "stated_line",
+                                    "introduced",
+                                    "fixed_in",
+                                    "last_affected",
+                                    "host",
+                                    "vendor_page",
+                                    "quote_found"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "The AI's reading of the vendor's statement for one release line, as the box checked it; applied to every device and version on that line"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The AI's reading of the vendor's statement for the line this check shows (key: the reading); null for a check of one version"
                             }
                           },
                           "required": [
@@ -51133,7 +51264,8 @@
                             "model",
                             "checked_by",
                             "checked_at",
-                            "rejected"
+                            "rejected",
+                            "reading"
                           ],
                           "additionalProperties": false,
                           "description": "A check of a possible CVE's advisories"
@@ -51142,7 +51274,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                      "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -52108,7 +52240,90 @@
                             },
                             "rejected": {
                               "type": "boolean",
-                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                              "description": "A person rejected this AI proposal or reading: the CVE is possible again"
+                            },
+                            "reading": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "affected",
+                                        "fixed",
+                                        "not_affected",
+                                        "unsure"
+                                      ],
+                                      "description": "What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure"
+                                    },
+                                    "line": {
+                                      "type": "string",
+                                      "description": "The release line the reading is keyed by (the product's scheme line, else the version)"
+                                    },
+                                    "stated_line": {
+                                      "description": "The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "introduced": {
+                                      "description": "The first affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "fixed_in": {
+                                      "description": "The release that fixes it; null unless the quote names it (only then is it the finding's fix)",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "last_affected": {
+                                      "description": "The last affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "host": {
+                                      "description": "The host of the page the quote is from; null when it is from the CVE record",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "vendor_page": {
+                                      "type": "boolean",
+                                      "description": "The page is the vendor's own advisory: only then may \"not affected\" settle the CVE (never an exploited one)"
+                                    },
+                                    "quote_found": {
+                                      "type": "boolean",
+                                      "description": "The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing"
+                                    }
+                                  },
+                                  "required": [
+                                    "status",
+                                    "line",
+                                    "stated_line",
+                                    "introduced",
+                                    "fixed_in",
+                                    "last_affected",
+                                    "host",
+                                    "vendor_page",
+                                    "quote_found"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "The AI's reading of the vendor's statement for one release line, as the box checked it; applied to every device and version on that line"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The AI's reading of the vendor's statement for the line this check shows (key: the reading); null for a check of one version"
                             }
                           },
                           "required": [
@@ -52122,7 +52337,8 @@
                             "model",
                             "checked_by",
                             "checked_at",
-                            "rejected"
+                            "rejected",
+                            "reading"
                           ],
                           "additionalProperties": false,
                           "description": "A check of a possible CVE's advisories"
@@ -52131,7 +52347,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                      "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -53118,7 +53334,90 @@
                             },
                             "rejected": {
                               "type": "boolean",
-                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                              "description": "A person rejected this AI proposal or reading: the CVE is possible again"
+                            },
+                            "reading": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "affected",
+                                        "fixed",
+                                        "not_affected",
+                                        "unsure"
+                                      ],
+                                      "description": "What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure"
+                                    },
+                                    "line": {
+                                      "type": "string",
+                                      "description": "The release line the reading is keyed by (the product's scheme line, else the version)"
+                                    },
+                                    "stated_line": {
+                                      "description": "The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "introduced": {
+                                      "description": "The first affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "fixed_in": {
+                                      "description": "The release that fixes it; null unless the quote names it (only then is it the finding's fix)",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "last_affected": {
+                                      "description": "The last affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "host": {
+                                      "description": "The host of the page the quote is from; null when it is from the CVE record",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "vendor_page": {
+                                      "type": "boolean",
+                                      "description": "The page is the vendor's own advisory: only then may \"not affected\" settle the CVE (never an exploited one)"
+                                    },
+                                    "quote_found": {
+                                      "type": "boolean",
+                                      "description": "The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing"
+                                    }
+                                  },
+                                  "required": [
+                                    "status",
+                                    "line",
+                                    "stated_line",
+                                    "introduced",
+                                    "fixed_in",
+                                    "last_affected",
+                                    "host",
+                                    "vendor_page",
+                                    "quote_found"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "The AI's reading of the vendor's statement for one release line, as the box checked it; applied to every device and version on that line"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The AI's reading of the vendor's statement for the line this check shows (key: the reading); null for a check of one version"
                             }
                           },
                           "required": [
@@ -53132,7 +53431,8 @@
                             "model",
                             "checked_by",
                             "checked_at",
-                            "rejected"
+                            "rejected",
+                            "reading"
                           ],
                           "additionalProperties": false,
                           "description": "A check of a possible CVE's advisories"
@@ -53141,7 +53441,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                      "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -54108,7 +54408,90 @@
                             },
                             "rejected": {
                               "type": "boolean",
-                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                              "description": "A person rejected this AI proposal or reading: the CVE is possible again"
+                            },
+                            "reading": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "affected",
+                                        "fixed",
+                                        "not_affected",
+                                        "unsure"
+                                      ],
+                                      "description": "What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure"
+                                    },
+                                    "line": {
+                                      "type": "string",
+                                      "description": "The release line the reading is keyed by (the product's scheme line, else the version)"
+                                    },
+                                    "stated_line": {
+                                      "description": "The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "introduced": {
+                                      "description": "The first affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "fixed_in": {
+                                      "description": "The release that fixes it; null unless the quote names it (only then is it the finding's fix)",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "last_affected": {
+                                      "description": "The last affected release; null unless the quote names it",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "host": {
+                                      "description": "The host of the page the quote is from; null when it is from the CVE record",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "vendor_page": {
+                                      "type": "boolean",
+                                      "description": "The page is the vendor's own advisory: only then may \"not affected\" settle the CVE (never an exploited one)"
+                                    },
+                                    "quote_found": {
+                                      "type": "boolean",
+                                      "description": "The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing"
+                                    }
+                                  },
+                                  "required": [
+                                    "status",
+                                    "line",
+                                    "stated_line",
+                                    "introduced",
+                                    "fixed_in",
+                                    "last_affected",
+                                    "host",
+                                    "vendor_page",
+                                    "quote_found"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "The AI's reading of the vendor's statement for one release line, as the box checked it; applied to every device and version on that line"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The AI's reading of the vendor's statement for the line this check shows (key: the reading); null for a check of one version"
                             }
                           },
                           "required": [
@@ -54122,7 +54505,8 @@
                             "model",
                             "checked_by",
                             "checked_at",
-                            "rejected"
+                            "rejected",
+                            "reading"
                           ],
                           "additionalProperties": false,
                           "description": "A check of a possible CVE's advisories"
@@ -54131,7 +54515,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                      "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -54536,7 +54920,90 @@
                                   },
                                   "rejected": {
                                     "type": "boolean",
-                                    "description": "A person rejected this AI proposal: the CVE is possible again"
+                                    "description": "A person rejected this AI proposal or reading: the CVE is possible again"
+                                  },
+                                  "reading": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "affected",
+                                              "fixed",
+                                              "not_affected",
+                                              "unsure"
+                                            ],
+                                            "description": "What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure"
+                                          },
+                                          "line": {
+                                            "type": "string",
+                                            "description": "The release line the reading is keyed by (the product's scheme line, else the version)"
+                                          },
+                                          "stated_line": {
+                                            "description": "The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "introduced": {
+                                            "description": "The first affected release; null unless the quote names it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "fixed_in": {
+                                            "description": "The release that fixes it; null unless the quote names it (only then is it the finding's fix)",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "last_affected": {
+                                            "description": "The last affected release; null unless the quote names it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "host": {
+                                            "description": "The host of the page the quote is from; null when it is from the CVE record",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "vendor_page": {
+                                            "type": "boolean",
+                                            "description": "The page is the vendor's own advisory: only then may \"not affected\" settle the CVE (never an exploited one)"
+                                          },
+                                          "quote_found": {
+                                            "type": "boolean",
+                                            "description": "The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing"
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "line",
+                                          "stated_line",
+                                          "introduced",
+                                          "fixed_in",
+                                          "last_affected",
+                                          "host",
+                                          "vendor_page",
+                                          "quote_found"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "The AI's reading of the vendor's statement for one release line, as the box checked it; applied to every device and version on that line"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The AI's reading of the vendor's statement for the line this check shows (key: the reading); null for a check of one version"
                                   }
                                 },
                                 "required": [
@@ -54550,7 +55017,8 @@
                                   "model",
                                   "checked_by",
                                   "checked_at",
-                                  "rejected"
+                                  "rejected",
+                                  "reading"
                                 ],
                                 "additionalProperties": false,
                                 "description": "A check of a possible CVE's advisories"
@@ -58126,13 +58594,77 @@
                           "minimum": 0,
                           "maximum": 9007199254740991,
                           "description": "Settled not affected by the box from a vendor's advisory"
+                        },
+                        "causes": {
+                          "type": "object",
+                          "properties": {
+                            "vendor_silent": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "page_unreadable": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "needs_reading": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "ai_unsure": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "ai_budget": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "identity_unproven": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "version_needed": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "pending_nvd": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "needs_person": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "vendor_silent",
+                            "page_unreadable",
+                            "needs_reading",
+                            "ai_unsure",
+                            "ai_budget",
+                            "identity_unproven",
+                            "version_needed",
+                            "pending_nvd",
+                            "needs_person"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The possible CVEs by cause; every cause of the list is present"
                         }
                       },
                       "required": [
                         "possible",
                         "proposals",
                         "unchecked",
-                        "settled"
+                        "settled",
+                        "causes"
                       ],
                       "additionalProperties": false,
                       "description": "Possible CVEs (Vedette cannot decide them), counted apart from the open findings: \"158 open findings · 16 possible\""
@@ -59491,7 +60023,90 @@
                                   },
                                   "rejected": {
                                     "type": "boolean",
-                                    "description": "A person rejected this AI proposal: the CVE is possible again"
+                                    "description": "A person rejected this AI proposal or reading: the CVE is possible again"
+                                  },
+                                  "reading": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "status": {
+                                            "type": "string",
+                                            "enum": [
+                                              "affected",
+                                              "fixed",
+                                              "not_affected",
+                                              "unsure"
+                                            ],
+                                            "description": "What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure"
+                                          },
+                                          "line": {
+                                            "type": "string",
+                                            "description": "The release line the reading is keyed by (the product's scheme line, else the version)"
+                                          },
+                                          "stated_line": {
+                                            "description": "The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "introduced": {
+                                            "description": "The first affected release; null unless the quote names it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "fixed_in": {
+                                            "description": "The release that fixes it; null unless the quote names it (only then is it the finding's fix)",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "last_affected": {
+                                            "description": "The last affected release; null unless the quote names it",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "host": {
+                                            "description": "The host of the page the quote is from; null when it is from the CVE record",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "vendor_page": {
+                                            "type": "boolean",
+                                            "description": "The page is the vendor's own advisory: only then may \"not affected\" settle the CVE (never an exploited one)"
+                                          },
+                                          "quote_found": {
+                                            "type": "boolean",
+                                            "description": "The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing"
+                                          }
+                                        },
+                                        "required": [
+                                          "status",
+                                          "line",
+                                          "stated_line",
+                                          "introduced",
+                                          "fixed_in",
+                                          "last_affected",
+                                          "host",
+                                          "vendor_page",
+                                          "quote_found"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "The AI's reading of the vendor's statement for one release line, as the box checked it; applied to every device and version on that line"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The AI's reading of the vendor's statement for the line this check shows (key: the reading); null for a check of one version"
                                   }
                                 },
                                 "required": [
@@ -59505,7 +60120,8 @@
                                   "model",
                                   "checked_by",
                                   "checked_at",
-                                  "rejected"
+                                  "rejected",
+                                  "reading"
                                 ],
                                 "additionalProperties": false,
                                 "description": "A check of a possible CVE's advisories"
@@ -59522,6 +60138,29 @@
                           "bulk": {
                             "type": "boolean",
                             "description": "proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not affected (one by one)"
+                          },
+                          "cause": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "vendor_silent",
+                                  "page_unreadable",
+                                  "needs_reading",
+                                  "ai_unsure",
+                                  "ai_budget",
+                                  "identity_unproven",
+                                  "version_needed",
+                                  "pending_nvd",
+                                  "needs_person"
+                                ],
+                                "description": "Why the CVE is still possible and what would decide it: vendor_silent (no vendor page states more than the record), page_unreadable (the pages could not be read), needs_reading (the vendor's advisory must be read: no AI set up, or the reading is still to come), ai_unsure (the AI could not tell, or its quote was not in the page), ai_budget (the AI's reading waits for the budget), identity_unproven (the software is not tied to a product the records name), version_needed (the version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a rejected reading)"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Why it is still possible; null for a settled row"
                           }
                         },
                         "required": [
@@ -59538,7 +60177,8 @@
                           "fixes",
                           "check",
                           "checkable",
-                          "bulk"
+                          "bulk",
+                          "cause"
                         ],
                         "additionalProperties": false,
                         "description": "One possible CVE of one software line of one device"
@@ -59577,13 +60217,77 @@
                           "minimum": 0,
                           "maximum": 9007199254740991,
                           "description": "Settled not affected by the box from a vendor's advisory"
+                        },
+                        "causes": {
+                          "type": "object",
+                          "properties": {
+                            "vendor_silent": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "page_unreadable": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "needs_reading": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "ai_unsure": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "ai_budget": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "identity_unproven": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "version_needed": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "pending_nvd": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "needs_person": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "vendor_silent",
+                            "page_unreadable",
+                            "needs_reading",
+                            "ai_unsure",
+                            "ai_budget",
+                            "identity_unproven",
+                            "version_needed",
+                            "pending_nvd",
+                            "needs_person"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The possible CVEs by cause; every cause of the list is present"
                         }
                       },
                       "required": [
                         "possible",
                         "proposals",
                         "unchecked",
-                        "settled"
+                        "settled",
+                        "causes"
                       ],
                       "additionalProperties": false,
                       "description": "Of the device, or of every device; not narrowed by the search or the state"
@@ -59821,6 +60525,12 @@
                               "maximum": 9007199254740991,
                               "description": "AI proposals made"
                             },
+                            "readings": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "AI readings of a vendor's statement stored, one per release line"
+                            },
                             "undecided": {
                               "type": "integer",
                               "minimum": 0,
@@ -59866,6 +60576,7 @@
                             "done",
                             "advisory",
                             "proposals",
+                            "readings",
                             "undecided",
                             "failed",
                             "stopped",
@@ -59964,6 +60675,12 @@
                       "maximum": 9007199254740991,
                       "description": "AI proposals made"
                     },
+                    "readings": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "AI readings of a vendor's statement stored, one per release line"
+                    },
                     "undecided": {
                       "type": "integer",
                       "minimum": 0,
@@ -60009,6 +60726,7 @@
                     "done",
                     "advisory",
                     "proposals",
+                    "readings",
                     "undecided",
                     "failed",
                     "stopped",
@@ -60037,7 +60755,7 @@
     "/findings/possible/checks/{key}/reject": {
       "post": {
         "operationId": "findings_post_findings_possible_checks_key_reject",
-        "summary": "Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is possible again on every device that shares it. Audit findings.proposal_rejected",
+        "summary": "Reject an AI proposal, or the AI's reading of a vendor's statement (the key of a check or of a reading): it stays stored (the same evidence or page is never applied again) and the CVE is possible again on every device that shares it; a finding the reading opened closes at once (every device on the line is matched again). Audit findings.proposal_rejected or findings.ai_reading_rejected",
         "tags": [
           "findings"
         ],

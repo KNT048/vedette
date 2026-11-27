@@ -447,6 +447,7 @@ type CheckID struct {
 	Version  string `json:"version"`         // the exact version the line runs
 	Build    string `json:"build,omitempty"` // the build the device states with it (ESXi), which the version alone does not say
 	Evidence string `json:"evidence"`        // sha256 hex of the version and the CVE record's stamp
+	Record   string `json:"record,omitempty"` // sha256 hex of the CVE record's stamp alone: what an AI reading of the line is keyed by
 }
 
 // Undecided is why a CVE stays possible: one reason of UndecidedReasons, the range rows that were read and did not decide it, and the

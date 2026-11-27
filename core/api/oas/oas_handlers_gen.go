@@ -5178,7 +5178,8 @@ func (s *Server) handleAiPutAiAssignmentsRequest(args [0]string, argsEscaped boo
 
 // handleAiPutAiConfigRequest handles ai_put_ai_config operation.
 //
-// Save token tier, shared monthly budget and PII redaction.
+// Save token tier, shared monthly budget, PII redaction and the automatic reading of vendor advisories
+// (on or off, calls a day).
 //
 // PUT /ai/config
 func (s *Server) handleAiPutAiConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5262,7 +5263,7 @@ func (s *Server) handleAiPutAiConfigRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPutAiConfigOperation,
-			OperationSummary: "Save token tier, shared monthly budget and PII redaction",
+			OperationSummary: "Save token tier, shared monthly budget, PII redaction and the automatic reading of vendor advisories (on or off, calls a day)",
 			OperationID:      "ai_put_ai_config",
 			Body:             request,
 			RawBody:          rawBody,
@@ -29057,8 +29058,10 @@ func (s *Server) handleFindingsPostFindingsPossibleCheckRequest(args [0]string, 
 
 // handleFindingsPostFindingsPossibleChecksKeyRejectRequest handles findings_post_findings_possible_checks_key_reject operation.
 //
-// Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is
-// possible again on every device that shares it. Audit findings.proposal_rejected.
+// Reject an AI proposal, or the AI's reading of a vendor's statement (the key of a check or of a
+// reading): it stays stored (the same evidence or page is never applied again) and the CVE is possible
+// again on every device that shares it; a finding the reading opened closes at once (every device on
+// the line is matched again). Audit findings.proposal_rejected or findings.ai_reading_rejected.
 //
 // POST /findings/possible/checks/{key}/reject
 func (s *Server) handleFindingsPostFindingsPossibleChecksKeyRejectRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29137,7 +29140,7 @@ func (s *Server) handleFindingsPostFindingsPossibleChecksKeyRejectRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsPossibleChecksKeyRejectOperation,
-			OperationSummary: "Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is possible again on every device that shares it. Audit findings.proposal_rejected",
+			OperationSummary: "Reject an AI proposal, or the AI's reading of a vendor's statement (the key of a check or of a reading): it stays stored (the same evidence or page is never applied again) and the CVE is possible again on every device that shares it; a finding the reading opened closes at once (every device on the line is matched again). Audit findings.proposal_rejected or findings.ai_reading_rejected",
 			OperationID:      "findings_post_findings_possible_checks_key_reject",
 			Body:             nil,
 			RawBody:          rawBody,

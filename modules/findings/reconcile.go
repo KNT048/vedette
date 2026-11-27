@@ -792,10 +792,11 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery; urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
+// starts, then every ReconcileEvery, and starts the automatic reading of possible findings after its pass (AutoRead); urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
+		svc.AutoRead(ctx) // after the match pass: the AI reads what the pass left undecided, in the background, within its budget
 		return err
 	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
 		r, err := svc.RateUrgency(ctx, "")

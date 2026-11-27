@@ -296,21 +296,32 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
   const at = D(0, 3)
   const ai = (q: ReturnType<typeof rt>, cve: string, verdict: CheckRecord['verdict'], confidence: CheckRecord['confidence'], quote: string, reason: string, extra: Partial<CheckRecord> = {}): [string, CheckRecord] => {
     const key = checkKeyOf(q, cve)
-    return [key, { key, decided_by: 'ai', verdict, confidence, reason, quote, sources: AI_SOURCES, model: 'qwen3:8b', checked_by: 'it@example.com', checked_at: at, rejected: false, ...extra }]
+    return [key, { key, decided_by: 'ai', verdict, confidence, reason, quote, sources: AI_SOURCES, model: 'qwen3:8b', checked_by: 'it@example.com', checked_at: at, rejected: false, reading: null, ...extra }]
   }
+  // the AI's reading of the vendor's statement for the release line (stored once per line, applied to every device on it)
+  const reading = (host: string, status: NonNullable<CheckRecord['reading']>['status'], vendor: boolean, found = true, statedLine: string | null = '7.15') =>
+    ({ reading: { status, line: '7.14', stated_line: statedLine, introduced: null, fixed_in: null, last_affected: null, host, vendor_page: vendor, quote_found: found } })
   const advisory = (q: ReturnType<typeof rt>, cve: string, quote: string): [string, CheckRecord] => {
     const key = checkKeyOf(q, cve)
     return [key, { key, decided_by: 'advisory', verdict: 'not_affected', confidence: null, reason: 'The vendor lists the affected releases from 7.15 on; 7.14 is older than the first affected release.',
-      quote, sources: [AI_SOURCES[0]!], model: null, checked_by: 'it@example.com', checked_at: at, rejected: false }]
+      quote, sources: [AI_SOURCES[0]!], model: null, checked_by: 'it@example.com', checked_at: at, rejected: false, reading: null }]
   }
   const sql = { id: 'fq-srvacc-1', kind: 'no_range_data' as const, software: { id: 's-srvacc-sql', name: 'Microsoft SQL Server 2019 Enterprise Edition (64-bit) with Reporting Services and Integration Services', version: '15.0.4385.2' }, undecided: { reason: 'no_ranges' as const } }
   return Object.fromEntries([
     ai(rt(1), 'CVE-2026-240101', 'affected', 'confident', 'RouterOS versions 7.10 through 7.15.2 are affected; upgrade to 7.15.3 or 7.16.2.',
       'The advisory names the range 7.10 through 7.15.2, which covers 7.14.'),
     ai(rt(2), 'CVE-2026-240102', 'not_affected', 'likely', 'Only devices running the container package are affected.', 'The advisory limits it to the container package; nothing says it is installed.'),
-    ai(rt(7), 'CVE-2026-240107', 'not_affected', 'confident', 'This issue affects RouterOS 7.15 and later releases only.', 'The advisory names 7.15 and later; 7.14 is older.'),
-    ai(rt(9), 'CVE-2026-240109', 'unsure', null, '', 'The pages do not name RouterOS versions.'),
-    ai(rt(10), 'CVE-2026-240110', 'affected', 'likely', 'All RouterOS v7 releases before 7.16 are affected.', 'The advisory says all v7 releases before 7.16.', { rejected: true }),
+    ai(rt(8), 'CVE-2026-240108', 'unsure', null, 'RouterOS 7.14 is not affected by this issue.', 'A third-party analysis says 7.14 is not affected; the vendor\'s page says nothing about it.',
+      { ...reading('blog.example.net', 'not_affected', false, true, '7.14'), sources: [{ url: 'https://blog.example.net/routeros-analysis', status: 'ok' as const, cited: true }] }),
+    ai(rt(7), 'CVE-2026-240107', 'not_affected', 'confident', 'This issue affects RouterOS 7.15 and later releases only; 7.14 is not affected.', 'The vendor names 7.15 and later; 7.14 is older.',
+      reading('mikrotik.example.com', 'not_affected', true, true, '7.14')),
+    ai(rt(9), 'CVE-2026-240109', 'unsure', null, '', 'The pages do not name RouterOS versions.', reading('mikrotik.example.com', 'unsure', true, false, null)),
+    ai(rt(10), 'CVE-2026-240110', 'unsure', null, 'All RouterOS v7 releases before 7.16 are affected.', 'The advisory says all v7 releases before 7.16.',
+      { rejected: true, ...reading('mikrotik.example.com', 'fixed', true) }),
+    [checkKeyOf(rt(19), 'CVE-2026-240119'), { key: checkKeyOf(rt(19), 'CVE-2026-240119'), decided_by: 'structured' as const, verdict: 'unsure' as const, confidence: null,
+      reason: 'The CVE\'s reference pages have no advisory text the box can read (they may need a browser).', quote: '',
+      sources: [{ url: 'https://portal.example.com/kb/A1190', status: 'failed' as const, note: 'the page has no advisory text the box can read (it may need a browser)' }],
+      model: null, checked_by: 'system', checked_at: at, rejected: false, reading: null }],
     ai(rt(13), 'CVE-2026-240113', 'affected', 'likely', 'Versions up to 7.15 are vulnerable when WebFig is enabled.', 'The advisory says up to 7.15 with WebFig on.'),
     ai(sql, 'CVE-2026-245501', 'affected', 'likely', 'SQL Server 2019 CU28 and earlier are affected.', 'The bulletin lists SQL Server 2019 up to CU28; 15.0.4385.2 is CU28.'),
     advisory(rt(31), 'CVE-2026-240131', '7.15 versions from 7.15rc1 before 7.15.3'),

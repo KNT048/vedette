@@ -31,12 +31,22 @@ type PossibleItem struct {
 	Check     *Check // the check of its evidence; nil when none
 	Exploited bool   // the CVE is on an exploited list
 	State     string
+	// Due says the AI's reading of the line is due (none yet, or an older one to read again): with Check, what Checkable reads.
+	Due bool
+	// Unread says the last check could read none of the CVE's pages (they failed; the next check tries again).
+	Unread bool
 }
 
 // Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
 // only one made on older evidence of the CVE record, which applies until a new check replaces it).
 func (it PossibleItem) Checkable() bool {
-	return it.Question.CheckKey != "" && (it.Check == nil || it.Check.Stale)
+	if it.Question.CheckKey == "" {
+		return false
+	}
+	if it.Check != nil && it.Check.Reading != nil {
+		return it.Due
+	}
+	return it.Check == nil || it.Check.Stale
 }
 
 // Bulk says a proposal may be confirmed together with others of its class: never an exploited CVE proposed "not affected" (a person
@@ -56,6 +66,10 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 	if err != nil {
 		return nil, err
 	}
+	readings, err := readingsFor(ctx, s.rd(ctx), qs)
+	if err != nil {
+		return nil, err
+	}
 	had, err := s.findingKeys(ctx, device)
 	if err != nil {
 		return nil, err
@@ -64,19 +78,38 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 	if err != nil {
 		return nil, err
 	}
+	unread := s.unreadKeys()
+	now := s.now()
 	var out []PossibleItem
 	add := func(q Question, cve string) {
 		if cve == "" || had[lineKey(cve, q.SoftwareID)] {
 			return
 		}
 		it := PossibleItem{Question: q, CVE: cve, Exploited: exploited[cve], State: PossibleOpen}
-		if c, ok := checks[q.CheckKey]; ok && q.CheckKey != "" && q.CVE == cve {
-			it.Check = &c
+		if q.CheckKey != "" && q.CVE == cve {
+			it.Unread = unread[q.CheckKey]
+			c, ok := checks[q.CheckKey]
+			r, read := readings[q.CheckKey]
+			it.Due = q.Detail.Check != nil && (!read || r.due(*q.Detail.Check, now))
 			switch {
-			case c.Settled() && c.Verdict == VerdictNotAffected:
-				it.State = PossibleSettled
-			case c.Proposal():
-				it.State = PossibleProposal
+			case ok && !c.Stale && c.Settled(): // the box's own reading of the vendor's advisory comes first
+			case read && q.Detail.Check != nil && (r.applied != nil || r.rejected != nil):
+				st := r.applied
+				if st == nil {
+					st = r.rejected
+				}
+				c, ok = st.asCheck(*q.Detail.Check), true
+			}
+			if ok {
+				it.Check = &c
+				switch {
+				case c.Reading != nil && c.Verdict == VerdictNotAffected && c.RejectedBy == "" && c.Reading.settles(it.Exploited):
+					it.State = PossibleSettled
+				case c.Settled() && c.Verdict == VerdictNotAffected:
+					it.State = PossibleSettled
+				case c.Proposal():
+					it.State = PossibleProposal
+				}
 			}
 		}
 		out = append(out, it)
@@ -109,9 +142,11 @@ func cmpBool(a, b bool) int {
 	return -1
 }
 
-// findingKeys is the (CVE, line) of every finding, in any state, of a device (of every device when device is "").
+// findingKeys is the (CVE, line) of every finding, in any state, of a device (of every device when device is ""), but a finding the AI's
+// reading opened and Vedette closed when the reading went (a person rejected it): its CVE is undecided again, so possible, never gone.
 func (s *Service) findingKeys(ctx context.Context, device string) (map[string]bool, error) {
-	rows, err := s.rd(ctx).QueryContext(ctx, `SELECT cve, ifnull(software_id, '') FROM fnd_finding WHERE (?1 = '' OR asset_id = ?1)`, device)
+	rows, err := s.rd(ctx).QueryContext(ctx, `SELECT cve, ifnull(software_id, '') FROM fnd_finding WHERE (?1 = '' OR asset_id = ?1)
+		AND NOT (range_origin = ?2 AND state = 'handled' AND ifnull(via, '') = ?3)`, device, RangeAIRead, string(ViaDataCorrected))
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading findings: %w", err)
 	}
@@ -143,14 +178,18 @@ func (s *Service) exploitedSet(ctx context.Context) (map[string]bool, error) {
 // PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals), the AI proposals waiting, the ones a check can
 // still look at, and the ones the box settled from an advisory.
 type PossibleCounts struct {
-	Possible  int `json:"possible"`
-	Proposals int `json:"proposals"`
-	Unchecked int `json:"unchecked"`
-	Settled   int `json:"settled"`
+	Possible  int            `json:"possible"`
+	Proposals int            `json:"proposals"`
+	Unchecked int            `json:"unchecked"`
+	Settled   int            `json:"settled"`
+	Causes    map[string]int `json:"causes"` // the possible CVEs by cause (PossibleCause), every cause of the list present
 }
 
-func countPossible(items []PossibleItem) PossibleCounts {
-	var c PossibleCounts
+func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
+	c := PossibleCounts{Causes: make(map[string]int, len(PossibleCauses))}
+	for _, k := range PossibleCauses {
+		c.Causes[k] = 0
+	}
 	for _, it := range items {
 		switch it.State {
 		case PossibleSettled:
@@ -160,6 +199,7 @@ func countPossible(items []PossibleItem) PossibleCounts {
 			c.Proposals++
 		}
 		c.Possible++
+		c.Causes[PossibleCause(it, rs)]++
 		if it.Checkable() {
 			c.Unchecked++
 		}
@@ -201,6 +241,7 @@ type PossibleRowJS struct {
 	Check     *CheckJS       `json:"check"`
 	Checkable bool           `json:"checkable"`
 	Bulk      bool           `json:"bulk"`
+	Cause     *string        `json:"cause"` // PossibleCause; null for a settled row
 }
 
 // CheckJS is contract.ts PossibleCheck: a check's verdict as the lists show it, with the pages it read.
@@ -216,6 +257,34 @@ type CheckJS struct {
 	CheckedBy  string        `json:"checked_by"`
 	CheckedAt  string        `json:"checked_at"`
 	Rejected   bool          `json:"rejected"`
+	Reading    *ReadingJS    `json:"reading"`
+}
+
+// ReadingJS is contract.ts AiReading: the AI's reading of the vendor's statement for a release line, as the box checked it.
+type ReadingJS struct {
+	Status       string  `json:"status"`
+	Line         string  `json:"line"`
+	StatedLine   *string `json:"stated_line"`
+	Introduced   *string `json:"introduced"`
+	FixedIn      *string `json:"fixed_in"`
+	LastAffected *string `json:"last_affected"`
+	Host         *string `json:"host"`
+	VendorPage   bool    `json:"vendor_page"`
+	QuoteFound   bool    `json:"quote_found"`
+}
+
+func readingJS(st *LineStatement) *ReadingJS {
+	if st == nil {
+		return nil
+	}
+	opt := func(s string) *string {
+		if s == "" {
+			return nil
+		}
+		return &s
+	}
+	return &ReadingJS{Status: st.Status, Line: st.Line, StatedLine: opt(st.StatedLine), Introduced: opt(st.Introduced), FixedIn: opt(st.FixedIn),
+		LastAffected: opt(st.Last), Host: opt(st.Host), VendorPage: st.VendorPage, QuoteFound: st.QuoteFound}
 }
 
 func checkJS(c *Check) *CheckJS {
@@ -223,7 +292,7 @@ func checkJS(c *Check) *CheckJS {
 		return nil
 	}
 	out := &CheckJS{Key: c.Key, DecidedBy: c.DecidedBy, Verdict: c.Verdict, Reason: c.Reason, Quote: c.Quote, Sources: c.Sources, CheckedBy: c.CheckedBy,
-		CheckedAt: store.FormatTS(c.CheckedAt), Rejected: c.RejectedBy != ""}
+		CheckedAt: store.FormatTS(c.CheckedAt), Rejected: c.RejectedBy != "", Reading: readingJS(c.Reading)}
 	if out.Sources == nil {
 		out.Sources = []CheckSource{}
 	}
@@ -254,7 +323,8 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 		if err != nil {
 			return err
 		}
-		out.Counts = countPossible(items)
+		rs := s.ReadState(ctx)
+		out.Counts = countPossible(items, rs)
 		var assets, lines, cves []string
 		for _, it := range items {
 			assets, lines, cves = append(assets, it.Question.AssetID), append(lines, it.Question.SoftwareID), append(cves, it.CVE)
@@ -269,7 +339,7 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 			if f.State == "" && it.State == PossibleSettled || f.State != "" && it.State != f.State {
 				continue
 			}
-			r := possibleRow(it, ref)
+			r := possibleRow(it, ref, rs)
 			if q != "" && !possibleMatches(r, q) {
 				continue
 			}
@@ -287,12 +357,15 @@ func nonEmpty(xs []string) []string {
 	return slices.DeleteFunc(slices.Clone(xs), func(x string) bool { return x == "" })
 }
 
-func possibleRow(it PossibleItem, ref refs) PossibleRowJS {
+func possibleRow(it PossibleItem, ref refs, rs ReadState) PossibleRowJS {
 	q := it.Question
 	r := PossibleRowJS{ID: q.ID, CVE: it.CVE, Kind: string(q.Kind), Device: deviceRef(ref.device(q.AssetID)), Exploited: it.Exploited, State: it.State,
 		Undecided: q.Detail.Undecided, Fixes: q.Detail.Fixes, Check: checkJS(it.Check), Checkable: it.Checkable(), Bulk: it.Bulk()}
 	if r.Fixes == nil {
 		r.Fixes = []string{}
+	}
+	if c := PossibleCause(it, rs); c != "" {
+		r.Cause = &c
 	}
 	if r.Undecided == nil {
 		r.Undecided = &Undecided{Reason: UndecidedRangesDoNotCover}

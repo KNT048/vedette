@@ -38,14 +38,11 @@ const (
 	// alone does not stop them.
 	gmpBruteOID = "1.3.6.1.4.1.25623.1.0.103697"
 	// gmpGlobalOID is the feed's "Global variable settings" (family Settings): its checkbox "Enable generic web application scanning"
-	// turns on the generic SQL injection, XSS and directory-traversal fuzzing of the web application tests: off in the deep level (Greenbone's default; on a test box it kept three CPU-bound NVTs running 40+ min, #915), on only with the disruptive tick.
+	// turns on the generic SQL injection, XSS and directory-traversal fuzzing of the web application tests. It is off at every level:
+	// the web scanner (ZAP) is Vedette's web attack engine, and on a measured deep scan the generic tests held the scan for 53 of its 88
+	// minutes and found nothing (#915 before it).
 	gmpGlobalOID = "1.3.6.1.4.1.25623.1.0.12288"
-	// gmpWebRootTravOID is the feed's "Generic HTTP Directory Traversal / File Inclusion (Web Root) - Active Check" (family Web
-	// application abuses, ACT_ATTACK, its own 30-minute script_timeout). It is the one generic web traversal test that the checkbox
-	// above does not gate (it reads only "Enable CGI scanning"), so the deep level leaves it out of its config by name (#915: on
-	// a test box it ran its full 30 minutes at 98% on every deep scan and found nothing).
-	gmpWebRootTravOID = "1.3.6.1.4.1.25623.1.0.106756"
-	gmpWebFamily      = "Web application abuses"
+	gmpWebFamily = "Web application abuses"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
 	GreenboneMinQoD = 70
 
@@ -72,43 +69,55 @@ const (
 // service: on only when the accepted testing terms include the disruptive checks.
 var gmpDisruptiveFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
 
+// gmpWebFuzzOff are the generic "Directory Traversal / File Inclusion" active checks (Web Root, Web Dirs, Web URL Parameter) of the
+// family Web application abuses. They have a script timeout of 30 minutes each, the first of them is not gated by the checkbox
+// "Enable generic web application scanning", and on a measured scan all three ran to their timeout without a result. They are left out
+// of the config at every level; the rest of the family stays as "Full and fast" selects it.
+var gmpWebFuzzOff = []string{
+	"1.3.6.1.4.1.25623.1.0.106756", // Web Root
+	"1.3.6.1.4.1.25623.1.0.113002", // Web URL Parameter
+	"1.3.6.1.4.1.25623.1.0.117574", // Web Dirs
+}
+
 // gmpCheckbox is one checkbox of an NVT's preferences that Vedette's config must hold before a task starts: set on every scan and
 // read back (fail closed). Its id is read from gvmd.
 type gmpCheckbox struct {
 	oid, name, value string
 }
 
-// gbLevel is one of Vedette's two scan configs, each a copy of "Full and fast" of its own: which disruptive families are
-// on, safe_checks and the checkboxes. A level never changes into the other: each has its config, found by name.
+// gbLevel is one of Vedette's scan configs, each a copy of "Full and fast" of its own. A level is data: which disruptive families
+// are on, safe_checks, the checkboxes and the NVTs left out. Everything else is "Full and fast" as Greenbone ships it. A level never
+// changes into another: each has its config, found by name.
 type gbLevel struct {
 	name       string // the config's name in Greenbone
 	text       string // what it does, for the check line and the probe log
 	disruptive bool   // the disruptive families on
 	safeChecks string // "yes" or "no"
 	prefs      []gmpCheckbox
-	webOff     []string // NVTs of the family Web application abuses left out of the config (#915); none keeps the whole family
+	webOff     []string // NVTs of the family Web application abuses left out of the config
 }
 
 // The two levels: the deep scan of accepted testing terms, and the deep scan with the disruptive checks.
 var (
 	gbDeep = gbLevel{
 		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",
-		text: "Full and fast, every non-disruptive check (active ones included; generic web scanning and the web-root traversal test off); safe checks on",
+		text: "Full and fast, every non-disruptive check (active ones included; generic web fuzzing off); safe checks on",
 		prefs: []gmpCheckbox{
 			{gmpBruteOID, "Disable brute force checks", "yes"},
 			{gmpBruteOID, "Disable default account checks", "yes"},
 			{gmpGlobalOID, "Enable generic web application scanning", "no"},
 		},
-		webOff: []string{gmpWebRootTravOID},
+		webOff: gmpWebFuzzOff,
 	}
 	gbDisruptive = gbLevel{
 		name: "vedette-disruptive-full-and-fast", disruptive: true, safeChecks: "no",
-		text: "Full and fast, every check (brute force, default accounts, denial of service and generic web scanning included, which can take up to the time cap); safe checks off",
+		text: "Full and fast, every check (brute force, default accounts and denial of service included; generic web fuzzing off); safe checks off",
 		prefs: []gmpCheckbox{
 			{gmpBruteOID, "Disable brute force checks", "no"},
 			{gmpBruteOID, "Disable default account checks", "no"},
-			{gmpGlobalOID, "Enable generic web application scanning", "yes"},
+			{gmpGlobalOID, "Enable generic web application scanning", "no"},
 		},
+		webOff: gmpWebFuzzOff,
 	}
 )
 
@@ -331,9 +340,21 @@ type gmpConfig struct {
 
 // gmpFamily is one family of a config; NVTCount is how many of its tests the config selects ("" when gvmd gave no count).
 type gmpFamily struct {
-	Name     string `xml:"name"`
-	NVTCount string `xml:"nvt_count"`
+	Name        string `xml:"name"`
+	NVTCount    string `xml:"nvt_count"`
+	MaxNVTCount string `xml:"max_nvt_count"`
+	Growing     string `xml:"growing"`
 }
+
+// partial says the config selects only some of the family's NVTs: a count below the family's size (gvmd gives both). A family
+// whose size is not given counts as selected whole.
+func (f gmpFamily) partial() bool {
+	n, err1 := strconv.Atoi(strings.TrimSpace(f.NVTCount))
+	m, err2 := strconv.Atoi(strings.TrimSpace(f.MaxNVTCount))
+	return err1 == nil && err2 == nil && n < m
+}
+
+func (f gmpFamily) growing() bool { return strings.TrimSpace(f.Growing) == "1" }
 
 // on says the config selects tests of the family: listed, with a count that is not 0.
 func (f gmpFamily) on() bool { return strings.TrimSpace(f.NVTCount) != "0" }
@@ -410,22 +431,25 @@ func (g *gmpConn) levelConfig(ctx context.Context, user string, lv gbLevel) (str
 	if _, err := gmpID(id, "config"); err != nil {
 		return "", err
 	}
+	fams := levelFamilies(full.Configs[0].Families, lv)
+	if len(fams) == 0 {
+		return "", fmt.Errorf("%w: no family left to scan with", ErrGMPBad)
+	}
+	// The selection is what "Full and fast" selects: a family it selects whole is switched on whole and growing as it is; one it
+	// selects in part (its port scanners are two of nine) is set NVT by NVT from the base config's own list, growing as the base is.
+	// The level takes away only its disruptive families.
 	var sel strings.Builder
 	sel.WriteString(`<modify_config config_id="` + id + `"><family_selection><growing>1</growing>`)
-	kept := 0
-	for _, f := range full.Configs[0].Families {
-		name := strings.TrimSpace(f.Name)
-		if name == "" || (!lv.disruptive && slices.Contains(gmpDisruptiveFamilies, name)) {
-			continue
+	for _, f := range fams {
+		if !f.partial() || f.growing() {
+			sel.WriteString("<family><name>" + esc(strings.TrimSpace(f.Name)) + "</name><all>1</all><growing>1</growing></family>")
 		}
-		kept++
-		sel.WriteString("<family><name>" + esc(name) + "</name><all>1</all><growing>1</growing></family>")
-	}
-	if kept == 0 {
-		return "", fmt.Errorf("%w: no family left to scan with", ErrGMPBad)
 	}
 	sel.WriteString("</family_selection></modify_config>")
 	if err := g.modifyConfig(ctx, lv.name, sel.String()); err != nil {
+		return "", err
+	}
+	if err := g.partialFamilies(ctx, id, lv, fams); err != nil {
 		return "", err
 	}
 	if err := g.modifyConfig(ctx, lv.name, `<modify_config config_id="`+id+`"><preference><name>safe_checks</name><value>`+
@@ -438,12 +462,27 @@ func (g *gmpConn) levelConfig(ctx context.Context, user string, lv gbLevel) (str
 	if err := g.levelNVTs(ctx, id, lv); err != nil {
 		return "", err
 	}
-	return id, g.readBack(ctx, id, lv)
+	return id, g.readBack(ctx, id, lv, full.Configs[0].Families)
+}
+
+// levelFamilies are the families of the base config that the level scans with: those it selects at all (a count of 0 is not selected),
+// without the disruptive families when the level has none.
+func levelFamilies(base []gmpFamily, lv gbLevel) []gmpFamily {
+	var out []gmpFamily
+	for _, f := range base {
+		name := strings.TrimSpace(f.Name)
+		if name == "" || !f.on() || (!lv.disruptive && slices.Contains(gmpDisruptiveFamilies, name)) {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // readBack checks the families and safe_checks of the config after they were set: a disruptive family on in the deep config,
-// or off in the disruptive one, or safe_checks not as set, starts nothing.
-func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
+// or off in the disruptive one, a family the base config selects in part with another number of NVTs, or safe_checks not as set,
+// starts nothing.
+func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel, base []gmpFamily) error {
 	var got gmpConfigs
 	if _, err := g.do(ctx, "get_configs", `<get_configs config_id="`+id+`" families="1"/>`, gmpMaxAnswer, &got); err != nil {
 		return err
@@ -455,6 +494,13 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
 		on := slices.ContainsFunc(got.Configs[0].Families, func(x gmpFamily) bool { return strings.TrimSpace(x.Name) == f && x.on() })
 		if on != lv.disruptive {
 			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + f + "\" " + onOff(lv.disruptive) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
+		}
+	}
+	for _, want := range levelFamilies(base, lv) {
+		i := slices.IndexFunc(got.Configs[0].Families, func(x gmpFamily) bool { return strings.TrimSpace(x.Name) == strings.TrimSpace(want.Name) })
+		if i < 0 || !got.Configs[0].Families[i].on() ||
+			(want.partial() && !(strings.TrimSpace(want.Name) == gmpWebFamily && len(lv.webOff) > 0) && strings.TrimSpace(got.Configs[0].Families[i].NVTCount) != strings.TrimSpace(want.NVTCount)) {
+			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + strings.TrimSpace(want.Name) + "\" as \"Full and fast\" selects it in Vedette's scan config " + lv.name + ", so nothing was started."}
 		}
 	}
 	// gvmd matches get_preferences preference="safe_checks" against NVT preferences only (no nvt_oid given), and
@@ -602,7 +648,7 @@ func (g *gmpConn) webNVTs(ctx context.Context, config string) ([]string, error) 
 	return out, nil
 }
 
-// levelNVTs leaves the level's webOff NVTs out of the family Web application abuses (#915) and reads the family back. GMP has no
+// levelNVTs leaves the level's webOff NVTs out of the family Web application abuses and reads the family back. GMP has no
 // "all but": every other NVT of today's feed is listed, and gvmd stores that for a growing family as the family minus the NVTs not
 // listed (manage_set_config_nvts: "exclude all no's"), so the family stays growing and an NVT a feed update adds is in it. An NVT
 // of webOff still selected, or one listed that is not, fails closed: nothing starts.
@@ -610,7 +656,7 @@ func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) erro
 	if len(lv.webOff) == 0 {
 		return nil
 	}
-	feed, err := g.webNVTs(ctx, "")
+	feed, err := g.webNVTs(ctx, gmpFullAndFast) // what the base config selects of the family, not the whole feed
 	if err != nil {
 		return err
 	}
@@ -637,7 +683,37 @@ func (g *gmpConn) levelNVTs(ctx context.Context, config string, lv gbLevel) erro
 	// r1 M1: every NVT listed must be selected too, or a cut or partial selection would scan with most of the family missing
 	if slices.ContainsFunc(got, func(o string) bool { return slices.Contains(lv.webOff, o) }) ||
 		slices.ContainsFunc(kept, func(o string) bool { return !slices.Contains(got, o) }) {
-		return &Unavailable{Reason: "OpenVAS did not keep the web-root traversal test off in Vedette's scan config " + lv.name + ", so nothing was started."}
+		return &Unavailable{Reason: "OpenVAS did not keep the generic web traversal tests off in Vedette's scan config " + lv.name + ", so nothing was started."}
+	}
+	return nil
+}
+
+// partialFamilies sets, for each family the base config selects only in part, exactly the NVTs the base selects (get_nvts of the
+// family with the base config's id). The family was not switched on whole above (or, when growing, was and is cut back here), so
+// the copy is the base config's selection and nothing more: the extra port scanners "Full and fast" leaves out stay out.
+func (g *gmpConn) partialFamilies(ctx context.Context, config string, lv gbLevel, fams []gmpFamily) error {
+	for _, f := range fams {
+		fam := strings.TrimSpace(f.Name)
+		if !f.partial() || (fam == gmpWebFamily && len(lv.webOff) > 0) { // the web family is levelNVTs's
+			continue
+		}
+		var n gmpNVTs
+		if _, err := g.do(ctx, "get_nvts", `<get_nvts family="`+esc(fam)+`" config_id="`+gmpFullAndFast+`"/>`, gmpMaxNVTs, &n); err != nil {
+			return err
+		}
+		var sel strings.Builder
+		sel.WriteString(`<modify_config config_id="` + config + `"><nvt_selection><family>` + esc(fam) + `</family>`)
+		for _, x := range n.NVTs {
+			oid := strings.TrimSpace(x.OID)
+			if !gmpOIDRe.MatchString(oid) {
+				return fmt.Errorf("%w: get_nvts answered an NVT id that is not Greenbone's", ErrGMPBad)
+			}
+			sel.WriteString(`<nvt oid="` + oid + `"/>`)
+		}
+		sel.WriteString("</nvt_selection></modify_config>")
+		if err := g.modifyConfig(ctx, lv.name, sel.String()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -734,11 +810,12 @@ func (g *gmpConn) taskStatus(ctx context.Context, task string) (string, int, err
 	return st, p, nil
 }
 
-// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops) with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
+// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops): those with
+// QoD at least GreenboneMinQoD and severity above 0, and the allowlisted configuration facts (gmpFacts) at any level and QoD. The
+// report is asked for with every level and QoD and sorted out here, because gvmd filters by one QoD for all results.
 func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, error) {
 	r := &gmpReport{}
-	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=`+
-		strconv.Itoa(GreenboneMinQoD)+` levels=hml apply_overrides=0 rows=-1 first=1 sort-reverse=severity"/>`, gmpMaxReport, r); err != nil {
+	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=0 levels=hmlg apply_overrides=0 rows=-1 first=1 sort-reverse=severity"/>`, gmpMaxReport, r); err != nil {
 		return nil, err
 	}
 	rows, _, err := parseGMPReport(r, report, ip)
@@ -945,7 +1022,7 @@ var (
 // parseGMPReport turns a get_reports answer into rows. It is strict and fails closed (ErrGMPBad): not exactly one report with the
 // asked id, no results list, more than gmpMaxResults results, or a result without a number as its severity (0 to 10) and QoD
 // (0 to 100). A result of another host is dropped (the target held one address), one below GreenboneMinQoD too (whatever the filter
-// did). Text is plain, printable and clipped; a port that is not "22/tcp" or "general/tcp" is ""; CVE ids are checked, without
+// did) unless it is an allowlisted configuration fact (gmpFacts), which is kept as a Low row with its fix line. Text is plain, printable and clipped; a port that is not "22/tcp" or "general/tcp" is ""; CVE ids are checked, without
 // repeats, at most gmpMaxCVEs. It returns the rows and how many results the report held.
 func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error) {
 	if len(r.Report) != 1 || r.Report[0].ID != report || r.Report[0].Inner.Results == nil {
@@ -968,7 +1045,19 @@ func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error
 		if err != nil || qod < 0 || qod > 100 {
 			return nil, 0, fmt.Errorf("%w: QoD %q", ErrGMPBad, clipText(*x.QoD, 20))
 		}
-		if strings.TrimSpace(x.Host.Text) != ip || qod < GreenboneMinQoD || sev <= 0 {
+		if strings.TrimSpace(x.Host.Text) != ip {
+			continue
+		}
+		if f, ok := gmpFactOf(strings.TrimSpace(x.NVT.OID), x.Description); ok {
+			row, ok := cleanGreenboneRow(GreenboneRow{IP: ip, Severity: gmpFactSeverity, Name: f.title, Port: strings.TrimSpace(x.Port), QoD: qod, OID: strings.TrimSpace(x.NVT.OID),
+				Solution: f.fix, CVEs: []string{}, Description: gmpDescription(f.title, x.NVT.Tags, x.Description)})
+			if !ok {
+				return nil, 0, fmt.Errorf("%w: a result without a name", ErrGMPBad)
+			}
+			rows = append(rows, row)
+			continue
+		}
+		if qod < GreenboneMinQoD || sev <= 0 {
 			continue
 		}
 		name := plainText(x.NVT.Name, gmpMaxName)

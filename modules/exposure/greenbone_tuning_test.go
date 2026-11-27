@@ -101,7 +101,6 @@ func fxResult(name, oid, port string, sev, qod int, detail string) string {
 		`</value></qod><description>` + detail + `</description></result>`
 }
 
-
 func fxWrap(results ...string) string {
 	return `<get_reports_response status="200"><report id="` + gbReportID + `"><report id="` + gbReportID + `"><results>` + strings.Join(results, "") +
 		`</results></report></report></get_reports_response>`
@@ -141,5 +140,59 @@ func TestOpenVASTuning_ReportIsReadAtEveryLevel(t *testing.T) {
 	i := slices.IndexFunc(h.gvm.cmds, func(c string) bool { return c == "get_reports" })
 	if i < 0 || !strings.Contains(h.gvm.bodies[i], "levels=hmlg") {
 		t.Fatalf("get_reports bodies = %q", h.gvm.bodies)
+	}
+}
+
+// Every allowlisted NVT has a title and a fix line, and one fixture result that becomes a Low issue with both, at a log level result
+// (severity 0) and at a QoD below 70.
+func TestOpenVASFactsHaveTitleAndFix(t *testing.T) {
+	t.Parallel()
+	detections := map[string]string{
+		"1.3.6.1.4.1.25623.1.0.10267":  "Remote SSH supported authentication: publickey,password",
+		"1.3.6.1.4.1.25623.1.0.117839": "The server offers diffie-hellman-group-exchange-sha256",
+		"1.3.6.1.4.1.25623.1.0.117414": "HTTP compression is enabled on /",
+		"1.3.6.1.4.1.25623.1.0.153974": "Supported methods: GET, HEAD, OPTIONS, PUT, TRACE",
+		"1.3.6.1.4.1.25623.1.0.103140": "The certificate is self-signed",
+		"1.3.6.1.4.1.25623.1.0.103141": "The certificate subject does not match",
+		"1.3.6.1.4.1.25623.1.0.117764": "The certificate is not trusted",
+	}
+	seen := map[string]bool{}
+	for _, f := range gmpFacts {
+		if strings.TrimSpace(f.title) == "" || strings.TrimSpace(f.fix) == "" || seen[f.oid] {
+			t.Errorf("entry %s: title %q fix %q (or listed twice)", f.oid, f.title, f.fix)
+		}
+		seen[f.oid] = true
+		d, ok := detections[f.oid]
+		if !ok {
+			t.Errorf("entry %s has no fixture result", f.oid)
+			continue
+		}
+		for _, r := range []struct{ sev, qod int }{{0, 80}, {5, 30}} {
+			rows, _, err := readReport(fxWrap(fxResult("nvt name", f.oid, "443/tcp", r.sev, r.qod, d)))
+			if err != nil || len(rows) != 1 {
+				t.Errorf("entry %s sev %d qod %d: rows %+v, %v", f.oid, r.sev, r.qod, rows, err)
+				continue
+			}
+			is := openvasIssue(rows[0])
+			if is.severity != "low" || is.title != f.title || is.detail.Solution != f.fix || len(is.cves) != 0 || !strings.Contains(is.key, ":443@") {
+				t.Errorf("entry %s: issue %+v", f.oid, is)
+			}
+		}
+	}
+	if len(detections) != len(gmpFacts) {
+		t.Errorf("%d fixtures for %d entries", len(detections), len(gmpFacts))
+	}
+}
+
+// A note of an NVT on the allowlist that does not state the fact is no issue: SSH with key logins only, methods without PUT, DELETE or
+// TRACE.
+func TestOpenVASFactsNeedTheirDetectionText(t *testing.T) {
+	t.Parallel()
+	rows, _, err := readReport(fxWrap(
+		fxResult("SSH Server type and version", "1.3.6.1.4.1.25623.1.0.10267", "22/tcp", 0, 80, "Remote SSH supported authentication: publickey"),
+		fxResult("Allowed HTTP Methods Enumeration", "1.3.6.1.4.1.25623.1.0.153974", "80/tcp", 0, 70, "Supported methods: GET, HEAD, POST"),
+	))
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("rows %+v, %v", rows, err)
 	}
 }

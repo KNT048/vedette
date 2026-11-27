@@ -107,7 +107,7 @@ type fakeCfg struct {
 }
 
 // fakeWebNVTs is the feed's family Web application abuses in the fake gvmd.
-var fakeWebNVTs = []string{"1.3.6.1.4.1.25623.1.0.113002", gmpWebRootTravOID, "1.3.6.1.4.1.25623.1.0.117574"}
+var fakeWebNVTs = []string{"1.3.6.1.4.1.25623.1.0.100001", "1.3.6.1.4.1.25623.1.0.100002", "1.3.6.1.4.1.25623.1.0.113002", "1.3.6.1.4.1.25623.1.0.106756", "1.3.6.1.4.1.25623.1.0.117574"}
 
 var cfgIDRe = regexp.MustCompile(`config_id=([0-9a-f-]{36})`)
 
@@ -213,7 +213,13 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		case f.cfgIn(body) != nil:
 			c := f.cfgIn(body)
 			fams := ""
-			for _, n := range c.families {
+			listed := slices.Clone(c.families)
+			for n := range c.sel {
+				if !slices.Contains(listed, n) {
+					listed = append(listed, n)
+				}
+			}
+			for _, n := range listed {
 				count := "10"
 				if v, ok := c.sel[n]; ok {
 					count = fmt.Sprint(len(v))
@@ -882,8 +888,8 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	if !slices.Equal(c.families, []string{"General", "Web application abuses"}) {
 		t.Fatalf("families = %q", c.families)
 	}
-	// #915: the web-root traversal test, which the checkbox does not gate, is left out; the rest of its family stays
-	if want := []string{"1.3.6.1.4.1.25623.1.0.113002", "1.3.6.1.4.1.25623.1.0.117574"}; !slices.Equal(c.web, want) {
+	// the three generic traversal tests are left out; the rest of the family stays
+	if want := []string{"1.3.6.1.4.1.25623.1.0.100001", "1.3.6.1.4.1.25623.1.0.100002"}; !slices.Equal(c.web, want) {
 		t.Fatalf("web application tests = %q", c.web)
 	}
 	l := gvm.log
@@ -1476,13 +1482,13 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, used := h.gvm.cfg(gbDisruptive.name)
-	if v := c.prefs; used != gbDisruptive.name || v["Disable brute force checks"] != "no" || v["Disable default account checks"] != "no" || v["Enable generic web application scanning"] != "yes" || v["safe_checks"] != "no" {
+	if v := c.prefs; used != gbDisruptive.name || v["Disable brute force checks"] != "no" || v["Disable default account checks"] != "no" || v["Enable generic web application scanning"] != "no" || v["safe_checks"] != "no" {
 		t.Fatalf("config %q used, prefs %v", used, v)
 	}
 	if !slices.Equal(c.families, []string{"General", "Brute force attacks", "Default Accounts", "Denial of Service", "Web application abuses"}) {
 		t.Fatalf("families = %q", c.families)
 	}
-	if c.web != nil || h.gvm.seen("get_nvts") { // #915: the disruptive level keeps the whole family, growing
+	if !slices.Equal(c.web, []string{"1.3.6.1.4.1.25623.1.0.100001", "1.3.6.1.4.1.25623.1.0.100002"}) { // the disruptive level leaves the traversal tests out too
 		t.Fatalf("web application tests = %q", c.web)
 	}
 	if d, _ := h.gvm.cfg(gbDeep.name); d.id != "" {
@@ -1520,7 +1526,7 @@ func TestContract_INV25_WebRootTraversalOffFailsClosed(t *testing.T) {
 	h.gvm.with(func(g *fakeGVM) { g.keepNVTs = true })
 	s := e.scanIP(gbOpen())
 	if h.gvm.seen("create_task") || len(s.Greenbone) != 0 ||
-		!slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "did not keep the web-root traversal test off") }) {
+		!slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "did not keep the generic web traversal tests off") }) {
 		t.Fatalf("not checked %q, cmds %q", notChecked(s), h.gvm.cmds)
 	}
 	for name, set := range map[string]func(*fakeGVM){
@@ -1546,14 +1552,14 @@ func TestContract_INV25_WebFamilyFollowsTheFeed(t *testing.T) {
 	e.enable()
 	s := e.scanIP(gbOpen())
 	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
-		return c.Kind == "greenbone" && strings.Contains(c.Text, "web-root traversal test off")
+		return c.Kind == "greenbone" && strings.Contains(c.Text, "generic web fuzzing off")
 	}) {
 		t.Fatalf("checks = %+v", s.Checks)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.webExtra = []string{"1.3.6.1.4.1.25623.1.0.200000"} })
 	e.advance(ScanEvery)
 	e.scanIP(gbOpen())
-	if c, _ := h.gvm.cfg(gbDeep.name); !slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.200000") || slices.Contains(c.web, gmpWebRootTravOID) {
+	if c, _ := h.gvm.cfg(gbDeep.name); !slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.200000") || slices.Contains(c.web, "1.3.6.1.4.1.25623.1.0.106756") {
 		t.Fatalf("web application tests = %q", c.web)
 	}
 }

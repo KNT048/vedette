@@ -92,7 +92,7 @@ type KEVEntry struct {
 }
 
 // GreenboneRow is one result of Greenbone's report (contract.ts GreenboneResult): severity (CVSS 0.1 to 10), the test's name, the port
-// ("443/tcp", "general/tcp"; "" when it gave none that reads as one), QoD (70 to 100), the CVE ids the test names, Greenbone's advice
+// ("443/tcp", "general/tcp"; "" when it gave none that reads as one), QoD (70 to 100; an allowlisted configuration fact any), the CVE ids the test names, Greenbone's advice
 // (clipped) and the test's OID. IP is the scanned address.
 type GreenboneRow struct {
 	IP       string   `json:"ip"`
@@ -1510,7 +1510,7 @@ func cleanGreenboneRow(r GreenboneRow) (GreenboneRow, bool) {
 	}
 	r.CVEs = cves
 	r.Severity = float64(int(r.Severity*10+0.5)) / 10
-	if r.Name == "" || r.Severity <= 0 || r.Severity > 10 || r.QoD < GreenboneMinQoD || r.QoD > 100 {
+	if r.Name == "" || r.Severity <= 0 || r.Severity > 10 || (r.QoD < GreenboneMinQoD && !isFactOID(r.OID)) || r.QoD > 100 {
 		return GreenboneRow{}, false
 	}
 	return r, true

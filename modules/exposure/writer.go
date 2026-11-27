@@ -838,7 +838,11 @@ func openvasIssue(r GreenboneRow) issueIn {
 	case r.Severity > 0:
 		sev = "low"
 	}
-	return issueIn{engine: EngineOpenVAS, key: firstOf(r.OID, r.Name) + "@" + ipKey(r.IP), ip: r.IP, port: greenbonePort(r.Port), severity: sev, cves: r.CVEs,
+	key := firstOf(r.OID, r.Name) + "@" + ipKey(r.IP)
+	if isFactOID(r.OID) && greenbonePort(r.Port) > 0 { // a fact is true of a port: the same fact on two ports is two issues
+		key = r.OID + ":" + strconv.Itoa(greenbonePort(r.Port)) + "@" + ipKey(r.IP)
+	}
+	return issueIn{engine: EngineOpenVAS, key: key, ip: r.IP, port: greenbonePort(r.Port), severity: sev, cves: r.CVEs,
 		title:  clipText(firstOf(r.Name, r.OID), 300),
 		detail: IssueDetail{Description: firstOf(r.Description, gmpDescription(r.Name, "", "")), Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
 }

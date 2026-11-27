@@ -245,7 +245,7 @@ func TestExposureGroups_PathsLine(t *testing.T) {
 	}{
 		{map[string]tplPathVerdict{"a": tplPathSkipped, "b": tplPathSkipped}, "nuclei left out 2 templates on port 443 for this target's web paths to skip (/admin, /wp-): each sends a request under one of them."},
 		{map[string]tplPathVerdict{"a": tplPathUnknown}, "nuclei left out 1 template on port 443 for this target's web paths to skip (/admin, /wp-): each sends a request whose path is only built while it runs, so it could be under one."},
-		{map[string]tplPathVerdict{"a": tplPathSkipped, "b": tplPathUnknown, "c": tplPathUnknown}, "nuclei left out 3 templates on port 443 for this target's web paths to skip (/admin, /wp-): 1 send a request under one of them, 2 a request whose path is only built while it runs, so it could be under one."},
+		{map[string]tplPathVerdict{"a": tplPathSkipped, "b": tplPathUnknown, "c": tplPathUnknown}, "nuclei left out 3 templates on port 443 for this target's web paths to skip (/admin, /wp-): 1 sends a request under one of them, 2 send a request whose path is only built while it runs, so it could be under one."},
 	} {
 		if got := pathsLine(c.left, 443, skip); got != c.want {
 			t.Errorf("%v:\n got %q\nwant %q", c.left, got, c.want)

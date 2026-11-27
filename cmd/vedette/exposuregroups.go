@@ -300,7 +300,8 @@ func pathsLine(left map[string]tplPathVerdict, port int, skip []string) string {
 	case skipped == 0:
 		why = "each sends a request whose path is only built while it runs, so it could be under one"
 	case unknown > 0:
-		why = fmt.Sprintf("%d send a request under one of them, %d a request whose path is only built while it runs, so it could be under one", skipped, unknown)
+		why = fmt.Sprintf("%d %s a request under one of them, %d %s a request whose path is only built while it runs, so it could be under one",
+			skipped, plural(skipped, "sends", "send"), unknown, plural(unknown, "sends", "send"))
 	}
 	return fmt.Sprintf("nuclei left out %s on port %d for this target's web paths to skip (%s): %s.", count(skipped+unknown, "template", "templates"), port, strings.Join(skip, ", "), why)
 }

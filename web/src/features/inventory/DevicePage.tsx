@@ -370,7 +370,7 @@ const SoftwareList = memo(function SoftwareList({ d, info, listActions }: { d: D
             {t('software.differs', { version: v || t('software.noVersion'), source: t(`common:source.${differing.source}`), when: fmtRelative(differing.seen_at) })}
             {sw.source === 'manual' && VERSION_RE.test(v) ? (
               <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} busy={act.setVersion.isPending && act.setVersion.variables?.sid === sw.id} busyLabel={t('common:busy.saving')} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
-                onClick={() => act.setVersion.mutate({ sid: sw.id, version: v }, { onSuccess: () => toast.success(t('software.edited', { name: sw.display, version: v })), onError: (e) => toast.error(errMsg(e)) })}>
+                onClick={() => takeVersion(sw, v)}>
                 {t('software.accept', { version: v })}
               </Button>
             ) : null}
@@ -380,6 +380,15 @@ const SoftwareList = memo(function SoftwareList({ d, info, listActions }: { d: D
       </div>
     )
   }
+  // "Use <version>": the version a differing source reads becomes the person's entry. A version the device itself states otherwise is
+  // said back once (409 contradicts_device) with "Save anyway", as in the version dialog.
+  const takeVersion = (sw: SoftwareLine, v: string, confirm = false) => act.setVersion.mutate({ sid: sw.id, version: v, ...(confirm ? { confirm: true } : {}) }, {
+    onSuccess: () => toast.success(t('software.edited', { name: sw.display, version: v })),
+    onError: (e) => {
+      if (e instanceof ApiError && e.code === 'contradicts_device') toast.warning(e.message, { action: { label: t('software.saveAnyway'), onClick: () => takeVersion(sw, v, true) } })
+      else toast.error(errMsg(e))
+    },
+  })
   // The row's actions in one "More" menu. Every line can be corrected (INV-41): the version a person gives stands until a source
   // reports a newer one. A person's correction can be changed or undone; software a person declared is changed or removed; a reported
   // line can also be marked not installed, and an agent's line can ask the agent to report now. "Not installed" keeps its Clear button.

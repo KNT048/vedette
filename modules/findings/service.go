@@ -902,8 +902,25 @@ func stillReportedError(fs []Finding) error {
 		return &APIError{"still_reported", 409, fmt.Sprintf("%s still shows %s, inside the affected versions of %s. Mark it patched anyway if the device was updated after that: it opens again if the next reading still shows %s.",
 			what, f.MatchedVersion, f.CVE, f.MatchedVersion)}
 	}
-	return &APIError{"still_reported", 409, fmt.Sprintf("%d of these findings rest on a version the device's latest reading still shows (%s: %s for %s). Mark them patched anyway if the device was updated after that: they open again if the next reading still shows that version.",
-		len(fs), what, f.MatchedVersion, f.CVE)}
+	return &APIError{"still_reported", 409, fmt.Sprintf("%d of the selected findings are still reported by the device (%s shows %s): %s. Mark them patched anyway if the device was updated after that: they open again if the next reading still shows that version.",
+		len(fs), what, f.MatchedVersion, shortCVEList(fs, stillListMax))}
+}
+
+// stillListMax is how many CVEs one still_reported answer names before "and N more".
+const stillListMax = 5
+
+// shortCVEList names the CVEs of fs, each once, in their order: at most max, then "and N more".
+func shortCVEList(fs []Finding, max int) string {
+	var cves []string
+	for _, f := range fs {
+		if !slices.Contains(cves, f.CVE) {
+			cves = append(cves, f.CVE)
+		}
+	}
+	if len(cves) <= max {
+		return strings.Join(cves, ", ")
+	}
+	return fmt.Sprintf("%s and %d more", strings.Join(cves[:max], ", "), len(cves)-max)
 }
 
 func (s *Service) handle(ctx context.Context, ids []string, res Resolution, note string, until time.Time, user string, confirm bool) (handled, skipped int, err error) {

@@ -255,8 +255,8 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 func TestExposureServiceScanReasons(t *testing.T) {
 	t.Parallel()
 	ip := ownPublicIP
-	scanErr := func(err error) func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
-		return func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
+	scanErr := func(err error) func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.OwnEgress) (sensoractive.External, error) {
+		return func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.OwnEgress) (sensoractive.External, error) {
 			return sensoractive.External{}, err
 		}
 	}
@@ -265,7 +265,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 		sc   exposureServiceScan
 		want string
 	}{
-		"module off": {exposureServiceScan{on: func() bool { return false }, scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
+		"module off": {exposureServiceScan{on: func() bool { return false }, scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.OwnEgress) (sensoractive.External, error) {
 			panic("scanned while the module is off")
 		}, gate: yes}, "Active discovery module is off"},
 		"busy":             {exposureServiceScan{scan: scanErr(sensoractive.ErrBusy), gate: yes}, "busy with another scan"},
@@ -320,7 +320,7 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	} {
 		var kind nmapargv.Kind
 		var given time.Duration
-		sc := exposureServiceScan{scan: func(ctx context.Context, _ netip.Addr, k nmapargv.Kind, _ sensoractive.OwnEgress) (sensoractive.External, error) {
+		sc := exposureServiceScan{scan: func(ctx context.Context, _ netip.Addr, k nmapargv.Kind, _ sensoractive.Settings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
 			d, _ := ctx.Deadline()
 			kind, given = k, time.Until(d)
 			return sensoractive.External{}, nil
@@ -353,7 +353,7 @@ func TestExposureDisruptiveScriptsRunOnTheOpenPorts(t *testing.T) {
 	var ports []int
 	var given time.Duration
 	var fence sensoractive.OwnEgress
-	sc := exposureServiceScan{scanDisruptive: func(ctx context.Context, _ netip.Addr, p []int, own sensoractive.OwnEgress) (sensoractive.External, error) {
+	sc := exposureServiceScan{scanDisruptive: func(ctx context.Context, _ netip.Addr, p []int, _ sensoractive.Settings, own sensoractive.OwnEgress) (sensoractive.External, error) {
 		d, _ := ctx.Deadline()
 		ports, given, fence = p, time.Until(d), own
 		return sensoractive.External{Ports: len(p), Probed: p, Scripts: []sensoractive.ExternalScript{{Port: 22, ID: "ssh-brute", Output: "Output not stored: it can hold credentials."}}}, nil

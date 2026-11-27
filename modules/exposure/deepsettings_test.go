@@ -293,8 +293,9 @@ func matrixOpen() Content {
 // matrixRun is what one scan sent to each engine.
 type matrixRun struct {
 	r             ScanResult
-	nmapDis       [][]int  // the ports of each call of nmap's disruptive scripts
-	zapPassive    []string // the pages of the passive pass
+	nmapDis       [][]int    // the ports of each call of nmap's disruptive scripts
+	nmapModes     []ScanMode // the mode of each of those calls
+	zapPassive    []string   // the pages of the passive pass
 	zapActive     []ScanTarget
 	zapActiveURLs []string
 	nuclei        []ScanTarget
@@ -306,7 +307,7 @@ type matrixRun struct {
 
 func (m *matrixEnv) scan(user string) matrixRun {
 	m.t.Helper()
-	m.svc.ports, m.web.calls, m.web.urls, m.web.asked, m.tpl.targets, m.tpl.jobs, m.live.asked = nil, nil, nil, nil, nil, nil, nil
+	m.svc.ports, m.svc.modes, m.web.calls, m.web.urls, m.web.asked, m.tpl.targets, m.tpl.jobs, m.live.asked = nil, nil, nil, nil, nil, nil, nil, nil
 	m.gb.gvm.with(func(g *fakeGVM) { g.taskConfig = "" })
 	m.svc.scripts = nil
 	m.SetRunner(&fakeRunner{content: matrixOpen()})
@@ -315,7 +316,7 @@ func (m *matrixEnv) scan(user string) matrixRun {
 	if err != nil {
 		m.t.Fatal(err)
 	}
-	out := matrixRun{r: r, nmapDis: m.svc.ports, zapPassive: m.web.asked, zapActive: m.web.calls, zapActiveURLs: m.web.urls, nuclei: m.tpl.targets, nucleiJobs: m.tpl.jobs, alive: m.live.asked, steps: map[string]string{}}
+	out := matrixRun{r: r, nmapDis: m.svc.ports, nmapModes: m.svc.modes, zapPassive: m.web.asked, zapActive: m.web.calls, zapActiveURLs: m.web.urls, nuclei: m.tpl.targets, nucleiJobs: m.tpl.jobs, alive: m.live.asked, steps: map[string]string{}}
 	_, out.gbConfig = m.gb.gvm.cfg("")
 	for _, st := range m.runDetail(m.ctx(), r.RunID).Steps {
 		out.steps[st.Name] = string(st.Status) + " " + noteOf(st)
@@ -345,11 +346,11 @@ func TestDeepSettings_EachGroupOffNoEngineRunsIt(t *testing.T) {
 		{name: "every group on", dos: true, logins: true, web: true, change: true, openvas: true,
 			want: want{nmapDis: true, zapDis: true, zapActive: true, gbDisruptive: true, dos: true, logins: true, change: true}},
 		{name: "the defaults: denial of service off", logins: true, web: true, change: true, openvas: true,
-			want: want{zapActive: true, logins: true, change: true}, nmapStep: NotBySettings, check: "turned off: denial-of-service checks"},
+			want: want{nmapDis: true, zapDis: true, zapActive: true, logins: true, change: true}, check: "turned off: denial-of-service checks"},
 		{name: "password guessing off", dos: true, web: true, change: true, openvas: true,
-			want: want{zapDis: true, zapActive: true, dos: true, change: true}, nmapStep: NotBySettings, check: "turned off: password guessing and default logins"},
+			want: want{nmapDis: true, zapDis: true, zapActive: true, dos: true, change: true}, check: "turned off: password guessing and default logins"},
 		{name: "data change off", dos: true, logins: true, web: true, openvas: true,
-			want: want{zapActive: true, dos: true, logins: true}, nmapStep: NotBySettings, check: "exploit checks that may change data"},
+			want: want{nmapDis: true, zapDis: true, zapActive: true, dos: true, logins: true}, check: "exploit checks that may change data"},
 		{name: "active web scan off", dos: true, logins: true, change: true, openvas: true,
 			want: want{nmapDis: true, gbDisruptive: true, dos: true, logins: true, change: true}, activeStep: NotBySettings, check: "the active web scan"},
 		{name: "every disruptive group off", web: true, openvas: true,
@@ -363,9 +364,17 @@ func TestDeepSettings_EachGroupOffNoEngineRunsIt(t *testing.T) {
 			got := m.scan("admin@acme.example")
 			var g want
 			g.nmapDis = len(got.nmapDis) > 0
+			for _, nm := range got.nmapModes { // nmap's disruptive scripts get exactly the groups allowed
+				if nm.DoS != row.want.dos || nm.Logins != row.want.logins || nm.Change != row.want.change {
+					t.Errorf("nmap's disruptive scripts got mode %+v", nm)
+				}
+			}
 			g.zapActive = len(got.zapActive) > 0
 			for _, c := range got.zapActive {
-				g.zapDis = g.zapDis || c.Mode.Disruptive
+				g.zapDis = g.zapDis || c.Mode.Disruptive && c.Mode.WebDisruptive()
+				if c.Mode.Disruptive && (c.Mode.DoS != row.want.dos || c.Mode.Change != row.want.change) {
+					t.Errorf("a ZAP page got mode %+v", c.Mode)
+				}
 			}
 			wantGB := levelFor(row.want.dos, row.want.logins, row.want.change)
 			g.gbDisruptive = got.gbConfig == gbDisruptive.name
@@ -780,14 +789,16 @@ func TestDeepSettings_AGroupTurnedOnMidRunNeverWidensIt(t *testing.T) {
 		t.Fatalf("ZAP active pages: %d; settings now %+v", len(got.zapActive), m.loadTarget(m.id).Deep)
 	}
 	for _, c := range got.zapActive {
-		if c.Mode.DoS || c.Mode.WebDisruptive() {
+		if c.Mode.DoS {
 			t.Errorf("a ZAP page got the denial-of-service group turned on mid-run: %+v", c.Mode)
 		}
 	}
 	if want := levelFor(false, true, true).name; got.gbConfig != want {
 		t.Errorf("OpenVAS used %q, want %q", got.gbConfig, want)
 	}
-	if len(got.nmapDis) != 0 {
-		t.Errorf("nmap's disruptive scripts ran: %v", got.nmapDis)
+	for _, nm := range got.nmapModes {
+		if nm.DoS {
+			t.Errorf("nmap's disruptive scripts got the denial-of-service group turned on mid-run: %+v", nm)
+		}
 	}
 }

@@ -229,7 +229,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
             {/* the status lines every list says for this finding (its View); the older row's badge only until the view has loaded */}
             {view.data ? <FindingStatusLines value={{ status: view.data.status, urgency: view.data.urgency, verification: view.data.verification }} /> : <FindingStatus f={f} />}
             {/* open again after a handling: why, and who when a person's version change did it */}
-            {view.data?.reopened ? <ReopenedLine reopened={view.data.reopened} version={view.data.software?.version} /> : null}
+            {view.data?.reopened ? <ReopenedLine reopened={view.data.reopened} version={view.data.software?.version} proOnly={view.data.fix.channel === 'ubuntu_pro'} /> : null}
             <SeverityBadge severity={legacySeverity(f)} detail />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}

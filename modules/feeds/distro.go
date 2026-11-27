@@ -84,7 +84,20 @@ type DistroFix struct {
 	Status  string // DistroFixed or DistroNotAffected
 	Fixed   string // the first fixed version (DistroFixed), "" otherwise
 	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
+	Reason  string // DistroOpen from Debian: why no security update comes (DistroReason*), "" when one is expected
 }
+
+// Why Debian publishes no security update for an entry it lists as affected (DistroFix.Reason, feeds_distro_fix.reason).
+const (
+	DistroReasonPostponed   = "postponed"   // fixed in a later point release instead
+	DistroReasonIgnored     = "ignored"     // Debian decided not to fix it in this release
+	DistroReasonMinor       = "minor"       // a minor issue: no security advisory, a later point release fixes it
+	DistroReasonUnimportant = "unimportant" // Debian rates it unimportant for its packages
+	DistroReasonEndOfLife   = "end_of_life" // the release no longer gets security support for the package
+)
+
+// DistroReasons lists every reason.
+var DistroReasons = []string{DistroReasonPostponed, DistroReasonIgnored, DistroReasonMinor, DistroReasonUnimportant, DistroReasonEndOfLife}
 
 // DistroWant says which rows a pull keeps: every row of a CVE of the CISA list, as before; of a tier CVE
 // (nvd-recent's last 12 months) only the "fixed" rows of a source package some device runs, since the plan lists only
@@ -441,6 +454,9 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 					fixed = fixed || e.Fixed != ""
 				}
 			}
+			// Known limit: an unfixed package is kept as open only from a public release's entry. Whether Canonical's OSV lists an
+			// unfixed package of a release in ESM (only "Ubuntu:Pro:<release>" entries) is not confirmed, so such a release gives no
+			// open row; findings then has no word and judges the package on NVD's ranges, not confirmed (awaitingDistro).
 			if !fixed && !pro && debPackageRE.MatchString(a.Package.Name) && want.Row(cve, a.Package.Name, DistroOpen) {
 				open = append(open, key{m[2], a.Package.Name})
 			}
@@ -697,14 +713,33 @@ type debianEntry struct {
 	Releases map[string]debianRelease `json:"releases"`
 }
 
-// noSecurityUpdate says whether Debian has decided not to publish a security update for the entry: urgency unimportant or
-// end-of-life, or a nodsa / nodsa_reason mark.
-func (r debianRelease) noSecurityUpdate() bool {
-	set := func(m json.RawMessage) bool {
+// noUpdateReason is why Debian has decided not to publish a security update for the entry (DistroReason*): urgency unimportant or
+// end-of-life, or a nodsa / nodsa_reason mark; "" when an update is expected.
+func (r debianRelease) noUpdateReason() string {
+	text := func(m json.RawMessage) string {
 		t := strings.TrimSpace(string(m))
-		return t != "" && t != "null" && t != "false" && t != `""`
+		if t == "" || t == "null" || t == "false" || t == `""` {
+			return ""
+		}
+		var s string
+		if json.Unmarshal(m, &s) == nil {
+			return strings.ToLower(strings.TrimSpace(s))
+		}
+		return "set"
 	}
-	return r.Urgency == "unimportant" || r.Urgency == "end-of-life" || set(r.NoDSA) || set(r.NoDSAReason)
+	switch reason := text(r.NoDSAReason); {
+	case r.Urgency == "end-of-life" || reason == "end-of-life":
+		return DistroReasonEndOfLife
+	case reason == "postponed":
+		return DistroReasonPostponed
+	case reason == "ignored":
+		return DistroReasonIgnored
+	case r.Urgency == "unimportant":
+		return DistroReasonUnimportant
+	case reason != "" || text(r.NoDSA) != "":
+		return DistroReasonMinor
+	}
+	return ""
 }
 
 // ParseDebianTracker reads the Debian Security Tracker JSON ({source: {CVE: {releases: {codename: {status,
@@ -757,8 +792,10 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 			var rows []DistroFix
 			bad := false
 			for codename, rel := range e.Releases {
-				// open: affected, no fix yet; one Debian will not fix in a security update (unimportant, end-of-life, nodsa, ignored) is left out
-				open := rel.Status == "open" && !rel.noSecurityUpdate()
+				// open: affected, no fix yet; one Debian will not fix in a security update (unimportant, end-of-life, nodsa, ignored,
+				// postponed) is kept with its reason for a CVE of the CISA list (Debian still says affected), left out for the plan
+				reason := rel.noUpdateReason()
+				open := rel.Status == "open" && (reason == "" || want.KEV[cve])
 				if rel.Status != "resolved" && !open || codename == "sid" {
 					continue
 				}
@@ -770,7 +807,7 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 				f := DistroFix{Distro: DistroDebian, Release: num, Package: pkg, CVE: cve, Status: DistroFixed, Fixed: rel.FixedVersion}
 				switch {
 				case open:
-					f.Status, f.Fixed = DistroOpen, ""
+					f.Status, f.Fixed, f.Reason = DistroOpen, "", reason
 				case rel.FixedVersion == "0":
 					f.Status, f.Fixed = DistroNotAffected, ""
 				case !debver.Valid(rel.FixedVersion):

@@ -146,6 +146,7 @@
     "setBackNoVersion": "Reopened: the version was set back by {{by}} ({{date}})",
     "detected_again": "Reopened: Vedette detects it again ({{date}})",
     "still_detected": "Reopened: a reading newer than the patched mark still shows the affected version ({{date}})",
+    "still_detected_pro": "Reopened: a reading newer than the patched mark still shows the affected version; only Ubuntu Pro (ESM) has the fixed package ({{date}})",
     "acceptance_expired": "Reopened: the accepted risk ended ({{date}})"
   },
   "handled": {

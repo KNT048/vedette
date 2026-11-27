@@ -91,6 +91,9 @@ func (v View) FixText() string {
 		r := []rune(w)
 		return strings.ToUpper(string(r[0])) + string(r[1:]) + "."
 	}
+	if fx.Kind == FixNoneYet && v.Finding.Basis == DetectPackage { // the distribution's word "affected, no fix yet"
+		return "No fixed package yet: watch for the distribution's update or accept the risk."
+	}
 	if fx.Kind == FixNoneYet {
 		return "No fixed release exists yet: the vendor's affected versions have no end."
 	}

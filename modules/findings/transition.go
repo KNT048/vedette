@@ -261,7 +261,11 @@ func (t *transition) detected(d Detection) error {
 	case was.Via == ViaPerson && was.Resolution == ResolutionPatched:
 		if read.After(was.ResolvedAt) { // a reading taken after the person's mark still shows the flaw
 			t.open()
-			t.emit(SystemUser, EvReopened, EventDetail{Why: WhyStillDetected, ReadingAt: read.Format(tsLayout)})
+			d := EventDetail{Why: WhyStillDetected, ReadingAt: read.Format(tsLayout)}
+			if f.Fix.Chan() == ChannelUbuntuPro { // the mark keeps failing for one reason: the fixed package is not in the public archive
+				d.Note = "Only Ubuntu Pro (ESM) has the fixed package: without Ubuntu Pro the device keeps the affected one."
+			}
+			t.emit(SystemUser, EvReopened, d)
 		}
 	case was.Via == ViaPerson: // mitigated, accepted, false positive and not relevant hold while detected
 	case was.Via == ViaScanClear && (d.Basis == DetectBannerVersion || d.Basis == DetectStatement):

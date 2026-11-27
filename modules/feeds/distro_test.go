@@ -141,6 +141,7 @@ func TestParseDebianTracker(t *testing.T) {
 		return cmp.Or(strings.Compare(a.Release, b.Release), strings.Compare(a.Package, b.Package))
 	})
 	want := []DistroFix{
+		{Distro: "debian", Release: "11", Package: "sudo", CVE: "CVE-2026-10001", Status: "open", Reason: DistroReasonPostponed},
 		{Distro: "debian", Release: "12", Package: "openssh", CVE: "CVE-2026-10002", Status: "open"},
 		{Distro: "debian", Release: "12", Package: "sudo", CVE: "CVE-2026-10001", Status: "not_affected"},
 		{Distro: "debian", Release: "13", Package: "sudo", CVE: "CVE-2026-10001", Status: "fixed", Fixed: "1.9.16p2-3"},
@@ -236,10 +237,10 @@ func TestDistroPull(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixes, err := e.svc.st.DistroFixes(t.Context())
-	if err != nil || len(fixes["CVE-2026-10001"]) != 2 || len(fixes["CVE-2026-10002"]) != 1 || len(fixes) != 2 { // 10002: open (affected, no fix yet)
+	if err != nil || len(fixes["CVE-2026-10001"]) != 3 || len(fixes["CVE-2026-10002"]) != 1 || len(fixes) != 2 { // open rows: affected, no fix yet
 		t.Fatalf("stored %+v %v", fixes, err)
 	}
-	if f := e.feed(debianTrackerFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 3 {
+	if f := e.feed(debianTrackerFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 4 {
 		t.Fatalf("feed %+v", f)
 	}
 	if len(got) != 1 || !got[0].First || !slices.Equal(got[0].CVEs, []string{"CVE-2026-10001", "CVE-2026-10002"}) {
@@ -249,7 +250,7 @@ func TestDistroPull(t *testing.T) {
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 2 || len(got) != 1 || o.count("/tracker.json") != 2 {
+	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 3 || len(got) != 1 || o.count("/tracker.json") != 2 {
 		t.Fatalf("after 304: %+v, %d events, %d requests", fixes, len(got), o.count("/tracker.json"))
 	}
 	// a changed file: only the changed CVE is news
@@ -264,7 +265,7 @@ func TestDistroPull(t *testing.T) {
 	if c, b := e.put(debianTrackerFeedID, `{"enabled":false}`); c != 200 {
 		t.Fatalf("%d %v", c, b)
 	}
-	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes) != 0 || rowsOf(t, e.db, "feeds_distro_fix") != 3 {
+	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes) != 0 || rowsOf(t, e.db, "feeds_distro_fix") != 4 {
 		t.Fatalf("a feed that is off is used: %+v", fixes)
 	}
 	if len(got) != 3 || got[2].First || !slices.Equal(got[2].CVEs, []string{"CVE-2026-10001", "CVE-2026-10002"}) {
@@ -277,7 +278,7 @@ func TestDistroPull(t *testing.T) {
 	if c, _ := e.put(debianTrackerFeedID, `{"enabled":true}`); c != 200 || len(got) != 4 {
 		t.Fatalf("turning the feed on did not match again: %d %+v", c, got)
 	}
-	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 2 {
+	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 3 {
 		t.Fatalf("turned on again: %+v", fixes)
 	}
 }
@@ -312,7 +313,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	if err := e.runPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 3 { // asked for the packages, not to skip it
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 4 { // asked for the packages, not to skip it
 		t.Fatalf("first fill: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
@@ -324,7 +325,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	}
 	f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)) // what the rows of the earlier pull hold, then why the feed waits
 	held := e.svc.heldNow(t.Context(), debianTrackerFeedID)
-	if o.count("/tracker.json") != 1 || inv.asked != 3 || f.Status != "ok" || held == "" || f.Error == nil || *f.Error != held+" "+note || rowsOf(t, e.db, "feeds_distro_fix") != 3 {
+	if o.count("/tracker.json") != 1 || inv.asked != 3 || f.Status != "ok" || held == "" || f.Error == nil || *f.Error != held+" "+note || rowsOf(t, e.db, "feeds_distro_fix") != 4 {
 		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 1 {
@@ -359,7 +360,7 @@ func TestDistroPullOfNothingKeepsTheRows(t *testing.T) {
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.feed(debianTrackerFeedID); f.Status != "error" || rowsOf(t, e.db, "feeds_distro_fix") != 3 {
+	if f := e.feed(debianTrackerFeedID); f.Status != "error" || rowsOf(t, e.db, "feeds_distro_fix") != 4 {
 		t.Fatalf("feed %+v, rows %d", f, rowsOf(t, e.db, "feeds_distro_fix"))
 	}
 }
@@ -401,7 +402,8 @@ func checkDistroRows(t *testing.T, res DistroResult) {
 	for _, r := range res.Rows {
 		if !wantKEV.KEV[r.CVE] || (r.Distro != DistroUbuntu && r.Distro != DistroDebian) || !debPackageRE.MatchString(r.Package) ||
 			r.Release == "" || len(r.Release) > 8 || strings.Trim(r.Release, "0123456789.") != "" ||
-			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected && r.Status != DistroOpen) {
+			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected && r.Status != DistroOpen) ||
+			r.Reason != "" && (r.Status != DistroOpen || !slices.Contains(DistroReasons, r.Reason)) {
 			t.Fatalf("row %+v", r)
 		}
 	}
@@ -594,5 +596,35 @@ func TestParseDebianTrackerSkipsEntriesDebianWillNotFix(t *testing.T) {
 	}
 	if !maps.Equal(got, map[string]string{"CVE-2026-20002/12": DistroOpen, "CVE-2026-20002/13": DistroOpen}) {
 		t.Fatalf("rows %v", got)
+	}
+}
+
+// For a CVE of the CISA list, Debian's open entries it will not fix in a security update (no DSA, postponed, ignored, unimportant,
+// end-of-life) are still its word "affected": kept as open with the reason, so findings says why no fixed package comes. For a tier
+// CVE they stay out (the plan lists packages below a fix).
+func TestDebianOpenWithoutASecurityUpdateIsKeptForTheCISAList(t *testing.T) {
+	t.Parallel()
+	const js = `{"sudo": {"CVE-2026-10001": {"releases": {
+   "bullseye": {"status": "open", "nodsa": "Minor issue", "nodsa_reason": "postponed"},
+   "bookworm": {"status": "open", "nodsa": "Minor issue", "nodsa_reason": "ignored"},
+   "trixie": {"status": "open", "nodsa": "Minor issue"},
+   "forky": {"status": "open", "urgency": "unimportant"}}}}}`
+	kev, err := ParseDebianTracker(strings.NewReader(js), wantKEV)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, r := range kev.Rows {
+		if r.Status != DistroOpen {
+			t.Fatalf("row %+v", r)
+		}
+		got[r.Release] = r.Reason
+	}
+	if !maps.Equal(got, map[string]string{"11": DistroReasonPostponed, "12": DistroReasonIgnored, "13": DistroReasonMinor, "14": DistroReasonUnimportant}) {
+		t.Fatalf("reasons %v (%+v)", got, kev.Rows)
+	}
+	tier := DistroWant{Tier: map[string]bool{"CVE-2026-10001": true}, Packages: map[string]bool{"sudo": true}}
+	if res, err := ParseDebianTracker(strings.NewReader(js), tier); err != nil || len(res.Rows) != 0 {
+		t.Fatalf("tier rows %+v %v", res.Rows, err)
 	}
 }

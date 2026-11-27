@@ -784,6 +784,7 @@
     "fixOsKb": "Fixed in build {{fixed}} ({{kb}}): install the latest monthly update on {{device}}.",
     "fixFeature": "No update of the release {{device}} runs fixes it: move it to {{fixed}}, a release that has the fix.",
     "fixNoneYet": "The vendor has no fixed release of {{product}} for this yet: follow the vendor advisory, and use the steps below until one ships.",
+    "fixNoneYetDistro": "No fixed package of {{product}} yet: watch for the distribution's update or accept the risk.",
     "fixSource": "The same release the findings list and the plan name. Check the vendor advisory before you update.",
     "vendorSolution": "The vendor's solution:",
     "vendorWorkaround": "The vendor's workaround:",

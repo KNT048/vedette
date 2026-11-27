@@ -91,6 +91,10 @@ type mxWant struct {
 	words    string     // the stored fix said in words (FixWords: report, mail, AI context) contains this
 	known    string     // the version the finding page says the device has (knownVersion of the matched line)
 	detected bool       // the invariant: an open finding is one the latest match of the device detects
+	verified Verified   // the stored verification (VerifiedNo: not confirmed, only suspected)
+	evidence string     // the stored evidence sentence contains this
+	fixText  string     // the fix in one sentence (View.FixText: notices, AI context) contains this
+	reopen   string     // the newest reopened event's note contains this
 }
 
 func yes() *bool { b := true; return &b }
@@ -127,6 +131,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	kevNoWord := []Vuln{mxKernelKEV()}
 	kevFixed := []Vuln{mxKernelKEV(mxUbuntu("linux", "7.0.0-22.22", false))}
 	kevOpen := []Vuln{mxKernelKEV(DistroFix{Distro: "ubuntu", Release: "26.04", Package: "linux", Status: "open"})}
+	kevDebOpen := []Vuln{mxKernelKEV(DistroFix{Distro: "debian", Release: "13", Package: "linux", Status: "open", Reason: "postponed"})}
 	kevFeedsOff := []Vuln{mxKernelKEV()}
 	kevFeedsOff[0].DistroOn = nil
 	chrome := Software{ID: "s-chrome", Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: "131.0.6778.85", Source: "agent",
@@ -166,7 +171,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 			mxWant{open: yes(), known: "25.1.1+dfsg-1ubuntu2"}},
 		{"package/pro/marked patched three times without Pro: still open, still says Pro", "", cvePkg, pipOld.ID,
 			[]mxStep{mxRead(pipPro, pipOld), mxPatched, mxRead(nil, pipOld), mxPatched, mxRead(nil, pipOld), mxPatched, mxRead(nil, pipOld)},
-			mxWant{open: yes(), words: "Ubuntu Pro"}},
+			mxWant{open: yes(), words: "Ubuntu Pro", reopen: "Only Ubuntu Pro (ESM) has the fixed package"}},
 		{"package/pro/Pro attached, esm release installed", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipPro, pipOld), mxRead(nil, pipESM)},
 			mxWant{open: no(), via: ViaVersionMoved}},
 		{"package/pro and public/public fix preferred", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipBoth, pipOld)},
@@ -200,14 +205,20 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 
 		// an exploited kernel CVE whose NVD rows give upstream ranges; the distribution's word decides the backported kernel
 		{"kernel/exploited/Ubuntu fixed it in an older kernel", "", cveKEV, k44.ID, []mxStep{mxRead(kevFixed, k44)}, mxWant{none: true}},
-		{"kernel/exploited/no word from Ubuntu yet: no upstream-range finding on a distribution kernel", "", cveKEV, k44.ID, []mxStep{mxRead(kevNoWord, k44)},
-			mxWant{none: true}},
+		{"kernel/exploited/no word from Ubuntu yet: NVD's range raises it, not confirmed, saying why", "", cveKEV, k44.ID, []mxStep{mxRead(kevNoWord, k44)},
+			mxWant{open: yes(), verified: VerifiedNo, evidence: "Ubuntu has not published its answer yet; based on the upstream version ranges"}},
+		{"kernel/exploited/no word yet, then Ubuntu fixed it in an older kernel: closed", "", cveKEV, k44.ID,
+			[]mxStep{mxRead(kevNoWord, k44), mxRead(kevFixed, k44)}, mxWant{open: no()}},
+		{"kernel/exploited/no word yet, then Ubuntu says affected with no fix: confirmed", "", cveKEV, k44.ID,
+			[]mxStep{mxRead(kevNoWord, k44), mxRead(kevOpen, k44)}, mxWant{open: yes(), verified: VerifiedDevice, fix: FixNoneYet}},
 		{"kernel/exploited/upstream-range finding (feeds off), then Ubuntu's fix arrives", "", cveKEV, k44.ID,
 			[]mxStep{mxRead(kevFeedsOff, k44), mxRead(kevFixed, k44)}, mxWant{open: no()}},
-		{"kernel/exploited/upstream-range finding left by an earlier match, Ubuntu still silent: closed", "", cveKEV, k44.ID,
-			[]mxStep{mxRead(kevFeedsOff, k44), mxRead(kevNoWord, k44)}, mxWant{open: no()}},
-		{"kernel/exploited/Ubuntu says affected, no fix yet: open, wait for its update", "", cveKEV, k44.ID, []mxStep{mxRead(kevOpen, k44)},
-			mxWant{open: yes(), fix: FixDistroUpdate, words: "has not published a fixed package yet"}},
+		{"kernel/exploited/upstream-range finding (feeds off), feeds on and Ubuntu still silent: open, no longer confirmed", "", cveKEV, k44.ID,
+			[]mxStep{mxRead(kevFeedsOff, k44), mxRead(kevNoWord, k44)}, mxWant{open: yes(), verified: VerifiedNo}},
+		{"kernel/exploited/Ubuntu says affected, no fix yet: open, no fixed package yet", "", cveKEV, k44.ID, []mxStep{mxRead(kevOpen, k44)},
+			mxWant{open: yes(), fix: FixNoneYet, fixText: "No fixed package yet: watch for the distribution's update or accept the risk"}},
+		{"kernel/exploited/Debian says affected, fixed only in a later point release: open with the reason", "Debian GNU/Linux 13 (trixie)", cveKEV, k44.ID,
+			[]mxStep{mxRead(kevDebOpen, k44)}, mxWant{open: yes(), fix: FixNoneYet, evidence: "a later point release"}},
 		{"kernel/exploited/Ubuntu's feeds off: NVD's range decides", "", cveKEV, k44.ID, []mxStep{mxRead(kevFeedsOff, k44)},
 			mxWant{open: yes()}},
 		{"package/exploited/a vendor's own .deb (plain revision): NVD's range decides", "", cveKEV, chrome.ID, []mxStep{mxRead(chromeKEV, chrome)},
@@ -255,7 +266,23 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 				}
 			}
 			f, ok := mxFinding(t, e, row.cve, row.line)
-			if gaps := mxGaps(row.want, f, ok, a); len(gaps) > 0 {
+			gaps := mxGaps(row.want, f, ok, a)
+			if row.want.reopen != "" && ok {
+				evs, err := eventsOf(t.Context(), e.db.Reader(), `f.id = ?`, f.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				note := ""
+				for _, ev := range evs[f.ID] {
+					if ev.Kind == EvReopened {
+						note = ev.Detail.Note
+					}
+				}
+				if !strings.Contains(note, row.want.reopen) {
+					gaps = append(gaps, fmt.Sprintf("want the reopen to say %q, it says %q", row.want.reopen, note))
+				}
+			}
+			if len(gaps) > 0 {
 				t.Errorf("%s\n  got: %s", strings.Join(gaps, "\n  "), mxDescribe(f, ok))
 			}
 		})
@@ -286,7 +313,7 @@ func mxDescribe(f Finding, ok bool) string {
 	if !ok {
 		return "no finding"
 	}
-	return fmt.Sprintf("state=%s detected=%v resolution=%s via=%s fix=%s %q matched=%q", f.State, f.Detected, f.Resolution, f.Via, f.Fix.Kind, f.Fix.Version, f.MatchedVersion)
+	return fmt.Sprintf("verified=%s state=%s detected=%v resolution=%s via=%s fix=%s %q matched=%q", f.Verified, f.State, f.Detected, f.Resolution, f.Via, f.Fix.Kind, f.Fix.Version, f.MatchedVersion)
 }
 
 // mxGaps lists how the finding differs from what a person must see.
@@ -326,6 +353,17 @@ func mxGaps(w mxWant, f Finding, ok bool, a Asset) []string {
 		}
 		if s := FixWords(f.Fix, product, ""); !strings.Contains(s, w.words) {
 			gaps = append(gaps, fmt.Sprintf("want the stored fix to say %q, it says %q", w.words, s))
+		}
+	}
+	if w.verified != "" && f.Verified != w.verified {
+		gaps = append(gaps, fmt.Sprintf("want verified %s", w.verified))
+	}
+	if w.evidence != "" && (f.Evidence == nil || !strings.Contains(f.Evidence.Summary, w.evidence)) {
+		gaps = append(gaps, fmt.Sprintf("want the evidence to say %q", w.evidence))
+	}
+	if w.fixText != "" {
+		if s := (View{Finding: f}).FixText(); !strings.Contains(s, w.fixText) {
+			gaps = append(gaps, fmt.Sprintf("want the fix sentence to say %q, it says %q", w.fixText, s))
 		}
 	}
 	if w.known != "" {
@@ -380,5 +418,21 @@ func TestDistroOpenUndetectedClosesAtTheNextMatch(t *testing.T) {
 	f, ok = mxFinding(t, e, cve, "s-kernel")
 	if !ok || f.State != StateHandled || f.Via != ViaVersionMoved || f.FromVersion != "7.0.0-43.43" || f.ToVersion != "7.0.0-44.44" {
 		t.Fatalf("after the next match: %s", mxDescribe(f, ok))
+	}
+	// such a row whose CVE the pass no longer reads (it left the catalogue) closes too: open means detected, whatever the pass judges
+	read(mxKernel("7.0.0-43.43"), mxImage("7.0.0-44", "7.0.0-44.44"))
+	if f, ok = mxFinding(t, e, cve, "s-kernel"); !ok || f.State != StateOpen {
+		t.Fatalf("reopened by the older kernel: %s", mxDescribe(f, ok))
+	}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET detected = 0 WHERE id = ?`, f.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	kern = nil
+	read(mxKernel("7.0.0-44.44"), mxImage("7.0.0-43", "7.0.0-43.43"))
+	if f, ok = mxFinding(t, e, cve, "s-kernel"); !ok || f.State != StateHandled {
+		t.Fatalf("a row of a CVE the pass no longer reads: %s", mxDescribe(f, ok))
 	}
 }

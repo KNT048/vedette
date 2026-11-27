@@ -7,6 +7,7 @@ import '@/lib/i18n'
 import { renderApp } from '@/test/render'
 import { Counter } from '@/components/common/Counter'
 import { pageSizes } from '@/components/common/Pager'
+import { ReopenedLine } from '@/components/common/status/ReopenedLine'
 import { questions, records } from './modelMocks'
 import { openNeeds } from './needsTestUtil'
 import { useFixTitle } from './parts'
@@ -47,6 +48,16 @@ describe('a finding reads the same in every list', () => {
       'Move Linux kernel to a later release', 'Install the Linux kernel package 6.8.0-90.91 or later',
     ])
     for (const s of out) expect(s).not.toMatch(/ {2}|package or later/)
+  })
+
+  it('a patched mark a newer reading reopens says when only Ubuntu Pro has the fixed package', () => {
+    const r = { why: 'still_detected' as const, at: '2026-11-26T08:51:00.000Z', by: null }
+    const pro = render(<ReopenedLine reopened={r} proOnly />)
+    expect(pro.getByTestId('reopened-line')).toHaveTextContent(/only Ubuntu Pro \(ESM\) has the fixed package/)
+    pro.unmount()
+    const plain = render(<ReopenedLine reopened={r} />)
+    expect(plain.getByTestId('reopened-line')).not.toHaveTextContent(/Ubuntu Pro/)
+    plain.unmount()
   })
 
   it('a fix only Ubuntu Pro or Windows ESU carries says so, never the bare "Install … or later"', () => {

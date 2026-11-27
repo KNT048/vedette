@@ -54,7 +54,10 @@ func FixOf(a Asset, s Software, v Vuln) Fix {
 		}
 		return Fix{Kind: FixUnknown}
 	}
-	if _, ok := distroVerdict(in, v); ok {
+	if d, ok := distroVerdict(in, v); ok {
+		if d.kind == distroNeeded { // the distribution's word "affected, no fix yet": no fixed package to install
+			return Fix{Kind: FixNoneYet}
+		}
 		return Fix{Kind: FixUnknown} // the distribution says it is fixed or not affected here: nothing to install
 	}
 	if noEnd(in, v, key) {

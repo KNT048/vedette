@@ -123,8 +123,10 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		}
 	}
 	for _, f := range existing {
-		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected && f.State != StateOpen { // open means detected: an open
-			// finding the match no longer detects (one reopened before Transition closed such a reopen) closes now
+		// open means detected: an open finding the match no longer detects (one reopened before Transition closed such a reopen) closes
+		// now, also when the pass no longer reads its CVE (it left the catalogue)
+		stale := f.State == StateOpen && !f.Detected
+		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] && !stale || !f.Detected && !stale {
 			continue
 		}
 		via, from, to, by, corrected := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
@@ -193,7 +195,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	switch {
 	case x.Basis == BasisScan:
 		d.Basis, d.Verified, d.RangeOrigin = DetectScan, VerifiedScan, RangeScan
-	case pkg != "": // the match compared a distribution's package release, whoever read it
+	case pkg != "" && !x.upstream: // the match compared a distribution's package release, whoever read it (not NVD's upstream ranges)
 		d.Basis, d.RangeOrigin, d.MatchedVersion = DetectPackage, RangeDistro, pkg
 	case src == "manual":
 		d.Basis = DetectStatement

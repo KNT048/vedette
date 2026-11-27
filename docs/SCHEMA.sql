@@ -563,7 +563,7 @@ CREATE TABLE "feeds_distro_fix" (
     cve           TEXT    NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     status        TEXT    NOT NULL CHECK (status IN ('fixed', 'not_affected', 'open')),
     fixed_version TEXT    CHECK ((status = 'fixed') = (fixed_version IS NOT NULL) AND (fixed_version IS NULL OR length(fixed_version) BETWEEN 1 AND 100)),
-    pro           INTEGER NOT NULL DEFAULT 0 CHECK (pro IN (0, 1)),
+    pro           INTEGER NOT NULL DEFAULT 0 CHECK (pro IN (0, 1)), reason TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (source_id, distro, release, package, cve)
 );
 

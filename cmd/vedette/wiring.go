@@ -79,7 +79,7 @@ func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product st
 	now := time.Now()
 	fixes := make([]findings.DistroFix, len(distro)) // the release a person gave is read against the distribution's feed
 	for i, d := range distro {
-		fixes[i] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro}
+		fixes[i] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro, Reason: d.Reason}
 	}
 	for _, id := range ids {
 		d, ok, err := findingsInventory(a).MatchInput(ctx, id)
@@ -464,7 +464,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
 		}
 		for _, d := range distro[v.CVE] {
-			out[i].Distro = append(out[i].Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
+			out[i].Distro = append(out[i].Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro, Reason: d.Reason})
 		}
 		if t, err := time.Parse(time.DateOnly, v.DateAdded); err == nil { // an unreadable date stays zero: backlog, never news
 			out[i].DateAdded = t
@@ -621,7 +621,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 			v.EPSS = *e.EPSS
 		}
 		for _, d := range distro[cve] {
-			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
+			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro, Reason: d.Reason})
 		}
 		if len(v.Affected) > 0 || len(v.Distro) > 0 || pinSet[cve] || reached[cve] {
 			out = append(out, v)

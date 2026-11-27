@@ -49,7 +49,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   mitigated, accepted, false positive and not relevant hold while detected; an accepted risk reopens after its last day. Open means
   detected: a person's reopen of a finding the latest match no longer detects is recorded, and Vedette closes it again at once the way
   the data last said it went away (its own close, else the newest `no_longer_detected` event; `version_moved` names the release the
-  device runs now), with that reason as the note; "gone" also closes an open finding that is not detected. "Gone"
+  device runs now), with that reason as the note; "gone" also closes an open finding that is not detected, also when the pass no
+  longer reads its CVE. "Gone"
   closes an open finding as `patched` when something changed on the device (`version_moved`, `software_removed`, `distro_fixed`,
   `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`) or a person said the software is not installed
   (`not_installed`). The Handled list leaves out what Vedette closed by correcting its own match (`data_corrected` by Vedette: never
@@ -206,7 +207,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges. A package the
   distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
   while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a
-  finding waiting for the distribution's update, and with no word yet NVD's upstream ranges raise nothing (they do not see backports).
+  finding with no fixed package yet (fix `none_yet`; Debian's reason when it publishes no security update), and with no word yet NVD's
+  upstream ranges still raise a finding, never confirmed, whose evidence says the distribution has not published its answer yet
+  (`awaitingDistro`): the distribution's word, when it comes, closes or confirms it. A person's patched mark on a fix only Ubuntu Pro
+  has reopens saying so.
   A vendor's own .deb with a plain revision, and a distribution whose feeds are off, keep NVD's ranges. A version move on a line with
   a package release is ordered by the package scheme alone ("1ubuntu2" to "1ubuntu2.1", "+esm3" or "+deb13u1" is `version_moved`).
 - **INV-14k** A distribution kernel is judged once per CVE, on its Kernel line (intake makes it of the running kernel's image alone).

@@ -29,11 +29,16 @@ var (
 	deviceModelRE = regexp.MustCompile(`(?:^|[^A-Za-z0-9])([A-Za-z]{1,12})-?([0-9]{2,6})(?:[^0-9]|$)`)
 	familyNameRE  = regexp.MustCompile(`^[A-Za-z]{1,12}$`)
 	// modelNameRE is a model or numbered series word: letters, an optional hyphen, a number (k for thousands), the rest of the word.
-	modelNameRE = regexp.MustCompile(`^([A-Za-z]{1,12})-?([0-9]{1,6})([kK]?)[A-Za-z0-9-]*$`)
+	modelNameRE = regexp.MustCompile(`^([A-Za-z]{1,12})-?([0-9]{1,6})([kK]?)([A-Za-z0-9-]*)$`)
+	// moreModelsRE is another model number after a hyphen in the rest of a model word ("QRX5400-5600-5800"): a list of models, not one
+	// model's variant ("-48T", "-128C").
+	moreModelsRE = regexp.MustCompile(`-[0-9]{3,}(?:-|$)`)
 	// spacedSeriesRE is a numbered series written with a blank ("QRX 5000"), read only before "Series".
 	spacedSeriesRE = regexp.MustCompile(`^([A-Za-z]{1,12}) ([0-9]{1,6})([kK]?)$`)
 	parenRE        = regexp.MustCompile(`\s*\([^()]{0,80}\)\s*$`)
-	seriesRE       = regexp.MustCompile(`\s+Series(?:\s.*)?$`)
+	// seriesRE is "Series" at the end of a platform, or followed by one "with" qualifier ("with SPC3"): any other text after it may
+	// name more hardware ("QRX Series and NX250"), so such a platform is not read.
+	seriesRE = regexp.MustCompile(`\s+Series(?:\s+with\s+[A-Za-z0-9-]{1,40})?$`)
 )
 
 // deviceModel is the model a device states, read as a hardware name; ok is false when it states none with a number.
@@ -60,7 +65,7 @@ func platformHardware(p string) (hardwareName, bool) {
 	if m == nil && series {
 		m = spacedSeriesRE.FindStringSubmatch(p)
 	}
-	if m == nil {
+	if m == nil || len(m) > 4 && moreModelsRE.MatchString(m[4]) {
 		return hardwareName{}, false
 	}
 	number := strings.TrimLeft(m[2], "0")

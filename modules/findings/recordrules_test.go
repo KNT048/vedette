@@ -38,6 +38,18 @@ func TestOtherHardware(t *testing.T) {
 		{"ZX4200-48T", []string{"Linux"}, false},
 		{"ZX4200-48T", []string{"Windows", "MacOS"}, false},
 		{"Workstation 440 G10", []string{"Tablet 17"}, false}, // a name with a blank before its number is not read as a model
+		{"NX250", []string{"QRX Series and NX250"}, false},    // a clause after "Series" that names more hardware
+		{"ZX9204", []string{"QRX Series and ZX9200 Series"}, false},
+		{"NX150", []string{"QRX Series (QRX300) and NX150"}, false},
+		{"NX150", []string{"QRX 5000 Series & NX150"}, false},
+		{"NX150", []string{"QRX Series or NX150"}, false},
+		{"NX150", []string{"QRX Series plus NX150"}, false},
+		{"NX150", []string{"QRX Series with SPC3, NX150"}, false},
+		{"ZX4200-48T", []string{"QRX Series devices"}, false}, // only a "with" qualifier is read after "Series"
+		{"QRX5600", []string{"QRX5400-5600-5800"}, false},     // more model numbers after a hyphen: a list, not one model
+		{"QRX5800", []string{"QRX5400-5800"}, false},
+		{"QRX5220", []string{"QRX5220-128C"}, false},
+		{"ZX4200-48T", []string{"QRX5220-128C"}, true},
 		{"ZX4200-48T", nil, false},
 		{"", []string{"QRX Series"}, false},                 // the device's model is not known
 		{"Virtual Platform", []string{"QRX Series"}, false}, // no model number

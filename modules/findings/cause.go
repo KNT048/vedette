@@ -45,7 +45,8 @@ func PossibleCause(it PossibleItem, rs ReadState) string {
 	case q.Detail.NVDPending || reason == UndecidedNVDPending:
 		return CausePendingNVD
 	case q.Kind == QuestionVersionNeeded || q.Kind == QuestionPlatform || q.Kind == QuestionPackageRelease,
-		slices.Contains([]string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute}, reason):
+		slices.Contains([]string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage}, reason),
+		reason == UndecidedAttribute && q.CheckKey == "": // an unlisted release line the reading can decide is the reading's (checkable)
 		return CauseVersionNeeded
 	case reason == UndecidedPlatformOnly:
 		// NVD names the operating system only as the environment of the affected software: not affected as a product, and only an

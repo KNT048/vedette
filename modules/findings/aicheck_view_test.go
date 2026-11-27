@@ -60,7 +60,8 @@ func TestAIChecked_ViewAndAnsweredCarryTheCheck(t *testing.T) {
 	}
 
 	// Answered: a confirmed "not affected" proposal carries its check; a person's own answer none
-	e2, _ := possibleWorld(t)
+	e2, fc2 := possibleWorld(t)
+	fc2.refuse = map[string]error{"CVE-2026-82003": &ItemRefused{Reason: "The provider failed.", RetryAfter: time.Hour}} // 82003 is never read
 	runCheck(t, e2)
 	q := possibleByCVE(t, e2)["CVE-2026-82002"].Question
 	if _, err := e2.svc.ConfirmProposal(t.Context(), q.ID, "ana@example.com", false); err != nil {

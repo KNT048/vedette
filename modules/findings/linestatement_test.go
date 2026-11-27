@@ -169,8 +169,8 @@ func TestLineReading_AFixNotInTheQuoteIsNoFix(t *testing.T) {
 	}
 }
 
-// "Not affected" read from a page that is not the vendor's settles nothing: the CVE stays possible (vendor_silent). From the vendor's
-// page it settles a CVE on no exploited list, and an exploited one waits for a person (needs_person, never in bulk).
+// An AI reading never settles "not affected" by itself: from the vendor's page or another one, on an exploited CVE or not, it is a
+// proposal a person confirms or rejects (needs_person); an exploited CVE's is never offered in bulk.
 func TestLineReading_NotAffectedOnlyFromTheVendorAndNeverAloneForAnExploitedCVE(t *testing.T) {
 	t.Parallel()
 	notAffected := ProposeVerdict{Status: StatementNotAffected, Line: "7.2", Quote: "DSM 7.2 is not affected by this issue", Source: 1}
@@ -181,8 +181,8 @@ func TestLineReading_NotAffectedOnlyFromTheVendorAndNeverAloneForAnExploitedCVE(
 		state     string
 		cause     string
 	}{
-		{"third party", []string{"third-party-advisory"}, false, PossibleOpen, CauseVendorSilent},
-		{"vendor, not exploited", []string{"vendor-advisory"}, false, PossibleSettled, ""},
+		{"third party", []string{"third-party-advisory"}, false, PossibleProposal, CauseNeedsPerson},
+		{"vendor, not exploited", []string{"vendor-advisory"}, false, PossibleProposal, CauseNeedsPerson},
 		{"vendor, exploited", []string{"vendor-advisory"}, true, PossibleProposal, CauseNeedsPerson},
 	} {
 		e, fc := possibleWorld(t)
@@ -430,6 +430,14 @@ func TestLineStatement_VerdictFor(t *testing.T) {
 		{"quote not found", LineStatement{Status: StatementAffected, StatedLine: "3.4", Quote: "Widget 3.4 is affected.", QuoteFound: false}, ""},
 		{"affected range ends before the version", LineStatement{Status: StatementAffected, Introduced: "3.0", Last: "3.3.9", Quote: "3.0 through 3.3.9", QuoteFound: true}, ""},
 		{"unsure", LineStatement{Status: StatementUnsure, Quote: "Widget 3.4.1", QuoteFound: true}, ""},
+		{"inferred, the line named by a later release of it", LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "3",
+			Quote: "Fixed in Gadget 3.9 and Widget 4.2.", QuoteFound: true}, VerdictAffected},
+		{"inferred, the line named by an earlier release of it", LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "3",
+			Quote: "Fixed in Gadget 3.2 and Widget 4.2.", QuoteFound: true}, ""},
+		{"inferred, a release of another line", LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "3", Quote: "Fixed in Gadget 4.9.",
+			QuoteFound: true}, ""},
+		{"a fix the quote does not name settles nothing", LineStatement{Status: StatementFixed, FixedIn: "3.4.0", StatedLine: "3.4",
+			Quote: "Release 3.4 is affected.", QuoteFound: true}, ""},
 	} {
 		if got := tc.st.verdictFor(id); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
@@ -465,7 +473,7 @@ func TestLineReading_APageThatNamesNeitherTheCVENorItsAdvisoryDecidesNothing(t *
 		{"affected, neither named", fixed, nil, 0, PossibleOpen, CauseAIUnsure},
 		{"affected, another advisory named", "Synology-SA-25:09 " + fixed, nil, 0, PossibleOpen, CauseAIUnsure},
 		{"affected, another CVE named", "CVE-2026-82001. " + fixed, nil, 0, PossibleOpen, CauseAIUnsure},
-		{"not affected, the CVE named", "CVE-2026-82002. Synology DiskStation Manager (DSM). DSM 7.2.1 is not affected.", &notAffected, 0, PossibleSettled, ""},
+		{"not affected, the CVE named", "CVE-2026-82002. Synology DiskStation Manager (DSM). DSM 7.2.1 is not affected.", &notAffected, 0, PossibleProposal, CauseNeedsPerson},
 		{"not affected, neither named", "Synology DiskStation Manager (DSM). DSM 7.2.1 is not affected.", &notAffected, 0, PossibleOpen, CauseAIUnsure},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -512,8 +520,10 @@ func TestAboutCVE_AdvisoryIDsOfAReference(t *testing.T) {
 	}
 }
 
-// A fix release the quote states ("before X" on the version's own train) is the finding's fix even when the AI gave no fixed_in; a
-// version at or past that X is not inside what the sentence calls affected, so the reading opens no finding for it.
+// A fix release the quote states ("before X" on the version's own train) is the finding's fix even when the AI gave no fixed_in, but only
+// from a reading whose every release follows the product's own name (basis stated): "DSM 7.2.1 versions before 7.2.1-69057-6" names
+// no product before 7.2.1-69057-6, so the finding opens with no fix. A version at or past that X is not inside what the sentence calls
+// affected, so the reading opens no finding for it.
 func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
 	t.Parallel()
 	const quote = "DSM 7.2.1 versions before 7.2.1-69057-6 are affected."
@@ -522,11 +532,15 @@ func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
 	fc.pages["CVE-2026-82002"][0].Text = "CVE-2026-82002: " + quote // names DSM only: the box's own reader leaves it to the AI
 	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = affected
 	runCheck(t, e)
-	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-82002' AND range_origin = 'ai_read' AND fix_kind = 'update' AND fix_version = '7.2.1-69057-6'`); n != 1 {
-		t.Errorf("%d findings with the quoted fix 7.2.1-69057-6, want 1", n)
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-82002' AND range_origin = 'ai_read' AND fix_kind = 'unknown'`); n != 1 {
+		t.Errorf("%d findings opened with no fix, want 1", n)
+	}
+	id := CheckID{Product: "synology|diskstation manager", Line: "7.2.1", Version: "7.2.1-69057-5"}
+	st := LineStatement{Status: StatementAffected, Basis: BasisStated, StatedLine: "7.2.1", Quote: quote, QuoteFound: true}
+	if f := st.fix(id); f.Version != "7.2.1-69057-6" {
+		t.Errorf("a stated reading's quoted fix %+v, want 7.2.1-69057-6", f)
 	}
 	past := CheckID{Product: "synology|diskstation manager", Line: "7.2.1", Version: "7.2.1-69057-7"}
-	st := LineStatement{Status: StatementAffected, StatedLine: "7.2.1", Quote: quote, QuoteFound: true}
 	if v := st.verdictFor(past); v != "" {
 		t.Errorf("a version past the quoted fix: %q, want nothing decided", v)
 	}
@@ -724,5 +738,37 @@ func TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE(t *testing.T) {
 	}
 	if run.Failed != len(units) {
 		t.Errorf("failed %d of %d units: every unit the stop left is not checked", run.Failed, len(units))
+	}
+}
+
+// A reading the AI inferred from another product's release line (basis inferred) is decided from that basis, not from its quote: it
+// never gives a fix, even when its quote states "before X" on the version's own train, and its "not affected" is a proposal a person
+// confirms, never settled.
+func TestLineStatement_AnInferredReadingIsNeverAFix(t *testing.T) {
+	t.Parallel()
+	id := CheckID{Product: "acme|mail", Line: "115.9.0", Version: "115.9.0"}
+	st := LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "115", Quote: "Acme Browser ESR 115 versions before 115.42 are affected.", QuoteFound: true}
+	if got := st.verdictFor(id); got != VerdictAffected {
+		t.Errorf("inferred affected: %q, want %q", got, VerdictAffected)
+	}
+	if f := st.fix(id); f.Kind != FixUnknown {
+		t.Errorf("inferred reading's fix %+v, want none", f)
+	}
+	stated := st
+	stated.Basis = BasisStated
+	if f := stated.fix(id); f.Kind != FixUpdate || f.Version != "115.42" {
+		t.Errorf("the same quote stated for this product: fix %+v, want 115.42", f)
+	}
+	na := LineStatement{Status: StatementNotAffected, Basis: BasisInferred, StatedLine: "115", Quote: "Acme Mail 115 is not affected.", QuoteFound: true, VendorPage: true}
+	if c := na.asCheck(id); c.Verdict != VerdictNotAffected || !c.Proposal() || c.Settled() {
+		t.Errorf("inferred not affected: %+v, want a proposal for a person, never settled", c)
+	}
+	fixed := LineStatement{Status: StatementFixed, Basis: BasisInferred, FixedIn: "115.2", StatedLine: "115", Quote: "Release 115 is fixed in 115.2.", QuoteFound: true, VendorPage: true}
+	if got := fixed.verdictFor(id); got != "" {
+		t.Errorf("inferred fixed: %q, want nothing", got)
+	}
+	// a stated reading names its line only through its own words: a release of the line in the quote is no naming of it
+	if got := (LineStatement{Status: StatementAffected, StatedLine: "115", Quote: "Fixed in 115.42.", QuoteFound: true}).verdictFor(id); got != "" {
+		t.Errorf("stated, the line named by a release only: %q, want nothing", got)
 	}
 }

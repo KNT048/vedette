@@ -32,6 +32,11 @@ import (
 //   - the passive rules off (the baseline already ran them on this page: no alert counted twice);
 //   - the active scan bounded per rule and per page, at two threads with a delay between requests, with the rule split below;
 //   - the report as the traditional JSON report, read by exposure's ParseZAPReport like the baseline's.
+//
+// With Passive (api.ZapActiveArgs.Passive) the one run does the page's passive pass too, so ZAP starts once and spiders once: the
+// passive rules stay on (as zap.baseline's, at most 10 alerts a rule), the plan waits for them after the spider, writes their report
+// (passive.json), and only then runs the active scan and writes its report. The spider, the active scan, the rule split and every
+// bound are those of the active plan above.
 
 // The bounds of one active page. The page's own limit holds everything up to the end of podman run: about a minute of JVM start, the
 // spider's minutes, the active scan's own cap, the report; exposure waits a little longer (ActiveScanTimeout) so it never gives up
@@ -55,8 +60,11 @@ const (
 	zapPassiveWaitMinutes   = 4
 
 	zapActivePageLimit = 20 * time.Minute
-	zapActiveTimeout   = 22 * time.Minute // the command: the page's 20 minutes and the cleanup after it
-	zapStopTimeout     = 3 * time.Minute  // zap.stop: the run's cleanup (podman rm, its proof, nft delete) after the cancel
+	// zapCombinedPageLimit is the page's limit with the passive pass in the same run: the active page's 20 minutes and the passive
+	// rules' wait after the spider (zapPassiveWaitMinutes); exposure waits a minute more (CombinedScanTimeout).
+	zapCombinedPageLimit = zapActivePageLimit + zapPassiveWaitMinutes*time.Minute
+	zapActiveTimeout     = 26 * time.Minute // the command: the longest page (zapCombinedPageLimit) and the cleanup after it
+	zapStopTimeout       = 3 * time.Minute  // zap.stop: the run's cleanup (podman rm, its proof, nft delete) after the cancel
 
 	// zapActiveMemory is the container's memory and swap cap (the JVM heap is half of it, the home tmpfs counts against it): the
 	// active scan keeps every request it sends in ZAP's session database, more than the baseline's.
@@ -65,6 +73,8 @@ const (
 	zapActiveTmpfs  = "/home/zap:rw,size=512m,mode=1777"
 	zapActivePids   = "--pids-limit=512"
 	zapPlanName     = "plan.yaml"
+	// zapPassiveReportName is the report of the passive pass of a run with Passive, written before its active scan starts.
+	zapPassiveReportName = "passive.json"
 )
 
 // The rule split of the active scan (ZAP plugin ids, https://www.zaproxy.org/docs/alerts/). The plan turns every rule off
@@ -159,9 +169,10 @@ var zapDenialRules = []int{20015, 30001, 30002, 40044}
 var zapFixedFileRules = []int{10045, 40028, 40029, 40032, 40034, 40035, 40042}
 
 // zapActiveOpts are how one active page runs: with the disruptive rules or not (after the host's own checks), and the deep-scan
-// settings of the target, which only narrow.
+// settings of the target, which only narrow. passive runs the page's passive pass in the same run.
 type zapActiveOpts struct {
 	disruptive, noDoS, noChange, gentle bool
+	passive                             bool
 }
 
 // postsForms says whether the spider posts forms: only with the disruptive rules and the checks that may change data.
@@ -193,6 +204,17 @@ func zapSkippedRules(p zapPage, o zapActiveOpts) []int {
 		on, strength := zapRuleRuns(p, r, o)
 		wideOn, wideStrength := zapRuleRuns(wide, r, zapActiveOpts{disruptive: o.disruptive})
 		if wideOn && (!on || strength != wideStrength) {
+			out = append(out, r.id)
+		}
+	}
+	return out
+}
+
+// zapPlanRules are the ZAP plugin ids of the active rules page p's plan runs under o (api.ZapActiveResult.Rules).
+func zapPlanRules(p zapPage, o zapActiveOpts) []int {
+	var out []int
+	for _, r := range zapActiveRules {
+		if on, _ := zapRuleRuns(p, r, o); on {
 			out = append(out, r.id)
 		}
 	}
@@ -290,12 +312,14 @@ func (z *zapPlanWriter) spiderSeeds(p zapPage) {
 	}
 }
 
-func (z *zapPlanWriter) report() {
+func (z *zapPlanWriter) report() { z.reportAs(zapReportName) }
+
+func (z *zapPlanWriter) reportAs(name string) {
 	z.w("  - type: report",
 		"    parameters:",
 		"      template: traditional-json",
 		"      reportDir: "+zapQuote(zapWorkDir),
-		"      reportFile: "+zapQuote(zapReportName))
+		"      reportFile: "+zapQuote(name))
 }
 
 // zapPlanActive is the Automation Framework plan of one active page: built from the validated page, the fixed bounds above and the
@@ -304,11 +328,18 @@ func zapPlanActive(p zapPage, o zapActiveOpts) string {
 	threads, delay := zapPace(o)
 	var z zapPlanWriter
 	z.env(p)
-	z.w("  - type: passiveScan-config",
-		"    parameters:",
-		"      disableAllRules: true",
-		"      scanOnlyInScope: true",
-		"  - type: spider",
+	if o.passive { // the passive rules at their defaults, as the baseline's
+		z.w("  - type: passiveScan-config",
+			"    parameters:",
+			"      maxAlertsPerRule: "+strconv.Itoa(zapMaxAlertsPerRule),
+			"      scanOnlyInScope: true")
+	} else { // the baseline already ran them on this page: no alert counted twice
+		z.w("  - type: passiveScan-config",
+			"    parameters:",
+			"      disableAllRules: true",
+			"      scanOnlyInScope: true")
+	}
+	z.w("  - type: spider",
 		"    parameters:",
 		"      context: page",
 		"      url: "+zapQuote(p.url),
@@ -320,6 +351,12 @@ func zapPlanActive(p zapPage, o zapActiveOpts) string {
 		"      postForm: "+strconv.FormatBool(o.postsForms()),
 		"      acceptCookies: true")
 	z.spiderSeeds(p)
+	if o.passive { // the passive rules read every page the spider found, then their report is written before any attack request
+		z.w("  - type: passiveScan-wait",
+			"    parameters:",
+			"      maxDuration: "+strconv.Itoa(zapPassiveWaitMinutes))
+		z.reportAs(zapPassiveReportName)
+	}
 	z.w("  - type: activeScan",
 		"    parameters:",
 		"      context: page",
@@ -468,7 +505,7 @@ func (o *Ops) cmdZapActive() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			pass := zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant}
+			pass := zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant, passive: a.Passive}
 			if st := a.Settings; st != nil {
 				pass.noDoS, pass.noChange, pass.gentle = st.NoDoS, st.NoChange, st.Gentle
 			}

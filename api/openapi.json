@@ -44617,6 +44617,169 @@
         }
       }
     },
+    "/feeds/window": {
+      "get": {
+        "operationId": "feeds_get_feeds_window",
+        "summary": "Which CVEs the box reports: the last 12 months and older ones exploited in the wild, or every age",
+        "tags": [
+          "feeds"
+        ],
+        "x-stories": [
+          "S-FEED-4"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "every_age": {
+                      "type": "boolean",
+                      "description": "Report CVEs of every age: the vulnerability data keeps every CVE NVD and the CVE Program publish. Off (the default): CVEs published in the last window_days days, and older ones only while there is evidence of exploitation in the wild (an exploited list, or a vendor says it is exploited) or a public exploit came out within window_days days"
+                    },
+                    "window_days": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "The window's length in days"
+                    },
+                    "changed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When an administrator last changed it; null: never (the default)"
+                    },
+                    "changed_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "every_age",
+                    "window_days",
+                    "changed_at",
+                    "changed_by"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "feeds_put_feeds_window",
+        "summary": "Report CVEs of every age, or only the last 12 months and older ones exploited in the wild (the default). Switched off, the older CVEs leave the data and their open findings close as outside the reporting window",
+        "tags": [
+          "feeds"
+        ],
+        "x-stories": [
+          "S-FEED-4"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "every_age": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "every_age"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "every_age": {
+                      "type": "boolean",
+                      "description": "Report CVEs of every age: the vulnerability data keeps every CVE NVD and the CVE Program publish. Off (the default): CVEs published in the last window_days days, and older ones only while there is evidence of exploitation in the wild (an exploited list, or a vendor says it is exploited) or a public exploit came out within window_days days"
+                    },
+                    "window_days": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "The window's length in days"
+                    },
+                    "changed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When an administrator last changed it; null: never (the default)"
+                    },
+                    "changed_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "every_age",
+                    "window_days",
+                    "changed_at",
+                    "changed_by"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/findings": {
       "get": {
         "operationId": "findings_get_findings",
@@ -50705,9 +50868,10 @@
                                 "distro_fixed",
                                 "scan_clear",
                                 "data_corrected",
-                                "not_installed"
+                                "not_installed",
+                                "outside_window"
                               ],
-                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                             },
                             "by": {
                               "type": "string",
@@ -51036,9 +51200,10 @@
                                   "distro_fixed",
                                   "scan_clear",
                                   "data_corrected",
-                                  "not_installed"
+                                  "not_installed",
+                                  "outside_window"
                                 ],
-                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                               },
                               {
                                 "type": "null"
@@ -51778,9 +51943,10 @@
                                 "distro_fixed",
                                 "scan_clear",
                                 "data_corrected",
-                                "not_installed"
+                                "not_installed",
+                                "outside_window"
                               ],
-                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                             },
                             "by": {
                               "type": "string",
@@ -52109,9 +52275,10 @@
                                   "distro_fixed",
                                   "scan_clear",
                                   "data_corrected",
-                                  "not_installed"
+                                  "not_installed",
+                                  "outside_window"
                                 ],
-                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                               },
                               {
                                 "type": "null"
@@ -52872,9 +53039,10 @@
                                 "distro_fixed",
                                 "scan_clear",
                                 "data_corrected",
-                                "not_installed"
+                                "not_installed",
+                                "outside_window"
                               ],
-                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                             },
                             "by": {
                               "type": "string",
@@ -53203,9 +53371,10 @@
                                   "distro_fixed",
                                   "scan_clear",
                                   "data_corrected",
-                                  "not_installed"
+                                  "not_installed",
+                                  "outside_window"
                                 ],
-                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                               },
                               {
                                 "type": "null"
@@ -53946,9 +54115,10 @@
                                 "distro_fixed",
                                 "scan_clear",
                                 "data_corrected",
-                                "not_installed"
+                                "not_installed",
+                                "outside_window"
                               ],
-                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                             },
                             "by": {
                               "type": "string",
@@ -54277,9 +54447,10 @@
                                   "distro_fixed",
                                   "scan_clear",
                                   "data_corrected",
-                                  "not_installed"
+                                  "not_installed",
+                                  "outside_window"
                                 ],
-                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                               },
                               {
                                 "type": "null"
@@ -55125,6 +55296,12 @@
                       "maximum": 9007199254740991,
                       "description": "(software line, CVE) pairs the catalogue relates on them"
                     },
+                    "outside_window": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "CVEs naming a product the devices run that the pass set aside as outside the reporting window (published before the last 12 months, no evidence of exploitation in the wild, no public exploit in that time): not judged, so neither decided nor undecided and not in pairs. 0 while CVEs of every age are reported"
+                    },
                     "decided": {
                       "type": "array",
                       "items": {
@@ -55239,6 +55416,7 @@
                     "devices",
                     "lines",
                     "pairs",
+                    "outside_window",
                     "decided",
                     "possible",
                     "identity"
@@ -57176,9 +57354,10 @@
                                   "distro_fixed",
                                   "scan_clear",
                                   "data_corrected",
-                                  "not_installed"
+                                  "not_installed",
+                                  "outside_window"
                                 ],
-                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed"
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)"
                               },
                               "by": {
                                 "type": "string",
@@ -82664,9 +82843,10 @@
                                   "distro_fixed",
                                   "scan_clear",
                                   "data_corrected",
-                                  "not_installed"
+                                  "not_installed",
+                                  "outside_window"
                                 ],
-                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
+                                "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild; never patch credit)"
                               },
                               "n": {
                                 "type": "integer",
@@ -82798,9 +82978,10 @@
                                             "distro_fixed",
                                             "scan_clear",
                                             "data_corrected",
-                                            "not_installed"
+                                            "not_installed",
+                                            "outside_window"
                                           ],
-                                          "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
+                                          "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild; never patch credit)"
                                         },
                                         "by": {
                                           "type": "string",
@@ -84882,9 +85063,10 @@
                                       "distro_fixed",
                                       "scan_clear",
                                       "data_corrected",
-                                      "not_installed"
+                                      "not_installed",
+                                      "outside_window"
                                     ],
-                                    "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
+                                    "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild; never patch credit)"
                                   },
                                   "n": {
                                     "type": "integer",
@@ -85016,9 +85198,10 @@
                                                 "distro_fixed",
                                                 "scan_clear",
                                                 "data_corrected",
-                                                "not_installed"
+                                                "not_installed",
+                                                "outside_window"
                                               ],
-                                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed"
+                                              "description": "How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild; never patch credit)"
                                             },
                                             "by": {
                                               "type": "string",

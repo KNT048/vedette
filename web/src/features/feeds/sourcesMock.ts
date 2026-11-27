@@ -2,15 +2,15 @@
 // "fetching" a feed reads the built-in sample of its format, so Fetch now and Test show what the rules would do.
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
-import { API, audit, body, fail, guard } from '@/mocks/http'
+import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
 import { tierState } from '@/mocks/tiers'
 import { fmtNumber } from '@/lib/format'
-import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestInput } from './contract'
+import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestInput, ReportWindowInput } from './contract'
 import { BLOCKED_TEXT, blockedFeedHost, OWN_TEXT, checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS, sameFeedAddress } from './defaults'
 import { checkParser, ParserConfigError, parseFeed } from './parsers'
 import { sampleFor } from './samples'
-import type { Feed, FeedFormat, FeedStatus, FeedKind, ParseResult } from './types'
+import type { Feed, FeedFormat, FeedStatus, FeedKind, ParseResult, ReportWindow } from './types'
 
 interface Def { id: string; name: string; kind: FeedKind; format: FeedFormat; url: string; license: string; records: number }
 // Only sources already listed in THIRD_PARTY_NOTICES.md / PRIVACY.md (no new third parties).
@@ -158,7 +158,26 @@ function toCustom(i: ReturnType<typeof FeedInputSchema.parse>, prev: Feed | null
   }
 }
 
+// The reporting window (Settings → Feeds): off by default, as on the box.
+const reportWindow = collection<ReportWindow>('feeds_window', () => ({ every_age: false, window_days: 365, changed_at: null, changed_by: null }))
+
 export const sourceHandlers = [
+  http.get(`${API}/feeds/window`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    return HttpResponse.json(reportWindow.get())
+  }),
+
+  http.put(`${API}/feeds/window`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const p = ReportWindowInput.safeParse(await body(request))
+    if (!p.success) return fail(400, 'invalid_body', 'Check the values and try again.')
+    if (reportWindow.get().every_age !== p.data.every_age) {
+      reportWindow.update((w) => ({ ...w, every_age: p.data.every_age, changed_at: nowIso(), changed_by: currentUser()?.email ?? null }))
+      audit('feeds.report_window', 'CVEs of every age', p.data.every_age ? 'on: CVEs of every age' : 'off: CVEs of the last 12 months, and older ones exploited in the wild or with a new public exploit')
+    }
+    return HttpResponse.json(reportWindow.get())
+  }),
+
   http.get(`${API}/feeds/sources`, () => {
     const denied = guard('viewer'); if (denied) return denied
     return HttpResponse.json({ items: allFeeds(config.get()) })

@@ -53,8 +53,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   device runs now), with that reason as the note; "gone" also closes an open finding that is not detected, also when the pass no
   longer reads its CVE. "Gone"
   closes an open finding as `patched` when something changed on the device (`version_moved`, `software_removed`, `distro_fixed`,
-  `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`) or a person said the software is not installed
-  (`not_installed`). The Handled list leaves out what Vedette closed by correcting its own match (`data_corrected` by Vedette: never
+  `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`), a person said the software is not installed
+  (`not_installed`) or the CVE left the reporting window (`outside_window`, M-15). The Handled list leaves out what Vedette closed by correcting its own match (`data_corrected` by Vedette: never
   a flaw someone handled) unless asked (`corrections=true`), and counts it under the same filters (`HandledList.corrections`;
   `TestHandled_LeavesOutVedettesMatchCorrections`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
   the proof's sentence is the closing note, so the handled line says the real reason; the proof is that of the finding's own CVE and
@@ -183,7 +183,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   kept, in the data export) and `GET /findings/coverage` (admin, counts only, Settings → Diagnostics) serves the last one. Counting reads the pass's readings and the rows its write left and
   changes no finding or question. The test-only build tag `holdout` runs the matcher without the catalogue's CPE aliases, so the same pass
   shows what rests on catalogue rows. `TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue` (made-up products in every
-  standard record shape; shapes not decided yet are skipped with the rule that will decide them).
+  standard record shape; shapes not decided yet are skipped with the rule that will decide them). The CVEs of the pass's match set it
+  set aside as outside the reporting window (M-15) are counted apart (`Coverage.outside_window`), never as pairs or as undecided.
+- **M-15 The reporting window.** Feeds marks a catalogue CVE of the match set that is outside its reporting window (feeds INV-34:
+  published before the last 12 months, no exploited-list entry, no exploited signal, no public exploit dated in the last 12 months, and
+  CVEs of every age not reported): `Vuln.OutsideWindow`. The matcher never reads such an entry (`inWindow`, in the pass, the match of
+  one device and `matchOne`): it is no finding and no question (not "undecided": out of scope). Every detected finding of it goes away
+  through Transition as `not_relevant` via `outside_window` by Vedette (`closeOutside`, before the devices are matched; its event and
+  audit row like any close), unless a safe check proved it or a person confirmed it (`proofHolds`: a flaw proved on the device is
+  reported whatever its age). Nothing is deleted: the finding opens again when its CVE is back inside the window and the match detects
+  it. Its pin keeps the CVE's data in the catalogue, never inside the window. `TestWindow_AFindingOutsideTheWindowClosesAndOpensAgain`,
+  `TestWindow_AConfirmedFindingStaysOpen`, `TestWindow_NoQuestionAndCountedApart`.
 
 ## Possible findings and the check of their advisories
 

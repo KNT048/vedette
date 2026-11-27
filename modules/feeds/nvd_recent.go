@@ -141,7 +141,17 @@ func (s *Store) recentOwed(ctx context.Context, url string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return !recentComplete(cur, url) || walkRunning(walk, url), nil
+	w, err := s.Window(ctx, time.Now())
+	if err != nil {
+		return false, err
+	}
+	return !recentComplete(cur, url) || walkRunning(walk, url) || recentComplete(cur, url) && everyAgeOwed(w, walk, url), nil
+}
+
+// everyAgeOwed is true when an administrator switched on the CVEs of every age after the last pass over NVD's whole set began (or
+// none ran): that pass stored only the older CVEs the window kept, so one more pass reads the whole set and stores every record.
+func everyAgeOwed(w Window, last *recentCursor, url string) bool {
+	return w.EveryAge && (last == nil || last.URL != url || last.From.Before(w.Since))
 }
 
 // recentIdleText is the progress line of nvd-recent while no pull is running and the data is not complete: where the
@@ -478,7 +488,11 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 	p.out.fill(st, all)
 	line := fmt.Sprintf("%s CVEs published since %s; NVD gives affected versions for %s of them.", grouped(all), orgtime.CalendarDay(now.AddDate(0, 0, -recentDays)), grouped(ranged))
 	if total, err := s.st.catalogueCount(ctx); err == nil && total > all {
-		line += fmt.Sprintf(" The catalogue keeps %s older CVEs that an exploited list or a signal names.", grouped(total-all))
+		why := "exploited, with a public exploit of the last 12 months, or held by a finding"
+		if w, err := s.st.Window(ctx, now); err == nil && w.EveryAge {
+			why = "CVEs of every age are reported"
+		}
+		line += fmt.Sprintf(" The catalogue keeps %s older CVEs: %s.", grouped(total-all), why)
 	}
 	p.out.Note = strings.TrimSpace(line + " " + p.out.Note)
 	p.kevRanges, p.kevRangesFirst, p.catalogueRanges = rp.kevChanged, rp.kevFirst, rp.catalogue
@@ -526,11 +540,15 @@ func (s *Service) catchUp(ctx context.Context, rp *recentPull, now time.Time, wa
 		return err
 	}
 	if !walkRunning(walk, url) {
-		n, err := s.st.missingCount(ctx)
+		w, err := s.st.Window(ctx, now)
 		if err != nil {
 			return err
 		}
-		if n < walkMissing || walk != nil && walk.URL == url && now.Sub(walk.Until) < walkAgain {
+		n, err := s.st.missingCount(ctx, w)
+		if err != nil {
+			return err
+		}
+		if !everyAgeOwed(w, walk, url) && (n < walkMissing || walk != nil && walk.URL == url && now.Sub(walk.Until) < walkAgain) {
 			return s.askMissing(ctx, rp, now, waitTurn, missingPerPull, false)
 		}
 		walk = &recentCursor{URL: url, Mode: modeWalk, From: now, To: now, Until: now}
@@ -610,7 +628,11 @@ func (s *Service) askMissing(ctx context.Context, rp *recentPull, now time.Time,
 // missingAskAgain; have skips the CVEs the caller already holds a record of. kevOnly limits it to the exploited lists. A CVE NVD has no record of is skipped; NVD busy or failing ends the asking
 // with what was read.
 func (s *Service) fetchMissing(ctx context.Context, run *nvdRun, base string, now time.Time, waitTurn func() bool, limit int, kevOnly bool, have func(string) bool) ([]NVDRecord, int, error) {
-	cves, err := s.st.missingRecords(ctx, kevOnly, 5000)
+	w, err := s.st.Window(ctx, now)
+	if err != nil {
+		return nil, 0, err
+	}
+	cves, err := s.st.missingRecords(ctx, w, kevOnly, 5000)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -669,10 +691,10 @@ func (s *Service) fetchMissing(ctx context.Context, run *nvdRun, base string, no
 	return out, bytes, nil
 }
 
-// missingRecords lists the CVEs the retention rule keeps that a public list names (the CISA list, VulnCheck KEV, a qualifying signal;
-// kevOnly: the lists only) and that have no NVD record in the catalogue, newest ids first, at most limit.
-func (s *Store) missingRecords(ctx context.Context, kevOnly bool, limit int) ([]string, error) {
-	q := publicListedSQL
+// missingRecords lists the CVEs the retention rule keeps that a public list names (the CISA list, VulnCheck KEV, a signal the window
+// keeps; kevOnly: the lists only) and that have no NVD record in the catalogue, newest ids first, at most limit.
+func (s *Store) missingRecords(ctx context.Context, w Window, kevOnly bool, limit int) ([]string, error) {
+	q := w.publicListedSQL()
 	if kevOnly {
 		q = missingKEVSQL
 	}
@@ -700,16 +722,10 @@ var publicSignalSources = []string{nucleiFeedID, metasploitFeedID, exploitDBFeed
 
 const missingKEVSQL = `SELECT cve FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev')`
 
-// publicListedSQL is the CVEs a public source names: the CISA list, VulnCheck KEV and the qualifying signals of publicSignalSources (the
-// sources are constants of this package). They are the only CVEs Vedette ever asks a source for by ID (an NVD record, a CVE record):
-// the same request goes from every box that loads the same public list, so it says nothing about the customer. A custom list's CVE, a
-// signal a box builds from what it sees, or a finding's CVE is never asked for by ID.
-var publicListedSQL = missingKEVSQL + ` UNION SELECT cve FROM feeds_signal WHERE qualifies = 1 AND source IN ('` + strings.Join(publicSignalSources, `', '`) + `')`
-
-// missingCount is how many kept CVEs a public list names have no NVD record.
-func (s *Store) missingCount(ctx context.Context) (int, error) {
+// missingCount is how many kept CVEs a public list names have no NVD record (Window.publicListedSQL).
+func (s *Store) missingCount(ctx context.Context, w Window) (int, error) {
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+publicListedSQL+`) m LEFT JOIN feeds_cve c ON c.cve = m.cve WHERE c.nvd_at IS NULL`).Scan(&n); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+w.publicListedSQL()+`) m LEFT JOIN feeds_cve c ON c.cve = m.cve WHERE c.nvd_at IS NULL`).Scan(&n); err != nil {
 		return 0, fmt.Errorf("feeds: missing records: %w", err)
 	}
 	return n, nil

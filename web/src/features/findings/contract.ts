@@ -195,8 +195,8 @@ export const StatusCode = z.enum(FINDING_STATUSES).describe('under_attack = some
 export const OpenStatus = z.enum(OPEN_FINDING_STATUSES).describe('The open statuses: OPEN_FINDING_STATUSES[layer - 1]')
 export const Resolution = z.enum(FINDING_RESOLUTIONS)
   .describe('patched = the fixed version is installed or the software is gone; mitigated = a workaround is in place, the flaw is still in the software; accepted = a person decided to live with it until a day; not_relevant = it does not apply to this device; false_positive = the match was wrong')
-export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed'])
-  .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed')
+export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed', 'outside_window'])
+  .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version (from_version, to_version); software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (the match was corrected: never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild: never patch credit; it opens again when the CVE is back inside it)')
 export const Verified = z.enum(['no', 'device', 'scan', 'person'])
   .describe('no = not confirmed yet; device = the device itself reports the affected version (agent, SNMP, package list); scan = a safe check confirmed it; person = a person confirmed it')
 export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_version', 'statement', 'person'])
@@ -569,6 +569,7 @@ export const Coverage = z.object({
   devices: coverageCount.describe('Devices the pass matched (a device the pass found unchanged keeps the counts of its last full match)'),
   lines: coverageCount.describe('Their software lines, and the network OS a device states without one'),
   pairs: coverageCount.describe('(software line, CVE) pairs the catalogue relates on them'),
+  outside_window: coverageCount.describe('CVEs naming a product the devices run that the pass set aside as outside the reporting window (published before the last 12 months, no evidence of exploitation in the wild, no public exploit in that time): not judged, so neither decided nor undecided and not in pairs. 0 while CVEs of every age are reported'),
   decided: z.array(z.object({
     by: z.string().max(64).describe('The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory, ai_confirmed, person, scan) or platform_list (the hand list of platform limits)'),
     affected: coverageCount, not_affected: coverageCount,

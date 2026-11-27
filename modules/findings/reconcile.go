@@ -527,9 +527,14 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: %w", err))...)
 	}
-	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope(assets, pinned))
+	vulns, outside, err := s.matchSet(ctx, NewMatchScope(assets, pinned))
 	if err != nil {
 		return res, errors.Join(append(failed, fmt.Errorf("findings: reconcile: reading the catalogue: %w", err))...)
+	}
+	if n, err := s.closeOutside(ctx, "", outside); err != nil { // before the devices: their writes then read the findings as closed
+		failed = append(failed, fmt.Errorf("findings: reconcile: the reporting window: %w", err))
+	} else {
+		res.Closed += n
 	}
 	in := passInput{set: newMatchSet(vulns), ok: true}
 	if s.cfg.HaveSince != nil {
@@ -566,7 +571,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	}
 	s.stamps.keepOnly(matched)
 	if len(vulns) > 0 {
-		s.covers.pass(matched, s.now().UTC())
+		s.covers.pass(matched, s.now().UTC(), len(outside))
 		if err := s.storeCoverage(ctx); err != nil { // counts only: the pass's writes stand
 			if ctx.Err() != nil {
 				return res, ctx.Err()

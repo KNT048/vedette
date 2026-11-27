@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { CveDetail, TierCve, Feed, FeedInput, FeedPatch, FeedStatus, ParseResult, Parser, FeedKind, HotRow, SearchResult, WeeklyItem } from './types'
+import type { CveDetail, TierCve, Feed, FeedInput, FeedPatch, FeedStatus, ParseResult, Parser, FeedKind, HotRow, ReportWindow, SearchResult, WeeklyItem } from './types'
 
 export const useFeedStatus = () => useQuery({ queryKey: ['feeds', 'status'], queryFn: () => api.get<FeedStatus>('/feeds/status') })
 
@@ -55,3 +55,14 @@ export function useDeleteCustomFeed() {
   return useMutation({ mutationFn: (id: string) => api.del<null>(`/feeds/custom/${encodeURIComponent(id)}`), onSuccess: done })
 }
 export const useParseTest = () => useMutation({ mutationFn: (b: { kind: FeedKind; parser: Parser; sample?: string }) => api.post<ParseResult>('/feeds/parse-test', b) })
+
+// ---------- The reporting window (S-FEED-4): the last 12 months and older CVEs exploited in the wild, or every age
+export const useReportWindow = () => useQuery({ queryKey: ['feeds', 'window'], queryFn: () => api.get<ReportWindow>('/feeds/window') })
+export function useSetReportWindow() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (everyAge: boolean) => api.put<ReportWindow>('/feeds/window', { every_age: everyAge }),
+    // findings close or open again at the next match, so the lists are asked again too
+    onSuccess: (w) => { qc.setQueryData(['feeds', 'window'], w); void qc.invalidateQueries({ queryKey: ['findings'] }) },
+  })
+}

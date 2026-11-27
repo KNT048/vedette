@@ -253,6 +253,13 @@ export const FeedInput = z.object({
   auth: z.object({ type: FeedAuthType, header_name: z.string().max(80).nullable(), username: z.string().max(80).nullable(), secret: z.string().max(500).optional().describe('Write-only; omit on edit to keep the saved secret') }),
   parser: Parser,
 })
+export const ReportWindow = z.object({
+  every_age: z.boolean().describe('Report CVEs of every age: the vulnerability data keeps every CVE NVD and the CVE Program publish. Off (the default): CVEs published in the last window_days days, and older ones only while there is evidence of exploitation in the wild (an exploited list, or a vendor says it is exploited) or a public exploit came out within window_days days'),
+  window_days: z.number().int().min(1).describe('The window\'s length in days'),
+  changed_at: z.iso.datetime().nullable().describe('When an administrator last changed it; null: never (the default)'),
+  changed_by: z.string().nullable(),
+})
+export const ReportWindowInput = z.object({ every_age: z.boolean() })
 export const ParseTestInput = z.object({
   kind: FeedKind,
   parser: Parser,
@@ -284,6 +291,8 @@ export const endpoints = defineEndpoints([
     params: z.object({ id: cveId }), response: TierCve, example: { params: { id: 'CVE-2026-31001' } } },
   { method: 'get', path: '/feeds/search', summary: 'Search CVEs, products, IPs or domains in the data on the box', stories: ['S-FEED-3'], role: 'viewer',
     query: z.object({ q: z.string().min(1).max(200) }), response: SearchResult, example: { query: { q: '185.220.101.47' } } },
+  { method: 'get', path: '/feeds/window', summary: 'Which CVEs the box reports: the last 12 months and older ones exploited in the wild, or every age', stories: ['S-FEED-4'], role: 'viewer', response: ReportWindow },
+  { method: 'put', path: '/feeds/window', summary: 'Report CVEs of every age, or only the last 12 months and older ones exploited in the wild (the default). Switched off, the older CVEs leave the data and their open findings close as outside the reporting window', stories: ['S-FEED-4'], role: 'admin', body: ReportWindowInput, response: ReportWindow },
   { method: 'get', path: '/feeds/sources', summary: 'Built-in and custom feeds with schedule, last fetch, record count and errors', stories: ['S-FEED-4'], role: 'viewer', response: FeedList },
   { method: 'put', path: '/feeds/sources/{id}', summary: 'Turn a feed on or off, change its schedule, or set a mirror address (built-in feeds cannot be deleted)', stories: ['S-FEED-4'], role: 'admin',
     params: z.object({ id: z.string() }), body: FeedPatch, response: Feed },

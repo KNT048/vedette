@@ -1944,6 +1944,15 @@ func (UnimplementedHandler) FeedsGetFeedsWeekly(ctx context.Context) (r *FeedsGe
 	return r, ht.ErrNotImplemented
 }
 
+// FeedsGetFeedsWindow implements feeds_get_feeds_window operation.
+//
+// Which CVEs the box reports: the last 12 months and older ones exploited in the wild, or every age.
+//
+// GET /feeds/window
+func (UnimplementedHandler) FeedsGetFeedsWindow(ctx context.Context) (r *FeedsGetFeedsWindowOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FeedsPostFeedsCustom implements feeds_post_feeds_custom operation.
 //
 // Add your own feed (vulnerabilities or IOC) with its parsing rules.
@@ -1996,6 +2005,17 @@ func (UnimplementedHandler) FeedsPutFeedsCustomID(ctx context.Context, req *Feed
 //
 // PUT /feeds/sources/{id}
 func (UnimplementedHandler) FeedsPutFeedsSourcesID(ctx context.Context, req *FeedsPutFeedsSourcesIDReq, params FeedsPutFeedsSourcesIDParams) (r *FeedsPutFeedsSourcesIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FeedsPutFeedsWindow implements feeds_put_feeds_window operation.
+//
+// Report CVEs of every age, or only the last 12 months and older ones exploited in the wild (the
+// default). Switched off, the older CVEs leave the data and their open findings close as outside the
+// reporting window.
+//
+// PUT /feeds/window
+func (UnimplementedHandler) FeedsPutFeedsWindow(ctx context.Context, req *FeedsPutFeedsWindowReq) (r *FeedsPutFeedsWindowOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

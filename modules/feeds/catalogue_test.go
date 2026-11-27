@@ -167,8 +167,9 @@ func TestContract_INV28_CVSSFromNVD(t *testing.T) {
 	}
 }
 
-// The retention rule: a CVE stays while it was published inside the window, or an exploited list names it, or a qualifying signal
-// names it (any age), or an open finding pins it; an NVD pull stores only such CVEs, and a CVE NVD rejects goes unless one holds it.
+// The retention rule: a CVE stays while it was published inside the window, or an exploited list names it, or a public exploit dated
+// inside the window names it, or a finding pins it; an NVD pull stores only such CVEs, and a CVE NVD rejects goes unless one holds it.
+// TestWindow_OldCVEsStayOnlyWithEvidenceOfExploitation has every kind of signal.
 func TestRetention_KeepsWindowListsSignalsAndPins(t *testing.T) {
 	t.Parallel()
 	_, db := newStore(t)
@@ -179,7 +180,7 @@ func TestRetention_KeepsWindowListsSignalsAndPins(t *testing.T) {
 	}
 	applyV(t, db, now, "cisa-kev", []Vuln{vuln("CVE-2023-0001", "Acme", "Box", "2023-03-01")}, false)
 	write(t, db, func(tx *sql.Tx) error {
-		if err := putSignal(t.Context(), tx, "CVE-2023-0002", SignalPublicExploit, nucleiFeedID, store0, store0, true, ""); err != nil {
+		if err := putSignal(t.Context(), tx, "CVE-2023-0002", SignalPublicExploit, exploitDBFeedID, store0, store0, true, ""); err != nil {
 			return err
 		}
 		return putSignal(t.Context(), tx, "CVE-2023-0003", SignalPublicExploit, "poc-index", store0, store0, false, "") // does not qualify
@@ -204,9 +205,9 @@ func TestRetention_KeepsWindowListsSignalsAndPins(t *testing.T) {
 	if got := held(); !slices.Equal(got, []string{"CVE-2023-0001", "CVE-2023-0002", "CVE-2023-0004", "CVE-2026-0005"}) {
 		t.Fatalf("stored: %v", got)
 	}
-	// a year later, without the pin: the window CVE ages out, the listed and signalled ones stay
+	// a year later, without the pin: the window CVE ages out and so does the exploit's renewal; the listed one stays
 	write(t, db, func(tx *sql.Tx) error { return pruneCatalogue(t.Context(), tx, now.AddDate(1, 0, 1), nil) })
-	if got := held(); !slices.Equal(got, []string{"CVE-2023-0001", "CVE-2023-0002"}) {
+	if got := held(); !slices.Equal(got, []string{"CVE-2023-0001"}) {
 		t.Fatalf("after the window moved: %v", got)
 	}
 	// NVD rejects the listed CVE: it keeps its row (the list holds it) with the status and no ranges

@@ -336,7 +336,7 @@ export const modelHandlers = [
   http.get(`${API}/findings/possible/audit`, () => read(() => ({ groups: [] }))),
   // Settings → Diagnostics: the coverage of the sample box's last match pass (illustrative counts)
   http.get(`${API}/findings/coverage`, () => guard('admin') ?? HttpResponse.json({
-    at: nowIso(), devices: 12, lines: 2140, pairs: 47940,
+    at: nowIso(), devices: 12, lines: 2140, pairs: 47940, outside_window: 3,
     decided: [{ by: 'distro', affected: 412, not_affected: 39870 }, { by: 'nvd', affected: 96, not_affected: 5310 }, { by: 'cna', affected: 21, not_affected: 1288 },
       { by: 'vendor_line', affected: 6, not_affected: 64 }, { by: 'person', affected: 2, not_affected: 11 }, { by: 'platform_list', affected: 0, not_affected: 9 }],
     possible: [

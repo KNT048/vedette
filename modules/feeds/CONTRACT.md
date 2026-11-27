@@ -10,9 +10,9 @@ tables.
 
 | Route | Minimum role |
 |---|---|
-| `GET /feeds/status`, `/feeds/hot`, `/feeds/weekly`, `/feeds/cve/{id}`, `/feeds/cve/{id}/tier`, `/feeds/search`, `/feeds/sources` | viewer |
+| `GET /feeds/status`, `/feeds/hot`, `/feeds/weekly`, `/feeds/cve/{id}`, `/feeds/cve/{id}/tier`, `/feeds/search`, `/feeds/sources`, `/feeds/window` | viewer |
 | `POST /feeds/weekly/{id}` | operator |
-| `PUT /feeds/sources/{id}`, `POST /feeds/sources/{id}/fetch`, `POST /feeds/custom`, `PUT`/`DELETE /feeds/custom/{id}`, `POST /feeds/parse-test` | admin |
+| `PUT /feeds/sources/{id}`, `PUT /feeds/window`, `POST /feeds/sources/{id}/fetch`, `POST /feeds/custom`, `PUT`/`DELETE /feeds/custom/{id}`, `POST /feeds/parse-test` | admin |
 
 Request and response shapes: `web/src/features/feeds/contract.ts` (the source of `api/openapi.json`).
 
@@ -83,8 +83,19 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   again" message when it recovers.
 
 **Catalogue**
-- **INV-34** A CVE stays in the catalogue while it was published within 365 days (and NVD has not rejected it), or has an
-  exploited-list entry, or a qualifying signal, or an open finding pins it (`Deps.Pins`). Pulls store only CVEs this rule keeps.
+- **INV-34** The reporting window (`window.go`). A CVE is inside it while it was published within 365 days, or has an exploited-list
+  entry (the CISA list, VulnCheck KEV, a custom list), or a qualifying `exploited` signal (a vendor or a research team says it is
+  exploited) of any age, or a qualifying signal of another kind (a public exploit) its source dates within 365 days (`first_seen`; the
+  scan template index, whose `first_seen` is the day this box first read it, renews nothing: `undatedSignalSources`). An administrator
+  may report CVEs of every age (`PUT /feeds/window`, core_setting `feeds.cve_window`, off by default, audited
+  `feeds.report_window`): every CVE is then inside. The catalogue keeps the CVEs inside the window that NVD has not rejected, and the
+  CVEs a finding pins (`Deps.Pins`): a pin keeps the CVE's data (its page, a finding's history, a report), never puts it inside the
+  window. `Store.OutsideWindow` is the one reading of the window; the match set marks a catalogue CVE outside it and findings sets it
+  aside (findings M-15). Pulls store only CVEs this rule keeps, and ask by ID only for kept ones (`Window.publicListedSQL`). Switched
+  on, the next catalogue pulls read NVD's whole set (`everyAgeOwed`) and the CVE Program's whole list (`recordsEveryAge`,
+  `feeds_nvd_cursor` row `cve_record_every_age`) once more; switched off, the pull job's prune drops the older CVEs at its next check.
+  A change wakes findings' match pass (`feeds.ranges.updated`, `catalogue`). `TestWindow_OldCVEsStayOnlyWithEvidenceOfExploitation`,
+  `TestWindow_SettingIsAdminsAuditedAndRematches`, `TestCataloguePull_EveryAgeReadsTheWholeSetOnce`.
 - **INV-35** Affected ranges are kept per origin (`nvd`, `cna`, `adp`). When read for matching (`matchRows`, the exploited-list view
   `KevAffected`), NVD's rows lead and the CNA's rows of the CVE record are read beside them, as CVE JSON 5 states a version's status (the
   entry that names it, else the entry's `defaultStatus`, else unknown; cve-schema `versions.md`): a version either calls affected is

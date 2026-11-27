@@ -38,7 +38,7 @@ describe('Settings → Diagnostics', () => {
   })
 
   it('orders decided rows before undecided ones and counts a share of nothing as 0', () => {
-    const rows = coverageRows({ at: null, devices: 0, lines: 0, pairs: 3, decided: [{ by: 'nvd', affected: 1, not_affected: 1 }], possible: [{ cause: 'other_dropped', count: 1, details: [] }], identity: [] })
+    const rows = coverageRows({ at: null, devices: 0, lines: 0, pairs: 3, outside_window: 0, decided: [{ by: 'nvd', affected: 1, not_affected: 1 }], possible: [{ cause: 'other_dropped', count: 1, details: [] }], identity: [] })
     expect(rows.map((r) => [r.outcome, r.name, r.pairs])).toEqual([['decided', 'nvd', 2], ['undecided', 'other_dropped', 1]])
     expect(share(1, 0)).toBe('0%')
     expect(share(1, 3)).toBe('33.3%')

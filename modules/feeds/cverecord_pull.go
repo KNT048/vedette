@@ -70,6 +70,8 @@ const (
 	// bound holds across restarts.
 	recordOwnAgain    = 24 * time.Hour
 	selectorRecordOwn = "cve_record_own"
+	// selectorRecordAll keeps when the last read of the whole list for the CVEs of every age began (recordsEveryAge).
+	selectorRecordAll = "cve_record_every_age"
 	// recordArchiveMax bounds the daily archive (669 MB in 2026); recordLogMax the change log (31.7 MB uncompressed in 2026).
 	recordArchiveMax = 3 << 30
 	recordLogMax     = 256 << 20
@@ -294,8 +296,12 @@ var errRecordsLater = errors.New("feeds: the CVE records pull goes on later")
 func (s *Service) recordsByID(ctx context.Context, run *recordRun, now time.Time) error {
 	// Many listed CVEs without a record (a new signal source named thousands of older CVEs): those come from the next read of the
 	// whole list (recordsBulk), not one file each; only the exploited lists' CVEs are still asked for by ID meanwhile.
-	listed := publicListedSQL
-	never, err := s.st.recordUnread(ctx)
+	w, err := s.st.Window(ctx, now)
+	if err != nil {
+		return err
+	}
+	listed := w.publicListedSQL()
+	never, err := s.st.recordUnread(ctx, w)
 	if err != nil {
 		return err
 	}
@@ -326,9 +332,12 @@ func (s *Service) recordsBacklog(ctx context.Context, run *recordRun, now time.T
 	if err != nil || cur == nil || cur.Mode != modeDone || cur.URL != recordCursorURL(run.src.URL) {
 		return err
 	}
-	cutoff := now.AddDate(0, 0, -windowDays)
+	w, err := s.st.Window(ctx, now)
+	if err != nil {
+		return err
+	}
 	defer func() {
-		if n, err := s.st.recordBacklogCount(ctx, cutoff); err == nil {
+		if n, err := s.st.recordBacklogCount(ctx, w); err == nil {
 			run.backlog = n
 		}
 	}()
@@ -336,7 +345,7 @@ func (s *Service) recordsBacklog(ctx context.Context, run *recordRun, now time.T
 	if limit <= 0 {
 		return nil
 	}
-	due, err := s.st.recordBacklog(ctx, cutoff, limit)
+	due, err := s.st.recordBacklog(ctx, w, limit)
 	if err != nil || len(due) == 0 {
 		return err
 	}
@@ -490,7 +499,15 @@ func (s *Store) recordsOwed(ctx context.Context, feedURL string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return cur == nil || cur.Mode == modeFill || cur.URL != recordCursorURL(feedURL), nil
+	if cur == nil || cur.Mode == modeFill || cur.URL != recordCursorURL(feedURL) {
+		return true, nil
+	}
+	w, err := s.Window(ctx, time.Now())
+	if err != nil || !w.EveryAge {
+		return false, err
+	}
+	last, err := s.nvdCursor(ctx, selectorRecordAll)
+	return err == nil && (last == nil || last.From.Before(w.Since)), err
 }
 
 // recordsBulk loads the whole list when the box has none, its data is older than the change log reaches, its address changed, an older
@@ -502,7 +519,11 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 	if err != nil {
 		return err
 	}
-	unread, err := s.st.recordUnread(ctx)
+	w, err := s.st.Window(ctx, now)
+	if err != nil {
+		return err
+	}
+	unread, err := s.st.recordUnread(ctx, w)
 	if err != nil {
 		return err
 	}
@@ -534,6 +555,9 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 		run.notes = append(run.notes, fmt.Sprintf("%s listed CVEs had no record: reading the whole list again.", grouped(unread)))
 		return s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
 	}
+	if started, err := s.recordsEveryAge(ctx, run, *cur, w, now); started || err != nil {
+		return err
+	}
 	if started, err := s.recordsOwn(ctx, run, *cur, now); started || err != nil {
 		return err
 	}
@@ -562,7 +586,11 @@ func (s *Service) recordsOwn(ctx context.Context, run *recordRun, cur recentCurs
 	if last != nil && !now.Before(last.From) && now.Sub(last.From) < recordOwnAgain {
 		return false, nil
 	}
-	own, err := s.st.recordOwnUnread(ctx, now.AddDate(0, 0, -windowDays))
+	w, err := s.st.Window(ctx, now)
+	if err != nil {
+		return false, err
+	}
+	own, err := s.st.recordOwnUnread(ctx, w)
 	if err != nil || own == 0 {
 		return false, err
 	}
@@ -570,6 +598,25 @@ func (s *Service) recordsOwn(ctx context.Context, run *recordRun, cur recentCurs
 		return false, err
 	}
 	run.notes = append(run.notes, fmt.Sprintf("%s CVEs kept only by this box's own lists or signals have no record: reading the whole list again (they are never asked for by their ID).", grouped(own)))
+	return true, s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
+}
+
+// recordsEveryAge starts a read of the whole list when an administrator switched on the CVEs of every age (w.EveryAge) after the last
+// read that stored them began: the records of the older CVEs were read and left out then. Only once the whole list is read (an
+// unfinished read goes on as it is); the start is kept in feeds_nvd_cursor (selectorRecordAll), so it runs once per switch.
+func (s *Service) recordsEveryAge(ctx context.Context, run *recordRun, cur recentCursor, w Window, now time.Time) (started bool, err error) {
+	if !w.EveryAge || cur.Mode != modeDone || cur.URL != recordCursorURL(run.src.URL) {
+		return false, nil
+	}
+	last, err := s.st.nvdCursor(ctx, selectorRecordAll)
+	if err != nil || last != nil && !last.From.Before(w.Since) {
+		return false, err
+	}
+	if err := s.saveRecordCursorAt(ctx, run, selectorRecordAll, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeDone, From: now, To: now, Until: now}); err != nil {
+		return false, err
+	}
+	day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+	run.notes = append(run.notes, "CVEs of every age are reported: reading the whole list again to keep the older records.")
 	return true, s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
 }
 
@@ -651,7 +698,11 @@ func (s *Service) stampNotInList(ctx context.Context, run *recordRun, now time.T
 		if err != nil || row.Rev != run.src.Rev || !row.Enabled {
 			return err
 		}
-		missing, err := stringSet(ctx, tx, `SELECT i.cve FROM (`+importantSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`)
+		w, err := windowOf(ctx, tx, now)
+		if err != nil {
+			return err
+		}
+		missing, err := stringSet(ctx, tx, `SELECT i.cve FROM (`+w.keptSQL()+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`)
 		if err != nil {
 			return err
 		}

@@ -167,6 +167,23 @@
     "emptyBody": "Add a vulnerability feed or an IOC list.",
     "emptyBodyInfo": "Add a vulnerability feed or an IOC list, tell Vedette how to read it, and preview the result before saving."
   },
+  "window": {
+    "title": "Which CVEs Vedette reports",
+    "description": "CVEs published in the last 12 months, and older ones only while they are exploited in the wild.",
+    "descriptionInfo": "By default Vedette reports, and keeps the data of, the CVEs published in the last 12 months, and an older CVE only while there is evidence of exploitation in the wild: an exploited list (CISA KEV, VulnCheck KEV, your own lists) or a vendor saying it is exploited. Old flaws on those lists are what attackers use most, so they never age out. A public exploit (Exploit-DB, Metasploit, a proof of concept) keeps an older CVE only when it came out in the last 12 months. Older CVEs without any of that are not findings or questions.",
+    "everyAge": "Report CVEs of every age",
+    "offHelp": "Off (the default). Switch it on to report every CVE, also old ones nobody is known to exploit.",
+    "onHelp": "On: every CVE NVD and the CVE Program publish is reported, whatever its age. The vulnerability data is about 2.5 times larger (about 0.9 GB instead of about 0.35 GB).",
+    "changed": "Changed by {{who}}, {{when}}.",
+    "onTitle": "Report CVEs of every age?",
+    "onBody": "Vedette keeps every CVE instead of those of the last 12 months and the exploited ones: about 2.5 times as many, about 0.9 GB of data instead of about 0.35 GB. Over the next hours the box reads NVD's whole list (about 165 requests, about 200 MB) and the CVE Program's whole list (about 670 MB) once more, from the same addresses as now. Older CVEs on your devices then become findings and questions too.",
+    "onConfirm": "Report every age",
+    "offTitle": "Report only the last 12 months and exploited CVEs?",
+    "offBody": "At the next match, open findings of older CVEs that are not exploited in the wild close as outside the reporting window, and their questions go away. Nothing is deleted: a finding opens again if you switch this back on or its CVE becomes exploited. Findings a safe check proved or a person confirmed stay open. The older CVEs leave the data at the next check.",
+    "offConfirm": "Switch off",
+    "nowOn": "CVEs of every age are reported. The older ones arrive over the next hours.",
+    "nowOff": "Only CVEs of the last 12 months and exploited ones are reported."
+  },
   "hosts": {
     "title": "Where this box connects",
     "description": "Every address this box pulls feeds from; only your IP reaches them.",

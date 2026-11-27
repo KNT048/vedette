@@ -20,6 +20,7 @@ var statusLabels = map[string]string{
 var howLabels = map[string]string{
 	"distro_fixed": "the distribution's package is fixed", "scan_clear": "the safe check came back clear",
 	"data_corrected": "the match was corrected", "not_installed": "the software is not installed",
+	"outside_window": "the CVE is outside the reporting window",
 }
 
 // dayOf is the organisation's day of a moment with its year ("24 Nov 2026"), as every page writes it beside the dates of a finding.

@@ -966,6 +966,7 @@
       "undecided": "Undecided"
     },
     "identity": "Software lines by identity: {{list}}.",
+    "outsideWindow": "{{n}} CVEs set aside as outside the reporting window (older than 12 months, not exploited in the wild): not judged, not in the pairs.",
     "method": {
       "stated": "stated by the source {{n}}",
       "catalogue": "product catalogue {{n}}",

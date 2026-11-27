@@ -137,6 +137,8 @@ func handledSentence(f Finding) string {
 		return "Not relevant: " + f.ResolvedBy + " said the software is not installed."
 	case ViaDataCorrected:
 		return "Not relevant: Vedette corrected its match; nothing on the device changed."
+	case ViaOutsideWindow:
+		return "Not relevant: the CVE is outside the reporting window (older than 12 months, not exploited in the wild); nothing on the device changed."
 	}
 	return ""
 }

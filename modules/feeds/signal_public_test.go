@@ -196,9 +196,10 @@ func TestPublicExploit_SampleCVEsQualifyWithTheirDays(t *testing.T) {
 			t.Errorf("CVE-2026-123007 link %q detail %s", g.URL, g.Detail)
 		}
 	}
-	// the qualifying CVEs are kept at any age and their NVD records may be asked by ID (public lists the box downloads whole)
+	// the qualifying CVEs the window keeps may have their NVD records asked by ID (public lists the box downloads whole)
 	var asked int
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM (`+publicListedSQL+`) WHERE cve = 'CVE-2026-123007'`).Scan(&asked); err != nil || asked != 1 {
+	w := Window{Cutoff: e.clock().AddDate(0, 0, -windowDays)}
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM (`+w.publicListedSQL()+`) WHERE cve = 'CVE-2026-123007'`).Scan(&asked); err != nil || asked != 1 {
 		t.Errorf("CVE-2026-123007 not among the publicly listed CVEs: %d %v", asked, err)
 	}
 }
@@ -625,7 +626,7 @@ VALUES (?, 'custom:cf-own', 'cf-own', 'Acme', 'Gateway', 'x', '2026-11-05', '202
 		}
 		return nil
 	})
-	if n, err := e.svc.st.recordUnread(t.Context()); err != nil || n != recordRescanUnread+4 { // the 4 CVEs of the CISA list and the signals
+	if n, err := e.svc.st.recordUnread(t.Context(), Window{Cutoff: e.clock().AddDate(0, 0, -windowDays)}); err != nil || n != recordRescanUnread+4 { // the 4 CVEs of the CISA list and the signals
 		t.Fatalf("unread = %d %v", n, err)
 	}
 	o.serve("/repo/releases/download/cve_2026-11-20_2300Z/2026-11-20_all_CVEs_at_midnight.zip.zip", func(w http.ResponseWriter, r *http.Request) {
@@ -637,7 +638,7 @@ VALUES (?, 'custom:cf-own', 'cf-own', 'Acme', 'Gateway', 'x', '2026-11-05', '202
 	if cur, err := e.svc.st.nvdCursor(t.Context(), selectorRecord); err != nil || cur == nil || cur.Mode != modeDone {
 		t.Fatalf("the whole list was not read: %+v %v", cur, err)
 	}
-	if n, err := e.svc.st.recordUnread(t.Context()); err != nil || n != 0 {
+	if n, err := e.svc.st.recordUnread(t.Context(), Window{Cutoff: e.clock().AddDate(0, 0, -windowDays)}); err != nil || n != 0 {
 		t.Fatalf("after the whole list: %d unread %v", n, err)
 	}
 	// a day later: the CISA list's CVEs without NVD ranges are due again, the old signalled ones are not; a recent signalled one is

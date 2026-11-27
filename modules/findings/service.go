@@ -264,6 +264,8 @@ func viaWords(d EventDetail) string {
 		return "a safe check came back clear"
 	case ViaDataCorrected:
 		return "Vedette corrected its match; nothing changed on the device"
+	case ViaOutsideWindow:
+		return "the CVE is outside the reporting window: older than 12 months and not exploited in the wild; nothing changed on the device"
 	case ViaNotInstalled:
 		return "a person said the software is not installed"
 	}
@@ -450,14 +452,19 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	if err != nil {
 		return UpsertResult{}, err
 	}
-	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, pinned))
+	vulns, outside, err := s.matchSet(ctx, NewMatchScope([]Asset{a}, pinned))
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the catalogue: %w", err)
+	}
+	closed, err := s.closeOutside(ctx, assetID, outside)
+	if err != nil {
+		return UpsertResult{}, err
 	}
 	set := newMatchSet(vulns)
 	dev := set.forDevice(a)
 	a.winList = dev
 	res, err := s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
+	res.Closed += closed
 	if err != nil {
 		return res, err
 	}
@@ -843,7 +850,7 @@ func (s *Service) matchOne(ctx context.Context, assetID, cve string) (Asset, Mat
 	if !ok {
 		return Asset{}, MatchResult{}, false, nil
 	}
-	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, []string{cve}))
+	vulns, _, err := s.matchSet(ctx, NewMatchScope([]Asset{a}, []string{cve}))
 	if err != nil {
 		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the catalogue: %w", err)
 	}

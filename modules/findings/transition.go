@@ -294,9 +294,10 @@ func (t *transition) gone(tr Trigger) error {
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
 		via = ViaDataCorrected // no version change to credit
 	}
-	if f.proofHolds() && (via == ViaDataCorrected || via == ViaDistroFixed) && (f.Verified != VerifiedPerson || !tr.Corrected) {
-		// range data (or a question the match asks instead) does not undo what a safe check proved or a person confirmed; a newer
-		// reading of the device does (version_moved, removed), and a person's "not installed" or version correction
+	if f.proofHolds() && (via == ViaDataCorrected || via == ViaDistroFixed || via == ViaOutsideWindow) && (f.Verified != VerifiedPerson || !tr.Corrected) {
+		// range data (or a question the match asks instead) does not undo what a safe check proved or a person confirmed, nor does the
+		// reporting window (a flaw proved on this device is reported whatever its age); a newer reading of the device does
+		// (version_moved, removed), and a person's "not installed" or version correction
 		return nil
 	}
 	if via == ViaScanClear && (f.Basis == DetectDeviceVersion || f.Basis == DetectPackage) {

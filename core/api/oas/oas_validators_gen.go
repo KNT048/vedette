@@ -49017,6 +49017,39 @@ func (s FeedsGetFeedsWeeklyOKItemsItemAnswer) Validate() error {
 	}
 }
 
+func (s *FeedsGetFeedsWindowOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowDays)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_days",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FeedsPostFeedsCustomCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -52267,6 +52300,39 @@ func (s *FeedsPutFeedsSourcesIDReq) Validate() error {
 	return nil
 }
 
+func (s *FeedsPutFeedsWindowOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.WindowDays)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "window_days",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FindingsGetFindingsAnsweredOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -52968,6 +53034,27 @@ func (s *FindingsGetFindingsCoverageOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "lines",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.OutsideWindow)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "outside_window",
 			Error: err,
 		})
 	}
@@ -56203,6 +56290,8 @@ func (s FindingsGetFindingsHandledOKItemsItemHandledVia) Validate() error {
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -59171,6 +59260,8 @@ func (s FindingsGetFindingsIDViewOKEventsItemVia) Validate() error {
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -59333,6 +59424,8 @@ func (s FindingsGetFindingsIDViewOKHandledVia) Validate() error {
 	case "data_corrected":
 		return nil
 	case "not_installed":
+		return nil
+	case "outside_window":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -71438,6 +71531,8 @@ func (s FindingsPostFindingsIDReopenOKEventsItemVia) Validate() error {
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -71600,6 +71695,8 @@ func (s FindingsPostFindingsIDReopenOKHandledVia) Validate() error {
 	case "data_corrected":
 		return nil
 	case "not_installed":
+		return nil
+	case "outside_window":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -72861,6 +72958,8 @@ func (s FindingsPostFindingsIDUnverifyOKEventsItemVia) Validate() error {
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -73023,6 +73122,8 @@ func (s FindingsPostFindingsIDUnverifyOKHandledVia) Validate() error {
 	case "data_corrected":
 		return nil
 	case "not_installed":
+		return nil
+	case "outside_window":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -74249,6 +74350,8 @@ func (s FindingsPostFindingsIDVerifyOKEventsItemVia) Validate() error {
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -74411,6 +74514,8 @@ func (s FindingsPostFindingsIDVerifyOKHandledVia) Validate() error {
 	case "data_corrected":
 		return nil
 	case "not_installed":
+		return nil
+	case "outside_window":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -100874,6 +100979,8 @@ func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Valida
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -101076,6 +101183,8 @@ func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) Validate() error {
 	case "data_corrected":
 		return nil
 	case "not_installed":
+		return nil
+	case "outside_window":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -105142,6 +105251,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVi
 		return nil
 	case "not_installed":
 		return nil
+	case "outside_window":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -105344,6 +105455,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) Validate() err
 	case "data_corrected":
 		return nil
 	case "not_installed":
+		return nil
+	case "outside_window":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

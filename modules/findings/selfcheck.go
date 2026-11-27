@@ -77,11 +77,15 @@ var catalogueInvariants = []selfcheck.Invariant{
 		Name:  "findings.cve_in_catalogue",
 		Query: `SELECT count(*) FROM fnd_finding f WHERE NOT EXISTS (SELECT 1 FROM feeds_cve c WHERE c.cve = f.cve)`,
 	},
-	{ // every catalogue CVE published before the window has an exploited-list entry, a qualifying signal or a finding
+	{ // every catalogue CVE published before the reporting window has an exploited-list entry, an exploited signal, a public exploit
+		// its source dates inside the window (the scan template index dates nothing) or a finding, unless every age is reported (feeds
+		// window.go; a day of slack for the prune of the pull job)
 		Name: "findings.catalogue_retention",
 		Query: `SELECT count(*) FROM feeds_cve c WHERE c.published < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-366 days')
+			AND NOT EXISTS (SELECT 1 FROM core_setting w WHERE w.key = 'feeds.cve_window' AND json_extract(w.value, '$.every_age') = 1)
 			AND NOT EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = c.cve)
-			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
+			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1 AND (s.kind = 'exploited'
+				OR s.first_seen >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-366 days') AND s.source <> 'nuclei-templates'))
 			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
 	},
 	{ // range precedence: a finding the data detects through a CVE record's ranges rests on rows of that origin the catalogue holds for

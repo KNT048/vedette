@@ -1048,27 +1048,6 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	return out, nil
 }
 
-// stringColumn reads the one text column a query returns.
-func stringColumn(ctx context.Context, q querier, query string, args ...any) ([]string, error) {
-	r, err := q.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("findings: %w", err)
-	}
-	var out []string
-	for r.Next() {
-		var v string
-		if err := r.Scan(&v); err != nil {
-			_ = r.Close()
-			return nil, fmt.Errorf("findings: %w", err)
-		}
-		out = append(out, v)
-	}
-	if err := errors.Join(r.Err(), r.Close()); err != nil {
-		return nil, fmt.Errorf("findings: %w", err)
-	}
-	return out, nil
-}
-
 // DeviceStatuses is the badge of every device that has one (open findings, or questions waiting for a person): what the Devices list,
 // the device page and Home show. A device absent from the map has none.
 func (s *Service) DeviceStatuses(ctx context.Context) (map[string]DeviceStatus, error) {

@@ -95,8 +95,9 @@ const (
 	// ("= 8.9.6.1", ">= 2.0, < 2.3.1"), the product's name in front of a version ("openssl-1.1.0"), a fix per release train after
 	// lessThan ("1.20.4,2.0.2,2.1.2"); "ranges-9" reads an entry limited to operating systems once per system (recordSystems)
 	// instead of leaving the product's rows out, and keeps an entry's lone unaffected version above every affected row as the fix
-	// of its line (lineFixOf).
-	recordReader = "ranges-9"
+	// of its line (lineFixOf); "ranges-10" reads a range written with a hyphen in "version" ("1.0-1.23") from the first release through
+	// the second instead of as one release (hyphenRead).
+	recordReader = "ranges-10"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"
 )

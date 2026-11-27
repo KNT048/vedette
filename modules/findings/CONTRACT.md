@@ -212,9 +212,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   it states: outside it, it neither applies nor proves "not affected" (`decide`, and `viaNVD` never closes on a reach only such a row
   gives). A row of a complete record list (`VendorList`) decides both ways, an exact release it lists too (`nvdNames`). A finding the
   record's rows alone call affected stores `range_origin` `cna` (`recordDecided`). A line with no usable version that cannot be decided is
-  a question, not a finding. A row inside one release branch that is not the version's and does not compare with it (OpenSSL's `1.1.1`
-  to `1.1.1zk` against 3.5.0, `otherBranch`) is set aside: the rows that compare decide, and rows set aside alone decide nothing
-  (`TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision`).
+  a question, not a finding. A row inside one release branch that is not the version's and does not compare with it (VLC's `0.4.3-ac3`
+  against 3.0.20, `otherBranch`) is set aside: the rows that compare decide, and rows set aside alone decide nothing
+  (`TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision`). OpenSSL's letter releases past `z` (`0.9.8za`, `1.0.2zd`, `1.1.1zk`) order
+  after `z` and compare like any other (`TestDecide_OpenSSLLetterBranches`).
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
   every applicable range.
 - **INV-4c** Network device operating systems become software lines through one table, `content/catalog/network-os.json`. The

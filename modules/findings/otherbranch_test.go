@@ -2,60 +2,108 @@ package findings
 
 import "testing"
 
-// A CVE whose list names several release branches is decided by the branches it can read. OpenSSL lists its 1.0.2 and 1.1.1 branches
-// in a letter notation ("1.1.1" before "1.1.1zk") beside the numeric 3.x ranges. A 3.5.0 install is in neither letter branch: the row
-// of another branch that does not compare with the version is set aside, and the 3.x ranges decide. Only when no row decides does the
-// CVE stay a question.
+// OpenSSL is decided by its ranges on every branch. NVD writes the 0.9.8, 1.0.x and 1.1.1 branches in OpenSSL's letter notation, which
+// runs past "z" ("0.9.8za", "1.0.2zd", "1.1.1zk"), beside the numeric 3.x ranges. The rows below are NVD's for real CVEs, cut to the
+// OpenSSL rows (their CVE records add no readable range). Every one decides a 3.5.0 install: outside every range is not affected,
+// with proof, and inside one is affected.
+func TestDecide_OpenSSLLetterBranches(t *testing.T) {
+	t.Parallel()
+	const ossl = "cpe:2.3:a:openssl:openssl:*:*:*:*:*:*:*:*"
+	rng := func(start, end string) Affected {
+		return Affected{CPE: ossl, Range: VersionRange{StartIncl: start, EndExcl: end}}
+	}
+	exact := func(v string) Affected { return Affected{CPE: "cpe:2.3:a:openssl:openssl:" + v + ":*:*:*:*:*:*:*"} }
+	cves := map[string][]Affected{
+		"CVE-2014-0195": {rng("0.9.8", "0.9.8za"), rng("1.0.0", "1.0.0m"), rng("1.0.1", "1.0.1h")},
+		"CVE-2014-0224": {{CPE: ossl, Range: VersionRange{EndExcl: "0.9.8za"}}, rng("1.0.0", "1.0.0m"), rng("1.0.1", "1.0.1h")},
+		"CVE-2015-0204": {{CPE: ossl, Range: VersionRange{EndIncl: "0.9.8zc"}}, exact("1.0.0a"), exact("1.0.0o"), exact("1.0.1"), exact("1.0.1j")},
+		"CVE-2022-0778": {rng("1.0.2", "1.0.2zd"), rng("1.1.0", "1.1.1n"), rng("3.0.0", "3.0.2")},
+		"CVE-2022-1292": {rng("1.0.2", "1.0.2ze"), rng("1.1.1", "1.1.1o"), rng("3.0.0", "3.0.3")},
+	}
+	row := func(ver string, keyed bool) Software {
+		s := Software{ID: "s-openssl", Display: "OpenSSL " + ver + " Light (64-bit)", Vendor: "OpenSSL", Product: "OpenSSL", Version: ver, Source: "agent"}
+		if keyed {
+			s.KevKeys = []string{"openssl|openssl"}
+		}
+		return s
+	}
+	for _, tc := range []struct {
+		cve, ver string
+		want     Tri
+	}{
+		{"CVE-2014-0195", "3.5.0", No},
+		{"CVE-2014-0224", "3.5.0", No},
+		{"CVE-2015-0204", "3.5.0", No},
+		{"CVE-2022-0778", "3.5.0", No},
+		{"CVE-2022-1292", "3.5.0", No},
+		{"CVE-2022-0778", "3.0.1", Yes},
+		{"CVE-2022-0778", "1.0.2zc", Yes},
+		{"CVE-2022-1292", "1.0.2ze", No},
+		{"CVE-2014-0224", "0.9.8zb", No},
+		{"CVE-2014-0224", "0.9.8y", Yes},
+	} {
+		v := uncVuln(tc.cve, "OpenSSL", "OpenSSL", uncNew, cves[tc.cve]...)
+		got, _, _, proof := decide(newSWInfo(row(tc.ver, true), ""), v, keyIDs(v))
+		if got != tc.want || got == No && proof != proofRange {
+			t.Errorf("%s on %s: %v (proof %d), want %v", tc.cve, tc.ver, got, proof, tc.want)
+		}
+	}
+
+	// As the device page reads them, on a row CISA's key reaches and on one only NVD's list names: no finding and no question.
+	var vulns []Vuln
+	for cve, aff := range cves {
+		vulns = append(vulns, uncVuln(cve, "OpenSSL", "OpenSSL", uncNew, aff...))
+	}
+	for _, keyed := range []bool{true, false} {
+		a := Asset{ID: "pc", Name: "pc-01", OS: "Windows 11", Software: []Software{row("3.5.0", keyed)}}
+		if res := MatchAsset(a, vulns, nil, uncNow); len(res.New) != 0 || len(res.Unchecked) != 0 {
+			t.Errorf("OpenSSL 3.5.0 (keyed %v): new %d, unchecked %+v", keyed, len(res.New), res.Unchecked)
+		}
+	}
+}
+
+// A CVE whose list names several release branches is decided by the rows that compare with the version. A row inside one release
+// branch that is not the version's, in a notation that does not compare ("0.4.3-ac3", "0.7.2" with a pinned update), cannot hold the
+// version whatever its suffix means: it is set aside and the rows that compare decide (VLC 3.0.20 and CVE-2012-1775, which NVD lists
+// up to 2.0.0 and at many exact releases). Only when no row decides does the CVE stay a question.
 func TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision(t *testing.T) {
 	t.Parallel()
-	const (
-		any4  = "cpe:2.3:a:openssl:openssl:*:*:*:*:*:*:*:*"
-		exact = "cpe:2.3:a:openssl:openssl:4.0.0:-:*:*:*:*:*:*"
-	)
+	const vlc = "cpe:2.3:a:videolan:vlc_media_player:*:*:*:*:*:*:*:*"
+	at := func(v string) Affected {
+		return Affected{CPE: "cpe:2.3:a:videolan:vlc_media_player:" + v + ":*:*:*:*:*:*"}
+	}
+	upTo := Affected{CPE: vlc, Range: VersionRange{EndIncl: "2.0.0"}}
+	ac3 := at("0.4.3-ac3:*")
+	test2 := at("0.7.2:test2")
 	row := func(ver string) Software {
-		return Software{ID: "s-openssl", Display: "OpenSSL 3.5.0 Light (64-bit)", Vendor: "OpenSSL", Product: "OpenSSL", Version: ver,
-			Source: "agent", CPE: any4, KevKeys: []string{"openssl|openssl"}}
+		return Software{ID: "s-vlc", Display: "VLC media player", Vendor: "VideoLAN", Product: "VLC media player", Version: ver, Source: "agent",
+			CPE: vlc, KevKeys: []string{"videolan|vlc media player"}}
 	}
-	r := func(start, end string) Affected {
-		return Affected{CPE: any4, Range: VersionRange{StartIncl: start, EndExcl: end}}
-	}
-	letters := []Affected{r("1.0.2", "1.0.2zl"), r("1.1.1", "1.1.1zb"), r("3.0.0", "3.0.16"), r("3.2.0", "3.2.4"), r("3.3.0", "3.3.3"), r("3.4.0", "3.4.1")}
 	for _, tc := range []struct {
 		name, ver string
 		aff       []Affected
 		want      Tri
 		proof     proofKind
 	}{
-		{"letter branches, a 3.x install outside every 3.x range", "3.5.0", letters, No, proofRange},
-		{"letter branches, a 3.x install inside a 3.x range", "3.4.0", letters, Yes, proofNone},
-		{"an exact release of another branch with its update pinned", "3.5.0", []Affected{r("3.6.0", "3.6.3"), {CPE: exact}}, No, proofRange},
-		{"the record's rows of the vendor's own list", "3.5.0", []Affected{
-			{CPE: "cpe:2.3:*:openssl:openssl:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "4.0.0", EndExcl: "4.0.1"}, VendorList: true},
-			{CPE: exact}}, No, proofRange},
+		{"rows of other branches beside a range that decides", "3.0.20", []Affected{upTo, ac3, test2}, No, proofRange},
+		{"inside the range that decides", "1.1.0", []Affected{upTo, ac3}, Yes, proofNone},
 		// Nothing but rows of another branch: no row decides, so the CVE is not proved either way.
-		{"only rows of another branch", "3.5.0", []Affected{r("1.1.1", "1.1.1zk"), r("1.0.2", "1.0.2zt")}, Unknown, proofNone},
-		// The version is of the letter branch itself: the letters decide, which this comparison does not read.
-		{"an install of the letter branch", "1.1.1w", []Affected{r("1.1.1", "1.1.1zk"), r("3.0.0", "3.0.24")}, Unknown, proofNone},
-		// A row starting nowhere is no branch: "before 1.1.1zk" spans every older release.
-		{"a range with no start", "3.5.0", []Affected{{CPE: any4, Range: VersionRange{EndExcl: "1.1.1zk"}}, r("3.0.0", "3.0.24")}, Unknown, proofNone},
+		{"only rows of another branch", "3.0.20", []Affected{ac3}, Unknown, proofNone},
+		// The version is of the row's branch: its suffix decides, which this comparison does not read.
+		{"a version of the row's branch", "0.4.3", []Affected{ac3, {CPE: vlc, Range: VersionRange{StartIncl: "2.0.0", EndExcl: "2.0.5"}}}, Unknown, proofNone},
+		// A row with no start is no branch: "up to 0.4.3-ac3" spans every older release.
+		{"a range with no start", "3.0.20", []Affected{{CPE: vlc, Range: VersionRange{EndIncl: "0.4.3-ac3"}}}, Unknown, proofNone},
 	} {
-		v := uncVuln("CVE-2026-80131", "OpenSSL", "OpenSSL", uncNew, tc.aff...)
+		v := uncVuln("CVE-2026-80131", "VideoLAN", "VLC media player", uncNew, tc.aff...)
 		got, _, _, proof := decide(newSWInfo(row(tc.ver), ""), v, keyIDs(v))
 		if got != tc.want || proof != tc.proof {
 			t.Errorf("%s: %v (proof %d), want %v (proof %d)", tc.name, got, proof, tc.want, tc.proof)
 		}
 	}
-
-	// As the device page reads it: the CVE is not a question (not_comparable, version_scheme_mismatch) on a 3.5.0 install.
-	a := Asset{ID: "pc", Name: "pc-01", Software: []Software{row("3.5.0")}}
-	res := MatchAsset(a, []Vuln{uncVuln("CVE-2026-80132", "OpenSSL", "OpenSSL", uncNew, letters...)}, nil, uncNow)
-	if len(res.Unchecked) != 0 || len(res.New) != 0 {
-		t.Fatalf("OpenSSL 3.5.0 against a list it is outside of: new %d, unchecked %+v", len(res.New), res.Unchecked)
-	}
 }
 
-// A row in another notation than the version is not a row of another branch: Windows "1607" against build "10.0.14393" still cannot
-// be compared, and stays a question.
+// A row in another notation than the version is not a row of another branch: Office "2016" against build "16.0.4266" still cannot be
+// compared, and is not set aside.
 func TestDecide_OtherNotationIsNotAnotherBranch(t *testing.T) {
 	t.Parallel()
 	const office = "cpe:2.3:a:microsoft:office:2016:*:*:*:*:*:*:*"

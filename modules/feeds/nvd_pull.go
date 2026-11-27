@@ -85,7 +85,8 @@ func (s *Service) nvdResumeAt() (time.Time, bool) {
 
 // live is the feed row as the GUI shows it: while the NVD versions load (or wait to go on), the row says how far
 // the pull got and why it waits, instead of the last error or "not fetched yet" alone. A feed that never
-// finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so.
+// finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so; one whose last pull
+// kept no row of the catalogue's last 12 months while they and the devices' packages are there now is an error (distroPartial).
 // nvd-recent between pulls of an unfinished fill (after a restart, or a migration that reset its cursor) says where the
 // next pull goes on, read from its cursor, while it is loading. A feed of heldNotes whose last pull was good
 // starts with what it holds now (heldNow), then what the row says.
@@ -99,6 +100,14 @@ func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 		r.Error = &note
 	}
 	if distroFeeds[r.ID] && r.Enabled {
+		if r.Status == "ok" && s.distroPartial(ctx, r) { // an error until the next check pulls it again (distroBehind)
+			note := distroPartialNote
+			if held != "" {
+				note = held + " " + note
+			}
+			r.Status, r.Error = "error", &note
+			return r
+		}
 		if note := s.distroNote(r.ID); note != "" { // The rows of an earlier pull stay; a real error keeps its text, then says why it waits
 			switch {
 			case r.Status == "error" && r.Error != nil:

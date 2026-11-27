@@ -47,12 +47,20 @@ type Inventory interface {
 	AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) (deviceID string, err error)
 }
 
-// DistroLister is an optional extension of Inventory: the distributions ("ubuntu", "debian") of the devices the
-// distribution feeds can answer for (an Ubuntu or Debian device with deb packages an agent read), each with the source packages of
-// those devices as the security data names them (findings.DevicePackages): the tier rows are kept for them only. Without it, or
-// with the inventory module off, feeds pulls every enabled distribution feed as before and keeps no tier row.
+// DistroLister is an optional extension of Inventory: the distributions ("ubuntu", "debian", "alpine") of the devices the
+// distribution feeds can answer for (a device with packages an agent read; Alpine: a device that states it), each with the source
+// packages and releases of those devices as the security data names them (findings.DevicePackages): the tier rows are kept for them
+// only. Without it, or with the inventory module off, feeds pulls every enabled distribution feed as before and keeps no tier row.
 type DistroLister interface {
-	Distros(ctx context.Context) (map[string]map[string]bool, error)
+	Distros(ctx context.Context) (map[string]DistroDevices, error)
+}
+
+// DistroDevices is what the devices of one distribution run, as its security data names it.
+type DistroDevices struct {
+	Packages map[string]bool // source packages ("openssl", "linux" for a linux-signed kernel)
+	// Releases are the releases ("26.04", "12"); nil when the rows of every release are read (Alpine: a package may come from another
+	// branch's repository).
+	Releases map[string]bool
 }
 
 // PlatformChecker is an optional extension of Inventory (KF-CVEPAGE): among ids, the devices that the findings matcher's platform

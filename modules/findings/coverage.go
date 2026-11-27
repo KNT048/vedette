@@ -41,6 +41,10 @@ var IdentityMethods = []string{IdentityStated, IdentityCatalogue, IdentityRecord
 // CoveragePlatformList is the source of a "not affected" the platform list decided (content/catalog/platform-limits.json): hand data.
 const CoveragePlatformList = "platform_list"
 
+// CoverageDistroNoFix is the source of a pair the distribution's data decides "affected, no fix yet" for a CVE on no exploited list:
+// decided affected, with no finding until the fix or an exploited list comes (distroVerdict), so counted apart from RangeDistro.
+const CoverageDistroNoFix = "distro_no_fix"
+
 // CoverageOther is the cause of a pair the matcher reached that is neither decided nor a possible finding with a reason the box gives.
 // The coverage tells three such classes apart (CoverageOther* below, each starting with CoverageOther), so the unnamed share says where
 // it comes from. A question always has a named cause (PossibleCause).
@@ -49,7 +53,8 @@ const CoverageOther = "other"
 // The unnamed classes: nobody is told why these pairs are undecided.
 const (
 	// CoverageOtherDistroSilent: a distribution's package whose distribution's data has no word on the CVE (only it may decide the
-	// package: NVD's upstream ranges do not see its backported fixes).
+	// package: NVD's upstream ranges do not see its backported fixes), for no cause of DistroSilences (a release a person gave). Such a
+	// pair with a cause is counted under it (distroSilence).
 	CoverageOtherDistroSilent = "other_distro_silent"
 	// CoverageOtherRecordUnread: the record or NVD's rows name the product, and the matcher read nothing it could compare (no bounded
 	// range, a row shape it does not read).
@@ -394,8 +399,10 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 				continue
 			}
 			line, class := storedLine(s.ID), CoverageOtherRecordUnread
-			if _, ok := distroVerdict(dm.infos[i], v); !ok && dm.infos[i].pkgBuilt() {
-				class = CoverageOtherDistroSilent
+			if in := dm.infos[i]; in.pkgBuilt() && !upstreamJudges(in, v) {
+				if _, ok := distroVerdict(in, v); !ok { // only its distribution's word may decide it: why it has none (distroSilence)
+					class = cmp.Or(distroSilence(in, v, dm.now), CoverageOtherDistroSilent)
+				}
 			}
 			if key := lineKey(v.CVE, line); related[key] == "" {
 				related[key] = class
@@ -452,6 +459,8 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			state[key] = pairState{by: proofs[key]}
 		case ruledOut[key] != "":
 			state[key] = pairState{by: ruledOut[key]}
+		case class == DistroNoFixYet: // the distribution says affected and has no fix: decided, raised once a fix or an exploited list comes
+			state[key] = pairState{by: CoverageDistroNoFix, affected: true}
 		default: // reached, and neither a finding, a question nor a proof
 			state[key] = pairState{cause: class}
 		}

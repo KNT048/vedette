@@ -107,8 +107,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   CVEs a finding pins (`Deps.Pins`): a pin keeps the CVE's data (its page, a finding's history, a report), never puts it inside the
   window. `Store.OutsideWindow` is the one reading of the window; the match set marks a catalogue CVE outside it and findings sets it
   aside (findings M-15). Pulls store only CVEs this rule keeps, and ask by ID only for kept ones (`Window.publicListedSQL`). Switched
-  on, the next catalogue pulls read NVD's whole set (`everyAgeOwed`) and the CVE Program's whole list (`recordsEveryAge`,
-  `feeds_nvd_cursor` row `cve_record_every_age`) once more, never within 24 hours of the last such read (`everyAgeCooldown`); switched off, the pull job's prune drops the older CVEs at its next check.
+  on, the next catalogue pulls read NVD's whole set (`everyAgeOwed`, `feeds_nvd_cursor` row `walk_every_age`) and the CVE Program's
+  whole list (`recordsEveryAge`, row `cve_record_every_age`) once more, never within 24 hours of the last read a switch started
+  (`everyAgeCooldown`; a read for another reason never holds the first switch-on back); switched off, the pull job's prune drops the older CVEs at its next check.
   A change wakes findings' match pass (`feeds.ranges.updated`, `catalogue`). `TestWindow_OldCVEsStayOnlyWithEvidenceOfExploitation`,
   `TestWindow_SettingIsAdminsAuditedAndRematches`, `TestCataloguePull_EveryAgeReadsTheWholeSetOnce`.
 - **INV-35** Affected ranges are kept per origin (`nvd`, `cna`, `adp`). When read for matching (`matchRows`, the exploited-list view

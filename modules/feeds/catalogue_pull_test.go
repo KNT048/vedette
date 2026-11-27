@@ -278,6 +278,45 @@ func TestCataloguePull_BusyByIDAnswerIsAskedAgainNextPull(t *testing.T) {
 	}
 }
 
+// The cooldown spaces only the reads the every-age switch starts: a walk over NVD's whole set for another reason (many kept CVEs
+// without a record) that began an hour before the first switch-on does not hold that switch's read back.
+func TestCataloguePull_EveryAgeFirstSwitchIsNotHeldByAnotherWalk(t *testing.T) {
+	t.Parallel()
+	e, n := catalogueEnv(t)
+	var many []string
+	for i := range walkMissing {
+		many = append(many, fmt.Sprintf("CVE-2018-%04d", 1000+i))
+	}
+	signal(t, e, exploitDBFeedID, true, many...)
+	n.walk = []string{"CVE-2019-0001", "CVE-2019-0002"}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 1 {
+		t.Fatalf("the catch-up walk: %v", got)
+	}
+	e.setNow(e.clock().Add(time.Hour))
+	write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, true, "admin@example.test", e.clock()) })
+	e.setNow(e.clock().Add(time.Minute))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("the first switch-on's read: %v", got)
+	}
+	// the cooldown survives a restart: it is read from the store, and a second switch within the day starts no read
+	e.setNow(e.clock().Add(time.Hour))
+	for _, on := range []bool{false, true} {
+		write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, on, "admin@example.test", e.clock()) })
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("a second read within a day: %v", got)
+	}
+}
+
 // CVEs of every age: switched on, the next catalogue pull reads NVD's whole set once although no kept CVE is missing, and stores every
 // record of it; that read does not start again until the setting is switched on anew.
 func TestCataloguePull_EveryAgeReadsTheWholeSetOnce(t *testing.T) {

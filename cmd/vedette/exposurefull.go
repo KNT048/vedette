@@ -77,7 +77,7 @@ func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarge
 	var out exposure.TemplateScan
 	products := pack.ProductTags(ix.Templates)
 	ports := fullPorts(ip, jobs, t.SkipPorts)
-	if l := groupsOffLine(t.Mode); l != "" && len(ports) > 0 {
+	if l := groupsOffLine(t.Mode); l != "" && len(ports) > 0 && t.Domain == nil && !t.Typed { // where the disruptive checks could run at all
 		out.NotChecked = append(out.NotChecked, l)
 	}
 	bounds := make([]int64, len(ports))

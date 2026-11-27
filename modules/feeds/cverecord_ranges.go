@@ -28,7 +28,8 @@ import (
 // (platforms other than processors and operating systems: recordSystems; an entry limited to operating systems gives its rows once per
 // system, the system in platforms). "n/a" and "unspecified" say nothing and are passed over; "all versions" is every
 // version. Versions a CNA writes in a notation of its own inside these fields (GitHub's comparators "< 2.4", ">= 2.0, < 2.3.1"; the
-// product's name in front, "openssl-1.1.0"; a fix per release train after lessThan, "1.20.4,2.0.2") are read first
+// product's name in front, "openssl-1.1.0"; a fix per release train after lessThan, "1.20.4,2.0.2"; a range written with a hyphen in
+// "version", "1.0-1.23") are read first
 // (recordNotation, cverecord_notation.go); one that does not read makes the product unusable, as above.
 //
 // default_status is the entry's defaultStatus (affected, unaffected, or unknown when absent; on these rows "unaffected" only from the
@@ -683,7 +684,7 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 		if vt == "git" || v.LessThan != nil && v.LessThanOrEqual != nil {
 			return nil, false, false
 		}
-		noted, ok := recordNotation(a, v) // a CNA's own notation inside the fields (cverecord_notation.go)
+		noted, ok := recordNotation(a, v, reads) // a CNA's own notation inside the fields (cverecord_notation.go)
 		if !ok {
 			return nil, false, false
 		}

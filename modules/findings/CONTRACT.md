@@ -339,8 +339,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-11** "I have this" on a versionless product matches, on exactly the declared device, only entries added since its start date.
 - **INV-14** A packaged agent line on Ubuntu, Debian or Alpine Linux is judged by the distribution's fix data before NVD's ranges, one
   path for every distribution the feeds supply (`distroVerdict` through the distribution's adapter `distroData`: its release, release
-  order, own builds and which row decides; Alpine's row of a later branch with the installed upstream release decides too). A fixed
-  release compares with the distribution's own build of the same upstream release, or of a later one (never a kernel's). Alpine's data
+  order, own builds and which row decides). A fixed release compares with the distribution's own build of the same upstream release, or
+  of a later one (never a kernel's). An Alpine package release (`-rN`) counts within its branch only: only the device's own branch's
+  fix of the same upstream release proves a package fixed; another branch's fixes only show a release below them (an older upstream
+  release than every one of them), never fixed, and otherwise NVD's upstream ranges decide, on an exploited CVE as on any other
+  (`alpineFixBranch`, `TestMatchAsset_AnotherAlpineBranchsFixNeverPatches`). Alpine's data
   lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
   Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
   list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts

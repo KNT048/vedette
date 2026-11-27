@@ -143,10 +143,10 @@ func TestMatchAsset_AlpineRowsDecideCatalogueCVEs(t *testing.T) {
 	if f == nil || f.Kind != "distro" || f.Distro != "Alpine Linux" || f.DistroFixed != "3.5.9-r2" || f.DistroRelease != "3.23" || f.Source != "Alpine Linux security database" {
 		t.Fatalf("fixed in: %+v", f)
 	}
-	later := v
-	later.Distro = []DistroFix{{Distro: "alpine", Release: "3.24", Package: "openssl", Status: "fixed", Fixed: "3.5.9-r5"}}
+	later := v // another branch's fix of an older upstream release shows the release below it, and the evidence names that branch
+	later.Distro = []DistroFix{{Distro: "alpine", Release: "3.24", Package: "openssl", Status: "fixed", Fixed: "3.6.1-r0"}}
 	if r := MatchAsset(ssl("3.5.9-r0"), []Vuln{later}, nil, now); len(r.New) != 1 ||
-		!strings.Contains(r.New[0].Evidence.Summary, "from Alpine Linux 3.23's packages. Alpine Linux fixed CVE-2026-60020 in openssl 3.5.9-r5 for its 3.24 branch") {
+		!strings.Contains(r.New[0].Evidence.Summary, "from Alpine Linux 3.23's packages. Alpine Linux fixed CVE-2026-60020 in openssl 3.6.1-r0 for its 3.24 branch") {
 		t.Fatalf("a later branch's fix: %+v", r.New)
 	}
 	none := v
@@ -204,5 +204,51 @@ func TestMatchAsset_UbuntuBuildOfAnExperimentalUploadIsItsOwn(t *testing.T) {
 		t.Errorf("a PPA build: %+v", r)
 	} else if _, ok := distroVerdict(swInfoOn(a.Software[0], a), v); ok {
 		t.Error("a PPA build took Ubuntu's word")
+	}
+}
+
+// An Alpine package release ("-rN") counts within its branch only: another branch's fix never proves the device's package patched,
+// it only shows a release of an older upstream version below it. With no row of the device's branch, NVD's upstream ranges decide, as
+// for a CVE Alpine names no fix for, on an exploited CVE as on any other.
+func TestMatchAsset_AnotherAlpineBranchsFixNeverPatches(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 27, 10, 0, 0, 0, time.UTC)
+	on := func(osName, full string) Asset {
+		return Asset{ID: "a", Name: "gw-01", OS: osName, Software: []Software{{ID: "s-foo", Display: "Foo", Vendor: "Example", Product: "Foo",
+			Version: "1.2.3", Source: "agent", Packaged: true, PkgVersion: full, PkgSource: "foo"}}}
+	}
+	vuln := func(endExcl, fixed string, exploited bool) Vuln {
+		v := Vuln{CVE: "CVE-2026-60040", NVDAnswered: true, Origin: RangeNVD, Published: now.AddDate(0, -1, 0),
+			Affected: []Affected{{CPE: "cpe:2.3:a:example:foo:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: endExcl}}},
+			Distro:   []DistroFix{{Distro: "alpine", Release: "3.24", Package: "foo", Status: "fixed", Fixed: fixed}}}
+		if exploited {
+			v.Vendor, v.Product = "Example", "Foo"
+		}
+		return v
+	}
+	for _, exploited := range []bool{false, true} {
+		for _, osName := range []string{"Alpine Linux 3.23.8", "Alpine Linux"} {
+			a := on(osName, "1.2.3-r2")
+			// another branch's fix of the same upstream release: -rN does not compare across branches, so NVD decides either way
+			for _, fixed := range []string{"1.2.3-r5", "1.2.3-r1"} {
+				if d, ok := distroVerdict(swInfoOn(a.Software[0], a), vuln("1.2.4", fixed, exploited)); ok {
+					t.Errorf("%s, exploited %v: 3.24's %s decided 1.2.3-r2: %+v", osName, exploited, fixed, d)
+				}
+				if r := MatchAsset(a, []Vuln{vuln("1.2.4", fixed, exploited)}, nil, now); len(r.New) != 1 {
+					t.Errorf("%s, exploited %v: NVD's range has 1.2.3 inside, 3.24's fix %s: %+v", osName, exploited, fixed, r)
+				}
+				if r := MatchAsset(a, []Vuln{vuln("1.2.3", fixed, exploited)}, nil, now); len(r.New) != 0 {
+					t.Errorf("%s, exploited %v: NVD's range ends below 1.2.3, 3.24's fix %s: %+v", osName, exploited, fixed, r.New)
+				}
+			}
+			// a fix of a later upstream release on another branch: the release is below it
+			if r := MatchAsset(a, []Vuln{vuln("1.2.3", "1.2.4-r0", exploited)}, nil, now); len(r.New) != 1 {
+				t.Errorf("%s, exploited %v: below 3.24's fix of a later upstream: %+v", osName, exploited, r)
+			}
+			// a fix of an earlier upstream release on another branch proves nothing either
+			if d, ok := distroVerdict(swInfoOn(a.Software[0], a), vuln("1.2.4", "1.2.0-r3", exploited)); ok {
+				t.Errorf("%s, exploited %v: 3.24's 1.2.0-r3 decided 1.2.3-r2: %+v", osName, exploited, d)
+			}
+		}
 	}
 }

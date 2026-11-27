@@ -180,25 +180,27 @@ func TestPlatform_PackageReleaseDecides(t *testing.T) {
 		want  want
 		words string
 	}{
-		{"gw-alpine: SNMP says Alpine Linux, release 10.2_p1-r1 given", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2_p1-r1")}}, fixed, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1 (the branch whose fixed release has the same upstream version"},
+		// a package release counts within its own branch only: with no branch named, no branch's fix proves it fixed (NVD decides)
+		{"gw-alpine: SNMP says Alpine Linux, release 10.2_p1-r1 given", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2_p1-r1")}}, affected, "the device's OS names no branch, so NVD's range decides for the release 10.2_p1-r1"},
 		{"gw-alpine: the person says Alpine Linux 3.23", Asset{ManualOS: "Alpine Linux 3.23", SNMPOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r1")}}, fixed, "gw-alpine has openssh-server 10.2_p1-r1 (the package release a person gave). Source: Alpine Linux's security database, https://secdb.alpinelinux.org/v3.23/main.json"},
-		{"gw-alpine: the line apk info -e -v prints", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("openssh-server-10.2_p1-r1")}}, fixed, "gw-alpine has openssh-server 10.2_p1-r1"},
+		{"gw-alpine: the line apk info -e -v prints", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("openssh-server-10.2_p1-r1")}}, affected, "NVD's range decides for the release 10.2_p1-r1"},
 		{"a release Vedette cannot read is said, not ignored", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2p1")}}, askedPackage, "package_unknown 10.2p1"},
 		{"one revision before the fix", Asset{ManualOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r0")}}, affected, "Update openssh-server to 10.2_p1-r1 or later"},
 		{"3.24 with 3.24's own unpatched 10.3_p1-r1", Asset{ManualOS: "Alpine Linux v3.24", Software: []Software{mineAt("10.3p1", "10.3_p1-r1")}}, affected, "Alpine Linux 3.24 fixed it in openssh-server 10.3_p1-r2"},
-		{"3.24 with 3.23's fixed 10.2_p1-r1: 3.23's fix applies", Asset{ManualOS: "Alpine Linux v3.24", Software: []Software{mine("10.2_p1-r1")}}, fixed, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1 (release 10.2_p1 is Alpine Linux 3.23's version, not Alpine Linux 3.24's"},
+		{"3.24 with 3.23's 10.2_p1-r1: below 3.24's own fix of a later upstream", Asset{ManualOS: "Alpine Linux v3.24", Software: []Software{mine("10.2_p1-r1")}}, affected, "Alpine Linux 3.24 fixed it in openssh-server 10.3_p1-r2. Update openssh-server to 10.3_p1-r2 or later"},
 		{"3.21 with an older upstream than its fix and no branch of it", Asset{ManualOS: "Alpine Linux v3.21", Software: []Software{mineAt("9.9p1", "9.9_p1-r5")}}, affected, "Update openssh-server to 9.9_p2-r1"},
-		{"no branch and no fix with that upstream: NVD's range decides, with why", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.1_p1-r0")}}, affected, "No Alpine Linux branch's fixed release has the upstream version 10.1_p1"},
+		{"no branch named: NVD's range decides, with why", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.1_p1-r0")}}, affected, "the device's OS names no branch, so NVD's range decides for the release 10.1_p1-r0"},
 		{"patched 3.20, scanned row: the package question", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{scanned("9.7p1")}}, askedPackage, "package_unknown"},
 		{"patched 3.20, release given", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("9.7p1", "9.7_p1-r6")}}, fixed, "Alpine Linux 3.20 fixed it in openssh-server 9.7_p1-r6"},
 		{"unpatched 3.20, release given", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("9.7p1", "9.7_p1-r5")}}, affected, "Update openssh-server to 9.7_p1-r6"},
-		// review r2 H-1 of #961: a release is proved fixed only against a fix of its own upstream version
-		{"3.20 running 3.23's unpatched 10.2_p1-r0", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("10.2p1", "10.2_p1-r0")}}, affected, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1 (release 10.2_p1 is Alpine Linux 3.23's version, not Alpine Linux 3.20's"},
-		{"3.20 (SNMP) running 3.23's unpatched 10.2_p1-r0", Asset{SNMPOS: "Alpine Linux v3.20.3", Software: []Software{mineAt("10.2p1", "10.2_p1-r0")}}, affected, "Update openssh-server to 10.2_p1-r1"},
-		{"3.20 running 3.23's fixed 10.2_p1-r1", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("10.2p1", "10.2_p1-r1")}}, fixed, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1 (release 10.2_p1 is Alpine Linux 3.23's version"},
-		{"an upstream no branch's fix has: NVD's range decides, with why", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("9.8p1", "9.8_p1-r0")}}, affected, "No Alpine Linux branch's fixed release has the upstream version 9.8_p1 of the release 9.8_p1-r0"},
+		// review r2 H-1 of #961: a release is proved fixed only against its own branch's fix of its own upstream version; another branch's
+		// fix never proves it fixed (a package release counts within its branch only), so NVD's range decides
+		{"3.20 running 3.23's unpatched 10.2_p1-r0", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("10.2p1", "10.2_p1-r0")}}, affected, "Alpine Linux 3.20 has no fix of the upstream version 10.2_p1 or a later one, so NVD's range decides for the release 10.2_p1-r0"},
+		{"3.20 (SNMP) running 3.23's unpatched 10.2_p1-r0", Asset{SNMPOS: "Alpine Linux v3.20.3", Software: []Software{mineAt("10.2p1", "10.2_p1-r0")}}, affected, "NVD's range decides for the release 10.2_p1-r0"},
+		{"3.20 running 3.23's 10.2_p1-r1: 3.23's fix does not patch it", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("10.2p1", "10.2_p1-r1")}}, affected, "NVD's range decides for the release 10.2_p1-r1"},
+		{"a later upstream than the branch's fix: NVD's range decides, with why", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("9.8p1", "9.8_p1-r0")}}, affected, "Alpine Linux 3.20 has no fix of the upstream version 9.8_p1 or a later one, so NVD's range decides for the release 9.8_p1-r0"},
 		{"an unreadable release never turns a finding into a question", Asset{ManualOS: "Alpine Linux 3.15", Software: []Software{mineAt("8.8p1", "foo")}}, affected, `older than every release Alpine Linux fixed it in (10.3_p1-r2 (3.24), 10.2_p1-r1 (3.23), 10.0_p1-r11 (3.22), 9.9_p2-r1 (3.21), 9.7_p1-r6 (3.20), 9.6_p1-r3 (3.19), 9.3_p2-r4 (3.18), 9.1_p1-r7 (3.17), 9.0_p1-r6 (3.16)). Vedette could not read the package release you entered ("foo")`},
-		{"unpatched 3.19, release given, SNMP names no branch", Asset{SNMPOS: "Alpine Linux", Software: []Software{mineAt("9.6p1", "9.6_p1-r2")}}, affected, "Alpine Linux 3.19 fixed it in openssh-server 9.6_p1-r3"},
+		{"unpatched 3.19, release given, SNMP names no branch", Asset{SNMPOS: "Alpine Linux", Software: []Software{mineAt("9.6p1", "9.6_p1-r2")}}, affected, "NVD's range decides for the release 9.6_p1-r2"},
 		{"older than every fix, release given (3.15 has none)", Asset{ManualOS: "Alpine Linux 3.15", Software: []Software{mineAt("8.8p1", "8.8_p1-r9")}}, affected, "is older than every release Alpine Linux fixed it in"},
 		{"older than every fix, no release", Asset{AgentOS: "Alpine Linux v3.15", Software: []Software{agentAPK("8.8")}}, affected, "older than every release Alpine Linux fixed it in"},
 		{"a branch with no fix, no release: NVD's range decides", Asset{ManualOS: "Alpine Linux 3.15", Software: []Software{scanned("9.0p1")}}, affected, "Alpine Linux 3.15 has no fixed release of openssh-server"},
@@ -272,7 +274,7 @@ func TestPlatform_EveryAnswerSettles(t *testing.T) {
 		{"Ubuntu 24.04", "9.6p1", "1:9.6p1-3ubuntu13.14", "this device runs Ubuntu 24.04", true},
 		{"Proxmox VE 8.2", "9.2p1", "1:9.2p1-2+deb12u3", "a person gave the package release 1:9.2p1-2+deb12u3 on Proxmox VE 8.2, which is not an Alpine apk release", true},
 		{"Synology DSM 7.2", "8.2p1", "8.2p1", "a person gave the package release 8.2p1 on Synology DSM 7.2, which is not an Alpine apk release", true},
-		{"postmarketOS v24.06", "9.7p1", "9.7_p1-r4", "Update openssh-server to 9.7_p1-r6", false}, // Alpine-based: its apk release decides
+		{"postmarketOS v24.06", "9.7p1", "9.7_p1-r4", "NVD's range decides for the release 9.7_p1-r4", false}, // Alpine-based, no Alpine branch: no branch's fix judges its apk release
 	} {
 		res := answered(tc.os, tc.ver, tc.pkg)
 		switch {

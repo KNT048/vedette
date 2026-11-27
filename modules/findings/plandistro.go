@@ -202,9 +202,10 @@ func chooseInRelease(rows []DistroFix, release, _ string) (DistroFix, bool) {
 }
 
 // chooseAlpine is the row of the Alpine branch whose fix applies to the installed release, by the rule of the exploited path
-// (alpineFixBranch: the device's branch when its fix has the release's upstream version, else the branch whose fix has it), or the
-// device's branch's "not affected". A release at or above every fix whose upstream no fix has is at or above the highest one; else the
-// device's branch's fix decides; with no branch named and no fix of its upstream, Alpine has no word on it.
+// (alpineFixBranch), or the device's branch's "not affected", or the device's branch's fix of an older upstream version than the release.
+// A package release ("-rN") counts within its branch only: another branch's fix is chosen only when the release's upstream version is
+// older than the fix's (it is below it), so it never proves the package fixed; with no row of the device's branch that decides, Alpine
+// has no word on it and NVD's upstream ranges judge it (upstreamJudges).
 func chooseAlpine(rows []DistroFix, osBranch, installed string) (DistroFix, bool) {
 	releases := map[string]string{}
 	fixed, na := map[string]DistroFix{}, map[string]DistroFix{}
@@ -225,35 +226,13 @@ func chooseAlpine(rows []DistroFix, osBranch, installed string) (DistroFix, bool
 		return f, true
 	}
 	rel, ok := parseAPK(installed)
-	if !ok {
-		return DistroFix{}, false
-	}
-	if len(releases) == 0 {
-		if osBranch == "" {
-			for _, f := range na { // every branch Alpine names says not affected
-				return f, true
-			}
-		}
+	if !ok || len(releases) == 0 {
 		return DistroFix{}, false
 	}
 	if b, by := alpineFixBranch(releases, osBranch, rel, installed); by != branchNone {
 		return fixed[b], true
 	}
-	var top DistroFix
-	above := true
-	for _, f := range fixed {
-		x, _ := parseAPK(f.Fixed)
-		if compareAPK(rel, x) < 0 {
-			above = false
-		}
-		if y, ok := parseAPK(top.Fixed); !ok || compareAPK(x, y) > 0 {
-			top = f
-		}
-	}
-	if above {
-		return top, true
-	}
-	if f, ok := fixed[osBranch]; ok {
+	if f, ok := fixed[osBranch]; ok && osBranch != "" { // the device's branch fixed an older upstream version than the release
 		return f, true
 	}
 	return DistroFix{}, false

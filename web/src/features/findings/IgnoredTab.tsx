@@ -15,7 +15,7 @@ import { useDeviceAction } from '@/features/inventory/api'
 import { useDeviceCards } from './api'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
-import { DeviceLine } from './parts'
+import { useDeviceRow } from './parts'
 import type { DeviceCard } from './types'
 
 function IgnoredDevice({ card }: { card: DeviceCard }) {
@@ -24,8 +24,9 @@ function IgnoredDevice({ card }: { card: DeviceCard }) {
   const act = useDeviceAction(card.device.id)
   const name = card.device.name
   const findings = card.blocks.flatMap((b) => b.findings)
+  const deviceRow = useDeviceRow()
   return (
-    <ListRow label={name} title={<DeviceLine device={card.device} badge={false} />} meta={[t('byDevice.counts', { count: card.findings, cves: card.cves })]}
+    <ListRow label={name} {...deviceRow(card.device, { badge: false })} meta={[t('byDevice.counts', { count: card.findings, cves: card.cves })]}
       actions={<Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')}
           aria-label={t('ignoredTab.restoreOf', { name })}
           onClick={() => act.ignore.mutate(false, { onSuccess: () => toast.success(t('ignoredTab.restored', { name })), onError: (e) => toast.error(errMsg(e)) })}>{t('ignoredTab.restore')}</Button>}>
@@ -40,9 +41,8 @@ export function IgnoredTab() {
   const list = useMemo(() => ({ ...raw, size: raw.size === undefined ? undefined : Math.min(raw.size, PAGE_MAX) }), [raw])
   const size = list.size ?? PAGE_DEFAULT
   const q = useDeviceCards({ q: raw.q, ignored: true }, { offset: list.page * size, limit: size })
-  const columns: ColumnDef<DeviceCard>[] = [
-    { id: 'device', header: t('byDevice.col'), cell: ({ row: { original: c } }) => <IgnoredDevice card={c} /> },
-  ]
+  // a list of cards: the column only names it (the server searches it)
+  const columns: ColumnDef<DeviceCard>[] = [{ id: 'device', header: t('byDevice.col') }]
   return (
     <div className="grid gap-3">
       <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('ignoredTab.search') }}>
@@ -53,7 +53,7 @@ export function IgnoredTab() {
           <DataTable urlKey="ignored" caption={t('ignoredTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
             summary={t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}
             server={{ total: d.total, list, max: PAGE_MAX }} filtered={!!raw.q} onClearFilters={() => raw.set({ q: '', page: 0 })}
-            mobileRow={(c) => <IgnoredDevice card={c} />} />
+            list={(c) => <IgnoredDevice card={c} />} />
         )}
       </QueryState>
     </div>

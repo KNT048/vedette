@@ -6,7 +6,7 @@ import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { isLive } from './api'
 import type { Scan, TargetNode } from './types'
 
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 /** Whose proof makes the node scannable, in one chip: its own, an ancestor's (named), or why it does not hold. A proof holds 90 days from
  *  its last pass: a check since that did not find it is a warning under the chip, not another state. */

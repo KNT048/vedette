@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { ListRow } from '@/components/common/ListParts'
 import { ApiError } from '@/lib/api'
 import { fmtRelative } from '@/lib/format'
 import { CONNECTION_KINDS, hostPort, usesUsername } from '@/lib/connections'
@@ -75,37 +76,36 @@ export default function ConnectionsSection() {
               const unsupported = c.kind === 'mcp-stdio'
               const mcp = c.kind === 'mcp-http'
               return (
-                <div className={`grid gap-3 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="grid min-w-0 gap-1">
-                        <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold">{c.name} <Chip tone="off">{t(`connections.kind.${c.kind}`)}</Chip>
-                          {unsupported ? <Chip tone="warn">{t('connections.unsupported')}</Chip> : <Chip tone={c.status === 'ok' ? 'ok' : c.status === 'error' ? 'danger' : 'warn'}>{t(`connections.status.${c.status}`)}</Chip>}</h2>
-                        <p className="break-all font-mono text-meta text-muted">{c.target}</p>
-                        <Meta parts={[
-                          c.auth.type === 'none' ? t('connections.noAuth') : c.auth.type === 'ssh-key' ? t('connections.authKey', { fingerprint: c.auth.key_fingerprint ?? '' }) : t('connections.authEnds', { type: t(`connections.auth.${c.auth.type}`), last4: c.auth.last4 }),
-                          ...(c.auth.header ? [t('connections.inHeader', { header: c.auth.header })] : []),
-                          ...(c.username ? [t('connections.asUser', { user: c.username })] : []),
-                          c.last_test ? t('connections.tested', { when: fmtRelative(c.last_test) }) : t('connections.neverTested'),
-                        ]} />
-                        {c.pin ? <p className="text-meta text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-caption text-ink" /> }} /></p> : unsupported ? null : <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('connections.firstTestNote')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.firstTestInfo')}</InfoTip></div>}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Switch checked={c.enabled} disabled={unsupported && !c.enabled} aria-label={t('connections.enable', { name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { enabled }) }, { onError: fail })} />
-                        <Button size="sm" onClick={() => runTest(c)} disabled={test.isPending || unsupported || !c.enabled} busy={test.isPending && test.variables === c.id} busyLabel={t('connections.testing')} title={!c.enabled && !unsupported ? t('connections.testOff') : undefined} aria-label={t('connections.testNamed', { name: c.name })}>{t('connections.test')}</Button>
-                        <Button size="sm" onClick={() => setEdit(c)} disabled={unsupported} aria-label={t('connections.editNamed', { name: c.name })}>{t('connections.edit')}</Button>
-                        <Button size="sm" onClick={() => { remove.reset(); setDel(c) }} aria-label={t('connections.deleteNamed', { name: c.name })}>{t('connections.delete')}</Button>
-                      </div>
-                    </div>
+                <ListRow label={c.name} off={!c.enabled || unsupported} title={c.name}
+                  badges={<><Chip tone="off">{t(`connections.kind.${c.kind}`)}</Chip>
+                    {unsupported ? <Chip tone="warn">{t('connections.unsupported')}</Chip> : <Chip tone={c.status === 'ok' ? 'ok' : c.status === 'error' ? 'danger' : 'warn'}>{t(`connections.status.${c.status}`)}</Chip>}</>}
+                  meta={[
+                    <span key="target" className="break-all font-mono">{c.target}</span>,
+                    <Meta key="meta" parts={[
+                      c.auth.type === 'none' ? t('connections.noAuth') : c.auth.type === 'ssh-key' ? t('connections.authKey', { fingerprint: c.auth.key_fingerprint ?? '' }) : t('connections.authEnds', { type: t(`connections.auth.${c.auth.type}`), last4: c.auth.last4 }),
+                      ...(c.auth.header ? [t('connections.inHeader', { header: c.auth.header })] : []),
+                      ...(c.username ? [t('connections.asUser', { user: c.username })] : []),
+                      c.last_test ? t('connections.tested', { when: fmtRelative(c.last_test) }) : t('connections.neverTested'),
+                    ]} />,
+                  ]}
+                  actions={<>
+                    <Switch checked={c.enabled} disabled={unsupported && !c.enabled} aria-label={t('connections.enable', { name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { enabled }) }, { onError: fail })} />
+                    <Button size="sm" onClick={() => runTest(c)} disabled={test.isPending || unsupported || !c.enabled} busy={test.isPending && test.variables === c.id} busyLabel={t('connections.testing')} title={!c.enabled && !unsupported ? t('connections.testOff') : undefined} aria-label={t('connections.testNamed', { name: c.name })}>{t('connections.test')}</Button>
+                    <Button size="sm" onClick={() => setEdit(c)} disabled={unsupported} aria-label={t('connections.editNamed', { name: c.name })}>{t('connections.edit')}</Button>
+                    <Button size="sm" onClick={() => { remove.reset(); setDel(c) }} aria-label={t('connections.deleteNamed', { name: c.name })}>{t('connections.delete')}</Button>
+                  </>}>
+                  <div className="grid gap-3">
+                    {c.pin ? <p className="text-meta text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-caption text-ink" /> }} /></p> : unsupported ? null : <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('connections.firstTestNote')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.firstTestInfo')}</InfoTip></div>}
                     <BusyNote busy={test.isPending && test.variables === c.id}>{t('connections.testWaiting', { s: mcp ? 45 : 30 })}</BusyNote>
                     {unsupported ? <p className="text-meta">{t('connections.unsupportedBody')}</p> : null}
                     {result?.id === c.id ? (result.ok ? <p role="status" className="text-sm"><Chip tone="ok">{t('connections.testOk')}</Chip> {result.ok}</p> : <Notice tone="danger" role="alert" className="mb-0" title={result.error} />) : null}
                     <div>
-                      <h3 className="mb-1 text-meta font-medium">{t('connections.allowTitle')}</h3>
+                      <p className="mb-1 text-meta font-medium">{t('connections.allowTitle')}</p>
                       <ul aria-label={t('connections.allowFor', { name: c.name })} className="flex flex-wrap gap-1.5">{c.allow.map((a) => <li key={a}><code className="rounded-sm border border-rule bg-sunken px-1.5 py-0.5 font-mono text-caption">{a}</code></li>)}</ul>
                     </div>
                     {!unsupported ? (
                       <div>
-                        <h3 className="mb-1 text-meta font-medium">{t('connections.toolsTitle')}</h3>
+                        <p className="mb-1 text-meta font-medium">{t('connections.toolsTitle')}</p>
                         <ul aria-label={t('connections.toolsFor', { name: c.name })} className="grid gap-1.5">
                           {c.tools.map((tl) => (
                             <li key={tl.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
@@ -125,7 +125,8 @@ export default function ConnectionsSection() {
                         {c.tools.some((x) => x.access === 'write') ? <p className="mt-2 text-meta text-muted">{t('connections.writeOnlyApproved')}</p> : null}
                       </div>
                     ) : null}
-                </div>
+                  </div>
+                </ListRow>
               )
             }} />
           </>

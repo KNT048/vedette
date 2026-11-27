@@ -75,7 +75,7 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
 
   const lead = created ? (
     <Notice tone="warn" role="status" className="mb-0" title={t('addDialog.snmp.addedNotSet', { name: created.name })}
-      actions={<Link to={`/devices/${encodeURIComponent(created.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('addDialog.snmp.openDevice')}</Link>}>
+      actions={<Link to={`/devices/${encodeURIComponent(created.id)}`} onClick={onDone} className="text-sm text-accent underline-offset-4 hover:underline">{t('addDialog.snmp.openDevice')}</Link>}>
       {t('addDialog.snmp.addedNotSetBody')}
     </Notice>
   ) : (
@@ -93,7 +93,7 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
         {productErr ? <p className="text-meta text-danger">{productErr}</p> : <p className="text-meta text-muted">{t('addDialog.snmp.productHint')}</p>}
       </div>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error}
-        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
+        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
     </>
   )
   return (

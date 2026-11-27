@@ -192,12 +192,19 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   2. `ListSummary` (DataTable `summary`): one `text-meta` muted line, "<count> <rows>" with an optional qualifier after a comma
      ("7 devices, 16 open findings", "9 fixes, 16 open findings", "3 handled findings"); what the list is and how it is ordered
      goes behind its ⓘ; buttons that act on the whole list as shown (Add all, Export CSV) sit at its right end.
-  3. The table. A DataTable of one column is a list of cards: its header is for screen readers only, as a `list` has none.
-     A card row is a `ListRow`: lead (`ExpandToggle`, a rank) | title line (the name, a link when it has a page, then its
-     badges) and short muted meta lines | actions on the right; the opened part is indented under the title.
+  3. The table, or a list of cards (DataTable `list`; `RowList` for a short list outside a table or the rows inside an opened
+     row). Every card row is a `ListRow`, built from props, so no page styles its own row (as GitHub's issue list, Linear's
+     and Tailscale's machine rows): `rank` when the list is ordered by priority (By device, By fix, Fix first) | `toggle`
+     (`ExpandToggle`) | the title line: `title` (`to` or `href` makes it a link), a short muted `sub` (an address, a count),
+     then its `badges` | at most two short muted `meta` lines | `actions` on the right, vertically centred; the opened part
+     is indented under the title. One row padding: `px-4 py-3` in a list of its own, `py-3` inside an opened row.
+  4. One title style (`RowTitle`): the name of a row's object, in a card row or a table's name cell, is the primary text
+     colour, weight medium, and a link only by its underline on hover, never by another colour. A link inside text (a meta
+     line, a sentence) is the accent link, without a weight of its own.
   A tab whose panel is one list has no heading repeating the tab's name. `ExpandToggle` is the one disclosure: a chevron
   pointing right when closed and down when open, as an icon before a row's title or as a small text button ("Settings").
-  `src/test/layoutGuard.test.ts` fails on a tab row, list search, count line, disclosure chevron or "Back to …" link built by hand.
+  `src/test/layoutGuard.test.ts` fails on a tab row, list search, count line, disclosure chevron, card row (a `list` row that is not
+  a `ListRow`, an `<li>` laid out title-left actions-right), row title link with a colour of its own, or "Back to …" link built by hand.
 
 ## 6. Empty state (`EmptyState` exists; **fix**: `art` prop; **build** `components/common/Illustration.tsx`)
 

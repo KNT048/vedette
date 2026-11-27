@@ -99,7 +99,7 @@ function TargetView({ node }: { node: TargetNode }) {
       <PageHeader breadcrumbs={[{ label: t('common:shell.exposure'), to: '/exposure' }]} title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
         meta={<span className="flex flex-wrap items-center gap-2">
           <ProofChip node={node} />
-          {parent ? <span className="text-meta">{t('target.under')} <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${encodeURIComponent(parent.id)}`}>{parent.value}</Link></span> : null}
+          {parent ? <span className="text-meta">{t('target.under')} <Link className="text-accent underline-offset-4 hover:underline" to={`/exposure/${encodeURIComponent(parent.id)}`}>{parent.value}</Link></span> : null}
           {node.scope_mode ? <span className="text-meta text-muted">{t(`scope.short.${node.scope_mode}`)}</span> : null}
           {!node.enabled ? <Chip tone="off">{t('tree.off')}</Chip> : null}
         </span>}

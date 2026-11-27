@@ -8,6 +8,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { BusyNote } from '@/components/common/BusyNote'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { fmtDateTime } from '@/lib/format'
 import { useCveCached, useExplain, useNews } from './api'
 import { ActionError, ToSettings, useAiGate } from './parts'
@@ -89,14 +90,11 @@ function SourceList({ sources }: { sources: FetchedSource[] }) {
   const { t } = useTranslation('ai')
   return (
     <Card flush level={3} title={t('cve.fetched')}>
-      <ul className="grid divide-y divide-rule text-sm">
+      <RowList flush label={t('cve.fetched')}>
         {sources.map((s) => (
-          <li key={s.url} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-            <span className="grid"><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-4 hover:underline">{s.title}</a><span className="text-caption text-muted">{s.note}</span></span>
-            <Chip tone={s.status === 'ok' ? 'ok' : 'warn'}>{t(`cve.source.${s.status}`)}</Chip>
-          </li>
+          <ListRow key={s.url} title={s.title} href={s.url} badges={<Chip tone={s.status === 'ok' ? 'ok' : 'warn'}>{t(`cve.source.${s.status}`)}</Chip>} meta={[s.note]} />
         ))}
-      </ul>
+      </RowList>
     </Card>
   )
 }

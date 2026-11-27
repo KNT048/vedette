@@ -9,11 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Label, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { ListRow } from '@/components/common/ListParts'
 import { fmtDate, fmtRelative } from '@/lib/format'
 import { useAddMemory, useAnswerSuggestion, useMemory, useMemorySettings, usePatchMemory, useRemoveMemory } from '../harness-api'
 import { ActionError } from '../parts'
 import type { MemoryEntry } from '../types'
-import { ConfirmDelete, List, Row, Toggle } from './shared'
+import { ConfirmDelete, List, Toggle } from './shared'
 
 /** What the AI remembers about this infrastructure. View, edit, turn off, delete; the AI only proposes, a person approves. */
 export default function MemoryTab() {
@@ -40,13 +41,10 @@ export default function MemoryTab() {
                 <h3 className="mb-2 text-sm font-medium">{t('harness.memory.queueTitle', { n: m.suggestions.length })}</h3>
                 <List label={t('harness.memory.queueTitle', { n: m.suggestions.length })}>
                   {m.suggestions.map((s) => (
-                    <Row key={s.id} actions={<>
+                    <ListRow key={s.id} title={s.text} meta={[t('harness.memory.noticed', { evidence: s.evidence, when: fmtRelative(s.created_at) })]} actions={<>
                       <Button size="sm" variant="primary" disabled={answer.isPending} busy={answer.isPending && answer.variables?.id === s.id && answer.variables.accept} busyLabel={t('common:busy.saving')} onClick={() => answer.mutate({ id: s.id, accept: true }, { onSuccess: () => toast.success(t('harness.memory.accepted')), onError: fail })} aria-label={t('harness.memory.acceptNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.accept')}</Button>
                       <Button size="sm" disabled={answer.isPending} busy={answer.isPending && answer.variables?.id === s.id && !answer.variables.accept} busyLabel={t('common:busy.rejecting')} onClick={() => answer.mutate({ id: s.id, accept: false }, { onError: fail })} aria-label={t('harness.memory.rejectNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.reject')}</Button>
-                    </>}>
-                      <p>{s.text}</p>
-                      <p className="text-meta text-muted">{t('harness.memory.noticed', { evidence: s.evidence, when: fmtRelative(s.created_at) })}</p>
-                    </Row>
+                    </>} />
                   ))}
                 </List>
               </div>
@@ -56,20 +54,17 @@ export default function MemoryTab() {
             {m.items.length === 0 ? <EmptyState title={t('harness.memory.empty')} info={t('harness.memory.emptyBodyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.memory.add')}</Button>}>{t('harness.memory.emptyBody')}</EmptyState> : (
               <List label={t('harness.memory.title')}>
                 {m.items.map((x) => (
-                  <Row key={x.id} dim={!x.enabled}
+                  <ListRow key={x.id} off={!x.enabled} title={x.text} badges={<Chip tone={x.source === 'ai' ? 'accent' : 'off'}>{t(`harness.memory.source.${x.source}`)}</Chip>}
+                    meta={[<>
+                      <span>{t('harness.memory.created', { date: fmtDate(x.created_at) })}</span>
+                      <span>{x.last_used_at ? t('harness.memory.used', { when: fmtRelative(x.last_used_at) }) : t('harness.memory.neverUsed')}</span>
+                      {!x.enabled ? <span>{t('harness.off')}</span> : null}
+                    </>]}
                     actions={<>
                       <Toggle checked={x.enabled} label={t('harness.memory.enable', { text: x.text.slice(0, 40) })} onChange={(enabled) => patch.mutate({ id: x.id, enabled }, { onError: fail })} />
                       <Button size="sm" onClick={() => setEdit(x)} aria-label={t('harness.editNamed', { name: x.text.slice(0, 40) })}>{t('harness.edit')}</Button>
                       <Button size="sm" onClick={() => setDel(x)} aria-label={t('harness.deleteNamed', { name: x.text.slice(0, 40) })}>{t('harness.delete')}</Button>
-                    </>}>
-                    <p>{x.text}</p>
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">
-                      <Chip tone={x.source === 'ai' ? 'accent' : 'off'}>{t(`harness.memory.source.${x.source}`)}</Chip>
-                      <span>{t('harness.memory.created', { date: fmtDate(x.created_at) })}</span>
-                      <span>{x.last_used_at ? t('harness.memory.used', { when: fmtRelative(x.last_used_at) }) : t('harness.memory.neverUsed')}</span>
-                      {!x.enabled ? <span>{t('harness.off')}</span> : null}
-                    </p>
-                  </Row>
+                    </>} />
                 ))}
               </List>
             )}

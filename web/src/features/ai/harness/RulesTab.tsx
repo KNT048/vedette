@@ -10,9 +10,10 @@ import { Field, Textarea } from '@/components/ui/input'
 import { useRemoveRule, useRules, useSaveRule } from '../harness-api'
 import { ActionError } from '../parts'
 import type { Rule } from '../types'
-import { ConfirmDelete, JobPicker, jobNames, List, Row, Toggle } from './shared'
+import { ConfirmDelete, JobPicker, jobNames, List, Toggle } from './shared'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/input'
+import { ListRow } from '@/components/common/ListParts'
 
 /** Rules put into every AI call. Built-in rules are read-only; the customer's own rules can be added/edited/deleted/turned off. */
 export default function RulesTab() {
@@ -28,22 +29,19 @@ export default function RulesTab() {
         <>
           <Section title={t('harness.rules.builtinTitle')} description={t('harness.rules.builtinBody')} info={t('harness.rules.builtinInfo')} stories={['S-AI-7']}>
             <List label={t('harness.rules.builtinTitle')}>
-              {r.builtin.map((b) => <Row key={b.id} actions={<Chip tone="off">{t('harness.builtIn')}</Chip>}><p>{b.text}</p></Row>)}
+              {r.builtin.map((b) => <ListRow key={b.id} title={b.text} actions={<Chip tone="off">{t('harness.builtIn')}</Chip>} />)}
             </List>
           </Section>
           <Section title={t('harness.rules.customTitle')} description={t('harness.rules.customBody')} info={t('harness.rules.customInfo')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.rules.add')}</Button>}>
             {r.custom.length === 0 ? <EmptyState title={t('harness.rules.empty')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.rules.add')}</Button>}>{t('harness.rules.emptyBody')}</EmptyState> : (
               <List label={t('harness.rules.customTitle')}>
                 {r.custom.map((x) => (
-                  <Row key={x.id} dim={!x.enabled}
+                  <ListRow key={x.id} off={!x.enabled} title={x.text} meta={[`${t('harness.appliesTo', { jobs: jobNames(t, x.jobs) })}${x.enabled ? '' : ` · ${t('harness.off')}`}`]}
                     actions={<>
                       <Toggle checked={x.enabled} label={t('harness.rules.enable', { text: x.text.slice(0, 40) })} onChange={(enabled) => save.mutate({ ...x, enabled }, { onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })} />
                       <Button size="sm" onClick={() => setEdit(x)} aria-label={t('harness.editNamed', { name: x.text.slice(0, 40) })}>{t('harness.edit')}</Button>
                       <Button size="sm" onClick={() => setDel(x)} aria-label={t('harness.deleteNamed', { name: x.text.slice(0, 40) })}>{t('harness.delete')}</Button>
-                    </>}>
-                    <p>{x.text}</p>
-                    <p className="text-meta text-muted">{t('harness.appliesTo', { jobs: jobNames(t, x.jobs) })}{x.enabled ? '' : ` · ${t('harness.off')}`}</p>
-                  </Row>
+                    </>} />
                 ))}
               </List>
             )}

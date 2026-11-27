@@ -12,6 +12,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
+import { RowTitle } from '@/components/common/ListParts'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDeviceAction, useDevices } from './api'
 import { DeleteDialog } from './DeleteDialog'
@@ -66,7 +67,7 @@ function Body() {
       const raw = sw ? rawProductLine(sw.display, sw.vendor, sw.product) : null
       return (
         <div className="grid">
-          <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{sw?.display ?? t('declaredPage.noProduct')}</Link>
+          <RowTitle to={`/devices/${d.id}`}>{sw?.display ?? t('declaredPage.noProduct')}</RowTitle>
           {raw ? <span className="text-caption text-muted">{raw}</span> : null}
         </div>
       )
@@ -97,7 +98,7 @@ function Body() {
             mobileRow={(r) => (
               <div className="grid gap-1">
                 <div className="flex items-start justify-between gap-2">
-                  <Link to={`/devices/${r.d.id}`} className="min-w-0 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{r.sw?.display ?? t('declaredPage.noProduct')}</Link>
+                  <RowTitle to={`/devices/${r.d.id}`} className="min-w-0">{r.sw?.display ?? t('declaredPage.noProduct')}</RowTitle>
                   <span className="flex shrink-0 gap-1">
                     {r.sw ? <IconButton label={t('declaredPage.editVersion', { name: r.sw.display })} needRole={needRole} onClick={() => setEditing(r)}><Pencil /></IconButton> : null}
                     <IconButton label={t('declaredPage.remove', { name: r.sw?.display ?? '' })} needRole={needRole} onClick={() => setRemoving(r)}><Trash2 /></IconButton>

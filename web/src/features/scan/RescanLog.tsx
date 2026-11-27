@@ -8,6 +8,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useEvents } from './api'
 import { runHref } from '@/features/scanning/places'
 import type { RescanEvent } from './types'
+import { RowTitle } from '@/components/common/ListParts'
 
 // clear is only "no match reported": neutral, never green; pick_only and stopped are neutral too
 const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off', pick_only: 'off', stopped: 'off', expired_no_template: 'off', expired_scanner: 'off', expired_zone: 'off' } as const
@@ -33,7 +34,7 @@ export function RescanLog() {
   const q = useEvents()
   const columns: ColumnDef<RescanEvent>[] = [
     { id: 'ts', header: t('auto.col.when'), accessorFn: (r) => r.ts, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap">{fmtDateTime(r.ts)}</span> },
-    { id: 'cve', header: t('auto.col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/cve/${r.cve}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
+    { id: 'cve', header: t('auto.col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <RowTitle to={`/cve/${r.cve}`} className="whitespace-nowrap">{r.cve}</RowTitle> },
     { id: 'product', header: t('auto.col.product'), accessorFn: (r) => r.product, cell: ({ row: { original: r } }) => <span>{r.product}</span> },
     { id: 'devices', header: t('auto.col.devices'), accessorFn: (r) => r.devices.join(', '), cell: ({ row: { original: r } }) => (r.devices.length ? <span>{r.devices.join(', ')}</span> : r.result.startsWith('expired') ? <span className="text-muted">–</span> : <span className="text-muted">{t('auto.noDevices')}</span>) },
     { id: 'latency', header: t('auto.col.latency'), accessorFn: (r) => r.latency_min ?? -1, cell: ({ row: { original: r } }) => (r.latency_min === null ? <span className="text-muted">–</span> : <span>{t('auto.minutes', { count: r.latency_min })}</span>) },

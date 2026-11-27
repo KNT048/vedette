@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
@@ -83,16 +84,17 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
       {data.suggestions.length ? (
         <Card>
           <p className="text-sm font-medium">{t('trapIp.suggestTitle')}</p>
-          <ul className="mt-2 grid gap-1.5 text-sm">
-            {data.suggestions.map((s) => (
-              <li key={s.preset} className="flex flex-wrap items-center justify-between gap-2">
-                <span>{t('trapIp.suggestItem', { count: s.count, type: t(`trapIp.preset.${s.preset}`), names: s.examples.join(', ') })}</span>
-                <Button size="sm" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: s.preset })}>
-                  {t('trapIp.useType', { type: t(`trapIp.preset.${s.preset}`) })}
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-2">
+            <RowList label={t('trapIp.suggestTitle')}>
+              {data.suggestions.map((s) => (
+                <ListRow key={s.preset} title={t(`trapIp.preset.${s.preset}`)}
+                  meta={[t('trapIp.suggestItem', { count: s.count, type: t(`trapIp.preset.${s.preset}`), names: s.examples.join(', ') })]}
+                  actions={<Button size="sm" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: s.preset })}>
+                    {t('trapIp.useType', { type: t(`trapIp.preset.${s.preset}`) })}
+                  </Button>} />
+              ))}
+            </RowList>
+          </div>
         </Card>
       ) : null}
 
@@ -110,24 +112,20 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
       {data.items.length ? (
         <DataTable urlKey="trap-ips" caption={t('trapIp.listLabel')} data={data.items} columns={searchCols} pageSize={25} actions={addButton}
           list={(d) => (
-            <div className="grid gap-2 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="grid min-w-0">
-                  <span className="font-medium">{d.name} <span className="text-meta font-normal text-muted tabular-nums">{d.ip}</span></span>
-                  {firstSmb?.id === d.id ? <span className="text-caption text-muted">{t('trapIp.smbName')}</span> : null}
-                  {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-caption text-danger' : 'text-caption text-muted'}>{d.reason}</span> : null}
-                </span>
-                <span className="flex items-center gap-3">
-                  <TrapStateChip state={d.state} />
+            <ListRow title={d.name} sub={<span className="tabular-nums">{d.ip}</span>} badges={<TrapStateChip state={d.state} />}
+              meta={[
+                firstSmb?.id === d.id ? t('trapIp.smbName') : null,
+                d.reason ? <span key="reason" className={d.state === 'failed' || d.state === 'conflict' ? 'text-danger' : undefined}>{d.reason}</span> : null,
+              ]}
+              actions={<>
                   <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={needAdmin} aria-label={t('trapIp.switchLabel', { name: d.name })}
                     onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
                   <Button size="sm" variant="ghost" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}><Pencil /></Button>
                   <Button size="sm" variant="ghost" disabled={!admin || del.isPending} busy={del.isPending && del.variables === d.id} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
                     onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
-                </span>
-              </div>
+              </>}>
               <TrapIpDetails d={d} />
-            </div>
+            </ListRow>
           )} />
       ) : <div className="flex items-center gap-1 text-sm text-muted"><p>{t('trapIp.none')}</p><InfoTip topic={t('trapIp.title')}>{t('trapIp.noneInfo')}</InfoTip></div>}
       {!admin ? <p className="text-meta text-muted">{t('needAdmin')}</p> : null}

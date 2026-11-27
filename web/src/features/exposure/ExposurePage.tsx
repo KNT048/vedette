@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { CornerDownRight } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
@@ -13,6 +12,7 @@ import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
 import { GreenboneSetting } from './GreenbonePanel'
 import { InfoLine } from '@/components/common/InfoLine'
+import { RowTitle } from '@/components/common/ListParts'
 import { IssuesCell, ProofChip, ScanCell, ServicesCell } from './NodeParts'
 import { AddTargetDialog } from './TargetDialogs'
 import { useTree } from './api'
@@ -88,7 +88,7 @@ function NodeName({ n, depth, parent }: { n: TargetNode; depth: number; parent?:
     <span className={`flex min-w-0 items-start gap-1 ${INDENT[Math.min(depth, INDENT.length - 1)]}`}>
       {depth > 0 ? <CornerDownRight aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted" /> : null}
       <span className="grid min-w-0 gap-0.5">
-        <Link className="break-all font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${encodeURIComponent(n.id)}`}>{n.value}</Link>
+        <RowTitle to={`/exposure/${encodeURIComponent(n.id)}`} className="break-all">{n.value}</RowTitle>
         {parent ? <span className="sr-only">{t('tree.under', { parent })}</span> : null}
         <span className="flex flex-wrap gap-1">
           {n.kind === 'ip' ? <Chip tone="off">{t(n.origin === 'box' ? 'tree.boxIp' : 'kind.ip')}</Chip> : null}

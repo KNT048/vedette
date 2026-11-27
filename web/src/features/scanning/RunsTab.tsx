@@ -15,7 +15,7 @@ import { RunBar, RunStateChip, useKindLabel, useStartedBy } from './RunParts'
 import type { Run } from './types'
 import { ListToolbar } from '@/components/common/ListParts'
 
-const link = 'font-medium text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
+const link = 'text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
 const PAGE = 25
 /** The kinds the engines register today (the list is open: a kind not named here is still listed, under its own name). */
 const KINDS = ['lan_sweep', 'device_check', 'snmp_read', 'all_ports', 'vuln_check', 'exposure_scan']

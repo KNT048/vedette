@@ -17,6 +17,7 @@ import { runHref, runPlace, runsHref, type RunPlace } from './places'
 import { RunBar, RunStateChip, useKindLabel, useStartedBy } from './RunParts'
 import { RunSteps, useStepsLine } from './RunSteps'
 import type { Run, RunDetail } from './types'
+import { RowTitle } from '@/components/common/ListParts'
 
 const link = 'text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -135,7 +136,7 @@ function Body({ r, crumbs }: { r: RunDetail; crumbs: Crumb[] }) {
             <ul className="divide-y divide-rule">
               {r.children.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-meta">
-                  <Link to={runHref(c.id)} className={`font-medium ${link}`}>{c.title}</Link>
+                  <RowTitle to={runHref(c.id)}>{c.title}</RowTitle>
                   <RunStateChip status={c.status} />
                 </li>
               ))}
@@ -152,7 +153,7 @@ function Body({ r, crumbs }: { r: RunDetail; crumbs: Crumb[] }) {
                 return (
                   <li key={it.seq} className="grid gap-0.5 px-4 py-2 text-meta">
                     <span className="flex flex-wrap items-center gap-x-2">
-                      {to ? <Link to={to} className={`font-medium ${link}`}>{it.label}</Link> : <span className="font-medium">{it.label}</span>}
+                      <RowTitle to={to ?? undefined}>{it.label}</RowTitle>
                       <span className="text-muted">{t(`runs.outcome.${it.outcome}`, { defaultValue: it.outcome })}</span>
                     </span>
                     {it.note ? <span className="text-muted">{it.note}</span> : null}

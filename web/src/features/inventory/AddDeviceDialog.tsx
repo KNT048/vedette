@@ -97,7 +97,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
         <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} />
       </Field>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error}
-        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t(dup.ignored ? 'add.openIgnored' : 'add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
+        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm text-accent underline-offset-4 hover:underline">{t(dup.ignored ? 'add.openIgnored' : 'add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
         <Button type="submit" variant="primary" busy={pending} busyLabel={t('common:busy.adding')}>{t('add.submit')}</Button>

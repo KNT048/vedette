@@ -9,11 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { ListRow } from '@/components/common/ListParts'
 import { ApiError } from '@/lib/api'
 import { useHooks, useRemoveHook, useSaveHook, useTestHook, useToggleBuiltinHook } from '../harness-api'
 import { ActionError } from '../parts'
 import type { CustomHook, HookAction, HookInput, HookTestResult, HookWhen } from '../types'
-import { ConfirmDelete, List, Row, Toggle } from './shared'
+import { ConfirmDelete, List, Toggle } from './shared'
 
 const WHENS: HookWhen[] = ['before_ai', 'after_ai', 'before_tool']
 const ACTIONS: HookAction[] = ['block', 'mask', 'approve']
@@ -36,12 +37,8 @@ export default function HooksTab() {
           <Section title={t('harness.hooks.builtinTitle')} description={t('harness.hooks.body')} stories={['S-AI-7']}>
             <List label={t('harness.hooks.builtinTitle')}>
               {h.builtin.map((b) => (
-                <Row key={b.id} dim={!b.enabled}
-                  actions={<>{b.locked ? <Chip tone="ok">{t('harness.hooks.locked')}</Chip> : null}<Toggle checked={b.enabled} disabled={b.locked} title={b.locked ? t('harness.hooks.lockedWhy') : undefined} label={t('harness.hooks.enable', { name: b.name })} onChange={(enabled) => toggle.mutate({ id: b.id, enabled }, { onError: fail })} /></>}>
-                  <p className="font-medium">{b.name}</p>
-                  <p className="text-muted">{b.description}</p>
-                  {b.locked ? <p className="text-meta text-muted">{t('harness.hooks.lockedWhy')}</p> : null}
-                </Row>
+                <ListRow key={b.id} off={!b.enabled} title={b.name} meta={[b.description, b.locked ? t('harness.hooks.lockedWhy') : null]}
+                  actions={<>{b.locked ? <Chip tone="ok">{t('harness.hooks.locked')}</Chip> : null}<Toggle checked={b.enabled} disabled={b.locked} title={b.locked ? t('harness.hooks.lockedWhy') : undefined} label={t('harness.hooks.enable', { name: b.name })} onChange={(enabled) => toggle.mutate({ id: b.id, enabled }, { onError: fail })} /></>} />
               ))}
             </List>
           </Section>
@@ -49,16 +46,16 @@ export default function HooksTab() {
             {h.custom.length === 0 ? <EmptyState title={t('harness.hooks.empty')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.hooks.add')}</Button>}>{t('harness.hooks.emptyBody')}</EmptyState> : (
               <List label={t('harness.hooks.customTitle')}>
                 {h.custom.map((x) => (
-                  <Row key={x.id} dim={!x.enabled}
+                  <ListRow key={x.id} off={!x.enabled} title={x.name} badges={<Chip tone={tone(x.action)}>{t(`harness.hooks.action.${x.action}`)}</Chip>}
+                    meta={[
+                      <>{t(`harness.hooks.when.${x.when}`)} · {t(`harness.hooks.matchType.${x.match.type}`)}: <code className="font-mono">{x.match.pattern}</code></>,
+                      t('harness.hooks.shows', { message: x.message }),
+                    ]}
                     actions={<>
                       <Toggle checked={x.enabled} label={t('harness.hooks.enable', { name: x.name })} onChange={(enabled) => save.mutate({ ...x, enabled }, { onError: fail })} />
                       <Button size="sm" onClick={() => setEdit(x)} aria-label={t('harness.editNamed', { name: x.name })}>{t('harness.edit')}</Button>
                       <Button size="sm" onClick={() => setDel(x)} aria-label={t('harness.deleteNamed', { name: x.name })}>{t('harness.delete')}</Button>
-                    </>}>
-                    <p className="flex flex-wrap items-center gap-2 font-medium">{x.name} <Chip tone={tone(x.action)}>{t(`harness.hooks.action.${x.action}`)}</Chip></p>
-                    <p className="text-meta text-muted">{t(`harness.hooks.when.${x.when}`)} · {t(`harness.hooks.matchType.${x.match.type}`)}: <code className="font-mono">{x.match.pattern}</code></p>
-                    <p className="text-meta text-muted">{t('harness.hooks.shows', { message: x.message })}</p>
-                  </Row>
+                    </>} />
                 ))}
               </List>
             )}

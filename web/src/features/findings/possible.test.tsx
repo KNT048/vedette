@@ -34,7 +34,7 @@ describe('Possible findings in By device and By fix', () => {
     renderApp('/findings?tab=device')
     const s = await section()
     await openRow(s, /^Show or hide the possible CVEs of RT-BACKUP/)
-    const line = await within(s).findByRole('listitem', { name: 'MikroTik RouterOS 7.14' }, T)
+    const line = await within(s).findByRole('article', { name: 'MikroTik RouterOS 7.14' }, T)
     expect(line).toHaveTextContent('30 possible CVEs')
     expect(within(line).getAllByTestId('possible-row')).toHaveLength(8)
     // exploited first: the first row carries the badge

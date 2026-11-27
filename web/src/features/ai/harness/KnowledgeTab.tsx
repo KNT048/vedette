@@ -9,13 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Select } from '@/components/ui/input'
 import { DependencyLink } from '@/components/common/DependencyLink'
+import { ListRow } from '@/components/common/ListParts'
 import { useCan } from '@/lib/session'
 import { fmtNumber, fmtRelative } from '@/lib/format'
 import { useProfiles } from '../api'
 import { fileBase64, useAddDoc, useDocJobs, useIndexProfile, useKnowledge, useRemoveDoc } from '../harness-api'
 import { ActionError } from '../parts'
 import type { KnowledgeDoc } from '../types'
-import { ConfirmDelete, JobPicker, jobNames, List, Row } from './shared'
+import { ConfirmDelete, JobPicker, jobNames, List } from './shared'
 
 const MAX = 10 * 1024 * 1024
 const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
@@ -80,14 +81,15 @@ export default function KnowledgeTab() {
                 {k.items.length === 0 ? <EmptyState title={t('harness.knowledge.empty')} info={t('harness.knowledge.emptyBodyInfo')}>{t('harness.knowledge.emptyBody')}</EmptyState> : (
                   <List label={t('harness.knowledge.title')}>
                     {k.items.map((d) => (
-                      <Row key={d.id} actions={<>
+                      <ListRow key={d.id} title={d.name} badges={<Chip tone={d.status === 'ready' ? 'ok' : 'warn'}>{t(`harness.knowledge.status.${d.status}`)}</Chip>}
+                        meta={[
+                          `${size(d.size)} · ${d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · ${fmtRelative(d.uploaded_at)}`,
+                          t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) }),
+                        ]}
+                        actions={<>
                         <Button size="sm" onClick={() => setJobsFor(d)} aria-label={t('harness.knowledge.jobsNamed', { name: d.name })}>{t('harness.knowledge.jobs')}</Button>
                         <Button size="sm" onClick={() => setDel(d)} aria-label={t('harness.deleteNamed', { name: d.name })}>{t('harness.delete')}</Button>
-                      </>}>
-                        <p className="flex flex-wrap items-center gap-2 font-medium">{d.name} <Chip tone={d.status === 'ready' ? 'ok' : 'warn'}>{t(`harness.knowledge.status.${d.status}`)}</Chip></p>
-                        <p className="text-meta text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
-                        <p className="text-meta text-muted">{t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) })}</p>
-                      </Row>
+                      </>} />
                     ))}
                   </List>
                 )}

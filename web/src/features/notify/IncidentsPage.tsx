@@ -17,6 +17,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useModules } from '@/lib/modules'
 import { notOffered } from '@/lib/v1'
 import { useCan } from '@/lib/session'
+import { RowTitle } from '@/components/common/ListParts'
 import { useBulkIncidents, useChannels, useIncidents } from './api'
 import { MAX_BULK_INCIDENTS } from './contract'
 import { DeliveryBadges, IncidentStatusChip, kindKey, needsFix } from './shared'
@@ -159,7 +160,7 @@ function Content() {
       return <><Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} /><PageWatch ids={page} onChange={onPage} /></>
     }, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (
-      <div className="grid min-w-0"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium [overflow-wrap:anywhere] ${link}`}>{r.title}</Link><span className="text-caption text-muted">{t(kindKey(r))}</span></div>
+      <div className="grid min-w-0"><RowTitle to={`/incidents/${r.id}`}>{r.title}</RowTitle><span className="text-caption text-muted">{t(kindKey(r))}</span></div>
     ) },
     { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityBadge severity={row.original.severity} /> },
     { id: 'device', header: t('incidents.col.device'), accessorFn: (r) => r.devices.map((d) => d.name).join(', '), cell: ({ row: { original: r } }) => (
@@ -215,7 +216,7 @@ function Content() {
                   {can && tab === 'open' ? <span className="pt-0.5">{pick(r)}</span> : null}
                   <div className="grid flex-1 gap-1.5">
                     <div className="flex items-start justify-between gap-3">
-                      <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`min-w-0 font-medium [overflow-wrap:anywhere] ${link}`}>{r.title}</Link>
+                      <RowTitle to={`/incidents/${r.id}`} className="min-w-0">{r.title}</RowTitle>
                       <SeverityBadge severity={r.severity} />
                     </div>
                     <p className="text-meta text-muted">{t(kindKey(r))}, {r.devices.slice(0, SHOWN_DEVICES).map((x) => x.name).join(', ')}{r.devices.length > SHOWN_DEVICES ? ` ${t('incidents.moreDevices', { count: r.devices.length - SHOWN_DEVICES })}` : ''}, {t('incidents.times', { count: r.count })}</p>

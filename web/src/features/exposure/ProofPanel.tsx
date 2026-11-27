@@ -15,7 +15,7 @@ import { boxIp, proven } from './node'
 import type { DnsProof, FileProof, TargetNode } from './types'
 import { checkPause, secondsToWait, useCooldown } from './useCooldown'
 
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 /**
  * Ownership of one node. A domain proves itself with a DNS TXT record, unless a proven ancestor's record covers it; a public IP

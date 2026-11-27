@@ -14,7 +14,7 @@ import { useAlerts, useOverview } from './api'
 import { actionTarget } from './places'
 import { AlertLine, DeviceLink, severityText } from './parts'
 import { ALERT_WINDOWS, type Alert, type AlertSort, type AlertWindow, type Watcher } from './types'
-import { ListToolbar } from '@/components/common/ListParts'
+import { ListRow, ListToolbar, RowList, RowTitle } from '@/components/common/ListParts'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 
@@ -71,39 +71,25 @@ function Watchers({ watchers, badAddresses }: { watchers: Watcher[]; badAddresse
   return (
     <Section id="watching" title={t('watching.title')}>
       <Card flush>
-        <ul className="divide-y divide-rule">
-          {watchers.map((w) => {
+        <RowList flush label={t('watching.title')}>
+          {[...watchers.map((w) => {
             const to = actionTarget(w, container)
             return (
-              <li key={w.id} data-testid={`watcher-${w.id}`} className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <div className="grid gap-0.5">
-                  <p className="flex flex-wrap items-baseline gap-x-2"><span className="font-medium">{t(`watcher.${w.id}`)}</span><span className="text-meta" data-state={w.state}>{t(`state.${w.state}`)}</span></p>
-                  <p className="text-meta text-muted">{w.detail}</p>
-                  <p className="text-caption text-muted">
-                    {w.last_input_at ? t('watching.last', { when: fmtRelative(w.last_input_at) }) : t('watching.never')}
-                    {w.state === 'unavailable' ? null : ` · ${t('watching.raised', { count: w.detections_7d })}`}
-                  </p>
-                </div>
-                {w.action && to ? (to.startsWith('#') ? <a href={to} className={`text-meta ${link}`}>{t(`action.${w.action}.${w.id}`)}</a> : <Link to={to} className={`text-meta ${link}`}>{t(`action.${w.action}.${w.id}`)}</Link>) : null}
-              </li>
+              <ListRow key={w.id} testId={`watcher-${w.id}`} title={t(`watcher.${w.id}`)} sub={<span data-state={w.state}>{t(`state.${w.state}`)}</span>}
+                meta={[w.detail, `${w.last_input_at ? t('watching.last', { when: fmtRelative(w.last_input_at) }) : t('watching.never')}${w.state === 'unavailable' ? '' : ` · ${t('watching.raised', { count: w.detections_7d })}`}`]}
+                actions={w.action && to ? (to.startsWith('#') ? <a href={to} className={`text-meta ${link}`}>{t(`action.${w.action}.${w.id}`)}</a> : <Link to={to} className={`text-meta ${link}`}>{t(`action.${w.action}.${w.id}`)}</Link>) : null} />
             )
-          })}
-          <li data-testid="watcher-bad-addresses" className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-            <div className="grid gap-0.5">
-              <p className="flex flex-wrap items-baseline gap-x-2"><span className="font-medium">{t('badAddresses.name')}</span><span className="text-meta" data-state={bad.state}>{t(`state.${bad.state}`)}</span></p>
-              <p className="text-meta text-muted">{t(`badAddresses.${bad.state}`, { sources: names })}</p>
-              {bad.dnsGap ? (
-                <p className="text-meta text-warn" data-testid="bad-addresses-dns-gap">
-                  {t('badAddresses.dnsGap')} <Link to={bad.dnsGap} className={link}>{t('badAddresses.dnsGapAction')}</Link>
-                </p>
-              ) : null}
-              <p className="text-caption text-muted">
-                {bad.last ? t('watching.last', { when: fmtRelative(bad.last) }) : t('watching.never')}{` · ${t('watching.raised', { count: badAddresses })}`}
+          }),
+          <ListRow key="bad-addresses" testId="watcher-bad-addresses" title={t('badAddresses.name')} sub={<span data-state={bad.state}>{t(`state.${bad.state}`)}</span>}
+            meta={[t(`badAddresses.${bad.state}`, { sources: names }), `${bad.last ? t('watching.last', { when: fmtRelative(bad.last) }) : t('watching.never')} · ${t('watching.raised', { count: badAddresses })}`]}
+            actions={<Link to={bad.to} className={`text-meta ${link}`}>{t(bad.state === 'watching' ? 'badAddresses.view' : bad.state === 'quiet' ? 'badAddresses.check' : logsOff ? 'action.turn_on.logs' : 'action.set_up.logs')}</Link>}>
+            {bad.dnsGap ? (
+              <p className="text-meta text-warn" data-testid="bad-addresses-dns-gap">
+                {t('badAddresses.dnsGap')} <Link to={bad.dnsGap} className={link}>{t('badAddresses.dnsGapAction')}</Link>
               </p>
-            </div>
-            <Link to={bad.to} className={`text-meta ${link}`}>{t(bad.state === 'watching' ? 'badAddresses.view' : bad.state === 'quiet' ? 'badAddresses.check' : logsOff ? 'action.turn_on.logs' : 'action.set_up.logs')}</Link>
-          </li>
-        </ul>
+            ) : null}
+          </ListRow>]}
+        </RowList>
       </Card>
     </Section>
   )
@@ -184,7 +170,7 @@ function Alerts() {
   const columns: ColumnDef<Alert>[] = [
     { id: 'severity', header: t('alerts.col.severity'), cell: ({ row }) => <span className="font-medium">{severityText(t, row.original.severity)}</span> },
     { id: 'signature', header: t('alerts.col.signature'), cell: ({ row: { original: a } }) => (
-      <div className="grid"><Link to={`/detection/alerts/${a.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium [overflow-wrap:anywhere] ${link}`}>{a.signature}</Link>
+      <div className="grid"><RowTitle to={`/detection/alerts/${a.id}`}>{a.signature}</RowTitle>
         {a.cves.length ? <CveList label={t('alerts.cvesOf', { signature: a.signature })} items={a.cves.map((cve) => ({ cve }))} /> : <span className="text-caption text-muted">{t('alerts.noCve')}</span>}</div>
     ) },
     { id: 'flow', header: t('alerts.col.flow'), cell: ({ row: { original: a } }) => <AlertLine a={a} /> },
@@ -215,7 +201,7 @@ function Alerts() {
               onRowClick={(a) => navigate(`/detection/alerts/${a.id}`)}
               mobileRow={(a) => (
                 <div className="grid gap-1">
-                  <Link to={`/detection/alerts/${a.id}`} className={`font-medium [overflow-wrap:anywhere] ${link}`}>{a.signature}</Link>
+                  <RowTitle to={`/detection/alerts/${a.id}`}>{a.signature}</RowTitle>
                   <span className="text-meta">{severityText(t, a.severity)}, <AlertLine a={a} /></span>
                   <span className="text-caption text-muted">{t('alerts.mobileLine', { count: a.count, time: fmtDateTime(a.last_seen) })}</span>
                 </div>

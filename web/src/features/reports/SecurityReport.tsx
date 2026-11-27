@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
@@ -10,6 +9,7 @@ import { useFixTitle } from '@/features/findings/parts'
 import { fmtDate, fmtDateTime, fmtPeriodEnd } from '@/lib/format'
 import { FINDING_RESOLUTIONS, OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import { cn } from '@/lib/utils'
+import { RowTitle } from '@/components/common/ListParts'
 import { BarList, OpenFlow } from './charts'
 import { Scroll } from './parts'
 import type {
@@ -56,7 +56,7 @@ function DeviceName({ device }: { device: DeviceRef }) {
  *  screen never carries the same link twice. */
 function CveLink({ cve, finding, plain = false }: { cve: string; finding: string; plain?: boolean }) {
   if (plain) return <span className="whitespace-nowrap font-medium">{cve}</span>
-  return <Link to={`/findings/${encodeURIComponent(finding)}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{cve}</Link>
+  return <RowTitle to={`/findings/${encodeURIComponent(finding)}`} className="whitespace-nowrap">{cve}</RowTitle>
 }
 
 /** The document of one period; its masthead names the organisation as it was when the report was made. */

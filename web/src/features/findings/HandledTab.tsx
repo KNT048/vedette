@@ -2,10 +2,10 @@
 // "Mitigated by ana: firewall rule"). Accepted risks are a filter here, with the day they end. The screen a person shows their
 // manager; the weekly report reads the same rows (GET /findings/handled).
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { ListToolbar } from '@/components/common/ListParts'
+import { ListRow, ListToolbar, RowTitle } from '@/components/common/ListParts'
 import { useListParams } from '@/components/common/listParams'
 import { QueryState } from '@/components/common/States'
 import { FindingStatusLines, HandledLine, SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
@@ -62,8 +62,8 @@ export function HandledTab({ device }: { device: string }) {
   const clear = () => { raw.set({ q: '', page: 0 }); setParams((prev) => { const p = new URLSearchParams(prev); for (const k of ['resolution', 'period', 'device', 'corrections']) p.delete(k); return p }, { replace: true }) }
   const columns: ColumnDef<HandledRow>[] = [
     { id: 'cve', header: t('handledTab.col.cve'), cell: ({ row: { original: r } }) => (
-      <span className="grid gap-1">
-        <Link to={`/findings/${encodeURIComponent(r.id)}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <RowTitle to={`/findings/${encodeURIComponent(r.id)}`} className="whitespace-nowrap">{r.cve}</RowTitle>
         <SeverityBadge severity={r.severity} compact />
       </span>
     ) },
@@ -107,15 +107,9 @@ export function HandledTab({ device }: { device: string }) {
             summary={d.total ? t('handledTab.summary', { count: d.total }) : null}
             server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${resolution}|${period}|${device}|${corrections}`} empty={t('handledTab.empty')}
             mobileRow={(r) => (
-              <div className="grid gap-1.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link to={`/findings/${encodeURIComponent(r.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
-                  <StatusBadge code={r.status} until={r.handled.accepted_until} />
-                </div>
-                <DeviceLine device={r.device} badge={false} />
-                <HandledLine underBadge handled={r.handled} software={r.software?.name} />
-                <span className="w-fit"><Reopen r={r} /></span>
-              </div>
+              <ListRow title={r.cve} to={`/findings/${encodeURIComponent(r.id)}`} badges={<StatusBadge code={r.status} until={r.handled.accepted_until} />}
+                meta={[<DeviceLine key="device" device={r.device} badge={false} />, <HandledLine key="how" underBadge handled={r.handled} software={r.software?.name} />]}
+                actions={<Reopen r={r} />} />
             )} />
           </>
         )}

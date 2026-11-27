@@ -154,7 +154,7 @@ function Aside({ f }: { f: FindingDetail }) {
         <h2 id="dev-title" className="text-base font-semibold">{t('aside.device')}</h2>
         {f.asset ? (
           <Card className="grid gap-1 text-sm">
-            <Link to={`/devices/${f.asset.id}`} title={deviceName(f.asset, t('removedDevice'))} className="w-fit font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{deviceName(f.asset, t('removedDevice'))}</Link>
+            <Link to={`/devices/${f.asset.id}`} title={deviceName(f.asset, t('removedDevice'))} className="w-fit text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{deviceName(f.asset, t('removedDevice'))}</Link>
             <span className="text-muted">{hasIp(f.asset) ? f.asset.ip : t('noIp')}</span>
             <span>{f.asset.display}</span>
           </Card>

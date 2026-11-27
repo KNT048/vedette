@@ -23,6 +23,7 @@ import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
 import type { DeviceDetail, DeviceSnmp, DeviceSnmpInput, SnmpAuth, SnmpDeviceRow, SnmpPriv, SnmpState, SnmpVersion } from './types'
 import { IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
+import { RowTitle } from '@/components/common/ListParts'
 
 /** The SNMP port (RFC 3417): reads go there unless the device answers on another. */
 const SNMP_PORT = 161
@@ -492,7 +493,7 @@ export function SnmpDevices() {
           <ul aria-label={t('deviceSnmp.list.label')} className="grid gap-1.5">
             {devices.map((r) => (
               <li key={r.device_id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <Link to={`/devices/${encodeURIComponent(r.device_id)}#device-snmp`} className="font-medium text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]">{r.name || r.read_from}</Link>
+                <RowTitle to={`/devices/${encodeURIComponent(r.device_id)}#device-snmp`}>{r.name || r.read_from}</RowTitle>
                 <span className="text-meta text-muted tabular-nums">{t('deviceSnmp.list.at', { ip: r.read_from, version: r.version })}</span>
                 <SnmpStateLabel state={r.state} />
                 {r.blocked ? <span className="text-meta text-warn">{t('deviceSnmp.list.blocked')}</span> : null}

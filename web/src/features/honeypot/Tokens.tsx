@@ -12,6 +12,7 @@ import { CodeBlock } from '@/components/common/CodeBlock'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
+import { ListRow } from '@/components/common/ListParts'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddToken, useDeleteToken, useOverview, useTestToken, useTokens } from './api'
@@ -70,21 +71,15 @@ function Inner({ items }: { items: Token[] }) {
       {items.length === 0 ? <EmptyState title={t('token.emptyTitle')}>{t('token.emptyBody')}</EmptyState> : (
         <DataTable urlKey="honey-tokens" caption={t('token.listLabel')} data={items} columns={searchCols} pageSize={25}
           list={(k) => (
-            <div className="py-1">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="grid gap-1">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">{k.name} <Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</p>
-                  <p className="text-meta text-muted">{t('token.plantedAt', { where: k.plant_at })}</p>
-                  <p className="text-meta text-muted">{k.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(k.last_triggered_at), count: k.triggers }) : t('token.never')}</p>
-                </div>
-                <div className="flex items-center gap-2">
+            <ListRow title={k.name} badges={<><Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</>}
+              meta={[t('token.plantedAt', { where: k.plant_at }), k.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(k.last_triggered_at), count: k.triggers }) : t('token.never')]}
+              actions={<>
                   <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === k.id} busyLabel={t('common:busy.testing')} title={operator ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('token.testLabel', { name: k.name })}
                     onClick={() => test.mutate(k.id, { onSuccess: (hit) => testAlertToast(t, t('token.testToast', { name: k.name }), hit), onError: (e) => toast.error(errMsg(e)) })}><FlaskConical />{t('token.test')}</Button>
                   <Button size="sm" variant="ghost" disabled={!admin || del.isPending} busy={del.isPending && del.variables === k.id} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('token.deleteLabel', { name: k.name })}
                     onClick={() => del.mutate(k.id, { onSuccess: () => toast.success(t('token.deleted', { name: k.name })), onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
-                </div>
-              </div>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                </>}>
+              <div className="grid gap-3 md:grid-cols-2">
                 <div className="grid content-start gap-2">
                   <CodeBlock code={k.type === 'credential' ? `user: ${k.value}\npassword: ${k.password ?? ''}` : k.value} label={t(`token.valueLabel.${k.type}`)} />
                 </div>
@@ -99,7 +94,7 @@ function Inner({ items }: { items: Token[] }) {
                   </div>
                 </div>
               </div>
-            </div>
+            </ListRow>
           )} />
       )}
     </div>

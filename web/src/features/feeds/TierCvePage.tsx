@@ -11,6 +11,7 @@ import { fmtDate, fmtPercent } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCveFindings } from '@/features/findings/api'
 import { useFixTitle } from '@/features/findings/parts'
+import { RowTitle } from '@/components/common/ListParts'
 import type { TierCve } from './types'
 
 export function TierCvePage({ v }: { v: TierCve }) {
@@ -67,7 +68,7 @@ export function TierDevices({ cve }: { cve: string }) {
             {hits.map(({ device, block, finding }) => (
               <li key={finding.id} className="grid gap-1 px-4 py-2.5 text-sm">
                 <span className="flex flex-wrap items-center gap-2">
-                  <Link to={`/devices/${encodeURIComponent(device.id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{device.name}</Link>
+                  <RowTitle to={`/devices/${encodeURIComponent(device.id)}`}>{device.name}</RowTitle>
                   <StatusBadge code={finding.status} to={`/findings/${encodeURIComponent(finding.id)}`} />
                 </span>
                 <span className="text-meta">{title(block.fix, block.software)}</span>

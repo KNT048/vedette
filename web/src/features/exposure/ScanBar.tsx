@@ -14,7 +14,7 @@ import { RunState, useTabHref } from './NodeParts'
 import type { TargetNode } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
-const link = 'font-medium text-accent underline-offset-4 hover:underline'
+const link = 'text-accent underline-offset-4 hover:underline'
 
 /**
  * Scan now of one node, shared by its button and the line under the header. An administrator's first Scan now is the scan

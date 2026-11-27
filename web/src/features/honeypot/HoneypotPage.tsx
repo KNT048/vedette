@@ -18,6 +18,7 @@ import { testAlertToast } from './testAlert'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
 import { notOffered } from '@/lib/v1'
+import { RowTitle } from '@/components/common/ListParts'
 import TrapIpsTab from './TrapIps'
 import TokensSection from './Tokens'
 import CoverageSection from './Coverage'
@@ -229,7 +230,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
       mobileRow={(h) => (
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${h.id}`}>{fmtDateTime(h.ts)}</Link>
+            <RowTitle to={`/honeypot/hits/${h.id}`}>{fmtDateTime(h.ts)}</RowTitle>
             {h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}
           </div>
           <p className="text-sm">{hitName(t, h)} {h.port ? <span className="text-caption text-muted tabular-nums">{h.port}</span> : null}</p>

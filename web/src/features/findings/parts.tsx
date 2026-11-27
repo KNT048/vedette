@@ -2,6 +2,7 @@
 // a device's badge.
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { RowTitle } from '@/components/common/ListParts'
 import { StatusBadge } from '@/components/common/status'
 import type { DeviceRef, DeviceStatus, Fix, SeverityCounts, SoftwareRef } from './types'
 import { NotAddedChip } from './NotAdded'
@@ -64,20 +65,31 @@ export function SeverityLine({ counts, className }: { counts: SeverityCounts; cl
 
 /** A device as the lists name it: its page, its address, "Not added yet", and its badge (a link to its findings with that status).
  * link false names the device without a link, where another row of the same list already links to its page; `to` links another
- * part of its page (its possible findings). */
+ * part of its page (its possible findings). In a line of text (a row's meta line, a table cell). */
 export function DeviceLine({ device, status, badge = true, link = true, to }: { device: DeviceRef; status?: DeviceStatus; badge?: boolean; link?: boolean; to?: string }) {
-  const { t } = useTranslation('findings')
+  const row = useDeviceRow()(device, { status, badge, link, to })
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      {link ? (
-        <Link to={to ?? `/devices/${encodeURIComponent(device.id)}`} onClick={(e) => e.stopPropagation()}
-          className="font-semibold text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{device.name}</Link>
-      ) : <span className="font-semibold [overflow-wrap:anywhere]">{device.name}</span>}
-      <span className="text-meta text-muted">{device.ip ?? t('noIp')}</span>
-      <NotAddedChip asset={{ approved: device.added, ignored: device.ignored }} />
-      {badge && status ? <StatusBadge code={status.code} count={status.count} to={deviceStatusLink(device.id, status.code)} /> : null}
+      <RowTitle to={row.to}>{row.title}</RowTitle>
+      <span className="text-meta text-muted">{row.sub}</span>
+      {row.badges}
     </span>
   )
+}
+
+/** A device as the title of a ListRow (spread into it): its name, a link to its page (or `to`), its address as the note, then
+ *  "Not added yet" and its badge. */
+export function useDeviceRow() {
+  const { t } = useTranslation('findings')
+  return (device: DeviceRef, { status, badge = true, link = true, to }: { status?: DeviceStatus; badge?: boolean; link?: boolean; to?: string } = {}) => ({
+    title: device.name,
+    to: link ? (to ?? `/devices/${encodeURIComponent(device.id)}`) : undefined,
+    sub: device.ip ?? t('noIp'),
+    badges: <>
+      <NotAddedChip asset={{ approved: device.added, ignored: device.ignored }} />
+      {badge && status ? <StatusBadge code={status.code} count={status.count} to={deviceStatusLink(device.id, status.code)} /> : null}
+    </>,
+  })
 }
 
 /** The inventory's view of a device for its Add device and Ignore actions. */

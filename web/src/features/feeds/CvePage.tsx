@@ -10,6 +10,7 @@ import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { ReasonsLine, SeverityBadge, StatusBadge } from '@/components/common/status'
 import { Slot } from '@/components/common/Slot'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { fmtDate } from '@/lib/format'
 import { CVE_ID, useCve, useTierCve } from './api'
 import { ApiError } from '@/lib/api'
@@ -133,17 +134,11 @@ function Devices({ b }: { b: CveDetail }) {
       ) : b.matched.length === 0 ? (
         <EmptyState title={t('cve.matchedNone')}>{t('cve.matchedNoneBody')}</EmptyState>
       ) : (
-        <Card flush><ul className="grid divide-y divide-rule">
+        <Card flush><RowList flush label={t('cve.matched')}>
           {b.matched.map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-              <Link to={`/devices/${m.id}`} className="grid text-sm hover:underline">
-                <span className="font-medium">{m.hostname ?? m.display}</span>
-                <span className="text-caption text-muted">{m.ip}</span>
-              </Link>
-              <YouHaveCell value={m.how} />
-            </li>
+            <ListRow key={m.id} title={m.hostname ?? m.display} to={`/devices/${m.id}`} sub={m.ip} actions={<YouHaveCell value={m.how} />} />
           ))}
-        </ul></Card>
+        </RowList></Card>
       )}
       {b.matched?.length && b.not_affected ? <p className="mt-2 text-meta text-muted">{t('cve.notAffected', { count: b.not_affected })}</p> : null}
       {openFindings > 0 ? <Link to={`/findings?cve=${b.cve}`} className={`mt-3 inline-block text-sm ${link}`}>{t('cve.toFindings', { count: openFindings })}</Link> : null}

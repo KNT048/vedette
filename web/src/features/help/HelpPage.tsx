@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { Markdown } from './Markdown'
 import { RECIPES, recipeBySlug } from './cookbook'
 
@@ -11,14 +12,11 @@ export function HelpIndex() {
   return (
     <>
       <PageHeader title={t('title')} meta={t('meta')} />
-      <ul aria-label={t('listLabel')} className="grid max-w-4xl gap-px overflow-hidden rounded-md border border-rule bg-rule">
-        {RECIPES.map((r) => (
-          <li key={r.slug} className="grid gap-1 bg-surface px-4 py-3">
-            <Link to={`/help/${r.slug}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.title}</Link>
-            {r.goal ? <p className="text-meta text-muted">{r.goal}</p> : null}
-          </li>
-        ))}
-      </ul>
+      <div className="max-w-4xl">
+        <RowList boxed label={t('listLabel')}>
+          {RECIPES.map((r) => <ListRow key={r.slug} title={r.title} to={`/help/${r.slug}`} meta={[r.goal]} />)}
+        </RowList>
+      </div>
       <p className="mt-4 max-w-3xl text-meta text-muted">{t('offline')}</p>
     </>
   )

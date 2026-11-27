@@ -109,7 +109,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   (`versionscheme.Conflicts`: they name stretches that do not overlap). `TestParseCVERecord_JuniperFixPerBranch`.
   A range inside one letter-release branch ("1.1.1" lessThan "1.1.1zk", OpenSSL's 1.x beside its numeric 3.x ranges) is left out
   alone, not the entry's product: the entry is then not complete (its rows' default is `unknown`), and the numeric ranges beside it
-  are read. `TestParseCVERecord_Ranges`.
+  are read. Only where the product's version scheme cannot read that range: a product whose scheme reads it keeps the rule before
+  (its rows kept as the vendor states them, which the scheme reads). `TestParseCVERecord_Ranges`,
+  `TestEntryRows_LetterBranchOnlyWhereTheSchemeCannotReadIt`.
   For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",
   and that no reader of affected ranges reads (`RangeScheme` refuses them; `StatementScheme` reads them): a range the vendor states
   unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`), which holds for every device: kept only beside

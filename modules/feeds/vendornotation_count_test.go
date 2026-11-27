@@ -22,7 +22,7 @@ import (
 
 // notationReason is why the generic comparison refuses one affected entry (the first rule it breaks), "" when it reads it.
 func notationReason(a cnaAffected) string {
-	if _, _, ok := entryRows(a); ok {
+	if _, _, ok := entryRows(a, nil); ok {
 		return ""
 	}
 	switch {

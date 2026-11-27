@@ -62,9 +62,10 @@ func TestDotnet_UninstallEntriesGiveTheRuntimesNotTheHost(t *testing.T) {
 }
 
 // With the registration (HKLM\SOFTWARE[\WOW6432Node]\dotnet\Setup\InstalledVersions\<arch>\sharedfx\<framework>, one value per installed
-// version, what `dotnet --list-runtimes` lists), each framework version is its own row under the framework's name, and the Uninstall
-// entries of the same products keep their own names: a hosting bundle's or a removed runtime's entry is not what is installed.
-// A value that is no version and a key of another place are no rows.
+// version, what `dotnet --list-runtimes` lists), each framework version is its own row under the framework's name. An Uninstall entry
+// of the same version is the same row (shown with the framework's name); every other entry still gives its row: a runtime entry the
+// registry does not list (6.0.16) and a hosting bundle (ASP.NET Core Module, with CVEs of its own) are never dropped, as a missed
+// version is worse than one too many. A value that is no version and a key of another place are no rows.
 func TestDotnet_SharedFrameworksGiveTheRuntimes(t *testing.T) {
 	t.Parallel()
 	rows := with([]row{
@@ -79,19 +80,21 @@ func TestDotnet_SharedFrameworksGiveTheRuntimes(t *testing.T) {
 		fxRow("WOW6432Node\\", "x64", "Microsoft.NETCore.App", "(Default)"),
 		fxRow("WOW6432Node\\", "x64", "Contoso.Plugin.App", "1.0.0"),
 		{"name": "", "version": "6.0.16", "reg_key": `HKEY_LOCAL_MACHINE\SOFTWARE\Contoso\sharedfx\Microsoft.NETCore.App`},
-	}, arpDotnet()...)
+	}, with(arpDotnet(),
+		row{"name": "Microsoft .NET Runtime - 6.0.16 (x64)", "version": "48.67.58427", "publisher": "Microsoft Corporation"},
+		row{"name": "Microsoft .NET 6.0.36 - Windows Server Hosting", "version": "6.0.36.24516", "publisher": "Microsoft Corporation"})...)
 	items, dropped := mapPackages(map[string][]row{"programs": rows}, maxRows)
 	if dropped != 0 {
 		t.Fatalf("%d dropped", dropped)
 	}
 	if got, want := productRows(items, ".NET"), []string{
-		"Microsoft.NETCore.App 10.0.1 (x64) 10.0.1", "Microsoft.NETCore.App 6.0.25 (x64) 6.0.25", "Microsoft.NETCore.App 8.0.14 (x86) 8.0.14",
-		"Microsoft.NETCore.App 8.0.19 (x64) 8.0.19", "Microsoft.WindowsDesktop.App 8.0.0 (x64) 8.0.0",
+		"Microsoft .NET Runtime - 6.0.16 (x64) 6.0.16", "Microsoft.NETCore.App 10.0.1 (x64) 10.0.1", "Microsoft.NETCore.App 6.0.25 (x64) 6.0.25",
+		"Microsoft.NETCore.App 8.0.14 (x86) 8.0.14", "Microsoft.NETCore.App 8.0.19 (x64) 8.0.19", "Microsoft.WindowsDesktop.App 8.0.0 (x64) 8.0.0",
 	}; !slices.Equal(got, want) {
 		t.Fatalf(".NET rows %q, want %q", got, want)
 	}
 	if got, want := productRows(items, "ASP.NET Core"), []string{
-		"Microsoft.AspNetCore.App 6.0.25 (x64) 6.0.25", "Microsoft.AspNetCore.App 8.0.19 (x64) 8.0.19",
+		"Microsoft .NET 6.0.36 - Windows Server Hosting 6.0.36", "Microsoft.AspNetCore.App 6.0.25 (x64) 6.0.25", "Microsoft.AspNetCore.App 8.0.19 (x64) 8.0.19",
 	}; !slices.Equal(got, want) {
 		t.Fatalf("ASP.NET Core rows %q, want %q", got, want)
 	}
@@ -99,10 +102,6 @@ func TestDotnet_SharedFrameworksGiveTheRuntimes(t *testing.T) {
 		if strings.HasPrefix(s.Version, "HKEY") || s.Display == "" || strings.Contains(s.Display, "Contoso") {
 			t.Fatalf("a registry value became a software row: %+v", s)
 		}
-	}
-	i := slices.IndexFunc(items, func(s observe.Software) bool { return s.Display == "Microsoft .NET Runtime - 6.0.25 (x64)" })
-	if i < 0 || items[i].Vendor != "Microsoft Corporation" || items[i].KevKeys != nil {
-		t.Fatalf("the runtime's Uninstall entry: %+v", items)
 	}
 }
 

@@ -14,8 +14,10 @@ import (
 // HKLM\SOFTWARE\[WOW6432Node\]dotnet\Setup\InstalledVersions\<arch>\sharedfx\<framework>, one value named by the version (for every
 // runtime an installer put there, the frameworks `dotnet --list-runtimes` prints). The programs query reads those values
 // with the list (programsQuery); each version of each framework the product catalogue names (its "windows" names) is a row under the
-// framework's name, and the Uninstall entries of the same products then keep their own names. Without those values (Wazuh, an agent on
-// an older config) the runtimes' own Uninstall entries give the rows, as the catalogue maps them.
+// framework's name, added before the list so an Uninstall entry of the same product and version is the same row. Every other Uninstall
+// entry the catalogue maps still gives its row (a runtime entry the registry does not list, a hosting bundle's ASP.NET Core Module): a
+// missed version is worse than one too many. Without those values (Wazuh, an agent on an older config) the runtimes' own Uninstall
+// entries give the rows, as the catalogue maps them. The host and its resolver are never .NET (the catalogue's patterns).
 
 // dotnetFxKeyRE is a shared framework's key as osquery's registry table gives it; the captures are the architecture and the framework.
 var dotnetFxKeyRE = regexp.MustCompile(`(?i)^HKEY_LOCAL_MACHINE\\SOFTWARE\\(?:WOW6432Node\\)?dotnet\\Setup\\InstalledVersions\\(x64|x86|arm64)\\sharedfx\\([A-Za-z][A-Za-z0-9.]{0,63})$`)
@@ -29,16 +31,15 @@ type fxVersion struct {
 	p                productid.Product
 }
 
-// fxVersions is what the registered framework versions of one programs list give: their rows, and the keys of their products.
+// fxVersions is what the registered framework versions of one programs list give: their rows.
 type fxVersions struct {
-	rows     []fxVersion
-	products map[string]bool
+	rows []fxVersion
 }
 
 // dotnetFrameworks reads the registered framework versions of the programs rows; a framework the catalogue does not name, a value
 // that is no version and a key of another place give nothing.
 func dotnetFrameworks(rows []row) fxVersions {
-	out := fxVersions{products: map[string]bool{}}
+	var out fxVersions
 	for _, r := range rows {
 		m := dotnetFxKeyRE.FindStringSubmatch(r["reg_key"])
 		if m == nil || !dotnetVersionRE.MatchString(r["version"]) {
@@ -49,7 +50,6 @@ func dotnetFrameworks(rows []row) fxVersions {
 			continue
 		}
 		out.rows = append(out.rows, fxVersion{display: m[2] + " " + r["version"] + " (" + m[1] + ")", version: r["version"], p: p})
-		out.products[p.Key] = true
 	}
 	return out
 }

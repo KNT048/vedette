@@ -194,9 +194,6 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		if ok && !umbrella && sql.authoritative(name, p) {
 			ok = false // a component of a release whose own version the setup registry gave: its version is not the release's
 		}
-		if ok && fx.products[p.Key] {
-			ok = false // an Uninstall entry of a .NET framework whose installed versions the machine registered: not what is installed
-		}
 		switch {
 		case ok:
 			version = p.OwnVersion(version) // without a vendor's word before the release ("ad 9.7.6": 9.7.6)

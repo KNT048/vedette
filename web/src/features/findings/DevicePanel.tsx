@@ -43,7 +43,7 @@ export function useDeviceFindingsSummary(assetId: string): DeviceFindingsSummary
   // one thing per entry of the device's card (a software line is one, whatever its CVEs), one for a device nobody added yet
   const waiting = (input.data?.items ?? []).reduce((n, i) => n + (i.kind === 'device_needs' ? i.entries.length : 1), 0)
   return {
-    badge: card?.status ?? (waiting ? { code: 'needs_input', count: waiting } : null),
+    badge: card?.status ?? (waiting ? { code: 'possible', count: waiting } : null),
     open: card?.findings ?? 0,
     counts: card?.counts ?? Object.fromEntries(OPEN_FINDING_STATUSES.map((s) => [s, 0])) as Record<OpenFindingStatus, number>,
     input: waiting,

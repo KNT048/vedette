@@ -1059,3 +1059,33 @@ func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {
 	}
 	return nil, nil
 }
+
+// RecordStamps returns, for each CVE asked for that the catalogue holds, a stamp that changes whenever its record may say something
+// new: NVD's change time, when NVD and the CVE record were last read for it ("modified|nvd_at|record_at"). NVD's change time moves when
+// a reference is added. findings keys a check of a CVE's advisories on it, so a changed record is checked again.
+func (s *Store) RecordStamps(ctx context.Context, cves []string) (map[string]string, error) {
+	out := make(map[string]string, len(cves))
+	for chunk := range slices.Chunk(cves, publishedChunk) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT c.cve, ifnull(c.modified, '') || '|' || ifnull(c.nvd_at, '') || '|' || ifnull(c.record_at, '')
+			FROM json_each(?) j JOIN feeds_cve c ON c.cve = j.value`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+		for rows.Next() {
+			var c, st string
+			if err := rows.Scan(&c, &st); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+			}
+			out[c] = st
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+	}
+	return out, nil
+}

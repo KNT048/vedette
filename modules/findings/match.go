@@ -158,7 +158,9 @@ func (af Affected) cpe() (CPE, error) {
 
 // Vuln is a KEV entry with the optional NVD affected configurations.
 type Vuln struct {
-	CVE        string
+	CVE string
+	// Stamp changes whenever the CVE's record may say something new (feeds RecordStamps): a check of its advisories is keyed on it.
+	Stamp      string
 	Vendor     string // KEV vendorProject
 	Product    string // KEV product
 	Name       string // KEV vulnerabilityName: it names the Juniper series a Junos flaw is about

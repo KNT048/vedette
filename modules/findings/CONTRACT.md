@@ -153,6 +153,33 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   vocabulary with its underscores as spaces), never the code: `auditAction`, `questionAuditDetail`, `TestAuditDetailsSayEveryCodeInWords`.
   Lines written before keep their text (the log is append-only).
 
+## Possible findings and the check of their advisories
+
+- **P-1 Possible.** A CVE Vedette cannot decide for a line of a device is a possible finding: an open `fnd_question` about that CVE (each
+  CVE of a `version_needed` question; `older_line` is one question per CVE), never a `fnd_finding` row, so never in the open totals, an
+  alert, a report or Home's trend. It is counted apart (`GET /findings/possible` counts, `Overview.possible`) and a finding of the same
+  (device, CVE, line) always wins (`possibleItems`). The device badge `possible` counts a device's possible CVEs when nothing open is more
+  urgent; a device with nothing to check gets no badge.
+- **P-2 Why undecided.** Every possible CVE carries a machine-readable `detail.undecided` (`UndecidedReasons`: the reason, the range rows
+  read, the advisory text that blocked a decision with its address), also in the export (`fnd_question.detail`,
+  `fnd_possible_check.detail`) and grouped by `GET /findings/possible/audit`. `TestPossible_Count_EveryPossibleCVEHasAReason`.
+- **P-3 Check identity.** The match pass gives each checkable question (one CVE, a line with a version, no_range_data, older_line or a
+  not_comparable no build attribute decides, NVD answered) `check_key`: the CVE, product, release line, exact version and the CVE record's
+  stamp (`feeds.RecordStamps`). A changed version or record gives a new key. `TestPossibleCheck_KeyFollowsTheEvidence`.
+- **P-4 The app first.** A check (`POST /findings/possible/check`, operator, one at a time, at most 40 keys, in the background) reads each
+  key once (`fnd_possible_check`): the box fetches the CVE's reference pages (https, by tag, never an Exploit page; through the ai module's
+  guarded fetcher) and reads a CSAF advisory or a vendor's plain-text ranges itself (`readAdvisory`); a decision there is the box's own
+  (`decided_by advisory`, quoted) and the next match applies it like range data (affected: a finding, range origin `advisory`, its basis
+  and confirmation from who stated the version; not affected: the question stays, listed as settled). Only the rest goes to the AI
+  (`decided_by ai`): a proposal, `confident` when its quote is in the page word for word and names a range of the version's line, else
+  `likely`; unsure keeps the CVE possible with the reason. A failed or budget-stopped call stores nothing. The AI request carries no device
+  data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
+- **P-5 A person decides proposals.** Confirm one (`POST /findings/possible/{id}/confirm`; affected needs an admin) records the finding
+  (range origin `ai_confirmed`, kept by the match while the answer applies; its confirmation from the version's source, never from the AI)
+  or answers not affected; confirm a class at once (`POST /findings/possible/confirm`), never an exploited CVE proposed not affected; reject
+  (`POST /findings/possible/checks/{key}/reject`) makes it possible again and is not checked again for the same evidence. An exploited CVE
+  never vanishes: `TestPossibleCheck_Count_ExploitedNeverVanish`.
+
 ## Invariants
 
 **Matching**

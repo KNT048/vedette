@@ -25,7 +25,7 @@ const LOOK: Record<BadgeCode, { cls: string; Icon: LucideIcon }> = {
   accepted: { cls: 'border-rule bg-off-soft text-off', Icon: Clock },
   not_relevant: { cls: 'border-rule bg-off-soft text-off', Icon: CircleMinus },
   false_positive: { cls: 'border-rule bg-off-soft text-off', Icon: CircleX },
-  needs_input: { cls: 'border-accent/40 bg-accent-soft text-accent', Icon: CircleHelp },
+  possible: { cls: 'border-accent/40 bg-accent-soft text-accent', Icon: CircleHelp },
 }
 
 /** The words of a status: "Exploited in the wild"; with a count, a device's badge ("2 exploited"); "Risk accepted until 3 Mar 2027". */

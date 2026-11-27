@@ -14,8 +14,8 @@ export type FindingResolution = (typeof FINDING_RESOLUTIONS)[number]
 export const FINDING_STATUSES = [...OPEN_FINDING_STATUSES, ...FINDING_RESOLUTIONS] as const
 export type FindingStatusCode = (typeof FINDING_STATUSES)[number]
 
-/** A device's badge: its most urgent open finding status, else needs_input when only questions wait for a person. */
-export const DEVICE_STATUSES = [...OPEN_FINDING_STATUSES, 'needs_input'] as const
+/** A device's badge: its most urgent open finding status, else possible when only questions wait for a person. */
+export const DEVICE_STATUSES = [...OPEN_FINDING_STATUSES, 'possible'] as const
 export type DeviceStatusCode = (typeof DEVICE_STATUSES)[number]
 
 /** An incident's handling state: new until a person acknowledges or resolves it (or the box closes it). */

@@ -95263,8 +95263,8 @@ type FindingsGetFindingsDevicesOKItemsItem struct {
 	Device FindingsGetFindingsDevicesOKItemsItemDevice `json:"device"`
 	// Open findings of the device.
 	Findings int `json:"findings"`
-	// The device badge: the most urgent open status of its findings with a count, else needs_input when
-	// only questions wait, else null. A link to the device's findings with that status. The Devices list,
+	// The device badge: the most urgent open status of its findings with a count, else possible when only
+	// possible CVEs wait, else null. A link to the device's findings with that status. The Devices list,
 	// the device page and Home show the same value.
 	Status NilFindingsGetFindingsDevicesOKItemsItemStatus `json:"status"`
 }
@@ -97365,8 +97365,8 @@ func (s *FindingsGetFindingsDevicesOKItemsItemDeviceKind) UnmarshalText(data []b
 
 type FindingsGetFindingsDevicesOKItemsItemStatus struct {
 	Code FindingsGetFindingsDevicesOKItemsItemStatusCode `json:"code"`
-	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
-	// of the Needs your input queue for the device.
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible
+	// CVEs of the device (CVEs Vedette cannot decide).
 	Count int `json:"count"`
 }
 
@@ -97398,7 +97398,7 @@ const (
 	FindingsGetFindingsDevicesOKItemsItemStatusCodePublicExploit     FindingsGetFindingsDevicesOKItemsItemStatusCode = "public_exploit"
 	FindingsGetFindingsDevicesOKItemsItemStatusCodeCriticalEdge      FindingsGetFindingsDevicesOKItemsItemStatusCode = "critical_edge"
 	FindingsGetFindingsDevicesOKItemsItemStatusCodeUpdateRecommended FindingsGetFindingsDevicesOKItemsItemStatusCode = "update_recommended"
-	FindingsGetFindingsDevicesOKItemsItemStatusCodeNeedsInput        FindingsGetFindingsDevicesOKItemsItemStatusCode = "needs_input"
+	FindingsGetFindingsDevicesOKItemsItemStatusCodePossible          FindingsGetFindingsDevicesOKItemsItemStatusCode = "possible"
 )
 
 // AllValues returns all FindingsGetFindingsDevicesOKItemsItemStatusCode values.
@@ -97409,7 +97409,7 @@ func (FindingsGetFindingsDevicesOKItemsItemStatusCode) AllValues() []FindingsGet
 		FindingsGetFindingsDevicesOKItemsItemStatusCodePublicExploit,
 		FindingsGetFindingsDevicesOKItemsItemStatusCodeCriticalEdge,
 		FindingsGetFindingsDevicesOKItemsItemStatusCodeUpdateRecommended,
-		FindingsGetFindingsDevicesOKItemsItemStatusCodeNeedsInput,
+		FindingsGetFindingsDevicesOKItemsItemStatusCodePossible,
 	}
 }
 
@@ -97426,7 +97426,7 @@ func (s FindingsGetFindingsDevicesOKItemsItemStatusCode) MarshalText() ([]byte, 
 		return []byte(s), nil
 	case FindingsGetFindingsDevicesOKItemsItemStatusCodeUpdateRecommended:
 		return []byte(s), nil
-	case FindingsGetFindingsDevicesOKItemsItemStatusCodeNeedsInput:
+	case FindingsGetFindingsDevicesOKItemsItemStatusCodePossible:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -97451,8 +97451,8 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatusCode) UnmarshalText(data []b
 	case FindingsGetFindingsDevicesOKItemsItemStatusCodeUpdateRecommended:
 		*s = FindingsGetFindingsDevicesOKItemsItemStatusCodeUpdateRecommended
 		return nil
-	case FindingsGetFindingsDevicesOKItemsItemStatusCodeNeedsInput:
-		*s = FindingsGetFindingsDevicesOKItemsItemStatusCodeNeedsInput
+	case FindingsGetFindingsDevicesOKItemsItemStatusCodePossible:
+		*s = FindingsGetFindingsDevicesOKItemsItemStatusCodePossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -111584,8 +111584,8 @@ type FindingsGetFindingsInput2DeviceNotAdded struct {
 	// The item: "device:".
 	ID   string `json:"id"`
 	Kind string `json:"kind"`
-	// The device badge: the most urgent open status of its findings with a count, else needs_input when
-	// only questions wait, else null. A link to the device's findings with that status. The Devices list,
+	// The device badge: the most urgent open status of its findings with a count, else possible when only
+	// possible CVEs wait, else null. A link to the device's findings with that status. The Devices list,
 	// the device page and Home show the same value.
 	Status NilFindingsGetFindingsInput2DeviceNotAddedStatus `json:"status"`
 }
@@ -112366,8 +112366,8 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedDeviceKind) UnmarshalText(data [
 
 type FindingsGetFindingsInput2DeviceNotAddedStatus struct {
 	Code FindingsGetFindingsInput2DeviceNotAddedStatusCode `json:"code"`
-	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
-	// of the Needs your input queue for the device.
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible
+	// CVEs of the device (CVEs Vedette cannot decide).
 	Count int `json:"count"`
 }
 
@@ -112399,7 +112399,7 @@ const (
 	FindingsGetFindingsInput2DeviceNotAddedStatusCodePublicExploit     FindingsGetFindingsInput2DeviceNotAddedStatusCode = "public_exploit"
 	FindingsGetFindingsInput2DeviceNotAddedStatusCodeCriticalEdge      FindingsGetFindingsInput2DeviceNotAddedStatusCode = "critical_edge"
 	FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended FindingsGetFindingsInput2DeviceNotAddedStatusCode = "update_recommended"
-	FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput        FindingsGetFindingsInput2DeviceNotAddedStatusCode = "needs_input"
+	FindingsGetFindingsInput2DeviceNotAddedStatusCodePossible          FindingsGetFindingsInput2DeviceNotAddedStatusCode = "possible"
 )
 
 // AllValues returns all FindingsGetFindingsInput2DeviceNotAddedStatusCode values.
@@ -112410,7 +112410,7 @@ func (FindingsGetFindingsInput2DeviceNotAddedStatusCode) AllValues() []FindingsG
 		FindingsGetFindingsInput2DeviceNotAddedStatusCodePublicExploit,
 		FindingsGetFindingsInput2DeviceNotAddedStatusCodeCriticalEdge,
 		FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended,
-		FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput,
+		FindingsGetFindingsInput2DeviceNotAddedStatusCodePossible,
 	}
 }
 
@@ -112427,7 +112427,7 @@ func (s FindingsGetFindingsInput2DeviceNotAddedStatusCode) MarshalText() ([]byte
 		return []byte(s), nil
 	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended:
 		return []byte(s), nil
-	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput:
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodePossible:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -112452,8 +112452,8 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatusCode) UnmarshalText(data [
 	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended:
 		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended
 		return nil
-	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput:
-		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodePossible:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodePossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -114418,6 +114418,9 @@ type FindingsGetFindingsOverviewOK struct {
 	// has findings; the one card of devices not added with no finding is a review and is not counted.
 	Input int                               `json:"input"`
 	Open  FindingsGetFindingsOverviewOKOpen `json:"open"`
+	// Possible CVEs (Vedette cannot decide them), counted apart from the open findings: "158 open findings
+	// · 16 possible".
+	Possible FindingsGetFindingsOverviewOKPossible `json:"possible"`
 	// Open findings at the end of each of the last 30 days of the organization time zone, oldest first;
 	// the last is now.
 	Trend []int `json:"trend"`
@@ -114465,6 +114468,11 @@ func (s *FindingsGetFindingsOverviewOK) GetInput() int {
 // GetOpen returns the value of Open.
 func (s *FindingsGetFindingsOverviewOK) GetOpen() FindingsGetFindingsOverviewOKOpen {
 	return s.Open
+}
+
+// GetPossible returns the value of Possible.
+func (s *FindingsGetFindingsOverviewOK) GetPossible() FindingsGetFindingsOverviewOKPossible {
+	return s.Possible
 }
 
 // GetTrend returns the value of Trend.
@@ -114515,6 +114523,11 @@ func (s *FindingsGetFindingsOverviewOK) SetInput(val int) {
 // SetOpen sets the value of Open.
 func (s *FindingsGetFindingsOverviewOK) SetOpen(val FindingsGetFindingsOverviewOKOpen) {
 	s.Open = val
+}
+
+// SetPossible sets the value of Possible.
+func (s *FindingsGetFindingsOverviewOK) SetPossible(val FindingsGetFindingsOverviewOKPossible) {
+	s.Possible = val
 }
 
 // SetTrend sets the value of Trend.
@@ -114679,7 +114692,7 @@ func (s *FindingsGetFindingsOverviewOKDevicesAffected) SetUpdateRecommended(val 
 type FindingsGetFindingsOverviewOKDevicesByStatus struct {
 	CriticalEdge      int `json:"critical_edge"`
 	Exploited         int `json:"exploited"`
-	NeedsInput        int `json:"needs_input"`
+	Possible          int `json:"possible"`
 	PublicExploit     int `json:"public_exploit"`
 	UnderAttack       int `json:"under_attack"`
 	UpdateRecommended int `json:"update_recommended"`
@@ -114695,9 +114708,9 @@ func (s *FindingsGetFindingsOverviewOKDevicesByStatus) GetExploited() int {
 	return s.Exploited
 }
 
-// GetNeedsInput returns the value of NeedsInput.
-func (s *FindingsGetFindingsOverviewOKDevicesByStatus) GetNeedsInput() int {
-	return s.NeedsInput
+// GetPossible returns the value of Possible.
+func (s *FindingsGetFindingsOverviewOKDevicesByStatus) GetPossible() int {
+	return s.Possible
 }
 
 // GetPublicExploit returns the value of PublicExploit.
@@ -114725,9 +114738,9 @@ func (s *FindingsGetFindingsOverviewOKDevicesByStatus) SetExploited(val int) {
 	s.Exploited = val
 }
 
-// SetNeedsInput sets the value of NeedsInput.
-func (s *FindingsGetFindingsOverviewOKDevicesByStatus) SetNeedsInput(val int) {
-	s.NeedsInput = val
+// SetPossible sets the value of Possible.
+func (s *FindingsGetFindingsOverviewOKDevicesByStatus) SetPossible(val int) {
+	s.Possible = val
 }
 
 // SetPublicExploit sets the value of PublicExploit.
@@ -117133,6 +117146,2363 @@ func (s *FindingsGetFindingsOverviewOKOpenByStatus) SetUnderAttack(val int) {
 // SetUpdateRecommended sets the value of UpdateRecommended.
 func (s *FindingsGetFindingsOverviewOKOpenByStatus) SetUpdateRecommended(val int) {
 	s.UpdateRecommended = val
+}
+
+// Possible CVEs (Vedette cannot decide them), counted apart from the open findings: "158 open findings
+// · 16 possible".
+type FindingsGetFindingsOverviewOKPossible struct {
+	// Possible CVEs, proposals included (each (device, line, CVE) once).
+	Possible int `json:"possible"`
+	// AI proposals waiting for a person.
+	Proposals int `json:"proposals"`
+	// Settled not affected by the box from a vendor's advisory.
+	Settled int `json:"settled"`
+	// Possible CVEs a check can still look at: what the "Check possible with AI" button counts.
+	Unchecked int `json:"unchecked"`
+}
+
+// GetPossible returns the value of Possible.
+func (s *FindingsGetFindingsOverviewOKPossible) GetPossible() int {
+	return s.Possible
+}
+
+// GetProposals returns the value of Proposals.
+func (s *FindingsGetFindingsOverviewOKPossible) GetProposals() int {
+	return s.Proposals
+}
+
+// GetSettled returns the value of Settled.
+func (s *FindingsGetFindingsOverviewOKPossible) GetSettled() int {
+	return s.Settled
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *FindingsGetFindingsOverviewOKPossible) GetUnchecked() int {
+	return s.Unchecked
+}
+
+// SetPossible sets the value of Possible.
+func (s *FindingsGetFindingsOverviewOKPossible) SetPossible(val int) {
+	s.Possible = val
+}
+
+// SetProposals sets the value of Proposals.
+func (s *FindingsGetFindingsOverviewOKPossible) SetProposals(val int) {
+	s.Proposals = val
+}
+
+// SetSettled sets the value of Settled.
+func (s *FindingsGetFindingsOverviewOKPossible) SetSettled(val int) {
+	s.Settled = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *FindingsGetFindingsOverviewOKPossible) SetUnchecked(val int) {
+	s.Unchecked = val
+}
+
+type FindingsGetFindingsPossibleAuditOK struct {
+	Groups []FindingsGetFindingsPossibleAuditOKGroupsItem `json:"groups"`
+}
+
+// GetGroups returns the value of Groups.
+func (s *FindingsGetFindingsPossibleAuditOK) GetGroups() []FindingsGetFindingsPossibleAuditOKGroupsItem {
+	return s.Groups
+}
+
+// SetGroups sets the value of Groups.
+func (s *FindingsGetFindingsPossibleAuditOK) SetGroups(val []FindingsGetFindingsPossibleAuditOKGroupsItem) {
+	s.Groups = val
+}
+
+type FindingsGetFindingsPossibleAuditOKGroupsItem struct {
+	Count int `json:"count"`
+	// Distinct blocking rows or advisory snippets (with their address), at most 20.
+	Examples []string `json:"examples"`
+	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+	Reason FindingsGetFindingsPossibleAuditOKGroupsItemReason `json:"reason"`
+}
+
+// GetCount returns the value of Count.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) GetCount() int {
+	return s.Count
+}
+
+// GetExamples returns the value of Examples.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) GetExamples() []string {
+	return s.Examples
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) GetReason() FindingsGetFindingsPossibleAuditOKGroupsItemReason {
+	return s.Reason
+}
+
+// SetCount sets the value of Count.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetExamples sets the value of Examples.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) SetExamples(val []string) {
+	s.Examples = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) SetReason(val FindingsGetFindingsPossibleAuditOKGroupsItemReason) {
+	s.Reason = val
+}
+
+// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+type FindingsGetFindingsPossibleAuditOKGroupsItemReason string
+
+const (
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoVersion               FindingsGetFindingsPossibleAuditOKGroupsItemReason = "no_version"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonPlatformUnknown         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "platform_unknown"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonPackageUnknown          FindingsGetFindingsPossibleAuditOKGroupsItemReason = "package_unknown"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonAttributeUnknown        FindingsGetFindingsPossibleAuditOKGroupsItemReason = "attribute_unknown"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionSchemeMismatch   FindingsGetFindingsPossibleAuditOKGroupsItemReason = "version_scheme_mismatch"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending              FindingsGetFindingsPossibleAuditOKGroupsItemReason = "nvd_pending"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges                FindingsGetFindingsPossibleAuditOKGroupsItemReason = "no_ranges"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "product_not_named"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly       FindingsGetFindingsPossibleAuditOKGroupsItemReason = "exact_releases_only"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide       FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_do_not_decide"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_start_at_branch_only"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "eol_line_unlisted"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "no_reference_page"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed             FindingsGetFindingsPossibleAuditOKGroupsItemReason = "fetch_failed"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText      FindingsGetFindingsPossibleAuditOKGroupsItemReason = "unparsed_vendor_text"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure                FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ai_unsure"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleAuditOKGroupsItemReason values.
+func (FindingsGetFindingsPossibleAuditOKGroupsItemReason) AllValues() []FindingsGetFindingsPossibleAuditOKGroupsItemReason {
+	return []FindingsGetFindingsPossibleAuditOKGroupsItemReason{
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoVersion,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonPlatformUnknown,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonPackageUnknown,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonAttributeUnknown,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionSchemeMismatch,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonPlatformUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonPackageUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAttributeUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionSchemeMismatch:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleAuditOKGroupsItemReason(data) {
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoVersion:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoVersion
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonPlatformUnknown:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonPlatformUnknown
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonPackageUnknown:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonPackageUnknown
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAttributeUnknown:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonAttributeUnknown
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionSchemeMismatch:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionSchemeMismatch
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPossibleCheckOK struct {
+	// A check can run now (the AI assistant on, a profile for explaining findings).
+	Ready bool `json:"ready"`
+	// Why not, when ready is false.
+	Reason NilString `json:"reason"`
+	// The last check since the box started; null when none.
+	Run NilFindingsGetFindingsPossibleCheckOKRun `json:"run"`
+}
+
+// GetReady returns the value of Ready.
+func (s *FindingsGetFindingsPossibleCheckOK) GetReady() bool {
+	return s.Ready
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsPossibleCheckOK) GetReason() NilString {
+	return s.Reason
+}
+
+// GetRun returns the value of Run.
+func (s *FindingsGetFindingsPossibleCheckOK) GetRun() NilFindingsGetFindingsPossibleCheckOKRun {
+	return s.Run
+}
+
+// SetReady sets the value of Ready.
+func (s *FindingsGetFindingsPossibleCheckOK) SetReady(val bool) {
+	s.Ready = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsPossibleCheckOK) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// SetRun sets the value of Run.
+func (s *FindingsGetFindingsPossibleCheckOK) SetRun(val NilFindingsGetFindingsPossibleCheckOKRun) {
+	s.Run = val
+}
+
+type FindingsGetFindingsPossibleCheckOKRun struct {
+	// Decided by the box from a vendor's advisory, no AI.
+	Advisory int    `json:"advisory"`
+	By       string `json:"by"`
+	Done     int    `json:"done"`
+	// Not checked: a page or AI call failed; the next check asks again.
+	Failed     int         `json:"failed"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	// AI proposals made.
+	Proposals int       `json:"proposals"`
+	Running   bool      `json:"running"`
+	StartedAt time.Time `json:"started_at"`
+	// Why the check stopped before the end (the AI unavailable, the budget reached).
+	Stopped   NilString `json:"stopped"`
+	Total     int       `json:"total"`
+	Undecided int       `json:"undecided"`
+}
+
+// GetAdvisory returns the value of Advisory.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetAdvisory() int {
+	return s.Advisory
+}
+
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetBy() string {
+	return s.By
+}
+
+// GetDone returns the value of Done.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetDone() int {
+	return s.Done
+}
+
+// GetFailed returns the value of Failed.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetFailed() int {
+	return s.Failed
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetProposals returns the value of Proposals.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetProposals() int {
+	return s.Proposals
+}
+
+// GetRunning returns the value of Running.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetRunning() bool {
+	return s.Running
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStopped returns the value of Stopped.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetStopped() NilString {
+	return s.Stopped
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetTotal() int {
+	return s.Total
+}
+
+// GetUndecided returns the value of Undecided.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetUndecided() int {
+	return s.Undecided
+}
+
+// SetAdvisory sets the value of Advisory.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetAdvisory(val int) {
+	s.Advisory = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetBy(val string) {
+	s.By = val
+}
+
+// SetDone sets the value of Done.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetFailed(val int) {
+	s.Failed = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetProposals sets the value of Proposals.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetProposals(val int) {
+	s.Proposals = val
+}
+
+// SetRunning sets the value of Running.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetRunning(val bool) {
+	s.Running = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStopped sets the value of Stopped.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetStopped(val NilString) {
+	s.Stopped = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetUndecided sets the value of Undecided.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetUndecided(val int) {
+	s.Undecided = val
+}
+
+type FindingsGetFindingsPossibleOK struct {
+	// Of the device, or of every device; not narrowed by the search or the state.
+	Counts FindingsGetFindingsPossibleOKCounts `json:"counts"`
+	// Grouped by device, then software line, exploited CVEs first.
+	Items []FindingsGetFindingsPossibleOKItemsItem `json:"items"`
+	// Rows that match, every page.
+	Total int `json:"total"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *FindingsGetFindingsPossibleOK) GetCounts() FindingsGetFindingsPossibleOKCounts {
+	return s.Counts
+}
+
+// GetItems returns the value of Items.
+func (s *FindingsGetFindingsPossibleOK) GetItems() []FindingsGetFindingsPossibleOKItemsItem {
+	return s.Items
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsPossibleOK) GetTotal() int {
+	return s.Total
+}
+
+// SetCounts sets the value of Counts.
+func (s *FindingsGetFindingsPossibleOK) SetCounts(val FindingsGetFindingsPossibleOKCounts) {
+	s.Counts = val
+}
+
+// SetItems sets the value of Items.
+func (s *FindingsGetFindingsPossibleOK) SetItems(val []FindingsGetFindingsPossibleOKItemsItem) {
+	s.Items = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsPossibleOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// Of the device, or of every device; not narrowed by the search or the state.
+type FindingsGetFindingsPossibleOKCounts struct {
+	// Possible CVEs, proposals included (each (device, line, CVE) once).
+	Possible int `json:"possible"`
+	// AI proposals waiting for a person.
+	Proposals int `json:"proposals"`
+	// Settled not affected by the box from a vendor's advisory.
+	Settled int `json:"settled"`
+	// Possible CVEs a check can still look at: what the "Check possible with AI" button counts.
+	Unchecked int `json:"unchecked"`
+}
+
+// GetPossible returns the value of Possible.
+func (s *FindingsGetFindingsPossibleOKCounts) GetPossible() int {
+	return s.Possible
+}
+
+// GetProposals returns the value of Proposals.
+func (s *FindingsGetFindingsPossibleOKCounts) GetProposals() int {
+	return s.Proposals
+}
+
+// GetSettled returns the value of Settled.
+func (s *FindingsGetFindingsPossibleOKCounts) GetSettled() int {
+	return s.Settled
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *FindingsGetFindingsPossibleOKCounts) GetUnchecked() int {
+	return s.Unchecked
+}
+
+// SetPossible sets the value of Possible.
+func (s *FindingsGetFindingsPossibleOKCounts) SetPossible(val int) {
+	s.Possible = val
+}
+
+// SetProposals sets the value of Proposals.
+func (s *FindingsGetFindingsPossibleOKCounts) SetProposals(val int) {
+	s.Proposals = val
+}
+
+// SetSettled sets the value of Settled.
+func (s *FindingsGetFindingsPossibleOKCounts) SetSettled(val int) {
+	s.Settled = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *FindingsGetFindingsPossibleOKCounts) SetUnchecked(val int) {
+	s.Unchecked = val
+}
+
+// One possible CVE of one software line of one device.
+type FindingsGetFindingsPossibleOKItemsItem struct {
+	// Proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not
+	// affected (one by one).
+	Bulk  bool                                           `json:"bulk"`
+	Check NilFindingsGetFindingsPossibleOKItemsItemCheck `json:"check"`
+	// A check of its advisories can still run for it.
+	Checkable bool                                         `json:"checkable"`
+	Cve       string                                       `json:"cve"`
+	Device    FindingsGetFindingsPossibleOKItemsItemDevice `json:"device"`
+	// The CVE is on an exploited list.
+	Exploited bool `json:"exploited"`
+	// Older_line: the newest fixed release of each newer line.
+	Fixes []string `json:"fixes"`
+	// The question (confirm: POST /findings/possible/{id}/confirm; answer: POST
+	// /findings/questions/{id}/answer).
+	ID string `json:"id"`
+	// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
+	// platforms and nothing says which this is; package_release = the distribution's package release
+	// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
+	// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+	// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+	// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+	// question for all of them (cve_list).
+	Kind FindingsGetFindingsPossibleOKItemsItemKind `json:"kind"`
+	// Older_line: the device's release line.
+	Line     NilString                                         `json:"line"`
+	Severity NilFindingsGetFindingsPossibleOKItemsItemSeverity `json:"severity"`
+	Software NilFindingsGetFindingsPossibleOKItemsItemSoftware `json:"software"`
+	// Possible: undecided; proposal: an AI proposal waits for a person; settled: the box settled it not
+	// affected from the vendor's advisory (not counted).
+	State FindingsGetFindingsPossibleOKItemsItemState `json:"state"`
+	// Why a CVE stays possible and what blocked the decision.
+	Undecided FindingsGetFindingsPossibleOKItemsItemUndecided `json:"undecided"`
+}
+
+// GetBulk returns the value of Bulk.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetBulk() bool {
+	return s.Bulk
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetCheck() NilFindingsGetFindingsPossibleOKItemsItemCheck {
+	return s.Check
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetCheckable() bool {
+	return s.Checkable
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetDevice() FindingsGetFindingsPossibleOKItemsItemDevice {
+	return s.Device
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetExploited() bool {
+	return s.Exploited
+}
+
+// GetFixes returns the value of Fixes.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetFixes() []string {
+	return s.Fixes
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetKind() FindingsGetFindingsPossibleOKItemsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetLine() NilString {
+	return s.Line
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetSeverity() NilFindingsGetFindingsPossibleOKItemsItemSeverity {
+	return s.Severity
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetSoftware() NilFindingsGetFindingsPossibleOKItemsItemSoftware {
+	return s.Software
+}
+
+// GetState returns the value of State.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetState() FindingsGetFindingsPossibleOKItemsItemState {
+	return s.State
+}
+
+// GetUndecided returns the value of Undecided.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetUndecided() FindingsGetFindingsPossibleOKItemsItemUndecided {
+	return s.Undecided
+}
+
+// SetBulk sets the value of Bulk.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetBulk(val bool) {
+	s.Bulk = val
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetCheck(val NilFindingsGetFindingsPossibleOKItemsItemCheck) {
+	s.Check = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetCheckable(val bool) {
+	s.Checkable = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetDevice(val FindingsGetFindingsPossibleOKItemsItemDevice) {
+	s.Device = val
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetExploited(val bool) {
+	s.Exploited = val
+}
+
+// SetFixes sets the value of Fixes.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetFixes(val []string) {
+	s.Fixes = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetKind(val FindingsGetFindingsPossibleOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetLine(val NilString) {
+	s.Line = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetSeverity(val NilFindingsGetFindingsPossibleOKItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetSoftware(val NilFindingsGetFindingsPossibleOKItemsItemSoftware) {
+	s.Software = val
+}
+
+// SetState sets the value of State.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetState(val FindingsGetFindingsPossibleOKItemsItemState) {
+	s.State = val
+}
+
+// SetUndecided sets the value of Undecided.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetUndecided(val FindingsGetFindingsPossibleOKItemsItemUndecided) {
+	s.Undecided = val
+}
+
+// A check of a possible CVE's advisories.
+type FindingsGetFindingsPossibleOKItemsItemCheck struct {
+	CheckedAt time.Time `json:"checked_at"`
+	CheckedBy string    `json:"checked_by"`
+	// Ai only: confident when the AI's quote is in the page word for word and names a release range of
+	// this version's line; likely otherwise. null for the box's own verdicts and for unsure.
+	Confidence NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence `json:"confidence"`
+	// Advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai:
+	// the AI read the pages, a proposal a person confirms or rejects.
+	DecidedBy FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy `json:"decided_by"`
+	// The evidence identity the check is stored under (reject: POST
+	// /findings/possible/checks/{key}/reject).
+	Key string `json:"key"`
+	// Ai only: the model.
+	Model NilString `json:"model"`
+	// The sentence the verdict rests on, as the page writes it; "" when none.
+	Quote  string `json:"quote"`
+	Reason string `json:"reason"`
+	// A person rejected this AI proposal: the CVE is possible again.
+	Rejected bool                                                     `json:"rejected"`
+	Sources  []FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem `json:"sources"`
+	Verdict  FindingsGetFindingsPossibleOKItemsItemCheckVerdict       `json:"verdict"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetCheckedBy returns the value of CheckedBy.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetCheckedBy() string {
+	return s.CheckedBy
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetConfidence() NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence {
+	return s.Confidence
+}
+
+// GetDecidedBy returns the value of DecidedBy.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetDecidedBy() FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy {
+	return s.DecidedBy
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetKey() string {
+	return s.Key
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetModel() NilString {
+	return s.Model
+}
+
+// GetQuote returns the value of Quote.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetQuote() string {
+	return s.Quote
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetReason() string {
+	return s.Reason
+}
+
+// GetRejected returns the value of Rejected.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetRejected() bool {
+	return s.Rejected
+}
+
+// GetSources returns the value of Sources.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetSources() []FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem {
+	return s.Sources
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetVerdict() FindingsGetFindingsPossibleOKItemsItemCheckVerdict {
+	return s.Verdict
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetCheckedBy sets the value of CheckedBy.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetCheckedBy(val string) {
+	s.CheckedBy = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetConfidence(val NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) {
+	s.Confidence = val
+}
+
+// SetDecidedBy sets the value of DecidedBy.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetDecidedBy(val FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy) {
+	s.DecidedBy = val
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetKey(val string) {
+	s.Key = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetModel(val NilString) {
+	s.Model = val
+}
+
+// SetQuote sets the value of Quote.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetQuote(val string) {
+	s.Quote = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetRejected sets the value of Rejected.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetRejected(val bool) {
+	s.Rejected = val
+}
+
+// SetSources sets the value of Sources.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetSources(val []FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) {
+	s.Sources = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetVerdict(val FindingsGetFindingsPossibleOKItemsItemCheckVerdict) {
+	s.Verdict = val
+}
+
+type FindingsGetFindingsPossibleOKItemsItemCheckConfidence string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckConfidenceConfident FindingsGetFindingsPossibleOKItemsItemCheckConfidence = "confident"
+	FindingsGetFindingsPossibleOKItemsItemCheckConfidenceLikely    FindingsGetFindingsPossibleOKItemsItemCheckConfidence = "likely"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckConfidence values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckConfidence) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckConfidence {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckConfidence{
+		FindingsGetFindingsPossibleOKItemsItemCheckConfidenceConfident,
+		FindingsGetFindingsPossibleOKItemsItemCheckConfidenceLikely,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckConfidenceConfident:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckConfidenceLikely:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckConfidence) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckConfidence(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckConfidenceConfident:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckConfidenceConfident
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckConfidenceLikely:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckConfidenceLikely
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai:
+// the AI read the pages, a proposal a person confirms or rejects.
+type FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckDecidedByStructured FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy = "structured"
+	FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAdvisory   FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy = "advisory"
+	FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi         FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy = "ai"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy{
+		FindingsGetFindingsPossibleOKItemsItemCheckDecidedByStructured,
+		FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAdvisory,
+		FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByStructured:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAdvisory:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByStructured:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckDecidedByStructured
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAdvisory:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAdvisory
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One reference page a check read or tried to.
+type FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem struct {
+	// The verdict's quote is from this page.
+	Cited OptBool `json:"cited"`
+	// Why it was not read.
+	Note   OptString                                                    `json:"note"`
+	Status FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus `json:"status"`
+	Title  OptString                                                    `json:"title"`
+	URL    string                                                       `json:"url"`
+}
+
+// GetCited returns the value of Cited.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) GetCited() OptBool {
+	return s.Cited
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) GetStatus() FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) GetTitle() OptString {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) GetURL() string {
+	return s.URL
+}
+
+// SetCited sets the value of Cited.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) SetCited(val OptBool) {
+	s.Cited = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) SetStatus(val FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusOk      FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus = "ok"
+	FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusFailed  FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus = "failed"
+	FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusSkipped FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus = "skipped"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus{
+		FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusOk,
+		FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusFailed,
+		FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusOk:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusFailed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatus(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusOk:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusOk
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusFailed:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusFailed
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusSkipped:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckSourcesItemStatusSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPossibleOKItemsItemCheckVerdict string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckVerdictAffected    FindingsGetFindingsPossibleOKItemsItemCheckVerdict = "affected"
+	FindingsGetFindingsPossibleOKItemsItemCheckVerdictNotAffected FindingsGetFindingsPossibleOKItemsItemCheckVerdict = "not_affected"
+	FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure      FindingsGetFindingsPossibleOKItemsItemCheckVerdict = "unsure"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckVerdict values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckVerdict) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckVerdict {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckVerdict{
+		FindingsGetFindingsPossibleOKItemsItemCheckVerdictAffected,
+		FindingsGetFindingsPossibleOKItemsItemCheckVerdictNotAffected,
+		FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictNotAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckVerdict) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckVerdict(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictAffected:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckVerdictAffected
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictNotAffected:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckVerdictNotAffected
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPossibleOKItemsItemDevice struct {
+	// False = "Not added yet": nobody added this device; its card offers Add device and Ignore.
+	Added bool   `json:"added"`
+	ID    string `json:"id"`
+	// A person ignored the device: its findings are left out of every list and count except the Ignored
+	// devices tab.
+	Ignored bool `json:"ignored"`
+	// Null when the device has no IP address.
+	IP   NilString                                        `json:"ip"`
+	Kind FindingsGetFindingsPossibleOKItemsItemDeviceKind `json:"kind"`
+	// The name the Devices page shows; never the internal id.
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) GetIgnored() bool {
+	return s.Ignored
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) GetIP() NilString {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) GetKind() FindingsGetFindingsPossibleOKItemsItemDeviceKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) SetIgnored(val bool) {
+	s.Ignored = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) SetKind(val FindingsGetFindingsPossibleOKItemsItemDeviceKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsPossibleOKItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsPossibleOKItemsItemDeviceKind string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindRouter              FindingsGetFindingsPossibleOKItemsItemDeviceKind = "router"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSwitch              FindingsGetFindingsPossibleOKItemsItemDeviceKind = "switch"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindModem               FindingsGetFindingsPossibleOKItemsItemDeviceKind = "modem"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSdWan               FindingsGetFindingsPossibleOKItemsItemDeviceKind = "sd_wan"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindLoadBalancer        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "load_balancer"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindNetworkController   FindingsGetFindingsPossibleOKItemsItemDeviceKind = "network_controller"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindFirewall            FindingsGetFindingsPossibleOKItemsItemDeviceKind = "firewall"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindVpnGateway          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "vpn_gateway"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindIdsSensor           FindingsGetFindingsPossibleOKItemsItemDeviceKind = "ids_sensor"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindProxy               FindingsGetFindingsPossibleOKItemsItemDeviceKind = "proxy"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindAp                  FindingsGetFindingsPossibleOKItemsItemDeviceKind = "ap"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessController  FindingsGetFindingsPossibleOKItemsItemDeviceKind = "wireless_controller"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindWifiExtender        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "wifi_extender"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindMeshNode            FindingsGetFindingsPossibleOKItemsItemDeviceKind = "mesh_node"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindServer              FindingsGetFindingsPossibleOKItemsItemDeviceKind = "server"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindVirtualMachine      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "virtual_machine"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindHypervisor          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "hypervisor"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindBmc                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "bmc"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindDomainController    FindingsGetFindingsPossibleOKItemsItemDeviceKind = "domain_controller"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindMailServer          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "mail_server"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindDatabaseServer      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "database_server"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupServer        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "backup_server"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPc                  FindingsGetFindingsPossibleOKItemsItemDeviceKind = "pc"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindLaptop              FindingsGetFindingsPossibleOKItemsItemDeviceKind = "laptop"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindWorkstation         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "workstation"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindThinClient          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "thin_client"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPosTerminal         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "pos_terminal"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindKiosk               FindingsGetFindingsPossibleOKItemsItemDeviceKind = "kiosk"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartphone          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smartphone"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindTablet              FindingsGetFindingsPossibleOKItemsItemDeviceKind = "tablet"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartwatch          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smartwatch"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPrinter             FindingsGetFindingsPossibleOKItemsItemDeviceKind = "printer"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindMfp                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "mfp"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindScanner             FindingsGetFindingsPossibleOKItemsItemDeviceKind = "scanner"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindLabelPrinter        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "label_printer"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindReceiptPrinter      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "receipt_printer"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPlotter             FindingsGetFindingsPossibleOKItemsItemDeviceKind = "plotter"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKind3dPrinter           FindingsGetFindingsPossibleOKItemsItemDeviceKind = "3d_printer"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindCamera              FindingsGetFindingsPossibleOKItemsItemDeviceKind = "camera"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindNvr                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "nvr"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindDvr                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "dvr"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoEncoder        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "video_encoder"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindDoorbell            FindingsGetFindingsPossibleOKItemsItemDeviceKind = "doorbell"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoConferencing   FindingsGetFindingsPossibleOKItemsItemDeviceKind = "video_conferencing"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindIPPhone             FindingsGetFindingsPossibleOKItemsItemDeviceKind = "ip_phone"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPbx                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "pbx"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipAdapter         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "voip_adapter"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipGateway         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "voip_gateway"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindConferencePhone     FindingsGetFindingsPossibleOKItemsItemDeviceKind = "conference_phone"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindIntercom            FindingsGetFindingsPossibleOKItemsItemDeviceKind = "intercom"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindNas                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "nas"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSan                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "san"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupAppliance     FindingsGetFindingsPossibleOKItemsItemDeviceKind = "backup_appliance"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindTapeLibrary         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "tape_library"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindIot                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "iot"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartTv             FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smart_tv"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindMediaPlayer         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "media_player"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartSpeaker        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smart_speaker"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindGameConsole         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "game_console"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartPlug           FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smart_plug"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartLight          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smart_light"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartHub            FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smart_hub"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindThermostat          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "thermostat"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindProjector           FindingsGetFindingsPossibleOKItemsItemDeviceKind = "projector"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindDigitalSignage      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "digital_signage"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSingleBoardComputer FindingsGetFindingsPossibleOKItemsItemDeviceKind = "single_board_computer"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartAppliance      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "smart_appliance"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindRobotVacuum         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "robot_vacuum"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessBridge      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "wireless_bridge"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPlc                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "plc"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindHmi                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "hmi"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindRtu                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "rtu"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindScadaServer         FindingsGetFindingsPossibleOKItemsItemDeviceKind = "scada_server"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindIndustrialSwitch    FindingsGetFindingsPossibleOKItemsItemDeviceKind = "industrial_switch"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindUps                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "ups"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPdu                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "pdu"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindAccessControl       FindingsGetFindingsPossibleOKItemsItemDeviceKind = "access_control"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindTimeClock           FindingsGetFindingsPossibleOKItemsItemDeviceKind = "time_clock"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindAlarmPanel          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "alarm_panel"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindHvacController      FindingsGetFindingsPossibleOKItemsItemDeviceKind = "hvac_controller"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindBuildingController  FindingsGetFindingsPossibleOKItemsItemDeviceKind = "building_controller"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindPowerMeter          FindingsGetFindingsPossibleOKItemsItemDeviceKind = "power_meter"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindEnvironmentMonitor  FindingsGetFindingsPossibleOKItemsItemDeviceKind = "environment_monitor"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindEvCharger           FindingsGetFindingsPossibleOKItemsItemDeviceKind = "ev_charger"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindSolarInverter       FindingsGetFindingsPossibleOKItemsItemDeviceKind = "solar_inverter"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindMedicalDevice       FindingsGetFindingsPossibleOKItemsItemDeviceKind = "medical_device"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindWeb                 FindingsGetFindingsPossibleOKItemsItemDeviceKind = "web"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindCloudService        FindingsGetFindingsPossibleOKItemsItemDeviceKind = "cloud_service"
+	FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown             FindingsGetFindingsPossibleOKItemsItemDeviceKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemDeviceKind values.
+func (FindingsGetFindingsPossibleOKItemsItemDeviceKind) AllValues() []FindingsGetFindingsPossibleOKItemsItemDeviceKind {
+	return []FindingsGetFindingsPossibleOKItemsItemDeviceKind{
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindRouter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSwitch,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindModem,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSdWan,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindLoadBalancer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindNetworkController,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindFirewall,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindVpnGateway,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindIdsSensor,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindProxy,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindAp,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessController,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindWifiExtender,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindMeshNode,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindServer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindVirtualMachine,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindHypervisor,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindBmc,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindDomainController,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindMailServer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindDatabaseServer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupServer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPc,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindLaptop,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindWorkstation,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindThinClient,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPosTerminal,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindKiosk,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartphone,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindTablet,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartwatch,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPrinter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindMfp,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindScanner,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindLabelPrinter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindReceiptPrinter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPlotter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKind3dPrinter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindCamera,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindNvr,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindDvr,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoEncoder,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindDoorbell,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoConferencing,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindIPPhone,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPbx,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipAdapter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipGateway,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindConferencePhone,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindIntercom,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindNas,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSan,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupAppliance,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindTapeLibrary,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindIot,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartTv,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindMediaPlayer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartSpeaker,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindGameConsole,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartPlug,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartLight,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartHub,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindThermostat,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindProjector,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindDigitalSignage,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSingleBoardComputer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartAppliance,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindRobotVacuum,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessBridge,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPlc,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindHmi,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindRtu,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindScadaServer,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindIndustrialSwitch,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindUps,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPdu,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindAccessControl,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindTimeClock,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindAlarmPanel,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindHvacController,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindBuildingController,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindPowerMeter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindEnvironmentMonitor,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindEvCharger,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindSolarInverter,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindMedicalDevice,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindWeb,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindCloudService,
+		FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemDeviceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeviceKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemDeviceKind(data) {
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindRouter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindRouter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSwitch:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSwitch
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindModem:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindModem
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSdWan:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSdWan
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindLoadBalancer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindNetworkController:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindNetworkController
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindFirewall:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindFirewall
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVpnGateway:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindVpnGateway
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIdsSensor:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindIdsSensor
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindProxy:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindProxy
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindAp:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindAp
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessController:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessController
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWifiExtender:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindWifiExtender
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMeshNode:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindMeshNode
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindServer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindServer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindVirtualMachine
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindHypervisor:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindHypervisor
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBmc:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindBmc
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDomainController:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindDomainController
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMailServer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindMailServer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindDatabaseServer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupServer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupServer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPc:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPc
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindLaptop:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindLaptop
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWorkstation:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindWorkstation
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindThinClient:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindThinClient
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPosTerminal:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPosTerminal
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindKiosk:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindKiosk
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartphone:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartphone
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindTablet:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindTablet
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartwatch:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartwatch
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPrinter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPrinter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMfp:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindMfp
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindScanner:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindScanner
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindLabelPrinter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPlotter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPlotter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKind3dPrinter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKind3dPrinter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindCamera:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindCamera
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindNvr:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindNvr
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDvr:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindDvr
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoEncoder
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDoorbell:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindDoorbell
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindVideoConferencing
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIPPhone:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindIPPhone
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPbx:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPbx
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipAdapter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipGateway:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindVoipGateway
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindConferencePhone:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindConferencePhone
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIntercom:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindIntercom
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindNas:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindNas
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSan:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSan
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindBackupAppliance
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindTapeLibrary
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIot:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindIot
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartTv:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartTv
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindMediaPlayer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindGameConsole:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindGameConsole
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartPlug:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartPlug
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartLight:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartLight
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartHub:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartHub
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindThermostat:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindThermostat
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindProjector:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindProjector
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindDigitalSignage
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSmartAppliance
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindRobotVacuum
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindWirelessBridge
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPlc:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPlc
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindHmi:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindHmi
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindRtu:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindRtu
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindScadaServer:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindScadaServer
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindUps:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindUps
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPdu:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPdu
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindAccessControl:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindAccessControl
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindTimeClock:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindTimeClock
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindAlarmPanel
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindHvacController:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindHvacController
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindBuildingController:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindBuildingController
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindPowerMeter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindPowerMeter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindEvCharger:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindEvCharger
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindSolarInverter:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindSolarInverter
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindMedicalDevice
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindWeb:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindWeb
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindCloudService:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindCloudService
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
+// platforms and nothing says which this is; package_release = the distribution's package release
+// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
+// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+// question for all of them (cve_list).
+type FindingsGetFindingsPossibleOKItemsItemKind string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemKindVersionNeeded  FindingsGetFindingsPossibleOKItemsItemKind = "version_needed"
+	FindingsGetFindingsPossibleOKItemsItemKindPlatform       FindingsGetFindingsPossibleOKItemsItemKind = "platform"
+	FindingsGetFindingsPossibleOKItemsItemKindPackageRelease FindingsGetFindingsPossibleOKItemsItemKind = "package_release"
+	FindingsGetFindingsPossibleOKItemsItemKindNotComparable  FindingsGetFindingsPossibleOKItemsItemKind = "not_comparable"
+	FindingsGetFindingsPossibleOKItemsItemKindNoRangeData    FindingsGetFindingsPossibleOKItemsItemKind = "no_range_data"
+	FindingsGetFindingsPossibleOKItemsItemKindOlderLine      FindingsGetFindingsPossibleOKItemsItemKind = "older_line"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemKind values.
+func (FindingsGetFindingsPossibleOKItemsItemKind) AllValues() []FindingsGetFindingsPossibleOKItemsItemKind {
+	return []FindingsGetFindingsPossibleOKItemsItemKind{
+		FindingsGetFindingsPossibleOKItemsItemKindVersionNeeded,
+		FindingsGetFindingsPossibleOKItemsItemKindPlatform,
+		FindingsGetFindingsPossibleOKItemsItemKindPackageRelease,
+		FindingsGetFindingsPossibleOKItemsItemKindNotComparable,
+		FindingsGetFindingsPossibleOKItemsItemKindNoRangeData,
+		FindingsGetFindingsPossibleOKItemsItemKindOlderLine,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemKindVersionNeeded:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemKindPlatform:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemKindPackageRelease:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemKindNotComparable:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemKindNoRangeData:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemKindOlderLine:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemKind(data) {
+	case FindingsGetFindingsPossibleOKItemsItemKindVersionNeeded:
+		*s = FindingsGetFindingsPossibleOKItemsItemKindVersionNeeded
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemKindPlatform:
+		*s = FindingsGetFindingsPossibleOKItemsItemKindPlatform
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemKindPackageRelease:
+		*s = FindingsGetFindingsPossibleOKItemsItemKindPackageRelease
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemKindNotComparable:
+		*s = FindingsGetFindingsPossibleOKItemsItemKindNotComparable
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemKindNoRangeData:
+		*s = FindingsGetFindingsPossibleOKItemsItemKindNoRangeData
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemKindOlderLine:
+		*s = FindingsGetFindingsPossibleOKItemsItemKindOlderLine
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes
+// the status. null = "Not scored yet", never 0.
+type FindingsGetFindingsPossibleOKItemsItemSeverity struct {
+	Band    FindingsGetFindingsPossibleOKItemsItemSeverityBand    `json:"band"`
+	Score   float64                                               `json:"score"`
+	Vector  string                                                `json:"vector"`
+	Version FindingsGetFindingsPossibleOKItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) GetBand() FindingsGetFindingsPossibleOKItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) GetVersion() FindingsGetFindingsPossibleOKItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) SetBand(val FindingsGetFindingsPossibleOKItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverity) SetVersion(val FindingsGetFindingsPossibleOKItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type FindingsGetFindingsPossibleOKItemsItemSeverityBand string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemSeverityBandCritical FindingsGetFindingsPossibleOKItemsItemSeverityBand = "critical"
+	FindingsGetFindingsPossibleOKItemsItemSeverityBandHigh     FindingsGetFindingsPossibleOKItemsItemSeverityBand = "high"
+	FindingsGetFindingsPossibleOKItemsItemSeverityBandMedium   FindingsGetFindingsPossibleOKItemsItemSeverityBand = "medium"
+	FindingsGetFindingsPossibleOKItemsItemSeverityBandLow      FindingsGetFindingsPossibleOKItemsItemSeverityBand = "low"
+	FindingsGetFindingsPossibleOKItemsItemSeverityBandNone     FindingsGetFindingsPossibleOKItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemSeverityBand values.
+func (FindingsGetFindingsPossibleOKItemsItemSeverityBand) AllValues() []FindingsGetFindingsPossibleOKItemsItemSeverityBand {
+	return []FindingsGetFindingsPossibleOKItemsItemSeverityBand{
+		FindingsGetFindingsPossibleOKItemsItemSeverityBandCritical,
+		FindingsGetFindingsPossibleOKItemsItemSeverityBandHigh,
+		FindingsGetFindingsPossibleOKItemsItemSeverityBandMedium,
+		FindingsGetFindingsPossibleOKItemsItemSeverityBandLow,
+		FindingsGetFindingsPossibleOKItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemSeverityBand(data) {
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandCritical:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityBandCritical
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandHigh:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityBandHigh
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandMedium:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityBandMedium
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandLow:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityBandLow
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityBandNone:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPossibleOKItemsItemSeverityVersion string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemSeverityVersion40 FindingsGetFindingsPossibleOKItemsItemSeverityVersion = "4.0"
+	FindingsGetFindingsPossibleOKItemsItemSeverityVersion31 FindingsGetFindingsPossibleOKItemsItemSeverityVersion = "3.1"
+	FindingsGetFindingsPossibleOKItemsItemSeverityVersion30 FindingsGetFindingsPossibleOKItemsItemSeverityVersion = "3.0"
+	FindingsGetFindingsPossibleOKItemsItemSeverityVersion20 FindingsGetFindingsPossibleOKItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemSeverityVersion values.
+func (FindingsGetFindingsPossibleOKItemsItemSeverityVersion) AllValues() []FindingsGetFindingsPossibleOKItemsItemSeverityVersion {
+	return []FindingsGetFindingsPossibleOKItemsItemSeverityVersion{
+		FindingsGetFindingsPossibleOKItemsItemSeverityVersion40,
+		FindingsGetFindingsPossibleOKItemsItemSeverityVersion31,
+		FindingsGetFindingsPossibleOKItemsItemSeverityVersion30,
+		FindingsGetFindingsPossibleOKItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemSeverityVersion(data) {
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion40:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityVersion40
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion31:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityVersion31
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion30:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityVersion30
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemSeverityVersion20:
+		*s = FindingsGetFindingsPossibleOKItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPossibleOKItemsItemSoftware struct {
+	// The software line of the device (inventory).
+	ID string `json:"id"`
+	// Display name, as on the device page.
+	Name string `json:"name"`
+	// The version the match compared.
+	Version NilString `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsPossibleOKItemsItemSoftware) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsPossibleOKItemsItemSoftware) GetName() string {
+	return s.Name
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsPossibleOKItemsItemSoftware) GetVersion() NilString {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsPossibleOKItemsItemSoftware) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsPossibleOKItemsItemSoftware) SetName(val string) {
+	s.Name = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsPossibleOKItemsItemSoftware) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Possible: undecided; proposal: an AI proposal waits for a person; settled: the box settled it not
+// affected from the vendor's advisory (not counted).
+type FindingsGetFindingsPossibleOKItemsItemState string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemStatePossible FindingsGetFindingsPossibleOKItemsItemState = "possible"
+	FindingsGetFindingsPossibleOKItemsItemStateProposal FindingsGetFindingsPossibleOKItemsItemState = "proposal"
+	FindingsGetFindingsPossibleOKItemsItemStateSettled  FindingsGetFindingsPossibleOKItemsItemState = "settled"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemState values.
+func (FindingsGetFindingsPossibleOKItemsItemState) AllValues() []FindingsGetFindingsPossibleOKItemsItemState {
+	return []FindingsGetFindingsPossibleOKItemsItemState{
+		FindingsGetFindingsPossibleOKItemsItemStatePossible,
+		FindingsGetFindingsPossibleOKItemsItemStateProposal,
+		FindingsGetFindingsPossibleOKItemsItemStateSettled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemStatePossible:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemStateProposal:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemStateSettled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemState) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemState(data) {
+	case FindingsGetFindingsPossibleOKItemsItemStatePossible:
+		*s = FindingsGetFindingsPossibleOKItemsItemStatePossible
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemStateProposal:
+		*s = FindingsGetFindingsPossibleOKItemsItemStateProposal
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemStateSettled:
+		*s = FindingsGetFindingsPossibleOKItemsItemStateSettled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why a CVE stays possible and what blocked the decision.
+type FindingsGetFindingsPossibleOKItemsItemUndecided struct {
+	// The range rows that were read and did not decide it (" [start, end)"), at most 20.
+	Ranges []string `json:"ranges"`
+	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+	Reason FindingsGetFindingsPossibleOKItemsItemUndecidedReason `json:"reason"`
+	// Up to 500 characters of advisory text the box could not read as ranges.
+	Text OptString `json:"text"`
+	// The page text is from.
+	URL OptString `json:"url"`
+}
+
+// GetRanges returns the value of Ranges.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) GetRanges() []string {
+	return s.Ranges
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) GetReason() FindingsGetFindingsPossibleOKItemsItemUndecidedReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) GetText() OptString {
+	return s.Text
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) GetURL() OptString {
+	return s.URL
+}
+
+// SetRanges sets the value of Ranges.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetRanges(val []string) {
+	s.Ranges = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetReason(val FindingsGetFindingsPossibleOKItemsItemUndecidedReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetText(val OptString) {
+	s.Text = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetURL(val OptString) {
+	s.URL = val
+}
+
+// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+type FindingsGetFindingsPossibleOKItemsItemUndecidedReason string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoVersion               FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "no_version"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPlatformUnknown         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "platform_unknown"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPackageUnknown          FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "package_unknown"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAttributeUnknown        FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "attribute_unknown"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionSchemeMismatch   FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "version_scheme_mismatch"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending              FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "nvd_pending"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges                FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "no_ranges"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "product_not_named"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly       FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "exact_releases_only"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide       FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_do_not_decide"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_start_at_branch_only"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "eol_line_unlisted"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "no_reference_page"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed             FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "fetch_failed"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText      FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "unparsed_vendor_text"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure                FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ai_unsure"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemUndecidedReason values.
+func (FindingsGetFindingsPossibleOKItemsItemUndecidedReason) AllValues() []FindingsGetFindingsPossibleOKItemsItemUndecidedReason {
+	return []FindingsGetFindingsPossibleOKItemsItemUndecidedReason{
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoVersion,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPlatformUnknown,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPackageUnknown,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAttributeUnknown,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionSchemeMismatch,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPlatformUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPackageUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAttributeUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionSchemeMismatch:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemUndecidedReason(data) {
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoVersion:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoVersion
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPlatformUnknown:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPlatformUnknown
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPackageUnknown:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonPackageUnknown
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAttributeUnknown:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAttributeUnknown
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionSchemeMismatch:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionSchemeMismatch
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One state; absent: every row but the settled ones.
+type FindingsGetFindingsPossibleState string
+
+const (
+	FindingsGetFindingsPossibleStatePossible FindingsGetFindingsPossibleState = "possible"
+	FindingsGetFindingsPossibleStateProposal FindingsGetFindingsPossibleState = "proposal"
+	FindingsGetFindingsPossibleStateSettled  FindingsGetFindingsPossibleState = "settled"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleState values.
+func (FindingsGetFindingsPossibleState) AllValues() []FindingsGetFindingsPossibleState {
+	return []FindingsGetFindingsPossibleState{
+		FindingsGetFindingsPossibleStatePossible,
+		FindingsGetFindingsPossibleStateProposal,
+		FindingsGetFindingsPossibleStateSettled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleState) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleStatePossible:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleStateProposal:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleStateSettled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleState) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleState(data) {
+	case FindingsGetFindingsPossibleStatePossible:
+		*s = FindingsGetFindingsPossibleStatePossible
+		return nil
+	case FindingsGetFindingsPossibleStateProposal:
+		*s = FindingsGetFindingsPossibleStateProposal
+		return nil
+	case FindingsGetFindingsPossibleStateSettled:
+		*s = FindingsGetFindingsPossibleStateSettled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsHandleOK struct {
@@ -133961,6 +136331,309 @@ func (s *FindingsPostFindingsIDVerifyReq) SetNote(val string) {
 	s.Note = val
 }
 
+type FindingsPostFindingsPossibleCheckOK struct {
+	// Decided by the box from a vendor's advisory, no AI.
+	Advisory int    `json:"advisory"`
+	By       string `json:"by"`
+	Done     int    `json:"done"`
+	// Not checked: a page or AI call failed; the next check asks again.
+	Failed     int         `json:"failed"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	// AI proposals made.
+	Proposals int       `json:"proposals"`
+	Running   bool      `json:"running"`
+	StartedAt time.Time `json:"started_at"`
+	// Why the check stopped before the end (the AI unavailable, the budget reached).
+	Stopped   NilString `json:"stopped"`
+	Total     int       `json:"total"`
+	Undecided int       `json:"undecided"`
+}
+
+// GetAdvisory returns the value of Advisory.
+func (s *FindingsPostFindingsPossibleCheckOK) GetAdvisory() int {
+	return s.Advisory
+}
+
+// GetBy returns the value of By.
+func (s *FindingsPostFindingsPossibleCheckOK) GetBy() string {
+	return s.By
+}
+
+// GetDone returns the value of Done.
+func (s *FindingsPostFindingsPossibleCheckOK) GetDone() int {
+	return s.Done
+}
+
+// GetFailed returns the value of Failed.
+func (s *FindingsPostFindingsPossibleCheckOK) GetFailed() int {
+	return s.Failed
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *FindingsPostFindingsPossibleCheckOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetProposals returns the value of Proposals.
+func (s *FindingsPostFindingsPossibleCheckOK) GetProposals() int {
+	return s.Proposals
+}
+
+// GetRunning returns the value of Running.
+func (s *FindingsPostFindingsPossibleCheckOK) GetRunning() bool {
+	return s.Running
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *FindingsPostFindingsPossibleCheckOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStopped returns the value of Stopped.
+func (s *FindingsPostFindingsPossibleCheckOK) GetStopped() NilString {
+	return s.Stopped
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsPostFindingsPossibleCheckOK) GetTotal() int {
+	return s.Total
+}
+
+// GetUndecided returns the value of Undecided.
+func (s *FindingsPostFindingsPossibleCheckOK) GetUndecided() int {
+	return s.Undecided
+}
+
+// SetAdvisory sets the value of Advisory.
+func (s *FindingsPostFindingsPossibleCheckOK) SetAdvisory(val int) {
+	s.Advisory = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsPostFindingsPossibleCheckOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetDone sets the value of Done.
+func (s *FindingsPostFindingsPossibleCheckOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *FindingsPostFindingsPossibleCheckOK) SetFailed(val int) {
+	s.Failed = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *FindingsPostFindingsPossibleCheckOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetProposals sets the value of Proposals.
+func (s *FindingsPostFindingsPossibleCheckOK) SetProposals(val int) {
+	s.Proposals = val
+}
+
+// SetRunning sets the value of Running.
+func (s *FindingsPostFindingsPossibleCheckOK) SetRunning(val bool) {
+	s.Running = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *FindingsPostFindingsPossibleCheckOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStopped sets the value of Stopped.
+func (s *FindingsPostFindingsPossibleCheckOK) SetStopped(val NilString) {
+	s.Stopped = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsPostFindingsPossibleCheckOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetUndecided sets the value of Undecided.
+func (s *FindingsPostFindingsPossibleCheckOK) SetUndecided(val int) {
+	s.Undecided = val
+}
+
+type FindingsPostFindingsPossibleCheckReq struct {
+	Device OptString `json:"device"`
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsPostFindingsPossibleCheckReq) GetDevice() OptString {
+	return s.Device
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsPostFindingsPossibleCheckReq) SetDevice(val OptString) {
+	s.Device = val
+}
+
+type FindingsPostFindingsPossibleChecksKeyRejectOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *FindingsPostFindingsPossibleChecksKeyRejectOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *FindingsPostFindingsPossibleChecksKeyRejectOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type FindingsPostFindingsPossibleConfirmOK struct {
+	Confirmed int `json:"confirmed"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsPostFindingsPossibleConfirmOK) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsPostFindingsPossibleConfirmOK) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+type FindingsPostFindingsPossibleConfirmReq struct {
+	Confidence FindingsPostFindingsPossibleConfirmReqConfidence `json:"confidence"`
+	Device     OptString                                        `json:"device"`
+	Verdict    FindingsPostFindingsPossibleConfirmReqVerdict    `json:"verdict"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsPossibleConfirmReq) GetConfidence() FindingsPostFindingsPossibleConfirmReqConfidence {
+	return s.Confidence
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsPostFindingsPossibleConfirmReq) GetDevice() OptString {
+	return s.Device
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsPossibleConfirmReq) GetVerdict() FindingsPostFindingsPossibleConfirmReqVerdict {
+	return s.Verdict
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsPossibleConfirmReq) SetConfidence(val FindingsPostFindingsPossibleConfirmReqConfidence) {
+	s.Confidence = val
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsPostFindingsPossibleConfirmReq) SetDevice(val OptString) {
+	s.Device = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsPossibleConfirmReq) SetVerdict(val FindingsPostFindingsPossibleConfirmReqVerdict) {
+	s.Verdict = val
+}
+
+type FindingsPostFindingsPossibleConfirmReqConfidence string
+
+const (
+	FindingsPostFindingsPossibleConfirmReqConfidenceConfident FindingsPostFindingsPossibleConfirmReqConfidence = "confident"
+	FindingsPostFindingsPossibleConfirmReqConfidenceLikely    FindingsPostFindingsPossibleConfirmReqConfidence = "likely"
+)
+
+// AllValues returns all FindingsPostFindingsPossibleConfirmReqConfidence values.
+func (FindingsPostFindingsPossibleConfirmReqConfidence) AllValues() []FindingsPostFindingsPossibleConfirmReqConfidence {
+	return []FindingsPostFindingsPossibleConfirmReqConfidence{
+		FindingsPostFindingsPossibleConfirmReqConfidenceConfident,
+		FindingsPostFindingsPossibleConfirmReqConfidenceLikely,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsPossibleConfirmReqConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsPossibleConfirmReqConfidenceConfident:
+		return []byte(s), nil
+	case FindingsPostFindingsPossibleConfirmReqConfidenceLikely:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsPossibleConfirmReqConfidence) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsPossibleConfirmReqConfidence(data) {
+	case FindingsPostFindingsPossibleConfirmReqConfidenceConfident:
+		*s = FindingsPostFindingsPossibleConfirmReqConfidenceConfident
+		return nil
+	case FindingsPostFindingsPossibleConfirmReqConfidenceLikely:
+		*s = FindingsPostFindingsPossibleConfirmReqConfidenceLikely
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsPossibleConfirmReqVerdict string
+
+const (
+	FindingsPostFindingsPossibleConfirmReqVerdictAffected    FindingsPostFindingsPossibleConfirmReqVerdict = "affected"
+	FindingsPostFindingsPossibleConfirmReqVerdictNotAffected FindingsPostFindingsPossibleConfirmReqVerdict = "not_affected"
+)
+
+// AllValues returns all FindingsPostFindingsPossibleConfirmReqVerdict values.
+func (FindingsPostFindingsPossibleConfirmReqVerdict) AllValues() []FindingsPostFindingsPossibleConfirmReqVerdict {
+	return []FindingsPostFindingsPossibleConfirmReqVerdict{
+		FindingsPostFindingsPossibleConfirmReqVerdictAffected,
+		FindingsPostFindingsPossibleConfirmReqVerdictNotAffected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsPossibleConfirmReqVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsPossibleConfirmReqVerdictAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsPossibleConfirmReqVerdictNotAffected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsPossibleConfirmReqVerdict) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsPossibleConfirmReqVerdict(data) {
+	case FindingsPostFindingsPossibleConfirmReqVerdictAffected:
+		*s = FindingsPostFindingsPossibleConfirmReqVerdictAffected
+		return nil
+	case FindingsPostFindingsPossibleConfirmReqVerdictNotAffected:
+		*s = FindingsPostFindingsPossibleConfirmReqVerdictNotAffected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsPossibleIDConfirmOK struct {
+	// Affected: the finding.
+	Finding NilString `json:"finding"`
+}
+
+// GetFinding returns the value of Finding.
+func (s *FindingsPostFindingsPossibleIDConfirmOK) GetFinding() NilString {
+	return s.Finding
+}
+
+// SetFinding sets the value of Finding.
+func (s *FindingsPostFindingsPossibleIDConfirmOK) SetFinding(val NilString) {
+	s.Finding = val
+}
+
 type FindingsPostFindingsQuestionsAcceptRiskOK struct {
 	// Findings accepted until the day.
 	Findings int `json:"findings"`
@@ -144478,7 +147151,7 @@ func (s *InventoryGetInventoryDevicesFragile) UnmarshalText(data []byte) error {
 	}
 }
 
-// True: the device has open findings (a status of one of the five layers; needs_input alone is none).
+// True: the device has open findings (a status of one of the five layers; possible alone is none).
 // findings_count counts every state and is not used. The Vedette box is never marked, so never under
 // true. Statuses unreadable: 503 risk_unavailable.
 type InventoryGetInventoryDevicesHasFindings string
@@ -144975,8 +147648,8 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemAddressesItem) SetS
 // while the findings module is off.
 type InventoryGetInventoryDevicesIDMergePreviewOKFromItemRisk struct {
 	Code InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode `json:"code"`
-	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
-	// of the Needs your input queue for the device.
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the items of
+	// the Needs your input queue for the device.
 	Count int `json:"count"`
 }
 
@@ -145008,7 +147681,7 @@ const (
 	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit     InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "public_exploit"
 	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge      InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "critical_edge"
 	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "update_recommended"
-	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput        InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "needs_input"
+	InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePossible          InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode = "possible"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode values.
@@ -145019,7 +147692,7 @@ func (InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) AllValues() 
 		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePublicExploit,
 		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeCriticalEdge,
 		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended,
-		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput,
+		InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePossible,
 	}
 }
 
@@ -145036,7 +147709,7 @@ func (s InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) MarshalTex
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput:
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePossible:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -145061,8 +147734,8 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCode) Unmarshal
 	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended:
 		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeUpdateRecommended
 		return nil
-	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput:
-		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodeNeedsInput
+	case InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePossible:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKFromItemRiskCodePossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -145288,8 +147961,8 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoAddressesItem) SetSourc
 // while the findings module is off.
 type InventoryGetInventoryDevicesIDMergePreviewOKIntoRisk struct {
 	Code InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode `json:"code"`
-	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
-	// of the Needs your input queue for the device.
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the items of
+	// the Needs your input queue for the device.
 	Count int `json:"count"`
 }
 
@@ -145321,7 +147994,7 @@ const (
 	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit     InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "public_exploit"
 	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge      InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "critical_edge"
 	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "update_recommended"
-	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput        InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "needs_input"
+	InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePossible          InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode = "possible"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode values.
@@ -145332,7 +148005,7 @@ func (InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) AllValues() []In
 		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePublicExploit,
 		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeCriticalEdge,
 		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended,
-		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput,
+		InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePossible,
 	}
 }
 
@@ -145349,7 +148022,7 @@ func (s InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) MarshalText() 
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput:
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePossible:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -145374,8 +148047,8 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCode) UnmarshalText
 	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended:
 		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeUpdateRecommended
 		return nil
-	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput:
-		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodeNeedsInput
+	case InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePossible:
+		*s = InventoryGetInventoryDevicesIDMergePreviewOKIntoRiskCodePossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -151751,8 +154424,8 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItemReason) UnmarshalText(d
 // while the findings module is off.
 type InventoryGetInventoryDevicesIDOKRisk struct {
 	Code InventoryGetInventoryDevicesIDOKRiskCode `json:"code"`
-	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
-	// of the Needs your input queue for the device.
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the items of
+	// the Needs your input queue for the device.
 	Count int `json:"count"`
 }
 
@@ -151784,7 +154457,7 @@ const (
 	InventoryGetInventoryDevicesIDOKRiskCodePublicExploit     InventoryGetInventoryDevicesIDOKRiskCode = "public_exploit"
 	InventoryGetInventoryDevicesIDOKRiskCodeCriticalEdge      InventoryGetInventoryDevicesIDOKRiskCode = "critical_edge"
 	InventoryGetInventoryDevicesIDOKRiskCodeUpdateRecommended InventoryGetInventoryDevicesIDOKRiskCode = "update_recommended"
-	InventoryGetInventoryDevicesIDOKRiskCodeNeedsInput        InventoryGetInventoryDevicesIDOKRiskCode = "needs_input"
+	InventoryGetInventoryDevicesIDOKRiskCodePossible          InventoryGetInventoryDevicesIDOKRiskCode = "possible"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKRiskCode values.
@@ -151795,7 +154468,7 @@ func (InventoryGetInventoryDevicesIDOKRiskCode) AllValues() []InventoryGetInvent
 		InventoryGetInventoryDevicesIDOKRiskCodePublicExploit,
 		InventoryGetInventoryDevicesIDOKRiskCodeCriticalEdge,
 		InventoryGetInventoryDevicesIDOKRiskCodeUpdateRecommended,
-		InventoryGetInventoryDevicesIDOKRiskCodeNeedsInput,
+		InventoryGetInventoryDevicesIDOKRiskCodePossible,
 	}
 }
 
@@ -151812,7 +154485,7 @@ func (s InventoryGetInventoryDevicesIDOKRiskCode) MarshalText() ([]byte, error) 
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKRiskCodeUpdateRecommended:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesIDOKRiskCodeNeedsInput:
+	case InventoryGetInventoryDevicesIDOKRiskCodePossible:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -151837,8 +154510,8 @@ func (s *InventoryGetInventoryDevicesIDOKRiskCode) UnmarshalText(data []byte) er
 	case InventoryGetInventoryDevicesIDOKRiskCodeUpdateRecommended:
 		*s = InventoryGetInventoryDevicesIDOKRiskCodeUpdateRecommended
 		return nil
-	case InventoryGetInventoryDevicesIDOKRiskCodeNeedsInput:
-		*s = InventoryGetInventoryDevicesIDOKRiskCodeNeedsInput
+	case InventoryGetInventoryDevicesIDOKRiskCodePossible:
+		*s = InventoryGetInventoryDevicesIDOKRiskCodePossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -156460,8 +159133,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRegularScan) UnmarshalText(data 
 // while the findings module is off.
 type InventoryGetInventoryDevicesOKItemsItemRisk struct {
 	Code InventoryGetInventoryDevicesOKItemsItemRiskCode `json:"code"`
-	// An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items
-	// of the Needs your input queue for the device.
+	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the items of
+	// the Needs your input queue for the device.
 	Count int `json:"count"`
 }
 
@@ -156493,7 +159166,7 @@ const (
 	InventoryGetInventoryDevicesOKItemsItemRiskCodePublicExploit     InventoryGetInventoryDevicesOKItemsItemRiskCode = "public_exploit"
 	InventoryGetInventoryDevicesOKItemsItemRiskCodeCriticalEdge      InventoryGetInventoryDevicesOKItemsItemRiskCode = "critical_edge"
 	InventoryGetInventoryDevicesOKItemsItemRiskCodeUpdateRecommended InventoryGetInventoryDevicesOKItemsItemRiskCode = "update_recommended"
-	InventoryGetInventoryDevicesOKItemsItemRiskCodeNeedsInput        InventoryGetInventoryDevicesOKItemsItemRiskCode = "needs_input"
+	InventoryGetInventoryDevicesOKItemsItemRiskCodePossible          InventoryGetInventoryDevicesOKItemsItemRiskCode = "possible"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemRiskCode values.
@@ -156504,7 +159177,7 @@ func (InventoryGetInventoryDevicesOKItemsItemRiskCode) AllValues() []InventoryGe
 		InventoryGetInventoryDevicesOKItemsItemRiskCodePublicExploit,
 		InventoryGetInventoryDevicesOKItemsItemRiskCodeCriticalEdge,
 		InventoryGetInventoryDevicesOKItemsItemRiskCodeUpdateRecommended,
-		InventoryGetInventoryDevicesOKItemsItemRiskCodeNeedsInput,
+		InventoryGetInventoryDevicesOKItemsItemRiskCodePossible,
 	}
 }
 
@@ -156521,7 +159194,7 @@ func (s InventoryGetInventoryDevicesOKItemsItemRiskCode) MarshalText() ([]byte, 
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemRiskCodeUpdateRecommended:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemRiskCodeNeedsInput:
+	case InventoryGetInventoryDevicesOKItemsItemRiskCodePossible:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -156546,8 +159219,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRiskCode) UnmarshalText(data []b
 	case InventoryGetInventoryDevicesOKItemsItemRiskCodeUpdateRecommended:
 		*s = InventoryGetInventoryDevicesOKItemsItemRiskCodeUpdateRecommended
 		return nil
-	case InventoryGetInventoryDevicesOKItemsItemRiskCodeNeedsInput:
-		*s = InventoryGetInventoryDevicesOKItemsItemRiskCodeNeedsInput
+	case InventoryGetInventoryDevicesOKItemsItemRiskCodePossible:
+		*s = InventoryGetInventoryDevicesOKItemsItemRiskCodePossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -157186,7 +159859,7 @@ func (s *InventoryGetInventoryExportCsvFragile) UnmarshalText(data []byte) error
 	}
 }
 
-// True: the device has open findings (a status of one of the five layers; needs_input alone is none).
+// True: the device has open findings (a status of one of the five layers; possible alone is none).
 // findings_count counts every state and is not used. The Vedette box is never marked, so never under
 // true. Statuses unreadable: 503 risk_unavailable.
 type InventoryGetInventoryExportCsvHasFindings string
@@ -189865,6 +192538,231 @@ func (o NilFindingsGetFindingsOverviewOKIncidents) Or(d FindingsGetFindingsOverv
 	return d
 }
 
+// NewNilFindingsGetFindingsPossibleCheckOKRun returns new NilFindingsGetFindingsPossibleCheckOKRun with value set to v.
+func NewNilFindingsGetFindingsPossibleCheckOKRun(v FindingsGetFindingsPossibleCheckOKRun) NilFindingsGetFindingsPossibleCheckOKRun {
+	return NilFindingsGetFindingsPossibleCheckOKRun{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleCheckOKRun is nullable FindingsGetFindingsPossibleCheckOKRun.
+type NilFindingsGetFindingsPossibleCheckOKRun struct {
+	Value FindingsGetFindingsPossibleCheckOKRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleCheckOKRun) SetTo(v FindingsGetFindingsPossibleCheckOKRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleCheckOKRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleCheckOKRun) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleCheckOKRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleCheckOKRun) Get() (v FindingsGetFindingsPossibleCheckOKRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleCheckOKRun) Or(d FindingsGetFindingsPossibleCheckOKRun) FindingsGetFindingsPossibleCheckOKRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemCheck returns new NilFindingsGetFindingsPossibleOKItemsItemCheck with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemCheck(v FindingsGetFindingsPossibleOKItemsItemCheck) NilFindingsGetFindingsPossibleOKItemsItemCheck {
+	return NilFindingsGetFindingsPossibleOKItemsItemCheck{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemCheck is nullable FindingsGetFindingsPossibleOKItemsItemCheck.
+type NilFindingsGetFindingsPossibleOKItemsItemCheck struct {
+	Value FindingsGetFindingsPossibleOKItemsItemCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheck) SetTo(v FindingsGetFindingsPossibleOKItemsItemCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheck) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheck) Get() (v FindingsGetFindingsPossibleOKItemsItemCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheck) Or(d FindingsGetFindingsPossibleOKItemsItemCheck) FindingsGetFindingsPossibleOKItemsItemCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemCheckConfidence returns new NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemCheckConfidence(v FindingsGetFindingsPossibleOKItemsItemCheckConfidence) NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence {
+	return NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence is nullable FindingsGetFindingsPossibleOKItemsItemCheckConfidence.
+type NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence struct {
+	Value FindingsGetFindingsPossibleOKItemsItemCheckConfidence
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) SetTo(v FindingsGetFindingsPossibleOKItemsItemCheckConfidence) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemCheckConfidence
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) Get() (v FindingsGetFindingsPossibleOKItemsItemCheckConfidence, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) Or(d FindingsGetFindingsPossibleOKItemsItemCheckConfidence) FindingsGetFindingsPossibleOKItemsItemCheckConfidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemSeverity returns new NilFindingsGetFindingsPossibleOKItemsItemSeverity with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemSeverity(v FindingsGetFindingsPossibleOKItemsItemSeverity) NilFindingsGetFindingsPossibleOKItemsItemSeverity {
+	return NilFindingsGetFindingsPossibleOKItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemSeverity is nullable FindingsGetFindingsPossibleOKItemsItemSeverity.
+type NilFindingsGetFindingsPossibleOKItemsItemSeverity struct {
+	Value FindingsGetFindingsPossibleOKItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemSeverity) SetTo(v FindingsGetFindingsPossibleOKItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemSeverity) Get() (v FindingsGetFindingsPossibleOKItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemSeverity) Or(d FindingsGetFindingsPossibleOKItemsItemSeverity) FindingsGetFindingsPossibleOKItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemSoftware returns new NilFindingsGetFindingsPossibleOKItemsItemSoftware with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemSoftware(v FindingsGetFindingsPossibleOKItemsItemSoftware) NilFindingsGetFindingsPossibleOKItemsItemSoftware {
+	return NilFindingsGetFindingsPossibleOKItemsItemSoftware{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemSoftware is nullable FindingsGetFindingsPossibleOKItemsItemSoftware.
+type NilFindingsGetFindingsPossibleOKItemsItemSoftware struct {
+	Value FindingsGetFindingsPossibleOKItemsItemSoftware
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemSoftware) SetTo(v FindingsGetFindingsPossibleOKItemsItemSoftware) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemSoftware) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemSoftware) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemSoftware
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemSoftware) Get() (v FindingsGetFindingsPossibleOKItemsItemSoftware, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemSoftware) Or(d FindingsGetFindingsPossibleOKItemsItemSoftware) FindingsGetFindingsPossibleOKItemsItemSoftware {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKAiConfig returns new NilFindingsPostFindingsIDAiOKAiConfig with value set to v.
 func NewNilFindingsPostFindingsIDAiOKAiConfig(v FindingsPostFindingsIDAiOKAiConfig) NilFindingsPostFindingsIDAiOKAiConfig {
 	return NilFindingsPostFindingsIDAiOKAiConfig{
@@ -212941,6 +215839,52 @@ func (o OptFindingsGetFindingsOKItemsItemKevSource) Get() (v FindingsGetFindings
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsOKItemsItemKevSource) Or(d FindingsGetFindingsOKItemsItemKevSource) FindingsGetFindingsOKItemsItemKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsPossibleState returns new OptFindingsGetFindingsPossibleState with value set to v.
+func NewOptFindingsGetFindingsPossibleState(v FindingsGetFindingsPossibleState) OptFindingsGetFindingsPossibleState {
+	return OptFindingsGetFindingsPossibleState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsPossibleState is optional FindingsGetFindingsPossibleState.
+type OptFindingsGetFindingsPossibleState struct {
+	Value FindingsGetFindingsPossibleState
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsPossibleState was set.
+func (o OptFindingsGetFindingsPossibleState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsPossibleState) Reset() {
+	var v FindingsGetFindingsPossibleState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsPossibleState) SetTo(v FindingsGetFindingsPossibleState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsPossibleState) Get() (v FindingsGetFindingsPossibleState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsPossibleState) Or(d FindingsGetFindingsPossibleState) FindingsGetFindingsPossibleState {
 	if v, ok := o.Get(); ok {
 		return v
 	}

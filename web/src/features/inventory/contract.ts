@@ -109,11 +109,11 @@ const ScanInfo = z.object({
  * told apart (both are source agent in observations): osquery by the device's agent binding, Wazuh by its sync. */
 export const DeviceSource = z.enum(['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh'])
 /** A device's badge in every list (like Defender's exposure level): findings' device status, the one function the findings lists,
- * the device page and Home read. Its most urgent open finding status with the distinct CVEs at it, else needs_input with the items
+ * the device page and Home read. Its most urgent open finding status with the distinct CVEs at it, else possible with the items
  * waiting for a person. null when it has none. */
 export const DeviceRisk = z.object({
   code: z.enum(DEVICE_STATUSES),
-  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items of the Needs your input queue for the device'),
+  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the items of the Needs your input queue for the device'),
 }).describe('The device\'s badge (findings\' device status): null when it has none, for the Vedette box itself, and while the findings module is off')
 /** A software name of the Devices search's software: suggestions, with the number of devices that run it. */
 export const SoftwareName = z.object({ name: z.string(), count: z.number().int().min(1).describe('Devices with a software line of this name') })
@@ -135,7 +135,7 @@ export const DevicesQuery = z.object({
   type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (type=server finds a hypervisor). Unknown id: 400 bad_filter'),
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
   fragile: z.enum(['true', 'false']).optional(),
-  has_findings: z.enum(['true', 'false']).optional().describe('true: the device has open findings (a status of one of the five layers; needs_input alone is none). findings_count counts every state and is not used. The Vedette box is never marked, so never under true. Statuses unreadable: 503 risk_unavailable'),
+  has_findings: z.enum(['true', 'false']).optional().describe('true: the device has open findings (a status of one of the five layers; possible alone is none). findings_count counts every state and is not used. The Vedette box is never marked, so never under true. Statuses unreadable: 503 risk_unavailable'),
   risk: z.string().max(120).optional().describe(`Comma-separated device statuses: ${DEVICE_STATUSES.join(', ')}, or none (no badge). Unknown value: 400 bad_filter`),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
   software: z.string().max(400).optional().describe('Comma-separated words, case-insensitive: keeps the devices with a software line whose "name vendor product" holds one of them; each row then lists those lines in matched_software'),

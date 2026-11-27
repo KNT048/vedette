@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/versionscheme"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -114,6 +114,44 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			}
 		}
 	}
+	// what a check of a question's advisories decided: a finding the vendor's advisory proves, a finding a person confirmed from an AI
+	// proposal (checkedDetections); the other questions stay questions
+	qs := deviceQuestions(a, qm)
+	keyQuestions(qs, lines, byCVE)
+	dets, qs, err := s.checkedDetections(ctx, tx, a, lines, byCVE, qs, existing, now)
+	if err != nil {
+		return res, err
+	}
+	for _, k := range slices.Sorted(maps.Keys(dets)) {
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		d := dets[k]
+		f, ok := byKey[k]
+		if !ok {
+			cve, _, _ := strings.Cut(k, "\x1f")
+			f = Finding{ID: store.NewID("f"), AssetID: a.ID, CVE: cve}
+		} else if s.rates() {
+			d.Urgency = 0
+		}
+		g, evs, err := s.step(ctx, tx, f, !ok, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
+		if err != nil {
+			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)
+		}
+		switch {
+		case !ok:
+			res.Created = append(res.Created, g.ID)
+			if Announced(g) {
+				emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisVersion})
+			}
+		default:
+			res.Touched++
+			if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvReopened }) {
+				res.Reopened++
+			}
+		}
+	}
 	// each closed finding takes the proof of its own (CVE, software line): a device with two lines of one product for a CVE has a
 	// sentence per line, and one line's sentence ("this device has 9.6p1") is never the other line's closing note
 	proofs := map[string]Match{}
@@ -139,7 +177,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			res.Closed++
 		}
 	}
-	if err := replaceQuestions(ctx, tx, a.ID, deviceQuestions(a, qm), now); err != nil {
+	if err := replaceQuestions(ctx, tx, a.ID, qs, now); err != nil {
 		return res, err
 	}
 	n, err := countQuestions(ctx, tx, a.ID)
@@ -360,8 +398,8 @@ func nothingToCheck(a Asset) bool {
 }
 
 // questionsOfMatch is the device's questions as a match gives them: one version_needed per software line that has no version Vedette
-// can read, one older_line per software line whose vendor names fixes only on later release lines (all its CVEs in one), and one per
-// (line, CVE) Vedette could not check otherwise.
+// can read (its CVEs listed), and one per (line, CVE) Vedette could not check otherwise, an older_line one included (the vendor names
+// fixes only on later release lines: each CVE is its own question, answered on its own). Each says why it is undecided (Undecided).
 func questionsOfMatch(m MatchResult) []Question {
 	var out []Question
 	for _, n := range m.NeedVersion {
@@ -369,41 +407,31 @@ func questionsOfMatch(m MatchResult) []Question {
 			continue
 		}
 		out = append(out, Question{SoftwareID: storedLine(n.SoftwareID), Kind: QuestionVersionNeeded, Cves: len(n.CVEs),
-			Detail: QuestionDetail{Software: n.Software, Version: n.Version, CVEList: n.CVEs}})
+			Detail: QuestionDetail{Software: n.Software, Version: n.Version, CVEList: n.CVEs, Undecided: &Undecided{Reason: UndecidedNoVersion}}})
 	}
-	older := map[string]int{} // software line -> its older_line question in out
-	fixes := map[int][]versionscheme.Version{}
 	for _, u := range m.Unchecked {
-		if u.Line != "" {
-			sid := storedLine(u.SoftwareID)
-			i, ok := older[sid]
-			if !ok {
-				i, older[sid] = len(out), len(out)
-				out = append(out, Question{SoftwareID: sid, Kind: QuestionOlderLine,
-					Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), Line: u.Line}})
-			}
-			if !slices.Contains(out[i].Detail.CVEList, u.CVE) {
-				out[i].Detail.CVEList = append(out[i].Detail.CVEList, u.CVE)
-			}
-			fixes[i] = append(fixes[i], u.fixes...)
-			continue
-		}
 		kind := QuestionNoRangeData
-		switch u.Reason {
-		case UncheckedNotComparable:
+		switch {
+		case u.Line != "":
+			kind = QuestionOlderLine
+		case u.Reason == UncheckedNotComparable:
 			kind = QuestionNotComparable
-		case UncheckedPlatformUnknown:
+		case u.Reason == UncheckedPlatformUnknown:
 			kind = QuestionPlatform
-		case UncheckedPackageUnknown:
+		case u.Reason == UncheckedPackageUnknown:
 			kind = QuestionPackageRelease
 		}
-		out = append(out, Question{SoftwareID: storedLine(u.SoftwareID), CVE: u.CVE, Kind: kind, Cves: 1,
+		und := u.undecided
+		if und == nil {
+			und = undecidedOf(u, nil)
+		}
+		q := Question{SoftwareID: storedLine(u.SoftwareID), CVE: u.CVE, Kind: kind, Cves: 1,
 			Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), NVDPending: u.NVDPending, Choice: u.Answer,
-				Listed: u.Listed, Attribute: u.Attribute}})
-	}
-	for _, i := range older {
-		slices.Sort(out[i].Detail.CVEList)
-		out[i].Cves, out[i].Detail.Fixes = len(out[i].Detail.CVEList), newestPerLine(fixes[i])
+				Listed: u.Listed, Attribute: u.Attribute, Undecided: und}}
+		if kind == QuestionOlderLine {
+			q.Detail.Line, q.Detail.Fixes = u.Line, newestPerLine(u.fixes)
+		}
+		out = append(out, q)
 	}
 	return out
 }

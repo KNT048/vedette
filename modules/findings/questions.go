@@ -53,6 +53,8 @@ type Unchecked struct {
 	// AttrEdition, AttrArchitecture or AttrPlatform, or AttrUnlistedLine for a Mozilla ESR line the CVE's ESR rows do not list. The
 	// question then asks for it, not for the version. "" otherwise.
 	Attribute string
+	// undecided is the machine-readable reason no verdict was reached and the rows that were read (explainUnchecked); nil before it.
+	undecided *Undecided
 }
 
 // explainUnchecked adds to each unchecked row with no version data its question needs (no_nvd_data, no_nvd_versions) what the reason
@@ -78,24 +80,102 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 	}
 	for k := range us {
 		u := &us[k]
-		if u.Reason != UncheckedNoNVDData && u.Reason != UncheckedNoNVDVersions && u.Reason != UncheckedNotComparable {
-			continue
-		}
 		i, okR := row[u.SoftwareID]
 		v, okV := byCVE[u.CVE]
 		if !okR || !okV {
+			u.undecided = undecidedOf(*u, nil)
 			continue
 		}
 		s, in := d.sws[i], d.infos[i]
-		if u.Reason == UncheckedNotComparable {
+		own := rowEntries(s, in, v)
+		switch u.Reason {
+		case UncheckedNotComparable:
 			u.Attribute = blockingAttribute(in, v, keyIDs(v))
-			continue
+		case UncheckedNoNVDData, UncheckedNoNVDVersions:
+			if u.Reason == UncheckedNoNVDVersions {
+				u.Listed = slices.ContainsFunc(own, versionEvidence)
+			}
+			u.Line, u.fixes = olderLine(d.a, s, in, v)
 		}
-		if u.Reason == UncheckedNoNVDVersions {
-			u.Listed = slices.ContainsFunc(rowEntries(s, in, v), versionEvidence)
+		u.undecided = undecidedOf(*u, own)
+		if u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver) {
+			u.undecided.Reason = UndecidedEOLUnlisted
 		}
-		u.Line, u.fixes = olderLine(d.a, s, in, v)
 	}
+}
+
+// undecidedOf is the machine-readable reason of an unchecked row, with the rows of the CVE that name it (own) as they were read.
+func undecidedOf(u Unchecked, own []Affected) *Undecided {
+	out := &Undecided{}
+	switch {
+	case u.Reason == UncheckedPlatformUnknown:
+		out.Reason = UndecidedPlatform
+	case u.Reason == UncheckedPackageUnknown:
+		out.Reason = UndecidedPackage
+	case u.Reason == UncheckedNotComparable && u.Attribute != "":
+		out.Reason = UndecidedAttribute
+	case u.Reason == UncheckedNotComparable:
+		out.Reason = UndecidedSchemeMismatch
+	case u.NVDPending:
+		out.Reason = UndecidedNVDPending
+	case u.Line != "":
+		out.Reason = UndecidedBranchOnly
+	case u.Reason == UncheckedNotNamed:
+		out.Reason = UndecidedNotNamed
+	case !u.Listed:
+		out.Reason = UndecidedNoRanges
+	case !slices.ContainsFunc(own, func(af Affected) bool { return !af.Range.IsZero() }):
+		out.Reason = UndecidedExactOnly
+	default:
+		out.Reason = UndecidedRangesDoNotCover
+	}
+	for _, af := range own {
+		if len(out.Ranges) == undecidedRows {
+			break
+		}
+		out.Ranges = append(out.Ranges, rowText(af))
+	}
+	return out
+}
+
+// rowText is one row of a CVE's list as an audit reads it: its CPE and its bounds ("cpe:2.3:o:juniper:junos:15.1:r1:… [, )").
+func rowText(af Affected) string {
+	r := af.Range
+	if r.IsZero() {
+		return af.CPE
+	}
+	start, end := "[", ")"
+	lo, hi := r.StartIncl, r.EndExcl
+	if r.StartExcl != "" {
+		start, lo = "(", r.StartExcl
+	}
+	if r.EndIncl != "" {
+		end, hi = "]", r.EndIncl
+	}
+	return af.CPE + " " + start + lo + ", " + hi + end
+}
+
+// olderThanEveryExact says every exact release the rows list is of a later release line than ver (NVD lists only supported lines; an
+// end-of-life line is often not evaluated). False when a row does not place against the version.
+func olderThanEveryExact(own []Affected, ver string) bool {
+	if len(own) == 0 {
+		return false
+	}
+	for _, af := range own {
+		c, err := af.cpe()
+		if err != nil {
+			return false
+		}
+		lit, ok := c.Version.Literal()
+		if !ok {
+			return false
+		}
+		o, ok := lineOrder(c, lit, ver) // < 0: the version's line is older than the listed release's
+		if !ok || o >= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // olderLine says the vendor's own rows of v for the row's product (Vuln.Schemed: Synology's fixed DSM releases, VMware's ESXi builds)

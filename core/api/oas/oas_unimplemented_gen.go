@@ -2086,6 +2086,36 @@ func (UnimplementedHandler) FindingsGetFindingsOverview(ctx context.Context) (r 
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsGetFindingsPossible implements findings_get_findings_possible operation.
+//
+// Possible findings: CVEs of software the devices run that Vedette cannot decide (ignored devices left
+// out), each with why it is undecided and any check of its advisories; never part of the open totals.
+// A finding of the same device, CVE and line wins.
+//
+// GET /findings/possible
+func (UnimplementedHandler) FindingsGetFindingsPossible(ctx context.Context, params FindingsGetFindingsPossibleParams) (r *FindingsGetFindingsPossibleOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsPossibleAudit implements findings_get_findings_possible_audit operation.
+//
+// Every possible CVE grouped by why it is undecided, with the rows or advisory text that blocked the
+// decision: what to teach the box to decide by itself.
+//
+// GET /findings/possible/audit
+func (UnimplementedHandler) FindingsGetFindingsPossibleAudit(ctx context.Context) (r *FindingsGetFindingsPossibleAuditOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsPossibleCheck implements findings_get_findings_possible_check operation.
+//
+// Whether a check of possible findings can run, and how the last one stands.
+//
+// GET /findings/possible/check
+func (UnimplementedHandler) FindingsGetFindingsPossibleCheck(ctx context.Context) (r *FindingsGetFindingsPossibleCheckOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsPostFindingsHandle implements findings_post_findings_handle operation.
 //
 // Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -2143,6 +2173,51 @@ func (UnimplementedHandler) FindingsPostFindingsIDUnverify(ctx context.Context, 
 //
 // POST /findings/{id}/verify
 func (UnimplementedHandler) FindingsPostFindingsIDVerify(ctx context.Context, req *FindingsPostFindingsIDVerifyReq, params FindingsPostFindingsIDVerifyParams) (r *FindingsPostFindingsIDVerifyOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsPossibleCheck implements findings_post_findings_possible_check operation.
+//
+// Check possible findings (of one device, or all): in the background, each possible CVE with no check
+// yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages
+// itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are
+// proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit
+// findings.possible_checked.
+//
+// POST /findings/possible/check
+func (UnimplementedHandler) FindingsPostFindingsPossibleCheck(ctx context.Context, req *FindingsPostFindingsPossibleCheckReq) (r *FindingsPostFindingsPossibleCheckOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsPossibleChecksKeyReject implements findings_post_findings_possible_checks_key_reject operation.
+//
+// Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is
+// possible again on every device that shares it. Audit findings.proposal_rejected.
+//
+// POST /findings/possible/checks/{key}/reject
+func (UnimplementedHandler) FindingsPostFindingsPossibleChecksKeyReject(ctx context.Context, params FindingsPostFindingsPossibleChecksKeyRejectParams) (r *FindingsPostFindingsPossibleChecksKeyRejectOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsPossibleConfirm implements findings_post_findings_possible_confirm operation.
+//
+// Confirm every AI proposal of one class (verdict and confidence) at once, of one device or all, at
+// most 500; an exploited CVE proposed not affected is never among them. affected needs an admin.
+//
+// POST /findings/possible/confirm
+func (UnimplementedHandler) FindingsPostFindingsPossibleConfirm(ctx context.Context, req *FindingsPostFindingsPossibleConfirmReq) (r *FindingsPostFindingsPossibleConfirmOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsPossibleIDConfirm implements findings_post_findings_possible_id_confirm operation.
+//
+// Confirm the AI proposal of one possible CVE (the question): affected records the finding, its
+// confirmation from who stated the version, never from the AI (admin, as answering affected); not
+// affected answers the question not affected (operator). 404 not_found when there is no waiting
+// proposal. Audit findings.proposal_confirmed.
+//
+// POST /findings/possible/{id}/confirm
+func (UnimplementedHandler) FindingsPostFindingsPossibleIDConfirm(ctx context.Context, params FindingsPostFindingsPossibleIDConfirmParams) (r *FindingsPostFindingsPossibleIDConfirmOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

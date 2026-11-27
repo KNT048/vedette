@@ -17,7 +17,7 @@ import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/l
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
   CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
-  AnsweredList, AnsweredQuestion, InputGroupItem, InputItem, InputList, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
+  AnsweredList, AnsweredQuestion, InputGroupItem, InputItem, InputList, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View, PossibleCheckState, PossibleList,
 } from './types'
 
 export const records = collection<FindingRecord[]>('fnd_finding_model', seedFindingRecords, () => [])
@@ -99,7 +99,7 @@ const groupBy = <T>(l: T[], key: (x: T) => string) => { const m = new Map<string
 /** Urgency first, then the most findings, then the name: the order of cards and blocks. */
 const byUrgency = (a: { layer: number; n: number; name: string }, b: { layer: number; n: number; name: string }) => a.layer - b.layer || b.n - a.n || a.name.localeCompare(b.name)
 
-/** The device badge: the most urgent open status with its distinct CVEs, else needs_input when only the queue has items for it. */
+/** The device badge: the most urgent open status with its distinct CVEs, else possible when only the queue has items for it. */
 export function deviceStatus(assetId: string): DeviceStatus {
   const open = rows().filter((r) => r.asset_id === assetId && r.state === 'open')
   if (open.length) {
@@ -107,7 +107,7 @@ export function deviceStatus(assetId: string): DeviceStatus {
     return { code: OPEN_STATUSES[layer - 1]!, count: new Set(open.filter((r) => r.layer === layer).map((r) => r.cve)).size }
   }
   const n = inputItems().filter((i) => i.kind !== 'devices_not_added' && i.device.id === assetId).length
-  return n ? { code: 'needs_input', count: n } : null
+  return n ? { code: 'possible', count: n } : null
 }
 
 function card(asset: Asset, l: FindingRecord[]): DeviceCard {
@@ -268,7 +268,7 @@ function handledList(p: URLSearchParams): HandledList {
 export function overview(): Overview {
   const open = openRows()
   const assets = assetsStore.get().filter((a) => !isIgnored(a.id))
-  const byStatus = { under_attack: 0, exploited: 0, public_exploit: 0, critical_edge: 0, update_recommended: 0, needs_input: 0 }
+  const byStatus = { under_attack: 0, exploited: 0, public_exploit: 0, critical_edge: 0, update_recommended: 0, possible: 0 }
   for (const a of assets) { const s = deviceStatus(a.id); if (s) byStatus[s.code] += 1 }
   // devices with open findings by their most urgent status, the box included (it carries no badge on the real box)
   const affected = statusCounts([...groupBy(open, (r) => r.asset_id).values()].map(mostUrgent))
@@ -287,6 +287,7 @@ export function overview(): Overview {
     open: { findings: open.length, by_status: statusCounts(open) },
     devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus, affected },
     input: inputItems().filter((i) => i.kind !== 'devices_not_added').length,
+    possible: { possible: 0, proposals: 0, unchecked: 0, settled: 0 }, // the sample box keeps its undecided CVEs in Needs your input
     first, trend, trend_start: dayOf(new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString()),
     alerts: notifyOn ? { ...sentSince(new Date(Date.now() - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: notifyOn ? openIncidents() : null,
@@ -327,6 +328,14 @@ export const modelHandlers = [
   })),
   http.get(`${API}/findings/handled`, ({ request }) => read(() => handledList(query(request)))),
   http.get(`${API}/findings/overview`, () => read(overview)),
+  // possible findings: the sample box has none yet, and no AI profile to check them with
+  http.get(`${API}/findings/possible`, () => read(() => ({ items: [], total: 0, counts: { possible: 0, proposals: 0, unchecked: 0, settled: 0 } }) satisfies PossibleList)),
+  http.get(`${API}/findings/possible/audit`, () => read(() => ({ groups: [] }))),
+  http.get(`${API}/findings/possible/check`, () => read(() => ({ ready: false, reason: 'The preview has no AI profile to check possible findings with.', run: null }) satisfies PossibleCheckState)),
+  http.post(`${API}/findings/possible/check`, () => guard('operator') ?? fail(409, 'ai_unavailable', 'The preview has no AI profile to check possible findings with.')),
+  http.post(`${API}/findings/possible/confirm`, () => guard('operator') ?? HttpResponse.json({ confirmed: 0 })),
+  http.post(`${API}/findings/possible/:id/confirm`, () => guard('operator') ?? fail(404, 'not_found', 'No such proposal: it was answered, rejected or the evidence changed.')),
+  http.post(`${API}/findings/possible/checks/:key/reject`, () => guard('operator') ?? fail(404, 'not_found', 'No such proposal: it was answered, rejected or the evidence changed.')),
   http.get(`${API}/findings/:id/view`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     const r = one(String(params.id))

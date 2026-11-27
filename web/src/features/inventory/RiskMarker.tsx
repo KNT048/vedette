@@ -15,7 +15,7 @@ export type DeviceBadgeValue = { code: DeviceStatusCode; count: number } | null
 /** Where a device's badge leads: the device's Findings tab filtered to that status; its questions for "Needs your input". */
 export function deviceFindingsLink(device: string, code?: DeviceStatusCode): string {
   const d = encodeURIComponent(device)
-  if (code === 'needs_input') return `/findings?tab=input&device=${d}`
+  if (code === 'possible') return `/findings?tab=device&device=${d}`
   return code ? `/devices/${d}?tab=findings&status=${code}` : `/devices/${d}?tab=findings`
 }
 
@@ -54,7 +54,7 @@ export const riskWord = (t: T, risk: DeviceRisk | null | undefined) =>
   !risk ? '' : t(`common:deviceStatus.${risk.code}`, { count: risk.count })
 /** What the marker says to a screen reader and on hover, and where it leads. */
 export const riskDescription = (t: T, risk: DeviceRisk) =>
-  risk.code === 'needs_input' ? t('inventory:risk.inputAria') : t('inventory:risk.findingsAria')
+  risk.code === 'possible' ? t('inventory:risk.inputAria') : t('inventory:risk.findingsAria')
 
 /** Sort key: the most urgent status first, then the most CVEs at it; none last. */
 export const riskRank = (risk: DeviceRisk | null | undefined) =>

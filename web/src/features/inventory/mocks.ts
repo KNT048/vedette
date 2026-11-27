@@ -347,7 +347,7 @@ function sourcesOf(a: Asset): DeviceSource[] {
 const csvRisk = (r: DeviceRow['risk']) => {
   if (!r) return ''
   const words: Record<string, string> = { under_attack: `${r.count} under attack here`, exploited: `${r.count} exploited`, public_exploit: `${r.count} with a public exploit`,
-    critical_edge: `${r.count} critical on an edge device`, update_recommended: 'Update recommended', needs_input: 'Needs your input' }
+    critical_edge: `${r.count} critical on an edge device`, update_recommended: 'Update recommended', possible: `${r.count} possible` }
   return words[r.code] ?? ''
 }
 /** The asks of "I updated it: ask the agent now" by device (agent-intake INV-23), and how the backend times them. */

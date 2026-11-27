@@ -454,10 +454,18 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	ids := make([]string, len(rows))
+	for i, v := range rows {
+		ids[i] = v.CVE
+	}
+	stamps, err := a.st.RecordStamps(ctx, ids) // a check of a CVE's advisories is keyed on its record
+	if err != nil {
+		return nil, err
+	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
-			DistroLoading: loading, DistroOn: on}
+			DistroLoading: loading, DistroOn: on, Stamp: stamps[v.CVE]}
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
@@ -580,6 +588,10 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	if err != nil {
 		return nil, err
 	}
+	stamps, err := a.st.RecordStamps(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
 	distro, err := a.st.DistroFixesFor(ctx, cves)
 	if err != nil {
 		return nil, err
@@ -599,7 +611,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		if len(rows) == 0 && !inCatalogue {
 			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
 		}
-		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows)}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows), Stamp: stamps[cve]}
 		complete := true
 		for _, r := range rows {
 			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
@@ -884,6 +896,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed (#935)
 		return fmt.Errorf("ai: %w", err)
 	}
+	// a check of possible findings reads a CVE's references and asks the AI through this door (findings imports neither)
+	d.Findings.SetChecker(possibleChecker{feeds: fs.Store(), ai: d.AI, reg: d.Reg})
 	aiDoor := aiMitigation{svc: d.AI, cases: cases, inv: d.Inventory, log: d.Log}
 	if d.HostSocket != "" { // the box's subnets and gateways decide which firewalls are on a device's path; no host, not known
 		aiDoor.net = aiNetReader(hostclient.New(d.HostSocket))

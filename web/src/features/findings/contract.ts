@@ -304,8 +304,8 @@ export const StatusCounts = z.object({
 }).describe('Open findings by status')
 export const DeviceStatus = z.object({
   code: DeviceStatusCode,
-  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items of the Needs your input queue for the device'),
-}).nullable().describe('The device badge: the most urgent open status of its findings with a count, else needs_input when only questions wait, else null. A link to the device\'s findings with that status. The Devices list, the device page and Home show the same value')
+  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible CVEs of the device (CVEs Vedette cannot decide)'),
+}).nullable().describe('The device badge: the most urgent open status of its findings with a count, else possible when only possible CVEs wait, else null. A link to the device\'s findings with that status. The Devices list, the device page and Home show the same value')
 export const FixBlock = z.object({
   fix: Fix,
   software: SoftwareRef.nullable().describe('The software line the fix is for; null only for a safe-check finding on a device with no row for that product'),
@@ -486,6 +486,63 @@ export const FirstRunSummary = z.object({
   later: z.number().int().min(0).describe('Summaries of the same load made after the first ("N more urgent findings ... to patch first")'),
   later_title: z.string().nullable().describe('The newest of them; null when later is 0'),
 }).describe('The first-run summary of the newest load made in the last 7 days')
+export const Undecided = z.object({
+  reason: z.enum(['no_version', 'platform_unknown', 'package_unknown', 'attribute_unknown', 'version_scheme_mismatch', 'nvd_pending', 'no_ranges', 'product_not_named',
+    'exact_releases_only', 'ranges_do_not_decide', 'ranges_start_at_branch_only', 'eol_line_unlisted', 'no_reference_page', 'fetch_failed', 'unparsed_vendor_text', 'ai_unsure'])
+    .describe('Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it'),
+  ranges: z.array(z.string()).optional().describe('The range rows that were read and did not decide it ("<cpe> [start, end)"), at most 20'),
+  text: z.string().optional().describe('Up to 500 characters of advisory text the box could not read as ranges'),
+  url: z.string().optional().describe('The page text is from'),
+}).describe('Why a CVE stays possible and what blocked the decision')
+export const CheckSource = z.object({
+  url: z.string(), title: z.string().optional(), status: z.enum(['ok', 'failed', 'skipped']), note: z.string().optional().describe('Why it was not read'),
+  cited: z.boolean().optional().describe('The verdict\'s quote is from this page'),
+}).describe('One reference page a check read or tried to')
+export const PossibleCheck = z.object({
+  key: z.string().describe('The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)'),
+  decided_by: z.enum(['structured', 'advisory', 'ai']).describe('advisory: the box read the vendor\'s advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects'),
+  verdict: z.enum(['affected', 'not_affected', 'unsure']),
+  confidence: z.enum(['confident', 'likely']).nullable().describe('ai only: confident when the AI\'s quote is in the page word for word and names a release range of this version\'s line; likely otherwise. null for the box\'s own verdicts and for unsure'),
+  reason: z.string(), quote: z.string().describe('The sentence the verdict rests on, as the page writes it; "" when none'),
+  sources: z.array(CheckSource), model: z.string().nullable().describe('ai only: the model'), checked_by: z.string(), checked_at: iso,
+  rejected: z.boolean().describe('A person rejected this AI proposal: the CVE is possible again'),
+}).describe('A check of a possible CVE\'s advisories')
+export const PossibleRow = z.object({
+  id: z.string().describe('The question (confirm: POST /findings/possible/{id}/confirm; answer: POST /findings/questions/{id}/answer)'),
+  cve, kind: QuestionKind, device: DeviceRef, software: SoftwareRef.nullable(), severity: CveSeverity.nullable(),
+  exploited: z.boolean().describe('The CVE is on an exploited list'),
+  state: z.enum(['possible', 'proposal', 'settled']).describe('possible: undecided; proposal: an AI proposal waits for a person; settled: the box settled it not affected from the vendor\'s advisory (not counted)'),
+  undecided: Undecided, line: z.string().nullable().describe('older_line: the device\'s release line'), fixes: z.array(z.string()).describe('older_line: the newest fixed release of each newer line'),
+  check: PossibleCheck.nullable(), checkable: z.boolean().describe('A check of its advisories can still run for it'),
+  bulk: z.boolean().describe('proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not affected (one by one)'),
+}).describe('One possible CVE of one software line of one device')
+export const PossibleCounts = z.object({
+  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once)'),
+  proposals: z.number().int().min(0).describe('AI proposals waiting for a person'),
+  unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at: what the "Check possible with AI" button counts'),
+  settled: z.number().int().min(0).describe('Settled not affected by the box from a vendor\'s advisory'),
+})
+export const PossibleCheckRun = z.object({
+  running: z.boolean(), total: z.number().int().min(0), done: z.number().int().min(0),
+  advisory: z.number().int().min(0).describe('Decided by the box from a vendor\'s advisory, no AI'),
+  proposals: z.number().int().min(0).describe('AI proposals made'), undecided: z.number().int().min(0), failed: z.number().int().min(0).describe('Not checked: a page or AI call failed; the next check asks again'),
+  stopped: z.string().nullable().describe('Why the check stopped before the end (the AI unavailable, the budget reached)'),
+  by: z.string(), started_at: iso, finished_at: iso.nullable(),
+})
+export const PossibleCheckState = z.object({
+  ready: z.boolean().describe('A check can run now (the AI assistant on, a profile for explaining findings)'),
+  reason: z.string().nullable().describe('Why not, when ready is false'),
+  run: PossibleCheckRun.nullable().describe('The last check since the box started; null when none'),
+})
+export const PossibleList = z.object({
+  items: z.array(PossibleRow).describe('Grouped by device, then software line, exploited CVEs first'),
+  total: z.number().int().min(0).describe('Rows that match, every page'),
+  counts: PossibleCounts.describe('Of the device, or of every device; not narrowed by the search or the state'),
+})
+export const UndecidedGroup = z.object({
+  reason: Undecided.shape.reason, count: z.number().int().min(0),
+  examples: z.array(z.string()).describe('Distinct blocking rows or advisory snippets (with their address), at most 20'),
+})
 export const Overview = z.object({
   open: z.object({
     findings: z.number().int().min(0).describe('Open findings on devices that are not ignored'),
@@ -496,10 +553,11 @@ export const Overview = z.object({
     not_added: z.number().int().min(0).describe('Devices nobody added yet'),
     by_status: z.object({
       under_attack: z.number().int().min(0), exploited: z.number().int().min(0), public_exploit: z.number().int().min(0),
-      critical_edge: z.number().int().min(0), update_recommended: z.number().int().min(0), needs_input: z.number().int().min(0),
+      critical_edge: z.number().int().min(0), update_recommended: z.number().int().min(0), possible: z.number().int().min(0),
     }).describe('Devices by their badge (DeviceStatus.code)'),
     affected: StatusCounts.describe('Devices with an open finding by their most urgent status, the Vedette box included (it carries no badge, but its findings count like any device\'s): "3 open findings on 1 device"'),
   }),
+  possible: PossibleCounts.describe('Possible CVEs (Vedette cannot decide them), counted apart from the open findings: "158 open findings · 16 possible"'),
   input: z.number().int().min(0).describe('Devices that wait for an answer in Needs your input: one per device card or device not added that has findings; the one card of devices not added with no finding is a review and is not counted'),
   first: z.array(FirstItem).max(FIRST_TOP).describe('Fix first: the most urgent fix blocks across devices, then the most findings'),
   trend: z.array(z.number().int().min(0)).length(TREND_DAYS).describe('Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now'),
@@ -532,6 +590,21 @@ export const endpoints = defineEndpoints([
     query: z.object({ q, status: statusFilter, offset, limit }), response: FixCards, example: { query: {} } },
   { method: 'get', path: '/findings/input', summary: 'Needs your input: devices not added yet that have findings, urgent findings not confirmed yet, and questions only a person can answer; one queue', stories: ['S-MIT-1', 'S-INV-3'], role: 'viewer',
     query: z.object({ q, device: deviceFilter, offset, limit }), response: InputList, example: { query: {} } },
+  { method: 'get', path: '/findings/possible', summary: 'Possible findings: CVEs of software the devices run that Vedette cannot decide (ignored devices left out), each with why it is undecided and any check of its advisories; never part of the open totals. A finding of the same device, CVE and line wins', stories: ['S-MIT-1'], role: 'viewer',
+    query: z.object({ q, device: deviceFilter, state: z.enum(['possible', 'proposal', 'settled']).optional().describe('One state; absent: every row but the settled ones'), offset, limit }),
+    response: PossibleList, example: { query: {} } },
+  { method: 'get', path: '/findings/possible/audit', summary: 'Every possible CVE grouped by why it is undecided, with the rows or advisory text that blocked the decision: what to teach the box to decide by itself', stories: ['S-MIT-1'], role: 'viewer',
+    response: z.object({ groups: z.array(UndecidedGroup) }) },
+  { method: 'get', path: '/findings/possible/check', summary: 'Whether a check of possible findings can run, and how the last one stands', stories: ['S-MIT-1'], role: 'viewer', response: PossibleCheckState },
+  { method: 'post', path: '/findings/possible/check', summary: 'Check possible findings (of one device, or all): in the background, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE\'s reference pages itself and decides when the vendor\'s ranges do; only the rest goes to the AI, whose verdicts are proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit findings.possible_checked', stories: ['S-MIT-1'], role: 'operator',
+    body: z.object({ device: z.string().max(96).optional() }), response: PossibleCheckRun },
+  { method: 'post', path: '/findings/possible/{id}/confirm', summary: 'Confirm the AI proposal of one possible CVE (the question): affected records the finding, its confirmation from who stated the version, never from the AI (admin, as answering affected); not affected answers the question not affected (operator). 404 not_found when there is no waiting proposal. Audit findings.proposal_confirmed', stories: ['S-MIT-1'], role: 'operator',
+    params: z.object({ id: z.string().min(1).max(96) }), response: z.object({ finding: z.string().nullable().describe('affected: the finding') }) },
+  { method: 'post', path: '/findings/possible/confirm', summary: 'Confirm every AI proposal of one class (verdict and confidence) at once, of one device or all, at most 500; an exploited CVE proposed not affected is never among them. affected needs an admin', stories: ['S-MIT-1'], role: 'operator',
+    body: z.object({ verdict: z.enum(['affected', 'not_affected']), confidence: z.enum(['confident', 'likely']), device: z.string().max(96).optional() }),
+    response: z.object({ confirmed: z.number().int().min(0) }) },
+  { method: 'post', path: '/findings/possible/checks/{key}/reject', summary: 'Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is possible again on every device that shares it. Audit findings.proposal_rejected', stories: ['S-MIT-1'], role: 'operator',
+    params: z.object({ key: z.string().regex(/^[0-9a-f]{64}$/) }), response: z.object({ ok: z.literal(true) }) },
   { method: 'get', path: '/findings/answered', summary: 'The questions a person answered "not affected" (ignored devices left out), the newest first: each can be asked again', stories: ['S-MIT-1'], role: 'viewer',
     query: z.object({ device: deviceFilter, offset, limit }), response: AnsweredList, example: { query: {} } },
   { method: 'get', path: '/findings/handled', summary: 'Handled: findings by handling, the newest first, each with who and how', stories: ['S-MIT-1'], role: 'viewer',

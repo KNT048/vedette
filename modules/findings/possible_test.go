@@ -18,6 +18,7 @@ type fakeChecker struct {
 	pages    map[string][]FetchedPage  // by CVE
 	verdicts map[string]ProposeVerdict // by CVE + "|" + version: what the AI answers
 	stop     *CheckStop
+	refuse   map[string]error // by CVE: what Propose answers for that CVE's call instead (a refused or failed call)
 	sent     []ProposeRequest
 	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
 	budget   ReadBudget
@@ -57,6 +58,9 @@ func (f *fakeChecker) Propose(_ context.Context, _ string, req ProposeRequest) (
 	f.sent = append(f.sent, req)
 	if f.stop != nil {
 		return ProposeAnswer{}, f.stop
+	}
+	if err := f.refuse[req.CVE]; err != nil {
+		return ProposeAnswer{}, err
 	}
 	ans := ProposeAnswer{Model: "test-model", Profile: "test", ActivityID: "act-1"}
 	for _, it := range req.Items {

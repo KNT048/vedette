@@ -100,3 +100,44 @@ func TestProposePossible_AutomaticReadingHasItsSwitchAndDailyNumber(t *testing.T
 	}
 	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":6000000,"redact_pii":true,"daily_reads":0}`, 400, "")
 }
+
+// The CVE record and the reference pages are public text the box fetched itself: the built-in hooks, which guard customer data and the
+// topic of a request, do not read them, so a vendor's office phone number, a diff's line numbers or an email address on the page neither
+// stop nor mask the reading (on a real box the CERT/CC page of a CVE was refused as "an ID number" and stalled every hourly reading).
+// The question, which carries the customer's products and versions, still goes through every hook, and the customer's own hooks still
+// read the pages.
+func TestProposePossible_PublicPagesGoThroughTheCustomersHooksOnly(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"items":[{"index":0,"status":"unsure","introduced":"","fixed_in":"","last_affected":"","line":"","reason":"No range.","quote":"","source":0}]}`)
+	page := "Vulnerability Note VU#644655. Widget 3.4 is affected. Contact cert@cert.org.\n\nSoftware Engineering Institute\n\n4500 Fifth Avenue\n\n" +
+		"Pittsburgh, PA 15213-2612\n\n412-268-5800\n\nOffice Locations\n\n322\n\n322\n\nat = next ;\n\n323\n\n323\n\n324\n\n324\n\nRelease songs and movies."
+	req := ai.PossibleRequest{CVE: "CVE-2099-72002", Description: "A flaw in Widget. Call 412-268-5800 for help.",
+		Items: []ai.PossibleItem{{Index: 0, Vendor: "acme", Product: "Widget", Version: "3.4.1", Line: "3.4"}},
+		Pages: []ai.RefPage{{URL: "https://www.kb.cert.org/vuls/id/644655", Status: "ok", Text: page}}}
+	if _, err := a.svc.ProposePossible(a.ctx(), "system", req); err != nil {
+		t.Fatalf("a public page was refused: %v", err)
+	}
+	sent := a.fake.reqs[len(a.fake.reqs)-1]
+	for _, want := range []string{"412-268-5800", "324\n\n324", "cert@cert.org", "songs"} {
+		if !strings.Contains(sent.Messages[0].Text, want) {
+			t.Errorf("%q of the public page did not reach the provider as the page states it", want)
+		}
+	}
+
+	// the question carries the customer's inventory: an ID number in it still stops the call, nothing is sent
+	n := len(a.fake.reqs)
+	idReq := req
+	idReq.Items = []ai.PossibleItem{{Index: 0, Vendor: "acme", Product: "Widget 079201234567", Version: "3.4.1", Line: "3.4"}}
+	if _, err := a.svc.ProposePossible(a.ctx(), "system", idReq); err == nil || !strings.Contains(err.Error(), "ID number") {
+		t.Errorf("an ID number in the products asked about: %v, want the call stopped", err)
+	}
+	// a customer's own hook still reads the public pages
+	a.addBlockHook("No VU notes", "before_ai", "VU#644655")
+	if _, err := a.svc.ProposePossible(a.ctx(), "system", req); err == nil || !strings.Contains(err.Error(), "hook") {
+		t.Errorf("a customer's hook matching the page: %v, want the call stopped", err)
+	}
+	if len(a.fake.reqs) != n {
+		t.Error("a call a hook stopped was sent")
+	}
+}

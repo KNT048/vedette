@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/knt048/vedette/modules/exposure"
@@ -84,17 +86,26 @@ func (f tplFilter) runs(tp pack.Template) bool {
 	return v == tplPathRuns
 }
 
-// requestRE is a request line as the index keeps it: the method, then the URL as written.
-var requestRE = regexp.MustCompile(`^[A-Z]+ (\S*)`)
+// requestRE is a request line as the index keeps it: the method, then the URL as written, to the end of the line (a path entry
+// may hold a space).
+var requestRE = regexp.MustCompile(`^[A-Z]+ (\S.*)$`)
 
-// tplPathVerdict says whether a template may run on a target with web paths to skip (URL path prefixes, matched as written): it
-// runs only when every request it can send is known and outside every prefix. Skipped: a request goes under one. Unknown: a
-// request's path is built while the template runs ({{BaseURL}}{{paths}} with no value in the pack, {{randstr}}, a raw request
-// to {{Host}}:{{Port}}, pack.RequestUnknown), so it could go under one; it is left out too (fail closed). The index lists every
-// request of an http template (pack.Template.Requests); an index built before that list has only the first request line, so
-// a template there is unknown unless that line is already under a prefix. A template outside http/ sends no web path. nuclei
-// runs with -dr (no redirect followed), and the builder marks the one exception, an unsafe raw request with redirects: true,
-// as unknown.
+// pathExprRE are the expressions a request path may hold and still be judged: values nuclei puts in that hold no "/", "\", "%",
+// ";" or dot segment of their own (the target's host, port and domain parts, random strings and numbers). Any other expression
+// in a path (an extracted value, a helper function, a variable with no value in the pack, the cut end of a long line) may hold
+// "../" or an encoded one and reach any path: the request is unknown.
+var pathExprRE = regexp.MustCompile(`^(Host|Hostname|Port|FQDN|RDN|DN|TLD|SD|randstr(_[A-Za-z0-9_]+)?|(rand_base|rand_int|rand_text_alpha|rand_text_alphanumeric|rand_text_numeric)\(\s*[0-9]+(\s*,\s*[0-9]+)?\s*\))$`)
+
+// tplPathVerdict says whether a template may run on a target with web paths to skip (URL path prefixes, never patterns): it runs
+// only when every request it can send is known and outside every prefix. A request path is held against a prefix as written and
+// as the web server resolves it (percent-encoding, "\", ";" parameters, repeated slashes and dot segments), in any letter case
+// as the ZAP exclude of the same setting matches, so "/res/../admin/x" or "/Admin/x" is under "/admin". Skipped: a request goes
+// under one. Unknown: a request's path is built while the template runs ({{BaseURL}}{{paths}} with no value in the pack, an
+// extracted value, a helper function, a raw request to {{Host}}:{{Port}}, pack.RequestUnknown), so it could go under one; it is
+// left out too (fail closed). Only the values of pathExprRE leave a path judged. The index lists every request of an http
+// template (pack.Template.Requests); an index built before that list has only the first request line, so a template there is
+// unknown unless that line is already under a prefix. A template outside http/ sends no web path. nuclei runs with -dr (no
+// redirect followed), and the builder marks the one exception, an unsafe raw request with redirects: true, as unknown.
 type tplPathVerdict int
 
 const (
@@ -125,7 +136,8 @@ func templatePathOf(tp pack.Template, skip []string) tplPathVerdict {
 	return verdict
 }
 
-// requestPathOf is the verdict of one request line against skip.
+// requestPathOf is the verdict of one request line against skip. The path (up to the query) is judged as written and as the web
+// server reads it (normPath), and a prefix matches in any letter case, as the ZAP exclude of the same setting does.
 func requestPathOf(line string, skip []string) tplPathVerdict {
 	m := requestRE.FindStringSubmatch(line)
 	if m == nil {
@@ -144,23 +156,128 @@ func requestPathOf(line string, skip []string) tplPathVerdict {
 	if !strings.HasPrefix(u, "/") {
 		return tplPathUnknown
 	}
-	literal, variable := u, false
-	if i := strings.Index(u, "{{"); i >= 0 {
-		literal, variable = u[:i], true
-	}
-	unknown := false
-	for _, p := range skip {
-		switch {
-		case strings.HasPrefix(literal, p):
-			return tplPathSkipped
-		case variable && strings.HasPrefix(p, literal): // the variable part may run into the prefix
-			unknown = true
-		}
-	}
-	if unknown {
+	parts, exprs, ok := pathParts(u)
+	if !ok {
 		return tplPathUnknown
 	}
+	if slices.ContainsFunc(exprs, func(e string) bool { return !pathExprRE.MatchString(e) }) {
+		if underAny(parts[0], skip) { // what is known before the first value that could be anything
+			return tplPathSkipped
+		}
+		return tplPathUnknown
+	}
+	for _, v := range []string{"", "x"} { // every value is one of pathExprRE: the path as sent, each value as "" and as a letter
+		if underAny(strings.Join(parts, v), skip) {
+			return tplPathSkipped
+		}
+	}
+	for k := range exprs { // the text before a value: when a prefix starts with it, the value may run into the prefix
+		before := strings.Join(parts[:k+1], "x")
+		for _, p := range skip {
+			for _, pf := range pathForms(p, false) {
+				for _, bf := range pathForms(before, true) {
+					if strings.HasPrefix(pf, bf) {
+						return tplPathUnknown
+					}
+				}
+			}
+		}
+	}
 	return tplPathRuns
+}
+
+// pathParts splits the path of u (up to the first "?" outside an expression) into its literal parts and the expressions between
+// them (len(parts) == len(exprs)+1); ok false when an expression is not closed.
+func pathParts(u string) (parts, exprs []string, ok bool) {
+	var b strings.Builder
+	for i := 0; i < len(u); {
+		switch {
+		case strings.HasPrefix(u[i:], "{{"):
+			j := strings.Index(u[i+2:], "}}")
+			if j < 0 {
+				return nil, nil, false
+			}
+			parts, exprs = append(parts, b.String()), append(exprs, strings.TrimSpace(u[i+2:i+2+j]))
+			b.Reset()
+			i += j + 4
+		case u[i] == '?':
+			return append(parts, b.String()), exprs, true
+		default:
+			b.WriteByte(u[i])
+			i++
+		}
+	}
+	return append(parts, b.String()), exprs, true
+}
+
+// underAny says whether the path p goes under one of skip, as written or as the server reads it, in any letter case.
+func underAny(p string, skip []string) bool {
+	for _, s := range skip {
+		for _, sf := range pathForms(s, false) {
+			for _, pf := range pathForms(p, true) {
+				if strings.HasPrefix(pf, sf) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// pathForms are p as written and as normPath reads it, in lower case.
+func pathForms(p string, params bool) [2]string {
+	return [2]string{strings.ToLower(p), strings.ToLower(normPath(p, params))}
+}
+
+// normPath is the path p as a web server resolves it: percent-encoding decoded (up to three times, for double encoding; a "%"
+// that starts no escape is kept), "\" read as "/", tabs and newlines dropped, with params each segment's path parameters (";…",
+// as Tomcat reads "..;") dropped, then repeated slashes and dot segments resolved. A trailing "/" is kept.
+func normPath(p string, params bool) string {
+	for range 3 {
+		d := unescapeLoose(p)
+		if d == p {
+			break
+		}
+		p = d
+	}
+	p = strings.NewReplacer(`\`, "/", "\t", "", "\n", "", "\r", "").Replace(p) // a URL parser drops tabs and newlines (".%09." is "..")
+	if params {
+		segs := strings.Split(p, "/")
+		for i, g := range segs {
+			if j := strings.IndexByte(g, ';'); j >= 0 {
+				segs[i] = g[:j]
+			}
+		}
+		p = strings.Join(segs, "/")
+	}
+	dir := strings.HasSuffix(p, "/") || strings.HasSuffix(p, "/.") || strings.HasSuffix(p, "/..")
+	p = path.Clean("/" + p)
+	if dir && p != "/" {
+		p += "/"
+	}
+	return p
+}
+
+// unescapeLoose decodes every %XX of s and keeps any other "%".
+func unescapeLoose(s string) string {
+	if !strings.Contains(s, "%") {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]) {
+			h, _ := strconv.ParseUint(s[i+1:i+3], 16, 8)
+			b.WriteByte(byte(h))
+			i += 2
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
 // pathsLine is the line of the templates left out of port for the web paths to skip, by verdict; "" when there is none. Every one

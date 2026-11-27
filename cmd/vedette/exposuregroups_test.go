@@ -160,7 +160,7 @@ func TestExposureGroups_TemplatePathAgainstThePathsToSkip(t *testing.T) {
 		{tp("http/x.yaml", "GET {{BaseURL}}/login"), tplPathRuns},
 		{tp("http/x.yaml", "GET {{BaseURL}}"), tplPathRuns},
 		{tp("http/x.yaml", "GET {{BaseURL}}/users/sign_in", "GET {{BaseURL}}/login", "HEAD /status"), tplPathRuns},
-		{tp("http/x.yaml", "GET {{BaseURL}}/lui/{{...}}"), tplPathRuns},
+		{tp("http/x.yaml", "GET {{BaseURL}}/lui/{{...}}"), tplPathUnknown}, // the cut end of a long line may hold "../"
 		{tp("http/x.yaml", "GET {{BaseURL}}/login", "GET {{BaseURL}}/wp-admin/{{file}}"), tplPathUnknown},
 		{tp("http/x.yaml", "GET {{BaseURL}}/ad{{x}}"), tplPathUnknown},
 		{tp("http/x.yaml", "GET {{BaseURL}}{{paths}}"), tplPathUnknown},
@@ -178,6 +178,56 @@ func TestExposureGroups_TemplatePathAgainstThePathsToSkip(t *testing.T) {
 	for _, x := range []pack.Template{tp("http/x.yaml", "GET {{BaseURL}}/admin", pack.RequestUnknown), old("GET {{BaseURL}}{{paths}}")} {
 		if got := templatePathOf(x, nil); got != tplPathRuns {
 			t.Errorf("no paths to skip: %q %v", x.Request, got)
+		}
+	}
+}
+
+// A request path is judged the way the web server reads it, not only as written: the prefix matches in any letter case (as the
+// ZAP exclude of the same setting does), and percent-encoding (also double), backslashes, path parameters (";") and dot segments
+// are resolved first, so a traversal into a skipped path is caught. A value put in while the template runs may itself hold "/"
+// or "..": only a few built-in values that cannot (the target's host and port, random strings) leave a path judged; any other
+// expression in the path, the cut end of a long line included, makes it unknown.
+func TestExposureGroups_TemplatePathAsTheServerReadsIt(t *testing.T) {
+	t.Parallel()
+	tp := func(reqs ...string) pack.Template {
+		return pack.Template{ID: "x", Path: "http/x.yaml", Request: reqs[0], Requests: reqs}
+	}
+	skip := []string{"/Admin", "/vpns", "/users/sign_up", "/api/v3/announcements", "/my%20app/"}
+	for _, c := range []struct {
+		t    pack.Template
+		want tplPathVerdict
+	}{
+		{tp("GET {{BaseURL}}/admin/delete"), tplPathSkipped},
+		{tp("GET /ADMIN"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/vpn/../vpns/cfg/smb.conf"), tplPathSkipped},
+		{tp("GET /static/..;/admin/x"), tplPathSkipped},
+		{tp("GET /%61dmin/"), tplPathSkipped},
+		{tp("GET /x/..%2fadmin"), tplPathSkipped},
+		{tp("GET /x/%252e%252e/admin"), tplPathSkipped},
+		{tp("GET /x/%%32%65%%32%65/admin"), tplPathSkipped},
+		{tp(`GET /x\..\admin`), tplPathSkipped},
+		{tp("GET /x/.%09./admin"), tplPathSkipped},
+		{tp("GET /users//sign_up"), tplPathSkipped},
+		{tp("GET /my app/x"), tplPathSkipped},
+		{tp("GET /zzz/{{Host}}/../../admin"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/api/v3/{{randstr}}/../announcements"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/session/{{token}}/node"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/x/slack-image{{repeat('%2F..', 3)}}%2Fadmin"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/lui/{{...}}"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/x/{{base64('?t=1')}}"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/x/{{rand_base(5, '/.')}}"), tplPathUnknown},
+		{tp("GET /x/.{{SD}}./admin"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/x/{{unclosed"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/keys/{{Host}}.pem"), tplPathRuns},
+		{tp("GET {{BaseURL}}/wp-content/{{randstr}}.php", "GET /cert/{{RDN}}_key.txt"), tplPathRuns},
+		{tp("GET {{BaseURL}}/x/{{rand_base(8)}}"), tplPathRuns},
+		{tp("GET /index.php?id={{token}}&next=/admin"), tplPathRuns},
+		{tp("GET /index.php?file=../admin"), tplPathRuns},
+		{tp("GET /vpn/x"), tplPathRuns},
+		{tp("GET /administrator"), tplPathSkipped},
+	} {
+		if got := templatePathOf(c.t, skip); got != c.want {
+			t.Errorf("%q: %v, want %v", c.t.Requests, got, c.want)
 		}
 	}
 }

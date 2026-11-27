@@ -238,7 +238,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   in the denial-of-service group whatever its tags) and every template that can send a request under a path to skip: it runs only
   when every request it can send is known and outside every prefix (`pack.Template.Requests` lists them: every `path:` entry and
   raw request line, inline payload and plain variable values put in), so a later request under a prefix, a path built while it runs
-  (`{{randstr}}`, a variable with no value in the pack) or an index without the list leaves it out, and the step says how many were
+  (an extracted value, a helper function, a variable with no value in the pack, the cut end of a long line; only the target's host,
+  port and domain parts and random strings or numbers keep a path judged, as they cannot hold "/" or "..") or an index without the
+  list leaves it out. A path is held against a prefix as written and as the web server resolves it (percent-encoding, also double,
+  `\`, `;` parameters, repeated slashes, dot segments), in any letter case like the ZAP exclude, so `/res/../admin/x` and
+  `/Admin/x` are under `/admin`. The step says how many were
   left out per port and why (`cmd/vedette` `templatePathOf`, `pathsLine`). Redirects: nuclei runs with `-dr`, which overrides a
   template's `redirects: true` / `host-redirects: true` for its http client, so no redirect reaches a skipped path that way; the one
   exception in nuclei 3.11.1 is an `unsafe: true` raw request with `redirects: true` (its raw client follows them), which the pack

@@ -57,7 +57,7 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 			vuln: nvd("CVE-2026-60002", kernel, "7.1", row("ubuntu", "26.04", "linux-aws", "fixed", "7.0.0-1010.10")), cause: DistroOtherPackages},
 		{name: "older than the window and on no list", device: "u-1", sw: "s-kernel", vuln: old, cause: DistroOutsideWindow},
 		{name: "affected with no fix yet, on no list", device: "u-1", sw: "s-ssl",
-			vuln: nvd("CVE-2026-60004", ssl, "3.6", row("ubuntu", "26.04", "openssl", "open", "")), cause: DistroNoFixYet},
+			vuln: nvd("CVE-2026-60004", ssl, "3.6", row("ubuntu", "26.04", "openssl", "open", "")), by: CoverageDistroNoFix, affect: true},
 		{name: "an exploited CVE the distribution lists for an older release only", device: "u-1", sw: "s-ssl", vuln: listed, cause: DistroOtherReleases},
 		{name: "the distribution's own build of a later upstream than its fix", device: "u-1", sw: "s-glibc",
 			vuln: nvd("CVE-2026-60006", glibc, "2.44", row("ubuntu", "26.04", "glibc", "fixed", "2.42-2ubuntu5")), by: RangeDistro},

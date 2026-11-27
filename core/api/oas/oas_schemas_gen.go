@@ -95956,7 +95956,9 @@ func (s *FindingsGetFindingsCoverageOK) SetPossible(val []FindingsGetFindingsCov
 type FindingsGetFindingsCoverageOKDecidedItem struct {
 	Affected int `json:"affected"`
 	// The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory,
-	// ai_confirmed, person, scan) or platform_list (the hand list of platform limits).
+	// ai_confirmed, person, scan) or platform_list (the hand list of platform limits), or distro_no_fix
+	// (the distribution lists the package affected with no fix yet for a CVE on no exploited list:
+	// affected, no finding until the fix or an exploited list comes).
 	By          string `json:"by"`
 	NotAffected int    `json:"not_affected"`
 }
@@ -96081,8 +96083,7 @@ type FindingsGetFindingsCoverageOKPossibleItem struct {
 	// The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading,
 	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a
 	// distribution's package its distribution's data has no word on stays undecided with no question
-	// (outside_window: older than the 12 months tracked and on no exploited list; distro_no_fix_yet: the
-	// distribution lists it affected with no fix and it is on no exploited list; distro_other_packages,
+	// (outside_window: older than the 12 months tracked and on no exploited list; distro_other_packages,
 	// distro_other_releases: the distribution lists the CVE for other packages or releases only;
 	// distro_other_build: its row is about another build; distro_not_listed: no row of the CVE;
 	// distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or

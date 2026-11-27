@@ -178,7 +178,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
   its undecided reason as the cause and no details), for a distribution's package its distribution's data has no word on and no
   question asks about, why (`DistroSilences`: `outside_window` for a CVE on no exploited list older than the 12 months the box tracks,
-  `distro_no_fix_yet`, `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_no_data`,
+  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_no_data`,
   `version_needed` for an agent's package row without its release; `TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed`), or an
   unnamed class (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor
   asked, so nobody is told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
@@ -343,7 +343,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   release compares with the distribution's own build of the same upstream release, or of a later one (never a kernel's). Alpine's data
   lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
   Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
-  list raises no finding (it would ask for an update that does not exist): `distro_no_fix_yet` until the fix or an exploited list comes.
+  list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts
+  it decided affected (`distro_no_fix`).
   `TestMatchAsset_AlpineRowsDecideCatalogueCVEs`, `TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs`. A package the
   distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
   while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a

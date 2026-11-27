@@ -39,6 +39,10 @@ var IdentityMethods = []string{IdentityStated, IdentityCatalogue, IdentityRecord
 // CoveragePlatformList is the source of a "not affected" the platform list decided (content/catalog/platform-limits.json): hand data.
 const CoveragePlatformList = "platform_list"
 
+// CoverageDistroNoFix is the source of a pair the distribution's data decides "affected, no fix yet" for a CVE on no exploited list:
+// decided affected, with no finding until the fix or an exploited list comes (distroVerdict), so counted apart from RangeDistro.
+const CoverageDistroNoFix = "distro_no_fix"
+
 // CoverageOther is the cause of a pair the matcher reached that is neither decided nor a possible finding with a reason the box gives.
 // The coverage tells three such classes apart (CoverageOther* below, each starting with CoverageOther), so the unnamed share says where
 // it comes from. A question always has a named cause (PossibleCause).
@@ -399,6 +403,8 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			state[key] = pairState{by: proofs[key]}
 		case ruledOut[key] != "":
 			state[key] = pairState{by: ruledOut[key]}
+		case class == DistroNoFixYet: // the distribution says affected and has no fix: decided, raised once a fix or an exploited list comes
+			state[key] = pairState{by: CoverageDistroNoFix, affected: true}
 		default: // reached, and neither a finding, a question nor a proof
 			state[key] = pairState{cause: class}
 		}

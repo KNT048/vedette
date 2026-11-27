@@ -366,7 +366,11 @@ func TestDeepSettings_EachGroupOffNoEngineRunsIt(t *testing.T) {
 			for _, c := range got.zapActive {
 				g.zapDis = g.zapDis || c.Mode.Disruptive
 			}
-			g.gbDisruptive = strings.Contains(got.gbConfig, "disruptive")
+			wantGB := levelFor(row.want.dos, row.want.logins, row.want.change)
+			g.gbDisruptive = got.gbConfig == gbDisruptive.name
+			if got.gbConfig != wantGB.name {
+				t.Errorf("OpenVAS used %q, want %q (%s)", got.gbConfig, wantGB.name, wantGB.text)
+			}
 			if got.gbConfig == "" {
 				t.Fatalf("OpenVAS did not run: %q", got.steps[stepNameOpenVAS])
 			}
@@ -388,6 +392,21 @@ func TestDeepSettings_EachGroupOffNoEngineRunsIt(t *testing.T) {
 			if row.activeStep != "" && got.steps[stepNameZAPAct] != "skipped "+row.activeStep {
 				t.Errorf("the active web step: %q", got.steps[stepNameZAPAct])
 			}
+			cfg, _ := m.gb.gvm.cfg(got.gbConfig)
+			for _, f := range gmpDisruptiveFamilies {
+				on := slices.ContainsFunc(cfg.families, func(x string) bool { return x == f })
+				want := f == gmpDoSFamily && row.want.dos || f != gmpDoSFamily && row.want.logins
+				if on != want {
+					t.Errorf("OpenVAS family %q on = %v, want %v", f, on, want)
+				}
+			}
+			if v := cfg.prefs["safe_checks"]; v != map[bool]string{true: "no", false: "yes"}[row.want.dos && row.want.change] {
+				t.Errorf("safe_checks = %q", v)
+			}
+			narrowed := lineWith(notChecked(got.r), "One OpenVAS option (safe checks) holds both")
+			if w := row.want; narrowed != ((w.dos || w.logins || w.change) && (!w.dos || !w.change)) {
+				t.Errorf("the safe checks line said: %v; lines %q", narrowed, notChecked(got.r))
+			}
 			if row.check != "" && !strings.Contains(got.steps[stepNameCheck], row.check) {
 				t.Errorf("the check step does not name the settings: %q", got.steps[stepNameCheck])
 			}
@@ -402,12 +421,37 @@ func TestDeepSettings_EachGroupOffNoEngineRunsIt(t *testing.T) {
 // OpenVAS off for the target: the step is skipped with the settings' sentence, whatever the global switch.
 func TestDeepSettings_OpenVASOffForTheTarget(t *testing.T) {
 	t.Parallel()
-	t.Skip("the OpenVAS part of the settings (the per-target skip and the per-group config) lands with the change to its scan config")
 	m := newMatrixEnv(t)
 	m.deepRow(m.id, true, true, true, true, false, SpeedNormal, "[]", "[]")
 	got := m.scan("admin@acme.example")
 	if got.gbConfig != "" || !strings.HasPrefix(got.steps[stepNameOpenVAS], "skipped") || !strings.Contains(got.steps[stepNameOpenVAS], NotBySettings) {
 		t.Fatalf("OpenVAS: config %q, step %q", got.gbConfig, got.steps[stepNameOpenVAS])
+	}
+}
+
+// Gentle speed: OpenVAS's task runs one host and two checks at a time; the normal speed leaves Greenbone's defaults.
+func TestDeepSettings_GentleSlowsOpenVAS(t *testing.T) {
+	t.Parallel()
+	m := newMatrixEnv(t)
+	task := func() string {
+		var body string
+		m.gb.gvm.with(func(g *fakeGVM) {
+			for i, c := range g.cmds {
+				if c == "create_task" {
+					body = g.bodies[i]
+				}
+			}
+		})
+		return body
+	}
+	m.scan("admin@acme.example")
+	if b := task(); b == "" || strings.Contains(b, "max_checks") {
+		t.Fatalf("normal speed: %q", b)
+	}
+	m.deepRow(m.id, true, true, true, true, true, SpeedGentle, "[]", "[]")
+	m.scan("admin@acme.example")
+	if b := task(); !strings.Contains(b, "<scanner_name>max_checks</scanner_name><value>2</value>") || !strings.Contains(b, "<scanner_name>max_hosts</scanner_name><value>1</value>") {
+		t.Fatalf("gentle: %q", b)
 	}
 }
 

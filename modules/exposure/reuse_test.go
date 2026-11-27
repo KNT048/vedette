@@ -149,6 +149,10 @@ func TestDomainReuse_AFreshEqualScopeAddressRunIsReused(t *testing.T) {
 	if deepOf(s, ipA).Deep != DeepScanned {
 		t.Fatalf("ipA = %+v", deepOf(s, ipA))
 	}
+	// a template job's host is the address itself, never a name (TemplateJob): the step must not say they ran with the domain's name
+	if st, _ := addressStep(r.runDetail(r.ctx(), s.RunID), ipA); strings.Contains(reuseNote(st), "name") {
+		t.Fatalf("step of %s says %q", ipA, reuseNote(st))
+	}
 }
 
 // What is never reused: a source older than 24 hours, a run that did not finish, a source whose settings were narrower than the

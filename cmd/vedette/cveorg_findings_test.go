@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -15,8 +16,9 @@ import (
 func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 	t.Parallel()
 	const cve = "CVE-2026-1000"
-	rec := func(affected string) []byte {
-		return []byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"` + cve + `","state":"PUBLISHED"},"containers":{"cna":{"affected":[` + affected + `]}}}`)
+	rec := func(assigner, affected string) []byte { // each vendor's own CNA writes its record (feeds ownCNA)
+		return []byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"` + cve + `","state":"PUBLISHED","assignerShortName":"` + assigner +
+			`"},"containers":{"cna":{"affected":[` + affected + `]}}}`)
 	}
 	pan := `{"vendor":"Palo Alto Networks","product":"PAN-OS","defaultStatus":"unaffected","versions":[{"version":"9.1.0","status":"unaffected"},{"version":"10.2.0","lessThan":"10.2.9-h1","status":"affected","versionType":"custom","changes":[{"at":"10.2.9-h1","status":"unaffected"}]}]}`
 	forti := `{"vendor":"Fortinet","product":"FortiOS","defaultStatus":"unaffected","versions":[{"version":"7.4.0","lessThanOrEqual":"7.4.2","status":"affected","versionType":"semver"},{"version":"7.2.0","lessThanOrEqual":"7.2.6","status":"affected","versionType":"semver"}]}`
@@ -42,7 +44,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 		{"reversed range (M1)", "Acme", "Gateway", reversed, "3.0.2", "product"},
 		{"unaffected backport inside the range (M2)", "Acme", "Gateway", hole, "1.5.3", "product"},
 	} {
-		res, err := feeds.ParseCVERecord(rec(c.affected), cve)
+		res, err := feeds.ParseCVERecord(rec(strings.ToLower(strings.ReplaceAll(c.vendor, " ", "_")), c.affected), cve)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}

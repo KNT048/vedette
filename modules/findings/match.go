@@ -144,6 +144,10 @@ type Asset struct {
 type Affected struct {
 	CPE   string // CPE 2.3 criteria; a malformed one is ignored
 	Range VersionRange
+	// AffectedOnly: a CVE record row read beside NVD's whose product's list is not complete (feeds matchRows): a version inside it is
+	// affected, a version outside it proves nothing (the record and NVD disagree: the affected answer wins). VendorList: a row of a
+	// record list that states what every unlisted version is (complete): an exact version it lists decides like a range.
+	AffectedOnly, VendorList bool
 	// parsed is CPE already parsed; nil: parse when read.
 	parsed *CPE
 }
@@ -184,8 +188,9 @@ type Vuln struct {
 	Lines       []LineRow
 	LineCovers  []LineCover
 	LineSupport []LineSupport
-	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom). NVD's rows win over the CVE record's when
-	// NVD has any (the catalogue's precedence, applied when the ranges are read); the finding stores it (range_origin).
+	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom): NVD's when NVD has any, the CVE record's
+	// rows read beside them marked (Affected.AffectedOnly, VendorList); the finding stores it (range_origin), RangeCNA when the record's
+	// rows beside NVD's are what call it affected (recordDecided).
 	Origin string
 	// NVDAnswered: the feeds module recorded an answer for the CVE's affected configurations (feeds_affected_cve: NVD's, or the
 	// CVE.org record's), even an empty one. False before the NVD pull, with it off or failing: an empty Affected then says nothing
@@ -363,7 +368,8 @@ type Match struct {
 	// provedOn: for a proof from a version, the version or package release the matcher compared ("" when none: another platform, a
 	// distribution's blanket word); stored on the finding it closes (Finding.ProvedVersion).
 	provedOn string
-	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
+	// bounded: a version match inside a range with an end (a fix to install), a CVE record's "every version" (fromZero) or below the
+	// distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; #913).
 	bounded bool
@@ -1113,6 +1119,11 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
+	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) {
+		if _, ok := distroVerdict(in, v); !ok {
+			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
+		}
+	}
 	if out == outNotAffected || (out == outMatch || out == outQuestion) && m.bounded {
 		return m, out
 	}
@@ -1132,7 +1143,7 @@ func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
 	if _, ok := distroVerdict(in, v); ok { // the distribution's word on its own package, before or without NVD naming the product
 		return true
 	}
-	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
+	if !nvdNames(in, v, true) || edgeLegacyRow(s, in) {
 		return false
 	}
 	_, ok := distroVerdict(in, v)
@@ -1144,11 +1155,16 @@ func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
 // (winOSComponents): windowsDecide reads its release and the siblings that take the same update. An exact version NVD lists says
 // nothing on this path (#913): Android's rows name the release (14.0) while its fixes come by security patch level,
 // and NVD lists Edge 117.0.2045.47, the build that fixed CVE-2023-5217, as affected.
-func nvdNames(in swInfo, v Vuln) bool {
+//
+// A row of a complete record list (VendorList) names the row with an exact version too: the vendor stated every version's status. So
+// does a CVE record's "every version is affected" (fromZero), which no NVD row writes: NVD's version-less rows have no bound at all.
+// affirming false leaves out the record rows that only say "affected" (AffectedOnly): viaNVD's proof of "not affected" never rests on
+// them.
+func nvdNames(in swInfo, v Vuln, affirming bool) bool {
 	_, win := winDevice(in)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
-		if err != nil || c.Part.Kind == NA || !endBound(af.Range) {
+		if err != nil || c.Part.Kind == NA || af.AffectedOnly && !affirming || !endBound(af.Range) && !af.Range.fromZero() && (!af.VendorList || !versionEvidence(af)) {
 			continue
 		}
 		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {
@@ -1413,6 +1429,9 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 			}
 		}
 	}
+	if tri == Yes && !schemed && v.RangesFrom == "" && recordDecided(in, v) { // the record's rows beside NVD's call it affected: the texts name the record
+		v.RangesFrom = RangesCVEOrgPartial
+	}
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed { // the CNA's list may skip branches: outside it proves nothing
 		tri, proof = Unknown, proofNone
 	}
@@ -1467,7 +1486,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	}
 	switch {
 	case tri == Yes:
-		m.Basis, m.Confidence, m.Severity, m.bounded = BasisVersion, ConfVersion, SeverityHigh, endBound(within)
+		m.Basis, m.Confidence, m.Severity, m.bounded = BasisVersion, ConfVersion, SeverityHigh, endBound(within) || within.fromZero()
 		if v.Ransomware || v.EPSS >= 0.5 {
 			m.Severity = SeverityCritical
 		}
@@ -1971,6 +1990,15 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			undecidable = undecidable || !known
 			continue
 		}
+		if af.AffectedOnly { // only "affected" counts from it, and only for a version it states: outside it, it neither applies nor proves
+			if t, r := in.eval(c, af.Range, in.ver, sib); t == Yes && own && versionEvidence(af) {
+				if yes == nil || explainsBetter(r, *yes) {
+					yes = &r
+				}
+				applicable = true
+			}
+			continue
+		}
 		applicable = true
 		if isJ && isJunos(c) {
 			junosSeen = true
@@ -1986,7 +2014,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			}
 		}
 		t, r := in.eval(c, af.Range, in.ver, sib)
-		if t != No && af.Range.IsZero() && everyVersion(c) {
+		if t != No && (af.Range.IsZero() || af.Range.fromZero()) && everyVersion(c) {
 			every = true
 		}
 		switch {
@@ -2050,6 +2078,18 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing
 	}
 	return result, VersionRange{}, every, proofNone
+}
+
+// recordDecided says the CVE record's rows read beside NVD's (AffectedOnly) are what call the line affected: without them decide does
+// not say Yes. The finding then names the record as the origin of the ranges it compared.
+func recordDecided(in swInfo, v Vuln) bool {
+	if !slices.ContainsFunc(v.Affected, func(af Affected) bool { return af.AffectedOnly }) {
+		return false
+	}
+	nvd := v
+	nvd.Affected = slices.DeleteFunc(slices.Clone(v.Affected), func(af Affected) bool { return af.AffectedOnly })
+	t, _, _, _ := decide(in, nvd, keyIDs(v))
+	return t != Yes
 }
 
 // proofKind is what a No of decide rests on: only proofRange and proofOS close a finding.

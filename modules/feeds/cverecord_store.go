@@ -275,48 +275,52 @@ func recordPlatforms(ps []string) any {
 // scheme): Citrix left this list when NetScaler's builds ("13.1-49.13") got theirs.
 var recordSkipVendors = map[string]bool{"juniper": true, "microsoft": true}
 
-// kevRecordView is, for each exploited-list CVE without NVD ranges, the record ranges of the product its owner entry names (the CNA's
-// rows keyed RecordProductKey of the entry's vendor and product), as the matcher's CPE entries: CPE
-// "cpe:2.3:*:<vendor>:<product>:<version or *>:…" with the entry's own names (never a guessed NVD name), an exact version written in
-// the CPE. source is rangesCVEOrg for a complete list (every row says affected or unaffected) and rangesCVEOrgPartial otherwise. A
-// CVE whose entry names several products ("Multiple Products"), a vendor of recordSkipVendors or a product with a version scheme
-// (recordSkipped) has none.
-func kevRecordView(ctx context.Context, q queryer) (map[string][]AffectedRow, map[string]string, error) {
-	rows, err := q.QueryContext(ctx, `SELECT k.cve, k.vendor, k.product FROM feeds_kev k
+// kevRecordView is, for each exploited-list CVE, the record ranges of the product its owner entry names (the CNA's rows keyed
+// RecordProductKey of the entry's vendor and product), as the matcher's CPE entries: CPE "cpe:2.3:*:<vendor>:<product>:<version or
+// *>:…" with the entry's own names (never a guessed NVD name), an exact version written in the CPE. source is rangesCVEOrg for a
+// complete list (every row says affected or unaffected) and rangesCVEOrgPartial otherwise. A CVE whose entry names several products
+// ("Multiple Products"), a vendor of recordSkipVendors or a product with a version scheme (recordSkipped) has none. nvd names the CVEs
+// NVD gives ranges for: their record rows are read beside NVD's (matchRows' rule: a partial list's rows only say "affected").
+func kevRecordView(ctx context.Context, q queryer) (aff map[string][]AffectedRow, src map[string]string, nvd map[string]bool, err error) {
+	rows, err := q.QueryContext(ctx, `SELECT k.cve, k.vendor, k.product, EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'nvd') FROM feeds_kev k
 WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
   AND k.list = (SELECT k2.list FROM feeds_kev k2 WHERE k2.cve = k.cve AND k2.source_id IN ('cisa-kev', 'vulncheck-kev') ORDER BY `+ownerOrder+` LIMIT 1)
-  AND NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'nvd')
   AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = k.cve AND r.origin = 'cna' AND `+genericRowSQL+`)`)
 	if err != nil {
-		return nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
+		return nil, nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
 	}
 	type owner struct{ vendor, product string }
 	owners := map[string]owner{}
+	nvd = map[string]bool{}
 	for rows.Next() {
 		var cve string
 		var o owner
-		if err := rows.Scan(&cve, &o.vendor, &o.product); err != nil {
+		var hasNVD bool
+		if err := rows.Scan(&cve, &o.vendor, &o.product, &hasNVD); err != nil {
 			_ = rows.Close()
-			return nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
+			return nil, nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
 		}
 		owners[cve] = o
+		if hasNVD {
+			nvd[cve] = true
+		}
 	}
 	if err := rows.Close(); err != nil {
-		return nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
+		return nil, nil, nil, fmt.Errorf("feeds: read record ranges: %w", err)
 	}
-	aff, src := map[string][]AffectedRow{}, map[string]string{}
+	aff, src = map[string][]AffectedRow{}, map[string]string{}
 	if len(owners) == 0 {
-		return aff, src, nil
+		return aff, src, nvd, nil
 	}
 	cves := slices.Sorted(mapsKeys(boolKeys(owners)))
 	for chunk := range slices.Chunk(cves, 500) {
 		part, err := json.Marshal(chunk)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		got, err := readRanges(ctx, q, `WHERE r.origin = 'cna' AND `+genericRowSQL+` AND r.cve IN (SELECT value FROM json_each(?))`, string(part))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		for _, per := range groupByCVE(got) {
 			cve := per[0].CVE
@@ -325,7 +329,7 @@ WHERE k.source_id IN ('cisa-kev', 'vulncheck-kev')
 			}
 		}
 	}
-	return aff, src, nil
+	return aff, src, nvd, nil
 }
 
 // KEVRecordRows is the view of kevRecordView for one CVE: of its record ranges, the CNA's rows of the product an exploited-list entry
@@ -350,6 +354,9 @@ func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, strin
 	case len(rows) == 0:
 		return nil, ""
 	case complete:
+		for i := range rows {
+			rows[i].VendorList = true
+		}
 		return rows, rangesCVEOrg
 	}
 	return rows, rangesCVEOrgPartial
@@ -361,9 +368,14 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:*:*:*"
 	}
 	if r.StartIncl != "" && r.StartIncl == r.EndIncl && r.StartExcl == "" && r.EndExcl == "" {
-		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl))}
+		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}
 	}
-	return AffectedRow{CPE: cpe("*"), StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}
+	start := r.StartIncl
+	if recordEvery(r) {
+		start = "0" // every version (recordEvery)
+	}
+	return AffectedRow{CPE: cpe("*"), StartIncl: start, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
+		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}
 }
 
 // ---- counts ----

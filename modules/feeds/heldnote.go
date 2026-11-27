@@ -168,11 +168,17 @@ WHERE NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = v.cve AND r.orig
 			grouped(read), grouped(all), grouped(gap), grouped(held)))
 	}
 	if kevGap > 0 {
-		aff, _, err := kevRecordView(ctx, tx)
+		aff, _, nvd, err := kevRecordView(ctx, tx)
 		if err != nil {
 			return "", err
 		}
-		parts = append(parts, fmt.Sprintf("Exploited: %s without affected versions from NVD, %s of them with versions from the record.", grouped(kevGap), grouped(len(aff))))
+		held := 0
+		for cve := range aff {
+			if !nvd[cve] {
+				held++
+			}
+		}
+		parts = append(parts, fmt.Sprintf("Exploited: %s without affected versions from NVD, %s of them with versions from the record.", grouped(kevGap), grouped(held)))
 	}
 	return strings.Join(parts, " "), nil
 }

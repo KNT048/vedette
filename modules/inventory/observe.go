@@ -74,8 +74,6 @@ type cleanObs struct {
 	// device: the id of the device an SNMP read of its own read address is about (AssetHint.Device): it goes there or nowhere.
 	device string
 	list   bool // a list (software, services: deviceFor), not an observation: at a stale address it makes no device
-	// keyless: a list of an agent with no key and no card (Wazuh, by address): admit checks it at a removed device's last address
-	keyless bool
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
 	// claims are the cards this hint names in the batch: its MAC and the values of the batch's mac observations with the same hint
@@ -1346,7 +1344,8 @@ func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID stri
 	}
 	best := winners(list)
 	dropContradictedOS(list, best) // nmap's OS guess never wins against the device's type (Android on a firewall)
-	// A MAC another device already owns cannot become this device's MAC: take the best one that is free.
+	// A MAC another device already owns, or one a removal keeps out (INV-59: a row that stored it as an observation while the removed
+	// device owned it does not take it now), cannot become this device's MAC: take the best one that is free.
 	if _, ok := best["mac"]; ok {
 		cands := slices.DeleteFunc(slices.Clone(list), func(o obs) bool { return o.field != "mac" })
 		slices.SortFunc(cands, func(a, b obs) int {
@@ -1362,7 +1361,8 @@ func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID stri
 		for _, c := range cands {
 			var other string
 			// a MAC of an address row is an interface of its own (INV-57), never a device's main MAC, this device's included
-			err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?1 AND id <> ?2 UNION ALL SELECT asset_id FROM inv_asset_address WHERE mac = ?1 LIMIT 1`,
+			err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?1 AND id <> ?2 UNION ALL SELECT asset_id FROM inv_asset_address WHERE mac = ?1
+				UNION ALL SELECT removed_id FROM inv_removed_id WHERE kind = 'mac' AND value = ?1 LIMIT 1`,
 				c.value, assetID).Scan(&other)
 			if errors.Is(err, sql.ErrNoRows) {
 				best["mac"] = c

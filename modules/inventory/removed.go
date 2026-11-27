@@ -197,8 +197,8 @@ func (s *Service) RemovedAgent(ctx context.Context, key string) (bool, error) {
 // same report states: Wazuh and an agent by address send their card as a value) is dropped whole, so it neither makes a device nor binds
 // the card to one, wherever it would go. A sighting with no card makes no device at an address a removal kept. An osquery agent's report
 // (a node a person enrolled; a stopped one cannot enrol again: RemovedAgent) is a person's act: it is admitted and forgets the removals
-// of its cards, audited. A list of an agent with no key and no card (Wazuh's software and services, by address) makes no device at the
-// address a removed device was last shown at: the same report's observations come first, and there they were kept out. Dropped sightings are logged at most hourly.
+// of its cards, audited. A sighting or list with no card and no key (a device check by address, Wazuh's software and services) makes no
+// device at the address a removed device was last shown at. Dropped sightings are logged at most hourly.
 func (s *Service) admit(ctx context.Context, tx *sql.Tx, c cleanObs, creating bool) (bool, error) {
 	cards := slices.Clone(c.claims)
 	for _, m := range []string{c.mac, c.card} {
@@ -235,9 +235,10 @@ func (s *Service) admit(ctx context.Context, tx *sql.Tx, c cleanObs, creating bo
 			return !hit, err
 		}
 	}
-	if creating && c.keyless && c.ip.IsValid() {
-		// a list by address only with no card to check (Wazuh): at the address a removed device was last shown at, the same report's
-		// observations were kept out (a machine of its own there would have its device, which the list finds), so it makes none
+	if creating && len(cards) == 0 && c.ip.IsValid() {
+		// a sighting or list by address only, with no card to check (a device check that was running when the device was removed, Wazuh's
+		// lists): at the address a removed device was last shown at it makes no device. Another machine there shows its own card and
+		// gets its device, which later sightings by address find.
 		var at bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_removed WHERE ip = ?)`, c.ip.String()).Scan(&at); err != nil {
 			return false, fmt.Errorf("inventory: read the removed devices: %w", err)

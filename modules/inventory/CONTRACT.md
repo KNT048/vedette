@@ -152,8 +152,9 @@ detail is in its doc comment.
   every observation and list (passive, scans, SNMP, Wazuh, software and services lists), and again where a found device would be made
   (`resolve`'s insert, `ownDevice`). A sighting that names a kept card (its hint's MAC, or a mac value the same report states, as
   Wazuh and an agent by address send it) reaches nothing, so it neither makes a device nor binds the card to one; one with no card
-  makes no device at a kept address (another machine given the address is a new device); a keyless agent list by address (Wazuh)
-  makes no device at the address a removed device was last shown at. An osquery agent's report is a person's act: admitted, and it
+  makes no device at a kept address (another machine given the address is a new device), nor at the address a removed device was
+  last shown at (a device check that was running when it was removed, a Wazuh list by address). No device takes a kept card as its
+  MAC from an observation stored before the removal (`RecomputeAsset`). An osquery agent's report is a person's act: admitted, and it
   forgets the removals of its cards (audit `inventory.removal_forget`); a stopped agent on a shared token cannot enrol again
   (`RemovedAgent`, agent-intake INV-27). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
   only move identifiers between devices that exist, and an SNMP read with a device hint carries no MAC, so neither can bring one

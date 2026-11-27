@@ -319,6 +319,14 @@ func TestContract_INV59_EveryWayBackIsChecked(t *testing.T) {
 			h := observe.AssetHint{IP: addr2}
 			e.record(observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
 		}},
+		{"a device check that was running when the device was removed", func(e *env) {
+			h := observe.AssetHint{IP: addr} // a device check reports by the address it was given, with no card
+			e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "printer", Source: observe.Nmap, Confidence: 0.6})
+			e.ok(e.svc.ReplaceServices(e.ctx(), h, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 631, Proto: "tcp", Name: "ipp", Confidence: 0.9}}))
+			if n := e.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`); n != 0 {
+				e.t.Fatalf("the check's results made a device at the removed device's address (%d)", n)
+			}
+		}},
 		{"a scan's open services with the card", func(e *env) {
 			e.ok(e.svc.AddServices(e.ctx(), observe.AssetHint{IP: addr, MAC: card}, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.9}}))
 		}},
@@ -372,5 +380,28 @@ func TestContract_INV59_AnAgentOfAModuleThatIsOffIsNoChoice(t *testing.T) {
 	l, err := e.svc.RemovedDevices(e.ctx())
 	if err != nil || len(l) != 1 || l[0].Agent != "none" {
 		t.Fatalf("removed = %+v, %v: the device is kept out as one with no agent", l, err)
+	}
+}
+
+// A row that stored a card as an agent's observation while another device owned it (Wazuh reporting a machine by an address another row
+// held) does not take that card as its MAC once a person removed the card's device (INV-59).
+func TestContract_INV59_ARowThatSawTheRemovedCardDoesNotTakeIt(t *testing.T) {
+	t.Parallel()
+	const ip, ip2 = "10.0.10.51", "10.0.10.52"
+	const card = "3c:22:fb:00:00:51"
+	e := newEnv(t)
+	e.record(dhcp(card, ip, "printer")...)
+	e.record(byAddress(ip2, "pc-01.corp.example")...)
+	h := observe.AssetHint{IP: netip.MustParseAddr(ip2)}
+	e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "pc-01", Source: observe.Agent, Confidence: 0.9},
+		observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`); n != 2 {
+		t.Fatalf("%d devices before the removal, want the card's device and the address-only one", n)
+	}
+	e.ok(e.svc.DeleteDevice(e.ctx(), "it@acme.example", e.idByMAC(card), ""))
+	e.tick(time.Minute)
+	e.record(byAddress(ip2, "pc-01.corp.example")...)
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE mac = ?`, card); n != 0 {
+		t.Fatalf("the removed card is back as the MAC of another row (%d)", n)
 	}
 }

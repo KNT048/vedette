@@ -42,7 +42,7 @@ type identifier func(it SoftwareItem, source string) (lineIdentity, string)
 // identifyRules is the generation of the identification code (identify and core/productid's rules). Raise it with a change of that
 // code that can give a stored reading another product or train: the next start identifies the stored lines again, as after a change
 // of the catalogue's data. TestIdentifyRulesFollowTheIdentificationCode fails on any change of that code until the change is weighed.
-const identifyRules = "2"
+const identifyRules = "3"
 
 // catalogueRevision is the revision of the product catalogue this build identifies with: a hash of the identification rules'
 // generation and of the catalogue files core/productid loads (products/*.json, curated.json, kev-products.json).

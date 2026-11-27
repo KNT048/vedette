@@ -314,6 +314,7 @@
   },
   "updated": {
     "button": "I updated {{software}}",
+    "saveAnyway": "Save anyway",
     "noAgentLine": "No agent reports the software of {{device}} to Vedette now: its last list stays until an agent reports again. These findings close once a new list shows the fixed version.",
     "boxLine": "Vedette reads its own packages every hour: the new version shows within the hour, and these findings then close on their own.",
     "boxLineOs": "Restart {{device}} if the update asks for it: the new build shows only after the restart. Vedette reads its own packages every hour, and these findings then close on their own.",

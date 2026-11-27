@@ -18,8 +18,8 @@ import (
 //     (withoutProduct). Another name (another package of the same advisory, a marketing name) is not dropped, nor a name before a
 //     range written with a hyphen ("Tika 1.0-1.23", hyphenRange).
 //   - A list after lessThan or lessThanOrEqual with one fixed (or last affected) release per release train ("1.20.4,2.0.2,2.1.2"):
-//     one row per train (trainEnds), only when every item is a plain dotted number of the same length, each on a later train than the
-//     one before it.
+//     one row per train (trainEnds), only when every item is a plain dotted number of the same length and the trains go strictly up as
+//     written (or strictly down, in a list of three or more).
 //     A list of one train ("10.0.111, 10.0.400": .NET's records write the SDK's numbers on the runtime) stays unusable: it cannot be
 //     a fix per train, and reading it as one would call fixed runtimes affected.
 //
@@ -196,9 +196,10 @@ var trainEndRE = regexp.MustCompile(`^[0-9]{1,9}(?:\.[0-9]{1,9}){1,5}$`)
 // first row runs from the entry's start to the lowest release; each next one from the train after the one before it ("1.21") to its
 // own release, so a train no item names between two listed ones stays affected (the affected side wins). An item that is its train's
 // first release ("1.46.0" after "1.45.4") gives no row after lessThan (none of that train is affected) and that one release after
-// lessThanOrEqual. Read only when every item is a plain dotted number of the same length, each on a later train than the item before
-// it (oldest train first), above the entry's start. A list in another order stays unusable: "3.11.4, 3.2.0" can be two products'
-// releases (one product's 3.11.4 and another's 3.2.0), and read per train it would call the first product's 3.2.1 to 3.2.x unaffected.
+// lessThanOrEqual. Read only when every item is a plain dotted number of the same length, above the entry's start, and the trains go
+// strictly up as written, or strictly down in a list of three or more. Two items newest first and a list in no order stay unusable:
+// "3.11.4, 3.2.0" can be two products' releases (one product's 3.11.4 and another's 3.2.0), and read per train it would call the
+// first product's 3.2.1 to 3.2.x unaffected.
 func trainEnds(n notedVersion) ([]notedVersion, bool) {
 	items := strings.Split(n.end, ",")
 	type item struct {
@@ -219,6 +220,9 @@ func trainEnds(n notedVersion) ([]notedVersion, bool) {
 	}
 	if len(ends) < 2 {
 		return nil, false
+	}
+	if len(ends) >= 3 && slices.Compare(train(ends[0].nums), train(ends[1].nums)) > 0 {
+		slices.Reverse(ends) // newest train first ("1.46.0, 1.45.4, 1.43.9")
 	}
 	for i := 1; i < len(ends); i++ {
 		if slices.Compare(train(ends[i-1].nums), train(ends[i].nums)) >= 0 {

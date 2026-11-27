@@ -61,12 +61,13 @@ func TestParseCVERecord_RecordNotation(t *testing.T) {
 			[]span{{ee: "1.43.9", def: u}, {si: "1.44", ee: "1.45.4", def: u}}, 0},
 		{"a last affected release that is its train's first", `{"vendor":"acme","product":"stream","versions":[{"version":"0","lessThanOrEqual":"1.9.5, 1.10.0","status":"affected"}]}`,
 			[]span{{ei: "1.9.5", def: k}, {si: "1.10.0", ei: "1.10.0", def: k}}, 0},
+		{"three fixes listed newest first", `{"vendor":"acme","product":"stream","defaultStatus":"unaffected","versions":[{"version":"0","lessThan":"2.2.1, 2.1.2, 1.20.4","status":"affected"}]}`,
+			[]span{{ee: "1.20.4", def: u}, {si: "1.21", ee: "2.1.2", def: u}, {si: "2.2", ee: "2.2.1", def: u}}, 0},
 
 		// what the grammar does not cover keeps the product unusable
 		{"a list of one train (another component's numbers)", `{"vendor":"acme","product":"Acme Runtime","versions":[{"version":"10.0.0","lessThan":"10.0.111, 10.0.400","status":"affected","versionType":"custom"}]}`, nil, 1},
 		{"a list of one train, sorted apart", `{"vendor":"acme","product":"stream","versions":[{"version":"0","lessThan":"1.20.4, 2.0.2, 1.20.9","status":"affected"}]}`, nil, 1},
-		{"a list newest first (two products' numbers)", `{"vendor":"acme","product":"Assist","versions":[{"version":"0","lessThanOrEqual":"3.11.4, 3.2.0","status":"affected"}]}`, nil, 1},
-		{"a list newest first", `{"vendor":"acme","product":"stream","defaultStatus":"unaffected","versions":[{"version":"0","lessThan":"1.46.0, 1.45.4, 1.43.9","status":"affected"}]}`, nil, 1},
+		{"two items newest first (two products' numbers)", `{"vendor":"acme","product":"Assist","versions":[{"version":"0","lessThanOrEqual":"3.11.4, 3.2.0","status":"affected"}]}`, nil, 1},
 		{"a list out of train order", `{"vendor":"acme","product":"stream","versions":[{"version":"0","lessThan":"7.14.2, 7.12.14, 8.4.2","status":"affected"}]}`, nil, 1},
 		{"a list with a patch-level item", `{"vendor":"acme","product":"stream","defaultStatus":"unaffected","versions":[{"version":"0","lessThanOrEqual":"2.4.9, 2.4.8-p5, 2.4.7-p10","status":"affected"}]}`, nil, 1},
 		{"a list of mixed lengths", `{"vendor":"acme","product":"stream","versions":[{"version":"0","lessThan":"1.20.4, 2.0","status":"affected"}]}`, nil, 1},

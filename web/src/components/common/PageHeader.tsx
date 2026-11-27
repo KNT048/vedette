@@ -6,6 +6,7 @@ import { ModuleBadge, ModuleLine } from './V1Scope'
 import { PageModule } from '@/lib/v1'
 import { Breadcrumbs, type Crumb } from './Breadcrumbs'
 import { HelpLink } from './HelpLink'
+import { CardLevel } from './Card'
 
 /** The first line of each page answers the persona's question (FRONTEND §3, information hierarchy).
  *  Page frame: a ~20 px heading and a short description on one line (the description wraps when there is not enough room); then KpiStrip, PageTabs (`PageFrame.tsx`). */
@@ -45,7 +46,30 @@ export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, t
 
 /** A content block with a heading; not a card: a border only when the content is a table/data block. */
 /*  `description` is one short line (about 12 words); how it works, why, examples go into `info` (ⓘ next to the heading, #824). */
-export function Section({ title, description, info, actions, children, id, stories }: { title: ReactNode; description?: ReactNode; info?: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; stories?: string[] }) {
+/*  Without `title` it is the lead of a tab panel whose tab already names it (docs/UI.md §4): no heading that repeats the tab, its
+    one muted line with the ⓘ, its actions on the right; `label` names the region for a screen reader. */
+export function Section({ title, label, description, info, actions, children, id, stories }: { title?: ReactNode; label?: string; description?: ReactNode; info?: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; stories?: string[] }) {
+  if (!title) {
+    return (
+      <section className="mb-8" aria-label={label} id={id}>
+        {description || info || actions || stories ? (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="grid gap-0.5">
+              {description || info ? (
+                <div className="flex max-w-3xl items-center gap-1 text-meta text-muted">
+                  {description ? <p>{description}</p> : null}
+                  {info ? <InfoTip topic={label}>{info}</InfoTip> : null}
+                </div>
+              ) : null}
+              {stories ? <StoryTag ids={stories} /> : null}
+            </div>
+            {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+          </div>
+        ) : null}
+        <CardLevel value={2}>{children}</CardLevel>
+      </section>
+    )
+  }
   return (
     <section className="mb-8" aria-labelledby={id ? `${id}-title` : undefined} id={id}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
@@ -59,7 +83,7 @@ export function Section({ title, description, info, actions, children, id, stori
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-      {children}
+      <CardLevel value={3}>{children}</CardLevel>
     </section>
   )
 }

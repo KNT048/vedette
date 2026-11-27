@@ -1299,10 +1299,10 @@ describe('inventory: sensors (S-INV-1, admin)', () => {
     const tabs = await screen.findByRole('tablist', { name: 'Parts of the setup' }, T)
     expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Sensor', 'Agents', 'Wazuh'])
     expect(screen.getByRole('link', { name: 'Scan scope' })).toHaveAttribute('href', '/settings/scanning?tab=safety#scope')
-    expect(await screen.findByRole('heading', { level: 2, name: 'Sensor on this box' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Sensor on this box' }, T)).toBeInTheDocument()
     await expectNoA11yViolations()
     await user.click(screen.getByRole('tab', { name: 'Agents' }))
-    expect(await screen.findByRole('heading', { level: 2, name: 'Agents on servers' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Agents on servers' }, T)).toBeInTheDocument()
     view.unmount()
     renderApp('/devices/setup?tab=scope#range-input')
     expect(await screen.findByRole('button', { name: 'Add range' }, T)).toBeInTheDocument()
@@ -1529,7 +1529,7 @@ describe('inventory: agents (S-INV-4)', () => {
     }
     expect(within(table).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows · x64')
     expect(screen.getByText(new RegExp(`official osquery ${OSQUERY_VERSION.replace(/\./g, '\\.')} packages`))).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 3, name: 'Enrollment tokens' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Enrollment tokens' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create agent token' })).toBeEnabled()
     expect(document.body.textContent).not.toMatch(/osquery\.io|choco/)
     await expectNoA11yViolations()
@@ -1815,7 +1815,7 @@ describe('inventory: agents (S-INV-4)', () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=wazuh')
-    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
+    await screen.findByRole('region', { name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     for (const s of ['agent:read', 'syscollector:read', 'agent:id:*']) expect(within(dialog).getAllByText(new RegExp(s.replace('*', '\\*'))).length).toBeGreaterThan(0)
@@ -1831,7 +1831,7 @@ describe('inventory: agents (S-INV-4)', () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=wazuh')
-    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
+    await screen.findByRole('region', { name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     const url = within(dialog).getByLabelText('Wazuh server API address')
@@ -1864,7 +1864,7 @@ describe('inventory: agents (S-INV-4)', () => {
     server.use(http.post('*/api/v1/inventory/agents/wazuh/test', async () => { await held; return HttpResponse.json({ version: '4.9.2', agents: 1 }) }))
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=wazuh')
-    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
+    await screen.findByRole('region', { name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     await user.type(within(dialog).getByLabelText('Wazuh server API address'), 'https://wazuh-manager:55000')
@@ -1889,7 +1889,7 @@ describe('inventory: agents (S-INV-4)', () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
     renderApp('/devices/setup?tab=wazuh')
-    await screen.findByRole('heading', { level: 2, name: 'Wazuh' }, T)
+    await screen.findByRole('region', { name: 'Wazuh' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
     await user.type(within(dialog).getByLabelText('Wazuh server API address'), 'https://wazuh-manager:55000')
@@ -2074,7 +2074,7 @@ describe('inventory: English only', () => {
     const checks: [string, () => Promise<unknown>][] = [
       ['/devices', () => deviceTable()],
       ['/devices/a-nas02?tab=observations', () => screen.findByRole('table', { name: 'Observations for this device' }, T)],
-      ['/devices/setup?tab=sensor', () => screen.findByRole('heading', { level: 2, name: 'Sensor on this box' }, T)],
+      ['/devices/setup?tab=sensor', () => screen.findByRole('region', { name: 'Sensor on this box' }, T)],
       ['/devices/setup?tab=snmp', () => screen.findByRole('tab', { name: 'Engines', selected: true }, T)],
       ['/devices?add=snmp', () => screen.findByRole('dialog', { name: 'Add a device' }, T)],
       ['/settings/declared-software', () => screen.findByRole('heading', { level: 2, name: 'Declared software' }, T)],

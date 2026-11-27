@@ -37,7 +37,7 @@ function Profile({ a }: { a: Account }) {
     try { await m.rename.mutateAsync(name.trim()); toast.success(t('common:saved')) } catch (err) { setError(errMsg(err, t)) }
   }
   return (
-    <Section title={t('account.profile.title')}>
+    <Section label={t('account.profile.title')}>
       <Card className="max-w-xl"><form onSubmit={(e) => void save(e)} className="grid gap-4" noValidate>
         <Field label={t('account.profile.name')} htmlFor="acc-name" error={error ?? undefined}><Input id="acc-name" value={name} maxLength={80} aria-invalid={!!error} onChange={(e) => setName(e.target.value)} /></Field>
         <KeyValue items={[{ label: t('account.profile.email'), value: a.user.email }, { label: t('account.profile.role'), value: t(`common:role.${a.user.role}`) }, { label: t('account.profile.lastLogin'), value: fmtDateTime(a.user.last_login) }]} />

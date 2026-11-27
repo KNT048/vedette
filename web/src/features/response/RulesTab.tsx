@@ -86,7 +86,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
         <div className="flex flex-wrap items-center gap-3">
           <Switch id={`rs-${rule.id}`} checked={rule.enabled} disabled={!admin || save.isPending || (frozen && !rule.enabled)} title={frozen && !rule.enabled ? t('leaving.frozen') : undefined} aria-label={t('rules.enabledLabel', { name: rule.name })}
             onCheckedChange={(v) => save.mutate({ id: rule.id, rule: { ...toInput(rule), enabled: v } }, { onSuccess: () => toast.success(t(v ? 'rules.nowOn' : 'rules.nowOff', { name: rule.name })), onError: (e) => toast.error(errText(e)) })} />
-          <h3 className="text-sm font-semibold">{rule.name}</h3>
+          <h2 className="text-sm font-semibold">{rule.name}</h2>
           <Chip tone={rule.live ? 'warn' : 'off'}>{rule.live ? t('rules.live') : t('rules.dryRun')}</Chip>
           {rule.pre_approved ? <Chip tone="danger">{t('request.preApproved')}</Chip> : <Chip tone="ok">{t('rules.needsApproval')}</Chip>}
           {rule.template_id ? <Chip tone="off">{t('rules.fromTemplate')}</Chip> : null}
@@ -199,7 +199,7 @@ export function RulesTab() {
   if (rules.error) return <ErrorState error={rules.error} onRetry={() => void rules.refetch()} />
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-      <Section title={t('rules.title')} description={t('rules.description')} info={t('rules.descriptionInfo')} stories={['S-RESP-3']}
+      <Section label={t('rules.title')} description={t('rules.description')} info={t('rules.descriptionInfo')} stories={['S-RESP-3']}
         actions={admin && !frozen ? <Button variant="primary" onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('rules.add')}</Button> : undefined}>
         <div className="grid gap-4">
           <Card className="text-sm"><p>{t('rules.safetyNote')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response#resp-breaker">{t('blocked.toSettings')}</Link> : null}</p></Card>

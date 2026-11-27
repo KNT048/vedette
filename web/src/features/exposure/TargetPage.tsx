@@ -118,7 +118,7 @@ function TargetView({ node }: { node: TargetNode }) {
         ...(domain ? [{ id: 'names', label: t('tabs.names'), panel: <NamesPanel node={node} onEdit={() => setEditing(true)} /> }] : []),
         { id: 'scans', label: live ? t('tabs.scanning') : t('tabs.scans'), highlight: live, panel: <><ScanSchedule node={node} /><ScansPanel node={node} /></> },
         { id: 'ownership', label: t('tabs.ownership'), badge: needsProof(node) ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
-          <Section id="step-verify" title={t('proof.title')} description={t(`proof.description.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)} info={t(`proof.descriptionInfo.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)}>
+          <Section id="step-verify" label={t('proof.title')} description={t(`proof.description.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)} info={t(`proof.descriptionInfo.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)}>
             <ProofPanel node={node} />
           </Section>
           {node.commitment ? (

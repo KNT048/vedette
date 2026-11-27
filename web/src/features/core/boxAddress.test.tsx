@@ -68,7 +68,7 @@ describe('Box address: the form', () => {
     asAdmin()
     const u = userEvent.setup()
     renderApp('/settings/network?tab=box-address')
-    await screen.findByRole('heading', { name: 'Box address' }, T)
+    await screen.findByRole('region', { name: 'Box address' }, T)
     const s = within(section())
     const input = s.getByLabelText('Host name or IP address')
     expect(input).toHaveValue('') // the default is said in words, never shown as a value or placeholder
@@ -96,7 +96,7 @@ describe('Box address: the form', () => {
     await call('PUT', '/core/network/box-address', { address: 'old.office.lan' })
     const u = userEvent.setup()
     renderApp('/settings/network?tab=box-address')
-    await screen.findByRole('heading', { name: 'Box address' }, T)
+    await screen.findByRole('region', { name: 'Box address' }, T)
     const input = within(section()).getByLabelText('Host name or IP address')
     await waitFor(() => expect(input).toHaveValue('old.office.lan'), T)
     await u.clear(input)
@@ -116,7 +116,7 @@ describe('Box address: the form', () => {
 
   it('is read only for a viewer', async () => {
     renderApp('/settings/network?tab=box-address', { role: 'viewer' })
-    await screen.findByRole('heading', { name: 'Box address' }, T)
+    await screen.findByRole('region', { name: 'Box address' }, T)
     expect(within(section()).getByLabelText('Host name or IP address')).toBeDisabled()
     expect(within(section()).getByRole('button', { name: 'Save' })).toBeDisabled()
   })

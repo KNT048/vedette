@@ -110,7 +110,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
   return (
     <Card className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{a.title}</h3>
+        <h2 className="text-sm font-semibold">{a.title}</h2>
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone="off">{a.source === 'rule' ? t('action.fromRule') : a.source === 'person' ? t('action.fromPerson') : t('action.fromAi')}</Chip>
           <RiskChip risk={a.risk} />

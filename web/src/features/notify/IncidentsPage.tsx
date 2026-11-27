@@ -179,11 +179,6 @@ function Content() {
     <QueryState query={q}>
       {() => (
         <>
-          <div className="mb-3 flex flex-wrap gap-2">
-            <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={(v) => { setKind(v); setPageIds(null) }} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
-            {tab === 'open' && onlyUrgent ? <Button size="sm" onClick={() => setParam('severity', '')}><X />{t('incidents.clearUrgent')}</Button> : null}
-            {tab === 'open' && onlyUnsent ? <Button size="sm" onClick={() => setParam('sent', '')}><X />{t('incidents.clearUnsent')}</Button> : null}
-          </div>
           {noChannel && rows.some((r) => r.not_sent?.reason === 'no_channel') ? (
             // docs/UI.md §0: the channel is set up right here (same form as Settings › Alert channels)
             <Notice tone="warn" title={t('incidents.noChannelTitle')} actions={newChannel.button(t('incidents.setupChannels'))} />
@@ -208,7 +203,12 @@ function Content() {
             // docs/UI.md §6: nothing open is good news: the drawing, what shows up here, and the channel when none is set up
             <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? newChannel.button(t('incidents.setupChannels')) : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
-            <DataTable urlKey="incidents" fillColumn="incident" caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
+            <DataTable urlKey="incidents" fillColumn="incident" caption={t('incidents.caption')}
+              toolbar={<>
+                <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={(v) => { setKind(v); setPageIds(null) }} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
+                {tab === 'open' && onlyUrgent ? <Button size="sm" onClick={() => setParam('severity', '')}><X />{t('incidents.clearUrgent')}</Button> : null}
+                {tab === 'open' && onlyUnsent ? <Button size="sm" onClick={() => setParam('sent', '')}><X />{t('incidents.clearUnsent')}</Button> : null}
+              </>} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
               empty={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} filtered={filtersOn} onClearFilters={clearFilters}
               mobileRow={(r) => (
                 <div className="flex items-start gap-3">

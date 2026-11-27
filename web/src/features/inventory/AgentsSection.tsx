@@ -385,7 +385,7 @@ export function WazuhSection() {
   const on = useModuleEnabled('agent-intake') === true
   const q = useAgents(on)
   return (
-    <Section id="wazuh" title={t('agents.wazuh.title')} description={t('agents.wazuh.intro')} info={t('agents.wazuh.introInfo')} stories={['S-INV-4']}>
+    <Section id="wazuh" label={t('agents.wazuh.title')} description={t('agents.wazuh.intro')} info={t('agents.wazuh.introInfo')} stories={['S-INV-4']}>
       <RequireModule module="agent-intake" fallback={<ModuleOff module="agent-intake">{t('agents.off')}</ModuleOff>}>
         <QueryState query={q}>{(d) => <WazuhCard w={d.wazuh} />}</QueryState>
       </RequireModule>
@@ -430,7 +430,7 @@ function MachinesTable({ nodes, box }: { nodes: AgentNode[]; box: string }) {
   ]
   return (
     <div className="grid gap-1.5">
-      <h4 className="text-sm font-medium">{t('agents.machines.title')}</h4>
+      <h3 className="text-sm font-medium">{t('agents.machines.title')}</h3>
       <p className="max-w-3xl text-meta text-muted">{t('agents.machines.body')}</p>
       {nodes.length ? <DataTable urlKey="agents-machines" caption={t('agents.machines.caption')} data={nodes} columns={columns} /> : <p className="text-meta text-muted">{t('agents.machines.none')}</p>}
     </div>
@@ -469,7 +469,7 @@ export function AgentsSection() {
     ) },
   ]
   return (
-    <Section id="agents" title={t('agents.title')} description={t('agents.description')} info={<><p>{t('agents.descriptionInfo')}</p><p>{t('agents.osquery.introInfo')}</p></>} stories={['S-INV-4']}>
+    <Section id="agents" label={t('agents.title')} description={t('agents.description')} info={<><p>{t('agents.descriptionInfo')}</p><p>{t('agents.osquery.introInfo')}</p></>} stories={['S-INV-4']}>
       <RequireModule module="agent-intake" fallback={<ModuleOff module="agent-intake">{t('agents.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => (
@@ -478,7 +478,7 @@ export function AgentsSection() {
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div className="grid gap-1">
-                      <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.page.tokenTitle')}</h3><InfoTip topic={t('agents.page.tokenTitle')}><p>{t('agents.page.tokenBody')}</p><p>{t('agents.page.tokenBodyInfo')}</p></InfoTip></div>
+                      <div className="flex items-center gap-1"><h2 className="text-sm font-semibold">{t('agents.page.tokenTitle')}</h2><InfoTip topic={t('agents.page.tokenTitle')}><p>{t('agents.page.tokenBody')}</p><p>{t('agents.page.tokenBodyInfo')}</p></InfoTip></div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {/* empty-guard: a toast after the action, not a link or button that leads anywhere */}

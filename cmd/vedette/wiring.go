@@ -593,7 +593,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 			keys = append(keys, feeds.ProductKey{Vendor: k.Vendor, Product: k.Product})
 		}
 	}
-	ranges, err := a.st.Ranges(ctx, keys)
+	named, err := a.st.RangeCVEs(ctx, keys)
 	if err != nil {
 		return nil, err
 	}
@@ -623,40 +623,30 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	for _, c := range slices.Concat(schemeCVEs, distroCVEs, lineCVEs) {
 		reached[c] = true
 	}
-	var pins []string
+	// Every CVE the scope reaches (a range of its products, a finding's pin, a vendor's or a distribution's word) carries every range of
+	// it, as an exploited list's entry does: the rows of a CVE never depend on which devices one pass matches or which findings they
+	// hold, so the match after one device's change and the hourly pass over every device decide each (device, CVE) alike.
 	pinSet := map[string]bool{}
 	for _, c := range scope.Pinned {
-		if !listed[c] && !pinSet[c] {
-			pins = append(pins, c)
-			pinSet[c] = true
+		pinSet[c] = true
+	}
+	want := map[string]bool{}
+	for _, c := range slices.Concat(named, scope.Pinned, slices.Collect(maps.Keys(reached))) {
+		if !listed[c] {
+			want[c] = true
 		}
 	}
-	pinned, err := a.st.RangesOf(ctx, pins)
+	cves := slices.Sorted(maps.Keys(want)) // a pinned CVE whose ranges are all gone (rejected) is still judged: its findings go away
+	if len(cves) == 0 {
+		return nil, nil
+	}
+	all, err := a.st.RangesOf(ctx, cves)
 	if err != nil {
 		return nil, err
 	}
 	byCVE := map[string][]feeds.Range{}
-	for _, r := range pinned { // every range of a pinned CVE
+	for _, r := range all {
 		byCVE[r.CVE] = append(byCVE[r.CVE], r)
-	}
-	for _, r := range ranges { // the ranges of the scope's products of the others
-		if !listed[r.CVE] && !pinSet[r.CVE] {
-			byCVE[r.CVE] = append(byCVE[r.CVE], r)
-		}
-	}
-	cves := slices.Sorted(maps.Keys(byCVE))
-	for _, c := range pins { // a pinned CVE whose ranges are all gone (rejected) is still judged: its findings go away
-		if _, ok := byCVE[c]; !ok {
-			cves = append(cves, c)
-		}
-	}
-	for _, c := range slices.Sorted(maps.Keys(reached)) {
-		if _, ok := byCVE[c]; !ok && !listed[c] && !pinSet[c] {
-			cves = append(cves, c)
-		}
-	}
-	if len(cves) == 0 {
-		return nil, nil
 	}
 	cat, err := a.st.Catalogue(ctx, cves)
 	if err != nil {
@@ -688,7 +678,11 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows), Stamp: stamps[cve]}
 		complete := true
 		for _, r := range rows {
-			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
+			// the list is complete when its author's every row says what is not listed (the CNA's, as an exploited-list entry reads
+			// it): another publisher's row beside it (an ADP's row of another product) neither completes nor breaks it
+			if r.Origin == v.Origin {
+				complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
+			}
 			if row, ok := r.MatchRow(); ok {
 				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly, VendorList: row.VendorList, LineFix: row.LineFix,
 					Platforms: row.Platforms, Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
@@ -934,6 +928,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)
 	}
+	// The stored Windows releases are known before findings exists, so no match (an event's or the hourly pass's, a run the start
+	// resumes, a sensor's report) ever reads a build with the hand table alone and decides it differently from the next one.
+	learnWindowsReleases(ctx, *d)
 	inv := findingsInventory{d.Inventory}
 	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
 	if d.Reg != nil {

@@ -114,7 +114,7 @@ func comparatorBounds(s string) (notedVersion, bool) {
 // is part of the version as written), not a git commit or a branch name.
 func comparedVersion(s string) bool {
 	d := strings.TrimPrefix(strings.TrimPrefix(s, "v"), "V")
-	return cnaVersionOK(s) && d != "" && d[0] >= '0' && d[0] <= '9' && !(commitRE.MatchString(d) && strings.ContainsAny(d, "abcdef"))
+	return cnaVersionOK(s) && d != "" && d[0] >= '0' && d[0] <= '9' && (!commitRE.MatchString(d) || !strings.ContainsAny(d, "abcdef"))
 }
 
 // withoutProduct is s without the entry's product name in front ("openssl-1.1.0" of product OpenSSL is "1.1.0"): the name ends where

@@ -294,7 +294,7 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
   const at = D(0, 3)
   const ai = (q: ReturnType<typeof rt>, cve: string, verdict: CheckRecord['verdict'], confidence: CheckRecord['confidence'], quote: string, reason: string, extra: Partial<CheckRecord> = {}): [string, CheckRecord] => {
     const key = checkKeyOf(q, cve)
-    return [key, { key, decided_by: 'ai', verdict, confidence, reason, quote, sources: AI_SOURCES, model: 'claude-sonnet-5-5', checked_by: 'it@example.com', checked_at: at, rejected: false, ...extra }]
+    return [key, { key, decided_by: 'ai', verdict, confidence, reason, quote, sources: AI_SOURCES, model: 'qwen3:8b', checked_by: 'it@example.com', checked_at: at, rejected: false, ...extra }]
   }
   const advisory = (q: ReturnType<typeof rt>, cve: string, quote: string): [string, CheckRecord] => {
     const key = checkKeyOf(q, cve)

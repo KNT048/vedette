@@ -100,12 +100,12 @@ function advance() {
       run.advisory++
     } else if (n < 8) {
       const affected = n % 2 === 0
-      cs[key] = { ...base, decided_by: 'ai', verdict: affected ? 'affected' : 'not_affected', confidence: n < 6 ? 'confident' : 'likely', model: 'claude-sonnet-5-5', sources: src,
+      cs[key] = { ...base, decided_by: 'ai', verdict: affected ? 'affected' : 'not_affected', confidence: n < 6 ? 'confident' : 'likely', model: 'qwen3:8b', sources: src,
         reason: affected ? 'The advisory names a range that covers this version.' : 'The advisory limits it to a feature this version does not have.',
         quote: affected ? 'All releases before the fixed version are affected.' : 'Only builds with the optional module are affected.' }
       run.proposals++
     } else {
-      cs[key] = { ...base, decided_by: 'ai', verdict: 'unsure', model: 'claude-sonnet-5-5', sources: src, reason: 'The pages do not name the versions of this product.' }
+      cs[key] = { ...base, decided_by: 'ai', verdict: 'unsure', model: 'qwen3:8b', sources: src, reason: 'The pages do not name the versions of this product.' }
       run.undecided++
     }
   }

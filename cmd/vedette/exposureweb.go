@@ -188,14 +188,36 @@ const (
 var hostActorRE = regexp.MustCompile(`^[a-zA-Z0-9_.@-]{1,54}$`)
 
 func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (exposure.WebScan, error) {
-	return w.run(ctx, t, page, false)
+	out, err := w.run(ctx, t, page, false, false)
+	return out.scan, err
 }
 
 // Active is exposure's ActiveWebScanner over zap.active: the same page, args and checks as Baseline, and the disruptive rules when the
 // step's mode allows them (exposure sets t.Mode.Disruptive only for the box's own proven IP in a person's scan). A run exposure gives
 // up on (its time, or the scan was stopped) is stopped on the host (zap.stop) before this returns, so no ZAP outlives its scan.
 func (w exposureWebScan) Active(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (exposure.WebScan, error) {
-	return w.run(ctx, t, page, true)
+	out, err := w.run(ctx, t, page, true, false)
+	return out.scan, err
+}
+
+var _ exposure.CombinedWebScanner = exposureWebScan{}
+
+// Combined is exposure's CombinedWebScanner over zap.active with passive: one ZAP run for both scans of the page. A host older than the field refuses the args before it starts anything: that is
+// exposure.ErrNoCombined, and the step runs Baseline and Active one after the other as before.
+func (w exposureWebScan) Combined(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage) (passive, active exposure.WebScan, activeErr, err error) {
+	out, err := w.run(ctx, t, page, true, true)
+	if err != nil {
+		return exposure.WebScan{}, exposure.WebScan{}, nil, err
+	}
+	return exposure.WebScan{Report: out.passive}, out.scan, out.activeErr, nil
+}
+
+// zapRunOut is what one run gave: the report (the active one of an active run), and of a run with its passive pass the passive
+// report and why its active part ended without a report (nil: it did not).
+type zapRunOut struct {
+	scan      exposure.WebScan
+	passive   []byte
+	activeErr error
 }
 
 // zapArgsOf is the host args of one page of target t.
@@ -230,21 +252,21 @@ func (w exposureWebScan) zapArgsOf(ctx context.Context, t exposure.ScanTarget, p
 	return args, nil
 }
 
-// run is one ZAP run of one page on the host, the passive baseline or the active scan.
-func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage, active bool) (exposure.WebScan, error) {
+// run is one ZAP run of one page on the host: the passive baseline, the active scan, or both in one run (combined).
+func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page exposure.WebPage, active, combined bool) (zapRunOut, error) {
 	if w.host == nil {
-		return exposure.WebScan{}, &exposure.Unavailable{Reason: webNoHost}
+		return zapRunOut{}, &exposure.Unavailable{Reason: webNoHost}
 	}
 	if why := zapPathsRefused(t.SkipPaths); why != "" { // the host would refuse them: nothing is sent, and the reason is the settings
-		return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
+		return zapRunOut{}, &exposure.Unavailable{Reason: why}
 	}
 	args, err := w.zapArgsOf(ctx, t, page)
 	if err != nil {
-		return exposure.WebScan{}, err
+		return zapRunOut{}, err
 	}
 	id, err := newUUID()
 	if err != nil {
-		return exposure.WebScan{}, err
+		return zapRunOut{}, err
 	}
 	actor := zapActor(t.User)
 	var run api.Run
@@ -264,6 +286,9 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		}
 		aa.Settings = zapSettingsOf(t, true, aa.Disruptive)
 		sentSettings = aa.Settings != nil
+		if combined {
+			aa.Passive = true
+		}
 		run, err = w.host.ZapActive(ctx, aa, id, actor)
 	} else {
 		args.Settings = zapSettingsOf(t, false, false)
@@ -275,14 +300,18 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		switch {
 		case ctx.Err() != nil: // exposure's limit of the page, or the run was stopped: ZAP is stopped on the host, and exposure tells the two apart
 			w.stop(ctx, id, actor)
-			return exposure.WebScan{}, ctx.Err()
+			return zapRunOut{}, ctx.Err()
+		case combined && errors.As(err, &he) && (he.Code == api.CodeUnknownCommand || he.Code == api.CodeInvalidArgs):
+			// a host older than passive refuses the args: nothing started, the step runs both
+			// scans one after the other, and the baseline and the active scan then say what an older host refuses of the rest
+			return zapRunOut{}, exposure.ErrNoCombined
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
 			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "" || active && t.Grant != "" ||
 				sentSettings)): // an older host refuses a proof, or settings, it does not know
 
-			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
+			return zapRunOut{}, &exposure.Unavailable{Reason: webOldHost}
 		}
-		return exposure.WebScan{}, err
+		return zapRunOut{}, err
 	}
 	if run.Status != api.StatusSucceeded {
 		code, msg := "command_failed", ""
@@ -290,25 +319,45 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			code, msg = run.Error.Code, run.Error.Message // the host's own fixed text (exit code and what it means), for the box log
 		}
 		if code == api.CodeZapNameMoved { // this page only: exposure goes on with the next page
-			return exposure.WebScan{}, &exposure.PageSkipped{Reason: fmt.Sprintf(webNameMoved, page.Host, page.IP)}
+			return zapRunOut{}, &exposure.PageSkipped{Reason: fmt.Sprintf(webNameMoved, page.Host, page.IP)}
 		}
 		if why := webReason(code, t, page); why != "" { // the image still downloading: on, not ready yet (the run says so)
-			return exposure.WebScan{}, &exposure.Unavailable{Reason: why, Pending: code == api.CodeZapPulling || code == api.CodeZapPullFailed}
+			return zapRunOut{}, &exposure.Unavailable{Reason: why, Pending: code == api.CodeZapPulling || code == api.CodeZapPullFailed}
 		}
 		if msg != "" {
 			code += ": " + msg
 		}
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: %s %s: %s", run.Command, run.Status, code)
+		return zapRunOut{}, fmt.Errorf("exposure web scan: %s %s: %s", run.Command, run.Status, code)
 	}
 	var reportID, refused string
 	cut := false
-	var disruptiveRules, skippedRules []string
+	var disruptiveRules, skippedRules, rules []string
+	var out zapRunOut
 	if active {
 		res, err := hostclient.ResultOf[api.ZapActiveResult](run)
 		if err != nil {
-			return exposure.WebScan{}, err
+			return zapRunOut{}, err
 		}
 		reportID, cut = res.ReportID, res.CutShort
+		if combined {
+			if res.PassiveReportID == "" { // a run asked for its passive pass without its report: nothing of the page is known
+				return zapRunOut{}, errors.New("exposure web scan: the host's run came without its passive report")
+			}
+			if out.passive, err = w.readReport(ctx, res.PassiveReportID); err != nil {
+				return zapRunOut{}, err
+			}
+			for _, r := range res.Rules {
+				rules = append(rules, strconv.Itoa(r))
+			}
+			switch {
+			case res.ActiveFailed == api.CodeZapTimedOut:
+				out.activeErr = exposure.ErrActiveTimedOut
+			case res.ActiveFailed != "":
+				out.activeErr = fmt.Errorf("exposure web scan: %s: the active part ended without its report (%s)", run.Command, clipCode(res.ActiveFailed))
+			case reportID == "":
+				out.activeErr = fmt.Errorf("exposure web scan: %s: the active part came without its report", run.Command)
+			}
+		}
 		switch {
 		case res.DisruptiveRefused != "":
 			refused = webRefusedWhy(res.DisruptiveRefused)
@@ -324,21 +373,38 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	} else {
 		res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
 		if err != nil {
-			return exposure.WebScan{}, err
+			return zapRunOut{}, err
 		}
 		reportID = res.ReportID
 	}
+	if out.activeErr != nil {
+		return out, nil
+	}
+	b, err := w.readReport(ctx, reportID)
+	if err != nil {
+		if combined { // the passive report stands; the active one could not be read
+			out.activeErr = err
+			return out, nil
+		}
+		return zapRunOut{}, err
+	}
+	out.scan = exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules, DisruptiveRefused: refused, SkippedRules: skippedRules, Rules: rules}
+	return out, nil
+}
+
+// readReport reads the report reportID the host keeps, at most one byte over exposure.MaxWebReport: ParseZAPReport then refuses a
+// report that is too big instead of reading a cut one.
+func (w exposureWebScan) readReport(ctx context.Context, reportID string) ([]byte, error) {
 	body, _, err := w.host.DownloadZapReport(ctx, reportID)
 	if err != nil {
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
+		return nil, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
 	defer func() { _ = body.Close() }()
-	// One byte over the limit is kept, so that ParseZAPReport refuses a report that is too big instead of reading a cut one.
 	b, err := io.ReadAll(io.LimitReader(body, exposure.MaxWebReport+1))
 	if err != nil {
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
+		return nil, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
-	return exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules, DisruptiveRefused: refused, SkippedRules: skippedRules}, nil
+	return b, nil
 }
 
 // stop stops the ZAP run of request runID on the host when exposure gave up on it (the scan was stopped, or the page's time ran

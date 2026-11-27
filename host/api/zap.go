@@ -183,6 +183,11 @@ type ZapActiveArgs struct {
 	Disruptive bool `json:"disruptive,omitempty"`
 	// Grant is the result of zap.authorize at the press of the person who started the scan (32 hex characters); only with Disruptive.
 	Grant string `json:"grant,omitempty"`
+	// Passive runs the page's passive pass in the same run: ZAP starts once and spiders once, its passive rules (as zap.baseline's)
+	// read the pages the spider found, their report is written as soon as the passive rules are done (before the active scan starts)
+	// and comes back as ZapActiveResult.PassiveReportID, also when the active part then ends without its report. A host older than
+	// the field refuses the run (an unknown field): nothing is started, and core runs zap.baseline and zap.active one after the other.
+	Passive bool `json:"passive,omitempty"`
 }
 
 // ZapAuthorizeArgs are the args of zap.authorize: the box's own public IPv4 address the person's scan is of.
@@ -217,6 +222,15 @@ type ZapActiveResult struct {
 	// settings of the run (ZapSettings) where the same run without them would have: core closes no issue of one of them with this
 	// page.
 	SkippedRules []int `json:"skipped_rules,omitempty"`
+	// PassiveReportID and PassiveSize are the report of the passive pass of a run with Passive (served like ReportID). Such a run that
+	// kept it answers succeeded even when its active part ended without a report: ActiveFailed then names why (CodeZapTimedOut,
+	// CodeZapFailed, CodeZapReportTooLarge), ReportID is empty and CutShort is set.
+	PassiveReportID string `json:"passive_report_id,omitempty"`
+	PassiveSize     int64  `json:"passive_size,omitempty"`
+	ActiveFailed    string `json:"active_failed,omitempty"`
+	// Rules (a run with Passive only) are the ZAP plugin ids of the active rules the page's plan runs: the active report of such a
+	// run also holds the alerts of the passive pass (one ZAP session), and core keeps only the alerts of these rules from it.
+	Rules []int `json:"rules,omitempty"`
 }
 
 // ZapStopArgs are the args of zap.stop: the X-Request-Id (a UUID v4) of the zap.baseline or zap.active run to stop.

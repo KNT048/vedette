@@ -31,6 +31,7 @@ type fakeZapHost struct {
 	block    bool                // zap.active waits until its context ends
 	stops    []string            // the request ids zap.stop named
 	reqs     []string            // the request ids of the zap.active calls
+	reports  map[string][]byte   // the report of each id (nil: report for every id)
 }
 
 func (f *fakeZapHost) ZapActive(ctx context.Context, args api.ZapActiveArgs, req, actor string) (api.Run, error) {
@@ -57,6 +58,13 @@ func (f *fakeZapHost) ZapBaseline(_ context.Context, args api.ZapBaselineArgs, _
 
 func (f *fakeZapHost) DownloadZapReport(_ context.Context, id string) (io.ReadCloser, int64, error) {
 	f.reportID = id
+	if f.reports != nil {
+		b, ok := f.reports[id]
+		if !ok {
+			return nil, 0, errors.New("no such report")
+		}
+		return io.NopCloser(bytes.NewReader(b)), int64(len(b)), nil
+	}
 	return io.NopCloser(bytes.NewReader(f.report)), int64(len(f.report)), nil
 }
 

@@ -530,6 +530,8 @@ type zapPass struct {
 	grant      string // the grant of zap.authorize that came with a run asking for the disruptive rules
 	// noDoS, noChange and gentle are the deep-scan settings of an active run (api.ZapSettings): they only narrow its plan.
 	noDoS, noChange, gentle bool
+	// passive runs the page's passive pass in the same active run (api.ZapActiveArgs.Passive).
+	passive bool
 }
 
 func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (any, error) {
@@ -539,7 +541,10 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 // zapRun is one run of ZAP on one page, the passive baseline or the active scan: every fence below is the same for both.
 func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zapPass) (any, error) {
 	limit, what := zapPageLimit, "passive web scan"
-	if pass.active {
+	switch {
+	case pass.active && pass.passive:
+		limit, what = zapCombinedPageLimit, "web scan"
+	case pass.active:
 		limit, what = zapActivePageLimit, "active web scan"
 	}
 	o.zapMu.Lock()
@@ -605,7 +610,7 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 			logf("the disruptive rules do not run on " + p.url + ": " + zapRefusalText(refused))
 		}
 	}
-	opts := zapActiveOpts{disruptive: pass.disruptive, noDoS: pass.noDoS, noChange: pass.noChange, gentle: pass.gentle}
+	opts := zapActiveOpts{disruptive: pass.disruptive, noDoS: pass.noDoS, noChange: pass.noChange, gentle: pass.gentle, passive: pass.passive}
 	switch {
 	case pass.active:
 		// The plan is the host's own text, readable by the container's zap user (the folder is its; the file is root's, 0644).
@@ -618,6 +623,11 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 			rules = "the disruptive rules on (the box's own IP)"
 		}
 		threads, delay := zapPace(opts)
+		if pass.passive {
+			logf("passive and active web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + fmt.Sprintf(" in one ZAP run (spider %d minutes, depth %d; passive rules, their report; then active rules %d minutes at most, %d threads, %d ms between requests; %s%s)",
+				zapSpiderMinutes, zapSpiderDepth, zapActiveMinutes, threads, delay, rules, zapSettingsNote(p, opts)))
+			break
+		}
 		logf("active web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + fmt.Sprintf(" (ZAP active scan: spider %d minutes, depth %d; active rules %d minutes at most, %d threads, %d ms between requests; %s%s)",
 			zapSpiderMinutes, zapSpiderDepth, zapActiveMinutes, threads, delay, rules, zapSettingsNote(p, opts)))
 	case len(p.skip) > 0:
@@ -632,14 +642,39 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 	}
 	res, code, err := o.zx()(ctx, binPodman, nil, argv...)
 	stopped, slow := errors.Is(context.Cause(ctx), errZapStopped), ctx.Err() != nil
+	// A run with its passive pass wrote the passive report before its active scan started: it is kept whatever the active part did,
+	// unless the run was stopped (core gave up on the page, or the scan was stopped) or podman could not run at all (the page's limit
+	// ends podman run with an error too).
+	var passive *api.ZapActiveResult
+	if pass.passive && !stopped && (err == nil || slow) {
+		pid, psize, perr := o.zapKeepReportAs(wrk, zapPassiveReportName)
+		if perr != nil {
+			if !slow && code >= 0 && code <= 2 {
+				return nil, perr // ZAP ended well, without its passive report: the run did not do what it was asked
+			}
+		} else {
+			passive = &api.ZapActiveResult{PassiveReportID: pid, PassiveSize: psize, ExitCode: code, CutShort: true, DisruptiveRules: zapDisruptiveRuleIDs(),
+				DisruptiveRefused: refused, SkippedRules: zapSkippedRules(p, opts), Rules: zapPlanRules(p, opts)}
+		}
+	}
 	switch {
 	case stopped:
 		return nil, fail(api.CodeZapStopped, "The "+what+" was stopped; ZAP's container was removed.")
+	case slow && passive != nil:
+		logf(fmt.Sprintf("ZAP did not finish within the host's time limit of %d minutes for a page: the passive report is kept, the active scan's results are not known", int(limit/time.Minute)))
+		passive.ActiveFailed = api.CodeZapTimedOut
+		return *passive, nil
 	case slow:
 		return nil, fail(api.CodeZapTimedOut, fmt.Sprintf("ZAP did not finish within the host's time limit of %d minutes for a page.", int(limit/time.Minute)))
 	case err != nil:
 		o.log.ErrorContext(ctx, "zap: podman run could not run", "error", err.Error())
 		return nil, fail(api.CodeZapFailed, "The host could not start ZAP.")
+	case (code < 0 || code > 2) && passive != nil:
+		logf("ZAP ended with exit code " + strconv.Itoa(code) + " after the passive report: the active scan's results are not known")
+		o.log.ErrorContext(ctx, "zap: ZAP ended without the active report", "exit_code", code, "stderr", lastLines(res.Stderr, 10, 2000),
+			"stdout", lastLines(res.Stdout, 10, 2000), "truncated", res.Truncated, "zap_out", zapOutTail(wrk))
+		passive.ActiveFailed = api.CodeZapFailed
+		return *passive, nil
 	case code < 0 || code > 2:
 		logf("ZAP ended with exit code " + strconv.Itoa(code))
 		// the box log carries ZAP's (or podman's) own last words: the page sends the reader there (n39)
@@ -657,6 +692,15 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		return nil, fail(api.CodeZapFailed, msg)
 	}
 	id, size, ferr := o.zapKeepReport(wrk)
+	if ferr != nil && passive != nil { // the active report is missing or too large: the passive one stands
+		logf("the active scan's report could not be kept: the passive report is kept")
+		passive.ActiveFailed = api.CodeZapFailed
+		var f *server.Failure
+		if errors.As(ferr, &f) && f.Code == api.CodeZapReportTooLarge {
+			passive.ActiveFailed = api.CodeZapReportTooLarge
+		}
+		return *passive, nil
+	}
 	if ferr != nil {
 		return nil, ferr
 	}
@@ -674,8 +718,12 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 			// disruptive when it has no grant).
 			cut = true
 		}
-		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs(), DisruptiveRefused: refused,
-			SkippedRules: zapSkippedRules(p, opts)}, nil
+		out := api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs(), DisruptiveRefused: refused,
+			SkippedRules: zapSkippedRules(p, opts)}
+		if passive != nil {
+			out.PassiveReportID, out.PassiveSize, out.Rules = passive.PassiveReportID, passive.PassiveSize, passive.Rules
+		}
+		return out, nil
 	}
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil
 }
@@ -1070,7 +1118,12 @@ func (o *Ops) zapClearReports() {
 // zapKeepReport moves the report out of the work directory, which the container could write: a regular file only (never a link or
 // a FIFO), at most MaxZapReport bytes, copied to zap/<id>.json (0600).
 func (o *Ops) zapKeepReport(wrk string) (id string, size int64, err error) {
-	f, st, err := openRegularNoFollow(filepath.Join(wrk, zapReportName))
+	return o.zapKeepReportAs(wrk, zapReportName)
+}
+
+// zapKeepReportAs keeps the report name of the work folder (out.json, or a run's passive.json) as zap/<id>.json.
+func (o *Ops) zapKeepReportAs(wrk, name string) (id string, size int64, err error) {
+	f, st, err := openRegularNoFollow(filepath.Join(wrk, name))
 	if err != nil {
 		return "", 0, fail(api.CodeZapFailed, "ZAP ended without writing its report.")
 	}

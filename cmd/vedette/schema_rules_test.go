@@ -48,6 +48,8 @@ var jsonColumnAllowList = []string{
 	"feeds_source.parser",
 	"fnd_finding.evidence",
 	"fnd_finding_event.detail",
+	"fnd_possible_check.detail",  // the undecided reason and the evidence that blocked a decision, read whole for an audit
+	"fnd_possible_check.sources", // the pages a check read, shown whole beside its verdict
 	"fnd_question.detail",
 	"fnd_reach_run.added",
 	"fnd_reach_run.counts",

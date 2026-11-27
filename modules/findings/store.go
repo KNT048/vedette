@@ -316,7 +316,7 @@ func eventsOf(ctx context.Context, q querier, where string, args ...any) (map[st
 	return out, rows.Err()
 }
 
-const questionColumns = `id, asset_id, software_id, cve, kind, detail, cves, asked_at, answer, answered_by, answered_at`
+const questionColumns = `id, asset_id, software_id, cve, kind, detail, cves, asked_at, answer, answered_by, answered_at, check_key`
 
 func scanQuestion(s scanner) (Question, error) {
 	var (
@@ -324,7 +324,7 @@ func scanQuestion(s scanner) (Question, error) {
 		kind, asked                             string
 		softwareID, cve, detail, answer, by, at sql.NullString
 	)
-	if err := s.Scan(&q.ID, &q.AssetID, &softwareID, &cve, &kind, &detail, &q.Cves, &asked, &answer, &by, &at); err != nil {
+	if err := s.Scan(&q.ID, &q.AssetID, &softwareID, &cve, &kind, &detail, &q.Cves, &asked, &answer, &by, &at, &q.CheckKey); err != nil {
 		return Question{}, err
 	}
 	q.SoftwareID, q.CVE, q.Kind, q.Answer, q.AnsweredBy = softwareID.String, cve.String, QuestionKind(kind), answer.String, by.String
@@ -381,7 +381,7 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 	keep := map[string]bool{}
 	qs = slices.Clone(qs)
 	for i, q := range qs {
-		if q.Kind != QuestionOlderLine {
+		if q.Kind != QuestionOlderLine || q.CVE != "" { // a group of a whole line (as earlier builds asked): its answered CVEs leave it
 			continue
 		}
 		var left []string
@@ -395,7 +395,7 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		qs[i].Detail.CVEList, qs[i].Cves = left, len(left)
 	}
 	for _, q := range qs {
-		if q.Kind == QuestionOlderLine && len(q.Detail.CVEList) == 0 {
+		if q.Kind == QuestionOlderLine && q.CVE == "" && len(q.Detail.CVEList) == 0 {
 			continue
 		}
 		q.AssetID = assetID
@@ -420,20 +420,20 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		if was, ok := have[k]; ok {
 			if was.Answer != "" && slices.ContainsFunc(q.Detail.CVEList, func(c string) bool { return !slices.Contains(was.Detail.CVEList, c) }) {
 				// a CVE the person did not answer for joined a group they answered: asked again, never decided by that answer
-				if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ?, answer = NULL, answered_by = NULL, answered_at = NULL, asked_at = ?
-					WHERE id = ?`, string(detail), q.Cves, store.FormatTS(now), was.ID); err != nil {
+				if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ?, check_key = ?, answer = NULL, answered_by = NULL, answered_at = NULL, asked_at = ?
+					WHERE id = ?`, string(detail), q.Cves, q.CheckKey, store.FormatTS(now), was.ID); err != nil {
 					return fmt.Errorf("findings: asking a question again: %w", err)
 				}
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ? WHERE id = ?`, string(detail), q.Cves, was.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ?, check_key = ? WHERE id = ?`, string(detail), q.Cves, q.CheckKey, was.ID); err != nil {
 				return fmt.Errorf("findings: updating a question: %w", err)
 			}
 			continue
 		}
 		q.ID, q.AskedAt = store.NewID("q"), now
-		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			q.ID, assetID, nullString(q.SoftwareID), nullString(q.CVE), string(q.Kind), string(detail), q.Cves, store.FormatTS(now)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at, check_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			q.ID, assetID, nullString(q.SoftwareID), nullString(q.CVE), string(q.Kind), string(detail), q.Cves, store.FormatTS(now), q.CheckKey); err != nil {
 			return fmt.Errorf("findings: adding a question: %w", err)
 		}
 	}
@@ -455,7 +455,9 @@ func answeredFor(old []Question, sw, cve, version string) (Question, bool) {
 	var best Question
 	found := false
 	for _, q := range old {
-		if q.Answer == "" || q.CVE != cve || q.SoftwareID != sw || (q.Detail.Version != "" && q.Detail.Version != version) {
+		// an answer to an older_line question of a whole line (stored before each CVE was its own question) holds for each CVE it listed
+		of := q.CVE == cve || q.CVE == "" && q.Kind == QuestionOlderLine && slices.Contains(q.Detail.CVEList, cve)
+		if q.Answer == "" || !of || q.SoftwareID != sw || (q.Detail.Version != "" && q.Detail.Version != version) {
 			continue
 		}
 		if !found || q.AnsweredAt.After(best.AnsweredAt) {

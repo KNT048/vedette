@@ -1162,7 +1162,7 @@ CREATE TABLE fnd_question (
     asked_at    TEXT    NOT NULL CHECK (asked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     answer      TEXT    CHECK (answer IS NULL OR length(answer) BETWEEN 1 AND 200),
     answered_by TEXT    CHECK (answered_by IS NULL OR length(answered_by) BETWEEN 1 AND 320),
-    answered_at TEXT    CHECK (answered_at IS NULL OR answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    answered_at TEXT    CHECK (answered_at IS NULL OR answered_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), check_key TEXT NOT NULL DEFAULT '',
     CHECK ((answer IS NULL) = (answered_by IS NULL) AND (answer IS NULL) = (answered_at IS NULL))
 );
 
@@ -1179,6 +1179,40 @@ CREATE TABLE fnd_reach_run (
     unreachable TEXT    NOT NULL CHECK (json_valid(unreachable) AND json_type(unreachable) = 'object'),
     added       TEXT    NOT NULL CHECK (json_valid(added) AND json_type(added) = 'object')
 );
+
+CREATE INDEX fnd_question_check_key_ix ON fnd_question (check_key) WHERE check_key <> '';
+
+CREATE TABLE fnd_possible_check (
+    check_key     TEXT    NOT NULL PRIMARY KEY CHECK (length(check_key) = 64 AND check_key NOT GLOB '*[^0-9a-f]*'),
+    cve           TEXT    NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    product_key   TEXT    NOT NULL CHECK (length(product_key) BETWEEN 1 AND 300),
+    line          TEXT    NOT NULL CHECK (length(line) BETWEEN 1 AND 200),
+    version       TEXT    NOT NULL CHECK (length(version) BETWEEN 1 AND 200),
+    evidence_hash TEXT    NOT NULL CHECK (length(evidence_hash) = 64),
+    decided_by    TEXT    NOT NULL CHECK (decided_by IN ('structured', 'advisory', 'ai')),
+    verdict       TEXT    NOT NULL CHECK (verdict IN ('affected', 'not_affected', 'unsure')),
+    confidence    TEXT    CHECK (confidence IS NULL OR confidence IN ('confident', 'likely')),
+    reason        TEXT    NOT NULL CHECK (length(reason) BETWEEN 1 AND 600),
+    quote         TEXT    NOT NULL DEFAULT '' CHECK (length(quote) <= 400),
+    sources       TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(sources) AND json_type(sources) = 'array'),
+    detail        TEXT    NOT NULL DEFAULT '{}' CHECK (json_valid(detail) AND json_type(detail) = 'object'),
+    model         TEXT    CHECK (model IS NULL OR length(model) BETWEEN 1 AND 80),
+    profile       TEXT    CHECK (profile IS NULL OR length(profile) BETWEEN 1 AND 160),
+    activity_id   TEXT    CHECK (activity_id IS NULL OR length(activity_id) <= 96),
+    checked_by    TEXT    NOT NULL CHECK (length(checked_by) BETWEEN 1 AND 320),
+    checked_at    TEXT    NOT NULL CHECK (checked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    rejected_by   TEXT    CHECK (rejected_by IS NULL OR length(rejected_by) BETWEEN 1 AND 320),
+    rejected_at   TEXT    CHECK (rejected_at IS NULL OR rejected_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((decided_by = 'ai') = (model IS NOT NULL)),
+    CHECK (decided_by = 'ai' OR confidence IS NULL),
+    CHECK (verdict <> 'unsure' OR confidence IS NULL),
+    CHECK ((rejected_by IS NULL) = (rejected_at IS NULL)),
+    CHECK (rejected_by IS NULL OR decided_by = 'ai')
+);
+
+CREATE UNIQUE INDEX fnd_possible_check_identity_uq ON fnd_possible_check (cve, product_key, line, evidence_hash);
+
+CREATE INDEX fnd_possible_check_cve_ix ON fnd_possible_check (cve);
 
 -- module mitigation
 

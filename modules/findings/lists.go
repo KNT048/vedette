@@ -992,7 +992,7 @@ func (s *Service) deviceStatuses(ctx context.Context, assets []string) (map[stri
 	return out, nil
 }
 
-// deviceCounts reads, per device, the distinct CVEs of its open findings at each layer and its questions waiting for an answer.
+// deviceCounts reads, per device, the distinct CVEs of its open findings at each layer and its possible CVEs.
 func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string]*DeviceCounts, error) {
 	filter, args := "", []any{}
 	if assets != nil {
@@ -1027,59 +1027,23 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: counting device findings: %w", err)
 	}
-	r, err = q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_question WHERE answer IS NULL`+filter+` GROUP BY asset_id`, args...)
+	// the possible CVEs (open questions about a CVE that no finding of the same line has, less the ones an advisory settled): the badge
+	// counts them when nothing open is more urgent
+	items, err := s.possibleItems(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("findings: counting device questions: %w", err)
+		return nil, err
 	}
-	for r.Next() {
-		var id string
-		var n int
-		if err := r.Scan(&id, &n); err != nil {
-			_ = r.Close()
-			return nil, fmt.Errorf("findings: counting device questions: %w", err)
-		}
-		get(id).Input += n
-	}
-	if err := errors.Join(r.Err(), r.Close()); err != nil {
-		return nil, fmt.Errorf("findings: counting device questions: %w", err)
-	}
-	// "Vedette cannot check this device" is in the queue only for a device a person added that is not the box (Input): the same here
-	unchecked, err := stringColumn(ctx, q, `SELECT asset_id FROM fnd_question WHERE answer IS NULL AND kind = ?`+filter, append([]any{string(QuestionNothingToCheck)}, args...)...)
-	if err != nil || len(unchecked) == 0 {
-		return out, err
-	}
-	views, err := s.cfg.Inventory.Assets(ctx, unchecked)
-	if err != nil {
-		return nil, fmt.Errorf("findings: reading the devices to check: %w", err)
-	}
-	for _, id := range unchecked {
-		if a, ok := views[id]; ok && (!a.Approved || a.Box) {
-			c := get(id)
-			if c.Input--; c.Input <= 0 && c.CVEs == [UrgencyUpdate + 1]int{} {
-				delete(out, id)
-			}
+	var only map[string]bool
+	if assets != nil {
+		only = make(map[string]bool, len(assets))
+		for _, id := range assets {
+			only[id] = true
 		}
 	}
-	return out, nil
-}
-
-// stringColumn reads the one text column a query returns.
-func stringColumn(ctx context.Context, q querier, query string, args ...any) ([]string, error) {
-	r, err := q.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("findings: %w", err)
-	}
-	var out []string
-	for r.Next() {
-		var v string
-		if err := r.Scan(&v); err != nil {
-			_ = r.Close()
-			return nil, fmt.Errorf("findings: %w", err)
+	for id, n := range possibleByDevice(items) {
+		if only == nil || only[id] {
+			get(id).Possible += n
 		}
-		out = append(out, v)
-	}
-	if err := errors.Join(r.Err(), r.Close()); err != nil {
-		return nil, fmt.Errorf("findings: %w", err)
 	}
 	return out, nil
 }

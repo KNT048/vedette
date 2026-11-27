@@ -195,10 +195,10 @@ func (f DeviceFilter) where(sources map[string][]string, risks map[string]*Risk)
 		}
 		add("a.id IN (SELECT value FROM json_each(?))", jsonList(ids))
 	}
-	if f.HasFindings != nil { // open findings: the device has a status of one of the five layers (needs_input alone is no finding)
+	if f.HasFindings != nil { // open findings: the device has a status of one of the five layers (possible alone is no finding)
 		var ids []string
 		for id, r := range risks {
-			if r != nil && r.Code != RiskNeedsInput {
+			if r != nil && r.Code != RiskPossible {
 				ids = append(ids, id)
 			}
 		}

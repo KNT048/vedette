@@ -50,6 +50,9 @@ type ServiceConfig struct {
 	SafeCheck func(cve string) bool
 	// Urgency is what the urgency pass rates findings with (UrgencySources); a nil Facts: the pass does not run.
 	Urgency UrgencySources
+	// Checker reads a possible CVE's references and asks the AI (possiblecheck.go); nil: no check of possible findings (the AI module
+	// is off).
+	Checker PossibleChecker
 }
 
 // Have is the scope of one device declared by "I have this" (INV-11): its software of KEV key Key that has no version
@@ -69,6 +72,7 @@ type Service struct {
 	now       func() time.Time
 	gen       atomic.Uint64 // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	stamps    stamps        // each device's match stamp of its last full match (matchstamp.go)
+	check     checkState    // the one check of possible findings at a time (possiblecheck.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.

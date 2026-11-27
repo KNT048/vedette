@@ -2,10 +2,13 @@ package feeds
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"slices"
 	"strings"
 	"sync"
@@ -1058,4 +1061,71 @@ func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {
 		return &d, nil
 	}
 	return nil, nil
+}
+
+// RecordStamps returns, for each CVE asked for that the catalogue holds, a stamp that changes whenever its record says something new: a
+// hash of what the catalogue holds of it (NVD's change time and status, the description, every reference with its tags and every
+// affected range of every origin). It never moves when the box only reads the same record again (nvd_at and record_at are read times:
+// an exploited CVE without NVD ranges is read again every recordRecheck). findings keys a check of a CVE's advisories on it, so a
+// changed record is checked again and an unchanged one never is.
+func (s *Store) RecordStamps(ctx context.Context, cves []string) (map[string]string, error) {
+	hs := make(map[string]hash.Hash, len(cves))
+	put := func(cve string, fields ...string) {
+		h, ok := hs[cve]
+		if !ok {
+			return
+		}
+		for _, f := range fields {
+			_, _ = h.Write([]byte(f))
+			_, _ = h.Write([]byte{0x1f})
+		}
+		_, _ = h.Write([]byte{0x1e})
+	}
+	read := func(query, part string, n int, open bool) error {
+		rows, err := s.db.Reader().QueryContext(ctx, query, part)
+		if err != nil {
+			return err
+		}
+		vals := make([]string, n)
+		ptrs := make([]any, n)
+		for i := range vals {
+			ptrs[i] = &vals[i]
+		}
+		for rows.Next() {
+			if err := rows.Scan(ptrs...); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			if open { // the CVE's own row opens its hash; a CVE the catalogue does not hold has none
+				hs[vals[0]] = sha256.New()
+			}
+			put(vals[0], vals[1:]...)
+		}
+		return errors.Join(rows.Err(), rows.Close())
+	}
+	for chunk := range slices.Chunk(cves, publishedChunk) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+		if err := read(`SELECT c.cve, 'cve', ifnull(c.modified, ''), ifnull(c.nvd_status, ''), c.description
+			FROM json_each(?) j JOIN feeds_cve c ON c.cve = j.value ORDER BY c.cve`, string(part), 5, true); err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+		if err := read(`SELECT r.cve, 'ref', r.url, r.tags FROM json_each(?) j JOIN feeds_cve_ref r ON r.cve = j.value
+			ORDER BY r.cve, r.url`, string(part), 4, false); err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+		if err := read(`SELECT r.cve, 'range', r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed,
+			r.version_type, r.default_status, ifnull(r.platforms, '') FROM json_each(?) j JOIN feeds_cve_range r ON r.cve = j.value
+			ORDER BY r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type,
+			r.default_status, ifnull(r.platforms, '')`, string(part), 15, false); err != nil {
+			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
+		}
+	}
+	out := make(map[string]string, len(hs))
+	for cve, h := range hs {
+		out[cve] = hex.EncodeToString(h.Sum(nil))
+	}
+	return out, nil
 }

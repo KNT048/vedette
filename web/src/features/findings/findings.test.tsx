@@ -460,7 +460,7 @@ describe('findings: the device page\'s Findings tab', () => {
     expect(await screen.findByText('No open findings on this device.')).toBeInTheDocument()
     // only a question waits: the badge says so and leads to it, as the line under the card does
     expect(await screen.findByRole('link', { name: '1 item needs your input' })).toHaveAttribute('href', '/findings?tab=input&device=a-srvfile')
-    expect(screen.getByRole('link', { name: 'Needs your input' })).toHaveAttribute('href', '/findings?tab=input&device=a-srvfile')
+    expect(screen.getByRole('link', { name: '1 possible' })).toHaveAttribute('href', '/findings?tab=device&device=a-srvfile')
   })
 })
 

@@ -195,6 +195,7 @@ type Service struct {
 	drafts     map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them; under mu
 	alerted    atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
 	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
+	refs       *refFetcher            // the box's own fetcher of a possible CVE's reference pages
 	fuseMu     sync.Mutex             // guards fuse
 	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse)
 	pauseMonth string                 // the month the reasons in pauseNoted belong to (fuseMu)
@@ -229,7 +230,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), digestSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock)}
+	s := &Service{cfg: cfg, loc: loc, testSlot: make(chan struct{}, 1), indexSlot: make(chan struct{}, 1), digestSlot: make(chan struct{}, 1), news: newNewsFetcher(cfg.Clock), refs: newRefFetcher(systemResolve, nil)}
 	s.harness.Store(h0)
 	none := map[string]bool{}
 	s.skillsOff.Store(&none)

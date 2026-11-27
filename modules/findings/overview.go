@@ -27,7 +27,7 @@ const (
 // DeviceStatusCounts is Overview.devices.by_status: devices by their badge.
 type DeviceStatusCounts struct {
 	StatusCounts
-	NeedsInput int `json:"needs_input"`
+	Possible int `json:"possible"` // devices whose only open items are possible CVEs
 }
 
 // FirstItem is one block of Home's "Fix first".
@@ -50,6 +50,7 @@ type Overview struct {
 		Affected StatusCounts `json:"affected"`
 	} `json:"devices"`
 	Input       int               `json:"input"`
+	Possible    PossibleCounts    `json:"possible"` // possible CVEs counted apart from the open findings
 	First       []FirstItem       `json:"first"`
 	Trend       []int             `json:"trend"`
 	TrendStart  string            `json:"trend_start"`
@@ -139,7 +140,7 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 		if ok {
 			o.Devices.ByStatus.add(l, 1)
 		} else {
-			o.Devices.ByStatus.NeedsInput++
+			o.Devices.ByStatus.Possible++
 		}
 	}
 	items, err := s.inputItems(ctx, "", false)
@@ -151,6 +152,11 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 			o.Input++
 		}
 	}
+	pi, err := s.possibleItems(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	o.Possible = countPossible(pi)
 	if o.First, err = s.firstBlocks(ctx, gs); err != nil {
 		return nil, err
 	}

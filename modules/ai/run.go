@@ -37,6 +37,9 @@ type JobSpec struct {
 	knowledge      *knowCall // the passages a caller retrieved already; nil = RunJob retrieves
 	// tools is the read-tool loop of a job that lets the model read the box (ask-my-data); nil = one call, no tools.
 	tools *toolSession
+	// publicOnly is a call on public text only that runs under a job carrying internal data (a check of possible findings runs as
+	// explain-finding): it gets neither the memory nor knowledge documents, like the public jobs.
+	publicOnly bool
 	// AnswerWhenBlocked makes an answer that an after_ai hook stops a result (JobResult.Blocked, text = the hook's message) instead of
 	// a 409; the row of the call still says blocked_by_hook.
 	AnswerWhenBlocked bool
@@ -275,9 +278,12 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	hooks := har.runner
 	// What an administrator keeps in memory goes with the data, line by line through the before-AI hooks (INV-8): a line a hook stops
 	// is left out and named in the row, the rest is sent.
-	mem, err := s.memoryForCall(ctx, hooks, spec.Job)
-	if err != nil {
-		return JobResult{}, err
+	var mem memCall
+	if !spec.publicOnly {
+		var err error
+		if mem, err = s.memoryForCall(ctx, hooks, spec.Job); err != nil {
+			return JobResult{}, err
+		}
 	}
 	// The memory block is not in guard's pass: each of its lines was checked by these same hooks, and a second pass over the joined
 	// block would let a pattern match across a line break and stop the call for two memories that touch. It is added after the pass,
@@ -285,6 +291,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	// The documents of the knowledge base come the same way: pieces found for this job, each one through the hooks alone, added after
 	// the pass as a data block (S-AI-7, INV-10).
 	know := spec.knowledge // already retrieved by a caller that needed it for its cache key (explain): one retrieval, one hook pass
+	if know == nil && spec.publicOnly {
+		know = &knowCall{}
+	}
 	if know == nil {
 		k, err := s.knowledgeForCall(ctx, hooks, spec.Job, knowledgeQuery(spec))
 		if err != nil {

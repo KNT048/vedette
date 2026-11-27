@@ -9,8 +9,8 @@ import (
 // five codes), a handled finding's is its resolution. A device's status (its badge) is the most urgent status of its open findings with
 // the count of distinct CVEs at that status, else "needs your input" when only questions wait for a person, else none.
 
-// CodeNeedsInput is the device status of a device whose only open items are questions for a person.
-const CodeNeedsInput = "needs_input"
+// CodePossible is the device status of a device whose only open items are possible findings (CVEs Vedette cannot decide).
+const CodePossible = "possible"
 
 // OpenCodes are the open statuses, the status of layer n at index n-1.
 var OpenCodes = []string{CodeUnderAttack, CodeExploited, CodePublicExploit, CodeCriticalEdge, CodeUpdateRecommended}
@@ -71,30 +71,29 @@ func parseResolutions(s string) ([]Resolution, error) {
 	return out, nil
 }
 
-// DeviceStatus is the badge of a device: a status code and its count (distinct CVEs at an open status; the items waiting for a person
-// for needs_input).
+// DeviceStatus is the badge of a device: a status code and its count (distinct CVEs at an open status; the possible CVEs for possible).
 type DeviceStatus struct {
 	Code  string `json:"code"`
 	Count int    `json:"count"`
 }
 
 // DeviceCounts is what the status of one device is computed from: the distinct CVEs of its open findings at each layer (index 1..5)
-// and the items of the Needs your input queue that are about it.
+// and its possible CVEs.
 type DeviceCounts struct {
-	CVEs  [UrgencyUpdate + 1]int
-	Input int
+	CVEs     [UrgencyUpdate + 1]int
+	Possible int
 }
 
 // DeviceStatusOf is the one rule of a device's badge: the most urgent layer of its open findings with the distinct CVEs at it, else
-// needs_input with the queue items when only those wait, else nil. The Devices list, the device page and Home read it.
+// possible with its possible CVEs when only those wait, else nil. The Devices list, the device page and Home read it.
 func DeviceStatusOf(c DeviceCounts) *DeviceStatus {
 	for l := UrgencyUnderAttack; l <= UrgencyUpdate; l++ {
 		if c.CVEs[l] > 0 {
 			return &DeviceStatus{Code: LayerCode(l), Count: c.CVEs[l]}
 		}
 	}
-	if c.Input > 0 {
-		return &DeviceStatus{Code: CodeNeedsInput, Count: c.Input}
+	if c.Possible > 0 {
+		return &DeviceStatus{Code: CodePossible, Count: c.Possible}
 	}
 	return nil
 }

@@ -31,8 +31,8 @@ export const RISKS = ['exploited', 'update', 'none'] as const
 
 const DAY = 24 * 60 * 60 * 1000
 
-/** Open findings, as the device's status says (one of the five layers); needs_input alone is none, and findings_count counts every state. */
-export const hasOpenFindings = (d: Pick<DeviceRow, 'risk'>) => d.risk != null && d.risk.code !== 'needs_input'
+/** Open findings, as the device's status says (one of the five layers); possible alone is none, and findings_count counts every state. */
+export const hasOpenFindings = (d: Pick<DeviceRow, 'risk'>) => d.risk != null && d.risk.code !== 'possible'
 export const APPROVED_WITHIN = { '24h': DAY, '7d': 7 * DAY } as const
 
 /** Whether a row is of `type`: a type id, a category id, or the kind it acts as (`type:server` holds every server type). */

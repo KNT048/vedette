@@ -133,7 +133,7 @@ type FindingCounter interface {
 }
 
 // RiskSource is the badge of every device that has one, from findings' one device status function (inventory may not read fnd_*
-// tables): its most urgent open finding status with the distinct CVEs at it, else needs_input with the items waiting for a person. A
+// tables): its most urgent open finding status with the distinct CVEs at it, else possible with the CVEs Vedette cannot decide. A
 // device that is absent has none.
 type RiskSource interface {
 	DeviceStatuses(ctx context.Context) (map[string]Risk, error)
@@ -146,17 +146,17 @@ const (
 	RiskPublicExploit = "public_exploit"
 	RiskCriticalEdge  = "critical_edge"
 	RiskUpdate        = "update_recommended"
-	RiskNeedsInput    = "needs_input"
+	RiskPossible      = "possible"
 	RiskNone          = "none"
 )
 
 // RiskLevels are the words of the badge filter, most urgent first.
-var RiskLevels = []string{RiskUnderAttack, RiskExploited, RiskPublicExploit, RiskCriticalEdge, RiskUpdate, RiskNeedsInput, RiskNone}
+var RiskLevels = []string{RiskUnderAttack, RiskExploited, RiskPublicExploit, RiskCriticalEdge, RiskUpdate, RiskPossible, RiskNone}
 
 // Risk is the badge of a device in every list (contract.ts DeviceBadge): nil when it has none.
 type Risk struct {
 	Code  string `json:"code"`  // one of RiskLevels but none
-	Count int    `json:"count"` // distinct CVEs at that status; for needs_input the items waiting for a person
+	Count int    `json:"count"` // distinct CVEs at that status; for possible the CVEs Vedette cannot decide
 }
 
 // riskWords is the badge's text, as the pages show it (also the CSV's risk column): "2 exploited", "Update recommended", "" when none.
@@ -175,8 +175,8 @@ func riskWords(r *Risk) string {
 		return fmt.Sprintf("%d critical on an edge device", r.Count)
 	case RiskUpdate:
 		return "Update recommended"
-	case RiskNeedsInput:
-		return "Needs your input"
+	case RiskPossible:
+		return fmt.Sprintf("%d possible", r.Count)
 	}
 	return ""
 }

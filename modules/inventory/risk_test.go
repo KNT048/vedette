@@ -16,7 +16,7 @@ import (
 )
 
 // Every list shows each device's badge. Inventory reads it from findings' device status through Config.Risk (RiskSource), never
-// from fnd_* tables: the most urgent open status with its distinct CVEs, else needs_input, nil when none. The Devices search filters
+// from fnd_* tables: the most urgent open status with its distinct CVEs, else possible, nil when none. The Devices search filters
 // on it.
 
 type fakeRisk map[string]inventory.Risk
@@ -285,7 +285,7 @@ func TestContract_HasFindingsIsOpenFindings(t *testing.T) {
 	e := newEnv(t, withRisk(src))
 	open, input, closed := riskDevices(e)
 	src.m[open] = inventory.Risk{Code: "exploited", Count: 1}
-	src.m[input] = inventory.Risk{Code: "needs_input", Count: 1}
+	src.m[input] = inventory.Risk{Code: "possible", Count: 1}
 	e.findg[open], e.findg[input], e.findg[closed] = 1, 2, 3 // every state counts in findings_count; closed's are all patched
 	ids := func(v string) []string {
 		f, err := inventory.ParseDeviceSearch("", "", v, "", "", "", "", "")

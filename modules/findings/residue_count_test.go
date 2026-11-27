@@ -161,12 +161,12 @@ func TestQueue_Count_ResidueByKindAndCause(t *testing.T) {
 	t.Logf("open findings by cause:%s", countLines(findings))
 	t.Logf("items worded \"gives no affected versions\": %d", noVersions)
 	want := map[string]int{
-		"no_range_data / " + causeGAOnly:              2,
-		"no_range_data / " + causeNoVersion:           2,
-		"older_line / " + causeOlderDSM + " (3 CVEs)": 1,
-		"device_unchecked / " + causeFirewall:         1,
-		"devices_not_added":                           1, // the firewall nobody added (no finding): the grouped card
-		"unconfirmed":                                 2, // the exploited CVE on both hosts: a finding to confirm
+		"no_range_data / " + causeGAOnly:      2,
+		"no_range_data / " + causeNoVersion:   2,
+		"older_line / " + causeOlderDSM:       3, // one question per CVE
+		"device_unchecked / " + causeFirewall: 1,
+		"devices_not_added":                   1, // the firewall nobody added (no finding): the grouped card
+		"unconfirmed":                         2, // the exploited CVE on both hosts: a finding to confirm
 	}
 	if !maps.Equal(items, want) {
 		t.Errorf("queue %v, want %v", items, want)
@@ -179,57 +179,59 @@ func TestQueue_Count_ResidueByKindAndCause(t *testing.T) {
 	}
 }
 
-// The DSM line question: one item for every CVE whose record names fixes only on newer lines, with the device's line, the CVEs and the
-// newest fixed release of each newer line; Affected is refused (it is about several CVEs), Not affected closes it, and a CVE that joins
-// the group later asks it again.
-func TestOlderLine_OneQuestionPerLine(t *testing.T) {
+// The DSM line questions: one per CVE whose record names fixes only on newer lines, each with the device's line and the newest fixed
+// release of each newer line for that CVE, answered on its own (Affected or Not affected); a CVE that joins later is its own question,
+// and an answer given to the line's single question an earlier build asked still holds for each CVE it listed.
+func TestOlderLine_OneQuestionPerCVE(t *testing.T) {
 	t.Parallel()
 	e, _ := residueWorld(t)
-	in, err := e.svc.Input(t.Context(), "nas-01", "", Page{Limit: PageMax})
+	qs, err := questionsOf(t.Context(), e.db.Reader(), "nas-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var q *InputItemJS
-	flat := flatInput(in.Items)
-	for i := range flat {
-		if flat[i].Question == string(QuestionOlderLine) {
-			q = &flat[i]
+	var cves []string
+	for _, q := range qs {
+		if q.Kind != QuestionOlderLine {
+			continue
+		}
+		cves = append(cves, q.CVE)
+		if q.Detail.Line != "7.2.1" || len(q.Detail.Fixes) == 0 || q.Detail.Undecided == nil || q.Detail.Undecided.Reason != UndecidedBranchOnly {
+			t.Errorf("%s: line %q fixes %v undecided %+v", q.CVE, q.Detail.Line, q.Detail.Fixes, q.Detail.Undecided)
 		}
 	}
-	if q == nil {
-		t.Fatalf("no older_line question on nas-01: %+v", in.Items)
+	slices.Sort(cves)
+	if want := []string{"CVE-2026-82001", "CVE-2026-82002", "CVE-2026-82003"}; !slices.Equal(cves, want) {
+		t.Fatalf("older_line questions about %v, want %v", cves, want)
 	}
-	if q.CVE != nil || q.CVEs != 3 || q.Line == nil || *q.Line != "7.2.1" {
-		t.Errorf("question cve %v cves %d line %v, want none, 3, 7.2.1", q.CVE, q.CVEs, q.Line)
+	var first Question
+	for _, q := range qs {
+		if q.CVE == "CVE-2026-82001" {
+			first = q
+		}
 	}
-	if want := []string{"CVE-2026-82001", "CVE-2026-82002", "CVE-2026-82003"}; !slices.Equal(q.CVEList, want) {
-		t.Errorf("cve_list %v, want %v", q.CVEList, want)
-	}
-	if want := []string{"7.3.2-86009 Update 5", "7.4.1-90080 Update 1"}; !slices.Equal(q.Fixes, want) {
-		t.Errorf("fixes %v, want %v", q.Fixes, want)
-	}
-	if _, err := e.svc.AnswerQuestion(t.Context(), q.ID, AnswerAffected, "the vendor says so", "it@example.com"); !errors.Is(err, ErrSeveralCVEs) {
-		t.Errorf("affected on a question of several CVEs: %v, want ErrSeveralCVEs", err)
-	}
-	if _, err := e.svc.AnswerQuestion(t.Context(), q.ID, AnswerNotAffected, "checked the advisories for 7.2.1", "it@example.com"); err != nil {
+	if _, err := e.svc.AnswerQuestion(t.Context(), first.ID, AnswerNotAffected, "checked the advisories for 7.2.1", "it@example.com"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL`); n != 2 {
+		t.Errorf("%d open older_line questions after one answer and a match that changed nothing, want 2", n)
+	}
+	// an answer to the whole line, as an earlier build asked it, holds for every CVE it listed
+	e.exec(`DELETE FROM fnd_question WHERE asset_id = 'nas-01'`)
+	e.exec(`INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at, answer, answered_by, answered_at)
+		VALUES ('q-line', 'nas-01', 's-nas', NULL, 'older_line', '{"cve_list":["CVE-2026-82001","CVE-2026-82002","CVE-2026-82003"],"line":"7.2.1"}', 3,
+		'2026-11-01T00:00:00.000Z', 'not_affected', 'it@example.com', '2026-11-02T00:00:00.000Z')`)
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2026-82009", Stamp: "x"}) // the pass reads again (a changed list)
 	if _, err := e.svc.Reconcile(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL`); n != 0 {
-		t.Errorf("the answered line question is asked again after a match that changed nothing (%d open)", n)
+		t.Errorf("%d older_line questions asked again although the person answered the whole line", n)
 	}
-	// a new CVE of the same kind joins: the person did not answer for it, so the question waits again
-	dsmKey := productid.Key("Synology", "DiskStation Manager")
-	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2026-82006", NVDAnswered: true, Origin: RangeCNA, RangesFrom: RangesCVEOrg, Published: uncNew,
-		Affected: []Affected{{CPE: "cpe:2.3:o:synology:diskstation_manager:*:*:*:*:*:*:*:*"}},
-		Schemed:  schemedRows(t, "synology-dsm", dsmKey, [3]string{"7.4.1", "7.4.1-90080-2", ""})})
-	if _, err := e.svc.Reconcile(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL AND cves = 4`); n != 1 {
-		t.Errorf("a CVE joined the answered line question and it was not asked again (%d open with 4 CVEs)", n)
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = 'q-line' AND answer = 'not_affected'`); n != 1 {
+		t.Error("the answer to the whole line was dropped")
 	}
 }
 
@@ -247,8 +249,9 @@ func TestOlderLine_AnAnsweredCVEKeepsItsOwnAnswer(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = 'q-old' AND answer = 'not_affected'`); n != 1 {
 		t.Error("the person's answer to CVE-2026-82002 was dropped by the grouping")
 	}
-	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND cves = 2 AND detail NOT LIKE '%CVE-2026-82002%'`); n != 1 {
-		t.Error("the line question still holds the CVE the person answered for")
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL`); n != 2 ||
+		e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND cve = 'CVE-2026-82002'`) != 0 {
+		t.Error("the CVE the person answered for is asked again as an older_line question")
 	}
 }
 
@@ -270,9 +273,9 @@ func TestOlderLine_AnAnswerOfAnyKindHoldsForItsVersion(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = 'q-older'`); n != 0 {
 		t.Error("an answer given for an older version of the line still decides CVE-2026-82003")
 	}
-	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL AND cves = 2
-		AND detail NOT LIKE '%CVE-2026-82001%' AND detail LIKE '%CVE-2026-82003%'`); n != 1 {
-		t.Error("the line question should ask about CVE-2026-82002 and CVE-2026-82003 only")
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL AND cve IN ('CVE-2026-82002', 'CVE-2026-82003')`); n != 2 ||
+		e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND cve = 'CVE-2026-82001'`) != 0 {
+		t.Error("the line questions should ask about CVE-2026-82002 and CVE-2026-82003 only")
 	}
 }
 
@@ -322,8 +325,8 @@ func TestNothingToCheck_QueueBadgeAndAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := st["fw-01"]; got.Code != CodeNeedsInput || got.Count != 1 {
-		t.Errorf("fw-01 badge %+v, want needs_input 1", got)
+	if got, ok := st["fw-01"]; ok { // nothing to check is no possible CVE: the device gets no badge (its own prompt says what to add)
+		t.Errorf("fw-01 badge %+v, want none", got)
 	}
 	if got, ok := st["fw-02"]; ok {
 		t.Errorf("fw-02 (nobody added it) has badge %+v, want none", got)

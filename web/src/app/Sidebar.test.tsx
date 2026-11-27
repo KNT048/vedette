@@ -89,7 +89,7 @@ describe('sidebar groups (docs/UI.md §2)', () => {
 
 describe('badges from the one overview read', () => {
   it('Findings and Incidents carry their counts; Devices has none, and a closed group sums only the urgent ones', async () => {
-    server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, needs_input: 0 }, affected: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, input: 0, first: [], trend: [], trend_start: '2026-10-18', generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
+    server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, possible: 0 }, affected: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, input: 0, first: [], trend: [], trend_start: '2026-10-18', generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
     renderApp('/')
     const nav = within(await mainNav())
     expect(await nav.findByRole('link', { name: 'Findings 9 devices to handle' }, { timeout: 3000 })).toBeInTheDocument() // devices with an open finding (2 + 1 + 6), not a sum of findings
@@ -107,7 +107,7 @@ describe('badges from the one overview read', () => {
 
 describe('icon rail without a Devices count', () => {
   it('the collapsed Devices link carries no count either', async () => {
-    server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, needs_input: 0 }, affected: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, input: 0, first: [], trend: [], trend_start: '2026-10-18', generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
+    server.use(http.get(`${API}/findings/overview`, () => HttpResponse.json({ open: { findings: 9, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, devices: { total: 30, not_added: 15, by_status: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6, possible: 0 }, affected: { under_attack: 0, exploited: 2, public_exploit: 1, critical_edge: 0, update_recommended: 6 } }, input: 0, first: [], trend: [], trend_start: '2026-10-18', generated_at: '2026-11-16T00:00:00Z', incidents: { open: 4, urgent: 2 }, alerts: null })))
     localStorage.setItem('vedette.nav.u-admin', JSON.stringify({ rail: true, open: [] }))
     renderApp('/')
     const nav = within(await mainNav())

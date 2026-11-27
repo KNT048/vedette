@@ -28,10 +28,10 @@ describe('StatusBadge', () => {
   })
 
   it('a device badge counts its CVEs, and links to that device\'s findings with that status', () => {
-    inRouter(<><StatusBadge code="exploited" count={2} to="/findings?tab=device&device=d1&status=exploited" /><StatusBadge code="update_recommended" count={5} /><StatusBadge code="needs_input" count={1} /></>)
+    inRouter(<><StatusBadge code="exploited" count={2} to="/findings?tab=device&device=d1&status=exploited" /><StatusBadge code="update_recommended" count={5} /><StatusBadge code="possible" count={1} /></>)
     expect(screen.getByRole('link', { name: '2 exploited' })).toHaveAttribute('href', '/findings?tab=device&device=d1&status=exploited')
     expect(screen.getByText('Update recommended')).toBeInTheDocument()
-    expect(screen.getByText('Needs your input')).toBeInTheDocument()
+    expect(screen.getByText('1 possible')).toBeInTheDocument()
   })
 
   it('an accepted risk says until when', () => {

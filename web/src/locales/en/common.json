@@ -95,7 +95,7 @@
     "acceptedUntil": "Risk accepted until {{date}}",
     "not_relevant": "Not relevant",
     "false_positive": "False positive",
-    "needs_input": "Needs your input",
+    "possible": "Possible",
     "meaning": {
       "under_attack": "Someone on your network sent this exploit, and this device is affected. Isolate or patch it now.",
       "exploited": "Attackers use this flaw in real attacks. Patch it now.",
@@ -107,7 +107,7 @@
       "accepted": "Someone decided to live with it until a set day.",
       "not_relevant": "It does not apply to this device.",
       "false_positive": "The match was wrong.",
-      "needs_input": "Vedette needs an answer from you before it can decide."
+      "possible": "Vedette cannot decide whether these CVEs affect the device. Check them, or answer them yourself."
     }
   },
   "deviceStatus": {
@@ -121,8 +121,8 @@
     "critical_edge_other": "{{count}} critical on edge",
     "update_recommended_one": "Update recommended",
     "update_recommended_other": "Update recommended",
-    "needs_input_one": "Needs your input",
-    "needs_input_other": "Needs your input"
+    "possible_one": "{{count}} possible",
+    "possible_other": "{{count}} possible"
   },
   "verification": {
     "scan": "Confirmed by a safe check",

@@ -135,6 +135,10 @@ type fakeFeeds struct {
 	vulns []Vuln
 	// onMatchSet runs when a pass reads the match set: a test can change the world while the catalogue is read.
 	onMatchSet func()
+	// unlisted are CVEs of vulns that are on no exploited list: the catalogue's (MatchSet), not Vulns.
+	unlisted map[string]bool
+	// vulnsErr, when set, is asked before each read of the exploited list; an error fails that read.
+	vulnsErr func() error
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {
@@ -157,7 +161,23 @@ func (f *fakeFeeds) CVSS(_ context.Context, cves []string) (map[string]CVSS, err
 	return out, nil
 }
 
-func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) { return f.vulns, nil }
+func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) {
+	if f.vulnsErr != nil {
+		if err := f.vulnsErr(); err != nil {
+			return nil, err
+		}
+	}
+	if len(f.unlisted) == 0 {
+		return f.vulns, nil
+	}
+	var out []Vuln
+	for _, v := range f.vulns {
+		if !f.unlisted[v.CVE] {
+			out = append(out, v)
+		}
+	}
+	return out, nil
+}
 
 func (f *fakeFeeds) MatchSet(context.Context, MatchScope) ([]Vuln, error) {
 	if f.onMatchSet != nil {

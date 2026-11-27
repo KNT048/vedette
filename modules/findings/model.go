@@ -413,6 +413,9 @@ type Question struct {
 	Answer      string // "" = not answered
 	AnsweredBy  string
 	AnsweredAt  time.Time
+	// CheckKey is the identity of the evidence the question rests on (checkKey): a check of the CVE's advisories for it is stored under
+	// it (fnd_possible_check). "" when no such check can decide it.
+	CheckKey string
 }
 
 // QuestionDetail is the JSON of fnd_question.detail, for display.
@@ -430,7 +433,61 @@ type QuestionDetail struct {
 	Fixes  []string `json:"fixes,omitempty"` // older_line: the newest fixed release the vendor names on each later line
 	// Attribute: not_comparable, the build attribute NVD pins that decides the CVE and the box could not derive (Unchecked.Attribute)
 	Attribute string `json:"attribute,omitempty"`
+	// Undecided says, machine-readable, why the box could not decide the CVE and what blocked it (an audit groups the undecided cases by
+	// reason and by the rows or text that blocked them, to grow what the box decides by itself).
+	Undecided *Undecided `json:"undecided,omitempty"`
+	// Check is what Question.CheckKey is made of: the product, release line, version and evidence a check of the CVE's advisories is for.
+	Check *CheckID `json:"check,omitempty"`
 }
+
+// CheckID is the identity of the evidence one question rests on (checkKey): no device data, so devices with the same software share it.
+type CheckID struct {
+	Product  string `json:"product"`         // the core/productid key
+	Line     string `json:"line"`            // the release line as the product's scheme names it ("15.1"), else the version
+	Version  string `json:"version"`         // the exact version the line runs
+	Build    string `json:"build,omitempty"` // the build the device states with it (ESXi), which the version alone does not say
+	Evidence string `json:"evidence"`        // sha256 hex of the version and the CVE record's stamp
+}
+
+// Undecided is why a CVE stays possible: one reason of UndecidedReasons, the range rows that were read and did not decide it, and the
+// part of an advisory the box could not read as ranges, with its address.
+type Undecided struct {
+	Reason string   `json:"reason"`
+	Ranges []string `json:"ranges,omitempty"` // the rows read, as "origin cpe-or-product [start, end)" (at most undecidedRows)
+	Text   string   `json:"text,omitempty"`   // at most undecidedText bytes of advisory text that was not read as ranges
+	URL    string   `json:"url,omitempty"`    // the page Text comes from
+}
+
+// The undecided reasons (Undecided.Reason). A closed list: a test checks every possible CVE carries one of them.
+const (
+	UndecidedNoVersion        = "no_version"                  // the line has no version the box can read
+	UndecidedPlatform         = "platform_unknown"            // the CVE affects some platforms only and nothing says which this device runs
+	UndecidedPackage          = "package_unknown"             // the distribution's package release decides and is not known
+	UndecidedAttribute        = "attribute_unknown"           // an edition, architecture or platform of the build decides it
+	UndecidedSchemeMismatch   = "version_scheme_mismatch"     // the version does not compare with the rows' notation
+	UndecidedNVDPending       = "nvd_pending"                 // NVD has not answered for the CVE yet
+	UndecidedNoRanges         = "no_ranges"                   // the CVE names the product with no affected versions at all
+	UndecidedNotNamed         = "product_not_named"           // the CVE's rows name other products than this line's
+	UndecidedExactOnly        = "exact_releases_only"         // the rows list exact releases, none of them this one
+	UndecidedRangesDoNotCover = "ranges_do_not_decide"        // ranges are listed, none decides this version
+	UndecidedBranchOnly       = "ranges_start_at_branch_only" // the vendor's ranges start at later branches and say nothing about this one
+	UndecidedEOLUnlisted      = "eol_line_unlisted"           // the rows list releases of later lines only; this older line is not listed
+	UndecidedNoReference      = "no_reference_page"           // the CVE has no reference page the box may read
+	UndecidedFetchFailed      = "fetch_failed"                // no reference page could be read
+	UndecidedUnparsedVendor   = "unparsed_vendor_text"        // the advisory was read, its ranges were not
+	UndecidedAIUnsure         = "ai_unsure"                   // the AI read the pages and could not tell
+)
+
+// UndecidedReasons lists every reason.
+var UndecidedReasons = []string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute, UndecidedSchemeMismatch, UndecidedNVDPending,
+	UndecidedNoRanges, UndecidedNotNamed, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedNoReference, UndecidedFetchFailed,
+	UndecidedUnparsedVendor, UndecidedAIUnsure}
+
+// The most range rows and advisory bytes an Undecided keeps.
+const (
+	undecidedRows = 20
+	undecidedText = 500
+)
 
 // key is the question's identity on its device (the unique index).
 func (q Question) key() string {

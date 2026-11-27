@@ -90,7 +90,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
       const v = overview()
       const none = { under_attack: 0, exploited: 0, public_exploit: 0, critical_edge: 0, update_recommended: 0 }
       return HttpResponse.json({ ...v, open: { findings: 3, by_status: { ...none, critical_edge: 3 } },
-        devices: { ...v.devices, by_status: { ...none, needs_input: 0 }, affected: { ...none, critical_edge: 1 } } })
+        devices: { ...v.devices, by_status: { ...none, possible: 0 }, affected: { ...none, critical_edge: 1 } } })
     }))
     renderApp('/')
     expect(await screen.findByText('open findings on 1 device')).toBeInTheDocument()

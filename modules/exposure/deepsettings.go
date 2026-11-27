@@ -354,8 +354,9 @@ func errSettings(format string, a ...any) *APIError {
 
 // PutDeepSettings is PUT /exposure/tree/{id}/deep-settings (admin): it stores the target's deep-scan settings, with an
 // exposure.deep_settings audit row that says what they were and what they are. Turning the denial-of-service checks on is the one
-// change that adds risk over the defaults: it needs two-step sign-in, as the terms do. A scan that runs now takes a narrower
-// setting at its next engine step (ModeNow) and never a wider one (the run's own mode bounds it); nothing is stopped.
+// change that adds risk over the defaults: it needs two-step sign-in, as the terms do. A scan that runs now takes a group turned
+// off at its next engine step (ModeNow) and never one turned on (the run's own mode bounds it); the ports and web paths to skip and
+// the speed are read once at its check step, so they apply from the next scan. Nothing is stopped.
 func (s *Service) PutDeepSettings(ctx context.Context, who Actor, id string, e DeepSettingsEdit) error {
 	if !who.Admin {
 		return apiErr(403, "forbidden", "Only an administrator can change the deep-scan settings.")

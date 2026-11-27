@@ -23942,8 +23942,9 @@ func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, 
 // only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in
 // (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path
 // that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more
-// than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one.
-// Audited (exposure.deep_settings, before and after).
+// than 20 paths. A scan that runs now takes a group turned off at its next step and never a group
+// turned on; the ports and web paths to skip and the speed apply from the next scan. Audited
+// (exposure.deep_settings, before and after).
 //
 // PUT /exposure/tree/{id}/deep-settings
 func (s *Server) handleExposurePutExposureTreeIDDeepSettingsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24037,7 +24038,7 @@ func (s *Server) handleExposurePutExposureTreeIDDeepSettingsRequest(args [1]stri
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePutExposureTreeIDDeepSettingsOperation,
-			OperationSummary: "Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one. Audited (exposure.deep_settings, before and after)",
+			OperationSummary: "Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more than 20 paths. A scan that runs now takes a group turned off at its next step and never a group turned on; the ports and web paths to skip and the speed apply from the next scan. Audited (exposure.deep_settings, before and after)",
 			OperationID:      "exposure_put_exposure_tree_id_deep_settings",
 			Body:             request,
 			RawBody:          rawBody,

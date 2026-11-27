@@ -231,8 +231,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   skip and the URL path prefixes to skip (two separate lists; one is never turned into the other). They only narrow: `narrow` is the
   last step of `runMode`, after the terms, the scheduled-scan rule and carrier-grade NAT, so every `ModeNow` re-read takes them, and
   it only clears bits (`ScanMode.DoS`, `Logins`, `Change`, `WebActive`, `OpenVAS`; `Disruptive` is `DoS || Logins || Change`). The
-  adapters AND the re-read with the run's mode bit by bit (`ScanMode.And`), so a setting saved during a run narrows its next step and
-  never widens it; nothing is stopped. A domain's address that is also an IP target of the box takes both targets' settings
+  adapters AND the re-read with the run's mode bit by bit (`ScanMode.And`), so a group turned off during a run is left out from its next step and a group turned on never reaches it; the ports and web
+  paths to skip and the speed are read once at the check step and apply from the next scan. Nothing is stopped. A domain's address that is also an IP target of the box takes both targets' settings
   (`deepGate`, `withSettings`; the active web scan of its pages too). Each engine core feeds honours them: nuclei leaves out the
   templates of a group that is off (classified in core, `cmd/vedette` `templateGroup`: a check that can exhaust or crash a service is
   in the denial-of-service group whatever its tags) and, by the first request of each template, those under a path to skip (one it

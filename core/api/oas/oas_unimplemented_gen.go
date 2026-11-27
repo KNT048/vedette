@@ -1845,8 +1845,9 @@ func (UnimplementedHandler) ExposurePutExposureTargetsIDTerms(ctx context.Contex
 // only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in
 // (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than 64 ports, a path
 // that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more
-// than 20 paths. A scan that runs now takes a narrower setting at its next step and never a wider one.
-// Audited (exposure.deep_settings, before and after).
+// than 20 paths. A scan that runs now takes a group turned off at its next step and never a group
+// turned on; the ports and web paths to skip and the speed apply from the next scan. Audited
+// (exposure.deep_settings, before and after).
 //
 // PUT /exposure/tree/{id}/deep-settings
 func (UnimplementedHandler) ExposurePutExposureTreeIDDeepSettings(ctx context.Context, req *ExposurePutExposureTreeIDDeepSettingsReq, params ExposurePutExposureTreeIDDeepSettingsParams) (r *ExposurePutExposureTreeIDDeepSettingsOK, _ error) {

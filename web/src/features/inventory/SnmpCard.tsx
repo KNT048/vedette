@@ -12,7 +12,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
-import { kindLabel } from '@/lib/deviceTypes'
+import { actsAs, kindLabel } from '@/lib/deviceTypes'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { ScopeButton } from '@/features/scanning/Fixes'
 import { useDeviceAction, useDeviceSnmp, useDeviceSnmpActions, useDeviceSources, useDismissSnmpNotices, useSnmp } from './api'
 import { errMsg } from './kinds'
+import { osOf } from './InstallAgent'
 import { nameOf } from './nameOf'
 import type { DeviceDetail, DeviceSnmp, DeviceSnmpInput, SnmpAuth, SnmpDeviceRow, SnmpPriv, SnmpState, SnmpVersion } from './types'
 import { IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
@@ -114,7 +115,7 @@ export function SnmpDialogs({ d, src }: { d: DeviceDetail; src: SnmpSource }) {
             {checked && !act.check.isPending ? <Notice tone="danger" role="alert" className="mb-0" title={t('deviceSnmp.check.failed')}>{checked.message}</Notice> : null}
             {q.isPending ? <p className="text-meta text-muted">{t('common:loading')}</p>
               : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-              : <StateView d={d} s={q.data} onEdit={edit} />}
+              : <StateView d={d} s={q.data} onEdit={edit} onLinkClick={() => src.setChecking(false)} />}
           </div>
           <DialogFooter>
             {s && s.state !== 'not_set_up' ? (
@@ -155,7 +156,21 @@ function Mask({ last4 }: { last4: string }) {
 }
 
 /** What Check now shows: the state and why, the settings (secrets as their last 4 characters), the times, and what answered. */
-function StateView({ d, s, onEdit }: { d: DeviceDetail; s: DeviceSnmp; onEdit: () => void }) {
+/** SNMP gives a Linux or Windows computer's model and system only: no software list, so no findings. Said once, with the way to get them. */
+function NoSoftwareLine({ d, onLinkClick }: { d: DeviceDetail; onLinkClick?: () => void }) {
+  const { t } = useTranslation('inventory')
+  const kind = actsAs(d.asset.kind)
+  const os = osOf(d)
+  if (!(kind === 'server' || kind === 'pc' || os === 'linux' || os === 'windows')) return null
+  return (
+    <p className="max-w-3xl text-meta text-muted" data-testid="snmp-no-software">
+      {t('deviceSnmp.noSoftware')}{' '}
+      <Link to="/devices?add=osquery" onClick={onLinkClick} className="text-accent underline underline-offset-4">{t('deviceSnmp.noSoftwareLink')}</Link>
+    </p>
+  )
+}
+
+function StateView({ d, s, onEdit, onLinkClick }: { d: DeviceDetail; s: DeviceSnmp; onEdit: () => void; onLinkClick?: () => void }) {
   const { t } = useTranslation('inventory')
   const row = (label: string, value: ReactNode) => <div className="contents"><dt className="text-meta text-muted">{label}</dt><dd className="min-w-0 text-sm [overflow-wrap:anywhere]">{value}</dd></div>
   if (s.state === 'not_set_up') {
@@ -163,6 +178,7 @@ function StateView({ d, s, onEdit }: { d: DeviceDetail; s: DeviceSnmp; onEdit: (
       <div className="grid gap-1.5">
         <SnmpStateLabel state="not_set_up" />
         <p className="max-w-3xl text-meta text-muted">{own(d) ? t('deviceSnmp.notSetUpBody') : t('deviceSnmp.noIp')}</p>
+        <NoSoftwareLine d={d} onLinkClick={onLinkClick} />
       </div>
     )
   }
@@ -182,6 +198,7 @@ function StateView({ d, s, onEdit }: { d: DeviceDetail; s: DeviceSnmp; onEdit: (
         </p>
       </div>
       {s.blocked ? <Blocked d={d} s={s} onEdit={onEdit} /> : null}
+      <NoSoftwareLine d={d} onLinkClick={onLinkClick} />
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[minmax(140px,max-content)_1fr]">
         {row(t('deviceSnmp.readFrom'), <>{s.read_from} <span className="text-meta text-muted">{s.read_from === s.ip ? t('deviceSnmp.readFromOwn') : t('deviceSnmp.readFromOther')}</span></>)}
         {row(t('deviceSnmp.version'), s.version === 'v3' ? t('deviceSnmp.v3User', { user: s.username ?? '' }) : t('deviceSnmp.v2c'))}
@@ -258,6 +275,7 @@ function SnmpDialog({ d, s, others, onClose }: { d: DeviceDetail; s: DeviceSnmp;
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={setUp ? t('deviceSnmp.form.editTitle', { name }) : t('deviceSnmp.form.addTitle', { name })} description={t('deviceSnmp.form.body')} info={t('deviceSnmp.form.bodyInfo')}>
         <SnmpForm ip={own(d)} s={s} others={others} switchOff={switchOff} saving={act.save.isPending} onCancel={onClose} onLinkClick={onClose}
+          lead={<NoSoftwareLine d={d} onLinkClick={onClose} />}
           save={(body) => act.save.mutateAsync(body).then(() => {
             toast.success(t('deviceSnmp.saved', { name }), switchOff ? { description: t('deviceSnmp.savedOn') } : undefined)
             onClose()

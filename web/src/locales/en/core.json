@@ -1597,7 +1597,7 @@
       "disabled": "Two-step sign-in is off.",
       "lostUser": "Lost your phone or mailbox? Ask an administrator to reset it in Settings → Users.",
       "lostAdmin": "Lost your phone or mailbox? Another administrator can reset it in Settings → Users.",
-      "lostAdminInfo": "Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run the command below on the machine that runs Vedette (on an appliance: sudo podman instead of docker). It gives a temporary password and turns two-step sign-in off.",
+      "lostAdminInfo": "Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run the command below on the machine that runs Vedette (on a container-only install that uses Docker, write docker instead of sudo podman). It gives a temporary password and turns two-step sign-in off.",
       "lostAdminCommand": "Reset from the box console",
       "offAsk": {
         "title": "Turn off two-step sign-in?",

@@ -1821,7 +1821,7 @@ describe('core: account', () => {
   it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator', async () => {
     usersStore.update((l) => l.map((x) => (x.id === 'u-admin' || x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
     const { unmount } = renderApp('/settings/account?tab=sign-in')
-    expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
+    expect(await screen.findByText("sudo podman exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
     unmount()
     renderApp('/settings/account?tab=sign-in', { role: 'operator' })
     expect(await screen.findByText(/Ask an administrator to reset it in Settings → Users/)).toBeInTheDocument()

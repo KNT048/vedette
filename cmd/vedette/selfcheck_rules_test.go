@@ -248,7 +248,7 @@ var selfcheckCases = map[string]selfcheckCase{
 		holds:  []row{{"fnd_question", nil}},
 		breaks: []edit{{0: {"kind": "rumour"}}}},
 	"findings.matched_version_on_line": {rule: "a detected finding names a version its own software line runs",
-		holds: []row{{"inv_asset", map[string]any{"id": "a1"}},
+		holds: []row{{"inv_asset", map[string]any{"id": "a1", "ignored_at": nil}},
 			{"inv_software", map[string]any{"id": "s1", "asset_id": "a1", "version": "2.0", "pkg_version": "2.0-1"}},
 			{"inv_software_reading", map[string]any{"software_id": "s1", "version": "2.5"}},
 			{"fnd_finding", map[string]any{"asset_id": "a1", "software_id": "s1", "matched_version": "2.0"}}},

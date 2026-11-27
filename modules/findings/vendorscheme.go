@@ -272,8 +272,9 @@ func olderThanEveryStart(installed versionscheme.Version, spans []versionscheme.
 	return first, true
 }
 
-// branchStart says a range start is the start of a release branch or its first release ("24.2", "24.2R1", ESXi "8.0"), not a
-// release inside the branch where a flaw came in ("23.2R2-S1").
+// branchStart says a range start is the start of a release branch or its first release ("24.2", "24.2R1", or a respin of it,
+// "24.2R1.12"), not a release inside the branch where a flaw came in ("23.2R2-S1"). It reads Junos OS's builds: R<n>, S<m>, respin
+// (the last number: the same release rebuilt).
 func branchStart(v versionscheme.Version) bool {
 	if v.LineStart {
 		return true
@@ -284,7 +285,7 @@ func branchStart(v versionscheme.Version) bool {
 	if v.Build[0] > 1 {
 		return false
 	}
-	for _, b := range v.Build[1:] {
+	for _, b := range v.Build[1:max(1, len(v.Build)-1)] {
 		if b != 0 {
 			return false
 		}

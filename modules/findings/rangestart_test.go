@@ -47,3 +47,31 @@ func TestOlderThanEveryStart_JunosOnlyAndNamesWhoListed(t *testing.T) {
 		})
 	}
 }
+
+// A respin of a branch's first release ("21.4R1.12": R1 rebuilt) is still where the branch starts, not a release inside it where a
+// flaw came in: an older branch (21.2) the vendor does not list stays a question, as it does for a range starting at "21.4R1".
+func TestOlderThanEveryStart_RespinOfFirstReleaseIsBranchStart(t *testing.T) {
+	t.Parallel()
+	junosKey := productid.Key("Juniper", "Junos OS")
+	for _, c := range []struct {
+		start  string
+		closed bool
+	}{
+		{"21.4R1", false},
+		{"21.4R1.12", false},
+		{"21.4R1-S1", true},
+		{"21.4R1-S1.2", true},
+		{"21.4R2.4", true},
+	} {
+		t.Run(c.start, func(t *testing.T) {
+			const ver = "21.2R3-S4"
+			a := Asset{ID: "ex", Name: "ex-01", Software: []Software{{ID: "s-ex", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS",
+				Version: ver, Source: "manual"}}}
+			v := Vuln{CVE: "CVE-2099-73003", NVDAnswered: true, Schemed: schemedRows(t, "juniper-junos", junosKey, [3]string{c.start, "21.4R3-S9", ""})}
+			r, _ := schemeJudge(a, a.Software[0], swInfoOn(a.Software[0], a), v)
+			if got := r.before != nil; got != c.closed {
+				t.Errorf("%s with a range starting at %s: closed by the start rule = %v, want %v", ver, c.start, got, c.closed)
+			}
+		})
+	}
+}

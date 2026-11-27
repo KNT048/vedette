@@ -77,7 +77,9 @@ func TestResolve(t *testing.T) {
 		{Linux, "openjdk-17-jre-headless", "openjdk", "OpenJDK", "", "", false, false},
 		{Linux, "java-21-openjdk-headless", "openjdk", "OpenJDK", "", "", false, false},
 		{Windows, "Microsoft .NET Runtime - 8.0.19 (x64)", "dotnet", "", "8.0.19", "8.0", false, true},
-		{Windows, "Microsoft .NET Host FX Resolver - 6.0.25 (x86)", "dotnet", "", "6.0.25", "6.0", false, true},
+		{Windows, "Microsoft.NETCore.App", "dotnet", "", "", "", false, false}, // a shared framework as the installers register it
+		{Windows, "Microsoft.WindowsDesktop.App", "dotnet", "", "", "", false, false},
+		{Windows, "Microsoft.AspNetCore.App", "aspnet-core", "", "", "", false, false},
 		{Windows, "Microsoft Windows Desktop Runtime 10.0.1 (x64)", "dotnet", "", "10.0.1", "10.0", false, true},
 		{Windows, "Microsoft ASP.NET Core 8.0.19 Shared Framework (x64)", "aspnet-core", "", "8.0.19", "8.0", false, true},
 		{Windows, "Microsoft .NET 8.0.19 - Windows Server Hosting", "aspnet-core", "", "8.0.19", "8.0", false, true},
@@ -99,7 +101,8 @@ func TestResolve(t *testing.T) {
 			t.Errorf("%s %q = %v %+v (line %q)", c.src, c.name, ok, p, p.Line(p.Version))
 		}
 	}
-	for _, name := range []string{"Java Auto Updater", "Python Install Manager", "Microsoft .NET SDK 8.0.413 (x64)", "javascript-common", "python3"} {
+	for _, name := range []string{"Java Auto Updater", "Python Install Manager", "Microsoft .NET SDK 8.0.413 (x64)", "javascript-common", "python3",
+		"Microsoft .NET Host FX Resolver - 6.0.25 (x86)", "Microsoft .NET Host - 8.0.19 (x64)"} { // the host is not the runtime
 		if p, ok := Resolve(Windows, name, "", ""); ok {
 			t.Errorf("%q resolves to %s", name, p.ID)
 		}

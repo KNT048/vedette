@@ -8,9 +8,12 @@
 //   `version` is the running kernel, "7.0.0-43-generic", a one-line query of its own; the box attaches it to the package list so the Kernel row gets the exact running kernel image). https://osquery.io/schema/
 //   (`os_revision` reads the `revision` column of os_version, available on Windows only since osquery 5.12: the UBR, the monthly patch, "22631.4460"; osquery reads
 //   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR. https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
-//   (the `programs` query also reads exactly one registry value, PatchLevel of the Setup key of each SQL Server version
-//   HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: the installed build including the CU; the shared Uninstall entry
-//   "Microsoft SQL Server 2022 (64-bit)" has no DisplayVersion. https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ,
+//   (the `programs` query also reads two kinds of registry value, the versions the machine registers for what runs:
+//   PatchLevel of the Setup key of each SQL Server version HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: the installed
+//   build including the CU; the shared Uninstall entry "Microsoft SQL Server 2022 (64-bit)" has no DisplayVersion or the one it was installed with.
+//   https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ; and the value names under
+//   HKLM\SOFTWARE[\WOW6432Node]\dotnet\Setup\InstalledVersions\<arch>\sharedfx\<framework>: one per installed .NET runtime version, which
+//   the runtime installers register (the Uninstall entries of the host and its resolver keep an older runtime's version).
 //   https://github.com/osquery/osquery/blob/5.12.1/specs/windows/registry.table)
 //   (INV-22: `listening_ports` JOIN `processes` for Open services of a machine that has only an agent; on Linux only the network namespace of
 //   pid 1 (process_namespaces), Windows has no net_namespace column so it has its own query. https://osquery.io/schema/ listening_ports, process_namespaces)
@@ -40,7 +43,7 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
     interfaces: { query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600, snapshot: true },
     deb_packages: { query: 'SELECT name, version, arch, source FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },
-    programs: { query: "SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL%\\Setup' AND r.name = 'PatchLevel' UNION ALL SELECT name, version, publisher, install_date, '' FROM programs;", interval: 3600, snapshot: true, platform: 'windows' },
+    programs: { query: "SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS reg_key FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL%\\Setup' AND r.name = 'PatchLevel' UNION ALL SELECT '', r.name, '', '', r.key FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\dotnet\\Setup\\InstalledVersions\\%\\sharedfx\\%' AND r.type != 'subkey' UNION ALL SELECT '', r.name, '', '', r.key FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\dotnet\\Setup\\InstalledVersions\\%\\sharedfx\\%' AND r.type != 'subkey' UNION ALL SELECT name, version, publisher, install_date, '' FROM programs;", interval: 3600, snapshot: true, platform: 'windows' },
     kernel_info: { query: 'SELECT version FROM kernel_info;', interval: 3600, snapshot: true, platform: 'linux' },
     os_revision: { query: 'SELECT name, version, revision, arch FROM os_version;', interval: 3600, snapshot: true, platform: 'windows' },
     listening_ports: { query: "SELECT DISTINCT l.port, l.protocol, l.address, p.name FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port > 0 AND l.protocol IN (6, 17) AND l.address NOT LIKE '127.%' AND l.address != '::1' AND l.net_namespace = (SELECT net_namespace FROM process_namespaces WHERE pid = 1);", interval: 3600, snapshot: true, platform: 'linux' },

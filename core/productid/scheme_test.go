@@ -78,13 +78,14 @@ func TestKEVShared(t *testing.T) {
 func TestCatalogue_VersionMap(t *testing.T) {
 	t.Parallel()
 	fsys := fstest.MapFS{"products/x.json": {Data: []byte(`{"products":[{"id":"x","display":"X","vendor":"Acme","product":"X","trains":"major",
-		"version_map":[{"re":"^8\\.0\\.(\\d{1,3})0\\.\\d+$","to":"1.8.0_$1"},{"re":"^ad (.+)$","to":"$1"}]}]}`)}}
+		"version_prefix":["ad "],
+		"version_map":[{"re":"^8\\.0\\.(\\d{1,3})0\\.\\d+$","to":"1.8.0_$1"}]}]}`)}}
 	c, err := load(fsys, catalogdata.Curated, catalogdata.KEVProducts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	p := c.byKey["acme|x"].p
-	for in, want := range map[string]string{"8.0.4910.10": "1.8.0_491", "ad 9.0.4": "9.0.4", "21.0.7": "21.0.7", " 8.0.4910.10 ": "1.8.0_491"} {
+	for in, want := range map[string]string{"8.0.4910.10": "1.8.0_491", "ad 9.0.4": "9.0.4", "ad 8.0.4910.10": "1.8.0_491", "21.0.7": "21.0.7", " 8.0.4910.10 ": "1.8.0_491"} {
 		if got := p.Canonical(in); got != want {
 			t.Errorf("Canonical(%q) = %q, want %q", in, got, want)
 		}

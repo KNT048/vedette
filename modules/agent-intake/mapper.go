@@ -177,14 +177,18 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 	}
 	sql := sqlServerVersions(snaps["programs"])
+	fx := dotnetFrameworks(snaps["programs"])
+	for _, f := range fx.rows {
+		add(f.display, f.p.Vendor, f.p.Product, f.version, f.p.KEV, false, "", "", softwareConfidence)
+	}
 	for _, r := range sqlUmbrellaFirst(snaps["programs"]) {
-		if r["sql_setup"] != "" {
-			continue // a SQL Server instance's setup value the programs query reads with the list, not a program
+		if r["reg_key"] != "" {
+			continue // a registry value the programs query reads with the list (SQL Server's PatchLevel, a .NET framework's version), not a program
 		}
 		name, version, conf := r["name"], r["version"], softwareConfidence
 		rel, umbrella := sqlUmbrella(name)
-		if v, ok := sql[rel]; ok && umbrella && version == "" {
-			version, conf = v.version, v.confidence
+		if v, ok := sql[rel]; ok && umbrella && (version == "" || v.registry) {
+			version, conf = v.version, v.confidence // the instance's build, not the one the release was installed with
 		}
 		p, ok := productid.Resolve(productid.Windows, name, r["publisher"], "")
 		if ok && !umbrella && sql.authoritative(name, p) {
@@ -192,6 +196,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		switch {
 		case ok:
+			version = p.OwnVersion(version) // without a vendor's word before the release ("ad 9.7.6": 9.7.6)
 			if p.Version != "" || p.VersionNotOwn {
 				version = p.Version // the release the name states ("Eclipse Temurin JDK with Hotspot 21.0.7+6": 21.0.7, not 21.0.7.6)
 			}

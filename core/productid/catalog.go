@@ -89,6 +89,9 @@ type Product struct {
 	// VersionMap rewrites a version as a source reports it into the vendor's own notation before its release line is read
 	// (Canonical): Java on Windows reports "8.0.4910.10" for Java 8 Update 491 ("1.8.0_491"). Data, never per-product code.
 	VersionMap []VersionMap
+	// VersionPrefix are words a vendor writes before the release in the version a program reports ("ad " of AnyDesk's "ad 9.7.6"),
+	// lower case; OwnVersion drops them.
+	VersionPrefix []string
 
 	// Set by Resolve:
 	Distribution string // the runtime family's distribution a name stated ("Temurin"); "" when none
@@ -124,6 +127,7 @@ type fileEntry struct {
 	WindowsPrefix []string      `json:"windows_prefix"`
 	Nmap          []string      `json:"nmap"`
 	Patterns      []filePattern `json:"patterns"`
+	VersionPrefix []string      `json:"version_prefix"`
 	Record        []string      `json:"record"`
 	KEVShared     []string      `json:"kev_shared"`
 	VersionMap    []fileMap     `json:"version_map"`
@@ -216,10 +220,12 @@ func mustLoad(fsys fs.FS, curated, kev []byte) *catalogue {
 }
 
 var (
-	cpeRE   = regexp.MustCompile(`^[aoh]:[a-z0-9_.\-~+&!]+:[a-z0-9_.\-~+&!]+\*?$`)
-	idRE    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,60}$`)
-	nameRE  = regexp.MustCompile(`^[^A-Z\s][^A-Z]{0,99}$`) // a lower-case package or program name
-	errData = errors.New("catalogue data")
+	cpeRE  = regexp.MustCompile(`^[aoh]:[a-z0-9_.\-~+&!]+:[a-z0-9_.\-~+&!]+\*?$`)
+	idRE   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,60}$`)
+	nameRE = regexp.MustCompile(`^[^A-Z\s][^A-Z]{0,99}$`) // a lower-case package or program name
+	// versionPrefixRE is a vendor's word before a release: letters, then a space or a hyphen ("ad ")
+	versionPrefixRE = regexp.MustCompile(`^[a-z]{1,20}[ -]$`)
+	errData         = errors.New("catalogue data")
 )
 
 func load(fsys fs.FS, curated, kev []byte) (*catalogue, error) {
@@ -281,7 +287,12 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 		return nil, fmt.Errorf("scheme %q is not a core/versionscheme scheme", fe.Scheme)
 	}
 	p := Product{ID: fe.ID, Display: fe.Display, Vendor: fe.Vendor, Product: fe.Product, Key: Key(fe.Vendor, fe.Product), Also: fe.Also,
-		Scheme: fe.Scheme, Trains: fe.Trains, Class: fe.Class}
+		Scheme: fe.Scheme, Trains: fe.Trains, Class: fe.Class, VersionPrefix: fe.VersionPrefix}
+	for _, w := range fe.VersionPrefix {
+		if !versionPrefixRE.MatchString(w) {
+			return nil, fmt.Errorf("version_prefix %q must be lower-case letters, then a space or a hyphen", w)
+		}
+	}
 	for _, m := range fe.VersionMap {
 		re, err := regexp.Compile(m.Re)
 		if err != nil || !strings.HasPrefix(m.Re, "^") || !strings.HasSuffix(m.Re, "$") || strings.TrimSpace(m.To) == "" {

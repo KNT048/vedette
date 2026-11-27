@@ -445,10 +445,10 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	return true, s.auditTx(ctx, tx, actor, "inventory.correct_software", deviceName(ctx, tx, l.assetID)+": "+shownDisplay, from+" → "+swText(next.Display, next.Version, next.PkgVersion))
 }
 
-// addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is true when the device
-// already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it); the
-// product without a version is any train of it the device has.
-func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup, moved bool, err error) {
+// addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is the id of the line when
+// the device already has the software from a source or a person (a guess is no duplicate: adding the product is how a person
+// confirms it); the product without a version is any train of it the device has.
+func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup string, moved bool, err error) {
 	id, version := s.ident(it, sourceManual)
 	version, display := statedRelease(id.productKey, version, it.Display)
 	var lineID, state string
@@ -458,7 +458,7 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 	if errors.Is(err, sql.ErrNoRows) && version == "" { // the product without a version is any train of it the device has (lineOf)
 		other, perr := productLine(ctx, tx, assetID, id.productKey, id.line, false)
 		if perr != nil {
-			return false, false, perr
+			return "", false, perr
 		}
 		if other != "" {
 			err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.id = ?`, other).Scan(&lineID, &state, &guess)
@@ -466,30 +466,30 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 	}
 	switch {
 	case err == nil && state == statePresent && !guess:
-		return true, false, nil
+		return lineID, false, nil
 	case err != nil && !errors.Is(err, sql.ErrNoRows):
-		return false, false, fmt.Errorf("inventory: check software: %w", err)
+		return "", false, fmt.Errorf("inventory: check software: %w", err)
 	}
 	now := s.now()
 	r := Reading{Source: sourceManual, Display: display, Version: version, Confidence: 1, SetBy: actor, FirstSeen: now, SeenAt: now}
 	lineID, err = s.lineOf(ctx, tx, assetID, id, r)
 	if err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ? AND state = 'not_installed'`, lineID); err != nil {
-		return false, false, fmt.Errorf("inventory: store software: %w", err)
+		return "", false, fmt.Errorf("inventory: store software: %w", err)
 	}
 	if err := putReading(ctx, tx, lineID, r, evidenceOf(it, "")); err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	if err := softwareEvent(ctx, tx, assetID, lineID, id.productKey, it.Display, now, "entry_set", "", version, sourceManual, actor); err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	if _, err := s.settleLine(ctx, tx, lineID, now, map[[2]string][2]string{{sourceManual, ""}: {it.Vendor, it.Product}}); err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	moved, err = s.RecomputeAsset(ctx, tx, assetID) // a declared OS row is the device's OS in the same transaction
-	return false, moved, err
+	return "", moved, err
 }
 
 // RemoveSoftware takes back what a person said about a software line: the version they gave (the line is back to what its sources

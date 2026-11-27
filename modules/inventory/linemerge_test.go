@@ -3,9 +3,11 @@ package inventory_test
 import (
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -121,6 +123,11 @@ func TestLineMerge_VersionlessEntryOfAReadTrainIsADuplicate(t *testing.T) {
 	wantAPIError(t, err, http.StatusConflict, "duplicate_software")
 	if got, want := lineRows(t, c.e, dev, "oracle|java se"), []string{"21:21.0.7:osquery:present"}; !slices.Equal(got, want) {
 		t.Fatalf("lines %v, want %v", got, want)
+	}
+	// the message names what the device has and the step that works there: a row a source reads cannot be removed (not_manual)
+	ae, _ := apierr.As(err)
+	if !strings.Contains(ae.Message, "21.0.7") || !strings.Contains(ae.Message, "its agent") || strings.Contains(ae.Message, "remove it") {
+		t.Errorf("message %q, want the version the agent reads and no advice to remove the row", ae.Message)
 	}
 }
 

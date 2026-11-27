@@ -213,6 +213,28 @@ func (s *Service) AddDevice(ctx context.Context, actor string, in AddInput) (Add
 	return res, mapUnique(err, a.ip)
 }
 
+// duplicateSoftware is the 409 of adding software the device already has (line dup): a row a source reads is named with the release
+// it reads (its findings already follow it, and only a person's own row can be removed); a person's own row keeps the advice to remove
+// it and add it again.
+func duplicateSoftware(ctx context.Context, tx *sql.Tx, dup, display string) error {
+	var shown, version, source string
+	if err := tx.QueryRowContext(ctx, `SELECT display, ifnull(version, ''), source FROM inv_software WHERE id = ?`, dup).Scan(&shown, &version, &source); err != nil {
+		return fmt.Errorf("inventory: read software: %w", err)
+	}
+	if source == sourceManual || version == "" {
+		return conflict("duplicate_software", display+" is already on this device. To change the version, remove it and add it again.")
+	}
+	by := statedBy(source)
+	switch source {
+	case "nmap", "scan":
+		by = "a network scan"
+	case "passive":
+		by = "network traffic"
+	}
+	return conflict("duplicate_software", fmt.Sprintf("%s is already on this device, read by %s: its findings follow that version. To correct it, edit the version on that row.",
+		swText(shown, version, ""), by))
+}
+
 // mapUnique turns a lost race on the IP index into the same 409 as the check before it.
 func mapUnique(err error, ip string) error {
 	if err != nil && ip != "" && strings.Contains(err.Error(), "inv_asset.ip") {
@@ -253,8 +275,8 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 		if err != nil {
 			return err
 		}
-		if dup {
-			return conflict("duplicate_software", a.entry.display+" is already on this device. To change the version, remove it and add it again.")
+		if dup != "" {
+			return duplicateSoftware(ctx, tx, dup, a.entry.display)
 		}
 		after, err := deviceKeys(ctx, tx, assetID)
 		if err != nil {

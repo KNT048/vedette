@@ -131,7 +131,7 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 		{"default affected with unaffected versions", `{"vendor":"Acme","product":"Gateway","defaultStatus":"affected","versions":[{"version":"0","lessThan":"5.10","status":"unaffected"}]}`, nil, 1},
 		{"wildcard bound", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"5.15","lessThanOrEqual":"5.15.*","status":"affected"}]}`, nil, 1},
 		{"x series", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.x","status":"affected"}]}`, nil, 1},
-		{"comparison in the version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"< 2.4","status":"affected"}]}`, nil, 1},
+		{"a comparison in words", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"before 2.4","status":"affected"}]}`, nil, 1},
 		{"reversed range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5","lessThan":"3.0","status":"affected"}]}`, nil, 1},
 		{"same numbers, reversed suffix", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5-h2","lessThan":"3.0.5-h1","status":"affected"}]}`, nil, 1},
 		{"empty range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0","lessThan":"3.0","status":"affected"}]}`, nil, 1},

@@ -749,6 +749,12 @@ func (r Range) MatchRow() (AffectedRow, bool) {
 	if recordEvery(r) {
 		row.StartIncl = "0"
 	}
+	if sys := recordSystem(r); sys != "" { // a record row limited to one operating system: its target_sw, as in kevRecordRow
+		if f := strings.Split(row.CPE, ":"); len(f) == 13 && f[10] == "*" {
+			f[10] = sys
+			row.CPE = strings.Join(f, ":")
+		}
+	}
 	return row, true
 }
 

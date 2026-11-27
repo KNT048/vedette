@@ -208,13 +208,15 @@ func auditNotations(t *testing.T) notationAudit {
 }
 
 // The counts of this reader. Before it, the reader dropped all 115 refused products: no row kept, none read by a scheme; the 139 CNA
-// rows of recordSkipVendors' vendors (all Microsoft's in this sample) were stored and read by no view, as they still are.
+// rows of recordSkipVendors' vendors (all Microsoft's in this sample) were stored and read by no view, as they still are. Since entries
+// limited to operating systems give rows per system (recordSystems), 8 of those 115 products are read by the generic comparison, all 8
+// of them products that kept no row before.
 const (
-	notationRefused      = 115
+	notationRefused      = 107
 	notationRefusedRows  = 650
 	notationSchemeRows   = 62
 	notationDisplayOnly  = 86
-	notationDropped      = 17
+	notationDropped      = 9
 	notationSkipVendors  = 0
 	notationSkipRows     = 139
 	notationSkipByScheme = 0

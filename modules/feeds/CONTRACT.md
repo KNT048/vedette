@@ -112,6 +112,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   are read. Only where the product's version scheme cannot read that range: a product whose scheme reads it keeps the rule before
   (its rows kept as the vendor states them, which the scheme reads). `TestParseCVERecord_Ranges`,
   `TestEntryRows_LetterBranchOnlyWhereTheSchemeCannotReadIt`.
+  An entry limited to operating systems (platforms "Windows", "macOS", "Linux", "Android", "iOS", beside processor words or not) of a
+  product without a version scheme gives each row once per system, the system in `platforms` (`recordSystems`); the match reads it as
+  the CPE's target_sw (`kevRecordRow`, `Range.MatchRow`), so the row speaks for that system only. NVD's running-on platforms are not
+  read so. An entry naming any other platform (a model) still leaves its product's generic rows out. `TestRecordSystems_EntryLimitedToSystems`.
   For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",
   and that no reader of affected ranges reads (`RangeScheme` refuses them; `StatementScheme` reads them): a range the vendor states
   unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`), which holds for every device: kept only beside

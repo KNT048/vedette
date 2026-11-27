@@ -98,8 +98,13 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			u.Line, u.fixes = olderLine(d.a, s, in, v)
 		}
 		u.undecided = undecidedOf(*u, own)
-		if u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver) {
+		switch {
+		case u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver):
 			u.undecided.Reason = UndecidedEOLUnlisted
+		case u.undecided.Reason == UndecidedSchemeMismatch && !notationDiffers(own, in.ver) && !winVersionRE.MatchString(strings.TrimSpace(in.ver)):
+			// the version reads and is written as the rows are: a row that does not compare is the record's, and typing the version
+			// again changes nothing (a Windows build keeps its label: its release, not its notation, is read there)
+			u.undecided.Reason = UndecidedRangesDoNotCover
 		}
 	}
 }
@@ -136,6 +141,36 @@ func undecidedOf(u Unchecked, own []Affected) *Undecided {
 		out.Ranges = append(out.Ranges, rowText(af))
 	}
 	return out
+}
+
+// notationDiffers says the version and the rows naming the line (own) are written in two notations: the version does not read, a row
+// is in another scheme (schemeClash: "2016" against "16.0.1"), or a bound is of the version's own train. Only then is the CVE's
+// undecided reason the version's notation; a bound of another train or a word is the record's own literal, which typing the version
+// again does not change.
+func notationDiffers(own []Affected, ver string) bool {
+	if !versionKnown(ver) {
+		return true
+	}
+	for _, af := range own {
+		r := af.Range
+		if c, err := af.cpe(); err == nil && r.IsZero() {
+			if lit, ok := c.Version.Literal(); ok {
+				r = VersionRange{StartIncl: lit, EndIncl: lit}
+			}
+		}
+		if schemeClash(r, ver) {
+			return true
+		}
+		for _, b := range []string{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl} {
+			if b == "" {
+				continue
+			}
+			if sameTrain(ver, b, b) {
+				return true // a bound of the version's own train, which may be the same release written another way ("1.9.17p2.1")
+			}
+		}
+	}
+	return false
 }
 
 // rowText is one row of a CVE's list as an audit reads it: its CPE and its bounds ("cpe:2.3:o:juniper:junos:15.1:r1:… [, )").
@@ -412,7 +447,7 @@ func rowEntries(s Software, in swInfo, v Vuln) []Affected {
 		if err != nil {
 			continue
 		}
-		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); !own || chromium && edgeLegacyOf(c, af, v) {
+		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); !own || chromium && edgeLegacyOf(c, af, v) || naVersionApart(c, in.ver, v.Affected) {
 			continue
 		}
 		out = append(out, af)

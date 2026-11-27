@@ -188,10 +188,11 @@ func TestCount_RecordRangesOfRecentlyListedCVEs(t *testing.T) {
 
 // The counts with this reader. With the reader it replaced (the CISA entry's product only, the whole CVE refused on one
 // unreadable entry, modules and processor platforms refused): 22 listed CVEs with record ranges; no device
-// matched by record ranges (they were read only for exploited CVEs without NVD ranges).
+// matched by record ranges (they were read only for exploited CVEs without NVD ranges). Entries limited to operating systems, read
+// per system since (recordSystems), add 4.
 const (
-	listedWithRanges      = 23
-	listedViewed          = 23
+	listedWithRanges      = 27
+	listedViewed          = 27
 	listedNoNVDWithRanges = 0
 	matchedDevices        = 7
 	matchedPairs          = 708

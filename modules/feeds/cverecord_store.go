@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -363,9 +364,11 @@ func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, strin
 }
 
 // kevRecordRow is a record range as the matcher's CPE entry: an exact version ([v, v]) in the CPE, a range beside a CPE of any version.
+// A row limited to one operating system (recordSystem) names it as the CPE's target_sw, as NVD writes a row for one system.
 func kevRecordRow(r Range, vendor, product string) AffectedRow {
+	sys := cmp.Or(recordSystem(r), "*")
 	cpe := func(version string) string {
-		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:*:*:*"
+		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:" + sys + ":*:*"
 	}
 	if r.StartIncl != "" && r.StartIncl == r.EndIncl && r.StartExcl == "" && r.EndExcl == "" {
 		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}

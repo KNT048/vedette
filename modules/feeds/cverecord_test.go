@@ -137,7 +137,10 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 		{"empty range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0","lessThan":"3.0","status":"affected"}]}`, nil, 1},
 		{"an unaffected backport inside the range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected"},{"version":"1.5.3","status":"unaffected"}]}`, nil, 1},
 		{"a change to affected", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected","changes":[{"at":"2.0","status":"affected"}]}]}`, nil, 1},
-		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
+		{"only some operating systems: rows per system", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`,
+			[]span{{si: "1.0", ee: "2.0", def: k}}, 0},
+		{"only some models", `{"vendor":"Acme","product":"Gateway","platforms":["GW-400 Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
+		{"a system and a model", `{"vendor":"Acme","product":"Gateway","platforms":["Windows","GW-400 Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
 		{"both bounds", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","lessThanOrEqual":"2.0","status":"affected"}]}`, nil, 1},
 		{"one bad entry spoils its product", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`, nil, 1},
 		{"letter releases: only their versions are left out, the list is partial", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.5.0","lessThan":"3.5.10","status":"affected","versionType":"semver"},{"version":"1.1.1","lessThan":"1.1.1zk","status":"affected","versionType":"custom"},{"version":"1.0.2","lessThan":"1.0.2zt","status":"affected","versionType":"custom"},{"version":"1.0.2zt","status":"unaffected"}]}`,
@@ -172,7 +175,7 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 // A product the generic rules refuse keeps its versions as the vendor states them, in rows the generic comparison never reads
 // (version_type "vendor:…"): bounds as written, the fixed release where the record says the versions from there are unaffected,
 // a hotfix range split at its changes, an "affected except" list as one range per fixed release. Git commits, entries limited to
-// some systems and text the column cannot hold safely are left out.
+// some models and text the column cannot hold safely are left out.
 func TestParseCVERecord_VendorRows(t *testing.T) {
 	t.Parallel()
 	const u, a, k = DefaultUnaffected, DefaultAffected, DefaultUnknown
@@ -195,7 +198,7 @@ func TestParseCVERecord_VendorRows(t *testing.T) {
 		{"one bad entry: the product's rows kept as stated", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`,
 			[]vspan{{span{si: "1.0", ee: "1.5", def: k}, "vendor:text"}, {span{si: "2.x", ei: "2.x", def: k}, "vendor:text"}}},
 		{"git commits only", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1da177e4c3f4","lessThan":"6b2c1e3fa9d1","status":"affected","versionType":"git"}]}`, []vspan{}},
-		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, []vspan{}},
+		{"only some models", `{"vendor":"Acme","product":"Gateway","platforms":["GW-400 Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, []vspan{}},
 		{"quotes and semicolons", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0') DROP TABLE x;--","status":"affected"},{"version":"3.x","status":"affected"}]}`,
 			[]vspan{{span{si: "3.x", ei: "3.x", def: k}, "vendor:text"}}},
 	} {

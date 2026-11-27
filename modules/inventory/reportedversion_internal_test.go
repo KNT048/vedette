@@ -81,3 +81,26 @@ func TestReportedVersion_StoredAsTheReleaseItStates(t *testing.T) {
 	check("after the catalogue pass")
 	b.checks()
 }
+
+// A product with a version scheme reads its own forms first: a build in parentheses places an ESXi release inside its update, so it
+// is not dropped as a token beside the release ("8.0.3 (24280767)" is 8.0 Update 3b, not the first build of Update 3).
+func TestReportedVersion_ASchemeReadsItsOwnBuildFirst(t *testing.T) {
+	t.Parallel()
+	b := newBoxStart(t)
+	svc := b.start(false)
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.31")}
+	sightedBy(t.Context(), t, svc, hint, observe.Osquery)
+	items := []observe.Software{{Display: "VMware ESXi", Vendor: "vmware", Product: "esxi", Version: "8.0.3 (24280767)",
+		CPE: "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", Confidence: 0.9}}
+	if err := svc.ReplaceSoftware(t.Context(), hint, observe.Osquery, nil, items); err != nil {
+		t.Fatal(err)
+	}
+	var version, display string
+	if err := b.db.Reader().QueryRowContext(t.Context(), `SELECT ifnull(r.version, ''), ifnull(r.display, '')
+		FROM inv_software_reading r JOIN inv_software s ON s.id = r.software_id WHERE s.product_key = 'vmware|esxi'`).Scan(&version, &display); err != nil {
+		t.Fatal(err)
+	}
+	if version != "8.0.3" || display != "VMware ESXi 8.0 Update 3b (build 24280767)" {
+		t.Errorf("stored %q %q, want 8.0.3 named with its build 24280767", version, display)
+	}
+}

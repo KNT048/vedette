@@ -393,6 +393,7 @@
       "feeds.delete_custom": "Delete custom feed",
       "feeds.fetch": "Fetch feed",
       "feeds.update": "Change feed settings",
+      "feeds.report_window": "Change which CVEs are reported",
       "feeds.weekly_answer": "Answer weekly device check",
       "feeds.weekly_device": "Weekly device check",
       "findings.created": "Finding created",

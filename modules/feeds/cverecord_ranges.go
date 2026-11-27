@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/versionscheme"
@@ -197,13 +198,6 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 	return rows, skipped, statedDropped
 }
 
-// ownCNA says the record's assigner is the vendor of the entry: assignerShortName and vendor name the same company once company words
-// are dropped ("fortinet" and "Fortinet", "openssl" and "OpenSSL"). Only then does the entry's defaultStatus "unaffected" say
-// anything about the versions it does not list: the vendor knows every release it shipped, while a third-party CNA (VulnCheck, a bug
-// bounty platform, a national CERT) lists the releases it tested, and its "unaffected" for the rest is no evidence (CVE JSON 5 leaves
-// the trust in defaultStatus to the reader; versions.md). An entry that names no vendor ("n/a", empty) does not say whose product it
-// is, so it is never the assigner's own. Such an entry is read with defaultStatus unknown: its listed versions still say "affected",
-// a version it does not list stays a question.
 // maxAssigner bounds the stored assigner (feeds_cve.assigner): a CNA's short name is a word, never longer.
 const maxAssigner = 64
 
@@ -215,13 +209,56 @@ func clipAssigner(s string) string {
 	return s
 }
 
+// ownCNA says the record's assigner is the vendor of the entry: assignerShortName and vendor name the same company once company words
+// are dropped ("fortinet" and "Fortinet", "openssl" and "OpenSSL"), or the assigner goes by the name of a product of the catalogue
+// that only that vendor ships ("chrome" for Google: catalogueProductVendors, from the catalogue's own names, no list of CNAs). Only
+// then does the entry's defaultStatus "unaffected" say anything about the versions it does not list: the vendor knows every release
+// it shipped, while a third-party CNA (VulnCheck, a bug bounty platform, a national CERT) lists the releases it tested, and its
+// "unaffected" for the rest is no evidence (CVE JSON 5 leaves the trust in defaultStatus to the reader; versions.md). An entry that
+// names no vendor ("n/a", empty) does not say whose product it is, so it is never the assigner's own. Such an entry is read with
+// defaultStatus unknown: its listed versions still say "affected", a version it does not list stays a question.
 func ownCNA(assigner, vendor string) bool {
+	return ownCNAIn(catalogueProductVendors(), assigner, vendor)
+}
+
+// ownCNAIn is ownCNA with the vendors of each product name (productVendors).
+func ownCNAIn(names map[string][]string, assigner, vendor string) bool {
 	v := productid.NormVendor(vendor)
 	if noVendor[v] {
 		return false
 	}
 	a := productid.NormVendor(assigner)
-	return a != "" && a == v
+	if a == "" {
+		return false
+	}
+	if a == v {
+		return true
+	}
+	vs := names[productid.Norm(assigner)]
+	return len(vs) == 1 && vs[0] == v // a name two vendors' products share says nothing
+}
+
+// catalogueProductVendors is productVendors of the product catalogue built into the box.
+var catalogueProductVendors = sync.OnceValue(func() map[string][]string { return productVendors(productid.Products()) })
+
+// productVendors is, per product name (a product's own name and the product of each of its CPE names, productid.Norm), the vendors
+// (productid.NormVendor) whose products go by it.
+func productVendors(ps []productid.Product) map[string][]string {
+	out := map[string][]string{}
+	add := func(name, vendor string) {
+		n, v := productid.Norm(name), productid.NormVendor(vendor)
+		if n == "" || v == "" || slices.Contains(out[n], v) {
+			return
+		}
+		out[n] = append(out[n], v)
+	}
+	for _, p := range ps {
+		add(p.Product, p.Vendor)
+		for _, c := range p.CPEs {
+			add(c.Product, c.Vendor)
+		}
+	}
+	return out
 }
 
 // recordMaxStatedProduct and recordMaxStated bound the rows kept as the vendor states them, per product and per record (415 is the

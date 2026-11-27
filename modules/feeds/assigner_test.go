@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // A CVE record's assigner is stored with the CVE, and the rows read for matching say whether the record's CNA is the row's vendor
@@ -59,5 +61,35 @@ func TestRecordAssigner_RowsSayWhetherTheVendorAssigned(t *testing.T) {
 	}
 	if got := clipAssigner(strings.Repeat("a", 80)); len(got) != maxAssigner {
 		t.Errorf("assigner of %d bytes kept, want at most %d", len(got), maxAssigner)
+	}
+}
+
+// A CNA may go by the name of one of its vendor's products rather than the vendor's ("rocket" for Acme's Rocket): the record's
+// assigner is the vendor's own CNA when it names the vendor, or a product of the catalogue that only that vendor ships (by its name or
+// its CPE product). A name two vendors' products share says nothing: such an assigner stays a third party.
+func TestOwnCNA_AProductNameOfTheVendorsOwnCatalogue(t *testing.T) {
+	t.Parallel()
+	names := productVendors([]productid.Product{
+		{Vendor: "Acme Corp", Product: "Rocket", CPEs: []productid.CPEName{{Part: "a", Vendor: "acme", Product: "rocket_browser"}}},
+		{Vendor: "Zenith", Product: "Widget"},
+		{Vendor: "Orbit Labs", Product: "Widget"},
+	})
+	for _, c := range []struct {
+		assigner, vendor string
+		want             bool
+	}{
+		{"acme", "Acme", true},           // the vendor itself
+		{"rocket", "Acme Corp", true},    // a product only Acme ships, by its name
+		{"rocket_browser", "acme", true}, // the same product by its CPE name
+		{"rocket", "Zenith", false},      // Acme's product name is not Zenith's CNA
+		{"widget", "Zenith", false},      // a name two vendors' products share
+		{"widget", "Orbit Labs", false},  //
+		{"vulnlab", "Acme", false},       // a third party
+		{"rocket", "n/a", false},         // an entry that names no vendor
+		{"", "Acme", false},              //
+	} {
+		if got := ownCNAIn(names, c.assigner, c.vendor); got != c.want {
+			t.Errorf("ownCNA(%q, %q) = %v, want %v", c.assigner, c.vendor, got, c.want)
+		}
 	}
 }

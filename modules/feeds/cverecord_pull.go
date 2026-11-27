@@ -100,7 +100,7 @@ const (
 	// ("all version prior to" lessThan "23.4R1") from the first release (unaffectedRows), keeps the highest of several single
 	// unaffected versions above every affected row as the fix of its line (highestAbove), and keeps a model-limited row's
 	// defaultStatus "unaffected" only from the vendor's own CNA (ownCNA); "ranges-12" stores the record's assigner (feeds_cve.assigner,
-	// Range.VendorCNA).
+	// Range.VendorCNA) and reads an assigner named after a product only its vendor ships as that vendor's own CNA (ownCNA).
 	recordReader = "ranges-12"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"

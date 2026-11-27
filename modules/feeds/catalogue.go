@@ -307,7 +307,7 @@ func pruneCatalogue(ctx context.Context, tx *sql.Tx, now time.Time, pinned []str
 	for _, c := range pinned {
 		keep[c] = true
 	}
-	held, err := json.Marshal(slices.Collect(maps.Keys(keep)))
+	held, err := json.Marshal(append([]string{}, slices.Collect(maps.Keys(keep))...)) // never "null": NOT IN (NULL) keeps every row
 	if err != nil {
 		return fmt.Errorf("feeds: prune catalogue: %w", err)
 	}

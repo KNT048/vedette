@@ -119221,6 +119221,7 @@ const (
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending              FindingsGetFindingsPossibleAuditOKGroupsItemReason = "nvd_pending"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges                FindingsGetFindingsPossibleAuditOKGroupsItemReason = "no_ranges"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "product_not_named"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly     FindingsGetFindingsPossibleAuditOKGroupsItemReason = "named_as_platform_only"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly       FindingsGetFindingsPossibleAuditOKGroupsItemReason = "exact_releases_only"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide       FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_do_not_decide"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_start_at_branch_only"
@@ -119242,6 +119243,7 @@ func (FindingsGetFindingsPossibleAuditOKGroupsItemReason) AllValues() []Findings
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNvdPending,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly,
@@ -119271,6 +119273,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) MarshalText() ([]byt
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly:
 		return []byte(s), nil
@@ -119319,6 +119323,9 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly
@@ -121803,6 +121810,7 @@ const (
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending              FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "nvd_pending"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges                FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "no_ranges"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "product_not_named"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly     FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "named_as_platform_only"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly       FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "exact_releases_only"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide       FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_do_not_decide"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_start_at_branch_only"
@@ -121824,6 +121832,7 @@ func (FindingsGetFindingsPossibleOKItemsItemUndecidedReason) AllValues() []Findi
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNvdPending,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly,
@@ -121853,6 +121862,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) MarshalText() ([]
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly:
 		return []byte(s), nil
@@ -121901,6 +121912,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) UnmarshalText(da
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly

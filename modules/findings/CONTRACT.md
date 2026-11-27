@@ -210,6 +210,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **P-2 Why undecided.** Every possible CVE carries a machine-readable `detail.undecided` (`UndecidedReasons`: the reason, the range rows
   read, the advisory text that blocked a decision with its address), also in the export (`fnd_question.detail`,
   `fnd_possible_check.detail`) and grouped by `GET /findings/possible/audit`. `TestPossible_Count_EveryPossibleCVEHasAReason`.
+  An operating-system row a CVE's rows do not name, when every row is an application and NVD's running-on condition of one names an
+  operating system of the row's vendor (cpeMatch vulnerable false: the environment, not the affected product), is `named_as_platform_only`
+  (`platformOnly`), its evidence the rows that name the system: not affected as a product. Only an exploited list ties such a CVE to the
+  system's row, so the row stays possible with cause `needs_person`; an application row is matched by the same rows as always.
+  `TestPlatformOnly_OperatingSystemNamedOnlyAsTheEnvironment`.
 - **P-3 Check identity.** The match pass gives each checkable question (one CVE, a line with a version, no_range_data, older_line or a
   not_comparable no build attribute decides, NVD answered) `check_key`: the CVE, product, release line, exact version and the CVE record's
   stamp (`feeds.RecordStamps`). A changed version or record gives a new key. `TestPossibleCheck_KeyFollowsTheEvidence`. A changed

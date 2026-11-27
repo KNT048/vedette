@@ -43,7 +43,7 @@ func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 	}
 	h.Register(idsParticipant(idsService(*d)))
 	if d.AgentIntake != nil {
-		h.Register(lifecycle.Participant{Name: "agent-intake", DeviceMerged: d.AgentIntake.DeviceMerged}) // the tokens made for a device
+		h.Register(lifecycle.Participant{Name: "agent-intake", DeviceMerged: d.AgentIntake.DeviceMerged, DeviceDeleted: d.AgentIntake.DeviceDeleted}) // the tokens made for a device; the agent a person stops with its device
 	}
 }
 

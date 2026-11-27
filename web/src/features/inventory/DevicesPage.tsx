@@ -145,7 +145,7 @@ function NameChips({ d, dense }: { d: DeviceRow; dense?: boolean }) {
       {d.is_box ? tip(<Chip tone="accent">{t('box.badge')}</Chip>, t('box.badge'), t('box.noDelete')) : null}
       {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
       {d.fragile ? tip(<Chip tone="off">{t('chip.fragile')}</Chip>, t('chip.fragile'), t('chip.fragileHint')) : null}
-      {d.private_mac ? tip(<Chip tone="off">{t('chip.privateMac')}</Chip>, t('chip.privateMac'), d.quiet ? t('chip.quietHint') : t('chip.privateMacHint')) : null}
+      {d.private_mac ? tip(<Chip tone="off">{t('chip.privateMac')}</Chip>, t('chip.privateMac'), t('chip.privateMacHint')) : null}
     </>
   )
 }
@@ -398,17 +398,18 @@ function RowMenu({ d, suggested, onMerge }: { d: DeviceRow; suggested: (Suggesti
   )
 }
 
-/** To review: found by a scan or by listening, not approved yet (S-INV-3). Same search box. */
-function ReviewList({ rows, top, now, notifyNew, notifyAvailable, query, same, bar }: { rows: DeviceRow[]; top: SoftwareName[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy; bar: Bar }) {
+/** To review: found by a scan or by listening, not added yet (S-INV-3), with the quiet ones in its collapsed Seen briefly group. Same search box. */
+function ReviewList({ rows, seen, top, now, notifyNew, notifyAvailable, query, same, bar }: { rows: DeviceRow[]; seen: DeviceRow[]; top: SoftwareName[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy; bar: Bar }) {
   const { q, clear } = query
   const deferred = useDeferredValue(q)
   const swWanted = useMemo(() => softwareValues(deferred), [deferred])
   const sw = useMatches(swWanted)
   const { matches } = sw
   const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids, matches), [rows, deferred, now, same.ids, matches])
+  const seenShown = useMemo(() => filterDevices(seen, deferred, now, same.ids, matches), [seen, deferred, now, same.ids, matches])
   return (
     <section className="grid min-w-0 gap-3">
-      <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
+      <PendingPanel items={shown} seen={seenShown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
         search={<DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} count={false} />} filtered={!!q} onClear={clear}
         none={sw.waiting || sw.error ? <SoftwareNote {...sw} /> : undefined} />
     </section>
@@ -460,11 +461,12 @@ function Body() {
   const lists = useMemo(() => {
     const items = q.data?.items ?? []
     const real = items.filter((d) => !declaredSoftwareOnly(d))
-    // A quiet private-address device is listed with the devices and counts as To review only once it earns a look (the server decides: `quiet`)
-    return { approved: real.filter((d) => d.approved || d.quiet), pending: real.filter((d) => !d.approved && !d.quiet), declared: items.length - real.length }
+    // One rule, the server's `state`: Devices holds the added devices only; To review the others, with the quiet ones in its collapsed
+    // Seen briefly group (they count as To review only once they earn a look)
+    return { approved: real.filter((d) => d.state === 'added'), pending: real.filter((d) => d.state === 'review'), seen: real.filter((d) => d.state === 'seen'), declared: items.length - real.length }
   }, [q.data])
   if (old) return <Navigate replace to={{ search: `?${old}` }} />
-  const all = lists.approved.length + lists.pending.length
+  const all = lists.approved.length + lists.pending.length + lists.seen.length
   // Declared software is not a device (#849): one line says where it is, also when it is all there is (#849 review L13).
   const declaredLine = lists.declared > 0 ? (
     <p className="mt-4 text-meta text-muted">
@@ -505,7 +507,7 @@ function Body() {
               {d.risk_unavailable ? <p role="status" className="mb-3 text-meta text-muted">{t('risk.unavailable')}</p> : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} top={d.top_software.devices} now={now} query={query} same={same} bar={bar} /> },
-                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} top={d.top_software.review} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} bar={bar} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
+                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} seen={lists.seen} top={d.top_software.review} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} bar={bar} />, badge: { count: pending, label: t('tabs.reviewBadge'), tone: 'off' } },
                 // The devices a person ignored, only while there are any (an old ?tab=ignored link lands on Devices then)
                 ...(d.counts.ignored > 0 ? [{ id: 'ignored', label: t('tabs.ignoredCount', { count: d.counts.ignored }), panel: <IgnoredPanel /> }] : []),
               ]} />

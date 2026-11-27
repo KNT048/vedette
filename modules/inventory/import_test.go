@@ -466,7 +466,7 @@ func TestEveryMutationIsAudited(t *testing.T) {
 	must(err)
 	_, err = e.svc.SaveSettings(e.ctx(), "admin@acme.example", okSettings())
 	must(err)
-	must(e.svc.DeleteDevice(e.ctx(), "it@acme.example", id))
+	must(e.svc.DeleteDevice(e.ctx(), "it@acme.example", id, ""))
 	got := e.auditActions()
 	for _, want := range []string{
 		"inventory.add_manual", "inventory.add_software", "inventory.remove_software", "inventory.set_kind", "inventory.set_regular_scan", "inventory.set_fragile",

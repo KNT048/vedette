@@ -17,6 +17,10 @@
 
 ## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` / `IssueTokenFor(..., device)` — 1 caller: `AdminHandlers.InventoryPostInventoryAgentsTokens` (through `IssueTokenFor`)
 - `device_id` (INV-26): the device's agent row shows the token under Show setup (`ReportState.Setup`, `setupToken`); merge moves it (`DeviceMerged`, registered in cmd/vedette `registerLifecycle`), delete clears it (foreign key).
+
+## Modifying: `DeviceDeleted` (core/lifecycle, INV-27), `EnrolKey`, `Config.Removed`
+- **inventory** `DeleteDevice` with `?agent=stop` calls it inside its write and keeps `AgentStop.Block` (`inv_removed_id` kind agent); `Enroll` asks the inventory's `RemovedAgent` with the same `EnrolKey`, so a change of the key's form lets a stopped machine enrol again (`TestContract_RemovingADeviceWithAnAgent`).
+- The delete dialog's text (`web/src/features/inventory/DeleteDialog.tsx`, `delete.agentStopBody`) says which token goes: keep it in step with the rule "made for this device and no other node".
 - **web/features/inventory/AgentsSection**: `CreateTokenResult` shows the secret once; changing the token format (`vdt_osquery_` + 32 characters) → the regex in `parse.go`, the install script and `/intake/osquery/status` break.
 - The error codes `bad_name`, `bad_expiry`, `too_many_tokens` (409, limit 500) belong to the GUI that creates tokens; `POST /inventory/agents/tokens/remove-unused` is the remove button in that same dialog.
 - `actor` is stored in `created_by`: the device-approval audit line for every machine that enrols with this token records that person's name.

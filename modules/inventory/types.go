@@ -295,9 +295,9 @@ type AssetCore struct {
 	// PrivateMAC: its MAC is a private (randomised) address the device picks for itself and changes, not one a maker burned in or a
 	// stable virtual one (PrivateMAC).
 	PrivateMAC bool `json:"private_mac"`
-	// Quiet: not approved, but not in To review either: a private-address device with no open service that has not stayed past
-	// a day (INV-49). It is listed with the approved devices and moves to To review when it earns a look.
-	Quiet bool `json:"quiet"`
+	// State is where the device stands (stateSQL, INV-9): added, review, seen (quiet, INV-49) or ignored. Every list, count and row
+	// text reads it.
+	State DeviceState `json:"state"`
 }
 
 // Summary is the source of the most trusted value and the confidence of the weakest (DATA_MODEL 5.1 (5)).
@@ -360,6 +360,8 @@ type Detail struct {
 	DetectedDiffers []Differs `json:"detected_differs"`
 	// Addresses are every address of the device, the main one first (INV-57).
 	Addresses []Address `json:"addresses"`
+	// Agent: an osquery agent is bound to the device, so removing it asks whether to stop the agent too (DeleteDevice).
+	Agent bool `json:"agent"`
 }
 
 // Counts are the numbers behind the filter chips of the device list.

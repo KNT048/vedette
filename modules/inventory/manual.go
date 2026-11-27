@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
 
@@ -123,6 +124,16 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, actor
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, ip_confirmed_at, kind, origin, approved, fragile, first_seen, last_seen, user_name)
 		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3, ?4)`, id, nullStr(a.ip), now, nullStr(a.userName)); err != nil {
 		return "", fmt.Errorf("inventory: create device: %w", err)
+	}
+	if a.ip != "" { // a person adds the machine at an address a removal kept: the removal is undone (INV-59)
+		ip, _ := netip.ParseAddr(a.ip)
+		if n, err := forgetRemovedAt(ctx, tx, "", ip, true); err != nil {
+			return "", err
+		} else if n > 0 {
+			if err := s.auditTx(ctx, tx, actor, "inventory.removal_forget", a.ip, "added by hand at the address of a removed device"); err != nil {
+				return "", err
+			}
+		}
 	}
 	if a.entry != nil {
 		if err := insertObs(ctx, tx, id, "vendor", a.entry.vendor, "manual", 1, now); err != nil {
@@ -666,15 +677,21 @@ func (s *Service) flagTx(ctx context.Context, tx *sql.Tx, o *outbox, actor, id, 
 
 // DeleteDevice removes a device with its observations, services and software; the box itself is 409 box_device
 // (INV-3). The other modules remove what they keep about it in the same transaction (deleteDeviceTx): findings deletes its findings
-// (INV-11).
-func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
+// (INV-11). The removal stays (INV-59, keepRemoved): the sensors do not make the device again. agent is the person's choice for an agent
+// bound to the device: AgentStop stops it too (its record goes, and its token when made for this device alone; never a token other
+// machines share), AgentKeep (or "") leaves it, and then nothing is kept, since the agent adds the device back on its next report.
+func (s *Service) DeleteDevice(ctx context.Context, actor, id, agent string) error {
+	if agent != "" && agent != AgentKeep && agent != AgentStop {
+		return badRequest("invalid", "agent is keep or stop.")
+	}
 	counts, err := s.findingCounts(ctx)
 	if err != nil {
 		return err
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var box bool
-		err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, id).Scan(&box)
+		var ip, agentKey sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT is_box, ip, agent_key FROM inv_asset WHERE id = ?`, id).Scan(&box, &ip, &agentKey)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFoundDevice()
 		} else if err != nil {
@@ -688,12 +705,37 @@ func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 		if actor != systemActor {
 			d.Actor = actor
 		}
+		if agentKey.Valid && agent == AgentStop {
+			d.StopAgent = &lifecycle.AgentStop{Key: agentKey.String}
+		}
+		macs, ips, err := removedIdentifiers(ctx, tx, id)
+		if err != nil {
+			return err
+		}
 		if err := s.deleteDeviceTx(ctx, tx, o, d); err != nil {
 			return err
 		}
 		detail := id
 		if n := counts[id]; n > 0 {
 			detail = fmt.Sprintf("%s; removed %d findings of the device", id, n)
+		}
+		switch {
+		case !agentKey.Valid || d.StopAgent != nil:
+			kept, err := s.keepRemoved(ctx, tx, d, ip, macs, ips)
+			if err != nil {
+				return err
+			}
+			if kept {
+				detail += "; kept out of discovery"
+			}
+			if d.StopAgent != nil && d.StopAgent.Stopped {
+				detail += "; its agent was stopped"
+				if d.StopAgent.Token != "" {
+					detail += " and its token " + d.StopAgent.Token + " revoked"
+				}
+			}
+		default:
+			detail += "; its agent was left running and adds the device back on its next report"
 		}
 		o.add(EventAssetDeleted, AssetEvent{AssetID: id, Actor: actor}) // notify says who deleted it
 		return s.auditTx(ctx, tx, actor, "inventory.delete", name, detail)

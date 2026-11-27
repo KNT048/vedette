@@ -291,7 +291,7 @@ func TestContract_KeepSeparateIsNeverOfferedAgain(t *testing.T) {
 	if e.devices() != 2 {
 		t.Errorf("%d devices, want both kept", e.devices())
 	}
-	if err := e.svc.DeleteDevice(e.ctx(), admin, newer); err != nil {
+	if err := e.svc.DeleteDevice(e.ctx(), admin, newer, ""); err != nil {
 		t.Fatal(err)
 	}
 	if n := e.count(`SELECT count(*) FROM inv_separate`); n != 0 {

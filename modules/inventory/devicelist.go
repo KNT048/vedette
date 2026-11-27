@@ -100,7 +100,7 @@ func listPage(l DeviceList, words []string) ListPage {
 			continue
 		}
 		names := listed
-		if !d.Approved && !d.Quiet {
+		if d.State != DeviceAdded {
 			names = review
 		}
 		seen := map[string]bool{}

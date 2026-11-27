@@ -8,7 +8,7 @@ import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse, DeviceSourcesView,
   ImportResult, InventorySettings, KeepSeparateInput, MergeChoice, MergeInput, MergePreview, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse, SplitInput,
   DeviceSnmp, DeviceSnmpInput, DetectedField, SnmpCheckResult,
-  WazuhConnection, WazuhInput, WazuhTestResult,
+  WazuhConnection, WazuhInput, WazuhTestResult, RemovedList,
 } from './types'
 
 /** The device page reads its device again every minute while it is open, so "last seen", a new agent report and its software show
@@ -26,6 +26,12 @@ export const useSoftwareMatches = (words: string[]) => useQuery({
   queryFn: () => api.get<DevicesResponse>(`/inventory/devices?software=${encodeURIComponent(words.join(','))}`),
 })
 /** The devices a person ignored (the Ignored tab), read only while that tab is open. */
+/** The removals that keep devices out of discovery (GET /inventory/removed), and forgetting one. */
+export const useRemovedDevices = () => useQuery({ queryKey: ['inventory', 'removed'], queryFn: () => api.get<RemovedList>('/inventory/removed') })
+export function useForgetRemoved() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (id: string) => api.del(`/inventory/removed/${encodeURIComponent(id)}`), onSuccess: inv })
+}
 export const useIgnoredDevices = (enabled = true) => useQuery({ queryKey: ['inventory', 'devices', 'ignored'], queryFn: () => api.get<DevicesResponse>('/inventory/devices?ignored=true'), enabled })
 export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['inventory', 'device', id], queryFn: () => api.get<DeviceDetail>(`/inventory/devices/${encodeURIComponent(id)}`), retry: false, enabled: enabled && id !== '',
   refetchInterval: (q) => (q.state.status === 'error' ? false : devicePoll.ms) })
@@ -126,7 +132,8 @@ export function useDeviceAction(id: string) {
     suspicious: useMutation({ mutationFn: (suspicious: boolean) => api.post(`${base}/suspicious`, { suspicious }), onSuccess: inv }),
     /** Ignore (known, not watched) or stop ignoring (back to To review). */
     ignore: useMutation({ mutationFn: (ignored: boolean) => api.post(`${base}/ignore`, { ignored }), onSuccess: inv }),
-    remove: useMutation({ mutationFn: () => api.del(base), onSuccess: inv }),
+    /** Remove from the list; `agent` stop also stops its osquery agent (admin), keep leaves it running (it adds the device back). */
+    remove: useMutation({ mutationFn: (agent?: 'keep' | 'stop') => api.del(agent ? `${base}?agent=${agent}` : base), onSuccess: inv }),
     /** A trusted source reads another value than the one a person entered (INV-47): use the detected one, or keep the entered one. */
     useDetected: useMutation({ mutationFn: (b: { field: DetectedField; detected: string }) => api.post(`${base}/differs/${b.field}/use`, { detected: b.detected }), onSuccess: inv }),
     keepEntered: useMutation({ mutationFn: (b: { field: DetectedField; detected: string }) => api.post(`${base}/differs/${b.field}/keep`, { detected: b.detected }), onSuccess: inv }),

@@ -2946,6 +2946,12 @@ func encodeInventoryDeleteInventoryDevicesIDSoftwareSidResponse(response *Invent
 	return nil
 }
 
+func encodeInventoryDeleteInventoryRemovedIDResponse(response *InventoryDeleteInventoryRemovedIDNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeInventoryDeleteInventorySnmpDevicesIDResponse(response *InventoryDeleteInventorySnmpDevicesIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 
@@ -3134,6 +3140,19 @@ func encodeInventoryGetInventoryImportTemplateCsvResponse(response InventoryGetI
 }
 
 func encodeInventoryGetInventoryPossibleSameResponse(response *InventoryGetInventoryPossibleSameOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryGetInventoryRemovedResponse(response *InventoryGetInventoryRemovedOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

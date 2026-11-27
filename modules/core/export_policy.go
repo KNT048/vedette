@@ -132,6 +132,8 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_asset_address":      {export: "id asset_id ip mac source first_seen last_seen main_card"},   // a device's addresses besides its main one
 	"inv_merged_from":        {export: "asset_id from_id ip mac user_name merged_at", json: "facts"}, // what a person's merge took in, for Split off
 	"inv_merged_reading":     {export: "asset_id from_id software_id product_key line source instance shared"},
+	"inv_removed":            {export: "id name ip agent removed_by removed_at"}, // devices a person removed, kept out of discovery
+	"inv_removed_id":         {export: "removed_id kind value"},                  // what keeps each removed device out
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
 	"mit_applied":            {export: "finding_id item ts user"},
 	"mit_pack":               {export: "cve confirmed_by confirmed_at drafted_with pack_version", json: "body compromise"},

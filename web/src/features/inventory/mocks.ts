@@ -18,6 +18,7 @@ import type {
   InventorySettings, KeepSeparateInput, MergeField, MergeInput, MergePreview, MergeSide, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput,
   DeviceSnmp, DeviceSnmpInput, SnmpAnswer, SnmpAuth, SnmpCheckResult, SnmpNotice, SnmpPriv, SnmpReason, SnmpResponse, SnmpVersion,
   DeviceSourceRow, DeviceSourcesView, SoftwareLine, SoftwareName, SplitInput, WazuhConnection, WazuhInput,
+  DeviceState, RemovedDevice, RemovedList,
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
@@ -324,8 +325,10 @@ export const isPrivateMac = (mac: string | null) => !!mac && mac.length === 17 &
 /** INV-49: not approved but held out of To review: a private-address device with no open service that has not stayed past a day. */
 export const isQuiet = (a: Asset) => !a.approved && a.origin === 'discovered' && a.id !== BOX_ID && !metaStore.get()[a.id]?.suspicious && !metaStore.get()[a.id]?.ignored_at && isPrivateMac(a.mac)
   && a.services.length === 0 && new Date(a.last_seen).getTime() - new Date(a.first_seen).getTime() <= 24 * 3600_000
+/** The one state rule (inventory stateSQL): ignored, added (approved), seen (quiet), else review. */
+export const stateOf = (a: Asset): DeviceState => metaStore.get()[a.id]?.ignored_at ? 'ignored' : a.approved ? 'added' : isQuiet(a) ? 'seen' : 'review'
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown. */
-const live = (a: Asset) => ({ ...a, private_mac: isPrivateMac(a.mac), quiet: isQuiet(a), name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })
+const live = (a: Asset) => ({ ...a, private_mac: isPrivateMac(a.mac), state: stateOf(a), name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
@@ -365,8 +368,12 @@ function agentStateOf(a: Asset): { state: 'reporting' | 'quiet'; quiet_since: st
 }
 /** Agent records a person removed in Settings > Agents (by device id; the mock has one record per device). */
 const removedNodes = collection<string[]>('agent_nodes_removed', () => [], () => [])
+/** The removals that keep devices out of discovery (GET /inventory/removed), newest first. */
+const removedStore = collection<RemovedDevice[]>('inv_removed', () => [], () => [])
+/** An osquery node is bound to the device: removing it asks whether to stop the agent. */
+const hasAgentNode = (a: Asset) => a.id !== BOX_ID && sourcesOf(a).includes('osquery') && !removedNodes.get().includes(a.id)
 function agentNodes(): AgentNode[] {
-  return allAssets().filter((a) => a.id !== BOX_ID && sourcesOf(a).includes('osquery') && !removedNodes.get().includes(a.id)).map((a) => ({
+  return allAssets().filter(hasAgentNode).map((a) => ({
     id: `node-${a.id}`, token_id: 'tk-osquery', host: a.hostname ?? a.ip, os: agentOs(a), ...agentStateOf(a),
     enrolled_at: a.first_seen, last_seen: a.last_seen, last_result_at: a.last_seen, rhythm_s: RHYTHM_S,
   })).sort((x, y) => Number(y.state === 'quiet') - Number(x.state === 'quiet') || x.host.localeCompare(y.host))
@@ -492,7 +499,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
   return (r) =>
     (r.ignored_at !== null) === (ignored === true) // An ignored device only when asked for
-    && (approved === null || (approved ? r.approved || r.quiet : !r.approved && !r.quiet))
+    && (approved === null || r.approved === approved)
     && (fragile === null || r.fragile === fragile)
     && (hasFindings === null || hasOpenFindings(r) === hasFindings)
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
@@ -982,8 +989,8 @@ export const handlers = [
     const listed = (inList: (r: DeviceRow) => boolean) => kept.filter((r) => !declaredSoftwareOnly(r) && inList(r)).map((r) => byId.get(r.id)!)
     return HttpResponse.json({
       items: kept,
-      top_software: { devices: topSoftware(listed((r) => r.approved || r.quiet)), review: topSoftware(listed((r) => !r.approved && !r.quiet)) },
-      counts: { all: all.length, pending: all.filter((a) => !a.approved && !a.quiet).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
+      top_software: { devices: topSoftware(listed((r) => r.state === 'added')), review: topSoftware(listed((r) => r.state !== 'added')) },
+      counts: { all: all.length, pending: all.filter((a) => a.state === 'review').length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
       risk_unavailable: false,
@@ -1019,7 +1026,7 @@ export const handlers = [
     // INV-46: the newest manual observation or manual software row; a device added by hand with neither: when it was added
     const manualAt = [...observations.filter((o) => o.source === 'manual').map((o) => o.seen_at), ...a.software.filter((s) => s.source === 'manual' && s.set_at).map((s) => s.set_at!)]
       .reduce<string | null>((m, t) => (!m || t > m ? t : m), null) ?? (a.origin === 'manual' ? a.first_seen : null)
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id), addresses: addressesOf(a) } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id), addresses: addressesOf(a), agent: hasAgentNode(a) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {
@@ -1233,13 +1240,36 @@ export const handlers = [
     const a = find(String(params.id))
     if (!a) return notFound(request)
     if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come from the box.')
+    const agent = new URL(request.url).searchParams.get('agent')
+    if (agent !== null && agent !== 'keep' && agent !== 'stop') return fail(400, 'invalid', 'agent is keep or stop.')
+    if (agent === 'stop') { const admin = guard('admin'); if (admin) return admin }
+    const node = hasAgentNode(a)
+    const stop = node && agent === 'stop'
+    if (stop) removedNodes.update((l) => [...l, a.id])
+    // The removal stays, as the backend keeps it (INV-59): only "remove only" of a device whose agent keeps reporting keeps nothing
+    if ((!node || stop) && (a.ip !== '—' || a.mac)) {
+      removedStore.update((l) => [{ id: newId('rm'), name: nameOf(a, a.kind), ip: a.ip !== '—' ? a.ip : null, agent: stop ? 'stopped' as const : 'none' as const, removed_by: 'admin@example.test', removed_at: nowIso(), identifiers: 1 }, ...l])
+    }
     assetsStore.update((l) => l.filter((x) => x.id !== a.id))
     metaStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
     obsStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
     // A finding tied to a deleted device makes no sense: remove them together so no orphan finding remains.
     const orphaned = findingsStore.get().filter((f) => f.asset_id === a.id).length
     if (orphaned) findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id))
-    audit('inventory.delete', nameOf(a, a.kind), orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
+    const said = stop ? '; kept out of discovery; its agent was stopped' : node ? '; its agent was left running and adds the device back on its next report' : '; kept out of discovery'
+    audit('inventory.delete', nameOf(a, a.kind), (orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id) + said)
+    return new HttpResponse(null, { status: 204 })
+  }),
+  http.get(`${API}/inventory/removed`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    return HttpResponse.json({ items: removedStore.get() } satisfies RemovedList)
+  }),
+  http.delete(`${API}/inventory/removed/:id`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const r = removedStore.get().find((x) => x.id === params.id)
+    if (!r) return fail(404, 'not_found', 'Not found.')
+    removedStore.update((l) => l.filter((x) => x.id !== r.id))
+    audit('inventory.removal_forget', r.name, r.id)
     return new HttpResponse(null, { status: 204 })
   }),
 

@@ -42,7 +42,7 @@ function Remove({ r, onDone }: { r: Row; onDone: () => void }) {
   const act = useDeviceAction(r.d.id)
   const name = r.sw?.display ?? r.d.id
   return (
-    <DeleteDialog open onOpenChange={(o) => { if (!o) onDone() }} name={name} findings={r.d.findings_count} pending={act.remove.isPending}
+    <DeleteDialog open onOpenChange={(o) => { if (!o) onDone() }} name={name} findings={r.d.findings_count} pending={act.remove.isPending} keepsOut={false}
       onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('declaredPage.removed', { name })); onDone() }, onError: (e) => toast.error(errMsg(e)) })} />
   )
 }

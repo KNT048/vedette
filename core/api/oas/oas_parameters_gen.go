@@ -11049,7 +11049,8 @@ func decodeInventoryDeleteInventoryAgentsTokensIDParams(args [1]string, argsEsca
 
 // InventoryDeleteInventoryDevicesIDParams is parameters of inventory_delete_inventory_devices_id operation.
 type InventoryDeleteInventoryDevicesIDParams struct {
-	ID string
+	ID    string
+	Agent OptInventoryDeleteInventoryDevicesIDAgent `json:",omitempty,omitzero"`
 }
 
 func unpackInventoryDeleteInventoryDevicesIDParams(packed middleware.Parameters) (params InventoryDeleteInventoryDevicesIDParams) {
@@ -11060,10 +11061,20 @@ func unpackInventoryDeleteInventoryDevicesIDParams(packed middleware.Parameters)
 		}
 		params.ID = packed[key].(string)
 	}
+	{
+		key := middleware.ParameterKey{
+			Name: "agent",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Agent = v.(OptInventoryDeleteInventoryDevicesIDAgent)
+		}
+	}
 	return params
 }
 
 func decodeInventoryDeleteInventoryDevicesIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryDeleteInventoryDevicesIDParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -11106,6 +11117,62 @@ func decodeInventoryDeleteInventoryDevicesIDParams(args [1]string, argsEscaped b
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
 			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode query: agent.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "agent",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAgentVal InventoryDeleteInventoryDevicesIDAgent
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAgentVal = InventoryDeleteInventoryDevicesIDAgent(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Agent.SetTo(paramsDotAgentVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Agent.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "agent",
+			In:   "query",
 			Err:  err,
 		}
 	}
@@ -11223,6 +11290,71 @@ func decodeInventoryDeleteInventoryDevicesIDSoftwareSidParams(args [2]string, ar
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "sid",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryDeleteInventoryRemovedIDParams is parameters of inventory_delete_inventory_removed_id operation.
+type InventoryDeleteInventoryRemovedIDParams struct {
+	ID string
+}
+
+func unpackInventoryDeleteInventoryRemovedIDParams(packed middleware.Parameters) (params InventoryDeleteInventoryRemovedIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryDeleteInventoryRemovedIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryDeleteInventoryRemovedIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
 			In:   "path",
 			Err:  err,
 		}

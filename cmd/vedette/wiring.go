@@ -806,7 +806,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgTimeZone(d)}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
-	intakeCfg := agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Services: d.Inventory, Approver: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
+	intakeCfg := agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Services: d.Inventory, Approver: d.Inventory, Removed: d.Inventory.RemovedAgent, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
 		TrustAnchor: d.TrustAnchor, HostAllowed: d.HostAllowed, BoxURL: d.BaseURL, MirrorDir: d.OsqueryDir}
 	if d.Schedules != nil { // a nil *schedule.Service inside the field would not compare equal to nil
 		intakeCfg.Schedules = d.Schedules

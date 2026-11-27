@@ -77572,6 +77572,17 @@ func (s HoneypotPutHoneypotTrapIpsIDReqVendor) Validate() error {
 	}
 }
 
+func (s InventoryDeleteInventoryDevicesIDAgent) Validate() error {
+	switch s {
+	case "keep":
+		return nil
+	case "stop":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryGetInventoryAgentsDevicesIDReportOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -79614,6 +79625,17 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Vendor.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -81027,6 +81049,21 @@ func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) Validate() erro
 	case "passive":
 		return nil
 	case "scan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetState) Validate() error {
+	switch s {
+	case "added":
+		return nil
+	case "review":
+		return nil
+	case "seen":
+		return nil
+	case "ignored":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -82542,6 +82579,17 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Summary.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -83770,6 +83818,21 @@ func (s InventoryGetInventoryDevicesOKItemsItemSourcesItem) Validate() error {
 	}
 }
 
+func (s InventoryGetInventoryDevicesOKItemsItemState) Validate() error {
+	switch s {
+	case "added":
+		return nil
+	case "review":
+		return nil
+	case "seen":
+		return nil
+	case "ignored":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *InventoryGetInventoryDevicesOKItemsItemSummary) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -84189,6 +84252,101 @@ func (s InventoryGetInventoryPossibleSameOKItemsItemReason) Validate() error {
 	case "mac_at_added_device":
 		return nil
 	case "same_os":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *InventoryGetInventoryRemovedOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryGetInventoryRemovedOKItemsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Agent.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "agent",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Identifiers)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identifiers",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s InventoryGetInventoryRemovedOKItemsItemAgent) Validate() error {
+	switch s {
+	case "none":
+		return nil
+	case "stopped":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

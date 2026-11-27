@@ -69,6 +69,19 @@ type Delete struct {
 	Device string
 	Name   string // the device's name when it was deleted
 	Actor  string // "" for the system
+	// StopAgent is a person's choice to stop the agent bound to the device as well; nil leaves the agent alone. The agent's module
+	// fills in what it did, and the inventory keeps that with the removal.
+	StopAgent *AgentStop
+}
+
+// AgentStop is the agent of a deleted device that a person chose to stop. Key is set by the inventory; the rest by the agent's module.
+type AgentStop struct {
+	Key string // the agent key bound to the device (core/observe AssetHint.Agent)
+	// Stopped: the agent's record went, so its next call is refused. Token names the enrolment token that went with it (made for
+	// this device and used by no other machine), "" when none did. Block is the machine's enrolment on a token other machines share,
+	// which is never revoked: the inventory keeps it with the removal, so that machine cannot enrol again with that token.
+	Stopped      bool
+	Token, Block string
 }
 
 // FindingFold is a finding folded into another one of the same device and CVE (a merge, or software lines that go): From is deleted

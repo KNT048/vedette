@@ -709,6 +709,9 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
 		}
 	}
+	if out, err := s.keptOut(ctx, tx, c, c.mac); out || err != nil {
+		return "", false, err
+	}
 	now := c.seenAt
 	id = store.NewID("a")
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, mac, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, ?, 'unknown', 'discovered', 0, 0, ?, ?)`, id, nullStr(c.mac), now, now); err != nil {
@@ -820,6 +823,9 @@ func (s *Service) ownDevice(ctx context.Context, tx *sql.Tx, c cleanObs) (string
 	if c.agent == "" && c.card == "" { // no key and no card (Wazuh with no network data): nothing would find it again; held, logged
 		s.staleLog(ctx, c.ip.String(), c, "", staleHandNoKey)
 		return "", false, nil
+	}
+	if out, err := s.keptOut(ctx, tx, c, c.card); out || err != nil {
+		return "", false, err
 	}
 	id = store.NewID("a")
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, 'unknown', 'discovered', 0, 0, ?, ?)`,
@@ -935,6 +941,7 @@ const (
 	staleSwept     = "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)"
 	staleHandList  = "inventory: a list by address only is not given to the hand-added device at that address: another machine was seen there since it was added (on the device page: merge it when it is that machine; else delete the hand-added device, or keep it, and the machine's own lists by address only stay held)"
 	staleHandNoKey = "inventory: an agent report by address only, with no card and no key, is not given to the hand-added device at that address: another machine was seen there since it was added"
+	staleRemoved   = "inventory: a sighting of a device a person removed makes no device (Devices, To review, Removed: forget the removal to see it again)"
 )
 
 // staleLog logs, at most once an hour per device and reason (one of the stale* messages), that a report by address only was not given
@@ -959,6 +966,8 @@ func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed
 			s.log.InfoContext(ctx, staleHandList, args...)
 		case staleHandNoKey:
 			s.log.InfoContext(ctx, staleHandNoKey, args...)
+		case staleRemoved:
+			s.log.InfoContext(ctx, staleRemoved, args...)
 		default:
 			s.log.InfoContext(ctx, staleSwept, args...)
 		}

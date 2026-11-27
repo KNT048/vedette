@@ -32435,8 +32435,14 @@ func (s *Server) handleInventoryDeleteInventoryAgentsWazuhRequest(args [0]string
 
 // handleInventoryDeleteInventoryDevicesIDRequest handles inventory_delete_inventory_devices_id operation.
 //
-// Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which
-// is always the first device).
+// Remove a device from the inventory, along with its findings (409 for the Vedette box itself, which
+// is always the first device). The removal stays: discovery does not add the device again by its
+// burned-in MAC, or by its address when it has none (GET /inventory/removed). agent=stop (admin) also
+// stops the osquery agent bound to it: its record goes, so its next call gets node_invalid, and its
+// token goes too when it was made for this device and no other machine uses it; a token other machines
+// share is never revoked, the machine is refused when it enrols again with it. agent=keep (default)
+// leaves the agent running: it adds the device back on its next report, so nothing is kept. 403
+// forbidden: agent=stop by an operator. Audit inventory.delete names the choice.
 //
 // DELETE /inventory/devices/{id}
 func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32515,7 +32521,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventoryDevicesIDOperation,
-			OperationSummary: "Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)",
+			OperationSummary: "Remove a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device). The removal stays: discovery does not add the device again by its burned-in MAC, or by its address when it has none (GET /inventory/removed). agent=stop (admin) also stops the osquery agent bound to it: its record goes, so its next call gets node_invalid, and its token goes too when it was made for this device and no other machine uses it; a token other machines share is never revoked, the machine is refused when it enrols again with it. agent=keep (default) leaves the agent running: it adds the device back on its next report, so nothing is kept. 403 forbidden: agent=stop by an operator. Audit inventory.delete names the choice",
 			OperationID:      "inventory_delete_inventory_devices_id",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -32524,6 +32530,10 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, 
 					Name: "id",
 					In:   "path",
 				}: params.ID,
+				{
+					Name: "agent",
+					In:   "query",
+				}: params.Agent,
 			},
 			Raw: r,
 		}
@@ -32713,6 +32723,149 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 	}
 
 	if err := encodeInventoryDeleteInventoryDevicesIDSoftwareSidResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryDeleteInventoryRemovedIDRequest handles inventory_delete_inventory_removed_id operation.
+//
+// Forget a removal: the device comes back under To review the next time a sensor sees it, and its
+// agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit
+// inventory.removal_forget.
+//
+// DELETE /inventory/removed/{id}
+func (s *Server) handleInventoryDeleteInventoryRemovedIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryDeleteInventoryRemovedIDOperation,
+			ID:   "inventory_delete_inventory_removed_id",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryDeleteInventoryRemovedIDOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryDeleteInventoryRemovedIDParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *InventoryDeleteInventoryRemovedIDNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryDeleteInventoryRemovedIDOperation,
+			OperationSummary: "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit inventory.removal_forget",
+			OperationID:      "inventory_delete_inventory_removed_id",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryDeleteInventoryRemovedIDParams
+			Response = *InventoryDeleteInventoryRemovedIDNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryDeleteInventoryRemovedIDParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.InventoryDeleteInventoryRemovedID(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.InventoryDeleteInventoryRemovedID(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryDeleteInventoryRemovedIDResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -34623,6 +34776,132 @@ func (s *Server) handleInventoryGetInventoryPossibleSameRequest(args [0]string, 
 	}
 
 	if err := encodeInventoryGetInventoryPossibleSameResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryGetInventoryRemovedRequest handles inventory_get_inventory_removed operation.
+//
+// The devices a person removed that discovery keeps out, newest first.
+//
+// GET /inventory/removed
+func (s *Server) handleInventoryGetInventoryRemovedRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryGetInventoryRemovedOperation,
+			ID:   "inventory_get_inventory_removed",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryGetInventoryRemovedOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *InventoryGetInventoryRemovedOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryGetInventoryRemovedOperation,
+			OperationSummary: "The devices a person removed that discovery keeps out, newest first",
+			OperationID:      "inventory_get_inventory_removed",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *InventoryGetInventoryRemovedOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryGetInventoryRemoved(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryGetInventoryRemoved(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryGetInventoryRemovedResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

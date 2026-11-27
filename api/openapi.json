@@ -66064,7 +66064,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "true: the Devices list (approved, and quiet private-address devices); false: To review (not approved, not quiet)",
+              "description": "true: the Devices list (state added); false: To review with its Seen briefly group (state review or seen)",
               "type": "string",
               "enum": [
                 "true",
@@ -66749,9 +66749,15 @@
                             "type": "boolean",
                             "description": "The MAC is a private (randomised) address the device picks for itself and changes (locally administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox)"
                           },
-                          "quiet": {
-                            "type": "boolean",
-                            "description": "Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device"
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "added",
+                              "review",
+                              "seen",
+                              "ignored"
+                            ],
+                            "description": "added: a person added or approved it, its agent's first report did, or it is the box: the Devices list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group of To review, outside its count and the new-device notice; it moves to review when it opens a service, stays past a day or gets a finding. ignored: a person ignored it"
                           },
                           "is_box": {
                             "type": "boolean",
@@ -67109,7 +67115,7 @@
                           "fragile",
                           "origin",
                           "private_mac",
-                          "quiet",
+                          "state",
                           "is_box",
                           "first_scan_at",
                           "regular_scan",
@@ -67358,7 +67364,7 @@
     "/inventory/devices/{id}": {
       "delete": {
         "operationId": "inventory_delete_inventory_devices_id",
-        "summary": "Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)",
+        "summary": "Remove a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device). The removal stays: discovery does not add the device again by its burned-in MAC, or by its address when it has none (GET /inventory/removed). agent=stop (admin) also stops the osquery agent bound to it: its record goes, so its next call gets node_invalid, and its token goes too when it was made for this device and no other machine uses it; a token other machines share is never revoked, the machine is refused when it enrols again with it. agent=keep (default) leaves the agent running: it adds the device back on its next report, so nothing is kept. 403 forbidden: agent=stop by an operator. Audit inventory.delete names the choice",
         "tags": [
           "inventory"
         ],
@@ -67373,6 +67379,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "keep",
+                "stop"
+              ]
             }
           }
         ],
@@ -68060,9 +68078,15 @@
                           "type": "boolean",
                           "description": "The MAC is a private (randomised) address the device picks for itself and changes (locally administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox)"
                         },
-                        "quiet": {
-                          "type": "boolean",
-                          "description": "Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device"
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "added",
+                            "review",
+                            "seen",
+                            "ignored"
+                          ],
+                          "description": "added: a person added or approved it, its agent's first report did, or it is the box: the Devices list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group of To review, outside its count and the new-device notice; it moves to review when it opens a service, stays past a day or gets a finding. ignored: a person ignored it"
                         },
                         "is_box": {
                           "type": "boolean",
@@ -68537,7 +68561,7 @@
                         "fragile",
                         "origin",
                         "private_mac",
-                        "quiet",
+                        "state",
                         "is_box",
                         "first_scan_at",
                         "regular_scan",
@@ -68906,6 +68930,10 @@
                       },
                       "description": "Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address, or a device added by hand without an address runs the OS a found device runs at the same release; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)"
                     },
+                    "agent": {
+                      "type": "boolean",
+                      "description": "An osquery agent is bound to the device: removing it asks whether to stop the agent too (DELETE ?agent=)"
+                    },
                     "addresses": {
                       "type": "array",
                       "items": {
@@ -68971,6 +68999,7 @@
                     "manual_at",
                     "kinds",
                     "possible_same",
+                    "agent",
                     "addresses"
                   ],
                   "additionalProperties": false
@@ -71143,7 +71172,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "true: the Devices list (approved, and quiet private-address devices); false: To review (not approved, not quiet)",
+              "description": "true: the Devices list (state added); false: To review with its Seen briefly group (state review or seen)",
               "type": "string",
               "enum": [
                 "true",
@@ -71620,6 +71649,139 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/removed": {
+      "get": {
+        "operationId": "inventory_get_inventory_removed",
+        "summary": "The devices a person removed that discovery keeps out, newest first",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "The device as Devices named it when it was removed"
+                          },
+                          "ip": {
+                            "description": "Its main address then",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "agent": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "stopped"
+                            ],
+                            "description": "stopped: the person stopped its osquery agent with it"
+                          },
+                          "removed_by": {
+                            "type": "string"
+                          },
+                          "removed_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "identifiers": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "What keeps it out: its burned-in MACs, its addresses when it had none, an agent enrolment on a shared token"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "ip",
+                          "agent",
+                          "removed_by",
+                          "removed_at",
+                          "identifiers"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/removed/{id}": {
+      "delete": {
+        "operationId": "inventory_delete_inventory_removed_id",
+        "summary": "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit inventory.removal_forget",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
           },
           "default": {
             "description": "Error",

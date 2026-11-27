@@ -146991,11 +146991,55 @@ type InventoryDeleteInventoryAgentsTokensIDNoContent struct{}
 // InventoryDeleteInventoryAgentsWazuhNoContent is response for InventoryDeleteInventoryAgentsWazuh operation.
 type InventoryDeleteInventoryAgentsWazuhNoContent struct{}
 
+type InventoryDeleteInventoryDevicesIDAgent string
+
+const (
+	InventoryDeleteInventoryDevicesIDAgentKeep InventoryDeleteInventoryDevicesIDAgent = "keep"
+	InventoryDeleteInventoryDevicesIDAgentStop InventoryDeleteInventoryDevicesIDAgent = "stop"
+)
+
+// AllValues returns all InventoryDeleteInventoryDevicesIDAgent values.
+func (InventoryDeleteInventoryDevicesIDAgent) AllValues() []InventoryDeleteInventoryDevicesIDAgent {
+	return []InventoryDeleteInventoryDevicesIDAgent{
+		InventoryDeleteInventoryDevicesIDAgentKeep,
+		InventoryDeleteInventoryDevicesIDAgentStop,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryDeleteInventoryDevicesIDAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryDeleteInventoryDevicesIDAgentKeep:
+		return []byte(s), nil
+	case InventoryDeleteInventoryDevicesIDAgentStop:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryDeleteInventoryDevicesIDAgent) UnmarshalText(data []byte) error {
+	switch InventoryDeleteInventoryDevicesIDAgent(data) {
+	case InventoryDeleteInventoryDevicesIDAgentKeep:
+		*s = InventoryDeleteInventoryDevicesIDAgentKeep
+		return nil
+	case InventoryDeleteInventoryDevicesIDAgentStop:
+		*s = InventoryDeleteInventoryDevicesIDAgentStop
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // InventoryDeleteInventoryDevicesIDNoContent is response for InventoryDeleteInventoryDevicesID operation.
 type InventoryDeleteInventoryDevicesIDNoContent struct{}
 
 // InventoryDeleteInventoryDevicesIDSoftwareSidNoContent is response for InventoryDeleteInventoryDevicesIDSoftwareSid operation.
 type InventoryDeleteInventoryDevicesIDSoftwareSidNoContent struct{}
+
+// InventoryDeleteInventoryRemovedIDNoContent is response for InventoryDeleteInventoryRemovedID operation.
+type InventoryDeleteInventoryRemovedIDNoContent struct{}
 
 // InventoryDeleteInventorySnmpDevicesIDNoContent is response for InventoryDeleteInventorySnmpDevicesID operation.
 type InventoryDeleteInventorySnmpDevicesIDNoContent struct{}
@@ -149056,8 +149100,8 @@ func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte)
 	}
 }
 
-// True: the Devices list (approved, and quiet private-address devices); false: To review (not
-// approved, not quiet).
+// True: the Devices list (state added); false: To review with its Seen briefly group (state review or
+// seen).
 type InventoryGetInventoryDevicesApproved string
 
 const (
@@ -150201,7 +150245,10 @@ type InventoryGetInventoryDevicesIDOK struct {
 	// Every address of the device, the main one first, then the others, the one seen last first: the
 	// device is found by any of them. Split off = POST /inventory/devices/{id}/split.
 	Addresses []InventoryGetInventoryDevicesIDOKAddressesItem `json:"addresses"`
-	Asset     InventoryGetInventoryDevicesIDOKAsset           `json:"asset"`
+	// An osquery agent is bound to the device: removing it asks whether to stop the agent too (DELETE
+	// ?agent=).
+	Agent bool                                  `json:"agent"`
+	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
 	// INV-47: fields where a trusted source reads another value than the one a person entered, which still
 	// wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept
 	// their value for the value now detected.
@@ -150232,6 +150279,11 @@ type InventoryGetInventoryDevicesIDOK struct {
 // GetAddresses returns the value of Addresses.
 func (s *InventoryGetInventoryDevicesIDOK) GetAddresses() []InventoryGetInventoryDevicesIDOKAddressesItem {
 	return s.Addresses
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryDevicesIDOK) GetAgent() bool {
+	return s.Agent
 }
 
 // GetAsset returns the value of Asset.
@@ -150287,6 +150339,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetSuspicious() bool {
 // SetAddresses sets the value of Addresses.
 func (s *InventoryGetInventoryDevicesIDOK) SetAddresses(val []InventoryGetInventoryDevicesIDOKAddressesItem) {
 	s.Addresses = val
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryDevicesIDOK) SetAgent(val bool) {
+	s.Agent = val
 }
 
 // SetAsset sets the value of Asset.
@@ -150470,10 +150527,6 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	// The MAC is a private (randomised) address the device picks for itself and changes (locally
 	// administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox).
 	PrivateMAC bool `json:"private_mac"`
-	// Not approved, but held out of To review and of the new-device notice: a private-address device with
-	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
-	// To review when it earns a look; false for every approved device.
-	Quiet bool `json:"quiet"`
 	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
 	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan `json:"regular_scan"`
@@ -150489,7 +150542,13 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	SnmpSource InventoryGetInventoryDevicesIDOKAssetSnmpSource `json:"snmp_source"`
 	// The device's software lines, by name.
 	Software []InventoryGetInventoryDevicesIDOKAssetSoftwareItem `json:"software"`
-	Vendor   NilInventoryGetInventoryDevicesIDOKAssetVendor      `json:"vendor"`
+	// Added: a person added or approved it, its agent's first report did, or it is the box: the Devices
+	// list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a
+	// private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group
+	// of To review, outside its count and the new-device notice; it moves to review when it opens a
+	// service, stays past a day or gets a finding. ignored: a person ignored it.
+	State  InventoryGetInventoryDevicesIDOKAssetState     `json:"state"`
+	Vendor NilInventoryGetInventoryDevicesIDOKAssetVendor `json:"vendor"`
 }
 
 // GetApproved returns the value of Approved.
@@ -150602,11 +150661,6 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetPrivateMAC() bool {
 	return s.PrivateMAC
 }
 
-// GetQuiet returns the value of Quiet.
-func (s *InventoryGetInventoryDevicesIDOKAsset) GetQuiet() bool {
-	return s.Quiet
-}
-
 // GetRegularScan returns the value of RegularScan.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetRegularScan() InventoryGetInventoryDevicesIDOKAssetRegularScan {
 	return s.RegularScan
@@ -150635,6 +150689,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetSnmpSource() InventoryGetInve
 // GetSoftware returns the value of Software.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetSoftware() []InventoryGetInventoryDevicesIDOKAssetSoftwareItem {
 	return s.Software
+}
+
+// GetState returns the value of State.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetState() InventoryGetInventoryDevicesIDOKAssetState {
+	return s.State
 }
 
 // GetVendor returns the value of Vendor.
@@ -150752,11 +150811,6 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetPrivateMAC(val bool) {
 	s.PrivateMAC = val
 }
 
-// SetQuiet sets the value of Quiet.
-func (s *InventoryGetInventoryDevicesIDOKAsset) SetQuiet(val bool) {
-	s.Quiet = val
-}
-
 // SetRegularScan sets the value of RegularScan.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetRegularScan(val InventoryGetInventoryDevicesIDOKAssetRegularScan) {
 	s.RegularScan = val
@@ -150785,6 +150839,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetSnmpSource(val InventoryGetIn
 // SetSoftware sets the value of Software.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetSoftware(val []InventoryGetInventoryDevicesIDOKAssetSoftwareItem) {
 	s.Software = val
+}
+
+// SetState sets the value of State.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetState(val InventoryGetInventoryDevicesIDOKAssetState) {
+	s.State = val
 }
 
 // SetVendor sets the value of Vendor.
@@ -154788,6 +154847,66 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) UnmarshalText(
 	}
 }
 
+// Added: a person added or approved it, its agent's first report did, or it is the box: the Devices
+// list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a
+// private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group
+// of To review, outside its count and the new-device notice; it moves to review when it opens a
+// service, stays past a day or gets a finding. ignored: a person ignored it.
+type InventoryGetInventoryDevicesIDOKAssetState string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetStateAdded   InventoryGetInventoryDevicesIDOKAssetState = "added"
+	InventoryGetInventoryDevicesIDOKAssetStateReview  InventoryGetInventoryDevicesIDOKAssetState = "review"
+	InventoryGetInventoryDevicesIDOKAssetStateSeen    InventoryGetInventoryDevicesIDOKAssetState = "seen"
+	InventoryGetInventoryDevicesIDOKAssetStateIgnored InventoryGetInventoryDevicesIDOKAssetState = "ignored"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetState values.
+func (InventoryGetInventoryDevicesIDOKAssetState) AllValues() []InventoryGetInventoryDevicesIDOKAssetState {
+	return []InventoryGetInventoryDevicesIDOKAssetState{
+		InventoryGetInventoryDevicesIDOKAssetStateAdded,
+		InventoryGetInventoryDevicesIDOKAssetStateReview,
+		InventoryGetInventoryDevicesIDOKAssetStateSeen,
+		InventoryGetInventoryDevicesIDOKAssetStateIgnored,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetState) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetStateAdded:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetStateReview:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetStateSeen:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetStateIgnored:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetState) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetState(data) {
+	case InventoryGetInventoryDevicesIDOKAssetStateAdded:
+		*s = InventoryGetInventoryDevicesIDOKAssetStateAdded
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetStateReview:
+		*s = InventoryGetInventoryDevicesIDOKAssetStateReview
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetStateSeen:
+		*s = InventoryGetInventoryDevicesIDOKAssetStateSeen
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetStateIgnored:
+		*s = InventoryGetInventoryDevicesIDOKAssetStateIgnored
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesIDOKAssetVendor struct {
 	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
 	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
@@ -157618,10 +157737,6 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// device with no host name, and the product Settings › Declared software lists); null for a
 	// discovered device or one with no such line.
 	Product NilInventoryGetInventoryDevicesOKItemsItemProduct `json:"product"`
-	// Not approved, but held out of To review and of the new-device notice: a private-address device with
-	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
-	// To review when it earns a look; false for every approved device.
-	Quiet bool `json:"quiet"`
 	// Per-device override of the type setting for regular scans after the one gentle scan; never = never
 	// actively scanned again, for every kind of device.
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan `json:"regular_scan"`
@@ -157644,6 +157759,12 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source:
 	// filter, #829 sources of the device page).
 	Sources []InventoryGetInventoryDevicesOKItemsItemSourcesItem `json:"sources"`
+	// Added: a person added or approved it, its agent's first report did, or it is the box: the Devices
+	// list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a
+	// private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group
+	// of To review, outside its count and the new-device notice; it moves to review when it opens a
+	// service, stays past a day or gets a finding. ignored: a person ignored it.
+	State InventoryGetInventoryDevicesOKItemsItemState `json:"state"`
 	// Source of the most trusted value; confidence is that of the weakest value.
 	Summary    NilInventoryGetInventoryDevicesOKItemsItemSummary `json:"summary"`
 	Suspicious bool                                              `json:"suspicious"`
@@ -157770,11 +157891,6 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetProduct() NilInventoryGetIn
 	return s.Product
 }
 
-// GetQuiet returns the value of Quiet.
-func (s *InventoryGetInventoryDevicesOKItemsItem) GetQuiet() bool {
-	return s.Quiet
-}
-
 // GetRegularScan returns the value of RegularScan.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetRegularScan() InventoryGetInventoryDevicesOKItemsItemRegularScan {
 	return s.RegularScan
@@ -157813,6 +157929,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetSoftwareCount() int {
 // GetSources returns the value of Sources.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetSources() []InventoryGetInventoryDevicesOKItemsItemSourcesItem {
 	return s.Sources
+}
+
+// GetState returns the value of State.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetState() InventoryGetInventoryDevicesOKItemsItemState {
+	return s.State
 }
 
 // GetSummary returns the value of Summary.
@@ -157950,11 +158071,6 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetProduct(val NilInventoryGet
 	s.Product = val
 }
 
-// SetQuiet sets the value of Quiet.
-func (s *InventoryGetInventoryDevicesOKItemsItem) SetQuiet(val bool) {
-	s.Quiet = val
-}
-
 // SetRegularScan sets the value of RegularScan.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetRegularScan(val InventoryGetInventoryDevicesOKItemsItemRegularScan) {
 	s.RegularScan = val
@@ -157993,6 +158109,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetSoftwareCount(val int) {
 // SetSources sets the value of Sources.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetSources(val []InventoryGetInventoryDevicesOKItemsItemSourcesItem) {
 	s.Sources = val
+}
+
+// SetState sets the value of State.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetState(val InventoryGetInventoryDevicesOKItemsItemState) {
+	s.State = val
 }
 
 // SetSummary sets the value of Summary.
@@ -161373,6 +161494,66 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSourcesItem) UnmarshalText(data 
 	}
 }
 
+// Added: a person added or approved it, its agent's first report did, or it is the box: the Devices
+// list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a
+// private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group
+// of To review, outside its count and the new-device notice; it moves to review when it opens a
+// service, stays past a day or gets a finding. ignored: a person ignored it.
+type InventoryGetInventoryDevicesOKItemsItemState string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemStateAdded   InventoryGetInventoryDevicesOKItemsItemState = "added"
+	InventoryGetInventoryDevicesOKItemsItemStateReview  InventoryGetInventoryDevicesOKItemsItemState = "review"
+	InventoryGetInventoryDevicesOKItemsItemStateSeen    InventoryGetInventoryDevicesOKItemsItemState = "seen"
+	InventoryGetInventoryDevicesOKItemsItemStateIgnored InventoryGetInventoryDevicesOKItemsItemState = "ignored"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemState values.
+func (InventoryGetInventoryDevicesOKItemsItemState) AllValues() []InventoryGetInventoryDevicesOKItemsItemState {
+	return []InventoryGetInventoryDevicesOKItemsItemState{
+		InventoryGetInventoryDevicesOKItemsItemStateAdded,
+		InventoryGetInventoryDevicesOKItemsItemStateReview,
+		InventoryGetInventoryDevicesOKItemsItemStateSeen,
+		InventoryGetInventoryDevicesOKItemsItemStateIgnored,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemStateAdded:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemStateReview:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemStateSeen:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemStateIgnored:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemState) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemState(data) {
+	case InventoryGetInventoryDevicesOKItemsItemStateAdded:
+		*s = InventoryGetInventoryDevicesOKItemsItemStateAdded
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemStateReview:
+		*s = InventoryGetInventoryDevicesOKItemsItemStateReview
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemStateSeen:
+		*s = InventoryGetInventoryDevicesOKItemsItemStateSeen
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemStateIgnored:
+		*s = InventoryGetInventoryDevicesOKItemsItemStateIgnored
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOKItemsItemSummary struct {
 	Confidence float64                                              `json:"confidence"`
 	Source     InventoryGetInventoryDevicesOKItemsItemSummarySource `json:"source"`
@@ -161764,8 +161945,8 @@ func (s *InventoryGetInventoryDevicesOKTopSoftwareReviewItem) SetName(val string
 	s.Name = val
 }
 
-// True: the Devices list (approved, and quiet private-address devices); false: To review (not
-// approved, not quiet).
+// True: the Devices list (state added); false: To review with its Seen briefly group (state review or
+// seen).
 type InventoryGetInventoryExportCsvApproved string
 
 const (
@@ -162232,6 +162413,147 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemReason) UnmarshalText(data 
 		return nil
 	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs:
 		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryRemovedOK struct {
+	Items []InventoryGetInventoryRemovedOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *InventoryGetInventoryRemovedOK) GetItems() []InventoryGetInventoryRemovedOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *InventoryGetInventoryRemovedOK) SetItems(val []InventoryGetInventoryRemovedOKItemsItem) {
+	s.Items = val
+}
+
+type InventoryGetInventoryRemovedOKItemsItem struct {
+	// Stopped: the person stopped its osquery agent with it.
+	Agent InventoryGetInventoryRemovedOKItemsItemAgent `json:"agent"`
+	ID    string                                       `json:"id"`
+	// What keeps it out: its burned-in MACs, its addresses when it had none, an agent enrolment on a
+	// shared token.
+	Identifiers int `json:"identifiers"`
+	// Its main address then.
+	IP NilString `json:"ip"`
+	// The device as Devices named it when it was removed.
+	Name      string    `json:"name"`
+	RemovedAt time.Time `json:"removed_at"`
+	RemovedBy string    `json:"removed_by"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetAgent() InventoryGetInventoryRemovedOKItemsItemAgent {
+	return s.Agent
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIdentifiers returns the value of Identifiers.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetIdentifiers() int {
+	return s.Identifiers
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetIP() NilString {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetRemovedAt returns the value of RemovedAt.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetRemovedAt() time.Time {
+	return s.RemovedAt
+}
+
+// GetRemovedBy returns the value of RemovedBy.
+func (s *InventoryGetInventoryRemovedOKItemsItem) GetRemovedBy() string {
+	return s.RemovedBy
+}
+
+// SetAgent sets the value of Agent.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetAgent(val InventoryGetInventoryRemovedOKItemsItemAgent) {
+	s.Agent = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIdentifiers sets the value of Identifiers.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetIdentifiers(val int) {
+	s.Identifiers = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetRemovedAt sets the value of RemovedAt.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetRemovedAt(val time.Time) {
+	s.RemovedAt = val
+}
+
+// SetRemovedBy sets the value of RemovedBy.
+func (s *InventoryGetInventoryRemovedOKItemsItem) SetRemovedBy(val string) {
+	s.RemovedBy = val
+}
+
+// Stopped: the person stopped its osquery agent with it.
+type InventoryGetInventoryRemovedOKItemsItemAgent string
+
+const (
+	InventoryGetInventoryRemovedOKItemsItemAgentNone    InventoryGetInventoryRemovedOKItemsItemAgent = "none"
+	InventoryGetInventoryRemovedOKItemsItemAgentStopped InventoryGetInventoryRemovedOKItemsItemAgent = "stopped"
+)
+
+// AllValues returns all InventoryGetInventoryRemovedOKItemsItemAgent values.
+func (InventoryGetInventoryRemovedOKItemsItemAgent) AllValues() []InventoryGetInventoryRemovedOKItemsItemAgent {
+	return []InventoryGetInventoryRemovedOKItemsItemAgent{
+		InventoryGetInventoryRemovedOKItemsItemAgentNone,
+		InventoryGetInventoryRemovedOKItemsItemAgentStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryRemovedOKItemsItemAgent) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryRemovedOKItemsItemAgentNone:
+		return []byte(s), nil
+	case InventoryGetInventoryRemovedOKItemsItemAgentStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryRemovedOKItemsItemAgent) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryRemovedOKItemsItemAgent(data) {
+	case InventoryGetInventoryRemovedOKItemsItemAgentNone:
+		*s = InventoryGetInventoryRemovedOKItemsItemAgentNone
+		return nil
+	case InventoryGetInventoryRemovedOKItemsItemAgentStopped:
+		*s = InventoryGetInventoryRemovedOKItemsItemAgentStopped
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -218922,6 +219244,52 @@ func (o OptInt) Get() (v int, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryDeleteInventoryDevicesIDAgent returns new OptInventoryDeleteInventoryDevicesIDAgent with value set to v.
+func NewOptInventoryDeleteInventoryDevicesIDAgent(v InventoryDeleteInventoryDevicesIDAgent) OptInventoryDeleteInventoryDevicesIDAgent {
+	return OptInventoryDeleteInventoryDevicesIDAgent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryDeleteInventoryDevicesIDAgent is optional InventoryDeleteInventoryDevicesIDAgent.
+type OptInventoryDeleteInventoryDevicesIDAgent struct {
+	Value InventoryDeleteInventoryDevicesIDAgent
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryDeleteInventoryDevicesIDAgent was set.
+func (o OptInventoryDeleteInventoryDevicesIDAgent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryDeleteInventoryDevicesIDAgent) Reset() {
+	var v InventoryDeleteInventoryDevicesIDAgent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryDeleteInventoryDevicesIDAgent) SetTo(v InventoryDeleteInventoryDevicesIDAgent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryDeleteInventoryDevicesIDAgent) Get() (v InventoryDeleteInventoryDevicesIDAgent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryDeleteInventoryDevicesIDAgent) Or(d InventoryDeleteInventoryDevicesIDAgent) InventoryDeleteInventoryDevicesIDAgent {
 	if v, ok := o.Get(); ok {
 		return v
 	}

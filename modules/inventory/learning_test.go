@@ -144,7 +144,7 @@ func TestContract_ApprovedNamesThePerson(t *testing.T) {
 	if got, want := approved[0].Data, (inventory.AssetEvent{AssetID: a, Actor: "an@acme.example"}); got != want {
 		t.Fatalf("asset.approved = %+v, want %+v", got, want)
 	}
-	if err := e.svc.DeleteDevice(e.ctx(), "an@acme.example", b); err != nil {
+	if err := e.svc.DeleteDevice(e.ctx(), "an@acme.example", b, ""); err != nil {
 		t.Fatal(err)
 	}
 	deleted := e.ev.named(inventory.EventAssetDeleted)

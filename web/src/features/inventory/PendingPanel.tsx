@@ -8,13 +8,14 @@ import { Chip } from '@/components/common/StatusChip'
 import { Card } from '@/components/common/Card'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useApproveAll, useDeviceAction, useNotifyNew } from './api'
+import { useApproveAll, useDeviceAction, useForgetRemoved, useNotifyNew, useRemovedDevices } from './api'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { TurnOnModule } from './Inline'
 import { IgnoreDialog } from './IgnoreDevice'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
-import type { DeviceRow } from './types'
+import type { DeviceRow, RemovedDevice } from './types'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { kindLabel } from '@/lib/deviceTypes'
 import { InfoTip } from '@/components/common/InfoTip'
 import { ListRow, ListSummary, RowList } from '@/components/common/ListParts'
@@ -53,10 +54,64 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   )
 }
 
-/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore or remove.
- *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
-export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, none, sameAs }: {
-  items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void
+/** A device found and not added that shows nothing to look at (state seen: a private Wi-Fi address, no open service, less than a day):
+ *  To review's collapsed Seen briefly group, outside its count and the new-device notice (INV-49). Closed by default, as endpoint
+ *  tools keep discovered devices apart from the ones people manage; each row can still be added or ignored. */
+function SeenBriefly({ items, sameAs }: { items: DeviceRow[]; sameAs?: ReadonlyMap<string, string[]> }) {
+  const { t } = useTranslation('inventory')
+  if (!items.length) return null
+  const rows = [...items].sort((a, b) => b.last_seen.localeCompare(a.last_seen))
+  return (
+    <details data-testid="seen-briefly" className="rounded-md border border-rule p-3">
+      <summary className="cursor-pointer text-sm font-medium">{t('pending.seenTitle', { count: rows.length })}</summary>
+      <p className="mt-2 text-meta text-muted">{t('pending.seenBody')}</p>
+      <div className="mt-3">
+        <RowList boxed label={t('pending.seenTitle', { count: rows.length })}>
+          {rows.map((d) => <PendingItem key={d.id} d={d} sameAs={sameAs?.get(d.id) ?? []} />)}
+        </RowList>
+      </div>
+    </details>
+  )
+}
+
+/** One removal: the device as it was named, when and by whom, and Forget. */
+function RemovedRow({ r }: { r: RemovedDevice }) {
+  const { t } = useTranslation('inventory')
+  const forget = useForgetRemoved()
+  const can = useCan('operator')
+  return (
+    <ListRow title={r.name} sub={r.ip ?? undefined}
+      meta={[t(r.agent === 'stopped' ? 'removed.metaStopped' : 'removed.meta', { when: fmtRelative(r.removed_at), by: r.removed_by })]}
+      actions={<Button size="sm" disabled={!can} busy={forget.isPending} busyLabel={t('common:busy.saving')}
+        title={can ? t('removed.forgetHint') : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('removed.forgetLabel', { name: r.name })}
+        onClick={() => forget.mutate(r.id, { onSuccess: () => toast.success(t('removed.forgotten', { name: r.name })), onError: (e) => toast.error(errMsg(e)) })}>{t('removed.forget')}</Button>} />
+  )
+}
+
+/** The devices a person removed that discovery keeps out (GET /inventory/removed): collapsed, only while there are any. Forget lets the
+ *  device come back under To review the next time a sensor sees it. */
+function RemovedGroup() {
+  const { t } = useTranslation('inventory')
+  const q = useRemovedDevices()
+  const items = q.data?.items ?? []
+  const columns: ColumnDef<RemovedDevice>[] = [{ id: 'text', header: t('removed.col'), accessorFn: (r) => [r.name, r.ip ?? '', r.removed_by].join(' ') }]
+  if (!items.length) return null
+  return (
+    <details data-testid="removed-devices" className="rounded-md border border-rule p-3">
+      <summary className="cursor-pointer text-sm font-medium">{t('removed.title', { count: items.length })}</summary>
+      <p className="mt-2 text-meta text-muted">{t('removed.body')}</p>
+      <div className="mt-3">
+        <DataTable urlKey="removed" caption={t('removed.title', { count: items.length })} data={items} columns={columns} pageSize={50} list={(r) => <RemovedRow r={r} />} />
+      </div>
+    </details>
+  )
+}
+
+/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, ignore or remove. Under them the
+ *  collapsed Seen briefly group (`seen`) and the devices a person removed. The switch "notify me about new devices". `items` is the
+ *  list after the search; `total` before it. */
+export function PendingPanel({ items, seen = [], total, notifyNew, notifyAvailable, search, filtered, onClear, none, sameAs }: {
+  items: DeviceRow[]; seen?: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void
   /** What an empty filtered list says instead of "No devices match." (the search's software answer not in yet, or failed). */
   none?: ReactNode
   /** The names of the devices each row may be the same machine as (GET /inventory/possible-same). */
@@ -109,11 +164,13 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
             {pending.map((d) => <PendingItem key={d.id} d={d} sameAs={sameAs?.get(d.id) ?? []} />)}
           </RowList>
         </Card>
-      ) : filtered ? (
+      ) : filtered && !seen.length ? (
         <Card className="py-6 text-center text-muted">
           <span className="inline-flex flex-wrap items-center justify-center gap-x-2">{none ?? t('search.none')}{onClear ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}</span>
         </Card>
       ) : null}
+      <SeenBriefly items={seen} sameAs={sameAs} />
+      <RemovedGroup />
     </section>
   )
 }

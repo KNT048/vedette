@@ -186,7 +186,35 @@ func (h *Handlers) InventoryDeleteInventoryDevicesID(ctx context.Context, params
 	if err != nil {
 		return err
 	}
-	return fail(h.svc.DeleteDevice(ctx, who, params.ID))
+	agent := ""
+	if v, ok := params.Agent.Get(); ok {
+		agent = string(v)
+	}
+	// Stopping an agent drops its record and may revoke its token: an administrator's, as the agents' own routes are
+	if p, ok := server.PrincipalFrom(ctx); agent == AgentStop && (!ok || p.Role != routes.Admin) {
+		return apierr.Forbidden()
+	}
+	return fail(h.svc.DeleteDevice(ctx, who, params.ID, agent))
+}
+
+// InventoryGetInventoryRemoved implements GET /inventory/removed (viewer).
+func (h *Handlers) InventoryGetInventoryRemoved(ctx context.Context) (*oas.InventoryGetInventoryRemovedOK, error) {
+	items, err := h.svc.RemovedDevices(ctx)
+	if err != nil {
+		return nil, fail(err)
+	}
+	return convert[oas.InventoryGetInventoryRemovedOK](struct {
+		Items []RemovedDevice `json:"items"`
+	}{items})
+}
+
+// InventoryDeleteInventoryRemovedID implements DELETE /inventory/removed/{id} (operator).
+func (h *Handlers) InventoryDeleteInventoryRemovedID(ctx context.Context, params oas.InventoryDeleteInventoryRemovedIDParams) error {
+	who, err := actor(ctx)
+	if err != nil {
+		return err
+	}
+	return fail(h.svc.ForgetRemoved(ctx, who, params.ID))
 }
 
 // InventoryPostInventoryDevicesIDApprove implements POST /inventory/devices/{id}/approve (operator).

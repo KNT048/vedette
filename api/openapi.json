@@ -50221,6 +50221,63 @@
         }
       }
     },
+    "/findings/{id}/identity/reject": {
+      "post": {
+        "operationId": "findings_post_findings_id_identity_reject",
+        "summary": "Not this product: the software of a finding the AI's identification opened is not the product the AI chose. Stored for the software's name (every device with it), it wins over the AI: that product is never offered for the name again, and every finding resting on the choice closes at once (matched again). A second click changes nothing. 404 not_found when the finding does not rest on the AI's identification. Audit findings.ai_identity_rejected",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/findings/{id}/reopen": {
       "post": {
         "operationId": "findings_post_findings_id_reopen",
@@ -51275,6 +51332,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -51293,7 +51397,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -52348,6 +52453,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -52366,7 +52518,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -53442,6 +53595,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -53460,7 +53660,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -54516,6 +54717,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -54534,7 +54782,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -55215,9 +55464,11 @@
                               "stated",
                               "catalogue",
                               "record",
+                              "ai",
+                              "ai_family",
                               "none"
                             ],
-                            "description": "stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the catalogue is matched to it"
+                            "description": "stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI chose its product among the catalogue's; ai_family: the AI said it is only a part of a catalogue product's family (an agent, a client), which opens no finding; none: nothing in the catalogue is matched to it"
                           },
                           "lines": {
                             "type": "integer",

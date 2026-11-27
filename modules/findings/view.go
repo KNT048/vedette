@@ -33,6 +33,15 @@ type View struct {
 	// AICheck is the AI's check a person confirmed as affected (range origin ai_confirmed), or the AI's reading of the vendor's statement
 	// that opened the finding (range origin ai_read, Check.Reading set): the pages it read, its quote and model; nil for any other origin.
 	AICheck *Check
+	// Identity is the AI's identification of the software a finding rests on (Evidence.Identity), with the AI's reason and model when
+	// the choice is still stored; nil for any other finding.
+	Identity *IdentityView
+}
+
+// IdentityView is the identification shown on a finding opened through it.
+type IdentityView struct {
+	IdentityNote
+	Reason, Model string
 }
 
 // ViewReason is one urgency layer that applies, with its source as people name it.
@@ -78,6 +87,13 @@ func (s *Service) View(ctx context.Context, id string) (View, error) {
 			s.cfg.Log.WarnContext(ctx, "findings: the AI check of a finding could not be read", "finding", f.ID, "error", err)
 			v.AICheck = nil // the finding stands; only its "AI checked" line is missing
 		}
+	}
+	if f.Evidence != nil && f.Evidence.Identity != nil {
+		iv := &IdentityView{IdentityNote: *f.Evidence.Identity}
+		if iv.Reason, iv.Model, err = identityReason(ctx, q, iv.IdentityNote); err != nil {
+			s.cfg.Log.WarnContext(ctx, "findings: the AI's identification of a finding could not be read", "finding", f.ID, "error", err)
+		}
+		v.Identity = iv
 	}
 	if f.RangeOrigin == RangeAIRead {
 		if v.AICheck, err = aiReadCheck(ctx, q, f); err != nil {
@@ -679,6 +695,24 @@ type ViewJS struct {
 	LastSeen     string         `json:"last_seen"`
 	Events       []eventJS      `json:"events"`
 	AICheck      *CheckJS       `json:"ai_check"`
+	Identity     *identityJS    `json:"identity"`
+}
+
+// identityJS is contract.ts View.identity.
+type identityJS struct {
+	Method  string `json:"method"`
+	Title   string `json:"title"`
+	Vendor  string `json:"vendor"`
+	Product string `json:"product"`
+	Reason  string `json:"reason"`
+	Model   string `json:"model"`
+}
+
+func identityOfView(v *IdentityView) *identityJS {
+	if v == nil {
+		return nil
+	}
+	return &identityJS{Method: v.Method, Title: cmpNonEmpty(v.Title, v.Product), Vendor: v.Vendor, Product: v.Product, Reason: v.Reason, Model: v.Model}
 }
 
 // JSON is the view as the API sends it.
@@ -687,7 +721,7 @@ func (v View) JSON() ViewJS {
 	out := ViewJS{ID: f.ID, CVE: f.CVE, Device: deviceRef(v.Device), Software: softwareRef(v), Status: v.Status(), Urgency: urgencyOf(v),
 		Severity: severityJS(v.Severity), Verification: verificationOf(f, v.Events), Handled: handledOf(f), Reopened: reopenedOf(f, v.Events),
 		Fix: fixOf(f.FixKey, f.Fix, productName(f, v.Line)), SameCVE: []sameJS{}, FirstSeen: store.FormatTS(f.FirstSeen),
-		LastSeen: store.FormatTS(f.LastSeen), Events: []eventJS{}, AICheck: checkJS(v.AICheck)}
+		LastSeen: store.FormatTS(f.LastSeen), Events: []eventJS{}, AICheck: checkJS(v.AICheck), Identity: identityOfView(v.Identity)}
 	for _, o := range v.Same {
 		out.SameCVE = append(out.SameCVE, sameJS{ID: o.Finding.ID, Software: softwareRef(o), Status: o.Status()})
 	}

@@ -13,6 +13,7 @@ the product reads findings from.
 |---|---|
 | `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/answered`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
 | `GET /findings?asset=` (one device), `GET /findings/{id}` (the finding page's evidence and "What to do", filled by mitigation) | viewer |
+| `POST /findings/{id}/identity/reject` (Not this product, P-9) | operator |
 | `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer`, `POST /findings/questions/ignore`, `POST /findings/questions/accept-risk` | operator |
 | `POST /findings/{id}/verify`, `POST /findings/{id}/unverify`, `GET /findings/coverage` | admin |
 
@@ -248,6 +249,34 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
   list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`).
   `TestPossibleCause_EveryPossibleRowHasOne`, `TestLineReading_CauseWithoutAIAndWithTheBudgetUsedUp`.
+- **P-9 The customer's AI identifies what no standard data names.** A software line with no CPE, no distribution package, no catalogue
+  alias and no CVE record that writes its names (coverage identity `none`), whose version the agent, SNMP or a person stated, is asked
+  about after a match pass (`AutoIdentify`, the same switch, readiness and daily reads as P-7, before the reading). The box generates up to
+  20 candidates itself (`identitycand.go`), only from products its own catalogue names (`Identifier.Products`: a range's CPE
+  vendor:product, a CVE record's product key, an exploited-list entry; nothing is fetched): the publisher and display name are cleaned
+  (legal-entity words, the line's version, version numbers, architecture, language and text in parentheses dropped, `IdentityKey`) and
+  ranked by the words they share with each product's vendor and name; the same cleaned name is only the first candidate, never a link.
+  A name no product shares a word with is not asked (it stays `none`). The AI answers by schema a candidate's id, `none` or `unsure`,
+  whether the program is that product itself (`exact`) or only a part of its family (`family`: an agent, a client, a plugin of it), with
+  a reason (at most 5 names a call, exploited-list candidates first); the box keeps a product only when it is one it offered and shares
+  a non-stopword with the name (`verifyChoices`; anything else is stored `unsure`; a product not said to be `exact` is `family`). A
+  `family` match is stored and counted (coverage identity `ai_family`) and opens nothing yet. One row per cleaned (publisher, name) in
+  `fnd_identity` serves every device. It is asked again (`askAgain`) only when the chosen product left the candidates, or, for `none` and
+  `unsure`, after 30 days, or after 7 days when a product it was not offered entered the top 5 (the top 5 are kept as short hashes); other
+  candidates coming and going ask nothing. A call that fails after it was sent (an answer outside the schema, the provider) makes its
+  names wait a day and the run goes on with the next names; a budget or a missing profile stops the run. Every call that reached the
+  provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
+  have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
+  (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only
+  opens. A version inside its ranges is a finding unless the line's own names decide the CVE; the finding's evidence carries the
+  identity (`Evidence.Identity`), it is never confirmed by the version alone (suspected: the device states its version, not that the
+  CVE is about this software), and the view says "Identified by AI as <title>" (`View.identity`, with the AI's reason and model). What
+  its ranges say otherwise (outside, a version needed, a question) decides nothing: the pair reads as the line's own names read it, so
+  nothing is closed, proved or asked on the AI's word. "Not this product" (`POST /findings/{id}/identity/reject`, operator, audit
+  `findings.ai_identity_rejected`) stores a `rejected` row for the name that wins over the AI (the product is never offered for it
+  again), drops the AI's choice and matches again at once the finding's device and every device whose last match had a line of that
+  name (the findings close `data_corrected`, resolved by that person: `goneVia`, `identityRejectedBy`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
+  `TestIdentityCandidates`, `TestIdentityScrubber`.
 
 ## Invariants
 

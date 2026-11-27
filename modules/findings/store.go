@@ -22,15 +22,26 @@ type scanner interface{ Scan(dest ...any) error }
 
 // evidenceDoc is the JSON of fnd_finding.evidence (display only) and of the evidence field of the API.
 type evidenceDoc struct {
-	Summary   string    `json:"summary"`
-	Template  string    `json:"template,omitempty"`
-	Request   string    `json:"request,omitempty"`
-	Response  string    `json:"response,omitempty"`
-	CheckedAt time.Time `json:"checked_at"`
-	Agent     bool      `json:"agent,omitempty"`     // The version compared is the one the device's agent reports
-	AgentRow  bool      `json:"agent_row,omitempty"` // A product-only match on a row the agent reported with its version
-	Source    string    `json:"source,omitempty"`    // snmp or agent: the device itself stated the version (Evidence.Source)
-	Read      *readDoc  `json:"read,omitempty"`      // Stored only (Evidence.Read); apiEvidence leaves it out
+	Summary   string       `json:"summary"`
+	Template  string       `json:"template,omitempty"`
+	Request   string       `json:"request,omitempty"`
+	Response  string       `json:"response,omitempty"`
+	CheckedAt time.Time    `json:"checked_at"`
+	Agent     bool         `json:"agent,omitempty"`     // The version compared is the one the device's agent reports
+	AgentRow  bool         `json:"agent_row,omitempty"` // A product-only match on a row the agent reported with its version
+	Source    string       `json:"source,omitempty"`    // snmp or agent: the device itself stated the version (Evidence.Source)
+	Read      *readDoc     `json:"read,omitempty"`      // Stored only (Evidence.Read); apiEvidence leaves it out
+	Identity  *identityDoc `json:"identity,omitempty"`  // Evidence.Identity: the AI's choice of the line's product the finding rests on
+}
+
+// identityDoc is the JSON of Evidence.Identity.
+type identityDoc struct {
+	Method    string `json:"method"`
+	Vendor    string `json:"vendor"`
+	Product   string `json:"product"`
+	Title     string `json:"title"`
+	Publisher string `json:"publisher"`
+	Name      string `json:"name"`
 }
 
 // readDoc is the JSON of Evidence.Read.
@@ -47,6 +58,9 @@ func newEvidenceDoc(e *Evidence) *evidenceDoc {
 		return nil
 	}
 	d := &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow, Source: e.Source}
+	if n := e.Identity; n != nil {
+		d.Identity = &identityDoc{Method: n.Method, Vendor: n.Vendor, Product: n.Product, Title: n.Title, Publisher: n.Publisher, Name: n.Name}
+	}
 	if r := e.Read; r != nil {
 		d.Read = &readDoc{Software: r.Software, Source: r.Source, Version: r.Version, Pkg: r.Pkg, At: r.At.UTC()}
 		if r.At.IsZero() {
@@ -60,7 +74,7 @@ func newEvidenceDoc(e *Evidence) *evidenceDoc {
 func apiEvidence(e *Evidence) *evidenceDoc {
 	d := newEvidenceDoc(e)
 	if d != nil {
-		d.Read = nil
+		d.Read, d.Identity = nil, nil // the identity is the View's (View.identity)
 	}
 	return d
 }
@@ -70,6 +84,9 @@ func (d *evidenceDoc) evidence() *Evidence {
 		return nil
 	}
 	e := &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow, Source: d.Source}
+	if n := d.Identity; n != nil {
+		e.Identity = &IdentityNote{Method: n.Method, Vendor: n.Vendor, Product: n.Product, Title: n.Title, Publisher: n.Publisher, Name: n.Name}
+	}
 	if r := d.Read; r != nil {
 		e.Read = &Reading{Software: r.Software, Source: r.Source, Version: r.Version, Pkg: r.Pkg, At: r.At}
 	}

@@ -245,6 +245,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	if d.Verified == "" {
 		d.Verified = VerifiedNo
 		switch {
+		case ev.Identity != nil: // the AI chose the product (aiGuard): the device states its version, not that the CVE is about it
 		case ev.deviceStated():
 			d.Verified = VerifiedDevice
 		case x.Basis == BasisVersion && d.entryConfirms(): // the version a person entered is inside the range: their word
@@ -288,6 +289,7 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 //     (they updated the software and said so), unless the reading is a person's correction of what a source reads (a wrong version
 //     corrected, nothing changed on the device): data_corrected, corrected;
 //   - the distribution's fixed package release proves it: distro_fixed;
+//   - a person said the software is not the product the AI chose for it ("Not this product"): data_corrected, corrected, by that person;
 //   - anything else (range data changed, an answer about the platform): data_corrected.
 func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string, corrected bool) {
 	l, ok := lines[f.SoftwareID]
@@ -301,6 +303,9 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 			return ViaSoftwareRemoved, "", "", "", false
 		}
 		return ViaDataCorrected, "", "", "", false
+	}
+	if by := identityRejectedBy(a, f); by != "" {
+		return ViaDataCorrected, "", "", by, true // a person's correction of the AI's identification: theirs, not Vedette's
 	}
 	cur, pkg := l.reading.Version, false
 	// a line with a package release is matched on it (detectionOf, scanLine): whatever the basis, except the device's version read
@@ -808,11 +813,13 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery, and starts the automatic reading of possible findings after its pass (AutoRead); urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
+// starts, then every ReconcileEvery, and starts the identification of unidentified software (AutoIdentify) and the automatic reading of
+// possible findings after its pass (AutoRead); urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
-		svc.AutoRead(ctx) // after the match pass: the AI reads what the pass left undecided, in the background, within its budget
+		svc.AutoIdentify(ctx) // after the match pass: the AI identifies the software it left without a product, in the background
+		svc.AutoRead(ctx)     // after the match pass: the AI reads what the pass left undecided, in the background, within its budget
 		return err
 	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
 		r, err := svc.RateUrgency(ctx, "")

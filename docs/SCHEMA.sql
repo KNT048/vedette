@@ -1313,6 +1313,32 @@ CREATE UNIQUE INDEX fnd_line_statement_identity_uq ON fnd_line_statement (cve, p
 
 CREATE INDEX fnd_line_statement_cve_ix ON fnd_line_statement (cve, product_key);
 
+CREATE TABLE fnd_identity (
+    publisher   TEXT    NOT NULL CHECK (length(publisher) <= 200),
+    name        TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
+    kind        TEXT    NOT NULL CHECK (kind IN ('ai', 'rejected')),
+    choice      TEXT    NOT NULL CHECK (choice IN ('product', 'none', 'unsure')),
+    fit         TEXT    NOT NULL DEFAULT '' CHECK (fit IN ('', 'exact', 'family')),
+    vendor      TEXT    NOT NULL DEFAULT '' CHECK (length(vendor) <= 200),
+    product     TEXT    NOT NULL DEFAULT '' CHECK (length(product) <= 200),
+    record      INTEGER NOT NULL DEFAULT 0 CHECK (record IN (0, 1)),
+    kev         TEXT    NOT NULL DEFAULT '' CHECK (length(kev) <= 400),
+    title       TEXT    NOT NULL DEFAULT '' CHECK (length(title) <= 200),
+    reason      TEXT    NOT NULL DEFAULT '' CHECK (length(reason) <= 200),
+    candidates  TEXT    NOT NULL DEFAULT '' CHECK (length(candidates) <= 64),
+    model       TEXT    NOT NULL DEFAULT '' CHECK (length(model) <= 80),
+    activity_id TEXT    CHECK (activity_id IS NULL OR length(activity_id) <= 96),
+    by          TEXT    NOT NULL CHECK (length(by) BETWEEN 1 AND 320),
+    at          TEXT    NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK ((choice = 'product') = (vendor <> '' AND product <> '')),
+    CHECK (kind = 'ai' OR choice = 'product'),
+    CHECK ((kind = 'ai' AND choice = 'product') = (fit <> ''))
+);
+
+CREATE UNIQUE INDEX fnd_identity_ai_uq ON fnd_identity (publisher, name) WHERE kind = 'ai';
+
+CREATE UNIQUE INDEX fnd_identity_rejected_uq ON fnd_identity (publisher, name, vendor, product) WHERE kind = 'rejected';
+
 -- module mitigation
 
 CREATE TABLE mit_applied (

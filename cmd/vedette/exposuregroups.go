@@ -98,8 +98,8 @@ var pathExprRE = regexp.MustCompile(`^(Host|Hostname|Port|FQDN|RDN|DN|TLD|SD|ran
 
 // tplPathVerdict says whether a template may run on a target with web paths to skip (URL path prefixes, never patterns): it runs
 // only when every request it can send is known and outside every prefix. A request path is held against a prefix as written and
-// as the web server resolves it (percent-encoding, "\", ";" parameters, repeated slashes and dot segments), in any letter case
-// as the ZAP exclude of the same setting matches, so "/res/../admin/x" or "/Admin/x" is under "/admin". Skipped: a request goes
+// as each web server may resolve it (pathForms: percent-encoding, "\", ";" parameters, repeated slashes and dot segments), in any
+// letter case as the ZAP exclude of the same setting matches, so "/res/../admin/x" or "/Admin/x" is under "/admin". Skipped: a request goes
 // under one. Unknown: a request's path is built while the template runs ({{BaseURL}}{{paths}} with no value in the pack, an
 // extracted value, a helper function, a raw request to {{Host}}:{{Port}}, pack.RequestUnknown), so it could go under one; it is
 // left out too (fail closed). Only the values of pathExprRE leave a path judged. The index lists every request of an http
@@ -137,7 +137,7 @@ func templatePathOf(tp pack.Template, skip []string) tplPathVerdict {
 }
 
 // requestPathOf is the verdict of one request line against skip. The path (up to the query) is judged as written and as the web
-// server reads it (normPath), and a prefix matches in any letter case, as the ZAP exclude of the same setting does.
+// server reads it (pathForms), and a prefix matches in any letter case, as the ZAP exclude of the same setting does.
 func requestPathOf(line string, skip []string) tplPathVerdict {
 	m := requestRE.FindStringSubmatch(line)
 	if m == nil {
@@ -160,7 +160,8 @@ func requestPathOf(line string, skip []string) tplPathVerdict {
 	if !ok {
 		return tplPathUnknown
 	}
-	if slices.ContainsFunc(exprs, func(e string) bool { return !pathExprRE.MatchString(e) }) {
+	// a value may be anything when it is not one of pathExprRE or ends a percent escape opened before it
+	if slices.ContainsFunc(exprs, func(e string) bool { return !pathExprRE.MatchString(e) }) || slices.ContainsFunc(parts[:len(exprs)], escapeOpenRE.MatchString) {
 		if underAny(parts[0], skip) { // what is known before the first value that could be anything
 			return tplPathSkipped
 		}
@@ -172,10 +173,10 @@ func requestPathOf(line string, skip []string) tplPathVerdict {
 		}
 	}
 	for k := range exprs { // the text before a value: when a prefix starts with it, the value may run into the prefix
-		before := strings.Join(parts[:k+1], "x")
+		bfs := pathForms(strings.Join(parts[:k+1], "x"), true)
 		for _, p := range skip {
 			for _, pf := range pathForms(p, false) {
-				for _, bf := range pathForms(before, true) {
+				for _, bf := range bfs {
 					if strings.HasPrefix(pf, bf) {
 						return tplPathUnknown
 					}
@@ -212,9 +213,10 @@ func pathParts(u string) (parts, exprs []string, ok bool) {
 
 // underAny says whether the path p goes under one of skip, as written or as the server reads it, in any letter case.
 func underAny(p string, skip []string) bool {
+	pfs := pathForms(p, true)
 	for _, s := range skip {
 		for _, sf := range pathForms(s, false) {
-			for _, pf := range pathForms(p, true) {
+			for _, pf := range pfs {
 				if strings.HasPrefix(pf, sf) {
 					return true
 				}
@@ -224,23 +226,44 @@ func underAny(p string, skip []string) bool {
 	return false
 }
 
-// pathForms are p as written and as normPath reads it, in lower case.
-func pathForms(p string, params bool) [2]string {
-	return [2]string{strings.ToLower(p), strings.ToLower(normPath(p, params))}
-}
-
-// normPath is the path p as a web server resolves it: percent-encoding decoded (up to three times, for double encoding; a "%"
-// that starts no escape is kept), "\" read as "/", tabs and newlines dropped, with params each segment's path parameters (";…",
-// as Tomcat reads "..;") dropped, then repeated slashes and dot segments resolved. A trailing "/" is kept.
-func normPath(p string, params bool) string {
-	for range 3 {
+// pathForms are p as written and as each reading of resolvePath gives it, in lower case, without repeats. Servers and proxies
+// differ in how far they decode a path before they resolve its dot segments (not at all, keeping "%2F" and "%2e"; once; fully),
+// in whether "\" is a "/" and a tab or newline is dropped, and in whether ";" parameters are dropped (only with params), so each
+// combination is a form: a reading that decodes more never hides one that decodes less.
+func pathForms(p string, params bool) []string {
+	forms := []string{strings.ToLower(p)}
+	add := func(f string) {
+		if f = strings.ToLower(f); !slices.Contains(forms, f) {
+			forms = append(forms, f)
+		}
+	}
+	for round := 0; ; round++ { // decoded 0 to 3 times (double encoding and one more); a "%" that starts no escape is kept
+		for _, slash := range []bool{false, true} {
+			for _, ctl := range []bool{false, true} {
+				add(resolvePath(p, slash, ctl, false))
+				if params {
+					add(resolvePath(p, slash, ctl, true))
+				}
+			}
+		}
 		d := unescapeLoose(p)
-		if d == p {
-			break
+		if round == 3 || d == p {
+			return forms
 		}
 		p = d
 	}
-	p = strings.NewReplacer(`\`, "/", "\t", "", "\n", "", "\r", "").Replace(p) // a URL parser drops tabs and newlines (".%09." is "..")
+}
+
+// resolvePath is the path p with its repeated slashes and dot segments resolved, as a web server does; with slash "\" read as
+// "/", with ctl tabs and newlines dropped (as a URL parser does: ".%09." is ".."), with params each segment's path parameters
+// (";…", as Tomcat reads "..;") dropped. A trailing "/" is kept.
+func resolvePath(p string, slash, ctl, params bool) string {
+	if slash {
+		p = strings.ReplaceAll(p, `\`, "/")
+	}
+	if ctl {
+		p = strings.NewReplacer("\t", "", "\n", "", "\r", "").Replace(p)
+	}
 	if params {
 		segs := strings.Split(p, "/")
 		for i, g := range segs {
@@ -257,6 +280,10 @@ func normPath(p string, params bool) string {
 	}
 	return p
 }
+
+// escapeOpenRE is a literal part that ends inside a percent escape ("%" or "%" and one hex digit): the value after it may end the
+// escape ("%2" and "f…" is "/").
+var escapeOpenRE = regexp.MustCompile(`%[0-9A-Fa-f]?$`)
 
 // unescapeLoose decodes every %XX of s and keeps any other "%".
 func unescapeLoose(s string) string {

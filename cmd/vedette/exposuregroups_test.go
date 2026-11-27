@@ -232,6 +232,35 @@ func TestExposureGroups_TemplatePathAsTheServerReadsIt(t *testing.T) {
 	}
 }
 
+// Web servers and proxies differ in how much of a path they decode before resolving dot segments: some resolve dot segments with
+// "%2F" or "%2e" kept (or decode once only), some keep "\" or a tab as a plain character, some keep ";" parameters. A path is under
+// a skipped prefix when any of those readings puts it there, so a reading that decodes more cannot hide a reading that decodes less.
+func TestExposureGroups_TemplatePathUnderEveryReading(t *testing.T) {
+	t.Parallel()
+	tp := func(reqs ...string) pack.Template {
+		return pack.Template{ID: "x", Path: "http/x.yaml", Request: reqs[0], Requests: reqs}
+	}
+	skip := []string{"/admin", "/app;v=1/"}
+	for _, c := range []struct {
+		t    pack.Template
+		want tplPathVerdict
+	}{
+		{tp("GET /q/../admin%2f.."), tplPathSkipped},                        // dot segments resolved, "%2F" kept
+		{tp("GET /q/../admin/%2e%2e"), tplPathSkipped},                      // dot segments resolved, "%2e" kept
+		{tp("GET /q/%2e%2e/admin/%252e%252e/%252e%252e/y"), tplPathSkipped}, // decoded once, then resolved
+		{tp(`GET /q/../admin\..`), tplPathSkipped},                          // "\" kept as a plain character
+		{tp("GET /q/../admin/.%09."), tplPathSkipped},                       // a tab kept as a plain character
+		{tp("GET /q;v=2/../app;v=1/x"), tplPathSkipped},                     // ";" parameters kept
+		{tp("GET {{BaseURL}}/q/../admin%2f../{{randstr}}"), tplPathSkipped}, // the same with a value put in
+		{tp("GET /q/..%2{{SD}}admin"), tplPathUnknown},                      // a value may end a percent escape ("%2" + "f")
+		{tp("GET /static/x/%2e%2e/y"), tplPathRuns},                         // no reading reaches a prefix
+	} {
+		if got := templatePathOf(c.t, skip); got != c.want {
+			t.Errorf("%q: %v, want %v", c.t.Requests, got, c.want)
+		}
+	}
+}
+
 // The line of the templates the paths left out of a port says how many, and why.
 func TestExposureGroups_PathsLine(t *testing.T) {
 	t.Parallel()

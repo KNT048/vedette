@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -45,11 +46,49 @@ func (c possibleChecker) Record(ctx context.Context, cve string) (findings.CVERe
 	if err != nil || !ok {
 		return findings.CVERecordText{}, err
 	}
-	out := findings.CVERecordText{Description: b.Description}
+	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution}
+	for _, r := range b.Ranges {
+		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r)}
+		if f := strings.Split(r.CPE, ":"); len(f) == 13 && f[9] != "*" && f[9] != "-" {
+			row.Edition = f[9] // the edition the row's CPE pins (sw_edition)
+		}
+		out.Rows = append(out.Rows, row)
+	}
 	for _, r := range b.References {
 		out.Refs = append(out.Refs, findings.RefLink{URL: r.URL, Tags: r.Tags})
 	}
 	return out, nil
+}
+
+// recordRowText is one affected row of a CVE record as a person reads it: the product, the edition, system or hardware its CPE pins,
+// the systems it runs on, the versions and its fixed release, and who wrote the row ("acme browser (edition esr): affected from
+// 115.1.0 before 115.42.0 [nvd]").
+func recordRowText(r feeds.BriefRange) string {
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(r.Vendor + " " + r.Product))
+	if f := strings.Split(r.CPE, ":"); len(f) == 13 {
+		var pins []string
+		for i, word := range map[int]string{9: "edition", 10: "on", 11: "hardware"} {
+			if v := f[i]; v != "*" && v != "-" && v != "" {
+				pins = append(pins, word+" "+strings.ReplaceAll(v, "\\", ""))
+			}
+		}
+		slices.Sort(pins)
+		if len(pins) > 0 {
+			b.WriteString(" (" + strings.Join(pins, ", ") + ")")
+		}
+	}
+	if len(r.Platforms) > 0 {
+		b.WriteString(" on " + strings.Join(r.Platforms, ", "))
+	}
+	b.WriteString(": affected " + r.Versions)
+	if r.Fixed != "" && r.Fixed != r.EndExcl {
+		b.WriteString(", fixed in " + r.Fixed)
+	}
+	if r.Origin != "" {
+		b.WriteString(" [" + r.Origin + "]")
+	}
+	return b.String()
 }
 
 func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.FetchedPage {
@@ -63,7 +102,7 @@ func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.Fe
 func (c possibleChecker) Propose(ctx context.Context, actor string, req findings.ProposeRequest) (findings.ProposeAnswer, error) {
 	r := ai.PossibleRequest{CVE: req.CVE, Description: req.Description, Rows: req.Rows}
 	for _, it := range req.Items {
-		r.Items = append(r.Items, ai.PossibleItem{Index: it.Index, Vendor: it.Vendor, Product: it.Product, Version: it.Version, Line: it.Line})
+		r.Items = append(r.Items, ai.PossibleItem{Index: it.Index, Vendor: it.Vendor, Product: it.Product, Version: it.Version, Line: it.Line, Edition: it.Edition})
 	}
 	for _, p := range req.Pages {
 		r.Pages = append(r.Pages, ai.RefPage{URL: p.URL, Title: p.Title, Status: p.Status, Text: p.Text, JSON: p.JSON})
@@ -75,7 +114,7 @@ func (c possibleChecker) Propose(ctx context.Context, actor string, req findings
 	out := findings.ProposeAnswer{Model: ans.Model, Profile: ans.Profile, ActivityID: ans.ActivityID}
 	for _, v := range ans.Verdicts {
 		out.Verdicts = append(out.Verdicts, findings.ProposeVerdict{Index: v.Index, Status: v.Status, Introduced: v.Introduced, FixedIn: v.FixedIn,
-			LastAffected: v.LastAffected, Line: v.Line, Reason: v.Reason, Quote: v.Quote, Source: v.Source})
+			LastAffected: v.LastAffected, Line: v.Line, Reason: v.Reason, Quote: v.Quote, Source: v.Source, InferredFrom: v.InferredFrom})
 	}
 	return out, nil
 }

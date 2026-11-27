@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/ai/provider"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 )
 
@@ -142,6 +143,27 @@ func TestAICallError_SortsRefusalsStopsAndFailures(t *testing.T) {
 		}
 		if kind != tc.want {
 			t.Errorf("%v: %s, want %s", tc.err, kind, tc.want)
+		}
+	}
+}
+
+// Each affected row of the record reaches the reading as a person reads it: the product, the edition or system its CPE pins, the
+// versions, the fixed release when it differs from the range's end, and who wrote the row.
+func TestRecordRowText_EveryProductsRowAsAPersonReadsIt(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		r    feeds.BriefRange
+		want string
+	}{
+		{feeds.BriefRange{Range: feeds.Range{Origin: "nvd", Vendor: "quillfeather", Product: "browser", CPE: "cpe:2.3:a:quillfeather:browser:*:*:*:*:esr:*:*:*"},
+			Versions: "from 115.1.0 before 115.42.0"}, "quillfeather browser (edition esr): affected from 115.1.0 before 115.42.0 [nvd]"},
+		{feeds.BriefRange{Range: feeds.Range{Origin: "cna", Vendor: "Quillfeather", Product: "Mail", Fixed: "140.17.2", EndExcl: "140.17"},
+			Versions: "from 140.0 before 140.17"}, "Quillfeather Mail: affected from 140.0 before 140.17, fixed in 140.17.2 [cna]"},
+		{feeds.BriefRange{Range: feeds.Range{Origin: "nvd", Vendor: "quillfeather", Product: "mail", CPE: "cpe:2.3:a:quillfeather:mail:*:*:*:*:*:macos:x64:*"},
+			Versions: "every version"}, "quillfeather mail (hardware x64, on macos): affected every version [nvd]"},
+	} {
+		if got := recordRowText(tc.r); got != tc.want {
+			t.Errorf("%q, want %q", got, tc.want)
 		}
 	}
 }

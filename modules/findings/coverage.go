@@ -431,14 +431,11 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			state[key] = pairState{by: RangePerson, affected: q.Answer == AnswerAffected}
 			return
 		}
-		// as the lists read it: settled from the vendor's word, else possible with its cause (PossibleCause)
+		// as the lists read it: settled from the vendor's advisory the box read itself (an AI reading never settles), else possible
+		// with its cause (PossibleCause)
 		it := possibleItemOf(q, cve, in)
 		if it.State == PossibleSettled {
-			by := RangeAdvisory
-			if it.Check != nil && it.Check.Reading != nil {
-				by = RangeAIRead
-			}
-			state[key] = pairState{by: by}
+			state[key] = pairState{by: RangeAdvisory}
 			return
 		}
 		state[key] = pairState{cause: PossibleCause(it, in.rs), detail: coverDetail(q)}

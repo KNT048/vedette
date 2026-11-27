@@ -12,8 +12,9 @@ import (
 var checkKeyRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // checkable says a question is one a check of the CVE's advisories can decide: about one CVE, on a line with a version, where the
-// versions the CVE lists are what is unknown (no_range_data, older_line, a not_comparable one that no build attribute decides), and NVD
-// has answered for the CVE (while it has not, its data may still come and decide it for free).
+// versions the CVE lists are what is unknown (no_range_data, older_line, a not_comparable one that no build attribute decides, or one
+// whose edition is known and whose release line the rows do not list: AttrUnlistedLine), and NVD has answered for the CVE (while it
+// has not, its data may still come and decide it for free).
 func checkable(q Question) bool {
 	if q.CVE == "" || q.SoftwareID == "" || q.Detail.Version == "" || q.Detail.NVDPending {
 		return false
@@ -22,7 +23,7 @@ func checkable(q Question) bool {
 	case QuestionNoRangeData, QuestionOlderLine:
 		return true
 	case QuestionNotComparable:
-		return q.Detail.Attribute == ""
+		return q.Detail.Attribute == "" || q.Detail.Attribute == AttrUnlistedLine
 	}
 	return false
 }

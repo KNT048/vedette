@@ -197,6 +197,12 @@ func TestDomainReuse_NoReuse(t *testing.T) {
 			r.exec(`INSERT INTO exp_service (id, target_id, ip, port, proto, ident, state, first_seen, last_seen, last_run_id)
 				VALUES ('xs-old', ?, ?, 2222, 'tcp', 'probed', 'open', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`, r.dom.ID, ipA)
 		}},
+		{name: "the domain's settings turn off a group whose scripts the source's sweep ran", before: func(r *reuseEnv) {
+			r.deepRow(r.dom.ID, false, false, true, true, true, SpeedNormal, "[]", "[]") // password guessing and default logins off for the domain
+		}},
+		{name: "this run finds an open port there that the source did not see", after: func(r *reuseEnv) {
+			r.run.content.Ports = append(slices.Clone(r.run.content.Ports), PortRow{IP: ipA, Port: 8080, Service: "http", HTTP: true})
+		}},
 		{name: "a finding the source reported is gone on the domain", after: func(r *reuseEnv) {
 			r.exec(`INSERT INTO exp_service (id, target_id, ip, port, proto, ident, state, first_seen, last_seen, last_run_id)
 				VALUES ('xs-443', ?, ?, 443, 'tcp', 'probed', 'open', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`, r.dom.ID, ipA)
@@ -418,6 +424,102 @@ func TestDomainReuse_OpenVASResultsComeWithTheAddress(t *testing.T) {
 		}
 		if d.Status != corerun.Done {
 			t.Fatalf("the domain's run ended %s %q", d.Status, d.Summary)
+		}
+	}
+}
+
+// OpenVAS's config follows the disruptive groups of the scan (levelOf): a source run with the disruptive terms checked the address with
+// the brute force, default accounts and denial-of-service families, which a domain step without them would not run. Its results are
+// never the domain's: the domain starts its own OpenVAS task.
+func TestDomainReuse_OpenVASOfAWiderSourceIsNotReused(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.terms = nil
+	e.enable()
+	dns := &deepDNS{fakeResolver: e.dns, a: map[string][]string{"acme.example": {ipA}}}
+	e.svc.cfg.Resolver, e.svc.cfg.DomainFence, e.svc.cfg.Services, e.svc.cfg.Matcher = dns, &fakeFence{}, &deepSeams{}, &fakeMatcher{}
+	box := e.detect(ipA)
+	if _, err := e.commit(box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(box[0].ID, true) // the address's own scan: the disruptive checks allowed
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, false) // the domain: the deep scan without them
+	run := &fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}}
+	e.svc.SetRunner(run)
+	e.advance(time.Minute)
+	src, err := e.svc.Scan(e.ctx(), "admin@acme.example", box[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := e.runDetail(e.ctx(), src.RunID); d.Status != corerun.Done {
+		t.Fatalf("the box's scan ended %s %q", d.Status, d.Summary)
+	}
+	if e.count(`SELECT count(*) FROM exp_issue WHERE target_id = ? AND engine = 'openvas' AND state = 'open'`, box[0].ID) == 0 {
+		t.Fatal("the box's scan found no OpenVAS result")
+	}
+	tasks := len(h.gvm.log.rows)
+	run.content = Content{Hosts: []HostRow{{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassBox}}}},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}
+	e.advance(time.Hour)
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.gvm.log.rows) == tasks {
+		t.Fatal("the domain's run reused the OpenVAS results of a scan with the disruptive checks; want its own OpenVAS task")
+	}
+	d := e.runDetail(e.ctx(), s.RunID)
+	if slices.ContainsFunc(d.Items, func(it corerun.ItemRow) bool { return it.SubjectKind == "run" }) {
+		t.Fatalf("a source run is linked: %+v", d.Items)
+	}
+}
+
+// The address's own settings turn OpenVAS off: its scan ran no OpenVAS, so the domain's OpenVAS step must not say that OpenVAS's
+// results were reused from it; it says what a normal scan says (turned off in the settings), and nothing is sent.
+func TestDomainReuse_OpenVASOffForTheAddressIsNotCalledReused(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.terms = nil
+	e.enable()
+	dns := &deepDNS{fakeResolver: e.dns, a: map[string][]string{"acme.example": {ipA}}}
+	e.svc.cfg.Resolver, e.svc.cfg.DomainFence, e.svc.cfg.Services, e.svc.cfg.Matcher = dns, &fakeFence{}, &deepSeams{}, &fakeMatcher{}
+	box := e.detect(ipA)
+	if _, err := e.commit(box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(box[0].ID, false)
+	e.deepRow(box[0].ID, false, true, true, true, false, SpeedNormal, "[]", "[]") // OpenVAS off for the address
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, false)
+	run := &fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}}
+	e.svc.SetRunner(run)
+	e.advance(time.Minute)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	tasks := len(h.gvm.log.rows)
+	run.content = Content{Hosts: []HostRow{{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassBox}}}},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}
+	e.advance(time.Hour)
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.gvm.log.rows) != tasks {
+		t.Fatalf("OpenVAS was sent to an address whose settings turn it off: %+v", h.gvm.log.rows[tasks:])
+	}
+	d := e.runDetail(e.ctx(), s.RunID)
+	if !slices.ContainsFunc(d.Items, func(it corerun.ItemRow) bool { return it.SubjectKind == "run" }) {
+		t.Fatalf("the address layer was not reused: %+v", d.Items)
+	}
+	i := slices.IndexFunc(d.Steps, func(st corerun.Step) bool { return st.Name == stepNameOpenVAS })
+	if i >= 0 && strings.Contains(reuseNote(d.Steps[i]), "Reused") {
+		t.Fatalf("OpenVAS step says its results were reused from a scan that ran no OpenVAS: %q", reuseNote(d.Steps[i]))
+	}
+	for _, it := range d.Items {
+		if it.SubjectKind == "run" && it.Note != nil && strings.Contains(*it.Note, "OpenVAS") {
+			t.Fatalf("the source run's item says its OpenVAS was reused: %q", *it.Note)
 		}
 	}
 }

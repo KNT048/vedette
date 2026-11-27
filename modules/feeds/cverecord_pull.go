@@ -90,7 +90,7 @@ const (
 	// keeps a defaultStatus "unaffected" only from the vendor's own CNA (ownCNA); "ranges-7" leaves out a range inside one
 	// letter-release branch alone ("1.1.1" before "1.1.1zk", letterBranch) instead of the product, so OpenSSL's numeric ranges beside
 	// it are read; "ranges-8" reads an entry limited to operating systems once per system (recordSystems) instead of leaving the
-	// product's rows out.
+	// product's rows out, and keeps an entry's lone unaffected version above every affected row as the fix of its line (lineFixOf).
 	recordReader = "ranges-8"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"

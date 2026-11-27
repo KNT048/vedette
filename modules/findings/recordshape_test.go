@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -125,6 +126,10 @@ func TestRecordShape_PartialRecordPastItsFix(t *testing.T) {
 		return Affected{CPE: cpe, Range: VersionRange{StartIncl: start, EndExcl: end}}
 	}
 	exact := Affected{CPE: "cpe:2.3:*:example:chat_desktop:3.0.0:*:*:*:*:*:*:*"}
+	lineFixed := []Affected{
+		{CPE: cpe, Range: VersionRange{StartIncl: "0", EndIncl: "6.49.18"}},
+		{CPE: cpe, Range: VersionRange{StartIncl: "7.0.0", EndIncl: "7.11.2"}, LineFix: "7.24.0"},
+	}
 	trains := []Affected{rng("", "2.49.1"), rng("2.50.0-rc0", "2.50.2"), rng("2.56.0-rc0", "2.56.1")}
 	const (
 		decided = iota // no finding, no question
@@ -151,6 +156,18 @@ func TestRecordShape_PartialRecordPastItsFix(t *testing.T) {
 			{CPE: cpe, Range: VersionRange{StartIncl: "7.24.0", EndIncl: "7.24.5"}},
 		}, asked},
 		{"past an inclusive end of its own train", "7.24.6", []Affected{{CPE: cpe, Range: VersionRange{StartIncl: "7.24.0", EndIncl: "7.24.5"}}}, asked},
+		// "through 6.49.18 and 7.0.0 through 7.11.2", with 7.24.0 stated unaffected: the fix of line 7 (OSV fixed), not of line 8, and
+		// nothing about the versions between the last one listed affected and the fix
+		{"at the fix stated above its line's rows", "7.24.0", lineFixed, decided},
+		{"past the fix stated above its line's rows", "7.25.2", lineFixed, decided},
+		{"below the fix stated above its line's rows", "7.20.1", lineFixed, asked},
+		{"on a line the stated fix is not of", "8.0.1", lineFixed, asked},
+		{"inside a row beside a stated fix", "7.11.0", lineFixed, found},
+		{"past a pre-release fix stated above the rows", "7.25.2", []Affected{
+			{CPE: cpe, Range: VersionRange{StartIncl: "0", EndIncl: "7.24.2"}, LineFix: "7.25beta4"},
+		}, decided},
+		{"a stated fix with a later line's row above the version", "7.30.0", append(slices.Clone(lineFixed),
+			Affected{CPE: cpe, Range: VersionRange{StartIncl: "7.40.0", EndIncl: "7.40.2"}}), asked},
 	} {
 		v := uncVuln("CVE-2026-90031", "Example", "Chat Desktop", uncNew, tc.aff...)
 		v.RangesFrom = RangesCVEOrgPartial

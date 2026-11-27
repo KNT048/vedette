@@ -148,6 +148,9 @@ type Affected struct {
 	// affected, a version outside it proves nothing (the record and NVD disagree: the affected answer wins). VendorList: a row of a
 	// record list that states what every unlisted version is (complete): an exact version it lists decides like a range.
 	AffectedOnly, VendorList bool
+	// LineFix: a release a partial CVE record states fixed above this row's end, for the release line the row ends on (a lone
+	// "unaffected" version above every affected row: OSV's fixed); read only by pastRecordFix.
+	LineFix string
 	// parsed is CPE already parsed; nil: parse when read.
 	parsed *CPE
 }

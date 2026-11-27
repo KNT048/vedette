@@ -19,7 +19,9 @@ import (
 //
 // Versions. "affected" versions become ranges: version + lessThan = [version, lessThan), + lessThanOrEqual = [version, x], a version
 // alone is that exact version ([v, v]), a start of "0", "*" or "n/a" is no start, an end of "*" is no end. fixed is the end of a
-// lessThan range whose change at that end says unaffected (the CNA states the fixed release). version_type is the entry's versionType.
+// lessThan range whose change at that end says unaffected (the CNA states the fixed release), or, on the highest row of an entry whose
+// only unaffected statement is one version above every affected row on that row's release line, that version (lineFixOf).
+// version_type is the entry's versionType.
 // Whatever cannot be compared without guessing makes the whole product's rows from that container unusable (counted, none stored):
 // git commits, wildcards and text ("3.x", "< 2.4", "all"), a reversed range, a status change inside a range or an unaffected version
 // inside an affected one (a hotfix hole), "affected except the listed versions", an entry limited to some models (platforms other than
@@ -656,14 +658,20 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 	}
 	var spans []cnaSpan
 	var fixed []string // the unaffected versions the entry lists
+	unaffected := 0    // the entry's unaffected statements, of any form
+	lone := ""         // its one unaffected version, when that is all it states unaffected (no range)
 	partial := false   // a letter-release version was left out
 	for _, v := range a.Versions {
 		start := strings.TrimSpace(v.Version)
 		switch strings.ToLower(strings.TrimSpace(v.Status)) {
 		case "affected":
 		case "unaffected":
+			unaffected++
 			if cnaVersionOK(start) && start != "0" {
 				fixed = append(fixed, start)
+				if v.LessThan == nil && v.LessThanOrEqual == nil {
+					lone = start
+				}
 			}
 			continue
 		default: // "unknown" says nothing
@@ -746,7 +754,40 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 			}
 		}
 	}
+	if unaffected == 1 && lone != "" && !partial && reads == nil {
+		if i, ok := lineFixOf(lone, spans); ok {
+			rows[i].Fixed = lone
+		}
+	}
 	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected && !partial, true
+}
+
+// lineFixOf says which affected row a lone unaffected version y of an entry fixes, read as OSV reads "fixed": the entry lists its
+// affected versions from 0 up to a last one ("0 through 6.49.18", "7.0.0 through 7.11.2") and states only y unaffected ("7.24.0"),
+// above every one of them. y is then the fix of the release line the highest row ends on, when y is on that line (its first number):
+// a version at or past y on that line is not affected (Range.LineFix, read by the matcher for a partial list only). A version between
+// the last affected one and y, or on another line, is not stated either way. ok is false when y is not above every row's end (it would
+// be a backport or a release of an earlier line), a row has no end, an end does not compare, or y is on another line.
+func lineFixOf(y string, spans []cnaSpan) (top int, ok bool) {
+	if len(spans) == 0 {
+		return 0, false
+	}
+	for i, sp := range spans {
+		if sp.end == "" {
+			return 0, false
+		}
+		if c, ok := cmpLead(y, sp.end); !ok || c <= 0 {
+			return 0, false
+		}
+		if c, ok := cmpLead(sp.end, spans[top].end); !ok {
+			return 0, false
+		} else if c > 0 {
+			top = i
+		}
+	}
+	x, okY := leadNums(y)
+	z, okE := leadNums(spans[top].end)
+	return top, okY && okE && len(x) > 0 && len(z) > 0 && x[0] == z[0]
 }
 
 // letterReleaseRE is a release in a letter notation: numbers, then up to two lower-case letters ("1.1.1", "1.1.1zk", "3.6a").

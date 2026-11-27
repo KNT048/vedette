@@ -117,6 +117,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   product without a version scheme gives each row once per system, the system in `platforms` (`recordSystems`); the match reads it as
   the CPE's target_sw (`kevRecordRow`, `Range.MatchRow`), so the row speaks for that system only. NVD's running-on platforms are not
   read so. An entry naming any other platform (a model) still leaves its product's generic rows out. `TestRecordSystems_EntryLimitedToSystems`.
+  An entry whose only unaffected statement is one version above the end of every affected row it lists, on the release line (first
+  number) the highest row ends on ("0 through 6.49.18", "7.0.0 through 7.11.2", "7.24.0 unaffected"), keeps that version as `fixed` of
+  the highest row (`lineFixOf`, OSV's fixed): the match reads it as the fix of that line (`LineFix`, findings `pastRecordFix`). Any
+  other unaffected version stays as before. `TestParseCVERecord_Ranges`, `TestRecordRanges_LineFixReachesTheMatcher`.
   For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",
   and that no reader of affected ranges reads (`RangeScheme` refuses them; `StatementScheme` reads them): a range the vendor states
   unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`), which holds for every device: kept only beside

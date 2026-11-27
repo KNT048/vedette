@@ -114,14 +114,17 @@ func pastEnd(r VersionRange, ver string) bool {
 //     on 2.56.1), or
 //   - past the fix of a row from version 0 or with no start ("before 7.2.9" on 7.4.7), and below the start of no row: a version
 //     between the trains the record lists (2.53.0 beside rows for 2.50 and 2.56) stays undecided, since the record may have skipped
-//     its train.
+//     its train, or
+//   - at or past a fix the record states above its rows (LineFix: a lone "unaffected" version above every affected row of the entry,
+//     OSV's fixed) on that fix's own release line (its first number: "7.25.2" past "7.24.0", not "8.0.1"), and below the start of no
+//     row. A version between the last one listed affected and the fix stays undecided: the record says nothing about it.
 //
 // A bound that does not compare, or an exact row above the version, keeps the CVE undecided.
 func pastRecordFix(in swInfo, v Vuln, key []identity) bool {
 	if !versionKnown(in.ver) {
 		return false
 	}
-	train, fromZero, gap := false, false, false
+	train, fromZero, lineFixed, gap := false, false, false, false
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || af.AffectedOnly {
@@ -146,6 +149,11 @@ func pastRecordFix(in swInfo, v Vuln, key []identity) bool {
 			}
 			gap = gap || o < 0
 		}
+		if af.LineFix != "" && sameLine(in.ver, af.LineFix) {
+			if o, ok := compareBound(in.ver, af.LineFix); ok && o >= 0 {
+				lineFixed = true
+			}
+		}
 		if r.EndExcl == "" || !pastEnd(r, in.ver) {
 			continue // no fix stated (an inclusive end, "through 7.24.5", is the last version known affected; an exact row is one release), or not past it
 		}
@@ -156,7 +164,26 @@ func pastRecordFix(in swInfo, v Vuln, key []identity) bool {
 			train = true
 		}
 	}
-	return train || fromZero && !gap
+	return train || (fromZero || lineFixed) && !gap
+}
+
+// sameLine says two versions start with the same number (their release line: "7" of "7.25.2" and "7.24.0").
+func sameLine(a, b string) bool {
+	x, y := leadNumber(a), leadNumber(b)
+	return x != "" && x == y
+}
+
+// leadNumber is the leading digits of a version without leading zeros ("7" of "7.25.2"), "" when it starts with none.
+func leadNumber(s string) string {
+	s = strings.TrimSpace(s)
+	j := 0
+	for j < len(s) && isDigit(s[j]) {
+		j++
+	}
+	if j == 0 {
+		return ""
+	}
+	return cmp.Or(strings.TrimLeft(s[:j], "0"), "0")
 }
 
 // sameTrain says ver, the start and the end of a range share their first two numbers (major.minor): the range is a fix of ver's train.

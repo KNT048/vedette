@@ -49,6 +49,9 @@ type AffectedRow struct {
 	// AffectedOnly and VendorList say how far a CVE record row read for matching speaks (Range.AffectedOnly, Range.VendorList); both
 	// false for NVD's rows.
 	AffectedOnly, VendorList bool
+	// LineFix is the release a CVE record states fixed above the row's end, for the release line the row ends on (Range.LineFix); ""
+	// for NVD's rows.
+	LineFix string
 }
 
 // NVDRecord is one CVE as NVD's record gives it, as the catalogue keeps it.

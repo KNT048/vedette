@@ -77,3 +77,32 @@ func TestRecordSystems_EntryLimitedToSystems(t *testing.T) {
 		t.Error("a scheme's product read an entry limited to a system")
 	}
 }
+
+// A lone unaffected version above every affected row reaches the matcher as the fix of the line the rows end on (LineFix), on the row
+// that ends highest, in both views; a row's own fixed release at its excluded end is no such fix.
+func TestRecordRanges_LineFixReachesTheMatcher(t *testing.T) {
+	t.Parallel()
+	got, err := ParseCVERecord(record(`{"vendor":"Example","product":"Router OS","versions":[`+
+		`{"version":"0","lessThanOrEqual":"6.49.18","status":"affected"},{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},`+
+		`{"version":"7.24.0","status":"unaffected"}]},`+
+		`{"vendor":"Example","product":"Firmware","cpes":["cpe:2.3:o:example:firmware:*:*:*:*:*:*:*:*"],"versions":[{"version":"3.0","lessThanOrEqual":"3.4","status":"affected"},{"version":"3.9","status":"unaffected"}]},`+
+		`{"vendor":"Example","product":"Mail Relay","versions":[{"version":"2.0","lessThan":"2.0.7","status":"affected","changes":[{"at":"2.0.7","status":"unaffected"}]}]}`), "CVE-2026-1000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixes []string
+	for _, r := range genericRows(got.Ranges) {
+		row, ok := r.MatchRow()
+		if !ok {
+			t.Fatalf("row %+v not read", r)
+		}
+		fixes = append(fixes, row.LineFix)
+	}
+	if want := []string{"", "7.24.0", "3.9", ""}; !slices.Equal(fixes, want) {
+		t.Fatalf("MatchRow line fixes %q, want %q", fixes, want)
+	}
+	rows, _ := KEVRecordRows(got.Ranges, "Example", "Router OS")
+	if len(rows) != 2 || rows[0].LineFix != "" || rows[1].LineFix != "7.24.0" {
+		t.Fatalf("exploited-list view %+v, want the line fix on the row that ends highest", rows)
+	}
+}

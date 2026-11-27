@@ -371,14 +371,14 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:" + sys + ":*:*"
 	}
 	if r.StartIncl != "" && r.StartIncl == r.EndIncl && r.StartExcl == "" && r.EndExcl == "" {
-		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}
+		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
 	}
 	start := r.StartIncl
 	if recordEvery(r) {
 		start = "0" // every version (recordEvery)
 	}
 	return AffectedRow{CPE: cpe("*"), StartIncl: start, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
-		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}
+		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
 }
 
 // ---- counts ----

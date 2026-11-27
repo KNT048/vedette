@@ -231,8 +231,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   row named by a word ("preview_release") is set aside, and decides nothing unless the version is past the end of a row that says No. A
   partial CVE record proves "not affected" for a version past a fix it states (an excluded end; an included end, "through", is the last
   version known affected, not a fix) on a train it covers (OSV's introduced/fixed): past a row from
-  0 with no listed row above the version, or past a row that starts on the version's own major.minor; a version between listed trains
-  stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
+  states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
+  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside

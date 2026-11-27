@@ -156,6 +156,9 @@ type Affected struct {
 	// affected, a version outside it proves nothing (the record and NVD disagree: the affected answer wins). VendorList: a row of a
 	// record list that states what every unlisted version is (complete): an exact version it lists decides like a range.
 	AffectedOnly, VendorList bool
+	// VendorCNA: the CVE record's assigner is the row's vendor (feeds Range.VendorCNA): a list of exact releases it gives is the vendor's
+	// enumeration, where a third party's names the build it tested (newerThanListed).
+	VendorCNA bool
 	// LineFix: a release a partial CVE record states fixed above this row's end, for the release line the row ends on (a lone
 	// "unaffected" version above every affected row: OSV's fixed); read only by pastRecordFix.
 	LineFix string

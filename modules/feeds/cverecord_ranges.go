@@ -204,6 +204,17 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 // the trust in defaultStatus to the reader; versions.md). An entry that names no vendor ("n/a", empty) does not say whose product it
 // is, so it is never the assigner's own. Such an entry is read with defaultStatus unknown: its listed versions still say "affected",
 // a version it does not list stays a question.
+// maxAssigner bounds the stored assigner (feeds_cve.assigner): a CNA's short name is a word, never longer.
+const maxAssigner = 64
+
+// clipAssigner is the assigner as feeds_cve stores it: at most maxAssigner bytes.
+func clipAssigner(s string) string {
+	if len(s) > maxAssigner {
+		return s[:maxAssigner]
+	}
+	return s
+}
+
 func ownCNA(assigner, vendor string) bool {
 	v := productid.NormVendor(vendor)
 	if noVendor[v] {

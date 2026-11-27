@@ -337,12 +337,16 @@ type Range struct {
 	// row of it is not affected. AffectedOnly: a CNA row beside NVD's rows of the CVE whose product's list is not complete: it may
 	// say a version is affected (the affected answer wins when the record and NVD disagree), never that one is not.
 	AffectedOnly, VendorList bool
+	// VendorCNA: the CVE record's assigner is the row's vendor (ownCNA): its list is the vendor's own word on its releases, a third
+	// party's lists the build it tested. Read with the rows (feeds_cve.assigner), never stored on them; false for an ADP row and while
+	// the record's assigner is not known.
+	VendorCNA bool
 }
 
 // AffectedRow is the range as the matcher's CPE entry.
 func (r Range) AffectedRow() AffectedRow {
 	row := AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
-		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
+		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
 	if r.Origin == OriginNVD && len(r.Platforms) > 0 { // a record row's platforms are the record's systems or models, not NVD's environment
 		row.Platforms = r.Platforms
 	}
@@ -358,7 +362,8 @@ func (r Range) LineFix() string {
 	return r.Fixed
 }
 
-const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.default_status, r.platforms`
+const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.default_status, r.platforms,
+	ifnull((SELECT c.assigner FROM feeds_cve c WHERE c.cve = r.cve), '')`
 
 func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Range, error) {
 	rows, err := q.QueryContext(ctx, `SELECT `+rangeCols+` FROM feeds_cve_range r `+where+` ORDER BY r.cve, r.id`, args...)
@@ -369,12 +374,15 @@ func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Ra
 	var out []Range
 	for rows.Next() {
 		var (
-			r  Range
-			pl sql.NullString
+			r        Range
+			pl       sql.NullString
+			assigner string
 		)
-		if err := rows.Scan(&r.CVE, &r.Origin, &r.Part, &r.Vendor, &r.Product, &r.CPE, &r.StartIncl, &r.StartExcl, &r.EndIncl, &r.EndExcl, &r.Fixed, &r.VersionType, &r.DefaultStatus, &pl); err != nil {
+		if err := rows.Scan(&r.CVE, &r.Origin, &r.Part, &r.Vendor, &r.Product, &r.CPE, &r.StartIncl, &r.StartExcl, &r.EndIncl, &r.EndExcl, &r.Fixed, &r.VersionType, &r.DefaultStatus, &pl,
+			&assigner); err != nil {
 			return nil, fmt.Errorf("feeds: read ranges: %w", err)
 		}
+		r.VendorCNA = r.Origin != OriginADP && ownCNA(assigner, r.Vendor)
 		r.Platforms = []string{}
 		if pl.Valid && json.Unmarshal([]byte(pl.String), &r.Platforms) != nil {
 			r.Platforms = []string{}

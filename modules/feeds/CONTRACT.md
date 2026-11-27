@@ -123,7 +123,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   until the whole list is read again with reader `ranges-6`, so no stale third-party list decides "not affected" in between
   (`TestCVE5Status_StoredBeforeTheReRead`). An entry whose
   `defaultStatus` is affected states every version affected: the matcher reads its row from version 0 (`recordEvery`); a version word
-  ("all") without it does not. `TestCVE5Status_DefaultStatusByAssigner`, `TestCVE5Status_EndToEnd` (cmd/vedette). A vendor row that
+  ("all") without it does not. `TestCVE5Status_DefaultStatusByAssigner`, `TestCVE5Status_EndToEnd` (cmd/vedette). The record's assigner is stored with
+  the CVE (`feeds_cve.assigner`, at most 64 bytes, `clipAssigner`; reader `ranges-12`), and every row read for matching says whether it
+  is the row's vendor (`Range.VendorCNA`, `ownCNA`; never for an ADP row): the matcher reads a list of exact releases as the vendor's
+  enumeration only then. `TestRecordAssigner_RowsSayWhetherTheVendorAssigned`. A vendor row that
   no version scheme can order is shown, never matched. A record row that states no version is never read in a version scheme (it stays
   the generic comparison's); for a scheme whose vendor states its fixed releases in the description only (DSM: "before 7.2.1-69057-10,
   7.2.2-72806-7"), those releases are the record's rows (`describedRows`), each from the start of its line. A line the description

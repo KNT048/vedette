@@ -79,8 +79,8 @@ func prepareRecordStmts(ctx context.Context, tx *sql.Tx) (*recordStmts, error) {
 	}{
 		{&s.ensure, `INSERT INTO feeds_cve (cve, updated_at) VALUES (?, ?) ON CONFLICT(cve) DO NOTHING`},
 		{&s.update, `UPDATE feeds_cve SET record_at = ?, title = ?, cwe = CASE WHEN nvd_at IS NULL OR cwe = '[]' THEN ? ELSE cwe END, solution = ?, workaround = ?, ssvc_exploitation = ?, ssvc_automatable = ?,
-ssvc_impact = ?, description = CASE WHEN nvd_at IS NULL OR description = '' THEN ? ELSE description END, published = coalesce(published, ?)
-WHERE cve = ?`},
+ssvc_impact = ?, description = CASE WHEN nvd_at IS NULL OR description = '' THEN ? ELSE description END, published = coalesce(published, ?),
+assigner = ? WHERE cve = ?`},
 		{&s.readAt, `SELECT record_at IS NOT NULL, EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = feeds_cve.cve AND r.origin = 'nvd') FROM feeds_cve WHERE cve = ?`},
 		{&s.delRanges, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin IN ('cna', 'adp')`},
 		{&s.insRange, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status,
@@ -161,7 +161,7 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 			return out, err
 		}
 		if _, err := st.update.ExecContext(ctx, readAt, r.Title, string(cwe), r.Solution, r.Workaround, nullWord(r.SSVC.Exploitation),
-			nullWord(r.SSVC.Automatable), nullWord(r.SSVC.Impact), r.Description, published, r.CVE); err != nil {
+			nullWord(r.SSVC.Automatable), nullWord(r.SSVC.Impact), r.Description, published, clipAssigner(r.Assigner), r.CVE); err != nil {
 			return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
 		changed, matched, err := replaceRecordRanges(ctx, tx, st, r)
@@ -372,14 +372,14 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:" + sys + ":*:*"
 	}
 	if r.StartIncl != "" && r.StartIncl == r.EndIncl && r.StartExcl == "" && r.EndExcl == "" {
-		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
+		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
 	}
 	start := r.StartIncl
 	if recordEvery(r) {
 		start = "0" // every version (recordEvery)
 	}
 	return AffectedRow{CPE: cpe("*"), StartIncl: start, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
-		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
+		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
 }
 
 // ---- counts ----

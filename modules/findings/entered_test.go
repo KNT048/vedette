@@ -226,15 +226,15 @@ func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
 	junosRows := func(rels ...string) []Affected {
 		var out []Affected
 		for _, r := range rels {
-			out = append(out, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*"})
+			out = append(out, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*", VendorCNA: true})
 		}
 		return out
 	}
 	junos := Vuln{CVE: "CVE-2026-21913", NVDAnswered: true, Published: uncNew,
 		Affected: junosRows("24.4:-", "24.4:r1", "24.4:r1-s2", "24.4:r1-s3", "25.2:-", "25.2:r1", "25.2:r1-s1", "25.2:r2")}
 	java := Vuln{CVE: "CVE-2025-21587", NVDAnswered: true, Published: uncNew, Affected: []Affected{
-		{CPE: "cpe:2.3:a:oracle:jre:1.8.0:update441:*:*:-:*:*:*"}, {CPE: "cpe:2.3:a:oracle:jre:11.0.26:*:*:*:*:*:*:*"},
-		{CPE: "cpe:2.3:a:oracle:jre:17.0.14:*:*:*:*:*:*:*"}, {CPE: "cpe:2.3:a:oracle:jre:21.0.6:*:*:*:*:*:*:*"}, {CPE: "cpe:2.3:a:oracle:jre:24:*:*:*:*:*:*:*"}}}
+		{CPE: "cpe:2.3:a:oracle:jre:1.8.0:update441:*:*:-:*:*:*", VendorCNA: true}, {CPE: "cpe:2.3:a:oracle:jre:11.0.26:*:*:*:*:*:*:*", VendorCNA: true},
+		{CPE: "cpe:2.3:a:oracle:jre:17.0.14:*:*:*:*:*:*:*", VendorCNA: true}, {CPE: "cpe:2.3:a:oracle:jre:21.0.6:*:*:*:*:*:*:*", VendorCNA: true}, {CPE: "cpe:2.3:a:oracle:jre:24:*:*:*:*:*:*:*", VendorCNA: true}}}
 	junosRow := func(ver string) Asset {
 		return Asset{ID: "sw", Name: "sw", Model: "EX4200-48T", Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS",
 			Version: ver, Source: "manual", SetBy: "admin@example.test", KevKeys: []string{"juniper|junos os"}}}}
@@ -278,7 +278,7 @@ func TestUnchecked_OlderLineThanEveryListedStaysAsked(t *testing.T) {
 	junosRows := func(rels ...string) []Affected {
 		var out []Affected
 		for _, r := range rels {
-			out = append(out, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*"})
+			out = append(out, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*", VendorCNA: true})
 		}
 		return out
 	}
@@ -287,7 +287,7 @@ func TestUnchecked_OlderLineThanEveryListedStaysAsked(t *testing.T) {
 	plain := exploited
 	plain.CVE, plain.Vendor, plain.Product, plain.DateAdded = "CVE-2099-0302", "", "", time.Time{}
 	java := Vuln{CVE: "CVE-2099-0303", NVDAnswered: true, Published: uncNew, Affected: []Affected{
-		{CPE: "cpe:2.3:a:oracle:jre:1.8.0:update441:*:*:-:*:*:*"}, {CPE: "cpe:2.3:a:oracle:jre:11.0.26:*:*:*:*:*:*:*"}}}
+		{CPE: "cpe:2.3:a:oracle:jre:1.8.0:update441:*:*:-:*:*:*", VendorCNA: true}, {CPE: "cpe:2.3:a:oracle:jre:11.0.26:*:*:*:*:*:*:*", VendorCNA: true}}}
 	junosRow := func(ver string) Asset {
 		return Asset{ID: "sw", Name: "sw", Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS",
 			Version: ver, Source: "agent", KevKeys: []string{"juniper|junos os"}}}}
@@ -391,7 +391,7 @@ func TestMatchAsset_VendorStatementsSayOnlyNotAffected(t *testing.T) {
 	}
 	var nvd []Affected
 	for _, r := range []string{"24.4:-", "24.4:r1", "24.4:r1-s2", "24.4:r1-s3", "25.2:-", "25.2:r1", "25.2:r1-s1", "25.2:r2"} {
-		nvd = append(nvd, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*"})
+		nvd = append(nvd, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*", VendorCNA: true})
 	}
 	record := Vuln{CVE: "CVE-2026-21913", NVDAnswered: true, Published: uncNew, Affected: nvd,
 		Schemed: statements([][3]string{{"", "24.4R1", ""}}, [][3]string{{"24.4", "24.4R2", ""}, {"25.2", "25.2R1-S2", ""}})}

@@ -57,7 +57,8 @@ func loadGolden(t *testing.T, path string) []Vuln {
 		x.DateAdded, _ = time.Parse(time.DateOnly, v.DateAdded)
 		x.Published, _ = time.Parse(time.DateOnly, v.Published)
 		for _, a := range v.Affected {
-			x.Affected = append(x.Affected, Affected{CPE: a.CPE, Range: VersionRange{StartIncl: a.StartIncl, StartExcl: a.StartExcl, EndIncl: a.EndIncl, EndExcl: a.EndExcl}})
+			// the fixtures keep NVD's rows without the record's assigner: they are read as the vendor's own list, as before the box knew it
+			x.Affected = append(x.Affected, Affected{CPE: a.CPE, VendorCNA: true, Range: VersionRange{StartIncl: a.StartIncl, StartExcl: a.StartExcl, EndIncl: a.EndIncl, EndExcl: a.EndExcl}})
 		}
 		out = append(out, x)
 	}

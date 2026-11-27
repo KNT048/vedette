@@ -143,7 +143,7 @@ function TwoFactor({ a }: { a: Account }) {
                 <p className="text-meta text-muted">{t('account.twofa.lostAdmin')}</p>
                 <InfoTip topic={t('account.twofa.lostAdminCommand')}>{t('account.twofa.lostAdminInfo')}</InfoTip>
               </div>
-              <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`docker exec vedette-core /vedette reset-admin ${shellQuote(a.user.email)}`} wrapOnPhone />
+              <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`sudo podman exec vedette-core /vedette reset-admin ${shellQuote(a.user.email)}`} wrapOnPhone />
             </div>
           ) : <p className="text-meta text-muted">{t('account.twofa.lostUser')}</p>}
           <div><Button variant="danger" onClick={() => { setPw(''); setPwErr(null); setAskOff(true) }}>{t('account.twofa.turnOff')}</Button></div>

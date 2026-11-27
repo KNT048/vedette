@@ -1149,6 +1149,11 @@
       "needProduct": "Pick the product the device is.",
       "submit": "Add device and turn SNMP on",
       "done": "Added {{name}} with SNMP on.",
+      "dupTitle": "{{ip}} is already in the list as {{name}}",
+      "dupBody": "Turn SNMP on for it with the settings below, or open it.",
+      "dupTurnOn": "Turn SNMP on for it",
+      "dupUsing": "SNMP will be turned on for {{name}}, which already has {{ip}}",
+      "dupUsingBody": "Nothing new is added. Save to put the settings below on it.",
       "addedNotSet": "{{name}} was added, but its SNMP settings were not saved",
       "addedNotSetBody": "Fix the settings below and save again; the device is not added twice.",
       "openDevice": "Open the device"
@@ -1506,6 +1511,8 @@
     "none": "No ignored devices."
   },
   "deviceSnmp": {
+    "noSoftware": "SNMP reads the model and system, not the installed software. For its software and vulnerabilities, install osquery.",
+    "noSoftwareLink": "Install osquery",
     "title": "SNMP",
     "checkTitle": "SNMP of {{name}}",
     "description": "Read-only SNMP questions to this device: maker, model, serial number and firmware, as it states them.",

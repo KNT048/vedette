@@ -60,6 +60,15 @@ describe('Device page: SNMP card states', () => {
     expect(within(c).queryByRole('button', { name: 'Check now' })).toBeNull()
   })
 
+  it('a computer (server) says SNMP gives no software list and links the osquery install', async () => {
+    renderApp('/devices/a-web01', { role: 'admin' })
+    const user = userEvent.setup()
+    await user.click(await within(await card()).findByRole('button', { name: 'Set up' }, T))
+    const dlg = await dialog()
+    expect(await within(dlg).findByTestId('snmp-no-software', undefined, T)).toHaveTextContent('install osquery')
+    expect(within(dlg).getByRole('link', { name: 'Install osquery' })).toHaveAttribute('href', '/devices?add=osquery')
+  })
+
   it('waiting, and moved: the IP changed, so the read address is set again with the secret typed again', async () => {
     // saved while the device was at another address, left to the device's IP: it moved
     snmpStore.update((l) => l.map((x) => (x.device_id === 'a-fw01' ? { ...x, read_from: '192.168.10.99', last_reason: null, last_checked_at: null, last_answer_at: null, answer: null } : x)))

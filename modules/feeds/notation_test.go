@@ -90,7 +90,6 @@ func TestParseCVERecord_RecordNotation(t *testing.T) {
 		{"a comparator beside lessThan", `{"vendor":"acme","product":"ledger","versions":[{"version":">= 1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
 		{"another package's versions", `{"vendor":"acme","product":"ledger","versions":[{"version":"@acme/portal >= 2.29.1, < 2.51.5","status":"affected"},{"version":"ledger >= 5.43.0, < 5.121.0","status":"affected"}]}`, nil, 1},
 		{"an edition's name, not a release", `{"vendor":"acme","product":"Ledger","defaultStatus":"unaffected","versions":[{"version":"Ledger 2016","status":"affected"}]}`, nil, 1},
-		{"a range after the product's name, written with a hyphen", `{"vendor":"acme","product":"Ledger","versions":[{"version":"Ledger 1.0-1.23","status":"affected"}]}`, nil, 1},
 		{"a fixed release with the product's name inside an affected range", `{"vendor":"acme","product":"Ledger","versions":[{"version":"2.0","lessThan":"3.0","status":"affected"},{"version":"Ledger 2.4.1","status":"unaffected"}]}`, nil, 1},
 		{"a name that is not the product's", `{"vendor":"acme","product":"Ledger OS","versions":[{"version":"unspecified","lessThan":"Ledger OS Mojave 10.14.5","status":"affected"}]}`, nil, 1},
 	} {
@@ -108,5 +107,89 @@ func TestParseCVERecord_RecordNotationKeptAsWritten(t *testing.T) {
 	got, err := ParseCVERecord(record(`{"vendor":"acme","product":"Acme Runtime","versions":[{"version":"10.0.0","lessThan":"10.0.111, 10.0.400","status":"affected","versionType":"custom"}]}`), "CVE-2026-1000")
 	if err != nil || len(genericRows(got.Ranges)) != 0 || len(got.Ranges) != 1 || got.Ranges[0].EndExcl != "10.0.111, 10.0.400" || got.Ranges[0].Generic() {
 		t.Fatalf("%+v %v", got.Ranges, err)
+	}
+}
+
+// A version written "A-B" (two releases joined by a hyphen) is a range from A through B, as the CVE program's own enrichment rewrites
+// it ("4.0.0-4.2.7" -> version 4.0.0, lessThanOrEqual 4.2.7) and NVD reads it. Read as one release it would say that every release
+// inside the range is not affected (defaultStatus unaffected) or leave the product undecided. A package revision or build after the
+// hyphen ("0.6.9-5", "9.3.1-2.1", "3.1.1-190328") is one release, as before; a string that can be either keeps the product unusable.
+func TestParseCVERecord_HyphenRange(t *testing.T) {
+	t.Parallel()
+	const u, k = DefaultUnaffected, DefaultUnknown
+	for _, c := range []struct {
+		name, affected string
+		want           []span
+		skipped        int
+	}{
+		{"a range in one train", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"12.0.0-12.1.1","status":"affected"}]}`,
+			[]span{{si: "12.0.0", ei: "12.1.1", def: u}}, 0},
+		{"an end with more parts", `{"vendor":"acme","product":"ledger","versions":[{"version":"14.1.0-14.1.0.5","status":"affected"},{"version":"17.1-17.12","status":"affected"}]}`,
+			[]span{{si: "14.1.0", ei: "14.1.0.5", def: k}, {si: "17.1", ei: "17.12", def: k}}, 0},
+		{"a range across major releases", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"1.0.0-6.6.1","status":"affected"},{"version":"1.0-4.6.1","status":"affected"}]}`,
+			[]span{{si: "1.0.0", ei: "6.6.1", def: u}, {si: "1.0", ei: "4.6.1", def: u}}, 0},
+		{"a range from 0", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"0-0.7.0","status":"affected"}]}`,
+			[]span{{ei: "0.7.0", def: u}}, 0},
+		{"a range from the first release", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"0.0-2.2","status":"affected"}]}`,
+			[]span{{si: "0.0", ei: "2.2", def: u}}, 0},
+		{"a range after the product's name", `{"vendor":"acme","product":"Ledger","versions":[{"version":"Ledger 1.0-1.23","status":"affected"}]}`,
+			[]span{{si: "1.0", ei: "1.23", def: k}}, 0},
+		{"one release written as a range", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"6.2.0-6.2.0","status":"affected"}]}`,
+			[]span{{si: "6.2.0", ei: "6.2.0", def: u}}, 0},
+		{"a range to a letter release of its start", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"1.1.0-1.1.0g","status":"affected"},{"version":"3.0.0","status":"affected"}]}`,
+			[]span{{si: "3.0.0", ei: "3.0.0", def: k}}, 0},
+		{"a fixed release beside the ranges", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"3.9.0-5.4.1","status":"affected"},{"version":"5.4.2","status":"unaffected"}]}`,
+			[]span{{si: "3.9.0", ei: "5.4.1", fixed: "5.4.2", def: u}}, 0},
+
+		// one release, as before
+		{"a package revision", `{"vendor":"acme","product":"ledger","versions":[{"version":"0.6.9-5","status":"affected"}]}`,
+			[]span{{si: "0.6.9-5", ei: "0.6.9-5", def: k}}, 0},
+		{"a build number", `{"vendor":"acme","product":"ledger","versions":[{"version":"3.1.1-190328","status":"affected"},{"version":"15.0.1.13010-1","status":"affected"}]}`,
+			[]span{{si: "3.1.1-190328", ei: "3.1.1-190328", def: k}, {si: "15.0.1.13010-1", ei: "15.0.1.13010-1", def: k}}, 0},
+		{"a revision below its release", `{"vendor":"acme","product":"ledger","versions":[{"version":"9.3.1-2.1","status":"affected"}]}`,
+			[]span{{si: "9.3.1-2.1", ei: "9.3.1-2.1", def: k}}, 0},
+		{"a release of a package scheme", `{"vendor":"acme","product":"ledger","versions":[{"version":"1.0-1.5","status":"affected","versionType":"rpm"}]}`,
+			[]span{{si: "1.0-1.5", ei: "1.0-1.5", def: k}}, 0},
+		{"a revision numbered as its release's first number", `{"vendor":"acme","product":"ledger","versions":[{"version":"8.0.0-8","status":"affected"}]}`,
+			[]span{{si: "8.0.0-8", ei: "8.0.0-8", def: k}}, 0},
+		{"a package scheme written in capitals", `{"vendor":"acme","product":"ledger","versions":[{"version":"1.0-1.5","status":"affected","versionType":"RPM"}]}`,
+			[]span{{si: "1.0-1.5", ei: "1.0-1.5", def: k}}, 0},
+		{"a package's file name: name, release and revision", `{"vendor":"acme","product":"ledger","versions":[{"version":"ledger-2.2.13-3.7.1","status":"affected"}]}`,
+			[]span{{si: "2.2.13-3.7.1", ei: "2.2.13-3.7.1", def: k}}, 0},
+		{"a range after the product's name in a bound", `{"vendor":"acme","product":"Ledger","versions":[{"version":"0","lessThan":"Ledger 1.0-1.23","status":"affected"}]}`, nil, 1},
+		{"a range or a release after the product's name in a bound", `{"vendor":"acme","product":"Ledger","versions":[{"version":"0","lessThan":"Ledger 5.1-19.2","status":"affected"}]}`, nil, 1},
+		{"a hyphen range as a bound stays a bound", `{"vendor":"acme","product":"ledger","versions":[{"version":"0","lessThan":"1.1.8-24.71.1","status":"affected"}]}`,
+			[]span{{ee: "1.1.8-24.71.1", def: k}}, 0},
+
+		// a range or a release: the product stays unusable
+		{"a revision or a range", `{"vendor":"acme","product":"ledger","versions":[{"version":"0.154-3.1","status":"affected"}]}`, nil, 1},
+		{"a kernel's upload or a range", `{"vendor":"acme","product":"ledger","versions":[{"version":"4.15.0-38.41","status":"affected"}]}`, nil, 1},
+		{"one number before the hyphen", `{"vendor":"acme","product":"ledger","versions":[{"version":"20-30.05.24","status":"affected"}]}`, nil, 1},
+		{"releases written with a v", `{"vendor":"acme","product":"ledger","versions":[{"version":"v9.20-v9.26","status":"affected"}]}`, nil, 1},
+		{"a range beside other versions", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"2.0","status":"affected"},{"version":"5.1-19.2","status":"affected"}]}`, nil, 1},
+	} {
+		got, err := ParseCVERecord(record(c.affected), "CVE-2026-1000")
+		if err != nil || !slices.Equal(spansOf(genericRows(got.Ranges)), append([]span{}, c.want...)) || got.Skipped != c.skipped {
+			t.Errorf("%s: %+v skipped %d %v, want %+v skipped %d", c.name, spansOf(genericRows(got.Ranges)), got.Skipped, err, c.want, c.skipped)
+		}
+	}
+}
+
+// A product whose version scheme reads "A-B" as one release (NetScaler's "14.1-73.37": line 14.1, build 73.37) keeps it as one
+// release: the hyphen is the scheme's, not a range.
+func TestEntryRows_HyphenReleaseOfAScheme(t *testing.T) {
+	t.Parallel()
+	a := cnaAffected{Vendor: "Acme", Product: "Gateway", Versions: []cnaVersion{{Version: "14.1-73.37", Status: "affected"}}}
+	if _, _, ok := entryRows(a, nil); ok {
+		t.Fatal("no scheme: a range or a release, the entry must be unusable")
+	}
+	reads := func(start, end string, incl bool) bool { return start == "14.1-73.37" && end == start && incl }
+	rows, _, ok := entryRows(a, reads)
+	if !ok || len(rows) != 1 || rows[0].StartIncl != "14.1-73.37" || rows[0].EndIncl != "14.1-73.37" {
+		t.Fatalf("a scheme that reads it as one release: %+v ok %v", rows, ok)
+	}
+	k := RecordProductKey("Citrix", "NetScaler ADC")
+	if r := schemeReads("", k.Vendor, k.Product); r == nil || !r("14.1-73.37", "14.1-73.37", true) {
+		t.Fatal("NetScaler's scheme must read its release as one release")
 	}
 }

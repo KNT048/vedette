@@ -104,6 +104,7 @@ export const Fix = z.object({
   version: z.string().nullable().describe('update, distro_update, feature_update: the version or release to install; os_update: the build when known'),
   ref: z.string().nullable().describe('os_update: the KB number; none_yet: the advisory id when known'),
   url: z.url().nullable().describe('The vendor advisory or release notes'),
+  channel: z.enum(['public', 'ubuntu_pro', 'esu']).optional().describe('Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)'),
 })
 // Same shape as the findings contract; import it when the findings branch merges.
 export const Reason = z.object({

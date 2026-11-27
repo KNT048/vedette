@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -56,6 +57,22 @@ func TestBoxPackagesKeepsTheListWhileDpkgIsChanging(t *testing.T) {
 	})
 	if items, err := (boxPackages{c: h.Client}).Packages(t.Context()); items != nil || err != nil {
 		t.Fatalf("dpkg mid-change: %v, %v; want nil, nil", items, err)
+	}
+}
+
+// A read whose running kernel the host does not give (its info call failed while it was busy or restarting) keeps the last good list,
+// so the Kernel line never moves back to the lowest installed image for one read; a host that answers without a kernel keeps the old
+// reading.
+func TestBoxPackagesNeedTheRunningKernel(t *testing.T) {
+	t.Parallel()
+	if k, ok := runningKernel(api.Info{OS: api.OSInfo{Kernel: "7.0.0-44-generic"}}, nil); !ok || k != "7.0.0-44-generic" {
+		t.Fatalf("an answer: %q %v", k, ok)
+	}
+	if _, ok := runningKernel(api.Info{}, errors.New("connection refused")); ok {
+		t.Fatal("no answer still gave a kernel: every image would be the Kernel row and the lowest would win")
+	}
+	if k, ok := runningKernel(api.Info{}, nil); !ok || k != "" {
+		t.Fatalf("an answer without a kernel: %q %v", k, ok)
 	}
 }
 

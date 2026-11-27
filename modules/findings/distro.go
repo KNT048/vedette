@@ -347,6 +347,31 @@ func ownBuild(distro, pkg, version string, strict bool) bool {
 	return ubuntuOwnRE.MatchString(rev) || !strict && debianOwnRE.MatchString(rev) && !strings.Contains(rev, "deb")
 }
 
+// distroDecides says only the distribution's own data judges row in for v: a package an agent read from an Ubuntu or Debian package
+// database whose release is the distribution's own build (its revision carries the distribution's mark, "1ubuntu2", "+deb13u1", or it
+// is a kernel the distribution built), on a box where that distribution's security feeds are on (Vuln.DistroOn). NVD's upstream ranges
+// do not see the fixes a distribution backports, so they never raise a finding on such a package (an exploited kernel CVE whose NVD
+// range names the upstream 7.0.0 on Ubuntu's 7.0.0-44.44): its finding waits for the distribution's word, fixed or "affected, no fix
+// yet" (status open). A vendor's own .deb (a plain revision, "131.0.6778.85-1") and a distribution whose feeds are off keep NVD.
+func distroDecides(in swInfo, v Vuln) bool {
+	if !in.packaged || in.pkgVer == "" || in.pkgSrc == "" {
+		return false
+	}
+	d, rel := distroOf(in)
+	if d == "" || rel == "" || !v.DistroOn[d] {
+		return false
+	}
+	pkg := securitySource(d, in.pkgSrc)
+	if pkg == "linux" || strings.HasPrefix(pkg, "linux-") {
+		return ownBuild(d, pkg, in.pkgVer, false)
+	}
+	rev := debver.Revision(in.pkgVer)
+	if d == "debian" {
+		return strings.Contains(rev, "deb") && debianOwnRE.MatchString(rev)
+	}
+	return ubuntuOwnRE.MatchString(rev)
+}
+
 // distroVerdict reads v.Distro for the software row; ok is false when the distribution has no word on it.
 func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	if in.pkgVer == "" || in.pkgSrc == "" || len(v.Distro) == 0 {
@@ -358,7 +383,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	}
 	pkg := securitySource(d, in.pkgSrc)
 	var fix *DistroFix
-	notAffected := false
+	notAffected, open := false, false
 	for i := range v.Distro {
 		f := &v.Distro[i]
 		if f.Distro != d || f.Release != rel || f.Package != pkg {
@@ -371,6 +396,8 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 			}
 		case "not_affected":
 			notAffected = true
+		case "open":
+			open = true
 		}
 	}
 	a := distroAnswer{pkg: pkg, name: distroName(in), release: rel}
@@ -395,6 +422,11 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 			return distroAnswer{}, false
 		}
 		a.kind = distroNotAffected
+	case open: // affected, no fix yet: the device has the flaw until the distribution publishes a fixed package
+		if !ownBuild(d, pkg, in.pkgVer, false) {
+			return distroAnswer{}, false
+		}
+		a.kind = distroNeeded
 	default:
 		return distroAnswer{}, false
 	}
@@ -451,9 +483,14 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	if d.pro {
 		pro = " (Ubuntu Pro)"
 	}
-	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s)"+suspectedClause,
-		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
+	said := fmt.Sprintf("%s fixed %s in %s %s%s (%s)", d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)
 	until := fmt.Sprintf("so this device has the flaw until it installs %s's security updates.", d.name)
+	if d.fixed == "" { // the distribution's word "affected, no fix yet"
+		said = fmt.Sprintf("%s lists its %s package as affected by %s, with no fixed release yet (%s)", d.name, clean(d.pkg), v.CVE, src)
+		until = fmt.Sprintf("so this device has the flaw until %s publishes a fixed package and the device installs it.", d.name)
+	}
+	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s"+suspectedClause,
+		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, said)}
 	if k, ok := restartInto(a, s, d.fixed); ok { // the fixed kernel is installed and not running yet
 		until = fmt.Sprintf("and the fixed kernel %s is already installed, so this device has the flaw until it restarts into it.", clean(k))
 		m.Evidence.Summary += fmt.Sprintf(" The fixed kernel %s is already installed: a restart into it fixes this.", clean(k))
@@ -463,8 +500,8 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 		if deviceSays(a) { // a person's OS correction is not the device's word
 			m.Evidence.Source = SourceAgent
 		}
-		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s fixed %s in %s %s%s (%s), %s",
-			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src, until)
+		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s, %s",
+			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, said, until)
 	}
 	return m, outMatch
 }

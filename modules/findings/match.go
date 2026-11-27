@@ -191,6 +191,9 @@ type Vuln struct {
 	// DistroLoading: the distributions one of whose feeds is on but holds no row yet (feeds' DistroLoading): a platform-limited
 	// CVE whose fixed list that distribution's data gives stays a question then, instead of NVD deciding (it would raise a false finding).
 	DistroLoading map[string]bool
+	// DistroOn: the distributions ("ubuntu", "debian") one of whose security feeds is on and loaded or loading (feeds' DistroOn). A
+	// package such a distribution built is judged by its data alone (distroDecides); with its feeds off, NVD's ranges decide as before.
+	DistroOn map[string]bool
 }
 
 // RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
@@ -1315,6 +1318,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	}
 	if d, ok := distroVerdict(in, v); ok { // The distribution's own word on its package comes before NVD's upstream ranges
 		return distroMatch(a, s, in, v, d, now)
+	}
+	if distroDecides(in, v) { // the distribution built it and has no word yet: NVD's upstream range would not see its backports
+		return Match{}, outNone
 	}
 	if why, out := platformRuledOut(in, v.CVE); out { // The platform it runs on is not one the CVE affects; after the distribution's own word, which may contradict the hand list
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."

@@ -2,6 +2,7 @@ package findings
 
 import (
 	"cmp"
+	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
@@ -48,8 +49,17 @@ func mxVuln(cve string, fixes ...DistroFix) Vuln {
 // mxKernelKEV is an exploited kernel CVE whose NVD rows give upstream kernel ranges (6.19 up to before 7.0.10), with the
 // distribution's word in fixes (none: Ubuntu has published nothing yet).
 func mxKernelKEV(cve string, fixes ...DistroFix) Vuln {
-	return Vuln{CVE: cve, Vendor: "Linux", Product: "Kernel", Source: "cisa-kev", NVDAnswered: true, Distro: fixes,
+	return Vuln{CVE: cve, Vendor: "Linux", Product: "Kernel", Source: "cisa-kev", NVDAnswered: true, Distro: fixes, DistroOn: mxDistroOn,
 		Affected: []Affected{{CPE: "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "6.19", EndExcl: "7.0.10"}}}}
+}
+
+// mxDistroOn: the box's Ubuntu and Debian security feeds are on.
+var mxDistroOn = map[string]bool{"ubuntu": true, "debian": true}
+
+// mxChromeKEV is an exploited Chrome CVE whose NVD rows give an upstream range: a vendor's own .deb on Ubuntu is judged by it.
+func mxChromeKEV(cve string) Vuln {
+	return Vuln{CVE: cve, Vendor: "Google", Product: "Chromium V8", Source: "cisa-kev", NVDAnswered: true, DistroOn: mxDistroOn,
+		Affected: []Affected{{CPE: "cpe:2.3:a:google:chrome:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "132.0.6834.83"}}}}
 }
 
 // mxStep is one thing that happens to the device: an agent report (software, with the catalogue the pass reads), or a person's act on
@@ -69,14 +79,15 @@ var (
 
 // mxWant is what a person must find at the end of the sequence. Empty fields are not checked.
 type mxWant struct {
-	open     *bool   // the finding is open (true) or handled (false)
-	none     bool    // no finding exists for the CVE
-	via      Via     // how it was handled
-	fix      FixKind // the stored fix kind
-	fixVer   string  // the stored fix version
-	words    string  // the stored fix said in words (FixWords: report, mail, AI context) contains this
-	known    string  // the version the finding page says the device has (knownVersion of the matched line)
-	detected bool    // the invariant: an open finding is one the latest match of the device detects
+	open     *bool      // the finding is open (true) or handled (false)
+	none     bool       // no finding exists for the CVE
+	via      Via        // how it was handled
+	fix      FixKind    // the stored fix kind
+	fixVer   string     // the stored fix version
+	channel  FixChannel // the stored fix's channel (where it is published), part of its By fix group
+	words    string     // the stored fix said in words (FixWords: report, mail, AI context) contains this
+	known    string     // the version the finding page says the device has (knownVersion of the matched line)
+	detected bool       // the invariant: an open finding is one the latest match of the device detects
 }
 
 func yes() *bool { b := true; return &b }
@@ -112,6 +123,12 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	kern := []Vuln{mxVuln(cveKernel, mxUbuntu("linux", "7.0.0-44.44", false))}
 	kevNoWord := []Vuln{mxKernelKEV(cveKEV)}
 	kevFixed := []Vuln{mxKernelKEV(cveKEV, mxUbuntu("linux", "7.0.0-22.22", false))}
+	kevOpen := []Vuln{mxKernelKEV(cveKEV, DistroFix{Distro: "ubuntu", Release: "26.04", Package: "linux", Status: "open"})}
+	kevFeedsOff := []Vuln{mxKernelKEV(cveKEV)}
+	kevFeedsOff[0].DistroOn = nil
+	chrome := Software{ID: "s-chrome", Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: "131.0.6778.85", Source: "agent",
+		Packaged: true, PkgVersion: "131.0.6778.85-1", PkgSource: "google-chrome-stable", KevKeys: []string{"google|chromium v8"}}
+	chromeKEV := []Vuln{mxChromeKEV(cveKEV)}
 
 	k43, k44 := mxKernel("7.0.0-43.43"), mxKernel("7.0.0-44.44")
 	img44, img43 := mxImage("7.0.0-44", "7.0.0-44.44"), mxImage("7.0.0-43", "7.0.0-43.43")
@@ -126,7 +143,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	}{
 		// ordinary package, public fix
 		{"package/public/below fix", "", cvePkg, sshOld.ID, []mxStep{mxRead(sshPub, sshOld)},
-			mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "1:9.6p1-3ubuntu13.5", known: "1:9.6p1-3ubuntu13.4"}},
+			mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "1:9.6p1-3ubuntu13.5", channel: ChannelPublic, known: "1:9.6p1-3ubuntu13.4"}},
 		{"package/public/below fix, then updated", "", cvePkg, sshOld.ID, []mxStep{mxRead(sshPub, sshOld), mxRead(nil, sshNew)},
 			mxWant{open: no(), via: ViaVersionMoved}},
 		{"package/public/at fix from the start", "", cvePkg, sshNew.ID, []mxStep{mxRead(sshPub, sshNew)}, mxWant{none: true}},
@@ -141,7 +158,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 
 		// ordinary package, binary named otherwise than its source (python3-pip from python-pip), fix only in Ubuntu Pro
 		{"package/pro/below fix: the fix says Ubuntu Pro", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipPro, pipOld)},
-			mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "25.1.1+dfsg-1ubuntu2+esm3", words: "Ubuntu Pro"}},
+			mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "25.1.1+dfsg-1ubuntu2+esm3", channel: ChannelUbuntuPro, words: "Ubuntu Pro"}},
 		{"package/pro/the page names the package release compared", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipPro, pipOld)},
 			mxWant{open: yes(), known: "25.1.1+dfsg-1ubuntu2"}},
 		{"package/pro/marked patched three times without Pro: still open, still says Pro", "", cvePkg, pipOld.ID,
@@ -150,7 +167,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 		{"package/pro/Pro attached, esm release installed", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipPro, pipOld), mxRead(nil, pipESM)},
 			mxWant{open: no(), via: ViaVersionMoved}},
 		{"package/pro and public/public fix preferred", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipBoth, pipOld)},
-			mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "25.1.1+dfsg-1ubuntu2.1"}},
+			mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "25.1.1+dfsg-1ubuntu2.1", channel: ChannelPublic}},
 		{"package/pro and public/public fix installed", "", cvePkg, pipOld.ID, []mxStep{mxRead(pipBoth, pipOld), mxRead(nil, pipPublic)},
 			mxWant{open: no(), via: ViaVersionMoved}},
 		{"package/pro/plain Debian revision below an esm fix", "", cvePkg, nltk.ID, []mxStep{mxRead(nltkPro, nltk)},
@@ -182,8 +199,16 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 		{"kernel/exploited/Ubuntu fixed it in an older kernel", "", cveKEV, k44.ID, []mxStep{mxRead(kevFixed, k44)}, mxWant{none: true}},
 		{"kernel/exploited/no word from Ubuntu yet: no upstream-range finding on a distribution kernel", "", cveKEV, k44.ID, []mxStep{mxRead(kevNoWord, k44)},
 			mxWant{none: true}},
-		{"kernel/exploited/upstream-range finding, then Ubuntu's fix arrives", "", cveKEV, k44.ID,
-			[]mxStep{mxRead(kevNoWord, k44), mxRead(kevFixed, k44)}, mxWant{open: no()}},
+		{"kernel/exploited/upstream-range finding (feeds off), then Ubuntu's fix arrives", "", cveKEV, k44.ID,
+			[]mxStep{mxRead(kevFeedsOff, k44), mxRead(kevFixed, k44)}, mxWant{open: no()}},
+		{"kernel/exploited/upstream-range finding left by an earlier match, Ubuntu still silent: closed", "", cveKEV, k44.ID,
+			[]mxStep{mxRead(kevFeedsOff, k44), mxRead(kevNoWord, k44)}, mxWant{open: no()}},
+		{"kernel/exploited/Ubuntu says affected, no fix yet: open, wait for its update", "", cveKEV, k44.ID, []mxStep{mxRead(kevOpen, k44)},
+			mxWant{open: yes(), fix: FixDistroUpdate, words: "has not published a fixed package yet"}},
+		{"kernel/exploited/Ubuntu's feeds off: NVD's range decides", "", cveKEV, k44.ID, []mxStep{mxRead(kevFeedsOff, k44)},
+			mxWant{open: yes()}},
+		{"package/exploited/a vendor's own .deb (plain revision): NVD's range decides", "", cveKEV, chrome.ID, []mxStep{mxRead(chromeKEV, chrome)},
+			mxWant{open: yes(), known: "131.0.6778.85-1"}},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
@@ -288,12 +313,15 @@ func mxGaps(w mxWant, f Finding, ok bool, a Asset) []string {
 	if w.fixVer != "" && f.Fix.Version != w.fixVer {
 		gaps = append(gaps, fmt.Sprintf("want fix version %s", w.fixVer))
 	}
+	if w.channel != "" && (f.Fix.Chan() != w.channel || !strings.HasSuffix(f.FixKey, "|"+f.Fix.Version+map[bool]string{true: "|" + string(w.channel)}[w.channel != ChannelPublic])) {
+		gaps = append(gaps, fmt.Sprintf("want fix channel %s in the fix and its group (key %q)", w.channel, f.FixKey))
+	}
 	if w.words != "" {
 		product := ""
 		if i := slices.IndexFunc(a.Software, func(s Software) bool { return s.ID == f.SoftwareID }); i >= 0 {
 			product = a.Software[i].Display
 		}
-		if s := FixWords(f.Fix.Kind, product, "", f.Fix.Version, f.Fix.Ref); !strings.Contains(s, w.words) {
+		if s := FixWords(f.Fix, product, ""); !strings.Contains(s, w.words) {
 			gaps = append(gaps, fmt.Sprintf("want the stored fix to say %q, it says %q", w.words, s))
 		}
 	}
@@ -311,4 +339,43 @@ func mxGaps(w mxWant, f Finding, ok bool, a Asset) []string {
 		}
 	}
 	return gaps
+}
+
+// A finding left open and not detected by an older build (a person's Undo on a kernel the device had already moved past) closes at the
+// next match on the device's own evidence: the release it runs now, with patch credit; it never shows the stale restart advice again.
+func TestDistroOpenUndetectedClosesAtTheNextMatch(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	const cve = "CVE-2026-91002"
+	kern := []Vuln{mxVuln(cve, mxUbuntu("linux", "7.0.0-44.44", false))}
+	read := func(sw ...Software) {
+		t.Helper()
+		e.advance(time.Hour)
+		for i := range sw {
+			sw[i].SeenAt = *e.clock
+		}
+		a := Asset{ID: "a-1", Name: "host-a", OS: matrixOS, AgentOS: matrixOS, Software: sw}
+		e.inv.mu.Lock()
+		e.inv.match[a.ID] = a
+		e.inv.mu.Unlock()
+		if _, err := e.svc.UpsertFromMatch(t.Context(), a, kern); err != nil {
+			t.Fatal(err)
+		}
+	}
+	read(mxKernel("7.0.0-43.43"), mxImage("7.0.0-44", "7.0.0-44.44"))
+	f, ok := mxFinding(t, e, cve, "s-kernel")
+	if !ok || f.State != StateOpen {
+		t.Fatalf("setup: %s", mxDescribe(f, ok))
+	}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { // the row an older build left: open, not detected
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET detected = 0 WHERE id = ?`, f.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	read(mxKernel("7.0.0-44.44"), mxImage("7.0.0-43", "7.0.0-43.43"))
+	f, ok = mxFinding(t, e, cve, "s-kernel")
+	if !ok || f.State != StateHandled || f.Via != ViaVersionMoved || f.FromVersion != "7.0.0-43.43" || f.ToVersion != "7.0.0-44.44" {
+		t.Fatalf("after the next match: %s", mxDescribe(f, ok))
+	}
 }

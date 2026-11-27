@@ -92916,6 +92916,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerified) Un
 }
 
 type FindingsGetFindingsDevicesOKItemsItemBlocksItemFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -92934,6 +92939,11 @@ type FindingsGetFindingsDevicesOKItemsItemBlocksItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) GetChannel() FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -92966,6 +92976,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) GetVersion() NilStr
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetChannel(val FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetKey(val string) {
 	s.Key = val
@@ -92994,6 +93009,58 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetURL(val NilURI) 
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel string
+
+const (
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic    FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel = "public"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel = "ubuntu_pro"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu       FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel values.
+func (FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) AllValues() []FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel {
+	return []FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel{
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel(data) {
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelPublic
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -94254,6 +94321,11 @@ func (s *FindingsGetFindingsFixesOKItemsItem) SetStatus(val FindingsGetFindingsF
 }
 
 type FindingsGetFindingsFixesOKItemsItemFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsFixesOKItemsItemFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -94272,6 +94344,11 @@ type FindingsGetFindingsFixesOKItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemFix) GetChannel() FindingsGetFindingsFixesOKItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -94304,6 +94381,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemFix) SetChannel(val FindingsGetFindingsFixesOKItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsFixesOKItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -94332,6 +94414,58 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsFixesOKItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsFixesOKItemsItemFixChannel string
+
+const (
+	FindingsGetFindingsFixesOKItemsItemFixChannelPublic    FindingsGetFindingsFixesOKItemsItemFixChannel = "public"
+	FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro FindingsGetFindingsFixesOKItemsItemFixChannel = "ubuntu_pro"
+	FindingsGetFindingsFixesOKItemsItemFixChannelEsu       FindingsGetFindingsFixesOKItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsFixesOKItemsItemFixChannel values.
+func (FindingsGetFindingsFixesOKItemsItemFixChannel) AllValues() []FindingsGetFindingsFixesOKItemsItemFixChannel {
+	return []FindingsGetFindingsFixesOKItemsItemFixChannel{
+		FindingsGetFindingsFixesOKItemsItemFixChannelPublic,
+		FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro,
+		FindingsGetFindingsFixesOKItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsFixesOKItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsFixesOKItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsFixesOKItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsFixesOKItemsItemFixChannel(data) {
+	case FindingsGetFindingsFixesOKItemsItemFixChannelPublic:
+		*s = FindingsGetFindingsFixesOKItemsItemFixChannelPublic
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro:
+		*s = FindingsGetFindingsFixesOKItemsItemFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemFixChannelEsu:
+		*s = FindingsGetFindingsFixesOKItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -95215,6 +95349,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKind) UnmarshalText(d
 }
 
 type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -95233,6 +95372,11 @@ type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetChannel() FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -95265,6 +95409,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetVersion() Ni
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetChannel(val FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetKey(val string) {
 	s.Key = val
@@ -95293,6 +95442,58 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetURL(val NilU
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel string
+
+const (
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic    FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel = "public"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel = "ubuntu_pro"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel values.
+func (FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) AllValues() []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel {
+	return []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel{
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel(data) {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelPublic
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -102604,6 +102805,11 @@ func (s *FindingsGetFindingsIDViewOKEventsItemVia) UnmarshalText(data []byte) er
 }
 
 type FindingsGetFindingsIDViewOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsIDViewOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -102622,6 +102828,11 @@ type FindingsGetFindingsIDViewOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsIDViewOKFix) GetChannel() FindingsGetFindingsIDViewOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -102654,6 +102865,11 @@ func (s *FindingsGetFindingsIDViewOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsIDViewOKFix) SetChannel(val FindingsGetFindingsIDViewOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsIDViewOKFix) SetKey(val string) {
 	s.Key = val
@@ -102682,6 +102898,58 @@ func (s *FindingsGetFindingsIDViewOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsIDViewOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsIDViewOKFixChannel string
+
+const (
+	FindingsGetFindingsIDViewOKFixChannelPublic    FindingsGetFindingsIDViewOKFixChannel = "public"
+	FindingsGetFindingsIDViewOKFixChannelUbuntuPro FindingsGetFindingsIDViewOKFixChannel = "ubuntu_pro"
+	FindingsGetFindingsIDViewOKFixChannelEsu       FindingsGetFindingsIDViewOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKFixChannel values.
+func (FindingsGetFindingsIDViewOKFixChannel) AllValues() []FindingsGetFindingsIDViewOKFixChannel {
+	return []FindingsGetFindingsIDViewOKFixChannel{
+		FindingsGetFindingsIDViewOKFixChannelPublic,
+		FindingsGetFindingsIDViewOKFixChannelUbuntuPro,
+		FindingsGetFindingsIDViewOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKFixChannel(data) {
+	case FindingsGetFindingsIDViewOKFixChannelPublic:
+		*s = FindingsGetFindingsIDViewOKFixChannelPublic
+		return nil
+	case FindingsGetFindingsIDViewOKFixChannelUbuntuPro:
+		*s = FindingsGetFindingsIDViewOKFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsIDViewOKFixChannelEsu:
+		*s = FindingsGetFindingsIDViewOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -112091,6 +112359,11 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerified) Unmars
 }
 
 type FindingsGetFindingsOverviewOKFirstItemBlockFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsGetFindingsOverviewOKFirstItemBlockFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -112109,6 +112382,11 @@ type FindingsGetFindingsOverviewOKFirstItemBlockFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) GetChannel() FindingsGetFindingsOverviewOKFirstItemBlockFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -112141,6 +112419,11 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) GetVersion() NilString 
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetChannel(val FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetKey(val string) {
 	s.Key = val
@@ -112169,6 +112452,58 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsGetFindingsOverviewOKFirstItemBlockFixChannel string
+
+const (
+	FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic    FindingsGetFindingsOverviewOKFirstItemBlockFixChannel = "public"
+	FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro FindingsGetFindingsOverviewOKFirstItemBlockFixChannel = "ubuntu_pro"
+	FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu       FindingsGetFindingsOverviewOKFirstItemBlockFixChannel = "esu"
+)
+
+// AllValues returns all FindingsGetFindingsOverviewOKFirstItemBlockFixChannel values.
+func (FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) AllValues() []FindingsGetFindingsOverviewOKFirstItemBlockFixChannel {
+	return []FindingsGetFindingsOverviewOKFirstItemBlockFixChannel{
+		FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic,
+		FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro,
+		FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOverviewOKFirstItemBlockFixChannel(data) {
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixChannelPublic
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixChannelUbuntuPro
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -123627,6 +123962,11 @@ func (s *FindingsPostFindingsIDReopenOKEventsItemVia) UnmarshalText(data []byte)
 }
 
 type FindingsPostFindingsIDReopenOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsPostFindingsIDReopenOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -123645,6 +123985,11 @@ type FindingsPostFindingsIDReopenOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsPostFindingsIDReopenOKFix) GetChannel() FindingsPostFindingsIDReopenOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -123677,6 +124022,11 @@ func (s *FindingsPostFindingsIDReopenOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsPostFindingsIDReopenOKFix) SetChannel(val FindingsPostFindingsIDReopenOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsPostFindingsIDReopenOKFix) SetKey(val string) {
 	s.Key = val
@@ -123705,6 +124055,58 @@ func (s *FindingsPostFindingsIDReopenOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsPostFindingsIDReopenOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsPostFindingsIDReopenOKFixChannel string
+
+const (
+	FindingsPostFindingsIDReopenOKFixChannelPublic    FindingsPostFindingsIDReopenOKFixChannel = "public"
+	FindingsPostFindingsIDReopenOKFixChannelUbuntuPro FindingsPostFindingsIDReopenOKFixChannel = "ubuntu_pro"
+	FindingsPostFindingsIDReopenOKFixChannelEsu       FindingsPostFindingsIDReopenOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKFixChannel values.
+func (FindingsPostFindingsIDReopenOKFixChannel) AllValues() []FindingsPostFindingsIDReopenOKFixChannel {
+	return []FindingsPostFindingsIDReopenOKFixChannel{
+		FindingsPostFindingsIDReopenOKFixChannelPublic,
+		FindingsPostFindingsIDReopenOKFixChannelUbuntuPro,
+		FindingsPostFindingsIDReopenOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKFixChannel(data) {
+	case FindingsPostFindingsIDReopenOKFixChannelPublic:
+		*s = FindingsPostFindingsIDReopenOKFixChannelPublic
+		return nil
+	case FindingsPostFindingsIDReopenOKFixChannelUbuntuPro:
+		*s = FindingsPostFindingsIDReopenOKFixChannelUbuntuPro
+		return nil
+	case FindingsPostFindingsIDReopenOKFixChannelEsu:
+		*s = FindingsPostFindingsIDReopenOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -126218,6 +126620,11 @@ func (s *FindingsPostFindingsIDUnverifyOKEventsItemVia) UnmarshalText(data []byt
 }
 
 type FindingsPostFindingsIDUnverifyOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsPostFindingsIDUnverifyOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -126236,6 +126643,11 @@ type FindingsPostFindingsIDUnverifyOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsPostFindingsIDUnverifyOKFix) GetChannel() FindingsPostFindingsIDUnverifyOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -126268,6 +126680,11 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsPostFindingsIDUnverifyOKFix) SetChannel(val FindingsPostFindingsIDUnverifyOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsPostFindingsIDUnverifyOKFix) SetKey(val string) {
 	s.Key = val
@@ -126296,6 +126713,58 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsPostFindingsIDUnverifyOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsPostFindingsIDUnverifyOKFixChannel string
+
+const (
+	FindingsPostFindingsIDUnverifyOKFixChannelPublic    FindingsPostFindingsIDUnverifyOKFixChannel = "public"
+	FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro FindingsPostFindingsIDUnverifyOKFixChannel = "ubuntu_pro"
+	FindingsPostFindingsIDUnverifyOKFixChannelEsu       FindingsPostFindingsIDUnverifyOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKFixChannel values.
+func (FindingsPostFindingsIDUnverifyOKFixChannel) AllValues() []FindingsPostFindingsIDUnverifyOKFixChannel {
+	return []FindingsPostFindingsIDUnverifyOKFixChannel{
+		FindingsPostFindingsIDUnverifyOKFixChannelPublic,
+		FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro,
+		FindingsPostFindingsIDUnverifyOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKFixChannel(data) {
+	case FindingsPostFindingsIDUnverifyOKFixChannelPublic:
+		*s = FindingsPostFindingsIDUnverifyOKFixChannelPublic
+		return nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro:
+		*s = FindingsPostFindingsIDUnverifyOKFixChannelUbuntuPro
+		return nil
+	case FindingsPostFindingsIDUnverifyOKFixChannelEsu:
+		*s = FindingsPostFindingsIDUnverifyOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -128795,6 +129264,11 @@ func (s *FindingsPostFindingsIDVerifyOKEventsItemVia) UnmarshalText(data []byte)
 }
 
 type FindingsPostFindingsIDVerifyOKFix struct {
+	// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+	// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+	// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+	// another channel is its own "By fix" group.
+	Channel FindingsPostFindingsIDVerifyOKFixChannel `json:"channel"`
 	// The "By fix" group (the same key on every device the same fix applies to); opaque.
 	Key string `json:"key"`
 	// Update = install `version` of the software or later; distro_update = install the distribution's
@@ -128813,6 +129287,11 @@ type FindingsPostFindingsIDVerifyOKFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *FindingsPostFindingsIDVerifyOKFix) GetChannel() FindingsPostFindingsIDVerifyOKFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -128845,6 +129324,11 @@ func (s *FindingsPostFindingsIDVerifyOKFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *FindingsPostFindingsIDVerifyOKFix) SetChannel(val FindingsPostFindingsIDVerifyOKFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *FindingsPostFindingsIDVerifyOKFix) SetKey(val string) {
 	s.Key = val
@@ -128873,6 +129357,58 @@ func (s *FindingsPostFindingsIDVerifyOKFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *FindingsPostFindingsIDVerifyOKFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro
+// = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few
+// machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of
+// another channel is its own "By fix" group.
+type FindingsPostFindingsIDVerifyOKFixChannel string
+
+const (
+	FindingsPostFindingsIDVerifyOKFixChannelPublic    FindingsPostFindingsIDVerifyOKFixChannel = "public"
+	FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro FindingsPostFindingsIDVerifyOKFixChannel = "ubuntu_pro"
+	FindingsPostFindingsIDVerifyOKFixChannelEsu       FindingsPostFindingsIDVerifyOKFixChannel = "esu"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKFixChannel values.
+func (FindingsPostFindingsIDVerifyOKFixChannel) AllValues() []FindingsPostFindingsIDVerifyOKFixChannel {
+	return []FindingsPostFindingsIDVerifyOKFixChannel{
+		FindingsPostFindingsIDVerifyOKFixChannelPublic,
+		FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro,
+		FindingsPostFindingsIDVerifyOKFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKFixChannelPublic:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKFixChannel) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKFixChannel(data) {
+	case FindingsPostFindingsIDVerifyOKFixChannelPublic:
+		*s = FindingsPostFindingsIDVerifyOKFixChannelPublic
+		return nil
+	case FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro:
+		*s = FindingsPostFindingsIDVerifyOKFixChannelUbuntuPro
+		return nil
+	case FindingsPostFindingsIDVerifyOKFixChannelEsu:
+		*s = FindingsPostFindingsIDVerifyOKFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Update = install `version` of the software or later; distro_update = install the distribution's
@@ -211501,6 +212037,52 @@ func (o OptReportsGetReportsDocumentOKNew) Or(d ReportsGetReportsDocumentOKNew) 
 	return d
 }
 
+// NewOptReportsGetReportsDocumentOKNewItemsItemFixChannel returns new OptReportsGetReportsDocumentOKNewItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsDocumentOKNewItemsItemFixChannel(v ReportsGetReportsDocumentOKNewItemsItemFixChannel) OptReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	return OptReportsGetReportsDocumentOKNewItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKNewItemsItemFixChannel is optional ReportsGetReportsDocumentOKNewItemsItemFixChannel.
+type OptReportsGetReportsDocumentOKNewItemsItemFixChannel struct {
+	Value ReportsGetReportsDocumentOKNewItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKNewItemsItemFixChannel was set.
+func (o OptReportsGetReportsDocumentOKNewItemsItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKNewItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsDocumentOKNewItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKNewItemsItemFixChannel) SetTo(v ReportsGetReportsDocumentOKNewItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKNewItemsItemFixChannel) Get() (v ReportsGetReportsDocumentOKNewItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKNewItemsItemFixChannel) Or(d ReportsGetReportsDocumentOKNewItemsItemFixChannel) ReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsDocumentOKOpen returns new OptReportsGetReportsDocumentOKOpen with value set to v.
 func NewOptReportsGetReportsDocumentOKOpen(v ReportsGetReportsDocumentOKOpen) OptReportsGetReportsDocumentOKOpen {
 	return OptReportsGetReportsDocumentOKOpen{
@@ -211547,6 +212129,52 @@ func (o OptReportsGetReportsDocumentOKOpen) Or(d ReportsGetReportsDocumentOKOpen
 	return d
 }
 
+// NewOptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel returns new OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel(v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	return OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel is optional ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel.
+type OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel struct {
+	Value ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel was set.
+func (o OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) SetTo(v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Get() (v ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Or(d ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsDocumentOKSummary returns new OptReportsGetReportsDocumentOKSummary with value set to v.
 func NewOptReportsGetReportsDocumentOKSummary(v ReportsGetReportsDocumentOKSummary) OptReportsGetReportsDocumentOKSummary {
 	return OptReportsGetReportsDocumentOKSummary{
@@ -211587,6 +212215,52 @@ func (o OptReportsGetReportsDocumentOKSummary) Get() (v ReportsGetReportsDocumen
 
 // Or returns value if set, or given parameter if does not.
 func (o OptReportsGetReportsDocumentOKSummary) Or(d ReportsGetReportsDocumentOKSummary) ReportsGetReportsDocumentOKSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsDocumentOKSummaryFirstItemFixChannel returns new OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel with value set to v.
+func NewOptReportsGetReportsDocumentOKSummaryFirstItemFixChannel(v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
+	return OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel is optional ReportsGetReportsDocumentOKSummaryFirstItemFixChannel.
+type OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel struct {
+	Value ReportsGetReportsDocumentOKSummaryFirstItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel was set.
+func (o OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Reset() {
+	var v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) SetTo(v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Get() (v ReportsGetReportsDocumentOKSummaryFirstItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Or(d ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) ReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -211823,6 +212497,52 @@ func (o OptReportsGetReportsHistoryIDOKDocumentNew) Or(d ReportsGetReportsHistor
 	return d
 }
 
+// NewOptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel returns new OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel(v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	return OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel is optional ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel.
+type OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel struct {
+	Value ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) SetTo(v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Get() (v ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Or(d ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsHistoryIDOKDocumentOpen returns new OptReportsGetReportsHistoryIDOKDocumentOpen with value set to v.
 func NewOptReportsGetReportsHistoryIDOKDocumentOpen(v ReportsGetReportsHistoryIDOKDocumentOpen) OptReportsGetReportsHistoryIDOKDocumentOpen {
 	return OptReportsGetReportsHistoryIDOKDocumentOpen{
@@ -211869,6 +212589,54 @@ func (o OptReportsGetReportsHistoryIDOKDocumentOpen) Or(d ReportsGetReportsHisto
 	return d
 }
 
+// NewOptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel returns new OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel(v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	return OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel is optional ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel.
+type OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel struct {
+	Value ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) SetTo(v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Get() (v ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Or(d ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReportsGetReportsHistoryIDOKDocumentSummary returns new OptReportsGetReportsHistoryIDOKDocumentSummary with value set to v.
 func NewOptReportsGetReportsHistoryIDOKDocumentSummary(v ReportsGetReportsHistoryIDOKDocumentSummary) OptReportsGetReportsHistoryIDOKDocumentSummary {
 	return OptReportsGetReportsHistoryIDOKDocumentSummary{
@@ -211909,6 +212677,52 @@ func (o OptReportsGetReportsHistoryIDOKDocumentSummary) Get() (v ReportsGetRepor
 
 // Or returns value if set, or given parameter if does not.
 func (o OptReportsGetReportsHistoryIDOKDocumentSummary) Or(d ReportsGetReportsHistoryIDOKDocumentSummary) ReportsGetReportsHistoryIDOKDocumentSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel returns new OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel with value set to v.
+func NewOptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel(v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
+	return OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel is optional ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel.
+type OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel struct {
+	Value ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel
+	Set   bool
+}
+
+// IsSet returns true if OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Reset() {
+	var v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) SetTo(v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Get() (v ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Or(d ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -215128,6 +215942,10 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemDevice) SetName(val string) {
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsDocumentOKNewItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                         `json:"key"`
 	Kind ReportsGetReportsDocumentOKNewItemsItemFixKind `json:"kind"`
@@ -215140,6 +215958,11 @@ type ReportsGetReportsDocumentOKNewItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetChannel() OptReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -215172,6 +215995,11 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) GetVersion() NilString {
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetChannel(val OptReportsGetReportsDocumentOKNewItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -215200,6 +216028,57 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKNewItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsDocumentOKNewItemsItemFixChannel string
+
+const (
+	ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic    ReportsGetReportsDocumentOKNewItemsItemFixChannel = "public"
+	ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro ReportsGetReportsDocumentOKNewItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu       ReportsGetReportsDocumentOKNewItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKNewItemsItemFixChannel values.
+func (ReportsGetReportsDocumentOKNewItemsItemFixChannel) AllValues() []ReportsGetReportsDocumentOKNewItemsItemFixChannel {
+	return []ReportsGetReportsDocumentOKNewItemsItemFixChannel{
+		ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic,
+		ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKNewItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKNewItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKNewItemsItemFixChannel(data) {
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKNewItemsItemFixKind string
@@ -216121,6 +217000,10 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemDevice) SetName(val s
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                    `json:"key"`
 	Kind ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind `json:"kind"`
@@ -216133,6 +217016,11 @@ type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetChannel() OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -216165,6 +217053,11 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) GetVersion() Nil
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetChannel(val OptReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -216193,6 +217086,57 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetURL(val NilUR
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel string
+
+const (
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic    ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel = "public"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel values.
+func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) AllValues() []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel {
+	return []ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel{
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel(data) {
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind string
@@ -217435,6 +218379,10 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemDevicesItem) SetName(val str
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                             `json:"key"`
 	Kind ReportsGetReportsDocumentOKSummaryFirstItemFixKind `json:"kind"`
@@ -217447,6 +218395,11 @@ type ReportsGetReportsDocumentOKSummaryFirstItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetChannel() OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -217479,6 +218432,11 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) GetVersion() NilString 
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetChannel(val OptReportsGetReportsDocumentOKSummaryFirstItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetKey(val string) {
 	s.Key = val
@@ -217507,6 +218465,57 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetURL(val NilURI) {
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsDocumentOKSummaryFirstItemFixChannel string
+
+const (
+	ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic    ReportsGetReportsDocumentOKSummaryFirstItemFixChannel = "public"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro ReportsGetReportsDocumentOKSummaryFirstItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu       ReportsGetReportsDocumentOKSummaryFirstItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsDocumentOKSummaryFirstItemFixChannel values.
+func (ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) AllValues() []ReportsGetReportsDocumentOKSummaryFirstItemFixChannel {
+	return []ReportsGetReportsDocumentOKSummaryFirstItemFixChannel{
+		ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsDocumentOKSummaryFirstItemFixChannel(data) {
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixChannelPublic
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItemFixKind string
@@ -220362,6 +221371,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemDevice) SetName(val str
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                  `json:"key"`
 	Kind ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind `json:"kind"`
@@ -220374,6 +221387,11 @@ type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetChannel() OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -220406,6 +221424,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) GetVersion() NilSt
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetChannel(val OptReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -220434,6 +221457,57 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetURL(val NilURI)
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic    ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel = "public"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel values.
+func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) AllValues() []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel {
+	return []ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel{
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel(data) {
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind string
@@ -221355,6 +222429,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemDevice) SetN
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                             `json:"key"`
 	Kind ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind `json:"kind"`
@@ -221367,6 +222445,11 @@ type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetChannel() OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -221399,6 +222482,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) GetVers
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetChannel(val OptReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetKey(val string) {
 	s.Key = val
@@ -221427,6 +222515,57 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetURL(
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic    ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel = "public"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel values.
+func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) AllValues() []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel {
+	return []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel{
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel(data) {
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelPublic
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind string
@@ -222669,6 +223808,10 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemDevicesItem) SetNam
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix struct {
+	// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+	// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+	// kept).
+	Channel OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel `json:"channel"`
 	// The "By fix" group; opaque.
 	Key  string                                                      `json:"key"`
 	Kind ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind `json:"kind"`
@@ -222681,6 +223824,11 @@ type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix struct {
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
 	// known.
 	Version NilString `json:"version"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetChannel() OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
+	return s.Channel
 }
 
 // GetKey returns the value of Key.
@@ -222713,6 +223861,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) GetVersion() N
 	return s.Version
 }
 
+// SetChannel sets the value of Channel.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetChannel(val OptReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) {
+	s.Channel = val
+}
+
 // SetKey sets the value of Key.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetKey(val string) {
 	s.Key = val
@@ -222741,6 +223894,57 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetURL(val Nil
 // SetVersion sets the value of Version.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended
+// Security Updates; public or absent = an ordinary update (absent in documents sent before it was
+// kept).
+type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel string
+
+const (
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic    ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel = "public"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel = "ubuntu_pro"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel = "esu"
+)
+
+// AllValues returns all ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel values.
+func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) AllValues() []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel {
+	return []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel{
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel(data) {
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelPublic
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelUbuntuPro
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannelEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind string

@@ -44,7 +44,7 @@ func TestDistroKernelOnceOnTheRunningKernel(t *testing.T) {
 	if f := FixedInFor(a, v); f == nil || f.DistroFixed != "7.0.0-44.44" || f.RestartInto != "7.0.0-44.44" {
 		t.Fatalf("installed, not running: fixed_in %+v", f)
 	}
-	if w := FixWords(FixRestart, "Kernel", "", "7.0.0-44.44", ""); !strings.HasPrefix(w, "restart the device so it runs the installed Kernel 7.0.0-44.44") {
+	if w := FixWords(Fix{Kind: FixRestart, Version: "7.0.0-44.44"}, "Kernel", ""); !strings.HasPrefix(w, "restart the device so it runs the installed Kernel 7.0.0-44.44") {
 		t.Fatalf("fix words %q", w)
 	}
 	if d, rel, pkgs := DevicePackages(a); d != "ubuntu" || rel != "26.04" || !slices.Equal(pkgs, []string{"linux", "linux-firmware"}) {

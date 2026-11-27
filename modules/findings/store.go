@@ -89,7 +89,7 @@ func encodeEvidence(e *Evidence) (any, error) {
 
 const findingColumns = `id, asset_id, cve, software_id, detected, basis, verified, range_origin, matched_version, fix_kind, fix_version, fix_ref,
 	fix_key, evidence, state, resolution, via, resolved_by, resolved_at, note, accepted_until, from_version, to_version, urgency, urgency_at,
-	first_seen, last_seen, updated_at`
+	first_seen, last_seen, updated_at, fix_channel`
 
 // findingSelect is findingColumns as read, with Finding.byEntry from the history: a finding confirmed by a person whose newest
 // confirmed event is Vedette's (only the version a person entered makes Vedette confirm one at that level).
@@ -99,7 +99,7 @@ const findingSelect = findingColumns + `, (verified = 'person' AND ifnull((SELEC
 func scanFinding(s scanner) (Finding, error) {
 	var (
 		f                                           Finding
-		basis, verified, fixKind, state             string
+		basis, verified, fixKind, state, channel    string
 		softwareID, matched, fixVersion, fixRef     sql.NullString
 		evidence, resolution, via, resolvedBy, note sql.NullString
 		resolvedAt, until, from, to                 sql.NullString
@@ -107,12 +107,15 @@ func scanFinding(s scanner) (Finding, error) {
 	)
 	if err := s.Scan(&f.ID, &f.AssetID, &f.CVE, &softwareID, &f.Detected, &basis, &verified, &f.RangeOrigin, &matched, &fixKind, &fixVersion, &fixRef,
 		&f.FixKey, &evidence, &state, &resolution, &via, &resolvedBy, &resolvedAt, &note, &until, &from, &to, &f.Urgency, &urgencyAt,
-		&first, &last, &updated, &f.byEntry); err != nil {
+		&first, &last, &updated, &channel, &f.byEntry); err != nil {
 		return Finding{}, err
 	}
 	f.SoftwareID, f.MatchedVersion = softwareID.String, matched.String
 	f.Basis, f.Verified, f.State = DetectionBasis(basis), Verified(verified), State(state)
 	f.Fix = Fix{Kind: FixKind(fixKind), Version: fixVersion.String, Ref: fixRef.String}
+	if FixChannel(channel) != ChannelPublic {
+		f.Fix.Channel = FixChannel(channel)
+	}
 	f.Resolution, f.Via, f.ResolvedBy, f.Note = Resolution(resolution.String), Via(via.String), resolvedBy.String, note.String
 	f.FromVersion, f.ToVersion = from.String, to.String
 	if evidence.Valid {
@@ -151,7 +154,7 @@ func findingArgs(f Finding) ([]any, error) {
 		string(f.Fix.Kind), nullString(f.Fix.Version), nullString(f.Fix.Ref), f.FixKey, ev, string(f.State), nullString(string(f.Resolution)),
 		nullString(string(f.Via)), nullString(f.ResolvedBy), nullTS(f.ResolvedAt), nullString(f.Note), nullDay(f.AcceptedUntil),
 		nullString(f.FromVersion), nullString(f.ToVersion), f.Urgency, store.FormatTS(f.UrgencyAt), store.FormatTS(f.FirstSeen),
-		store.FormatTS(f.LastSeen), store.FormatTS(f.UpdatedAt)}, nil
+		store.FormatTS(f.LastSeen), store.FormatTS(f.UpdatedAt), string(f.Fix.Chan())}, nil
 }
 
 func parseTS(s string) (time.Time, error) {
@@ -233,12 +236,12 @@ func writeFinding(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, evs []
 		return err
 	}
 	if isNew {
-		_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args...)
+		_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args...)
 	} else {
 		_, err = tx.ExecContext(ctx, `UPDATE fnd_finding SET software_id = ?4, detected = ?5, basis = ?6, verified = ?7, range_origin = ?8,
 			matched_version = ?9, fix_kind = ?10, fix_version = ?11, fix_ref = ?12, fix_key = ?13, evidence = ?14, state = ?15, resolution = ?16,
 			via = ?17, resolved_by = ?18, resolved_at = ?19, note = ?20, accepted_until = ?21, from_version = ?22, to_version = ?23, urgency = ?24,
-			urgency_at = ?25, first_seen = ?26, last_seen = ?27, updated_at = ?28 WHERE id = ?1`, args...)
+			urgency_at = ?25, first_seen = ?26, last_seen = ?27, updated_at = ?28, fix_channel = ?29 WHERE id = ?1`, args...)
 	}
 	if err != nil {
 		return fmt.Errorf("findings: writing finding: %w", err)

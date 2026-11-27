@@ -46,7 +46,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **M-3 One state machine.** `Transition(finding, trigger)` is total over every state and trigger and returns the row and the
   events to append; `TestTransition_EveryStateAndTrigger` covers the whole table. In short: a detection creates or detects again; a finding
   Vedette closed opens when detected again; a person's `patched` opens on a reading newer than their mark (`still_detected`);
-  mitigated, accepted, false positive and not relevant hold while detected; an accepted risk reopens after its last day. "Gone"
+  mitigated, accepted, false positive and not relevant hold while detected; an accepted risk reopens after its last day. Open means
+  detected: a person's reopen of a finding the latest match no longer detects is recorded, and Vedette closes it again at once the way
+  the data last said it went away (its own close, else the newest `no_longer_detected` event; `version_moved` names the release the
+  device runs now), with that reason as the note; "gone" also closes an open finding that is not detected. "Gone"
   closes an open finding as `patched` when something changed on the device (`version_moved`, `software_removed`, `distro_fixed`,
   `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`) or a person said the software is not installed
   (`not_installed`). The Handled list leaves out what Vedette closed by correcting its own match (`data_corrected` by Vedette: never
@@ -63,7 +66,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestMatch_OwnConfirmOnEnteredVersionHolds`.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no
   resolution, `via`, `resolved_by` or `resolved_at`; accepted exactly with a last day; `version_moved` exactly with two different
-  versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`).
+  versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`);
+  an open finding is detected (`findings.open_is_detected`).
   Open total = sum by device = sum by `fix_key`: every open row is in exactly one group of each, so the API test
   `TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix` proves it, not a selfcheck query.
 - **M-5 Patch credit by structure.** How a finding went away depends on what changed on the device, never on which source read the
@@ -92,7 +96,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   goes away the way the data says. A pass that changes nothing writes nothing; a device whose inputs did not move is not matched
   again (`matchstamp.go`). Findings tells feeds which CVEs to keep (`PinnedCVEs`).
 - **M-8 One fix resolver.** `FixOf(device, line, CVE)` is the only reading of what fixes a finding; the match write stores it with
-  `fix_key` and `range_origin`.
+  `fix_key` and `range_origin`. The fix carries its channel (`fix_channel`): `ubuntu_pro` when only Ubuntu Pro's archive has the
+  distribution's fixed package (a public fix of the same package wins), `esu` when the Windows build comes only with Extended Security
+  Updates, else `public`. A non-public channel ends the `fix_key` (`|ubuntu_pro`), so it is its own By fix group and never combines with
+  a public fix, and every place that says the fix (`FixWords`, the web fix line, the report and its mail) says the subscription and
+  what a person without it can do.
 - **M-9 One urgency.** `Urgency(cve, facts, target, attacks, now)` is the only rule of a finding's layer: 1 an intrusion alert in
   the last 14 days named the CVE of a flaw exploitable over the network (an AV:L or AV:P flaw is never under attack from network
   traffic); 2 a qualifying exploited signal; 3 a qualifying public-exploit signal; 4 CVSS ≥ 9, network, no
@@ -195,7 +203,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-6c** A line a person marked not installed is not matched; its findings close as `not_relevant` via `not_installed` under
   that person's name.
 - **INV-11** "I have this" on a versionless product matches, on exactly the declared device, only entries added since its start date.
-- **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges.
+- **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges. A package the
+  distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
+  while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a
+  finding waiting for the distribution's update, and with no word yet NVD's upstream ranges raise nothing (they do not see backports).
+  A vendor's own .deb with a plain revision, and a distribution whose feeds are off, keep NVD's ranges. A version move on a line with
+  a package release is ordered by the package scheme alone ("1ubuntu2" to "1ubuntu2.1", "+esm3" or "+deb13u1" is `version_moved`).
 - **INV-14k** A distribution kernel is judged once per CVE, on its Kernel line (intake makes it of the running kernel's image alone).
   On Ubuntu and Debian an agent's package built from a kernel source package that is not the Kernel line (the ABI-named headers,
   modules and tools of any installed kernel, an image that does not run, a metapackage, linux-libc-dev) is never matched. When an
@@ -253,7 +266,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (mitigation registers it; it is skipped while mitigation is off). The stored evidence sentence keeps its last clause "no scan has
   confirmed it yet, so this is only suspected" only while the finding is suspected (`evidenceForStatus`; the stored row is unchanged).
   `known_version` comes from the row the exploited-list entry matches, or, for a finding on no exploited list, from the finding's
-  stored software line. Every history action has a label on the page; urgency_changed and fix_changed carry a note naming the new
+  stored software line; on a row with a package release it is that release, the one the match compared. Every history action has a label on the page; urgency_changed and fix_changed carry a note naming the new
   status or fix. Tests: `TestFindingPage_EvidenceFollowsTheStatus`, `TestFindingPage_FindingOnNoListKeepsItsSoftware`,
   `TestFindingPage_EveryHistoryActionHasALabel`.
 - **PRE-4 / POST-4** handle and reopen (operator), verify and unverify (admin): handle answers how many it handled and skipped and

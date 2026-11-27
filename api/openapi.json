@@ -49241,6 +49241,15 @@
                             "null"
                           ]
                         },
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "public",
+                            "ubuntu_pro",
+                            "esu"
+                          ],
+                          "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                        },
                         "url": {
                           "anyOf": [
                             {
@@ -49260,6 +49269,7 @@
                         "product",
                         "version",
                         "ref",
+                        "channel",
                         "url"
                       ],
                       "additionalProperties": false
@@ -50093,6 +50103,15 @@
                             "null"
                           ]
                         },
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "public",
+                            "ubuntu_pro",
+                            "esu"
+                          ],
+                          "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                        },
                         "url": {
                           "anyOf": [
                             {
@@ -50112,6 +50131,7 @@
                         "product",
                         "version",
                         "ref",
+                        "channel",
                         "url"
                       ],
                       "additionalProperties": false
@@ -50966,6 +50986,15 @@
                             "null"
                           ]
                         },
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "public",
+                            "ubuntu_pro",
+                            "esu"
+                          ],
+                          "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                        },
                         "url": {
                           "anyOf": [
                             {
@@ -50985,6 +51014,7 @@
                         "product",
                         "version",
                         "ref",
+                        "channel",
                         "url"
                       ],
                       "additionalProperties": false
@@ -51819,6 +51849,15 @@
                             "null"
                           ]
                         },
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "public",
+                            "ubuntu_pro",
+                            "esu"
+                          ],
+                          "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                        },
                         "url": {
                           "anyOf": [
                             {
@@ -51838,6 +51877,7 @@
                         "product",
                         "version",
                         "ref",
+                        "channel",
                         "url"
                       ],
                       "additionalProperties": false
@@ -52741,6 +52781,15 @@
                                         "null"
                                       ]
                                     },
+                                    "channel": {
+                                      "type": "string",
+                                      "enum": [
+                                        "public",
+                                        "ubuntu_pro",
+                                        "esu"
+                                      ],
+                                      "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                                    },
                                     "url": {
                                       "anyOf": [
                                         {
@@ -52760,6 +52809,7 @@
                                     "product",
                                     "version",
                                     "ref",
+                                    "channel",
                                     "url"
                                   ],
                                   "additionalProperties": false
@@ -53311,6 +53361,15 @@
                                   "null"
                                 ]
                               },
+                              "channel": {
+                                "type": "string",
+                                "enum": [
+                                  "public",
+                                  "ubuntu_pro",
+                                  "esu"
+                                ],
+                                "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                              },
                               "url": {
                                 "anyOf": [
                                   {
@@ -53330,6 +53389,7 @@
                               "product",
                               "version",
                               "ref",
+                              "channel",
                               "url"
                             ],
                             "additionalProperties": false
@@ -53678,6 +53738,15 @@
                                           "null"
                                         ]
                                       },
+                                      "channel": {
+                                        "type": "string",
+                                        "enum": [
+                                          "public",
+                                          "ubuntu_pro",
+                                          "esu"
+                                        ],
+                                        "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                                      },
                                       "url": {
                                         "anyOf": [
                                           {
@@ -53697,6 +53766,7 @@
                                       "product",
                                       "version",
                                       "ref",
+                                      "channel",
                                       "url"
                                     ],
                                     "additionalProperties": false
@@ -56012,6 +56082,15 @@
                                       "null"
                                     ]
                                   },
+                                  "channel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "ubuntu_pro",
+                                      "esu"
+                                    ],
+                                    "description": "Where the fix is published: public = the vendor's or the distribution's ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own \"By fix\" group"
+                                  },
                                   "url": {
                                     "anyOf": [
                                       {
@@ -56031,6 +56110,7 @@
                                   "product",
                                   "version",
                                   "ref",
+                                  "channel",
                                   "url"
                                 ],
                                 "additionalProperties": false
@@ -77977,6 +78057,15 @@
                                       }
                                     ],
                                     "description": "The vendor advisory or release notes"
+                                  },
+                                  "channel": {
+                                    "description": "Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)",
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "ubuntu_pro",
+                                      "esu"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -78667,6 +78756,15 @@
                                             }
                                           ],
                                           "description": "The vendor advisory or release notes"
+                                        },
+                                        "channel": {
+                                          "description": "Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)",
+                                          "type": "string",
+                                          "enum": [
+                                            "public",
+                                            "ubuntu_pro",
+                                            "esu"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -79042,6 +79140,15 @@
                                       }
                                     ],
                                     "description": "The vendor advisory or release notes"
+                                  },
+                                  "channel": {
+                                    "description": "Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)",
+                                    "type": "string",
+                                    "enum": [
+                                      "public",
+                                      "ubuntu_pro",
+                                      "esu"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -80168,6 +80275,15 @@
                                           }
                                         ],
                                         "description": "The vendor advisory or release notes"
+                                      },
+                                      "channel": {
+                                        "description": "Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)",
+                                        "type": "string",
+                                        "enum": [
+                                          "public",
+                                          "ubuntu_pro",
+                                          "esu"
+                                        ]
                                       }
                                     },
                                     "required": [
@@ -80858,6 +80974,15 @@
                                                 }
                                               ],
                                               "description": "The vendor advisory or release notes"
+                                            },
+                                            "channel": {
+                                              "description": "Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)",
+                                              "type": "string",
+                                              "enum": [
+                                                "public",
+                                                "ubuntu_pro",
+                                                "esu"
+                                              ]
                                             }
                                           },
                                           "required": [
@@ -81233,6 +81358,15 @@
                                           }
                                         ],
                                         "description": "The vendor advisory or release notes"
+                                      },
+                                      "channel": {
+                                        "description": "Where the fix is published: ubuntu_pro = only Ubuntu Pro (ESM) has it; esu = only Windows Extended Security Updates; public or absent = an ordinary update (absent in documents sent before it was kept)",
+                                        "type": "string",
+                                        "enum": [
+                                          "public",
+                                          "ubuntu_pro",
+                                          "esu"
+                                        ]
                                       }
                                     },
                                     "required": [

@@ -39,8 +39,11 @@ export function storedFixText(t: TFunction<'findings'>, f: FindingDetail, view: 
   const o = { fixed: fix.version, product, device, version, kb: fix.ref ?? '' }
   switch (fix.kind) {
     case 'update': return t(version ? 'todo.fixUpdate' : 'todo.fixUpdateNoVersion', o)
-    case 'distro_update': return t(version ? 'todo.fixDistro' : 'todo.fixDistroNoVersion', o)
-    case 'os_update': return t(fix.ref ? 'todo.fixOsKb' : 'todo.fixOs', o)
+    case 'distro_update': return fix.channel === 'ubuntu_pro' ? t('todo.fixDistroPro', o) : t(version ? 'todo.fixDistro' : 'todo.fixDistroNoVersion', o)
+    case 'os_update': {
+      const line = t(fix.ref ? 'todo.fixOsKb' : 'todo.fixOs', o)
+      return fix.channel === 'esu' ? t('todo.fixOsEsu', { line }) : line
+    }
     case 'feature_update': return t('todo.fixFeature', o)
     case 'restart': return t('todo.fixRestart', o)
   }

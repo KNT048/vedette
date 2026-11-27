@@ -93,6 +93,21 @@ type Fix struct {
 	Version *string `json:"version"`
 	Ref     *string `json:"ref"`
 	URL     *string `json:"url"`
+	// Channel is where the fix is published: "ubuntu_pro" (only Ubuntu Pro's archive), "esu" (only Windows Extended Security Updates);
+	// "" or "public" for an ordinary update (documents sent before it was kept have none).
+	Channel string `json:"channel,omitempty"`
+}
+
+// ChannelNote is what a fix's channel adds to its line: " (only with Ubuntu Pro …)" for a fix only Ubuntu Pro has, " (needs an
+// Extended Security Updates subscription)" for Windows ESU, "" for an ordinary update.
+func ChannelNote(channel string) string {
+	switch channel {
+	case "ubuntu_pro":
+		return " (only with Ubuntu Pro, free for personal use on a few machines: sudo pro attach)"
+	case "esu":
+		return " (needs an Extended Security Updates subscription)"
+	}
+	return ""
 }
 
 // Reason is one urgency layer of 1 to 4 that applies, with its evidence (findings contract).

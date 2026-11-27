@@ -139,6 +139,9 @@ func firstLine(f FirstThing) string {
 	case f.Fix.Kind == "none_yet":
 		fix = ": no fix is published yet; follow the vendor advisory"
 	}
+	if fix != "" {
+		fix += ChannelNote(f.Fix.Channel)
+	}
 	return fmt.Sprintf("%s: %s in %s%s%s", statusLabels[f.Status], f.CVE, f.Product, where, fix)
 }
 

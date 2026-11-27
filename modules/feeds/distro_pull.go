@@ -350,6 +350,31 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s
 	return out, rows.Err()
 }
 
+// DistroOn lists the distributions ("ubuntu", "debian") whose security data decides their own packages: one of their feeds is on and
+// has rows or a completed pull, or is loading (DistroLoading). findings judges a package such a distribution built by its word alone; a
+// distribution whose feeds are off, or were given up after failing, falls back to NVD's ranges.
+func (s *Store) DistroOn(ctx context.Context) (map[string]bool, error) {
+	out, err := s.DistroLoading(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('debian-tracker', 'ubuntu-osv', 'ubuntu-vex')
+AND (s.last_success IS NOT NULL OR EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id))`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: distro on: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("feeds: distro on: %w", err)
+		}
+		out[distroOfFeed[id]] = true
+	}
+	delete(out, DistroAlpine) // Alpine's packages keep the platform list's rule (findings platformCheck)
+	return out, rows.Err()
+}
+
 // kevCanArrive is true while the CISA list the distribution feeds wait for (errDistroWaits) is on the box or can still come: its
 // feed is on and has either rows or not yet failed DistroGiveUpFailures times in a row with none completed. A distribution feed
 // that waits on a list that cannot come (turned off, blocked) records nothing, so without this it would be loading for good.
@@ -399,7 +424,8 @@ func (s *Store) DistroFixesFor(ctx context.Context, cves []string) (map[string][
 			return nil, fmt.Errorf("feeds: read distro: %w", err)
 		}
 		rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected')
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1
+AND (d.status IN ('fixed', 'not_affected') OR d.status = 'open' AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa'))
 AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, string(part))
 		if err != nil {
 			return nil, fmt.Errorf("feeds: read distro: %w", err)
@@ -453,7 +479,7 @@ JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected') AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
+FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected', 'open') AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
 AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)

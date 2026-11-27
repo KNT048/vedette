@@ -28,9 +28,22 @@ func oneLine(s string, n int) string {
 	return s
 }
 
-// FixWords says a fix in words: what to do, with the release. "" for a fix that names no release to install (none yet, not known). A
+// FixWords says fix fx in words: what to do, with the release. "" for a fix that names no release to install (none yet, not known). A
 // Windows update without a build names its KB, or the latest cumulative update when the data names neither (as the finding page does).
-func FixWords(kind FixKind, product, installed, version, ref string) string {
+// A fix only a subscription carries says so, and what a person without it can do.
+func FixWords(fx Fix, product, installed string) string {
+	w := fixWords(fx.Kind, product, installed, fx.Version, fx.Ref)
+	switch {
+	case w == "":
+	case fx.Chan() == ChannelUbuntuPro:
+		w += "; only Ubuntu Pro (ESM) has this fixed package: attach Ubuntu Pro (free for personal use on a few machines; sudo pro attach) and install the updates, otherwise accept the risk or remove the package"
+	case fx.Chan() == ChannelESU:
+		w += "; it comes only with Extended Security Updates (an ESU subscription), otherwise move to a release Microsoft still updates"
+	}
+	return w
+}
+
+func fixWords(kind FixKind, product, installed, version, ref string) string {
 	named := oneLine(product, 100) // "" when the device's product is not known
 	product, installed, version = cmp.Or(named, "the software"), oneLine(installed, 60), oneLine(version, 100)
 	switch kind {
@@ -74,7 +87,7 @@ func FixWords(kind FixKind, product, installed, version, ref string) string {
 // fact, never by naming a release of an affected range.
 func (v View) FixText() string {
 	fx := v.Finding.Fix
-	if w := FixWords(fx.Kind, v.FixProduct(), "", fx.Version, fx.Ref); w != "" {
+	if w := FixWords(fx, v.FixProduct(), ""); w != "" {
 		r := []rune(w)
 		return strings.ToUpper(string(r[0])) + string(r[1:]) + "."
 	}

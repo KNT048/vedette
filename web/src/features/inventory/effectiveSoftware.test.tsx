@@ -23,7 +23,8 @@ describe('the device Software tab, one line per software', () => {
     await screen.findByRole('table', { name: /software/i }, T)
     await waitFor(async () => expect(await row('OpenSSH')).toHaveLength(1), T)
     const [ssh] = await row('OpenSSH')
-    expect(within(ssh!).getByText('10.2p1')).toBeInTheDocument()
+    // the agent's package row says the package release the match compares, the upstream version under it
+    expect(within(ssh!).getByTestId('software-package-release')).toHaveTextContent('10.2_p1-r1Upstream version 10.2p1')
     expect(within(ssh!).getByTestId('software-also-seen').textContent).toMatch(/Also seen by: 10\.2 \(Manual.*; 10\.2 \(Active scan/)
     expect(within(ssh!).queryByTestId('software-differs')).toBeNull()
   })

@@ -87,3 +87,37 @@ func TestDistroPlanLoading(t *testing.T) {
 		t.Fatalf("platform loading while the first pulls can come: %v %v", l, err)
 	}
 }
+
+// A distribution's data decides its own packages while one of its feeds is on and loaded (a completed pull) or loading; a feed that is off,
+// or given up after failing with no pull ever completed, leaves its packages to NVD's ranges. Alpine keeps the platform list's rule.
+func TestDistroOn(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	set := func(id, set string) {
+		t.Helper()
+		execSQL(t, e.db, `UPDATE feeds_source SET `+set+` WHERE id = '`+id+`'`)
+	}
+	on := func() map[string]bool {
+		t.Helper()
+		l, err := e.svc.st.DistroOn(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+	for _, id := range []string{alpineOSVFeedID, debianTrackerFeedID, ubuntuOSVFeedID, ubuntuVEXFeedID} {
+		set(id, `enabled = 0`)
+	}
+	if got := on(); len(got) != 0 {
+		t.Fatalf("every feed off: %v", got)
+	}
+	set(ubuntuVEXFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
+	set(alpineOSVFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
+	if got := on(); !maps.Equal(got, map[string]bool{DistroUbuntu: true}) {
+		t.Fatalf("Ubuntu loaded, Alpine left to its own rule: %v", got)
+	}
+	set(debianTrackerFeedID, `enabled = 1, last_success = NULL, status = 'error', failures = 6`)
+	if got := on(); got[DistroDebian] {
+		t.Fatalf("a Debian feed given up is on: %v", got)
+	}
+}

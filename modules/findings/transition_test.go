@@ -164,7 +164,8 @@ func mapValues[K comparable, V any](m map[K]V) []V {
 }
 
 // The handling invariants hold after any sequence of triggers from any state: open exactly when there is no resolution; every handled row has a
-// way, who and when; a version move names two different versions. And every value written is in its vocabulary.
+// way, who and when; a version move names two different versions; no trigger makes a finding open and not detected (a row an older
+// build left so closes at the next gone that the data allows). And every value written is in its vocabulary.
 func TestTransition_InvariantsHoldForAnySequence(t *testing.T) {
 	t.Parallel()
 	rng := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // a seeded sequence of test cases, not a secret
@@ -202,6 +203,9 @@ func TestTransition_InvariantsHoldForAnySequence(t *testing.T) {
 			}
 			if err := g.Validate(); err != nil {
 				t.Fatalf("after %+v from %+v: %v", tr, f, err)
+			}
+			if g.State == StateOpen && !g.Detected && !(f.State == StateOpen && !f.Detected) {
+				t.Fatalf("open and not detected after %+v from %+v: open means detected", tr, f)
 			}
 			if g.State == StateHandled && (g.Via == "" || g.ResolvedBy == "" || g.ResolvedAt.IsZero()) {
 				t.Fatalf("handled without how, who or when: %+v", g)

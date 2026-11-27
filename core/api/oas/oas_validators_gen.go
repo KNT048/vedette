@@ -51683,6 +51683,17 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -51720,6 +51731,19 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) Validate() error {
@@ -52521,6 +52545,17 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -52558,6 +52593,19 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsFixesOKItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsFixesOKItemsItemFixKind) Validate() error {
@@ -52890,6 +52938,17 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) Validate() erro
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -52927,6 +52986,19 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) Validate() erro
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) Validate() error {
@@ -56467,6 +56539,17 @@ func (s *FindingsGetFindingsIDViewOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -56504,6 +56587,19 @@ func (s *FindingsGetFindingsIDViewOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsIDViewOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsIDViewOKFixKind) Validate() error {
@@ -60900,6 +60996,17 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -60937,6 +61044,19 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsOverviewOKFirstItemBlockFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsOverviewOKFirstItemBlockFixKind) Validate() error {
@@ -66634,6 +66754,17 @@ func (s *FindingsPostFindingsIDReopenOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -66671,6 +66802,19 @@ func (s *FindingsPostFindingsIDReopenOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDReopenOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsPostFindingsIDReopenOKFixKind) Validate() error {
@@ -67806,6 +67950,17 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -67843,6 +67998,19 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDUnverifyOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsPostFindingsIDUnverifyOKFixKind) Validate() error {
@@ -68943,6 +69111,17 @@ func (s *FindingsPostFindingsIDVerifyOKFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -68980,6 +69159,19 @@ func (s *FindingsPostFindingsIDVerifyOKFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDVerifyOKFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsPostFindingsIDVerifyOKFixKind) Validate() error {
@@ -95569,6 +95761,24 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -95606,6 +95816,19 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKNewItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) Validate() error {
@@ -96323,6 +96546,24 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Validate() error
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -96360,6 +96601,19 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFix) Validate() error
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Validate() error {
@@ -97191,6 +97445,24 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -97228,6 +97500,19 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsDocumentOKSummaryFirstItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Validate() error {
@@ -99744,6 +100029,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -99781,6 +100084,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFix) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Validate() error {
@@ -100498,6 +100814,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Validat
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -100535,6 +100869,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFix) Validat
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Validate() error {
@@ -101366,6 +101713,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Validate() err
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     1,
 			MinLengthSet:  true,
@@ -101403,6 +101768,19 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFix) Validate() err
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixChannel) Validate() error {
+	switch s {
+	case "public":
+		return nil
+	case "ubuntu_pro":
+		return nil
+	case "esu":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Validate() error {

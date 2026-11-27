@@ -923,11 +923,34 @@ func (s *Service) personStep(ctx context.Context, id string, t Trigger) (Finding
 		quiet := func(string, any) {}
 		if t.Kind == TrReopen {
 			quiet = emit
+			if !f.Detected {
+				if t.Via, t.FromVersion, t.ToVersion, err = lastGone(ctx, tx, f); err != nil {
+					return err
+				}
+			}
 		}
 		out, _, err = s.step(ctx, tx, f, false, t, quiet)
 		return err
 	})
 	return out, err
+}
+
+// lastGone is how the data last said finding f went away: Vedette's own close when it closed it, else the newest no_longer_detected
+// event (the data moved on while a person's handling held). "" when neither says.
+func lastGone(ctx context.Context, q querier, f Finding) (Via, string, string, error) {
+	if f.State == StateHandled && f.Via != ViaPerson {
+		return f.Via, f.FromVersion, f.ToVersion, nil
+	}
+	evs, err := eventsOf(ctx, q, `f.id = ?`, f.ID)
+	if err != nil {
+		return "", "", "", err
+	}
+	for _, e := range slices.Backward(evs[f.ID]) {
+		if e.Kind == EvNoLongerDetected || e.Kind == EvHandled && e.Actor == SystemUser {
+			return e.Detail.Via, e.Detail.FromVersion, e.Detail.ToVersion, nil
+		}
+	}
+	return "", "", "", nil
 }
 
 // MaxBulk is how many findings one handle request may touch: a filtered list of a few hundred findings fits, and the one write

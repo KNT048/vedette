@@ -48,7 +48,7 @@ export interface FindingRecord {
   basis: Basis
   verified_by: string | null
   verified_at: string | null
-  fix: { key: string; kind: FixKind; product: string; version: string | null; ref: string | null; url: string | null }
+  fix: { key: string; kind: FixKind; product: string; version: string | null; ref: string | null; url: string | null; channel?: 'public' | 'ubuntu_pro' | 'esu' }
   state: 'open' | 'handled'
   resolution: Resolution | null
   via: Via | null

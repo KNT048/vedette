@@ -203,6 +203,8 @@ export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_versio
   .describe('What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected')
 export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'restart', 'none_yet', 'unknown'])
   .describe('update = install `version` of the software or later; distro_update = install the distribution\'s package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data')
+export const FixChannel = z.enum(['public', 'ubuntu_pro', 'esu'])
+  .describe('Where the fix is published: public = the vendor\'s or the distribution\'s ordinary updates; ubuntu_pro = only Ubuntu Pro (ESM) has the fixed package (`sudo pro attach`, free for personal use on a few machines); esu = the fixing Windows build comes only with Extended Security Updates. A fix of another channel is its own "By fix" group')
 export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
 export const DeviceStatusCode = z.enum(DEVICE_STATUSES)
 export const QuestionKind = z.enum(['version_needed', 'platform', 'package_release', 'not_comparable', 'no_range_data', 'older_line'])
@@ -279,6 +281,7 @@ export const Fix = z.object({
   product: z.string().describe('The product the fix is for, as people name it ("OpenSSH")'),
   version: z.string().nullable().describe('update, distro_update, feature_update: the version or release to install; os_update: the build when known; restart: the installed kernel\'s package release the device runs after the restart'),
   ref: z.string().nullable().describe('os_update: the KB number; none_yet: the advisory id when known'),
+  channel: FixChannel,
   url: z.url().nullable().describe('The vendor advisory or release notes'),
 })
 export const CveRow = z.object({

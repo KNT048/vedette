@@ -445,6 +445,10 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	on, err := a.st.DistroOn(ctx) // a package Ubuntu or Debian built is judged by its data alone while its feeds are on
+	if err != nil {
+		return nil, err
+	}
 	published, err := a.st.KevPublished(ctx) // An old KEV CVE is a finding only on confirmed evidence
 	if err != nil {
 		return nil, err
@@ -452,7 +456,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
-			DistroLoading: loading}
+			DistroLoading: loading, DistroOn: on}
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
@@ -583,6 +587,10 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	if err != nil {
 		return nil, err
 	}
+	on, err := a.st.DistroOn(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var out []findings.Vuln
 	for _, cve := range cves {
 		e, inCatalogue := cat[cve]
@@ -590,7 +598,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		if len(rows) == 0 && !inCatalogue {
 			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
 		}
-		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, Origin: recordOrigin(rows)}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows)}
 		complete := true
 		for _, r := range rows {
 			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)

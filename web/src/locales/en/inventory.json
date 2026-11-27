@@ -515,6 +515,7 @@
     "clearLabel": "Clear \"not installed\" for {{name}}",
     "cleared": "{{name}} is back as the scan or agent reads it. Its findings are checked again.",
     "packageRelease": "Package release {{release}}",
+    "upstreamVersion": "Upstream version {{version}}",
     "enteredBy": "Set by {{user}} {{when}}",
     "enteredAt": "Set {{when}}",
     "enteredByHand": "Entered by hand",

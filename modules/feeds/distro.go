@@ -41,7 +41,8 @@ const (
 	DistroFixed       = "fixed"
 	DistroNotAffected = "not_affected"
 	// DistroOpen is the distribution's word "affected, no fix yet" (Debian's open entries, an Ubuntu release with no fixed event):
-	// kept only for the tier CVEs of the devices' packages (DistroWant.Row), for "Updates to plan".
+	// kept for every CVE of the CISA list (the matcher judges a package the distribution built by its word alone) and for the tier
+	// CVEs of the devices' packages (DistroWant.Row), for "Updates to plan".
 	DistroOpen = "open"
 
 	ubuntuOSVFeedID     = "ubuntu-osv"
@@ -98,10 +99,10 @@ type DistroWant struct {
 // CVE says whether some row of the CVE may be kept: its entry is read.
 func (w DistroWant) CVE(c string) bool { return w.KEV[c] || w.Tier[c] }
 
-// Row says whether the row of the CVE for the source package with this status is kept: every fixed or not-affected row of a CVE of the
-// CISA list (the matcher's), and every row of a tier CVE for a package some device runs (the plan's: fixed, not affected, or open).
+// Row says whether the row of the CVE for the source package with this status is kept: every row of a CVE of the CISA list (the
+// matcher's: fixed, not affected, or open), and every row of a tier CVE for a package some device runs (the plan's).
 func (w DistroWant) Row(cve, pkg, status string) bool {
-	return w.KEV[cve] && status != DistroOpen || w.Tier[cve] && w.Packages[pkg]
+	return w.KEV[cve] || w.Tier[cve] && w.Packages[pkg]
 }
 
 // DistroResult is one parsed pull.

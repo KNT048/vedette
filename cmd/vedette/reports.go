@@ -168,7 +168,8 @@ func (a reportsViews) Views(ctx context.Context) ([]reports.FindingView, error) 
 // listedFix is the fix the Findings lists name for an open finding (its block's combined release), keeping the kind, product and
 // advisory of the finding's own fix (a block combines only fixes of one kind).
 func listedFix(own reports.Fix, l findings.ListedFix) reports.Fix {
-	return reports.Fix{Key: l.Key, Kind: own.Kind, Product: own.Product, Version: optionalText(l.Fix.Version), Ref: optionalText(l.Fix.Ref), URL: own.URL}
+	return reports.Fix{Key: l.Key, Kind: own.Kind, Product: own.Product, Version: optionalText(l.Fix.Version), Ref: optionalText(l.Fix.Ref), URL: own.URL,
+		Channel: string(l.Fix.Chan())}
 }
 
 // reportView maps one view through its API shape (View.JSON), so the report and the findings pages cannot disagree.
@@ -177,7 +178,7 @@ func reportView(v findings.View) reports.FindingView {
 	r := reports.FindingView{ID: j.ID, CVE: j.CVE, Device: reports.DeviceRef{ID: j.Device.ID, Name: j.Device.Name, Added: j.Device.Added},
 		Status: j.Status, Urgency: v.Finding.Urgency, FirstSeen: v.Finding.FirstSeen,
 		Verification: reports.Verification{Verified: j.Verification.Verified, Basis: j.Verification.Basis, By: j.Verification.By, At: j.Verification.At},
-		Fix:          reports.Fix{Key: j.Fix.Key, Kind: j.Fix.Kind, Product: j.Fix.Product, Version: j.Fix.Version, Ref: j.Fix.Ref, URL: j.Fix.URL}}
+		Fix:          reports.Fix{Key: j.Fix.Key, Kind: j.Fix.Kind, Product: j.Fix.Product, Version: j.Fix.Version, Ref: j.Fix.Ref, URL: j.Fix.URL, Channel: j.Fix.Channel}}
 	if j.Software != nil {
 		r.Product = j.Software.Name
 		if j.Software.Version != nil {

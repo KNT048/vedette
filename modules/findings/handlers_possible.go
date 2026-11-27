@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
@@ -29,6 +30,20 @@ func (h *FindingHandlers) FindingsGetFindingsPossibleAudit(ctx context.Context) 
 		return nil, ToAPIError(err)
 	}
 	return Into[oas.FindingsGetFindingsPossibleAuditOK](map[string]any{"groups": groups})
+}
+
+// FindingsGetFindingsCoverage implements findings_get_findings_coverage (admin): the decision coverage of the last match pass, at null
+// before the first one.
+func (h *FindingHandlers) FindingsGetFindingsCoverage(context.Context) (*oas.FindingsGetFindingsCoverageOK, error) {
+	c, ok := h.svc.Coverage()
+	var at *time.Time
+	if ok {
+		at = &c.At
+	}
+	return Into[oas.FindingsGetFindingsCoverageOK](struct {
+		Coverage
+		At *time.Time `json:"at"`
+	}{c, at})
 }
 
 // possibleCheckState is contract.ts PossibleCheckState.

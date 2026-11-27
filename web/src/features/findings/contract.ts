@@ -545,6 +545,25 @@ export const UndecidedGroup = z.object({
   reason: Undecided.shape.reason, count: z.number().int().min(0),
   examples: z.array(z.string()).describe('Distinct blocking rows or advisory snippets (with their address), at most 20'),
 })
+const coverageCount = z.number().int().min(0)
+export const Coverage = z.object({
+  at: iso.nullable().describe('When the match pass ended; null before the first pass since the box started (every count 0)'),
+  devices: coverageCount.describe('Devices the pass matched (a device the pass found unchanged keeps the counts of its last full match)'),
+  lines: coverageCount.describe('Their software lines, and the network OS a device states without one'),
+  pairs: coverageCount.describe('(software line, CVE) pairs the catalogue relates on them'),
+  decided: z.array(z.object({
+    by: z.string().max(64).describe('The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory, ai_confirmed, person, scan) or platform_list (the hand list of platform limits)'),
+    affected: coverageCount, not_affected: coverageCount,
+  })).describe('Decided pairs by source, the most first'),
+  possible: z.array(z.object({
+    cause: z.string().max(64).describe('An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a question with no known reason), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed)'),
+    count: coverageCount,
+  })).describe('Undecided pairs by cause, the most first'),
+  identity: z.array(z.object({
+    method: z.enum(['stated', 'catalogue', 'record', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the catalogue is matched to it'),
+    lines: coverageCount,
+  })).describe('Software lines by how the box knows what product they are'),
+}).describe('Decision coverage of the last match pass: what decided each related (line, CVE) pair, why the rest is undecided, and how each line is identified. Counts only, no device data')
 export const Overview = z.object({
   open: z.object({
     findings: z.number().int().min(0).describe('Open findings on devices that are not ignored'),
@@ -597,6 +616,8 @@ export const endpoints = defineEndpoints([
     response: PossibleList, example: { query: {} } },
   { method: 'get', path: '/findings/possible/audit', summary: 'Every possible CVE grouped by why it is undecided, with the rows or advisory text that blocked the decision: what to teach the box to decide by itself', stories: ['S-MIT-1'], role: 'viewer',
     response: z.object({ groups: z.array(UndecidedGroup) }) },
+  { method: 'get', path: '/findings/coverage', summary: 'Decision coverage of the last match pass: pairs decided by source, undecided by cause, lines by identity method', stories: ['S-MIT-1'], role: 'admin',
+    response: Coverage, example: { query: {} } },
   { method: 'get', path: '/findings/possible/check', summary: 'Whether a check of possible findings can run, and how the last one stands', stories: ['S-MIT-1'], role: 'viewer', response: PossibleCheckState },
   { method: 'post', path: '/findings/possible/check', summary: 'Check possible findings (of one device, or all): in the background, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE\'s reference pages itself and decides when the vendor\'s ranges do; only the rest goes to the AI, whose verdicts are proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit findings.possible_checked', stories: ['S-MIT-1'], role: 'operator',
     body: z.object({ device: z.string().max(96).optional() }), response: PossibleCheckRun },

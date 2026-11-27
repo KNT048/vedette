@@ -95577,6 +95577,249 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemSoftware) SetVersion(val NilStrin
 	s.Version = val
 }
 
+// Decision coverage of the last match pass: what decided each related (line, CVE) pair, why the rest
+// is undecided, and how each line is identified. Counts only, no device data.
+type FindingsGetFindingsCoverageOK struct {
+	// When the match pass ended; null before the first pass since the box started (every count 0).
+	At NilDateTime `json:"at"`
+	// Decided pairs by source, the most first.
+	Decided []FindingsGetFindingsCoverageOKDecidedItem `json:"decided"`
+	// Devices the pass matched (a device the pass found unchanged keeps the counts of its last full match).
+	Devices int `json:"devices"`
+	// Software lines by how the box knows what product they are.
+	Identity []FindingsGetFindingsCoverageOKIdentityItem `json:"identity"`
+	// Their software lines, and the network OS a device states without one.
+	Lines int `json:"lines"`
+	// (software line, CVE) pairs the catalogue relates on them.
+	Pairs int `json:"pairs"`
+	// Undecided pairs by cause, the most first.
+	Possible []FindingsGetFindingsCoverageOKPossibleItem `json:"possible"`
+}
+
+// GetAt returns the value of At.
+func (s *FindingsGetFindingsCoverageOK) GetAt() NilDateTime {
+	return s.At
+}
+
+// GetDecided returns the value of Decided.
+func (s *FindingsGetFindingsCoverageOK) GetDecided() []FindingsGetFindingsCoverageOKDecidedItem {
+	return s.Decided
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsCoverageOK) GetDevices() int {
+	return s.Devices
+}
+
+// GetIdentity returns the value of Identity.
+func (s *FindingsGetFindingsCoverageOK) GetIdentity() []FindingsGetFindingsCoverageOKIdentityItem {
+	return s.Identity
+}
+
+// GetLines returns the value of Lines.
+func (s *FindingsGetFindingsCoverageOK) GetLines() int {
+	return s.Lines
+}
+
+// GetPairs returns the value of Pairs.
+func (s *FindingsGetFindingsCoverageOK) GetPairs() int {
+	return s.Pairs
+}
+
+// GetPossible returns the value of Possible.
+func (s *FindingsGetFindingsCoverageOK) GetPossible() []FindingsGetFindingsCoverageOKPossibleItem {
+	return s.Possible
+}
+
+// SetAt sets the value of At.
+func (s *FindingsGetFindingsCoverageOK) SetAt(val NilDateTime) {
+	s.At = val
+}
+
+// SetDecided sets the value of Decided.
+func (s *FindingsGetFindingsCoverageOK) SetDecided(val []FindingsGetFindingsCoverageOKDecidedItem) {
+	s.Decided = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsCoverageOK) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetIdentity sets the value of Identity.
+func (s *FindingsGetFindingsCoverageOK) SetIdentity(val []FindingsGetFindingsCoverageOKIdentityItem) {
+	s.Identity = val
+}
+
+// SetLines sets the value of Lines.
+func (s *FindingsGetFindingsCoverageOK) SetLines(val int) {
+	s.Lines = val
+}
+
+// SetPairs sets the value of Pairs.
+func (s *FindingsGetFindingsCoverageOK) SetPairs(val int) {
+	s.Pairs = val
+}
+
+// SetPossible sets the value of Possible.
+func (s *FindingsGetFindingsCoverageOK) SetPossible(val []FindingsGetFindingsCoverageOKPossibleItem) {
+	s.Possible = val
+}
+
+type FindingsGetFindingsCoverageOKDecidedItem struct {
+	Affected int `json:"affected"`
+	// The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory,
+	// ai_confirmed, person, scan) or platform_list (the hand list of platform limits).
+	By          string `json:"by"`
+	NotAffected int    `json:"not_affected"`
+}
+
+// GetAffected returns the value of Affected.
+func (s *FindingsGetFindingsCoverageOKDecidedItem) GetAffected() int {
+	return s.Affected
+}
+
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsCoverageOKDecidedItem) GetBy() string {
+	return s.By
+}
+
+// GetNotAffected returns the value of NotAffected.
+func (s *FindingsGetFindingsCoverageOKDecidedItem) GetNotAffected() int {
+	return s.NotAffected
+}
+
+// SetAffected sets the value of Affected.
+func (s *FindingsGetFindingsCoverageOKDecidedItem) SetAffected(val int) {
+	s.Affected = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsCoverageOKDecidedItem) SetBy(val string) {
+	s.By = val
+}
+
+// SetNotAffected sets the value of NotAffected.
+func (s *FindingsGetFindingsCoverageOKDecidedItem) SetNotAffected(val int) {
+	s.NotAffected = val
+}
+
+type FindingsGetFindingsCoverageOKIdentityItem struct {
+	Lines int `json:"lines"`
+	// Stated: the source states the product (a CPE, a distribution package); catalogue: the product
+	// catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the
+	// catalogue is matched to it.
+	Method FindingsGetFindingsCoverageOKIdentityItemMethod `json:"method"`
+}
+
+// GetLines returns the value of Lines.
+func (s *FindingsGetFindingsCoverageOKIdentityItem) GetLines() int {
+	return s.Lines
+}
+
+// GetMethod returns the value of Method.
+func (s *FindingsGetFindingsCoverageOKIdentityItem) GetMethod() FindingsGetFindingsCoverageOKIdentityItemMethod {
+	return s.Method
+}
+
+// SetLines sets the value of Lines.
+func (s *FindingsGetFindingsCoverageOKIdentityItem) SetLines(val int) {
+	s.Lines = val
+}
+
+// SetMethod sets the value of Method.
+func (s *FindingsGetFindingsCoverageOKIdentityItem) SetMethod(val FindingsGetFindingsCoverageOKIdentityItemMethod) {
+	s.Method = val
+}
+
+// Stated: the source states the product (a CPE, a distribution package); catalogue: the product
+// catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the
+// catalogue is matched to it.
+type FindingsGetFindingsCoverageOKIdentityItemMethod string
+
+const (
+	FindingsGetFindingsCoverageOKIdentityItemMethodStated    FindingsGetFindingsCoverageOKIdentityItemMethod = "stated"
+	FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue FindingsGetFindingsCoverageOKIdentityItemMethod = "catalogue"
+	FindingsGetFindingsCoverageOKIdentityItemMethodRecord    FindingsGetFindingsCoverageOKIdentityItemMethod = "record"
+	FindingsGetFindingsCoverageOKIdentityItemMethodNone      FindingsGetFindingsCoverageOKIdentityItemMethod = "none"
+)
+
+// AllValues returns all FindingsGetFindingsCoverageOKIdentityItemMethod values.
+func (FindingsGetFindingsCoverageOKIdentityItemMethod) AllValues() []FindingsGetFindingsCoverageOKIdentityItemMethod {
+	return []FindingsGetFindingsCoverageOKIdentityItemMethod{
+		FindingsGetFindingsCoverageOKIdentityItemMethodStated,
+		FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue,
+		FindingsGetFindingsCoverageOKIdentityItemMethodRecord,
+		FindingsGetFindingsCoverageOKIdentityItemMethodNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsCoverageOKIdentityItemMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsCoverageOKIdentityItemMethodStated:
+		return []byte(s), nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue:
+		return []byte(s), nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodRecord:
+		return []byte(s), nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsCoverageOKIdentityItemMethod(data) {
+	case FindingsGetFindingsCoverageOKIdentityItemMethodStated:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodStated
+		return nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue
+		return nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodRecord:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodRecord
+		return nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsCoverageOKPossibleItem struct {
+	// An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a
+	// question with no known reason), or an unnamed class: pairs the matcher reached and neither decided
+	// nor asked about, so nobody is told why (other_distro_silent: a distribution's package its data has
+	// no word on; other_record_unread: the rows name the product and give nothing the matcher compares;
+	// other_dropped: matched on the name alone or an old entry, not listed).
+	Cause string `json:"cause"`
+	Count int    `json:"count"`
+}
+
+// GetCause returns the value of Cause.
+func (s *FindingsGetFindingsCoverageOKPossibleItem) GetCause() string {
+	return s.Cause
+}
+
+// GetCount returns the value of Count.
+func (s *FindingsGetFindingsCoverageOKPossibleItem) GetCount() int {
+	return s.Count
+}
+
+// SetCause sets the value of Cause.
+func (s *FindingsGetFindingsCoverageOKPossibleItem) SetCause(val string) {
+	s.Cause = val
+}
+
+// SetCount sets the value of Count.
+func (s *FindingsGetFindingsCoverageOKPossibleItem) SetCount(val int) {
+	s.Count = val
+}
+
 // True: only ignored devices (the Ignored devices tab); default false: none of them.
 type FindingsGetFindingsDevicesIgnored string
 

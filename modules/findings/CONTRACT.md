@@ -14,7 +14,7 @@ the product reads findings from.
 | `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/answered`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
 | `GET /findings?asset=` (one device), `GET /findings/{id}` (the finding page's evidence and "What to do", filled by mitigation) | viewer |
 | `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer`, `POST /findings/questions/ignore`, `POST /findings/questions/accept-risk` | operator |
-| `POST /findings/{id}/verify`, `POST /findings/{id}/unverify` | admin |
+| `POST /findings/{id}/verify`, `POST /findings/{id}/unverify`, `GET /findings/coverage` | admin |
 
 Needs your input (`GET /findings/input`) is one card per added device (`device_needs`), collapsed by default: its entries are what runs
 there (`device_unchecked`), urgent findings not confirmed yet (`unconfirmed`) and its questions grouped by software line (`software_group`,
@@ -170,6 +170,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   not public yet, and a row limited to some platforms decide nothing: the CVE record's own statement decides as before. A distribution's
   package is never read here. `TestLineJudge_EveryVerdict`, `TestLineJudge_EvidenceFixAndOrigin`, `TestLineJudge_OracleJava`,
   `TestLineJudge_OracleTexts`, `TestLineJudge_OracleOwnBuildPart`.
+- **M-14 Decision coverage.** Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched
+  (a row of the line reached by the entry's key or rows, or a finding or question of the pair), what decided it: the source (the
+  `range_origin` vocabulary, `platform_list` for the hand list of platform limits, `person` for an answered question, `advisory` for a
+  check the box settled) as affected or not affected; else why it is undecided: its undecided reason, `ai_proposal`, or an unnamed class
+  (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is
+  told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
+  pass finds unchanged keeps the counts of its last full match; the sum of the last pass is kept in memory and served by
+  `GET /findings/coverage` (admin, counts only, Settings → Diagnostics). Counting reads the pass's readings and the rows its write left and
+  changes no finding or question. The test-only build tag `holdout` runs the matcher without the catalogue's CPE aliases, so the same pass
+  shows what rests on catalogue rows. `TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue` (made-up products in every
+  standard record shape; shapes not decided yet are skipped with the rule that will decide them).
 
 ## Possible findings and the check of their advisories
 

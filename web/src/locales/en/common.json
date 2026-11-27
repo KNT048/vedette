@@ -429,6 +429,7 @@
     "home": "Home",
     "lookup": "Lookup",
     "feedsSettings": "Feeds",
+    "diagnostics": "Diagnostics",
     "detection": "Overview",
     "logs": "Logs",
     "siem": "SIEM forwarding",

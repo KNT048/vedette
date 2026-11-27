@@ -565,6 +565,9 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		res.Reopened += up.Reopened
 	}
 	s.stamps.keepOnly(matched)
+	if len(vulns) > 0 {
+		s.covers.pass(matched, s.now().UTC())
+	}
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {
 		return res, errors.Join(append(failed, err)...)
@@ -752,6 +755,13 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 	}
 	if err := add(ctx, recent, allRecent); err != nil {
 		return sum, err
+	}
+	if last != nil && last.wrote && !last.changed { // counted from the readings the writes were made of (coverage.go)
+		if checks, err := checksFor(ctx, s.rd(ctx), last.rows.questions); err == nil {
+			s.covers.set(a.ID, coverOf(dm, last.rows, checks))
+		} else { // the device keeps its last counts: they change nothing
+			s.cfg.Log.WarnContext(ctx, "findings: could not count the decision coverage of a device", "device", a.ID, "error", err)
+		}
 	}
 	if in.ok && stampable && last != nil {
 		a.winList = nil // the stamp hashes the device as MatchInput gives it

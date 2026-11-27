@@ -1244,15 +1244,15 @@ func emptyPages(pages []FetchedPage, cve string, group []checkUnit) {
 // the page is on the vendor's host.
 func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 	vendor, _, _ := strings.Cut(product, "|")
-	for i := range pages {
-		for _, r := range refs {
-			if r.URL == pages[i].URL && slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "vendor-advisory" }) {
-				pages[i].Vendor = true
-			}
+	tagged := map[string]bool{} // the addresses of the references tagged vendor-advisory
+	for _, r := range refs {
+		if slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "vendor-advisory" }) {
+			tagged[r.URL] = true
 		}
-		if u, err := url.Parse(pages[i].URL); err == nil && vendorHost(u.Hostname(), vendor) {
-			pages[i].Vendor = true
-		}
+	}
+	for i, p := range pages {
+		u, err := url.Parse(p.URL)
+		pages[i].Vendor = p.Vendor || tagged[p.URL] || err == nil && vendorHost(u.Hostname(), vendor)
 	}
 }
 

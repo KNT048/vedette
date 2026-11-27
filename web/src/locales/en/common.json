@@ -164,7 +164,8 @@
       "distro_fixed": "the distribution's package is fixed",
       "scan_clear": "the safe check came back clear",
       "data_corrected": "the match was corrected",
-      "not_installed": "the software is not installed"
+      "not_installed": "the software is not installed",
+      "outside_window": "the CVE is outside the reporting window (older than 12 months, not exploited in the wild)"
     }
   },
   "reasons": {

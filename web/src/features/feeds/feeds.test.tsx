@@ -739,6 +739,31 @@ describe('feeds: Settings -> Feeds (S-FEED-4)', () => {
   })
 })
 
+describe('feeds: which CVEs the box reports (S-FEED-4)', () => {
+  it('off by default; every age asks first, says what it costs, and switches back with what it closes', async () => {
+    renderApp('/settings/feeds')
+    const every = await screen.findByRole('switch', { name: 'Report CVEs of every age' })
+    expect(every).not.toBeChecked()
+    expect(screen.getByText(/Off \(the default\)/)).toBeInTheDocument()
+    await userEvent.click(every)
+    let dlg = await screen.findByRole('dialog', { name: 'Report CVEs of every age?' })
+    expect(within(dlg).getByText(/about 0\.9 GB of data instead of about 0\.35 GB/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Cancel' }))
+    expect(every).not.toBeChecked()
+    await userEvent.click(every)
+    dlg = await screen.findByRole('dialog', { name: 'Report CVEs of every age?' })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Report every age' }))
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Report CVEs of every age' })).toBeChecked())
+    expect(screen.getByText(/^Changed by /)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('switch', { name: 'Report CVEs of every age' }))
+    dlg = await screen.findByRole('dialog', { name: 'Report only the last 12 months and exploited CVEs?' })
+    expect(within(dlg).getByText(/close as outside the reporting window/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Switch off' }))
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Report CVEs of every age' })).not.toBeChecked())
+    await expectNoA11yViolations()
+  })
+})
+
 describe('feeds: Add a feed (S-FEED-5)', () => {
   it('the JSON Source hint gives an example that fits the field and the feed type', async () => {
     renderApp('/settings/feeds')

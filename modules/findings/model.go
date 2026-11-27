@@ -64,10 +64,14 @@ const (
 	ViaDataCorrected Via = "data_corrected"
 	// ViaNotInstalled: a person said the software is not installed on the device.
 	ViaNotInstalled Via = "not_installed"
+	// ViaOutsideWindow: the CVE left the reporting window (feeds: published before the last 12 months, no evidence of exploitation in
+	// the wild, no public exploit in that time). Nothing changed on the device; it opens again when the CVE is back inside the window
+	// (an administrator reports CVEs of every age, or it is exploited). Never patch credit.
+	ViaOutsideWindow Via = "outside_window"
 )
 
 // Vias lists every way a finding is handled (the stored vocabulary; a test lists every value Transition writes).
-var Vias = []Via{ViaPerson, ViaVersionMoved, ViaSoftwareRemoved, ViaDistroFixed, ViaScanClear, ViaDataCorrected, ViaNotInstalled}
+var Vias = []Via{ViaPerson, ViaVersionMoved, ViaSoftwareRemoved, ViaDistroFixed, ViaScanClear, ViaDataCorrected, ViaNotInstalled, ViaOutsideWindow}
 
 // Valid reports whether v is one of the ways.
 func (v Via) Valid() bool { return validWord(string(v)) && containsVia(v) }

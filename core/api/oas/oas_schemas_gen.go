@@ -89760,6 +89760,59 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalText(data []byte) error 
 	}
 }
 
+type FeedsGetFeedsWindowOK struct {
+	// When an administrator last changed it; null: never (the default).
+	ChangedAt NilDateTime `json:"changed_at"`
+	ChangedBy NilString   `json:"changed_by"`
+	// Report CVEs of every age: the vulnerability data keeps every CVE NVD and the CVE Program publish.
+	// Off (the default): CVEs published in the last window_days days, and older ones only while there is
+	// evidence of exploitation in the wild (an exploited list, or a vendor says it is exploited) or a
+	// public exploit came out within window_days days.
+	EveryAge bool `json:"every_age"`
+	// The window's length in days.
+	WindowDays int `json:"window_days"`
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *FeedsGetFeedsWindowOK) GetChangedAt() NilDateTime {
+	return s.ChangedAt
+}
+
+// GetChangedBy returns the value of ChangedBy.
+func (s *FeedsGetFeedsWindowOK) GetChangedBy() NilString {
+	return s.ChangedBy
+}
+
+// GetEveryAge returns the value of EveryAge.
+func (s *FeedsGetFeedsWindowOK) GetEveryAge() bool {
+	return s.EveryAge
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *FeedsGetFeedsWindowOK) GetWindowDays() int {
+	return s.WindowDays
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *FeedsGetFeedsWindowOK) SetChangedAt(val NilDateTime) {
+	s.ChangedAt = val
+}
+
+// SetChangedBy sets the value of ChangedBy.
+func (s *FeedsGetFeedsWindowOK) SetChangedBy(val NilString) {
+	s.ChangedBy = val
+}
+
+// SetEveryAge sets the value of EveryAge.
+func (s *FeedsGetFeedsWindowOK) SetEveryAge(val bool) {
+	s.EveryAge = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *FeedsGetFeedsWindowOK) SetWindowDays(val int) {
+	s.WindowDays = val
+}
+
 type FeedsPostFeedsCustomCreated struct {
 	// The CISA list only: the copy the catalog on the box came from (newest from), "CISA" or "CISA GitHub
 	// mirror"; both copies are asked every check; null for every other feed and before the first good pull.
@@ -94303,6 +94356,73 @@ func (s *FeedsPutFeedsSourcesIDReq) SetURL(val OptString) {
 	s.URL = val
 }
 
+type FeedsPutFeedsWindowOK struct {
+	// When an administrator last changed it; null: never (the default).
+	ChangedAt NilDateTime `json:"changed_at"`
+	ChangedBy NilString   `json:"changed_by"`
+	// Report CVEs of every age: the vulnerability data keeps every CVE NVD and the CVE Program publish.
+	// Off (the default): CVEs published in the last window_days days, and older ones only while there is
+	// evidence of exploitation in the wild (an exploited list, or a vendor says it is exploited) or a
+	// public exploit came out within window_days days.
+	EveryAge bool `json:"every_age"`
+	// The window's length in days.
+	WindowDays int `json:"window_days"`
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *FeedsPutFeedsWindowOK) GetChangedAt() NilDateTime {
+	return s.ChangedAt
+}
+
+// GetChangedBy returns the value of ChangedBy.
+func (s *FeedsPutFeedsWindowOK) GetChangedBy() NilString {
+	return s.ChangedBy
+}
+
+// GetEveryAge returns the value of EveryAge.
+func (s *FeedsPutFeedsWindowOK) GetEveryAge() bool {
+	return s.EveryAge
+}
+
+// GetWindowDays returns the value of WindowDays.
+func (s *FeedsPutFeedsWindowOK) GetWindowDays() int {
+	return s.WindowDays
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *FeedsPutFeedsWindowOK) SetChangedAt(val NilDateTime) {
+	s.ChangedAt = val
+}
+
+// SetChangedBy sets the value of ChangedBy.
+func (s *FeedsPutFeedsWindowOK) SetChangedBy(val NilString) {
+	s.ChangedBy = val
+}
+
+// SetEveryAge sets the value of EveryAge.
+func (s *FeedsPutFeedsWindowOK) SetEveryAge(val bool) {
+	s.EveryAge = val
+}
+
+// SetWindowDays sets the value of WindowDays.
+func (s *FeedsPutFeedsWindowOK) SetWindowDays(val int) {
+	s.WindowDays = val
+}
+
+type FeedsPutFeedsWindowReq struct {
+	EveryAge bool `json:"every_age"`
+}
+
+// GetEveryAge returns the value of EveryAge.
+func (s *FeedsPutFeedsWindowReq) GetEveryAge() bool {
+	return s.EveryAge
+}
+
+// SetEveryAge sets the value of EveryAge.
+func (s *FeedsPutFeedsWindowReq) SetEveryAge(val bool) {
+	s.EveryAge = val
+}
+
 type FindingsGetFindingsAnsweredOK struct {
 	// The newest answer first.
 	Items []FindingsGetFindingsAnsweredOKItemsItem `json:"items"`
@@ -95877,6 +95997,11 @@ type FindingsGetFindingsCoverageOK struct {
 	Identity []FindingsGetFindingsCoverageOKIdentityItem `json:"identity"`
 	// Their software lines, and the network OS a device states without one.
 	Lines int `json:"lines"`
+	// CVEs naming a product the devices run that the pass set aside as outside the reporting window
+	// (published before the last 12 months, no evidence of exploitation in the wild, no public exploit in
+	// that time): not judged, so neither decided nor undecided and not in pairs. 0 while CVEs of every age
+	// are reported.
+	OutsideWindow int `json:"outside_window"`
 	// (software line, CVE) pairs the catalogue relates on them.
 	Pairs int `json:"pairs"`
 	// Undecided pairs by cause, the most first.
@@ -95906,6 +96031,11 @@ func (s *FindingsGetFindingsCoverageOK) GetIdentity() []FindingsGetFindingsCover
 // GetLines returns the value of Lines.
 func (s *FindingsGetFindingsCoverageOK) GetLines() int {
 	return s.Lines
+}
+
+// GetOutsideWindow returns the value of OutsideWindow.
+func (s *FindingsGetFindingsCoverageOK) GetOutsideWindow() int {
+	return s.OutsideWindow
 }
 
 // GetPairs returns the value of Pairs.
@@ -95941,6 +96071,11 @@ func (s *FindingsGetFindingsCoverageOK) SetIdentity(val []FindingsGetFindingsCov
 // SetLines sets the value of Lines.
 func (s *FindingsGetFindingsCoverageOK) SetLines(val int) {
 	s.Lines = val
+}
+
+// SetOutsideWindow sets the value of OutsideWindow.
+func (s *FindingsGetFindingsCoverageOK) SetOutsideWindow(val int) {
+	s.OutsideWindow = val
 }
 
 // SetPairs sets the value of Pairs.
@@ -96101,15 +96236,14 @@ type FindingsGetFindingsCoverageOKPossibleItem struct {
 	// The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading,
 	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a
 	// distribution's package its distribution's data has no word on stays undecided with no question
-	// (outside_window: older than the 12 months tracked and on no exploited list; distro_other_packages,
-	// distro_other_releases: the distribution lists the CVE for other packages or releases only;
-	// distro_other_build: its row is about another build; distro_not_listed: no row of the CVE;
-	// distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or
-	// an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told
-	// why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the
-	// rows name the product and give nothing the matcher compares; other_dropped: matched on the name
-	// alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason
-	// (Undecided.reason), ai_proposal or other here.
+	// (distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or
+	// releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the
+	// CVE; distro_no_data: no data of that distribution; version_needed: the agent gave no package
+	// release), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so
+	// nobody is told why (other_distro_silent: a distribution's package its data has no word on;
+	// other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped:
+	// matched on the name alone or an old entry, not listed). A pass counted before causes were kept names
+	// an undecided reason (Undecided.reason), ai_proposal or other here.
 	Cause string `json:"cause"`
 	Count int    `json:"count"`
 	// The same pairs by the matcher's own reason, the most first; empty for an unnamed class and for a
@@ -101062,7 +101196,9 @@ type FindingsGetFindingsHandledOKItemsItemHandled struct {
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-	// was corrected: never patch credit); not_installed = a person said the software is not installed.
+	// was corrected: never patch credit); not_installed = a person said the software is not installed;
+	// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+	// never patch credit; it opens again when the CVE is back inside it).
 	Via FindingsGetFindingsHandledOKItemsItemHandledVia `json:"via"`
 }
 
@@ -101215,7 +101351,9 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandledResolution) UnmarshalText(d
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsGetFindingsHandledOKItemsItemHandledVia string
 
 const (
@@ -101226,6 +101364,7 @@ const (
 	FindingsGetFindingsHandledOKItemsItemHandledViaScanClear       FindingsGetFindingsHandledOKItemsItemHandledVia = "scan_clear"
 	FindingsGetFindingsHandledOKItemsItemHandledViaDataCorrected   FindingsGetFindingsHandledOKItemsItemHandledVia = "data_corrected"
 	FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled    FindingsGetFindingsHandledOKItemsItemHandledVia = "not_installed"
+	FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow   FindingsGetFindingsHandledOKItemsItemHandledVia = "outside_window"
 )
 
 // AllValues returns all FindingsGetFindingsHandledOKItemsItemHandledVia values.
@@ -101238,6 +101377,7 @@ func (FindingsGetFindingsHandledOKItemsItemHandledVia) AllValues() []FindingsGet
 		FindingsGetFindingsHandledOKItemsItemHandledViaScanClear,
 		FindingsGetFindingsHandledOKItemsItemHandledViaDataCorrected,
 		FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled,
+		FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow,
 	}
 }
 
@@ -101257,6 +101397,8 @@ func (s FindingsGetFindingsHandledOKItemsItemHandledVia) MarshalText() ([]byte, 
 	case FindingsGetFindingsHandledOKItemsItemHandledViaDataCorrected:
 		return []byte(s), nil
 	case FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	case FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -101286,6 +101428,9 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandledVia) UnmarshalText(data []b
 		return nil
 	case FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled:
 		*s = FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled
+		return nil
+	case FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow:
+		*s = FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -107588,7 +107733,9 @@ func (s *FindingsGetFindingsIDViewOKEventsItemResolution) UnmarshalText(data []b
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsGetFindingsIDViewOKEventsItemVia string
 
 const (
@@ -107599,6 +107746,7 @@ const (
 	FindingsGetFindingsIDViewOKEventsItemViaScanClear       FindingsGetFindingsIDViewOKEventsItemVia = "scan_clear"
 	FindingsGetFindingsIDViewOKEventsItemViaDataCorrected   FindingsGetFindingsIDViewOKEventsItemVia = "data_corrected"
 	FindingsGetFindingsIDViewOKEventsItemViaNotInstalled    FindingsGetFindingsIDViewOKEventsItemVia = "not_installed"
+	FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow   FindingsGetFindingsIDViewOKEventsItemVia = "outside_window"
 )
 
 // AllValues returns all FindingsGetFindingsIDViewOKEventsItemVia values.
@@ -107611,6 +107759,7 @@ func (FindingsGetFindingsIDViewOKEventsItemVia) AllValues() []FindingsGetFinding
 		FindingsGetFindingsIDViewOKEventsItemViaScanClear,
 		FindingsGetFindingsIDViewOKEventsItemViaDataCorrected,
 		FindingsGetFindingsIDViewOKEventsItemViaNotInstalled,
+		FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow,
 	}
 }
 
@@ -107630,6 +107779,8 @@ func (s FindingsGetFindingsIDViewOKEventsItemVia) MarshalText() ([]byte, error) 
 	case FindingsGetFindingsIDViewOKEventsItemViaDataCorrected:
 		return []byte(s), nil
 	case FindingsGetFindingsIDViewOKEventsItemViaNotInstalled:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -107659,6 +107810,9 @@ func (s *FindingsGetFindingsIDViewOKEventsItemVia) UnmarshalText(data []byte) er
 		return nil
 	case FindingsGetFindingsIDViewOKEventsItemViaNotInstalled:
 		*s = FindingsGetFindingsIDViewOKEventsItemViaNotInstalled
+		return nil
+	case FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow:
+		*s = FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -107917,7 +108071,9 @@ type FindingsGetFindingsIDViewOKHandled struct {
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-	// was corrected: never patch credit); not_installed = a person said the software is not installed.
+	// was corrected: never patch credit); not_installed = a person said the software is not installed;
+	// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+	// never patch credit; it opens again when the CVE is back inside it).
 	Via FindingsGetFindingsIDViewOKHandledVia `json:"via"`
 }
 
@@ -108070,7 +108226,9 @@ func (s *FindingsGetFindingsIDViewOKHandledResolution) UnmarshalText(data []byte
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsGetFindingsIDViewOKHandledVia string
 
 const (
@@ -108081,6 +108239,7 @@ const (
 	FindingsGetFindingsIDViewOKHandledViaScanClear       FindingsGetFindingsIDViewOKHandledVia = "scan_clear"
 	FindingsGetFindingsIDViewOKHandledViaDataCorrected   FindingsGetFindingsIDViewOKHandledVia = "data_corrected"
 	FindingsGetFindingsIDViewOKHandledViaNotInstalled    FindingsGetFindingsIDViewOKHandledVia = "not_installed"
+	FindingsGetFindingsIDViewOKHandledViaOutsideWindow   FindingsGetFindingsIDViewOKHandledVia = "outside_window"
 )
 
 // AllValues returns all FindingsGetFindingsIDViewOKHandledVia values.
@@ -108093,6 +108252,7 @@ func (FindingsGetFindingsIDViewOKHandledVia) AllValues() []FindingsGetFindingsID
 		FindingsGetFindingsIDViewOKHandledViaScanClear,
 		FindingsGetFindingsIDViewOKHandledViaDataCorrected,
 		FindingsGetFindingsIDViewOKHandledViaNotInstalled,
+		FindingsGetFindingsIDViewOKHandledViaOutsideWindow,
 	}
 }
 
@@ -108112,6 +108272,8 @@ func (s FindingsGetFindingsIDViewOKHandledVia) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDViewOKHandledViaDataCorrected:
 		return []byte(s), nil
 	case FindingsGetFindingsIDViewOKHandledViaNotInstalled:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -108141,6 +108303,9 @@ func (s *FindingsGetFindingsIDViewOKHandledVia) UnmarshalText(data []byte) error
 		return nil
 	case FindingsGetFindingsIDViewOKHandledViaNotInstalled:
 		*s = FindingsGetFindingsIDViewOKHandledViaNotInstalled
+		return nil
+	case FindingsGetFindingsIDViewOKHandledViaOutsideWindow:
+		*s = FindingsGetFindingsIDViewOKHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -132355,7 +132520,9 @@ func (s *FindingsPostFindingsIDReopenOKEventsItemResolution) UnmarshalText(data 
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsPostFindingsIDReopenOKEventsItemVia string
 
 const (
@@ -132366,6 +132533,7 @@ const (
 	FindingsPostFindingsIDReopenOKEventsItemViaScanClear       FindingsPostFindingsIDReopenOKEventsItemVia = "scan_clear"
 	FindingsPostFindingsIDReopenOKEventsItemViaDataCorrected   FindingsPostFindingsIDReopenOKEventsItemVia = "data_corrected"
 	FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled    FindingsPostFindingsIDReopenOKEventsItemVia = "not_installed"
+	FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow   FindingsPostFindingsIDReopenOKEventsItemVia = "outside_window"
 )
 
 // AllValues returns all FindingsPostFindingsIDReopenOKEventsItemVia values.
@@ -132378,6 +132546,7 @@ func (FindingsPostFindingsIDReopenOKEventsItemVia) AllValues() []FindingsPostFin
 		FindingsPostFindingsIDReopenOKEventsItemViaScanClear,
 		FindingsPostFindingsIDReopenOKEventsItemViaDataCorrected,
 		FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled,
+		FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow,
 	}
 }
 
@@ -132397,6 +132566,8 @@ func (s FindingsPostFindingsIDReopenOKEventsItemVia) MarshalText() ([]byte, erro
 	case FindingsPostFindingsIDReopenOKEventsItemViaDataCorrected:
 		return []byte(s), nil
 	case FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -132426,6 +132597,9 @@ func (s *FindingsPostFindingsIDReopenOKEventsItemVia) UnmarshalText(data []byte)
 		return nil
 	case FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled:
 		*s = FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled
+		return nil
+	case FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow:
+		*s = FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -132684,7 +132858,9 @@ type FindingsPostFindingsIDReopenOKHandled struct {
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-	// was corrected: never patch credit); not_installed = a person said the software is not installed.
+	// was corrected: never patch credit); not_installed = a person said the software is not installed;
+	// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+	// never patch credit; it opens again when the CVE is back inside it).
 	Via FindingsPostFindingsIDReopenOKHandledVia `json:"via"`
 }
 
@@ -132837,7 +133013,9 @@ func (s *FindingsPostFindingsIDReopenOKHandledResolution) UnmarshalText(data []b
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsPostFindingsIDReopenOKHandledVia string
 
 const (
@@ -132848,6 +133026,7 @@ const (
 	FindingsPostFindingsIDReopenOKHandledViaScanClear       FindingsPostFindingsIDReopenOKHandledVia = "scan_clear"
 	FindingsPostFindingsIDReopenOKHandledViaDataCorrected   FindingsPostFindingsIDReopenOKHandledVia = "data_corrected"
 	FindingsPostFindingsIDReopenOKHandledViaNotInstalled    FindingsPostFindingsIDReopenOKHandledVia = "not_installed"
+	FindingsPostFindingsIDReopenOKHandledViaOutsideWindow   FindingsPostFindingsIDReopenOKHandledVia = "outside_window"
 )
 
 // AllValues returns all FindingsPostFindingsIDReopenOKHandledVia values.
@@ -132860,6 +133039,7 @@ func (FindingsPostFindingsIDReopenOKHandledVia) AllValues() []FindingsPostFindin
 		FindingsPostFindingsIDReopenOKHandledViaScanClear,
 		FindingsPostFindingsIDReopenOKHandledViaDataCorrected,
 		FindingsPostFindingsIDReopenOKHandledViaNotInstalled,
+		FindingsPostFindingsIDReopenOKHandledViaOutsideWindow,
 	}
 }
 
@@ -132879,6 +133059,8 @@ func (s FindingsPostFindingsIDReopenOKHandledVia) MarshalText() ([]byte, error) 
 	case FindingsPostFindingsIDReopenOKHandledViaDataCorrected:
 		return []byte(s), nil
 	case FindingsPostFindingsIDReopenOKHandledViaNotInstalled:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -132908,6 +133090,9 @@ func (s *FindingsPostFindingsIDReopenOKHandledVia) UnmarshalText(data []byte) er
 		return nil
 	case FindingsPostFindingsIDReopenOKHandledViaNotInstalled:
 		*s = FindingsPostFindingsIDReopenOKHandledViaNotInstalled
+		return nil
+	case FindingsPostFindingsIDReopenOKHandledViaOutsideWindow:
+		*s = FindingsPostFindingsIDReopenOKHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -135687,7 +135872,9 @@ func (s *FindingsPostFindingsIDUnverifyOKEventsItemResolution) UnmarshalText(dat
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsPostFindingsIDUnverifyOKEventsItemVia string
 
 const (
@@ -135698,6 +135885,7 @@ const (
 	FindingsPostFindingsIDUnverifyOKEventsItemViaScanClear       FindingsPostFindingsIDUnverifyOKEventsItemVia = "scan_clear"
 	FindingsPostFindingsIDUnverifyOKEventsItemViaDataCorrected   FindingsPostFindingsIDUnverifyOKEventsItemVia = "data_corrected"
 	FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled    FindingsPostFindingsIDUnverifyOKEventsItemVia = "not_installed"
+	FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow   FindingsPostFindingsIDUnverifyOKEventsItemVia = "outside_window"
 )
 
 // AllValues returns all FindingsPostFindingsIDUnverifyOKEventsItemVia values.
@@ -135710,6 +135898,7 @@ func (FindingsPostFindingsIDUnverifyOKEventsItemVia) AllValues() []FindingsPostF
 		FindingsPostFindingsIDUnverifyOKEventsItemViaScanClear,
 		FindingsPostFindingsIDUnverifyOKEventsItemViaDataCorrected,
 		FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled,
+		FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow,
 	}
 }
 
@@ -135729,6 +135918,8 @@ func (s FindingsPostFindingsIDUnverifyOKEventsItemVia) MarshalText() ([]byte, er
 	case FindingsPostFindingsIDUnverifyOKEventsItemViaDataCorrected:
 		return []byte(s), nil
 	case FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -135758,6 +135949,9 @@ func (s *FindingsPostFindingsIDUnverifyOKEventsItemVia) UnmarshalText(data []byt
 		return nil
 	case FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled:
 		*s = FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled
+		return nil
+	case FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow:
+		*s = FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -136016,7 +136210,9 @@ type FindingsPostFindingsIDUnverifyOKHandled struct {
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-	// was corrected: never patch credit); not_installed = a person said the software is not installed.
+	// was corrected: never patch credit); not_installed = a person said the software is not installed;
+	// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+	// never patch credit; it opens again when the CVE is back inside it).
 	Via FindingsPostFindingsIDUnverifyOKHandledVia `json:"via"`
 }
 
@@ -136169,7 +136365,9 @@ func (s *FindingsPostFindingsIDUnverifyOKHandledResolution) UnmarshalText(data [
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsPostFindingsIDUnverifyOKHandledVia string
 
 const (
@@ -136180,6 +136378,7 @@ const (
 	FindingsPostFindingsIDUnverifyOKHandledViaScanClear       FindingsPostFindingsIDUnverifyOKHandledVia = "scan_clear"
 	FindingsPostFindingsIDUnverifyOKHandledViaDataCorrected   FindingsPostFindingsIDUnverifyOKHandledVia = "data_corrected"
 	FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled    FindingsPostFindingsIDUnverifyOKHandledVia = "not_installed"
+	FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow   FindingsPostFindingsIDUnverifyOKHandledVia = "outside_window"
 )
 
 // AllValues returns all FindingsPostFindingsIDUnverifyOKHandledVia values.
@@ -136192,6 +136391,7 @@ func (FindingsPostFindingsIDUnverifyOKHandledVia) AllValues() []FindingsPostFind
 		FindingsPostFindingsIDUnverifyOKHandledViaScanClear,
 		FindingsPostFindingsIDUnverifyOKHandledViaDataCorrected,
 		FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled,
+		FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow,
 	}
 }
 
@@ -136211,6 +136411,8 @@ func (s FindingsPostFindingsIDUnverifyOKHandledVia) MarshalText() ([]byte, error
 	case FindingsPostFindingsIDUnverifyOKHandledViaDataCorrected:
 		return []byte(s), nil
 	case FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -136240,6 +136442,9 @@ func (s *FindingsPostFindingsIDUnverifyOKHandledVia) UnmarshalText(data []byte) 
 		return nil
 	case FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled:
 		*s = FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled
+		return nil
+	case FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow:
+		*s = FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -139005,7 +139210,9 @@ func (s *FindingsPostFindingsIDVerifyOKEventsItemResolution) UnmarshalText(data 
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsPostFindingsIDVerifyOKEventsItemVia string
 
 const (
@@ -139016,6 +139223,7 @@ const (
 	FindingsPostFindingsIDVerifyOKEventsItemViaScanClear       FindingsPostFindingsIDVerifyOKEventsItemVia = "scan_clear"
 	FindingsPostFindingsIDVerifyOKEventsItemViaDataCorrected   FindingsPostFindingsIDVerifyOKEventsItemVia = "data_corrected"
 	FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled    FindingsPostFindingsIDVerifyOKEventsItemVia = "not_installed"
+	FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow   FindingsPostFindingsIDVerifyOKEventsItemVia = "outside_window"
 )
 
 // AllValues returns all FindingsPostFindingsIDVerifyOKEventsItemVia values.
@@ -139028,6 +139236,7 @@ func (FindingsPostFindingsIDVerifyOKEventsItemVia) AllValues() []FindingsPostFin
 		FindingsPostFindingsIDVerifyOKEventsItemViaScanClear,
 		FindingsPostFindingsIDVerifyOKEventsItemViaDataCorrected,
 		FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled,
+		FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow,
 	}
 }
 
@@ -139047,6 +139256,8 @@ func (s FindingsPostFindingsIDVerifyOKEventsItemVia) MarshalText() ([]byte, erro
 	case FindingsPostFindingsIDVerifyOKEventsItemViaDataCorrected:
 		return []byte(s), nil
 	case FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -139076,6 +139287,9 @@ func (s *FindingsPostFindingsIDVerifyOKEventsItemVia) UnmarshalText(data []byte)
 		return nil
 	case FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled:
 		*s = FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled
+		return nil
+	case FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow:
+		*s = FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -139334,7 +139548,9 @@ type FindingsPostFindingsIDVerifyOKHandled struct {
 	// affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 	// the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 	// came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-	// was corrected: never patch credit); not_installed = a person said the software is not installed.
+	// was corrected: never patch credit); not_installed = a person said the software is not installed;
+	// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+	// never patch credit; it opens again when the CVE is back inside it).
 	Via FindingsPostFindingsIDVerifyOKHandledVia `json:"via"`
 }
 
@@ -139487,7 +139703,9 @@ func (s *FindingsPostFindingsIDVerifyOKHandledResolution) UnmarshalText(data []b
 // affected version (from_version, to_version); software_removed = the software is gone; distro_fixed =
 // the distribution says the installed package is fixed; scan_clear = a safe check that had matched
 // came back clear; data_corrected = no longer detected while nothing on the device changed (the match
-// was corrected: never patch credit); not_installed = a person said the software is not installed.
+// was corrected: never patch credit); not_installed = a person said the software is not installed;
+// outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild:
+// never patch credit; it opens again when the CVE is back inside it).
 type FindingsPostFindingsIDVerifyOKHandledVia string
 
 const (
@@ -139498,6 +139716,7 @@ const (
 	FindingsPostFindingsIDVerifyOKHandledViaScanClear       FindingsPostFindingsIDVerifyOKHandledVia = "scan_clear"
 	FindingsPostFindingsIDVerifyOKHandledViaDataCorrected   FindingsPostFindingsIDVerifyOKHandledVia = "data_corrected"
 	FindingsPostFindingsIDVerifyOKHandledViaNotInstalled    FindingsPostFindingsIDVerifyOKHandledVia = "not_installed"
+	FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow   FindingsPostFindingsIDVerifyOKHandledVia = "outside_window"
 )
 
 // AllValues returns all FindingsPostFindingsIDVerifyOKHandledVia values.
@@ -139510,6 +139729,7 @@ func (FindingsPostFindingsIDVerifyOKHandledVia) AllValues() []FindingsPostFindin
 		FindingsPostFindingsIDVerifyOKHandledViaScanClear,
 		FindingsPostFindingsIDVerifyOKHandledViaDataCorrected,
 		FindingsPostFindingsIDVerifyOKHandledViaNotInstalled,
+		FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow,
 	}
 }
 
@@ -139529,6 +139749,8 @@ func (s FindingsPostFindingsIDVerifyOKHandledVia) MarshalText() ([]byte, error) 
 	case FindingsPostFindingsIDVerifyOKHandledViaDataCorrected:
 		return []byte(s), nil
 	case FindingsPostFindingsIDVerifyOKHandledViaNotInstalled:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -139558,6 +139780,9 @@ func (s *FindingsPostFindingsIDVerifyOKHandledVia) UnmarshalText(data []byte) er
 		return nil
 	case FindingsPostFindingsIDVerifyOKHandledViaNotInstalled:
 		*s = FindingsPostFindingsIDVerifyOKHandledViaNotInstalled
+		return nil
+	case FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow:
+		*s = FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -227625,7 +227850,8 @@ type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled struct {
 	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
 	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
-	// not_installed = a person said the software is not installed.
+	// not_installed = a person said the software is not installed; outside_window = the CVE left the
+	// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 	Via ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia `json:"via"`
 }
 
@@ -227776,7 +228002,8 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledResolution
 // affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 // installed package is fixed; scan_clear = a safe check that had matched came back clear;
 // data_corrected = no longer detected while nothing on the device changed (never patch credit);
-// not_installed = a person said the software is not installed.
+// not_installed = a person said the software is not installed; outside_window = the CVE left the
+// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 type ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia string
 
 const (
@@ -227787,6 +228014,7 @@ const (
 	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear       ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "scan_clear"
 	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "data_corrected"
 	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled    ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "not_installed"
+	ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow   ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia = "outside_window"
 )
 
 // AllValues returns all ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia values.
@@ -227799,6 +228027,7 @@ func (ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) AllValue
 		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaScanClear,
 		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected,
 		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled,
+		ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow,
 	}
 }
 
@@ -227818,6 +228047,8 @@ func (s ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Marsha
 	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -227847,6 +228078,9 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Unmar
 		return nil
 	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
 		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled
+		return nil
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -228027,7 +228261,8 @@ type ReportsGetReportsDocumentOKHandledTotalsItem struct {
 	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
 	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
-	// not_installed = a person said the software is not installed.
+	// not_installed = a person said the software is not installed; outside_window = the CVE left the
+	// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 	Via ReportsGetReportsDocumentOKHandledTotalsItemVia `json:"via"`
 }
 
@@ -228128,7 +228363,8 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItemResolution) UnmarshalText(d
 // affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 // installed package is fixed; scan_clear = a safe check that had matched came back clear;
 // data_corrected = no longer detected while nothing on the device changed (never patch credit);
-// not_installed = a person said the software is not installed.
+// not_installed = a person said the software is not installed; outside_window = the CVE left the
+// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 type ReportsGetReportsDocumentOKHandledTotalsItemVia string
 
 const (
@@ -228139,6 +228375,7 @@ const (
 	ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear       ReportsGetReportsDocumentOKHandledTotalsItemVia = "scan_clear"
 	ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected   ReportsGetReportsDocumentOKHandledTotalsItemVia = "data_corrected"
 	ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled    ReportsGetReportsDocumentOKHandledTotalsItemVia = "not_installed"
+	ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow   ReportsGetReportsDocumentOKHandledTotalsItemVia = "outside_window"
 )
 
 // AllValues returns all ReportsGetReportsDocumentOKHandledTotalsItemVia values.
@@ -228151,6 +228388,7 @@ func (ReportsGetReportsDocumentOKHandledTotalsItemVia) AllValues() []ReportsGetR
 		ReportsGetReportsDocumentOKHandledTotalsItemViaScanClear,
 		ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected,
 		ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled,
+		ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow,
 	}
 }
 
@@ -228170,6 +228408,8 @@ func (s ReportsGetReportsDocumentOKHandledTotalsItemVia) MarshalText() ([]byte, 
 	case ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -228199,6 +228439,9 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) UnmarshalText(data []b
 		return nil
 	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
 		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled
+		return nil
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -233054,7 +233297,8 @@ type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled stru
 	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
 	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
-	// not_installed = a person said the software is not installed.
+	// not_installed = a person said the software is not installed; outside_window = the CVE left the
+	// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 	Via ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia `json:"via"`
 }
 
@@ -233205,7 +233449,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledR
 // affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 // installed package is fixed; scan_clear = a safe check that had matched came back clear;
 // data_corrected = no longer detected while nothing on the device changed (never patch credit);
-// not_installed = a person said the software is not installed.
+// not_installed = a person said the software is not installed; outside_window = the CVE left the
+// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia string
 
 const (
@@ -233216,6 +233461,7 @@ const (
 	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear       ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "scan_clear"
 	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "data_corrected"
 	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled    ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "not_installed"
+	ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow   ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia = "outside_window"
 )
 
 // AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia values.
@@ -233228,6 +233474,7 @@ func (ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia)
 		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaScanClear,
 		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected,
 		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled,
+		ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow,
 	}
 }
 
@@ -233247,6 +233494,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVi
 	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -233276,6 +233525,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledV
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -233456,7 +233708,8 @@ type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem struct {
 	// affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 	// installed package is fixed; scan_clear = a safe check that had matched came back clear;
 	// data_corrected = no longer detected while nothing on the device changed (never patch credit);
-	// not_installed = a person said the software is not installed.
+	// not_installed = a person said the software is not installed; outside_window = the CVE left the
+	// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 	Via ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia `json:"via"`
 }
 
@@ -233557,7 +233810,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemResolution) Unmars
 // affected version; software_removed = the software is gone; distro_fixed = the distribution says the
 // installed package is fixed; scan_clear = a safe check that had matched came back clear;
 // data_corrected = no longer detected while nothing on the device changed (never patch credit);
-// not_installed = a person said the software is not installed.
+// not_installed = a person said the software is not installed; outside_window = the CVE left the
+// reporting window (older than 12 months, not exploited in the wild; never patch credit).
 type ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia string
 
 const (
@@ -233568,6 +233822,7 @@ const (
 	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear       ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "scan_clear"
 	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "data_corrected"
 	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled    ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "not_installed"
+	ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow   ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia = "outside_window"
 )
 
 // AllValues returns all ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia values.
@@ -233580,6 +233835,7 @@ func (ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) AllValues() []Re
 		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaScanClear,
 		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected,
 		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled,
+		ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow,
 	}
 }
 
@@ -233599,6 +233855,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) MarshalText() 
 	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -233628,6 +233886,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) UnmarshalText
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

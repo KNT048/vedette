@@ -504,7 +504,8 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 // product in its own notation (SchemeCVEs), that a distribution fixed in a package the devices run (scope.Packages) or that a finding
 // holds (scope.Pinned), with the ranges as feeds reads them for matching (matchRows: NVD's with the CVE record's CNA rows beside them,
 // else the record's), the vendor's rows read in the product's version scheme (Schemed), the publication day, EPSS and the distributions' word.
-// Every entry, the exploited lists' included, carries the same data whichever of these found it. Nothing while the feeds module is off.
+// Every entry, the exploited lists' included, carries the same data whichever of these found it; a catalogue CVE outside the reporting
+// window is marked (OutsideWindow), never left out, so findings closes what it held of it. Nothing while the feeds module is off.
 func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error) {
 	if a.on != nil && !a.on() {
 		return nil, nil
@@ -521,6 +522,19 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 	more, err := a.catalogueEntries(ctx, scope, listed)
 	if err != nil {
 		return nil, err
+	}
+	// the reporting window: a catalogue CVE outside it (old, not exploited, no new exploit) is marked, and findings sets it aside; an
+	// exploited list's entry never is
+	cves := make([]string, len(more))
+	for i, v := range more {
+		cves[i] = v.CVE
+	}
+	outside, err := a.st.OutsideWindow(ctx, cves, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	for i := range more {
+		more[i].OutsideWindow = outside[more[i].CVE]
 	}
 	out = append(out, more...)
 	if err := a.withSchemed(ctx, out); err != nil {

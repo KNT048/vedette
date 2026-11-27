@@ -15,15 +15,17 @@ import { useCan } from '@/lib/session'
 import { hostOf, useFeedSources, useFetchFeed, usePatchFeed } from './api'
 import { ScheduleTextOf } from '@/components/schedule/ScheduleEditor'
 import { BuiltinDialog, CustomDialog, DeleteDialog } from './FeedDialogs'
+import { ReportWindowSection } from './ReportWindowSection'
 import type { Feed } from './types'
 
-/** Settings → Feeds (S-FEED-4): built-in feeds (switch, schedule, mirror) and your own feeds with parsing rules. Admin edits; others read. */
+/** Settings → Feeds (S-FEED-4): which CVEs the box reports, built-in feeds (switch, schedule, mirror) and your own feeds with parsing rules. Admin edits; others read. */
 export default function FeedsSettings() {
   const { t } = useTranslation('feeds')
   const sources = useFeedSources()
   return (
     <div className="grid max-w-5xl gap-2">
       <PageHeader title={t('common:shell.feedsSettings')} meta={t('settings.direct')} info={t('settings.directInfo')} stories={['S-FEED-4', 'S-FEED-5']} />
+      <ReportWindowSection />
       <QueryState query={sources}>{(d) => <Tables items={d.items} />}</QueryState>
     </div>
   )

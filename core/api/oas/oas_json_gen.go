@@ -171821,6 +171821,149 @@ func (s *FeedsGetFeedsWeeklyOKItemsItemAnswer) UnmarshalJSON(data []byte) error 
 }
 
 // Encode implements json.Marshaler.
+func (s *FeedsGetFeedsWindowOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FeedsGetFeedsWindowOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("changed_at")
+		s.ChangedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("changed_by")
+		s.ChangedBy.Encode(e)
+	}
+	{
+		e.FieldStart("every_age")
+		e.Bool(s.EveryAge)
+	}
+	{
+		e.FieldStart("window_days")
+		e.Int(s.WindowDays)
+	}
+}
+
+var jsonFieldsNameOfFeedsGetFeedsWindowOK = [4]string{
+	0: "changed_at",
+	1: "changed_by",
+	2: "every_age",
+	3: "window_days",
+}
+
+// Decode decodes FeedsGetFeedsWindowOK from json.
+func (s *FeedsGetFeedsWindowOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FeedsGetFeedsWindowOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "changed_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.ChangedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_at\"")
+			}
+		case "changed_by":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.ChangedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_by\"")
+			}
+		case "every_age":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.EveryAge = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_age\"")
+			}
+		case "window_days":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.WindowDays = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_days\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FeedsGetFeedsWindowOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFeedsGetFeedsWindowOK) {
+					name = jsonFieldsNameOfFeedsGetFeedsWindowOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FeedsGetFeedsWindowOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FeedsGetFeedsWindowOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FeedsPostFeedsCustomCreated) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -179854,6 +179997,245 @@ func (s *FeedsPutFeedsSourcesIDReq) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *FeedsPutFeedsWindowOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FeedsPutFeedsWindowOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("changed_at")
+		s.ChangedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("changed_by")
+		s.ChangedBy.Encode(e)
+	}
+	{
+		e.FieldStart("every_age")
+		e.Bool(s.EveryAge)
+	}
+	{
+		e.FieldStart("window_days")
+		e.Int(s.WindowDays)
+	}
+}
+
+var jsonFieldsNameOfFeedsPutFeedsWindowOK = [4]string{
+	0: "changed_at",
+	1: "changed_by",
+	2: "every_age",
+	3: "window_days",
+}
+
+// Decode decodes FeedsPutFeedsWindowOK from json.
+func (s *FeedsPutFeedsWindowOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FeedsPutFeedsWindowOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "changed_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.ChangedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_at\"")
+			}
+		case "changed_by":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.ChangedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_by\"")
+			}
+		case "every_age":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.EveryAge = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_age\"")
+			}
+		case "window_days":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.WindowDays = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_days\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FeedsPutFeedsWindowOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFeedsPutFeedsWindowOK) {
+					name = jsonFieldsNameOfFeedsPutFeedsWindowOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FeedsPutFeedsWindowOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FeedsPutFeedsWindowOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FeedsPutFeedsWindowReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FeedsPutFeedsWindowReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("every_age")
+		e.Bool(s.EveryAge)
+	}
+}
+
+var jsonFieldsNameOfFeedsPutFeedsWindowReq = [1]string{
+	0: "every_age",
+}
+
+// Decode decodes FeedsPutFeedsWindowReq from json.
+func (s *FeedsPutFeedsWindowReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FeedsPutFeedsWindowReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "every_age":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.EveryAge = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"every_age\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FeedsPutFeedsWindowReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFeedsPutFeedsWindowReq) {
+					name = jsonFieldsNameOfFeedsPutFeedsWindowReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FeedsPutFeedsWindowReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FeedsPutFeedsWindowReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsAnsweredOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -181698,6 +182080,10 @@ func (s *FindingsGetFindingsCoverageOK) encodeFields(e *jx.Encoder) {
 		e.Int(s.Lines)
 	}
 	{
+		e.FieldStart("outside_window")
+		e.Int(s.OutsideWindow)
+	}
+	{
 		e.FieldStart("pairs")
 		e.Int(s.Pairs)
 	}
@@ -181711,14 +182097,15 @@ func (s *FindingsGetFindingsCoverageOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsCoverageOK = [7]string{
+var jsonFieldsNameOfFindingsGetFindingsCoverageOK = [8]string{
 	0: "at",
 	1: "decided",
 	2: "devices",
 	3: "identity",
 	4: "lines",
-	5: "pairs",
-	6: "possible",
+	5: "outside_window",
+	6: "pairs",
+	7: "possible",
 }
 
 // Decode decodes FindingsGetFindingsCoverageOK from json.
@@ -181800,8 +182187,20 @@ func (s *FindingsGetFindingsCoverageOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"lines\"")
 			}
-		case "pairs":
+		case "outside_window":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.OutsideWindow = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"outside_window\"")
+			}
+		case "pairs":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Pairs = int(v)
@@ -181813,7 +182212,7 @@ func (s *FindingsGetFindingsCoverageOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pairs\"")
 			}
 		case "possible":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				s.Possible = make([]FindingsGetFindingsCoverageOKPossibleItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -181840,7 +182239,7 @@ func (s *FindingsGetFindingsCoverageOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -188474,6 +188873,8 @@ func (s *FindingsGetFindingsHandledOKItemsItemHandledVia) Decode(d *jx.Decoder) 
 		*s = FindingsGetFindingsHandledOKItemsItemHandledViaDataCorrected
 	case FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled:
 		*s = FindingsGetFindingsHandledOKItemsItemHandledViaNotInstalled
+	case FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow:
+		*s = FindingsGetFindingsHandledOKItemsItemHandledViaOutsideWindow
 	default:
 		*s = FindingsGetFindingsHandledOKItemsItemHandledVia(v)
 	}
@@ -199183,6 +199584,8 @@ func (s *FindingsGetFindingsIDViewOKEventsItemVia) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsIDViewOKEventsItemViaDataCorrected
 	case FindingsGetFindingsIDViewOKEventsItemViaNotInstalled:
 		*s = FindingsGetFindingsIDViewOKEventsItemViaNotInstalled
+	case FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow:
+		*s = FindingsGetFindingsIDViewOKEventsItemViaOutsideWindow
 	default:
 		*s = FindingsGetFindingsIDViewOKEventsItemVia(v)
 	}
@@ -199762,6 +200165,8 @@ func (s *FindingsGetFindingsIDViewOKHandledVia) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsIDViewOKHandledViaDataCorrected
 	case FindingsGetFindingsIDViewOKHandledViaNotInstalled:
 		*s = FindingsGetFindingsIDViewOKHandledViaNotInstalled
+	case FindingsGetFindingsIDViewOKHandledViaOutsideWindow:
+		*s = FindingsGetFindingsIDViewOKHandledViaOutsideWindow
 	default:
 		*s = FindingsGetFindingsIDViewOKHandledVia(v)
 	}
@@ -235883,6 +236288,8 @@ func (s *FindingsPostFindingsIDReopenOKEventsItemVia) Decode(d *jx.Decoder) erro
 		*s = FindingsPostFindingsIDReopenOKEventsItemViaDataCorrected
 	case FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled:
 		*s = FindingsPostFindingsIDReopenOKEventsItemViaNotInstalled
+	case FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow:
+		*s = FindingsPostFindingsIDReopenOKEventsItemViaOutsideWindow
 	default:
 		*s = FindingsPostFindingsIDReopenOKEventsItemVia(v)
 	}
@@ -236462,6 +236869,8 @@ func (s *FindingsPostFindingsIDReopenOKHandledVia) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDReopenOKHandledViaDataCorrected
 	case FindingsPostFindingsIDReopenOKHandledViaNotInstalled:
 		*s = FindingsPostFindingsIDReopenOKHandledViaNotInstalled
+	case FindingsPostFindingsIDReopenOKHandledViaOutsideWindow:
+		*s = FindingsPostFindingsIDReopenOKHandledViaOutsideWindow
 	default:
 		*s = FindingsPostFindingsIDReopenOKHandledVia(v)
 	}
@@ -240205,6 +240614,8 @@ func (s *FindingsPostFindingsIDUnverifyOKEventsItemVia) Decode(d *jx.Decoder) er
 		*s = FindingsPostFindingsIDUnverifyOKEventsItemViaDataCorrected
 	case FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled:
 		*s = FindingsPostFindingsIDUnverifyOKEventsItemViaNotInstalled
+	case FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow:
+		*s = FindingsPostFindingsIDUnverifyOKEventsItemViaOutsideWindow
 	default:
 		*s = FindingsPostFindingsIDUnverifyOKEventsItemVia(v)
 	}
@@ -240784,6 +241195,8 @@ func (s *FindingsPostFindingsIDUnverifyOKHandledVia) Decode(d *jx.Decoder) error
 		*s = FindingsPostFindingsIDUnverifyOKHandledViaDataCorrected
 	case FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled:
 		*s = FindingsPostFindingsIDUnverifyOKHandledViaNotInstalled
+	case FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow:
+		*s = FindingsPostFindingsIDUnverifyOKHandledViaOutsideWindow
 	default:
 		*s = FindingsPostFindingsIDUnverifyOKHandledVia(v)
 	}
@@ -244431,6 +244844,8 @@ func (s *FindingsPostFindingsIDVerifyOKEventsItemVia) Decode(d *jx.Decoder) erro
 		*s = FindingsPostFindingsIDVerifyOKEventsItemViaDataCorrected
 	case FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled:
 		*s = FindingsPostFindingsIDVerifyOKEventsItemViaNotInstalled
+	case FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow:
+		*s = FindingsPostFindingsIDVerifyOKEventsItemViaOutsideWindow
 	default:
 		*s = FindingsPostFindingsIDVerifyOKEventsItemVia(v)
 	}
@@ -245010,6 +245425,8 @@ func (s *FindingsPostFindingsIDVerifyOKHandledVia) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDVerifyOKHandledViaDataCorrected
 	case FindingsPostFindingsIDVerifyOKHandledViaNotInstalled:
 		*s = FindingsPostFindingsIDVerifyOKHandledViaNotInstalled
+	case FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow:
+		*s = FindingsPostFindingsIDVerifyOKHandledViaOutsideWindow
 	default:
 		*s = FindingsPostFindingsIDVerifyOKHandledVia(v)
 	}
@@ -353349,6 +353766,8 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia) Decod
 		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaDataCorrected
 	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled:
 		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaNotInstalled
+	case ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow:
+		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledViaOutsideWindow
 	default:
 		*s = ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandledVia(v)
 	}
@@ -353804,6 +354223,8 @@ func (s *ReportsGetReportsDocumentOKHandledTotalsItemVia) Decode(d *jx.Decoder) 
 		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaDataCorrected
 	case ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled:
 		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaNotInstalled
+	case ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow:
+		*s = ReportsGetReportsDocumentOKHandledTotalsItemViaOutsideWindow
 	default:
 		*s = ReportsGetReportsDocumentOKHandledTotalsItemVia(v)
 	}
@@ -362989,6 +363410,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledV
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaDataCorrected
 	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled:
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaNotInstalled
+	case ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledViaOutsideWindow
 	default:
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandledVia(v)
 	}
@@ -363444,6 +363867,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia) Decode(d *jx.
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaDataCorrected
 	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled:
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaNotInstalled
+	case ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow:
+		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemViaOutsideWindow
 	default:
 		*s = ReportsGetReportsHistoryIDOKDocumentHandledTotalsItemVia(v)
 	}

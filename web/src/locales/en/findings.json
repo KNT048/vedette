@@ -975,6 +975,7 @@
       "undecided": "Undecided"
     },
     "identity": "Software lines by identity: {{list}}.",
+    "outsideWindow": "{{n}} CVEs set aside as outside the reporting window (older than 12 months, not exploited in the wild): not judged, not in the pairs.",
     "method": {
       "stated": "stated by the source {{n}}",
       "catalogue": "product catalogue {{n}}",
@@ -1029,7 +1030,6 @@
       "platform": "Platform unknown",
       "package_release": "Package release unknown",
       "older_line": "Older line not listed",
-      "outside_window": "Older than 12 months and not exploited: not tracked",
       "distro_other_packages": "Distribution lists other packages only",
       "distro_other_releases": "Distribution lists other releases only",
       "distro_other_build": "Distribution's fix is about another build",

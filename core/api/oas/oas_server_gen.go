@@ -1384,6 +1384,12 @@ type Handler interface {
 	//
 	// GET /feeds/weekly
 	FeedsGetFeedsWeekly(ctx context.Context) (*FeedsGetFeedsWeeklyOK, error)
+	// FeedsGetFeedsWindow implements feeds_get_feeds_window operation.
+	//
+	// Which CVEs the box reports: the last 12 months and older ones exploited in the wild, or every age.
+	//
+	// GET /feeds/window
+	FeedsGetFeedsWindow(ctx context.Context) (*FeedsGetFeedsWindowOK, error)
 	// FeedsPostFeedsCustom implements feeds_post_feeds_custom operation.
 	//
 	// Add your own feed (vulnerabilities or IOC) with its parsing rules.
@@ -1421,6 +1427,14 @@ type Handler interface {
 	//
 	// PUT /feeds/sources/{id}
 	FeedsPutFeedsSourcesID(ctx context.Context, req *FeedsPutFeedsSourcesIDReq, params FeedsPutFeedsSourcesIDParams) (*FeedsPutFeedsSourcesIDOK, error)
+	// FeedsPutFeedsWindow implements feeds_put_feeds_window operation.
+	//
+	// Report CVEs of every age, or only the last 12 months and older ones exploited in the wild (the
+	// default). Switched off, the older CVEs leave the data and their open findings close as outside the
+	// reporting window.
+	//
+	// PUT /feeds/window
+	FeedsPutFeedsWindow(ctx context.Context, req *FeedsPutFeedsWindowReq) (*FeedsPutFeedsWindowOK, error)
 	// FindingsGetFindings implements findings_get_findings operation.
 	//
 	// The findings of one device in every state, newest first, each with its history: what a version

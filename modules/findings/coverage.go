@@ -66,13 +66,16 @@ const (
 
 // Coverage is the decision coverage of the last match pass.
 type Coverage struct {
-	At       time.Time        `json:"at"`
-	Devices  int              `json:"devices"`  // devices the pass matched
-	Lines    int              `json:"lines"`    // their software lines (and the network OS a device states without one)
-	Pairs    int              `json:"pairs"`    // (line, CVE) the catalogue relates on them
-	Decided  []CoverageSource `json:"decided"`  // by source, the most pairs first
-	Possible []CoverageCause  `json:"possible"` // by cause, the most first
-	Identity []CoverageMethod `json:"identity"` // by method, in IdentityMethods order
+	At      time.Time `json:"at"`
+	Devices int       `json:"devices"` // devices the pass matched
+	Lines   int       `json:"lines"`   // their software lines (and the network OS a device states without one)
+	Pairs   int       `json:"pairs"`   // (line, CVE) the catalogue relates on them
+	// OutsideWindow is how many CVEs of the pass's match set (CVEs naming a product the devices run) it set aside as outside the
+	// reporting window (window.go): not judged, neither decided nor undecided, not in Pairs.
+	OutsideWindow int              `json:"outside_window"`
+	Decided       []CoverageSource `json:"decided"`  // by source, the most pairs first
+	Possible      []CoverageCause  `json:"possible"` // by cause, the most first
+	Identity      []CoverageMethod `json:"identity"` // by method, in IdentityMethods order
 }
 
 // CoverageSource is how many pairs one source decided, each way.
@@ -169,12 +172,13 @@ func (c *covers) set(id string, d deviceCover) {
 	c.m[id] = d
 }
 
-// pass keeps only the devices of live and stores their sum as the last pass's coverage.
-func (c *covers) pass(live map[string]bool, at time.Time) {
+// pass keeps only the devices of live and stores their sum as the last pass's coverage, with the CVEs the pass set aside as outside the
+// reporting window.
+func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	maps.DeleteFunc(c.m, func(id string, _ deviceCover) bool { return !live[id] })
-	out := Coverage{At: at, Decided: []CoverageSource{}, Possible: []CoverageCause{}, Identity: []CoverageMethod{}}
+	out := Coverage{At: at, OutsideWindow: outside, Decided: []CoverageSource{}, Possible: []CoverageCause{}, Identity: []CoverageMethod{}}
 	decided, possible, identity := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}
 	for _, d := range c.m {
 		out.Devices++
@@ -401,7 +405,7 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			line, class := storedLine(s.ID), CoverageOtherRecordUnread
 			if in := dm.infos[i]; in.pkgBuilt() && !upstreamJudges(in, v) {
 				if _, ok := distroVerdict(in, v); !ok { // only its distribution's word may decide it: why it has none (distroSilence)
-					class = cmp.Or(distroSilence(in, v, dm.now), CoverageOtherDistroSilent)
+					class = cmp.Or(distroSilence(in, v), CoverageOtherDistroSilent)
 				}
 			}
 			if key := lineKey(v.CVE, line); related[key] == "" {

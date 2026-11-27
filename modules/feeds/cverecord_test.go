@@ -946,7 +946,7 @@ VALUES ('CVE-2026-0901', 'exploited', 'ids-local', '2026-11-05T00:00:00.000Z', '
 			t.Fatalf("asked by ID: %s", h.path)
 		}
 	}
-	missing, err := e.svc.st.missingRecords(t.Context(), false, 100)
+	missing, err := e.svc.st.missingRecords(t.Context(), Window{Cutoff: e.clock().AddDate(0, 0, -windowDays)}, false, 100)
 	if err != nil || slices.Contains(missing, "CVE-2026-0900") || slices.Contains(missing, "CVE-2026-0901") {
 		t.Fatalf("NVD's by-ID set: %v %v", missing, err)
 	}

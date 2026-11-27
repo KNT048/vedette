@@ -43,6 +43,7 @@ function CoverageTable({ c }: { c: Coverage }) {
         <span className="block">{t('coverage.at', { at: fmtDateTime(c.at), devices: fmt(c.devices), lines: fmt(c.lines), pairs: fmt(c.pairs) })}</span>
         <span className="block font-medium text-ink">{t('coverage.decidedShare', { share: share(decided, c.pairs) })} · {t('coverage.undecidedShare', { share: share(undecided, c.pairs) })} · {t('coverage.otherShare', { share: share(other, c.pairs) })}</span>
         <span className="block">{t('coverage.identity', { list: identity })}</span>
+        {c.outside_window > 0 ? <span className="block">{t('coverage.outsideWindow', { n: fmt(c.outside_window) })}</span> : null}
       </>}>
       <DataTable urlKey="coverage" data={coverageRows(c)} columns={columns} caption={t('coverage.caption')} pageSize={50} />
     </Section>

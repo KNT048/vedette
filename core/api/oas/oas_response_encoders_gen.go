@@ -2332,6 +2332,19 @@ func encodeFeedsGetFeedsWeeklyResponse(response *FeedsGetFeedsWeeklyOK, w http.R
 	return nil
 }
 
+func encodeFeedsGetFeedsWindowResponse(response *FeedsGetFeedsWindowOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeFeedsPostFeedsCustomResponse(response *FeedsPostFeedsCustomCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(201)
@@ -2398,6 +2411,19 @@ func encodeFeedsPutFeedsCustomIDResponse(response *FeedsPutFeedsCustomIDOK, w ht
 }
 
 func encodeFeedsPutFeedsSourcesIDResponse(response *FeedsPutFeedsSourcesIDOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeFeedsPutFeedsWindowResponse(response *FeedsPutFeedsWindowOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

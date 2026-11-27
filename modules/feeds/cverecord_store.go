@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/coredb"
 )
 
 // What a CVE record writes into the catalogue. The record reader is the one writer of feeds_cve.record_at, title, solution, workaround
@@ -20,40 +21,40 @@ import (
 // and the references (feeds_cve_ref) while NVD has tagged none (nvdRefs): NVD's record carries the CNA's and CISA's weaknesses and
 // references, tagged by an analyst. CVSS scores stay NVD's: NVD's record carries the CNA's and CISA's scores too.
 
-// importantSQL is the CVEs the box holds for a reason of its own (with the pinned CVEs the caller adds): an exploited-list entry (a
-// custom list's too) or a qualifying signal. Only its public part (publicListedSQL) is ever asked for by ID. References do not depend
-// on it: every CVE the catalogue holds keeps them, and they go with the CVE (feeds_cve_ref cascades from feeds_cve).
-const importantSQL = keepSetSQL
-
 // recordKeep says which records the box stores.
 type recordKeep struct {
-	have map[string]bool // in the catalogue, or kept whatever their age (an exploited-list entry, a qualifying signal, a pin)
+	have map[string]bool // in the catalogue, or kept whatever their age (Window.keptSQL, a pin)
 	// askable are the kept CVEs whose record may be asked for by ID because every box asks the same: one a public source names
 	// (publicListedSQL), or one published inside the window. Never a CVE kept only for a finding or a custom list.
-	askable map[string]bool
-	cutoff  time.Time // a CVE published since is kept (the catalogue's window)
+	askable  map[string]bool
+	cutoff   time.Time // a CVE published since is kept (the reporting window)
+	everyAge bool      // every published record is kept (an administrator reports CVEs of every age)
 }
 
-// recordKeepOf reads the keep sets.
-func recordKeepOf(ctx context.Context, q queryer, now time.Time, pinned []string) (recordKeep, error) {
-	have, err := stringSet(ctx, q, `SELECT cve FROM feeds_cve UNION `+keepSetSQL)
+// recordKeepOf reads the reporting window and the keep sets.
+func recordKeepOf(ctx context.Context, q coredb.DBTX, now time.Time, pinned []string) (recordKeep, error) {
+	w, err := windowOf(ctx, q, now)
+	if err != nil {
+		return recordKeep{}, err
+	}
+	have, err := stringSet(ctx, q, `SELECT cve FROM feeds_cve UNION `+w.keptSQL())
 	if err != nil {
 		return recordKeep{}, err
 	}
 	for _, c := range pinned {
 		have[c] = true
 	}
-	cutoff := now.AddDate(0, 0, -windowDays)
-	ask, err := stringSet(ctx, q, publicListedSQL+` UNION SELECT cve FROM feeds_cve WHERE published >= ?`, store.FormatTS(cutoff))
+	ask, err := stringSet(ctx, q, w.publicListedSQL()+` UNION SELECT cve FROM feeds_cve WHERE published >= ?`, store.FormatTS(w.Cutoff))
 	if err != nil {
 		return recordKeep{}, err
 	}
-	return recordKeep{have: have, askable: ask, cutoff: cutoff}, nil
+	return recordKeep{have: have, askable: ask, cutoff: w.Cutoff, everyAge: w.EveryAge}, nil
 }
 
-// keeps says whether a record read is stored: its CVE is in the catalogue or kept, or it was published inside the window.
+// keeps says whether a record read is stored: its CVE is in the catalogue or kept, or it was published inside the window (any day
+// while every age is reported).
 func (k recordKeep) keeps(r CVERecord) bool {
-	return k.have[r.CVE] || r.State == RecordPublished && !r.Published.IsZero() && !r.Published.Before(k.cutoff)
+	return k.have[r.CVE] || r.State == RecordPublished && !r.Published.IsZero() && (k.everyAge || !r.Published.Before(k.cutoff))
 }
 
 // recordWrite is what writeRecords did.
@@ -383,13 +384,17 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 
 // ---- counts ----
 
-// recordDue lists the CVEs whose record is asked for by its ID this pull, at most limit: only CVEs a public source names
-// (publicListedSQL: never a custom list's, a box-built signal's or a finding's CVE), whose record was never read, or, without NVD
+// recordDue lists the CVEs whose record is asked for by its ID this pull, at most limit: only kept CVEs a public source names
+// (Window.publicListedSQL: never a custom list's, a box-built signal's or a finding's CVE), whose record was never read, or, without NVD
 // ranges, not read since recordRecheck before now when the CVE is on an exploited list or published inside the window (an older
 // signalled CVE without ranges, often Deferred or Rejected by NVD, is not asked again and again: the change log brings its changes).
 // Never read first, then the longest ago.
 func (s *Store) recordDue(ctx context.Context, now time.Time, limit int) ([]string, error) {
-	return s.recordDueOf(ctx, publicListedSQL, now, limit)
+	w, err := s.Window(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	return s.recordDueOf(ctx, w.publicListedSQL(), now, limit)
 }
 
 // recordDueOf is recordDue over the CVEs of listed (a SELECT of one cve column, never one a box builds from its own data).
@@ -417,17 +422,19 @@ LIMIT ?`, store.FormatTS(now.Add(-recordRecheck)), store.FormatTS(now.AddDate(0,
 	return out, rows.Err()
 }
 
-// recordBacklogSQL is the CVEs every box keeps whose record was never read: those a public list or signal names (publicListedSQL)
-// and the catalogue's CVEs published since the window's start (the first argument). A stamped record (read, not published, waiting)
-// is not one of them; a CVE only a custom list, a box-built signal or a finding keeps never is.
-var recordBacklogSQL = `SELECT i.cve FROM (` + publicListedSQL + ` UNION SELECT cve FROM feeds_cve WHERE published >= ? AND record_at IS NULL) i
+// recordBacklogSQL is the CVEs every box keeps whose record was never read: those a public list or signal names that the window keeps
+// (Window.publicListedSQL) and the catalogue's CVEs published since the window's start (the first argument). A stamped record (read,
+// not published, waiting) is not one of them; a CVE only a custom list, a box-built signal or a finding keeps never is.
+func recordBacklogSQL(w Window) string {
+	return `SELECT i.cve FROM (` + w.publicListedSQL() + ` UNION SELECT cve FROM feeds_cve WHERE published >= ? AND record_at IS NULL) i
 LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`
+}
 
 // recordBacklog lists at most limit CVEs of recordBacklogSQL: the exploited lists' first, then the newest IDs (a new CVE before an
 // older one an exploit index names).
-func (s *Store) recordBacklog(ctx context.Context, cutoff time.Time, limit int) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT b.cve FROM (`+recordBacklogSQL+`) b
-ORDER BY b.cve IN (`+missingKEVSQL+`) DESC, substr(b.cve, 5, 4) DESC, length(b.cve) DESC, b.cve DESC LIMIT ?`, store.FormatTS(cutoff), limit)
+func (s *Store) recordBacklog(ctx context.Context, w Window, limit int) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT b.cve FROM (`+recordBacklogSQL(w)+`) b
+ORDER BY b.cve IN (`+missingKEVSQL+`) DESC, substr(b.cve, 5, 4) DESC, length(b.cve) DESC, b.cve DESC LIMIT ?`, store.FormatTS(w.Cutoff), limit)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: CVE records missing: %w", err)
 	}
@@ -446,31 +453,31 @@ ORDER BY b.cve IN (`+missingKEVSQL+`) DESC, substr(b.cve, 5, 4) DESC, length(b.c
 }
 
 // recordBacklogCount is how many CVEs recordBacklogSQL holds.
-func (s *Store) recordBacklogCount(ctx context.Context, cutoff time.Time) (int, error) {
+func (s *Store) recordBacklogCount(ctx context.Context, w Window) (int, error) {
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+recordBacklogSQL+`)`, store.FormatTS(cutoff)).Scan(&n); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+recordBacklogSQL(w)+`)`, store.FormatTS(w.Cutoff)).Scan(&n); err != nil {
 		return 0, fmt.Errorf("feeds: CVE records missing: %w", err)
 	}
 	return n, nil
 }
 
-// recordUnread counts the CVEs a public list or signal names (publicListedSQL, as the NVD twin missingCount) whose record was never
-// read: many of them (a new signal source that names thousands of older CVEs) are read from the daily archive, not one by one.
-func (s *Store) recordUnread(ctx context.Context) (int, error) {
+// recordUnread counts the kept CVEs a public list or signal names (Window.publicListedSQL, as the NVD twin missingCount) whose record
+// was never read: many of them (a new signal source that names thousands of older CVEs) are read from the daily archive, not one by one.
+func (s *Store) recordUnread(ctx context.Context, w Window) (int, error) {
 	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+publicListedSQL+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`).Scan(&n)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+w.publicListedSQL()+`) i LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("feeds: CVE records unread: %w", err)
 	}
 	return n, nil
 }
 
-// recordOwnUnread counts the CVEs only this box's own lists or signals keep (keepSetSQL but not publicListedSQL: a custom list's entry, a
-// signal the box builds) whose record was never read and that no by-ID ask brings (not published since cutoff, the window's start):
+// recordOwnUnread counts the CVEs only this box's own lists or signals keep (Window.keptSQL but not publicListedSQL: a custom list's
+// entry, a signal the box builds) whose record was never read and that no by-ID ask brings (not published since the window's start):
 // their record comes only from a read of the whole list (recordsOwn). An ID that is not a CVE ID never counts (nothing would stamp it).
-func (s *Store) recordOwnUnread(ctx context.Context, cutoff time.Time) (int, error) {
-	own, err := stringSet(ctx, s.db.Reader(), `SELECT k.cve FROM (`+keepSetSQL+`) k LEFT JOIN feeds_cve c ON c.cve = k.cve
-WHERE c.record_at IS NULL AND (c.published IS NULL OR c.published < ?) AND k.cve NOT IN (`+publicListedSQL+`)`, store.FormatTS(cutoff))
+func (s *Store) recordOwnUnread(ctx context.Context, w Window) (int, error) {
+	own, err := stringSet(ctx, s.db.Reader(), `SELECT k.cve FROM (`+w.keptSQL()+`) k LEFT JOIN feeds_cve c ON c.cve = k.cve
+WHERE c.record_at IS NULL AND (c.published IS NULL OR c.published < ?) AND k.cve NOT IN (`+w.publicListedSQL()+`)`, store.FormatTS(w.Cutoff))
 	if err != nil {
 		return 0, fmt.Errorf("feeds: CVE records of own lists: %w", err)
 	}

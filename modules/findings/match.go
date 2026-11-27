@@ -184,6 +184,9 @@ type Vuln struct {
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	// Published is the day NVD published the CVE; zero when unknown, which counts as recent (never old).
 	Published time.Time
+	// OutsideWindow: the CVE is outside the reporting window (feeds Store.OutsideWindow). The matcher never reads such an entry
+	// (inWindow): its findings close as outside_window and no question asks about it.
+	OutsideWindow bool
 	// HasTemplate: a safe scan template checks the CVE (nuclei). The age rule never drops such a pair (#803): the
 	// scan engines plan their checks from the device's findings, so the finding must stay for a scan to confirm or clear it.
 	HasTemplate bool

@@ -31,3 +31,4 @@ export type FeedInput = z.infer<typeof C.FeedInput>
 export type FeedPatch = z.infer<typeof C.FeedPatch>
 export type ParseResult = z.infer<typeof C.ParseResult>
 export type ParseRecord = z.infer<typeof C.ParseRecord>
+export type ReportWindow = z.infer<typeof C.ReportWindow>

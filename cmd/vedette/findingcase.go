@@ -251,6 +251,9 @@ func (c findingCase) briefText(links []caseLink, volatile bool) string {
 		p("%s; used in ransomware campaigns: %t", line, l.Ransomware)
 	}
 	for _, g := range b.Signals {
+		if g.Kind == feeds.SignalAttackedHere {
+			continue // this network's own alerts: the urgency line says what the AI may know of them, no dates of the alerts
+		}
 		p("Signal: %s from %s, first seen %s", aiVal(g.Kind, 40), aiVal(g.SourceName, 60), g.FirstSeen.UTC().Format(time.DateOnly))
 	}
 	if e := b.EPSS; e != nil && volatile {

@@ -60,8 +60,8 @@ export const HandledStatus = z.enum(['patched', 'mitigated', 'accepted', 'not_re
   .describe('How a finding was handled; a handled finding\'s status is its resolution')
 export const FindingStatus = z.enum([...OpenStatus.options, ...HandledStatus.options]).describe('The one status of a finding, most urgent first')
 // Same shape as the findings contract; import it when the findings branch merges.
-export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed'])
-  .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed')
+export const Via = z.enum(['person', 'version_moved', 'software_removed', 'distro_fixed', 'scan_clear', 'data_corrected', 'not_installed', 'outside_window'])
+  .describe('How it was handled: person = a person marked it; version_moved = the software moved past the affected version; software_removed = the software is gone; distro_fixed = the distribution says the installed package is fixed; scan_clear = a safe check that had matched came back clear; data_corrected = no longer detected while nothing on the device changed (never patch credit); not_installed = a person said the software is not installed; outside_window = the CVE left the reporting window (older than 12 months, not exploited in the wild; never patch credit)')
 // Same shape as the findings contract; import it when the findings branch merges.
 export const Verified = z.enum(['no', 'device', 'scan', 'person'])
 // Same shape as the findings contract; import it when the findings branch merges.

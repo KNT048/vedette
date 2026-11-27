@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -35,31 +36,34 @@ const (
 // epssHistKeep is how many days of EPSS scores feeds_epss_hist keeps (the "rising" display compares with a week before).
 const epssHistKeep = 8
 
-// keepSetSQL is the CVEs the retention rule keeps whatever their age: an exploited-list entry or a qualifying signal of any kind.
-// Pinned CVEs (an open finding) are added by the caller.
-const keepSetSQL = `SELECT cve FROM feeds_kev UNION SELECT cve FROM feeds_signal WHERE qualifies = 1`
-
-// retention decides which NVD records a pull stores: those published inside the window and those of the keep set.
+// retention decides which NVD records a pull stores: those published inside the reporting window (window.go), every one while every age
+// is reported, and those of the keep set (Window.keptSQL and the pins).
 type retention struct {
-	cutoff time.Time
-	keep   map[string]bool
-	all    bool // every record (tests that write NVD answers directly)
+	cutoff   time.Time
+	keep     map[string]bool
+	everyAge bool // every record NVD did not reject
+	all      bool // every record (tests that write NVD answers directly)
 }
 
-// retentionOf reads the keep set inside tx (one read per page: a list entry or signal stored meanwhile counts from the next page).
+// retentionOf reads the window and the keep set inside tx (one read per page: a list entry or signal stored meanwhile counts from the
+// next page).
 func retentionOf(ctx context.Context, tx *sql.Tx, now time.Time, pinned []string) (retention, error) {
-	keep, err := stringSet(ctx, tx, keepSetSQL)
+	w, err := windowOf(ctx, tx, now)
+	if err != nil {
+		return retention{}, err
+	}
+	keep, err := stringSet(ctx, tx, w.keptSQL())
 	if err != nil {
 		return retention{}, err
 	}
 	for _, c := range pinned {
 		keep[c] = true
 	}
-	return retention{cutoff: now.AddDate(0, 0, -windowDays), keep: keep}, nil
+	return retention{cutoff: w.Cutoff, keep: keep, everyAge: w.EveryAge}, nil
 }
 
 func (r retention) keeps(rec NVDRecord) bool {
-	return r.all || r.keep[rec.CVE] || !rec.Published.Before(r.cutoff) && !strings.EqualFold(rec.Status, "Rejected")
+	return r.all || r.keep[rec.CVE] || (r.everyAge || !rec.Published.Before(r.cutoff)) && !strings.EqualFold(rec.Status, "Rejected")
 }
 
 // nvdWrite is what writeNVDRecords did.
@@ -286,19 +290,29 @@ func sameNVDRanges(ctx context.Context, tx *sql.Tx, r NVDRecord) (bool, error) {
 	return true, nil
 }
 
-// pruneCatalogue applies the retention rule: a CVE stays while it was published inside the window (and NVD did not reject it), or
-// is on an exploited list, or has a qualifying signal of any kind and any age, or an open finding pins it. Nothing ages out from under
-// an open finding. It also drops the EPSS history older than epssHistKeep days and of CVEs no list or signal names.
+// pruneCatalogue applies the retention rule: a CVE stays while it was published inside the reporting window (window.go; any day while
+// every age is reported) and NVD did not reject it, or the window keeps it whatever its age (an exploited-list entry, an exploited
+// signal, a public exploit dated inside the window), or a finding pins it. A pin keeps the CVE's data, so nothing ages out from under
+// a finding, its history or a report; it does not put the CVE inside the window (Store.OutsideWindow). It also drops the EPSS history
+// older than epssHistKeep days and of CVEs no list or signal names.
 func pruneCatalogue(ctx context.Context, tx *sql.Tx, now time.Time, pinned []string) error {
-	pins, err := json.Marshal(append([]string{}, pinned...))
+	w, err := windowOf(ctx, tx, now)
+	if err != nil {
+		return err
+	}
+	keep, err := stringSet(ctx, tx, w.keptSQL())
+	if err != nil {
+		return err
+	}
+	for _, c := range pinned {
+		keep[c] = true
+	}
+	held, err := json.Marshal(append([]string{}, slices.Collect(maps.Keys(keep))...)) // never "null": NOT IN (NULL) keeps every row
 	if err != nil {
 		return fmt.Errorf("feeds: prune catalogue: %w", err)
 	}
-	cutoff := store.FormatTS(now.AddDate(0, 0, -windowDays))
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve WHERE (published IS NULL OR published < ? OR nvd_status = 'Rejected')
-AND NOT EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = feeds_cve.cve)
-AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = feeds_cve.cve AND s.qualifies = 1)
-AND cve NOT IN (SELECT value FROM json_each(?))`, cutoff, string(pins)); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve WHERE (nvd_status = 'Rejected' OR ?1 = 0 AND (published IS NULL OR published < ?2))
+AND cve NOT IN (SELECT value FROM json_each(?3))`, boolInt(w.EveryAge), store.FormatTS(w.Cutoff), string(held)); err != nil {
 		return fmt.Errorf("feeds: prune catalogue: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss_hist WHERE day < ? OR cve NOT IN (SELECT cve FROM feeds_kev UNION SELECT cve FROM feeds_signal)`,

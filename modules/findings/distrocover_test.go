@@ -16,6 +16,9 @@ type distroCase struct {
 	by     string // the source that decides it ("" when it stays undecided)
 	affect bool
 	cause  string // undecided: the named cause
+	// outside: the CVE is outside the reporting window (feeds marks it): the pass sets it aside, so the pair is not related at all and
+	// the coverage counts it apart
+	outside bool
 }
 
 // Every pair of a distribution's package is decided by the distribution's data, by the upstream ranges where the distribution's data
@@ -47,7 +50,7 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 		return DistroFix{Distro: distro, Release: release, Package: pkg, Status: status, Fixed: fixed}
 	}
 	old := nvd("CVE-2024-60003", kernel, "7.1")
-	old.Published = now.AddDate(-2, 0, 0)
+	old.Published, old.OutsideWindow = now.AddDate(-2, 0, 0), true
 	listed := nvd("CVE-2014-60005", ssl, "1.0.1g", row("ubuntu", "14.04", "openssl", "fixed", "1.0.1f-1ubuntu2.1"))
 	listed.Vendor, listed.Product, listed.Published = "OpenSSL", "OpenSSL", now.AddDate(-12, 0, 0)
 	cases := []distroCase{
@@ -55,7 +58,7 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 			vuln: nvd("CVE-2026-60001", kernel, "7.1", row("ubuntu", "26.04", "linux", "not_affected", "")), by: RangeDistro},
 		{name: "a fix of another kernel flavour only", device: "u-1", sw: "s-kernel",
 			vuln: nvd("CVE-2026-60002", kernel, "7.1", row("ubuntu", "26.04", "linux-aws", "fixed", "7.0.0-1010.10")), cause: DistroOtherPackages},
-		{name: "older than the window and on no list", device: "u-1", sw: "s-kernel", vuln: old, cause: DistroOutsideWindow},
+		{name: "older than the window and on no list", device: "u-1", sw: "s-kernel", vuln: old, outside: true},
 		{name: "affected with no fix yet, on no list", device: "u-1", sw: "s-ssl",
 			vuln: nvd("CVE-2026-60004", ssl, "3.6", row("ubuntu", "26.04", "openssl", "open", "")), by: CoverageDistroNoFix, affect: true},
 		{name: "an exploited CVE the distribution lists for an older release only", device: "u-1", sw: "s-ssl", vuln: listed, cause: DistroOtherReleases},
@@ -95,7 +98,8 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		st, _ := pairStates(newDevMatch(a, vulns, now), rows, in)
+		read, _ := inWindow(vulns) // as the pass reads them
+		st, _ := pairStates(newDevMatch(a, read, now), rows, in)
 		for k, v := range st {
 			states[a.ID+"/"+k] = v
 		}
@@ -103,6 +107,12 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			st, ok := states[c.device+"/"+lineKey(c.vuln.CVE, c.sw)]
+			if c.outside {
+				if ok {
+					t.Errorf("a CVE outside the reporting window is related: %+v", st)
+				}
+				return
+			}
 			if !ok {
 				t.Fatalf("the pair is not related")
 			}
@@ -110,6 +120,9 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 				t.Errorf("state %+v, want by %q affected %v cause %q", st, c.by, c.affect, c.cause)
 			}
 		})
+	}
+	if c, ok, err := e.svc.Coverage(t.Context()); err != nil || !ok || c.OutsideWindow != 1 {
+		t.Errorf("the coverage counts %+v CVEs outside the window, want 1 (%v %v)", c.OutsideWindow, ok, err)
 	}
 	for k, st := range states {
 		if strings.HasPrefix(st.cause, CoverageOther) {
@@ -169,7 +182,7 @@ func TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs(t *testing.T)
 	if r := MatchAsset(a, []Vuln{v}, nil, now); len(r.New) != 0 {
 		t.Fatalf("on no list: %+v", r.New)
 	}
-	if c := distroSilence(swInfoOn(a.Software[0], a), v, now); c != DistroNoFixYet {
+	if c := distroSilence(swInfoOn(a.Software[0], a), v); c != DistroNoFixYet {
 		t.Fatalf("cause %q", c)
 	}
 	v.Vendor, v.Product = "OpenSSL", "OpenSSL"

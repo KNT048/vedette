@@ -92,7 +92,7 @@ func noOwnAsks(t *testing.T, o *origin) {
 func TestCVERecords_OwnListCVEWithoutRecordReadsTheWholeListEarly(t *testing.T) {
 	t.Parallel()
 	e, o := ownEnv(t)
-	if n, err := e.svc.st.recordOwnUnread(t.Context(), e.clock().AddDate(0, 0, -windowDays)); err != nil || n != 2 {
+	if n, err := e.svc.st.recordOwnUnread(t.Context(), Window{Cutoff: e.clock().AddDate(0, 0, -windowDays)}); err != nil || n != 2 {
 		t.Fatalf("own CVEs without a record = %d %v, want 2", n, err)
 	}
 	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
@@ -106,7 +106,7 @@ func TestCVERecords_OwnListCVEWithoutRecordReadsTheWholeListEarly(t *testing.T) 
 	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT end_excl FROM feeds_cve_range WHERE cve = 'CVE-2019-0900' AND origin = 'cna'`).Scan(&end); err != nil || end != "1.7" {
 		t.Fatalf("the custom list's record: %q %v", end, err)
 	}
-	if n, err := e.svc.st.recordOwnUnread(t.Context(), e.clock().AddDate(0, 0, -windowDays)); err != nil || n != 0 {
+	if n, err := e.svc.st.recordOwnUnread(t.Context(), Window{Cutoff: e.clock().AddDate(0, 0, -windowDays)}); err != nil || n != 0 {
 		t.Fatalf("after the read %d own CVEs without a record %v", n, err)
 	}
 	if f := e.feed(cveOrgFeedID); !strings.Contains(deref(f.Error), "2 CVEs kept only by this box's own lists or signals have no record: reading the whole list again") {

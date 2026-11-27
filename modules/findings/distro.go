@@ -543,9 +543,6 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 // Why a distribution's package stays undecided for a CVE (distroSilence): the package is judged by its distribution's word alone and
 // the distribution's data the box keeps has no word it may decide by. A closed list.
 const (
-	// DistroOutsideWindow: a CVE on no exploited list published before the catalogue's last 12 months. The box tracks the exploited
-	// CVEs and those of the last 12 months (product scope), so the distribution feeds keep no row of it.
-	DistroOutsideWindow = "outside_window"
 	// DistroNoFixYet: the distribution lists its package as affected with no fixed release yet, and the CVE is on no exploited list:
 	// it becomes a finding when the distribution publishes the fix or the CVE is exploited. Not a cause of an undecided pair: the
 	// distribution decided it, and the coverage counts it decided affected (CoverageDistroNoFix).
@@ -567,18 +564,14 @@ const (
 
 // DistroSilences lists every cause of distroSilence: the causes of a pair no question asks about, beside PossibleCauses (the causes of
 // a question); an agent's package row without its release or source takes PossibleCause's CauseVersionNeeded.
-var DistroSilences = []string{DistroOutsideWindow, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNotListed,
+var DistroSilences = []string{DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNotListed,
 	DistroNoData, CauseVersionNeeded}
-
-// catalogueDays is the catalogue's window of CVEs on no exploited list (feeds' recentDays): the distribution feeds keep their rows of
-// those CVEs and of the exploited ones only.
-const catalogueDays = 365
 
 // distroSilence is why the distribution's data decides nothing (or DistroNoFixYet: it decided "affected, no fix yet" and no finding is
 // raised) for a package it built (distroVerdict has no word and NVD's upstream
 // ranges may not judge it: upstreamJudges), one of DistroSilences; "" when its data or the upstream ranges decide, or the row is not an
-// agent's package row. now is the time of the match pass.
-func distroSilence(in swInfo, v Vuln, now time.Time) string {
+// agent's package row. A CVE outside the reporting window never gets here: the matcher does not read it (window.go, M-15).
+func distroSilence(in swInfo, v Vuln) string {
 	d := in.pkgDistro
 	switch {
 	case !in.packaged:
@@ -615,8 +608,6 @@ func distroSilence(in swInfo, v Vuln, now time.Time) string {
 		return DistroNoFixYet
 	case mine:
 		return DistroOtherBuild
-	case !v.listed() && !v.Published.IsZero() && v.Published.Before(now.AddDate(0, 0, -catalogueDays)):
-		return DistroOutsideWindow
 	case sameRelease:
 		return DistroOtherPackages
 	case samePkg:

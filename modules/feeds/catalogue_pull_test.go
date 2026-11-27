@@ -88,7 +88,7 @@ func catalogueEnv(t *testing.T) (*env, *catalogueNVD) {
 	return e, n
 }
 
-// signal stores a public-exploit signal of each CVE (a source such as nuclei), qualifying or not.
+// signal stores a public-exploit signal of each CVE dated inside the window (store0), qualifying or not.
 func signal(t *testing.T, e *env, source string, qualifies bool, cves ...string) {
 	t.Helper()
 	write(t, e.db, func(tx *sql.Tx) error {
@@ -120,8 +120,8 @@ func TestCataloguePull_WalksTheWholeSetForOlderKeptCVEs(t *testing.T) {
 	for i := range walkMissing {
 		many = append(many, fmt.Sprintf("CVE-2018-%04d", 1000+i))
 	}
-	signal(t, e, nucleiFeedID, true, many...)
-	signal(t, e, nucleiFeedID, true, "CVE-2019-0001")
+	signal(t, e, exploitDBFeedID, true, many...)
+	signal(t, e, exploitDBFeedID, true, "CVE-2019-0001")
 	n.walk = []string{"CVE-2019-0001", "CVE-2019-0002", many[0]}
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
 		t.Fatal(err)
@@ -156,7 +156,7 @@ func TestCataloguePull_WalksTheWholeSetForOlderKeptCVEs(t *testing.T) {
 func TestCataloguePull_AsksNVDByIDForSignalledCVEsOnly(t *testing.T) {
 	t.Parallel()
 	e, n := catalogueEnv(t)
-	signal(t, e, nucleiFeedID, true, "CVE-2018-0007", "CVE-2018-0010")
+	signal(t, e, exploitDBFeedID, true, "CVE-2018-0007", "CVE-2018-0010")
 	signal(t, e, "poc-index", false, "CVE-2018-0009")
 	signal(t, e, "ids-local", true, "CVE-2018-0012") // a signal of what the box saw itself: never sent anywhere
 	addCustom(t, e.db, "cf-v", "Partner advisories", KindVulnerabilities)
@@ -197,7 +197,7 @@ func TestEPSSAllPull_WritesTheHistoryOfListedAndSignalledCVEs(t *testing.T) {
 	e.only(epssAllFeedID)
 	e.mirror(epssAllFeedID, o.url("/epss.csv.gz"))
 	applyV(t, e.db, epoch0, kevFeedID, []Vuln{vuln("CVE-2026-1234", "Acme", "Box", "2026-11-01")}, false)
-	signal(t, e, nucleiFeedID, true, "CVE-1999-0001")
+	signal(t, e, exploitDBFeedID, true, "CVE-1999-0001")
 	file := func(day string, score string) string {
 		return gz(t, "#model_version:v2026.06.15,score_date:"+day+"T12:00:22Z\ncve,epss,percentile\nCVE-1999-0001,0.04,0.92\nCVE-2026-1234,"+score+
 			",0.99\nCVE-2025-0002,0.1,0.95\n")
@@ -235,7 +235,7 @@ func TestCataloguePull_WalkAsksASmallerPageAgain(t *testing.T) {
 	for i := range walkMissing {
 		many = append(many, fmt.Sprintf("CVE-2018-%04d", 1000+i))
 	}
-	signal(t, e, nucleiFeedID, true, many...)
+	signal(t, e, exploitDBFeedID, true, many...)
 	n.walk = many[:recentSmallPage+10]
 	n.big = true
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
@@ -258,7 +258,7 @@ func TestCataloguePull_WalkAsksASmallerPageAgain(t *testing.T) {
 func TestCataloguePull_BusyByIDAnswerIsAskedAgainNextPull(t *testing.T) {
 	t.Parallel()
 	e, n := catalogueEnv(t)
-	signal(t, e, nucleiFeedID, true, "CVE-2018-0021")
+	signal(t, e, exploitDBFeedID, true, "CVE-2018-0021")
 	n.byID["CVE-2018-0021"], n.busy["CVE-2018-0021"] = true, true
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
 		t.Fatal(err)
@@ -275,5 +275,101 @@ func TestCataloguePull_BusyByIDAnswerIsAskedAgainNextPull(t *testing.T) {
 	}
 	if count(t, e.db, `SELECT count(*) FROM feeds_cve WHERE cve = 'CVE-2018-0021' AND nvd_at IS NOT NULL`) != 1 {
 		t.Fatalf("the busy CVE was not asked again: %v", n.requests("id "))
+	}
+}
+
+// The cooldown spaces only the reads the every-age switch starts: a walk over NVD's whole set for another reason (many kept CVEs
+// without a record) that began an hour before the first switch-on does not hold that switch's read back.
+func TestCataloguePull_EveryAgeFirstSwitchIsNotHeldByAnotherWalk(t *testing.T) {
+	t.Parallel()
+	e, n := catalogueEnv(t)
+	var many []string
+	for i := range walkMissing {
+		many = append(many, fmt.Sprintf("CVE-2018-%04d", 1000+i))
+	}
+	signal(t, e, exploitDBFeedID, true, many...)
+	n.walk = []string{"CVE-2019-0001", "CVE-2019-0002"}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 1 {
+		t.Fatalf("the catch-up walk: %v", got)
+	}
+	e.setNow(e.clock().Add(time.Hour))
+	write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, true, "admin@example.test", e.clock()) })
+	e.setNow(e.clock().Add(time.Minute))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("the first switch-on's read: %v", got)
+	}
+	// the cooldown survives a restart: it is read from the store, and a second switch within the day starts no read
+	e.setNow(e.clock().Add(time.Hour))
+	for _, on := range []bool{false, true} {
+		write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, on, "admin@example.test", e.clock()) })
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("a second read within a day: %v", got)
+	}
+}
+
+// CVEs of every age: switched on, the next catalogue pull reads NVD's whole set once although no kept CVE is missing, and stores every
+// record of it; that read does not start again until the setting is switched on anew.
+func TestCataloguePull_EveryAgeReadsTheWholeSetOnce(t *testing.T) {
+	t.Parallel()
+	e, n := catalogueEnv(t)
+	n.walk = []string{"CVE-2019-0001", "CVE-2019-0002"}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 0 || len(held(t, e)) != 0 {
+		t.Fatalf("by default: walk %v, catalogue %v", got, held(t, e))
+	}
+	write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, true, "admin@example.test", e.clock()) })
+	var url string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT url FROM feeds_source WHERE id = ?`, recentFeedID).Scan(&url); err != nil {
+		t.Fatal(err)
+	}
+	if owed, err := e.svc.st.recentOwed(t.Context(), url); err != nil || !owed {
+		t.Fatalf("owed after the switch: %v %v", owed, err)
+	}
+	e.setNow(e.clock().Add(time.Minute))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); !slices.Equal(got, []string{"walk 0 2000"}) {
+		t.Fatalf("walk requests %v", got)
+	}
+	if got := held(t, e); !slices.Equal(got, []string{"CVE-2019-0001", "CVE-2019-0002"}) {
+		t.Fatalf("catalogue %v", got)
+	}
+	// switched off and on again within a day: no second read of the whole set before 24 hours have passed since the first began
+	e.setNow(e.clock().Add(time.Hour))
+	for _, on := range []bool{false, true} {
+		write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, on, "admin@example.test", e.clock()) })
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 1 {
+		t.Fatalf("a second read within a day: %v", got)
+	}
+	e.setNow(e.clock().Add(24 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("the switch's read after the cooldown: %v", got)
+	}
+	e.setNow(e.clock().Add(8 * 24 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests("walk"); len(got) != 2 {
+		t.Fatalf("a read with no new switch: %v", got)
 	}
 }

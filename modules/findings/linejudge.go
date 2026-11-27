@@ -28,6 +28,7 @@ type LineRow struct {
 // convention (Absent), only while the source is fresh and its statement is not older than the CVE.
 type LineCover struct {
 	Source, Product, Ref string
+	Name                 string // how the texts name the source ("The Node.js security team": line-sources.json)
 	StatedAt             time.Time
 	Absent               string // unaffected_if_supported, unknown
 	Stale                bool
@@ -204,7 +205,8 @@ func utcDay(t time.Time) time.Time {
 }
 
 // nvdNamesLine says an NVD row (or the CVE record's, where NVD has none) covers the version and names the device's release line
-// itself: it starts on the line or lists one of its releases. A row from version 0, or from an older line, only passes through. Every
+// itself: it starts or ends on the line ("before 22.23.4" names line 22) or lists one of its releases. A row from version 0, or from an
+// older line, to a later line only passes through. Every
 // covering row counts, not only the one that explains the finding best: a wider row that passes through the line does not hide a
 // narrower one on the line.
 func nvdNamesLine(in swInfo, v Vuln, p productid.Product, line string) bool {
@@ -213,7 +215,7 @@ func nvdNamesLine(in swInfo, v Vuln, p productid.Product, line string) bool {
 		return false
 	}
 	onLine := func(start string) bool { return start != "" && p.Line(p.Canonical(start)) == line }
-	if onLine(cmp.Or(within.StartIncl, within.StartExcl)) {
+	if onLine(cmp.Or(within.StartIncl, within.StartExcl)) || onLine(cmp.Or(within.EndExcl, within.EndIncl)) {
 		return true
 	}
 	named := v
@@ -225,7 +227,7 @@ func nvdNamesLine(in swInfo, v Vuln, p productid.Product, line string) bool {
 				start, _ = c.Version.Literal()
 			}
 		}
-		if onLine(start) {
+		if onLine(start) || onLine(cmp.Or(af.Range.EndExcl, af.Range.EndIncl)) {
 			named.Affected = append(named.Affected, af)
 		}
 	}
@@ -286,14 +288,11 @@ func lineAffectedNote(a Asset, s Software, v Vuln, r lineRead) string {
 
 // lineWho names the vendor source in a sentence.
 func lineWho(r lineRead) string {
-	if n, ok := lineSourceNames[r.cover.Source]; ok {
+	if n := clean(r.cover.Name); n != "" {
 		return n
 	}
 	return "The vendor (" + strings.ReplaceAll(clean(r.cover.Source), "-", " ") + ")"
 }
-
-// lineSourceNames are the names the texts give the built-in line sources.
-var lineSourceNames = map[string]string{"nodejs-security-wg": "The Node.js security team"}
 
 // lineFix is FixOf from a vendor's line statement: its fixed release of the device's line. ok is false when no line source decides the
 // line affected with a fix.

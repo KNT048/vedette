@@ -539,7 +539,7 @@ func (a findingsFeeds) withLines(ctx context.Context, vulns []findings.Vuln) err
 	}
 	for _, c := range covers {
 		i := at[c.CVE]
-		vulns[i].LineCovers = append(vulns[i].LineCovers, findings.LineCover{Source: c.Source, Product: c.Product, Ref: c.Ref, StatedAt: c.StatedAt, Absent: c.Absent, Stale: c.Stale})
+		vulns[i].LineCovers = append(vulns[i].LineCovers, findings.LineCover{Source: c.Source, Product: c.Product, Ref: c.Ref, Name: c.Name, StatedAt: c.StatedAt, Absent: c.Absent, Stale: c.Stale})
 		if !slices.ContainsFunc(vulns[i].LineSupport, func(l findings.LineSupport) bool { return l.Product == c.Product }) {
 			vulns[i].LineSupport = append(vulns[i].LineSupport, sup[c.Product]...)
 		}

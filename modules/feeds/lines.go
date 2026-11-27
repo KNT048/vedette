@@ -49,6 +49,7 @@ const (
 // LineSourceDef is one row of line-sources.json's sources.
 type LineSourceDef struct {
 	Source   string   `json:"source"`
+	Name     string   `json:"name"` // how findings' texts name the source ("The Node.js security team")
 	Products []string `json:"products"`
 	Listed   string   `json:"listed"`
 	Absent   string   `json:"absent"`
@@ -91,7 +92,7 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 		return p.Key, nil
 	}
 	for _, s := range f.Sources {
-		if _, ok := BuiltinByID(s.Source); !ok || len(s.Products) == 0 || s.Listed != ListedSemverRange ||
+		if _, ok := BuiltinByID(s.Source); !ok || strings.TrimSpace(s.Name) == "" || len(s.Products) == 0 || s.Listed != ListedSemverRange ||
 			s.Absent != AbsentUnaffectedIfSupported && s.Absent != AbsentUnknown {
 			return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: unknown feed, no product or unknown convention", s.Source)
 		}
@@ -549,6 +550,7 @@ type LineRow struct {
 // (Absent), only while the source is fresh (Stale false) and its statement is not older than the CVE (StatedAt).
 type LineCover struct {
 	Source, Product, CVE, Ref string
+	Name                      string // how texts name the source (line-sources.json)
 	StatedAt                  time.Time
 	Absent                    string
 	Stale                     bool
@@ -602,7 +604,7 @@ ORDER BY cve, source_id, product`, string(list))
 			continue
 		}
 		c.StatedAt, _ = time.Parse(time.DateOnly, day)
-		c.Absent, c.Stale = cat.sources[c.Source].Absent, stale[c.Source]
+		c.Absent, c.Name, c.Stale = cat.sources[c.Source].Absent, cat.sources[c.Source].Name, stale[c.Source]
 		if c.Absent == "" {
 			c.Absent = AbsentUnknown
 		}

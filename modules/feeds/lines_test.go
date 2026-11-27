@@ -155,7 +155,7 @@ func TestLineSourcesPull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(covers) != 2 || covers[0].Absent != AbsentUnaffectedIfSupported || covers[0].Stale || covers[0].Product != "node.js|node.js" {
+	if len(covers) != 2 || covers[0].Absent != AbsentUnaffectedIfSupported || covers[0].Stale || covers[0].Product != "node.js|node.js" || covers[0].Name != "The Node.js security team" {
 		t.Errorf("covers %+v", covers)
 	}
 	if len(rows) != 3 || len(sup) != 23 {
@@ -215,9 +215,10 @@ func TestLineSources_Data(t *testing.T) {
 	if s := cat.sources[nodeLineFeedID]; s.Absent != AbsentUnaffectedIfSupported || !slices.Equal(cat.keys[nodeLineFeedID], []string{"node.js|node.js"}) {
 		t.Errorf("node source %+v %v", s, cat.keys)
 	}
-	for _, bad := range []string{`{"sources":[{"source":"nope","products":["nodejs"],"listed":"semver_range","absent":"unknown"}]}`,
-		`{"sources":[{"source":"nodejs-security-wg","products":["nodejs"],"listed":"semver_range","absent":"maybe"}]}`,
-		`{"sources":[{"source":"nodejs-security-wg","products":["no-such-product"],"listed":"semver_range","absent":"unknown"}]}`,
+	for _, bad := range []string{`{"sources":[{"source":"nope","name":"X","products":["nodejs"],"listed":"semver_range","absent":"unknown"}]}`,
+		`{"sources":[{"source":"nodejs-security-wg","products":["nodejs"],"listed":"semver_range","absent":"unknown"}]}`,
+		`{"sources":[{"source":"nodejs-security-wg","name":"X","products":["nodejs"],"listed":"semver_range","absent":"maybe"}]}`,
+		`{"sources":[{"source":"nodejs-security-wg","name":"X","products":["no-such-product"],"listed":"semver_range","absent":"unknown"}]}`,
 		`{"sources":[],"support":[{"source":"endoflife-date","products":{"no-such-product":"x"}}]}`,
 		`{"sources":[],"extra":1}`} {
 		if _, err := parseLineSources([]byte(bad)); err == nil {

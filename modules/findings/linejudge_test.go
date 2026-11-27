@@ -32,7 +32,7 @@ func TestLineJudge_EveryVerdict(t *testing.T) {
 	t.Parallel()
 	const cve = "CVE-2026-105481"
 	cover := LineCover{Source: "nodejs-security-wg", Product: "node.js|node.js", Ref: "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
-		StatedAt: lineCVEDay, Absent: AbsentUnaffectedIfSupported}
+		Name: "The Node.js security team", StatedAt: lineCVEDay, Absent: AbsentUnaffectedIfSupported}
 	row := func(line, status, fixed string) LineRow {
 		return LineRow{Source: cover.Source, Product: cover.Product, Line: line, Status: status, Fixed: fixed, Explicit: true}
 	}
@@ -56,6 +56,7 @@ func TestLineJudge_EveryVerdict(t *testing.T) {
 	}{
 		{"no NVD rows", nil},
 		{"NVD names the line", []Affected{{CPE: "cpe:2.3:a:nodejs:node.js:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "22.0.0", EndExcl: "22.30.0"}}}},
+		{"NVD ends on the line", []Affected{{CPE: "cpe:2.3:a:nodejs:node.js:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "22.30.0"}}}},
 		{"NVD passes through", []Affected{{CPE: "cpe:2.3:a:nodejs:node.js:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "30.0.0"}}}},
 		{"NVD lists another line", []Affected{{CPE: "cpe:2.3:a:nodejs:node.js:26.3.0:*:*:*:*:*:*:*"}}},
 	}
@@ -91,7 +92,7 @@ func TestLineJudge_EveryVerdict(t *testing.T) {
 					case lineAffected:
 						want = outMatch
 					case lineFixed, lineUnaffected:
-						overridden := nc.name == "NVD names the line" || vc.name == "convention unaffected" && (nc.name == "NVD passes through" || stale)
+						overridden := nc.name == "NVD names the line" || nc.name == "NVD ends on the line" || vc.name == "convention unaffected" && (nc.name == "NVD passes through" || stale)
 						if overridden {
 							wantVerdict = lineNone
 						} else {
@@ -115,7 +116,7 @@ func TestLineJudge_EveryVerdict(t *testing.T) {
 func TestLineJudge_EvidenceFixAndOrigin(t *testing.T) {
 	t.Parallel()
 	cover := LineCover{Source: "nodejs-security-wg", Product: "node.js|node.js", Ref: "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
-		StatedAt: lineCVEDay, Absent: AbsentUnaffectedIfSupported}
+		Name: "The Node.js security team", StatedAt: lineCVEDay, Absent: AbsentUnaffectedIfSupported}
 	v := Vuln{CVE: "CVE-2026-105481", Published: lineCVEDay, NVDAnswered: true, LineCovers: []LineCover{cover}, LineSupport: nodeLineSupport,
 		Lines: []LineRow{{Source: cover.Source, Product: cover.Product, Line: "22", Status: "affected", Fixed: "22.23.4", Explicit: true}}}
 	a := Asset{ID: "dev", Name: "dev.example.com", Software: []Software{nodeRow("22.19.0")}}

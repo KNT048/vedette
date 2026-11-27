@@ -103,6 +103,53 @@ func TestLineReading_AffectedOpensAFindingAPersonCanReject(t *testing.T) {
 	if n := aiReadFindings(t, e, "nas-01"); n != 0 {
 		t.Error("the rejected reading was applied again")
 	}
+	// a page changed by its next fetch is read again; the rejected reading stays stored next to the new one
+	e.advance(31 * 24 * time.Hour)
+	fc.pages["CVE-2026-82002"][0].Text = dsmFixedText + " Updated advisory."
+	calls = len(fc.sent)
+	runCheck(t, e)
+	if !slices.ContainsFunc(fc.sent[calls:], func(r ProposeRequest) bool { return r.CVE == "CVE-2026-82002" }) {
+		t.Fatal("the changed page was not read again")
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_line_statement WHERE cve = 'CVE-2026-82002' AND rejected_by IS NOT NULL`); n != 1 {
+		t.Errorf("%d rejected readings kept after a new reading of the line, want 1", n)
+	}
+}
+
+// A bound the AI gives that its quote does not name decides nothing: a "fixed" whose release is not in the quote settles no version
+// past it, even on the vendor's page for a CVE on no exploited list.
+func TestLineReading_ABoundNotInTheQuoteSettlesNothing(t *testing.T) {
+	t.Parallel()
+	e, fc := lineWorld(t)
+	e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
+	fc.tags = map[string][]string{dsmPageURL + "#82002": {"vendor-advisory"}}
+	v := fc.verdicts["CVE-2026-82002|7.2.1-69057-5"]
+	v.FixedIn = "7.2.1-69057-4" // not in the quote: the device would be past it
+	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = v
+	runCheck(t, e)
+	it := possibleByCVE(t, e)["CVE-2026-82002"]
+	if it.State == PossibleSettled {
+		t.Error("a fix release the quote does not name settled the CVE")
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_line_statement WHERE cve = 'CVE-2026-82002' AND fixed_in IS NOT NULL`); n != 0 {
+		t.Error("a bound the quote does not name was stored")
+	}
+}
+
+// A reading speaks for its own release line and for the versions of the line its quote names, never for another line.
+func TestLineStatement_ReadingForKeepsToItsLine(t *testing.T) {
+	t.Parallel()
+	sts := []LineStatement{{CVE: "CVE-2026-1", Product: "acme|widget", Line: "7.14.2", StatedLine: "7.14", Status: StatementFixed, FixedIn: "7.14.5",
+		Quote: "Widget 7.14 is fixed in 7.14.5.", QuoteFound: true}}
+	if r := readingFor(sts, "CVE-2026-1", CheckID{Product: "acme|widget", Line: "7.14.3", Version: "7.14.3"}); r.applied == nil {
+		t.Error("a reading of 7.14 does not speak for 7.14.3")
+	}
+	for _, id := range []CheckID{{Product: "acme|widget", Line: "7.15.1", Version: "7.15.1"}, {Product: "acme|widget", Line: "7.1.4", Version: "7.1.4"},
+		{Product: "acme|gadget", Line: "7.14.3", Version: "7.14.3"}} {
+		if r := readingFor(sts, "CVE-2026-1", id); r.applied != nil {
+			t.Errorf("a reading of 7.14 speaks for %s %s", id.Product, id.Version)
+		}
+	}
 }
 
 // A fix the AI gives that the quote does not name never becomes the finding's fix.

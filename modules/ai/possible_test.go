@@ -90,5 +90,13 @@ func TestProposePossible_AutomaticReadingHasItsSwitchAndDailyNumber(t *testing.T
 	if st := a.svc.AutoReadState(a.ctx()); st.Auto {
 		t.Error("the automatic reading is still on")
 	}
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":6000000,"redact_pii":true,"auto_read":false,"daily_reads":50}`, 200, "")
+	sent = len(a.fake.reqs)
+	if _, err := a.svc.ProposePossible(a.ctx(), "system", req); err == nil || !strings.Contains(err.Error(), "switched off") {
+		t.Errorf("an automatic call while switched off: %v, want it refused", err)
+	}
+	if len(a.fake.reqs) != sent {
+		t.Error("an automatic call was sent while switched off")
+	}
 	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":6000000,"redact_pii":true,"daily_reads":0}`, 400, "")
 }

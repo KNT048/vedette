@@ -363,8 +363,8 @@ type Match struct {
 	Severity        Severity
 	Evidence        Evidence
 	why             string // The platform sentence of a match ruled out by the platform (MatchResult.OtherPlatform)
-	// upstream: a match on NVD's upstream ranges of a package the distribution built that its data has no word on yet (awaitingDistro):
-	// the version compared is the upstream one, never the package release, and nothing confirms it
+	// upstream: a match on NVD's upstream ranges of a package the distribution built that its data has no word on (awaitingDistro, or
+	// upstreamJudges for data of fixed releases only): the version compared is the upstream one, never the package release
 	upstream bool
 	every    bool // NVD lists every version of the product as affected: the version cannot change it (#803)
 	// agreed: the verdict rests on every reading of the record giving it (everyReading); the sentence names them. "" otherwise.
@@ -1154,14 +1154,15 @@ func trustedReading(s Software) bool {
 
 // offListReading says whether a row may be compared with a CVE on no exploited list: a trusted reading (never a version guessed
 // from the network), and for a distribution's package (an agent's package row, a package release a person gave) only through the
-// distribution's own word on it: an upstream range does not see the fixes a distribution backports.
+// distribution's own word on it: an upstream range does not see the fixes a distribution backports. A distribution whose data lists
+// its fixes only (Alpine) and names none for the package leaves it to the upstream ranges (upstreamJudges).
 func offListReading(s Software, in swInfo, v Vuln) bool {
 	if !trustedReading(s) {
 		return false
 	}
 	if in.pkgBuilt() {
 		_, ok := distroVerdict(in, v)
-		return ok
+		return ok || upstreamJudges(in, v)
 	}
 	return true
 }
@@ -1228,7 +1229,7 @@ func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
 		return false
 	}
 	_, ok := distroVerdict(in, v)
-	return ok || !distroBuilt(in)
+	return ok || !distroBuilt(in) || upstreamJudges(in, v)
 }
 
 // nvdNames says whether an entry of NVD's list for v names the row's software (its CPE, name or alias, appliesTo) with a range
@@ -1329,16 +1330,20 @@ func nvdCandidatesOf(rows [][]string, vulns []Vuln) []map[int]bool {
 // release (distroVerdict can read them): a CVE a distribution fixed in a package is compared with the package even when NVD has not
 // named the upstream product yet.
 func distroCandidates(infos []swInfo, vulns []Vuln, named []map[int]bool) {
-	byPkg := map[string][]int{} // distribution|release|package -> rows
+	byPkg := map[string][]int{} // distribution|release|package -> rows; release "*" for a distribution whose every release is read
 	for i, in := range infos {
-		if in.pkgVer == "" || in.pkgSrc == "" {
+		d := in.pkgDistro
+		if d == nil || in.pkgVer == "" || in.pkgSrc == "" {
 			continue
 		}
-		d, rel := distroOf(in)
-		if d == "" || rel == "" {
+		rel := in.pkgRel
+		switch {
+		case d.anyRelease:
+			rel = "*"
+		case rel == "":
 			continue
 		}
-		k := d + "|" + rel + "|" + securitySource(d, in.pkgSrc)
+		k := d.id + "|" + rel + "|" + d.source(in.pkgSrc)
 		byPkg[k] = append(byPkg[k], i)
 	}
 	if len(byPkg) == 0 {
@@ -1346,11 +1351,13 @@ func distroCandidates(infos []swInfo, vulns []Vuln, named []map[int]bool) {
 	}
 	for vi, v := range vulns {
 		for _, f := range v.Distro {
-			for _, i := range byPkg[f.Distro+"|"+f.Release+"|"+f.Package] {
-				if named[i] == nil {
-					named[i] = map[int]bool{}
+			for _, rel := range [2]string{f.Release, "*"} {
+				for _, i := range byPkg[f.Distro+"|"+rel+"|"+f.Package] {
+					if named[i] == nil {
+						named[i] = map[int]bool{}
+					}
+					named[i][vi] = true
 				}
-				named[i][vi] = true
 			}
 		}
 	}
@@ -1449,7 +1456,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		m, out := judgeRanges(a, s, in, v, key, now)
 		return awaitingDistro(a, s, in, v, m, out)
 	}
-	return judgeRanges(a, s, in, v, key, now)
+	m, out := judgeRanges(a, s, in, v, key, now)
+	m.upstream = m.upstream || out == outMatch && upstreamJudges(in, v) // the upstream release of a package its distribution names no fix of
+	return m, out
 }
 
 // awaitingDistro is the upstream answer (judgeRanges) on a package the distribution built that its data has no word on yet (a CVE newer
@@ -1759,6 +1768,10 @@ type swInfo struct {
 	packaged bool
 	// pkgVer and pkgSrc: the full Debian version and source package of a packaged row, "" otherwise.
 	pkgVer, pkgSrc string
+	// pkgDistro and pkgRel: the distribution whose security data judges a packaged row (nil when the feeds supply none for the OS) and
+	// the device's release as that data names it ("26.04", "12", "3.23"; "" when the OS names none).
+	pkgDistro *distroData
+	pkgRel    string
 	// winNamed: the software is a Windows release row and NVD names its release in some entry of the list.
 	winNamed bool
 	// winBuild: the month of the monthly update a Windows release row's build carries, read from the list's fix builds
@@ -1811,6 +1824,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	in.packaged = s.Packaged && s.builtBy() == "agent"
 	if in.packaged {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
+		if in.pkgDistro = distroOfOS(osName); in.pkgDistro != nil {
+			in.pkgRel = in.pkgDistro.rel(osName)
+		}
 	}
 	if n := (identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}); n.ok() {
 		in.ids = append(append(append(in.ids, n), cpeAliases[n]...), edgeIDs(s.Vendor, s.Product, in.ver)...)

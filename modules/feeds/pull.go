@@ -160,7 +160,7 @@ type pullPlan struct {
 
 	distro     []DistroFix     // ubuntu-osv, ubuntu-vex, debian-tracker, alpine-osv: the feed's rows, replaced whole
 	distroKEV  map[string]bool // the CISA list's CVEs: only their changed rows are news for findings
-	distroKeep []string        // the packages the tier rows were kept for (distroKeep); nil: no tier row
+	distroKeep []string        // the packages and releases the tier rows were kept for (distroKeep); nil: no tier row
 	hasDistro  bool
 
 	epssAll    []EPSSAllScore // epss-all: every CVE's score, written in chunks (applyEPSSAll)
@@ -629,7 +629,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if rangesChanged, rangesFirst, err = applyDistro(ctx, tx, src.ID, p.distro); err != nil {
 					return err
 				}
-				// a tier CVE's rows decide no finding: only the KEV CVEs are rematched
+				// the devices of the exploited-list CVEs are rematched now; a changed row of another CVE (the catalogue's last 12 months)
+				// runs findings' match pass, its one reader, now instead of at its next hour (Catalogue)
+				catalogue = slices.ContainsFunc(rangesChanged, func(c string) bool { return !p.distroKEV[c] })
 				rangesChanged = slices.DeleteFunc(rangesChanged, func(c string) bool { return !p.distroKEV[c] })
 				var kept any // the packages the rows were kept for, with the rows (distroBehind)
 				if p.distroKeep != nil {

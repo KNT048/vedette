@@ -177,9 +177,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   check the box settled, `ai_read` for a vendor's "not affected" the AI read) as affected or not affected; else why it is undecided: its
   cause (`PossibleCause`, as the lists show it) with the matcher's own reason under it (`CoverageCause.details`: the question's
   `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
-  its undecided reason as the cause and no details), or an unnamed class
-  (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is
-  told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
+  its undecided reason as the cause and no details), for a distribution's package its distribution's data has no word on and no
+  question asks about, why (`DistroSilences`: `outside_window` for a CVE on no exploited list older than the 12 months the box tracks,
+  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_no_data`,
+  `version_needed` for an agent's package row without its release; `TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed`), or an
+  unnamed class (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor
+  asked, so nobody is told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
   pass finds unchanged keeps the counts of its last full match; the sum of each pass is one row of `fnd_coverage_run` (the newest 30
   kept, in the data export) and `GET /findings/coverage` (admin, counts only, Settings → Diagnostics) serves the last one. Counting reads the pass's readings and the rows its write left and
   changes no finding or question. The test-only build tag `holdout` runs the matcher without the catalogue's CPE aliases, so the same pass
@@ -367,7 +370,19 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-6c** A line a person marked not installed is not matched; its findings close as `not_relevant` via `not_installed` under
   that person's name.
 - **INV-11** "I have this" on a versionless product matches, on exactly the declared device, only entries added since its start date.
-- **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges. A package the
+- **INV-14** A packaged agent line on Ubuntu, Debian or Alpine Linux is judged by the distribution's fix data before NVD's ranges, one
+  path for every distribution the feeds supply (`distroVerdict` through the distribution's adapter `distroData`: its release, release
+  order, own builds and which row decides). A fixed release compares with the distribution's own build of the same upstream release, or
+  of a later one (never a kernel's). An Alpine package release (`-rN`) counts within its branch only: only the device's own branch's
+  fix of the same upstream release proves a package fixed; another branch's fixes on the package's own upstream release line
+  (major.minor, `apkLine`) only show a release below them (an older upstream release than every one of them), never fixed; a fix on
+  another line says nothing; otherwise NVD's upstream ranges decide, on an exploited CVE as on any other (`alpineFixBranch`,
+  `TestMatchAsset_AnotherAlpineBranchsFixNeverPatches`, `TestMatchAsset_AnotherAlpineBranchsFixOfAnotherLineOpensNothing`). Alpine's data
+  lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
+  Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
+  list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts
+  it decided affected (`distro_no_fix`).
+  `TestMatchAsset_AlpineRowsDecideCatalogueCVEs`, `TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs`. A package the
   distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
   while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a
   finding with no fixed package yet (fix `none_yet`; Debian's reason when it publishes no security update), and with no word yet NVD's

@@ -154,6 +154,9 @@ func TestOwnBuild(t *testing.T) {
 		{"ubuntu", "1.2-1ubuntu0.1~22.04.1", true, true},
 		{"ubuntu", "1:8.2p1-4ubuntu0.13+esm3", true, true},
 		{"ubuntu", "3.1-2build1", true, true},
+		{"ubuntu", "1.14-1~exp2ubuntu1.1", true, true}, // Ubuntu's build of a Debian experimental upload
+		{"ubuntu", "1.14-1~exp2ubuntu1~ppa1", false, false},
+		{"ubuntu", "1.14-1~exp2", false, false},
 		{"ubuntu", "7.0.0-43.43", true, false}, // a kernel: a fix compares, "not affected" needs Ubuntu's mark
 		{"ubuntu", "5:27.0.3-1~ubuntu.24.04~noble", false, false},
 		{"ubuntu", "8.3.14-1+ubuntu24.04.1+deb.sury.org+1", false, false},

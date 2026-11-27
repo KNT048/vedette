@@ -19,20 +19,21 @@ import (
 )
 
 // Distribution backport data. Ubuntu and Debian fix their packages without changing the upstream version, so a
-// patched OpenSSH stays inside NVD's affected range. Three built-in feeds say, for the CVEs of the CISA list, which source
-// package of which release is fixed in which distribution version, or not affected; ubuntu-osv and debian-tracker also keep
-// the fixed versions of the tier CVEs for the packages the devices run (DistroWant), for findings' "Updates to plan":
+// patched OpenSSH stays inside NVD's affected range. Four built-in feeds say, for the CVEs of the CISA list and for the catalogue's
+// CVEs of the last 12 months (the tier CVEs) in the source packages and releases the devices run (DistroWant), which source package
+// of which release is fixed in which distribution version, not affected, or affected with no fix yet; findings judges a package the
+// distribution built by these rows:
 //   - ubuntu-osv: Canonical's osv-all.tar.xz, every Ubuntu release in one file; a "fixed" event is the first fixed version.
 //   - ubuntu-vex: Canonical's vex-all.tar.xz; only its not_affected statements are kept (its "fixed" statements name the
 //     archive's current version, not the first fixed one, so they would keep a patched device suspected).
 //   - debian-tracker: the Debian Security Tracker JSON, every Debian release in one file: resolved with a fixed version,
-//     or resolved with fixed version "0" (not affected).
+//     resolved with fixed version "0" (not affected), or open (with Debian's reason when it publishes no security update).
 //   - alpine-osv: OSV.dev's Alpine ecosystem (all.zip, one OSV record per CVE converted from Alpine's secdb), every Alpine
 //     branch OSV lists in one file: a "fixed" event is the first fixed apk release of the source package on that branch, "0" not
-//     affected. KEV CVEs only (no tier rows), and pulled only while a device states Alpine (the inventory gate without a first pull).
+//     affected. Pulled only while a device states Alpine (the inventory gate without a first pull).
 //
-// Each file covers every release, so a pull names none of the releases the customer runs. Open, needs-triage, deferred
-// and ignored entries are not kept: they change nothing about a finding.
+// Each file covers every release, so a pull names none of the releases the customer runs. Needs-triage, deferred and ignored
+// entries of Ubuntu's VEX file are not kept.
 const (
 	DistroUbuntu = "ubuntu"
 	DistroDebian = "debian"
@@ -41,8 +42,7 @@ const (
 	DistroFixed       = "fixed"
 	DistroNotAffected = "not_affected"
 	// DistroOpen is the distribution's word "affected, no fix yet" (Debian's open entries, an Ubuntu release with no fixed event):
-	// kept for every CVE of the CISA list (the matcher judges a package the distribution built by its word alone) and for the tier
-	// CVEs of the devices' packages (DistroWant.Row), for "Updates to plan".
+	// the matcher judges a package the distribution built by its word alone.
 	DistroOpen = "open"
 
 	ubuntuOSVFeedID     = "ubuntu-osv"
@@ -99,23 +99,27 @@ const (
 // DistroReasons lists every reason.
 var DistroReasons = []string{DistroReasonPostponed, DistroReasonIgnored, DistroReasonMinor, DistroReasonUnimportant, DistroReasonEndOfLife}
 
-// DistroWant says which rows a pull keeps: every row of a CVE of the CISA list, as before; of a tier CVE
-// (nvd-recent's last 12 months) only the "fixed" rows of a source package some device runs, since the plan lists only
-// packages below their fix and the parse of every package of every tier CVE held 434,162 rows (418k of them kernel flavours
-// no device runs) and 366 MB of peak RSS for Ubuntu's file on 2026-11-15 (KEV only: 2,131 rows, 159 MB).
+// DistroWant says which rows a pull keeps: every row of a CVE of the CISA list; of a tier CVE (the catalogue's last 12 months) only
+// the rows of a source package some device runs, in a release some device runs, since the parse of every package of every tier CVE
+// held 434,162 rows (418k of them kernel flavours no device runs) and 366 MB of peak RSS for Ubuntu's file on 2026-11-15 (KEV only:
+// 2,131 rows, 159 MB), and the not-affected statements of every release of Ubuntu's VEX file for the devices' packages 561,161 rows.
 type DistroWant struct {
 	KEV      map[string]bool // CVEs whose every row is kept
-	Tier     map[string]bool // CVEs whose fixed rows of Packages are kept
+	Tier     map[string]bool // CVEs whose rows of Packages in Releases are kept
 	Packages map[string]bool // source packages as the security data names them (findings.DevicePackages)
+	// Releases are the releases the devices run as the security data names them ("26.04", "12"); nil keeps the tier rows of every
+	// release (Alpine: a package may come from another branch's repository, so every branch's row is read).
+	Releases map[string]bool
 }
 
 // CVE says whether some row of the CVE may be kept: its entry is read.
 func (w DistroWant) CVE(c string) bool { return w.KEV[c] || w.Tier[c] }
 
-// Row says whether the row of the CVE for the source package with this status is kept: every row of a CVE of the CISA list (the
-// matcher's: fixed, not affected, or open), and every row of a tier CVE for a package some device runs (the plan's).
-func (w DistroWant) Row(cve, pkg, _ string) bool { // the status no longer decides: every row of a kept CVE is kept
-	return w.KEV[cve] || w.Tier[cve] && w.Packages[pkg]
+// Row says whether the row of the CVE for the source package of the release is kept: every row of a CVE of the CISA list, and of a
+// tier CVE the rows of a package some device runs in a release some device runs. Every status is kept (fixed, not affected, open):
+// the matcher reads them all.
+func (w DistroWant) Row(cve, release, pkg string) bool {
+	return w.KEV[cve] || w.Tier[cve] && w.Packages[pkg] && (w.Releases == nil || w.Releases[release])
 }
 
 // DistroResult is one parsed pull.
@@ -457,7 +461,7 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 			// Known limit: an unfixed package is kept as open only from a public release's entry. Whether Canonical's OSV lists an
 			// unfixed package of a release in ESM (only "Ubuntu:Pro:<release>" entries) is not confirmed, so such a release gives no
 			// open row; findings then has no word and judges the package on NVD's ranges, not confirmed (awaitingDistro).
-			if !fixed && !pro && debPackageRE.MatchString(a.Package.Name) && want.Row(cve, a.Package.Name, DistroOpen) {
+			if !fixed && !pro && debPackageRE.MatchString(a.Package.Name) && want.Row(cve, m[2], a.Package.Name) {
 				open = append(open, key{m[2], a.Package.Name})
 			}
 			for _, rg := range a.Ranges {
@@ -473,7 +477,7 @@ func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 						tl.reject(row, "%s: version %s is not a Debian version", cve, quoteVal(e.Fixed))
 						return nil
 					}
-					if !want.Row(cve, a.Package.Name, DistroFixed) {
+					if !want.Row(cve, m[2], a.Package.Name) {
 						continue
 					}
 					k := key{m[2], a.Package.Name}
@@ -553,7 +557,7 @@ func ParseAlpineOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 						tl.reject(row, "%s: release %s is not an Alpine package release", cve, quoteVal(e.Fixed))
 						continue
 					}
-					if !want.Row(cve, a.Package.Name, f.Status) {
+					if !want.Row(cve, m[1], a.Package.Name) {
 						continue
 					}
 					k := key{m[1], a.Package.Name}
@@ -651,7 +655,7 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 					unknown = codename
 					continue
 				}
-				if want.Row(cve, name, DistroNotAffected) {
+				if want.Row(cve, rel, name) {
 					got[key{rel, name}] = true
 				}
 			}
@@ -793,9 +797,9 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 			bad := false
 			for codename, rel := range e.Releases {
 				// open: affected, no fix yet; one Debian will not fix in a security update (unimportant, end-of-life, nodsa, ignored,
-				// postponed) is kept with its reason for a CVE of the CISA list (Debian still says affected), left out for the plan
+				// postponed) is kept with its reason (Debian still says affected, and findings says why no fixed package comes)
 				reason := rel.noUpdateReason()
-				open := rel.Status == "open" && (reason == "" || want.KEV[cve])
+				open := rel.Status == "open"
 				if rel.Status != "resolved" && !open || codename == "sid" {
 					continue
 				}
@@ -814,7 +818,7 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 					tl.reject(row, "%s: version %s is not a Debian version", cve, quoteVal(rel.FixedVersion))
 					bad = true
 				}
-				if want.Row(cve, pkg, f.Status) {
+				if want.Row(cve, num, pkg) {
 					rows = append(rows, f)
 				}
 			}

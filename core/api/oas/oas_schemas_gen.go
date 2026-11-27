@@ -95956,7 +95956,9 @@ func (s *FindingsGetFindingsCoverageOK) SetPossible(val []FindingsGetFindingsCov
 type FindingsGetFindingsCoverageOKDecidedItem struct {
 	Affected int `json:"affected"`
 	// The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory,
-	// ai_confirmed, person, scan) or platform_list (the hand list of platform limits).
+	// ai_confirmed, person, scan) or platform_list (the hand list of platform limits), or distro_no_fix
+	// (the distribution lists the package affected with no fix yet for a CVE on no exploited list:
+	// affected, no finding until the fix or an exploited list comes).
 	By          string `json:"by"`
 	NotAffected int    `json:"not_affected"`
 }
@@ -96097,9 +96099,14 @@ func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) UnmarshalText(data []b
 
 type FindingsGetFindingsCoverageOKPossibleItem struct {
 	// The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading,
-	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), or an unnamed
-	// class: pairs the matcher reached and neither decided nor asked about, so nobody is told why
-	// (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the
+	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a
+	// distribution's package its distribution's data has no word on stays undecided with no question
+	// (outside_window: older than the 12 months tracked and on no exploited list; distro_other_packages,
+	// distro_other_releases: the distribution lists the CVE for other packages or releases only;
+	// distro_other_build: its row is about another build; distro_not_listed: no row of the CVE;
+	// distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or
+	// an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told
+	// why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the
 	// rows name the product and give nothing the matcher compares; other_dropped: matched on the name
 	// alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason
 	// (Undecided.reason), ai_proposal or other here.
@@ -104157,19 +104164,19 @@ func (s *FindingsGetFindingsIDOKEvidenceSource) UnmarshalText(data []byte) error
 type FindingsGetFindingsIDOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsGetFindingsIDOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
-	// install (empty = the distribution). Other kinds: set only when the software is not known to come
-	// from the package database (typed by a person, read by a scan, or an agent row stored before
-	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
-	// install its security updates instead".
+	// "Ubuntu", "Debian" or "Alpine Linux" when the device runs one, empty otherwise. distro: whose
+	// security updates to install (empty = the distribution). Other kinds: set only when the software is
+	// not known to come from the package database (typed by a person, read by a scan, or an agent row
+	// stored before inventory kept the flag); the page adds "if you installed it from the distribution's
+	// packages, install its security updates instead".
 	Distro string `json:"distro"`
 	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
-	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
-	// version. Empty when the distribution's data does not say.
+	// release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version`
+	// is then the device's full package version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
-	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	// The device's release with distro_fixed ("24.04", "12", "3.23"); empty otherwise.
 	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
@@ -104198,7 +104205,7 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	RestartInto OptString `json:"restart_into"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
 	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
-	// Tracker".
+	// Tracker" / "Alpine Linux security database".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -124509,19 +124516,19 @@ func (s *FindingsPostFindingsIDAiOKEvidenceSource) UnmarshalText(data []byte) er
 type FindingsPostFindingsIDAiOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDAiOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
-	// install (empty = the distribution). Other kinds: set only when the software is not known to come
-	// from the package database (typed by a person, read by a scan, or an agent row stored before
-	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
-	// install its security updates instead".
+	// "Ubuntu", "Debian" or "Alpine Linux" when the device runs one, empty otherwise. distro: whose
+	// security updates to install (empty = the distribution). Other kinds: set only when the software is
+	// not known to come from the package database (typed by a person, read by a scan, or an agent row
+	// stored before inventory kept the flag); the page adds "if you installed it from the distribution's
+	// packages, install its security updates instead".
 	Distro string `json:"distro"`
 	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
-	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
-	// version. Empty when the distribution's data does not say.
+	// release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version`
+	// is then the device's full package version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
-	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	// The device's release with distro_fixed ("24.04", "12", "3.23"); empty otherwise.
 	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
@@ -124550,7 +124557,7 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	RestartInto OptString `json:"restart_into"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
 	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
-	// Tracker".
+	// Tracker" / "Alpine Linux security database".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -128834,19 +128841,19 @@ func (s *FindingsPostFindingsIDAppliedOKEvidenceSource) UnmarshalText(data []byt
 type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDAppliedOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
-	// install (empty = the distribution). Other kinds: set only when the software is not known to come
-	// from the package database (typed by a person, read by a scan, or an agent row stored before
-	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
-	// install its security updates instead".
+	// "Ubuntu", "Debian" or "Alpine Linux" when the device runs one, empty otherwise. distro: whose
+	// security updates to install (empty = the distribution). Other kinds: set only when the software is
+	// not known to come from the package database (typed by a person, read by a scan, or an agent row
+	// stored before inventory kept the flag); the page adds "if you installed it from the distribution's
+	// packages, install its security updates instead".
 	Distro string `json:"distro"`
 	// Kind distro only: the version of the distribution's package that fixes the CVE on the device's
-	// release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package
-	// version. Empty when the distribution's data does not say.
+	// release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version`
+	// is then the device's full package version. Empty when the distribution's data does not say.
 	DistroFixed string `json:"distro_fixed"`
 	// Distro_fixed is in Ubuntu Pro (ESM) only.
 	DistroPro bool `json:"distro_pro"`
-	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	// The device's release with distro_fixed ("24.04", "12", "3.23"); empty otherwise.
 	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
@@ -128875,7 +128882,7 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	RestartInto OptString `json:"restart_into"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
 	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
-	// Tracker".
+	// Tracker" / "Alpine Linux security database".
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`

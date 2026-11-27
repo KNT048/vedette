@@ -537,3 +537,35 @@ func TestZapBaselineProofAtGoesThroughTheFence(t *testing.T) {
 		}
 	}
 }
+
+// vedette-host's fence agrees with core's check: a stale resolver answer does not refuse a job when every one of the zone's own
+// name servers serves the record, and it still refuses when they do not.
+func TestFenceAsksTheZonesServersPastAStaleResolver(t *testing.T) {
+	t.Parallel()
+	stale := func(context.Context, string) ([]string, error) {
+		return []string{"vedette-verify=0000000000000000"}, nil
+	}
+	serves := func(_ context.Context, name string) (domainfence.AuthAnswer, error) {
+		if name != "example.com." {
+			return domainfence.AuthAnswer{Servers: []string{"ns1.dns.example"}}, nil
+		}
+		v := []string{"vedette-verify=" + zapTestTok}
+		return domainfence.AuthAnswer{Servers: []string{"ns1.dns.example"}, TXT: v, Some: v}, nil
+	}
+	a := api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.example.com", IP: zapTestIP, Token: zapTestTok, Recheck: true}
+	w := newZapWorld(t, Deps{ZapTXT: stale, FenceAuth: serves})
+	if _, err := w.o.fenceCheck(t.Context(), nolog, a); err != nil {
+		t.Fatalf("the zone's servers serve the record: %v", err)
+	}
+	none := func(context.Context, string) (domainfence.AuthAnswer, error) {
+		return domainfence.AuthAnswer{Servers: []string{"ns1.dns.example"}}, nil
+	}
+	w2 := newZapWorld(t, Deps{ZapTXT: stale, FenceAuth: none})
+	if _, err := w2.o.fenceCheck(t.Context(), nolog, a); fenceCode(err) != api.CodeTargetNotOwned {
+		t.Fatalf("the zone's servers lack the record: %v", err)
+	}
+	w3 := newZapWorld(t, Deps{ZapTXT: stale})
+	if _, err := w3.o.fenceCheck(t.Context(), nolog, a); fenceCode(err) != api.CodeTargetNotOwned {
+		t.Fatalf("a test world without FenceAuth asks no server: %v", err)
+	}
+}

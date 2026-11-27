@@ -5,7 +5,8 @@
 // would otherwise pass), the domain's TXT record must carry it now, and the name must resolve to the address now. Core never holds
 // the key (vedette-host makes it, the scan container gets it read-only, core's container never mounts it).
 //
-// It is a leaf: the standard library and core/localnet only, because the sensor binary links it (TestBinaryDependencies there).
+// It is a leaf: the standard library, core/localnet, its sibling proofat and golang.org/x/net/dns/dnsmessage (the DNS message parser
+// the standard library itself vendors) only, because the sensor binary links it (TestBinaryDependencies there).
 package domainfence
 
 import (
@@ -291,6 +292,21 @@ type Proof struct {
 	Unchecked bool
 	Refused   bool // reached through a CNAME, or answered by a wildcard
 	Detail    string
+	// Authoritative: At was found at the zone's own name servers while the box's resolver still answered without it (an older
+	// answer it keeps cached).
+	Authoritative bool
+	// Servers are the zone's own name servers that answered when they were asked (the resolver's answer proved nothing); empty
+	// when they were not asked or none answered with authority.
+	Servers []string
+	// Propagating: some of the zone's name servers serve the record, not all of them yet.
+	Propagating bool
+}
+
+// source is where Owned reads a name's TXT records and whether it is a CNAME: the box's resolver, or the zone's own name servers.
+// all is the values the source answers; some (the zone's servers only) the values at least one of its servers answers.
+type source struct {
+	txt   func(name string) (all, some []string, err error)
+	cname func(name string) (bool, error) // the name is a CNAME to another name
 }
 
 // Owned is THE ownership rule of a domain's record, the one every party applies: exposure (Check and the scan gate, for the
@@ -306,54 +322,127 @@ type Proof struct {
 //     above, a wildcard TXT by this one. On domain itself a wildcard of its parent answers only when domain has no record of its
 //     own, so a wildcard CNAME is refused by the CNAME rule and a wildcard TXT is the zone owner's own record.
 //
+// The names are asked through the box's resolver first. When that proves nothing and r is also an Authority, the same names are
+// asked of the zone's own name servers with the same rules (authority.go): a record just put in place counts as soon as every one of
+// them serves it, not when the resolver's cached answer runs out.
+//
 // Every lookup has timeout. A lookup that fails (not "no such host") makes the answer Unchecked unless the other name proves it.
 func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout time.Duration) Proof {
+	// Every name is asked rooted (a trailing dot), so the resolver's search list (resolv.conf "search lan") never applies: a name
+	// with no address would otherwise be tried again as <name>.<search domain>, whose answer is not the domain's (review r2 L3 of #941).
+	p := owned(domain, token, source{
+		txt: func(name string) ([]string, []string, error) {
+			c, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+			v, err := r.LookupTXT(c, name+".")
+			return v, v, err
+		},
+		cname: func(name string) (bool, error) {
+			c, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+			cn, err := r.LookupCNAME(c, name+".")
+			cn = strings.ToLower(strings.TrimRight(strings.TrimSpace(cn), "."))
+			switch {
+			case err != nil && !notFound(err):
+				return false, err
+			case err == nil && cn != "" && cn != name:
+				return true, nil
+			}
+			return false, nil
+		},
+	}, nil)
+	a, ok := r.(Authority)
+	if p.At != "" || !ok {
+		return p
+	}
+	answers := map[string]AuthAnswer{} // one question per name: its TXT values and its CNAME come in the same answer (owned asks in turn)
+	ask := func(name string) (AuthAnswer, error) {
+		if got, ok := answers[name]; ok {
+			return got, nil
+		}
+		c, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		got, err := a.AuthTXT(c, name+".")
+		if err != nil {
+			return AuthAnswer{}, err
+		}
+		answers[name] = got
+		return got, nil
+	}
+	var servers []string
+	ap := owned(domain, token, source{
+		txt: func(name string) ([]string, []string, error) {
+			got, err := ask(name)
+			return got.TXT, got.Some, err
+		},
+		cname: func(name string) (bool, error) {
+			got, err := ask(name)
+			return got.CNAME, err
+		},
+	}, func(name string) {
+		if got, ok := answers[name]; ok {
+			for _, s := range got.Servers {
+				if !slices.Contains(servers, s) {
+					servers = append(servers, s)
+				}
+			}
+		}
+	})
+	slices.Sort(servers)
+	if ap.At != "" {
+		ap.Authoritative, ap.Servers = true, servers
+		return ap
+	}
+	// The resolver's verdict stands (fail closed); what the zone's servers said goes with it.
+	p.Servers, p.Propagating = servers, ap.Propagating
+	if ap.Refused && !p.Refused {
+		p.Refused, p.Detail = true, ap.Detail
+	}
+	return p
+}
+
+// owned applies the rule of Owned to one source. seen, when set, is told each name of domain asked (not the random sibling).
+func owned(domain, token string, src source, seen func(name string)) Proof {
 	want := "vedette-verify=" + token
 	has := func(vals []string) bool {
 		return slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == want })
-	}
-	// Every name is asked rooted (a trailing dot), so the resolver's search list (resolv.conf "search lan") never applies: a name
-	// with no address would otherwise be tried again as <name>.<search domain>, whose answer is not the domain's (review r2 L3 of #941).
-	txt := func(name string) ([]string, error) {
-		c, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
-		return r.LookupTXT(c, name+".")
 	}
 	names := []string{domain}
 	if alt := VerifyLabel + "." + domain; len(alt) <= 253 {
 		names = append(names, alt)
 	}
-	failed, why := "", ""
+	failed, why, propagating := "", "", false
 	for i, at := range names {
-		vals, err := txt(at)
+		vals, some, err := src.txt(at)
+		if seen != nil {
+			seen(at)
+		}
 		switch {
 		case err != nil && !notFound(err):
 			failed = at
 			continue
 		case !has(vals):
+			propagating = propagating || has(some)
 			continue
 		}
-		c, cancel := context.WithTimeout(ctx, timeout)
-		cn, err := r.LookupCNAME(c, at+".")
-		cancel()
-		cn = strings.ToLower(strings.TrimRight(strings.TrimSpace(cn), "."))
+		isCNAME, err := src.cname(at)
 		switch {
-		case err != nil && !notFound(err):
+		case err != nil:
 			failed = at
 			continue
-		case err == nil && cn != "" && cn != at:
+		case isCNAME:
 			why = at + " is a CNAME to another name, so its TXT record is not its own"
 			continue
 		}
 		if i == 1 {
 			sib := VerifyLabel + "-" + randomLabel() + "." + domain
 			if len(sib) <= 253 {
-				svals, err := txt(sib)
+				_, ssome, err := src.txt(sib)
 				switch {
 				case err != nil && !notFound(err):
 					failed = at
 					continue
-				case has(svals):
+				case has(ssome): // any server answering the random name with the value is a wildcard
 					why = at + " answers through a wildcard (a random name beside it gives the same record)"
 					continue
 				}
@@ -362,12 +451,12 @@ func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout t
 		return Proof{At: at}
 	}
 	if failed != "" {
-		return Proof{Unchecked: true, Detail: "the DNS lookup at " + failed + " failed"}
+		return Proof{Unchecked: true, Detail: "the DNS lookup at " + failed + " failed", Propagating: propagating}
 	}
 	if why != "" {
-		return Proof{Refused: true, Detail: why}
+		return Proof{Refused: true, Detail: why, Propagating: propagating}
 	}
-	return Proof{Detail: strings.Join(names, " and ") + " have no TXT record vedette-verify=<the token>"}
+	return Proof{Detail: strings.Join(names, " and ") + " have no TXT record vedette-verify=<the token>", Propagating: propagating}
 }
 
 // randomLabel is 16 random hex digits: the sibling name of the wildcard check.

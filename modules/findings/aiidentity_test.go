@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -13,7 +14,9 @@ import (
 type fakeIdentifier struct {
 	products []CatalogueName
 	choose   func(it IdentifyItem) (choice, reason string)
-	err      error
+	family   bool  // the AI answers that the program is only a part of the chosen product's family
+	failing  int   // the next calls that fail (a bad answer, a provider error), after reaching the provider
+	err      error // every call stops with it (a budget, no profile)
 	private  []string
 	sent     []IdentifyRequest
 }
@@ -27,10 +30,18 @@ func (f *fakeIdentifier) Identify(_ context.Context, _ string, req IdentifyReque
 	if f.err != nil {
 		return IdentifyAnswer{}, f.err
 	}
+	if f.failing > 0 {
+		f.failing--
+		return IdentifyAnswer{}, errors.New("ai: the answer does not match the expected format")
+	}
 	ans := IdentifyAnswer{Model: "test-model", ActivityID: "act-1"}
 	for _, it := range req.Items {
 		c, r := f.choose(it)
-		ans.Choices = append(ans.Choices, IdentifyChoice{Index: it.Index, Choice: c, Reason: r})
+		m := MatchExact
+		if f.family {
+			m = MatchFamily
+		}
+		ans.Choices = append(ans.Choices, IdentifyChoice{Index: it.Index, Choice: c, Match: m, Reason: r})
 	}
 	return ans, nil
 }
@@ -208,8 +219,8 @@ func TestAIIdentity_AChoiceNotOfferedIsIgnored(t *testing.T) {
 	}
 }
 
-// None and unsure decide nothing: no finding, the line stays none in the coverage, and the AI is asked again only when the candidates
-// change (an unsure answer also after 30 days).
+// None and unsure decide nothing: no finding, the line stays none in the coverage, and the AI is asked again only when a new candidate
+// enters the top 5 and the answer is at least 7 days old, or after 30 days.
 func TestAIIdentity_NoneOrUnsureDecidesNothing(t *testing.T) {
 	t.Parallel()
 	for _, choice := range []string{ChoiceNone, ChoiceUnsure} {
@@ -231,17 +242,20 @@ func TestAIIdentity_NoneOrUnsureDecidesNothing(t *testing.T) {
 			if len(fi.sent) != 1 {
 				t.Errorf("asked %d times with the same candidates", len(fi.sent))
 			}
-			fi.products = append(fi.products, CatalogueName{Vendor: "acme", Product: "widget_studio_pro", CVEs: 1}) // a new candidate
+			fi.products = append(fi.products, CatalogueName{Vendor: "acme", Product: "widget_studio_pro", CVEs: 1}) // a new candidate in the top 5
+			runIdentify(t, e)
+			if len(fi.sent) != 1 {
+				t.Errorf("asked %d times: a new candidate asks again only once the answer is 7 days old", len(fi.sent))
+			}
+			e.advance(8 * 24 * time.Hour)
 			runIdentify(t, e)
 			if len(fi.sent) != 2 {
-				t.Errorf("asked %d times: a changed candidate set asks again", len(fi.sent))
+				t.Errorf("asked %d times: a new candidate in the top 5 asks again after 7 days", len(fi.sent))
 			}
-			if choice == ChoiceUnsure {
-				e.advance(31 * 24 * time.Hour)
-				runIdentify(t, e)
-				if len(fi.sent) != 3 {
-					t.Errorf("asked %d times: an unsure answer is asked again after 30 days", len(fi.sent))
-				}
+			e.advance(31 * 24 * time.Hour)
+			runIdentify(t, e)
+			if len(fi.sent) != 3 {
+				t.Errorf("asked %d times: an answer of none or unsure is checked again after 30 days", len(fi.sent))
 			}
 		})
 	}
@@ -452,5 +466,90 @@ func TestIdentityScrubber(t *testing.T) {
 		if got := sc.clean(in); got != want {
 			t.Errorf("clean(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// moreWidgets gives pc-01 six more programs whose candidates are the widget's: seven names to ask, two calls (5 and 2).
+func moreWidgets(t *testing.T, e *env) {
+	t.Helper()
+	a := e.inv.match["pc-01"]
+	for _, n := range []string{"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"} {
+		a.Software = append(a.Software, Software{ID: "sw-pc-01-widget-" + n, Display: "Widget Studio " + n, Vendor: "Acme Software, Inc.", Product: "Widget Studio " + n,
+			Version: "1.0.1", Source: "agent"})
+	}
+	e.inv.match["pc-01"] = a
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A call that fails after reaching the provider (an answer outside the schema, a provider error) does not stop the identification: its
+// names wait a day and the next names are asked; the same batch is not sent again every hour.
+func TestAIIdentity_AFailedBatchWaitsADayAndThePassGoesOn(t *testing.T) {
+	t.Parallel()
+	e, _, fi := identityWorld(t)
+	moreWidgets(t, e)
+	fi.failing = 1
+	runIdentify(t, e)
+	if len(fi.sent) != 2 {
+		t.Fatalf("%d calls, want the failed one and the next batch", len(fi.sent))
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_identity WHERE kind = 'ai'`); n != 2 {
+		t.Errorf("%d names stored, want the 2 of the batch after the failed one", n)
+	}
+	e.advance(time.Hour)
+	runIdentify(t, e)
+	if len(fi.sent) != 2 {
+		t.Errorf("%d calls: the failed batch was sent again within the day", len(fi.sent))
+	}
+	e.advance(24 * time.Hour)
+	runIdentify(t, e)
+	if len(fi.sent) != 3 || len(fi.sent[2].Items) != 5 {
+		t.Errorf("%d calls: the failed names are asked again the next day", len(fi.sent))
+	}
+}
+
+// A chosen product is asked again only when it leaves the candidates: other candidates coming and going cost no AI call.
+func TestAIIdentity_CandidateChurnDoesNotAskAgain(t *testing.T) {
+	t.Parallel()
+	e, _, fi := identityWorld(t)
+	runIdentify(t, e)
+	fi.products = append(fi.products, CatalogueName{Vendor: "acme", Product: "widget_studio_cloud", CVEs: 30}, CatalogueName{Vendor: "otherco", Product: "widget", CVEs: 2})
+	e.advance(40 * 24 * time.Hour)
+	runIdentify(t, e)
+	if len(fi.sent) != 1 {
+		t.Errorf("asked %d times: new candidates beside a chosen product ask nothing", len(fi.sent))
+	}
+	fi.products = slices.DeleteFunc(fi.products, func(n CatalogueName) bool { return n.Product == "widget_studio" })
+	runIdentify(t, e)
+	if len(fi.sent) != 2 {
+		t.Errorf("asked %d times: a chosen product that left the candidates asks again", len(fi.sent))
+	}
+}
+
+// "family": the program is only a part of the chosen product's family (an agent, a client): stored, counted as such in the coverage,
+// and it opens no finding.
+func TestAIIdentity_AFamilyMatchOpensNothing(t *testing.T) {
+	t.Parallel()
+	e, _, fi := identityWorld(t)
+	fi.family = true
+	if n := runIdentify(t, e); n != 0 {
+		t.Errorf("%d names linked from a family match", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_identity WHERE choice = 'product' AND fit = 'family' AND product = 'widget_studio'`); n != 1 {
+		t.Error("the family match is not stored")
+	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := widgetFindings(t, e, cveWidgetIn); n != 0 {
+		t.Errorf("%d findings from a family match", n)
+	}
+	if got := identityLines(t, e); got[IdentityAIFamily] != 2 || got[IdentityAI] != 0 || got[IdentityNone] != 2 {
+		t.Errorf("identity %v: want the widget's 2 lines as ai_family", got)
+	}
+	runIdentify(t, e)
+	if len(fi.sent) != 1 {
+		t.Errorf("asked %d times: a stored family match is not asked again with the same candidates", len(fi.sent))
 	}
 }

@@ -256,10 +256,16 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   vendor:product, a CVE record's product key, an exploited-list entry; nothing is fetched): the publisher and display name are cleaned
   (legal-entity words, the line's version, version numbers, architecture, language and text in parentheses dropped, `IdentityKey`) and
   ranked by the words they share with each product's vendor and name; the same cleaned name is only the first candidate, never a link.
-  A name no product shares a word with is not asked (it stays `none`). The AI answers by schema a candidate's id, `none` or `unsure`
-  with a reason (at most 5 names a call, exploited-list candidates first); the box keeps a product only when it is one it offered and
-  shares a non-stopword with the name (`verifyChoices`; anything else is stored `unsure`). One row per cleaned (publisher, name) in
-  `fnd_identity` serves every device; it is asked again when the set of candidates changes, or after 30 days for `unsure`. The names sent
+  A name no product shares a word with is not asked (it stays `none`). The AI answers by schema a candidate's id, `none` or `unsure`,
+  whether the program is that product itself (`exact`) or only a part of its family (`family`: an agent, a client, a plugin of it), with
+  a reason (at most 5 names a call, exploited-list candidates first); the box keeps a product only when it is one it offered and shares
+  a non-stopword with the name (`verifyChoices`; anything else is stored `unsure`; a product not said to be `exact` is `family`). A
+  `family` match is stored and counted (coverage identity `ai_family`) and opens nothing yet. One row per cleaned (publisher, name) in
+  `fnd_identity` serves every device. It is asked again (`askAgain`) only when the chosen product left the candidates, or, for `none` and
+  `unsure`, after 30 days, or after 7 days when a product it was not offered entered the top 5 (the top 5 are kept as short hashes); other
+  candidates coming and going ask nothing. A call that fails after it was sent (an answer outside the schema, the provider) makes its
+  names wait a day and the run goes on with the next names; a budget or a missing profile stops the run. Every call that reached the
+  provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
   have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
   (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only
   opens. A version inside its ranges is a finding unless the line's own names decide the CVE; the finding's evidence carries the

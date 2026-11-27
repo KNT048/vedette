@@ -118,7 +118,7 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 		Decided: []CoverageSource{{By: RangeNVD, Affected: 1, NotAffected: 2}, {By: RangeCNA, Affected: 1, NotAffected: 1}},
 		Possible: []CoverageCause{{Cause: CauseNeedsReading, Count: 1, Details: []CoverageDetail{{Detail: UndecidedNoRanges, Count: 1}}},
 			{Cause: CoverageOtherRecordUnread, Count: 1, Details: []CoverageDetail{}}},
-		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 7}, {IdentityAI, 0}, {IdentityNone, 1}}}
+		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 7}, {IdentityAI, 0}, {IdentityAIFamily, 0}, {IdentityNone, 1}}}
 	checkCoverage(t, e.svc, want)
 	// A person's answer decides its pair; a pass that finds the device unchanged keeps its counts
 	var qid string
@@ -156,7 +156,7 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 		t.Fatal(err)
 	}
 	checkCoverage(t, e.svc, Coverage{Decided: []CoverageSource{}, Possible: []CoverageCause{},
-		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 0}, {IdentityAI, 0}, {IdentityNone, 0}}})
+		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 0}, {IdentityAI, 0}, {IdentityAIFamily, 0}, {IdentityNone, 0}}})
 }
 
 // checkCoverage compares the last pass's coverage with want, its time aside.

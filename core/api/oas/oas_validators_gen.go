@@ -53157,6 +53157,8 @@ func (s FindingsGetFindingsCoverageOKIdentityItemMethod) Validate() error {
 		return nil
 	case "ai":
 		return nil
+	case "ai_family":
+		return nil
 	case "none":
 		return nil
 	default:

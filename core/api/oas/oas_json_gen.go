@@ -182151,6 +182151,8 @@ func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) Decode(d *jx.Decoder) 
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodRecord
 	case FindingsGetFindingsCoverageOKIdentityItemMethodAi:
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodAi
+	case FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily
 	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodNone
 	default:

@@ -980,6 +980,7 @@
       "catalogue": "product catalogue {{n}}",
       "record": "own name {{n}}",
       "ai": "identified by AI {{n}}",
+      "ai_family": "part of a product family per AI {{n}}",
       "none": "not identified {{n}}"
     },
     "by": {

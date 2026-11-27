@@ -344,7 +344,7 @@ export const modelHandlers = [
       { cause: 'needs_reading', count: 402, details: [{ detail: 'version_scheme_mismatch', count: 211 }, { detail: 'exact_releases_only', count: 117 }, { detail: 'product_not_named', count: 74 }] },
       { cause: 'other_distro_silent', count: 31, details: [] },
     ],
-    identity: [{ method: 'stated', lines: 1795 }, { method: 'catalogue', lines: 61 }, { method: 'record', lines: 23 }, { method: 'ai', lines: 54 }, { method: 'none', lines: 207 }],
+    identity: [{ method: 'stated', lines: 1795 }, { method: 'catalogue', lines: 61 }, { method: 'record', lines: 23 }, { method: 'ai', lines: 49 }, { method: 'ai_family', lines: 5 }, { method: 'none', lines: 207 }],
   } satisfies Coverage)),
   http.get(`${API}/findings/possible/check`, () => read(() => ({ ready: false, reason: 'The preview has no AI profile to check possible findings with.', run: null }) satisfies PossibleCheckState)),
   http.post(`${API}/findings/possible/check`, () => guard('operator') ?? fail(409, 'ai_unavailable', 'The preview has no AI profile to check possible findings with.')),

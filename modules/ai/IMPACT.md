@@ -165,5 +165,5 @@
 
 ## Modifying: `IdentifyProducts`, `IdentifyItem`, `IdentifyChoice`, `autoIdentifySummary`
 - **findings** (P-9, through `cmd/vedette/aipossible.go` `softwareIdentifier`): a choice is a candidate id findings offered, `none` or `unsure`; findings stores it per software name and lets only an offered id open findings. Renaming the choices or the schema breaks every stored identification.
-- The automatic identification shares the daily number of automatic reads: `AutoReadState` counts the summary prefixes `autoReadSummary` and `autoIdentifySummary`; changing either resets the count of the day.
+- The automatic identification shares the daily number of automatic reads (at most half of it): `AutoReadState` counts the rows whose summary starts with the count tags `autoReadSummary` and `autoIdentifySummary` (failed calls too, `JobSpec.countTag`); changing either resets the count of the day. The `match` answer (`exact`, `family`) decides whether findings opens anything.
 - PRIVACY.md flow 3 and Settings → Privacy say what an identification call sends (publisher, scrubbed display name, version, candidates) and how to turn it off (the same switch).

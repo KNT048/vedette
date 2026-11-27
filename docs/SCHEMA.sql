@@ -1318,6 +1318,7 @@ CREATE TABLE fnd_identity (
     name        TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
     kind        TEXT    NOT NULL CHECK (kind IN ('ai', 'rejected')),
     choice      TEXT    NOT NULL CHECK (choice IN ('product', 'none', 'unsure')),
+    fit         TEXT    NOT NULL DEFAULT '' CHECK (fit IN ('', 'exact', 'family')),
     vendor      TEXT    NOT NULL DEFAULT '' CHECK (length(vendor) <= 200),
     product     TEXT    NOT NULL DEFAULT '' CHECK (length(product) <= 200),
     record      INTEGER NOT NULL DEFAULT 0 CHECK (record IN (0, 1)),
@@ -1330,7 +1331,8 @@ CREATE TABLE fnd_identity (
     by          TEXT    NOT NULL CHECK (length(by) BETWEEN 1 AND 320),
     at          TEXT    NOT NULL CHECK (at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     CHECK ((choice = 'product') = (vendor <> '' AND product <> '')),
-    CHECK (kind = 'ai' OR choice = 'product')
+    CHECK (kind = 'ai' OR choice = 'product'),
+    CHECK ((kind = 'ai' AND choice = 'product') = (fit <> ''))
 );
 
 CREATE UNIQUE INDEX fnd_identity_ai_uq ON fnd_identity (publisher, name) WHERE kind = 'ai';

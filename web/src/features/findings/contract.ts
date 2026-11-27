@@ -591,7 +591,7 @@ export const Coverage = z.object({
     })).describe('The same pairs by the matcher\'s own reason, the most first; empty for an unnamed class and for a pass counted before details were kept'),
   })).describe('Undecided pairs by cause, the most first'),
   identity: z.array(z.object({
-    method: z.enum(['stated', 'catalogue', 'record', 'ai', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer\'s AI chose its product among the catalogue\'s; none: nothing in the catalogue is matched to it'),
+    method: z.enum(['stated', 'catalogue', 'record', 'ai', 'ai_family', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer\'s AI chose its product among the catalogue\'s; ai_family: the AI said it is only a part of a catalogue product\'s family (an agent, a client), which opens no finding; none: nothing in the catalogue is matched to it'),
     lines: coverageCount,
   })).describe('Software lines by how the box knows what product they are'),
 }).describe('Decision coverage of the last match pass: what decided each related (line, CVE) pair, why the rest is undecided, and how each line is identified. Counts only, no device data')

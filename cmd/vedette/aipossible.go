@@ -130,7 +130,7 @@ func (c softwareIdentifier) Identify(ctx context.Context, actor string, req find
 	}
 	out := findings.IdentifyAnswer{Model: ans.Model, ActivityID: ans.ActivityID}
 	for _, ch := range ans.Choices {
-		out.Choices = append(out.Choices, findings.IdentifyChoice{Index: ch.Index, Choice: ch.Choice, Reason: ch.Reason})
+		out.Choices = append(out.Choices, findings.IdentifyChoice{Index: ch.Index, Choice: ch.Choice, Match: ch.Match, Reason: ch.Reason})
 	}
 	return out, nil
 }

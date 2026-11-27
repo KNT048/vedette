@@ -36,7 +36,7 @@ const (
 )
 
 // IdentityMethods lists the identity methods, in the order the coverage shows them.
-var IdentityMethods = []string{IdentityStated, IdentityCatalogue, IdentityRecord, IdentityAI, IdentityNone}
+var IdentityMethods = []string{IdentityStated, IdentityCatalogue, IdentityRecord, IdentityAI, IdentityAIFamily, IdentityNone}
 
 // CoveragePlatformList is the source of a "not affected" the platform list decided (content/catalog/platform-limits.json): hand data.
 const CoveragePlatformList = "platform_list"
@@ -323,7 +323,7 @@ func coverOf(dm *devMatch, rows deviceRows, in causeInputs) deviceCover {
 		d.lines++
 		m := identityOf(s, dm.infos[i], linked[storedLine(s.ID)])
 		d.identity[m]++
-		if p := s.AIProduct; p != nil && m == IdentityAI {
+		if p := s.AIProduct; p != nil && (m == IdentityAI || m == IdentityAIFamily) {
 			if d.byAI == nil {
 				d.byAI = map[nameKey]bool{}
 			}
@@ -490,6 +490,8 @@ func identityOf(s Software, in swInfo, linked bool) string {
 		return IdentityStated
 	case len(cpeAliases[identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}]) > 0:
 		return IdentityCatalogue
+	case s.AIProduct != nil && s.AIProduct.Family:
+		return IdentityAIFamily
 	case s.AIProduct != nil:
 		return IdentityAI
 	case linked:

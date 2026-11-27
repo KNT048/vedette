@@ -406,15 +406,18 @@ func sharesAny(words []string, set map[string]bool) bool {
 	return false
 }
 
-// candidateSet is a hash of which products a line was offered (not their order or counts): a new one asks the AI again.
-func candidateSet(cs []identityCandidate) string {
-	keys := make([]string, len(cs))
+// topSet is the top identityTopN candidates as a stored answer keeps them (fnd_identity.candidates): a short hash of each product,
+// in rank order, separated by spaces; askAgain compares it with the top of a later offer.
+func topSet(cs []identityCandidate) string {
+	var out []string
 	for i, c := range cs {
-		keys[i] = c.Product.key()
+		if i == identityTopN {
+			break
+		}
+		h := sha256.Sum256([]byte(c.Product.key()))
+		out = append(out, hex.EncodeToString(h[:4]))
 	}
-	slices.Sort(keys)
-	h := sha256.Sum256([]byte(strings.Join(keys, "\n")))
-	return hex.EncodeToString(h[:16])
+	return strings.Join(out, " ")
 }
 
 func clipRunes(s string, n int) string {

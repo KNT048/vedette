@@ -55465,9 +55465,10 @@
                               "catalogue",
                               "record",
                               "ai",
+                              "ai_family",
                               "none"
                             ],
-                            "description": "stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI chose its product among the catalogue's; none: nothing in the catalogue is matched to it"
+                            "description": "stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI chose its product among the catalogue's; ai_family: the AI said it is only a part of a catalogue product's family (an agent, a client), which opens no finding; none: nothing in the catalogue is matched to it"
                           },
                           "lines": {
                             "type": "integer",

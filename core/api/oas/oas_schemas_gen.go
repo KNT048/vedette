@@ -95995,7 +95995,9 @@ type FindingsGetFindingsCoverageOKIdentityItem struct {
 	Lines int `json:"lines"`
 	// Stated: the source states the product (a CPE, a distribution package); catalogue: the product
 	// catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI
-	// chose its product among the catalogue's; none: nothing in the catalogue is matched to it.
+	// chose its product among the catalogue's; ai_family: the AI said it is only a part of a catalogue
+	// product's family (an agent, a client), which opens no finding; none: nothing in the catalogue is
+	// matched to it.
 	Method FindingsGetFindingsCoverageOKIdentityItemMethod `json:"method"`
 }
 
@@ -96021,7 +96023,9 @@ func (s *FindingsGetFindingsCoverageOKIdentityItem) SetMethod(val FindingsGetFin
 
 // Stated: the source states the product (a CPE, a distribution package); catalogue: the product
 // catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI
-// chose its product among the catalogue's; none: nothing in the catalogue is matched to it.
+// chose its product among the catalogue's; ai_family: the AI said it is only a part of a catalogue
+// product's family (an agent, a client), which opens no finding; none: nothing in the catalogue is
+// matched to it.
 type FindingsGetFindingsCoverageOKIdentityItemMethod string
 
 const (
@@ -96029,6 +96033,7 @@ const (
 	FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue FindingsGetFindingsCoverageOKIdentityItemMethod = "catalogue"
 	FindingsGetFindingsCoverageOKIdentityItemMethodRecord    FindingsGetFindingsCoverageOKIdentityItemMethod = "record"
 	FindingsGetFindingsCoverageOKIdentityItemMethodAi        FindingsGetFindingsCoverageOKIdentityItemMethod = "ai"
+	FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily  FindingsGetFindingsCoverageOKIdentityItemMethod = "ai_family"
 	FindingsGetFindingsCoverageOKIdentityItemMethodNone      FindingsGetFindingsCoverageOKIdentityItemMethod = "none"
 )
 
@@ -96039,6 +96044,7 @@ func (FindingsGetFindingsCoverageOKIdentityItemMethod) AllValues() []FindingsGet
 		FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue,
 		FindingsGetFindingsCoverageOKIdentityItemMethodRecord,
 		FindingsGetFindingsCoverageOKIdentityItemMethodAi,
+		FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily,
 		FindingsGetFindingsCoverageOKIdentityItemMethodNone,
 	}
 }
@@ -96053,6 +96059,8 @@ func (s FindingsGetFindingsCoverageOKIdentityItemMethod) MarshalText() ([]byte, 
 	case FindingsGetFindingsCoverageOKIdentityItemMethodRecord:
 		return []byte(s), nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodAi:
+		return []byte(s), nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily:
 		return []byte(s), nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
 		return []byte(s), nil
@@ -96075,6 +96083,9 @@ func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) UnmarshalText(data []b
 		return nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodAi:
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodAi
+		return nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodAiFamily
 		return nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodNone

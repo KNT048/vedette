@@ -194,7 +194,7 @@
       "switch": "Read by itself after each match",
       "switchHint": "Off: only Check with AI on the possible findings reads them, and software no standard data names stays unidentified.",
       "daily": "AI calls a day",
-      "dailyHint": "From 1 to 5,000; default 300. Identifying software counts here too. It also pauses with other background jobs at 80 % of the monthly budget.",
+      "dailyHint": "From 1 to 5,000; default 300. Identifying software counts here too, at most half of it; a call that failed after it was sent counts. It also pauses with other background jobs at 80 % of the monthly budget.",
       "today": "Today: {{used}} of {{daily}} calls.",
       "err": "The number must be a whole number from 1 to 5,000."
     },

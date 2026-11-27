@@ -21,7 +21,7 @@ describe('Settings → Diagnostics', () => {
     expect(within(table).getByRole('row', { name: /the distribution's data has no word/ })).toHaveTextContent(/^UndecidedUnnamed: the distribution's data has no word310\.1%$/)
     expect(screen.getByText(/^Decided 98\.2% · Undecided 1\.8% · Unnamed 0\.1%$/)).toBeInTheDocument()
     expect(screen.getByText(/^Last match pass .*: 12 devices, 2,140 software lines, 47,940 pairs\.$/)).toBeInTheDocument()
-    expect(screen.getByText('Software lines by identity: stated by the source 1,795, product catalogue 61, own name 23, identified by AI 54, not identified 207.')).toBeInTheDocument()
+    expect(screen.getByText('Software lines by identity: stated by the source 1,795, product catalogue 61, own name 23, identified by AI 49, part of a product family per AI 5, not identified 207.')).toBeInTheDocument()
   })
 
   it('says so before the first pass', async () => {

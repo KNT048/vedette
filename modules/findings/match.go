@@ -714,7 +714,7 @@ func newDevMatch(a Asset, vulns []Vuln, now time.Time) *devMatch {
 	distroCandidates(infos, vulns, named)
 	var own []*ownRow
 	for i, s := range sws {
-		if s.AIProduct == nil {
+		if len(s.AIProduct.ids()) == 0 { // none, or only a part of the product's family: the row reads by its own names alone
 			continue
 		}
 		if own == nil {

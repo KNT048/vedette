@@ -21,12 +21,13 @@ import (
 // The customer's AI identifies what code cannot. A software line no standard data names (no CPE, no distribution package, no catalogue
 // alias, no CVE record that writes its names) has no CVE product, so nothing can ever be decided for it. After a match pass, the box
 // generates up to 20 candidates for each such line from its own catalogue (identitycand.go) and asks the AI, the way a person would
-// read the list, which one the software is: a candidate's id, none or unsure, with a short reason, by schema. The box keeps a product
-// only when it is one it offered and its name shares a word that may tell the product with the line's name. The answer is stored per
-// cleaned publisher and name (fnd_identity), so one answer serves every device, and asked again only when the candidates offered for
-// that name change (or after identityUnsureAgain for unsure).
+// read the list, which one the software is: a candidate's id, none or unsure, whether it is that product itself or only a part of its
+// family (an agent, a client), with a short reason, by schema. The box keeps a product only when it is one it offered and its name
+// shares a word that may tell the product with the line's name. The answer is stored per cleaned publisher and name (fnd_identity), so
+// one answer serves every device, and asked again only when it no longer fits the candidates (askAgain).
 //
-// What it may do: the chosen product's ranges only open. A version inside them is a finding labelled "Identified by AI as <title>"
+// What it may do: the chosen product's ranges only open, and only for the program itself (a family match opens nothing yet; it is
+// counted as identity ai_family). A version inside them is a finding labelled "Identified by AI as <title>"
 // with a one-click "Not this product"; what they say otherwise decides nothing (devMatch.aiGuard). A person's "Not this product" is
 // stored for the name, applies to every device at once, is audited and wins: that product is never offered for the name again. A line
 // the AI cannot place, and every such line while no AI runs, stays unlinked and is counted as identity none in the coverage.
@@ -35,16 +36,30 @@ import (
 // user folders replaced) and the version of the line, and the candidates' names and CVE counts, to the customer's own AI profile for
 // explaining findings, within the daily number of automatic AI reads it shares with the reading of vendor advisories.
 
-// IdentityAI is the identity method of a line whose product the customer's AI chose (Software.AIProduct).
-const IdentityAI = "ai"
+// The identity methods of a line whose product the customer's AI chose (Software.AIProduct): the program itself (IdentityAI), or only a
+// part of the product's family (IdentityAIFamily: an agent, a client of it), which opens nothing.
+const (
+	IdentityAI       = "ai"
+	IdentityAIFamily = "ai_family"
+)
 
 // The limits of the automatic identification.
 const (
-	identityAutoMax     = 100                 // the most names one run asks about
-	identityBatch       = 5                   // the names of one AI call
-	identityUnsureAgain = 30 * 24 * time.Hour // an unsure answer is asked again after this, even with the same candidates
-	identityRunTimeout  = 15 * time.Minute
-	identityReasonMax   = 200
+	identityAutoMax    = 100                 // the most names one run asks about
+	identityBatch      = 5                   // the names of one AI call
+	identityRecheck    = 30 * 24 * time.Hour // an answer of none or unsure is asked again after this, whatever the candidates
+	identityNewTop     = 7 * 24 * time.Hour  // ... or after this, when a new candidate entered the top identityTopN
+	identityTopN       = 5                   // the candidates whose change may ask again about none or unsure
+	identityFailedWait = 24 * time.Hour      // the names of a call that failed wait this long before they are asked again
+	identityRunTimeout = 15 * time.Minute
+	identityReasonMax  = 200
+)
+
+// The matches of fnd_identity.fit: the program is the chosen product itself, or only a part of its family (an agent, a client, a
+// plugin, a driver of it). Only an exact match opens findings.
+const (
+	MatchExact  = "exact"
+	MatchFamily = "family"
 )
 
 // The choices of fnd_identity.choice.
@@ -62,12 +77,14 @@ type AIProduct struct {
 	Kev             string // the exploited-list entry's own "vendor|product" when the product is one, else ""
 	Title           string
 	Publisher, Name string // IdentityKey of the line
+	// Family: the AI said the program is only a part of the product's family (MatchFamily): stored and counted, it opens nothing.
+	Family bool `json:",omitempty"`
 }
 
 // ids are the identities the matcher reads the chosen product by (marked ai): its names as a CPE's (unless it is a record key) and as
 // a CVE record's product key.
 func (p *AIProduct) ids() []identity {
-	if p == nil {
+	if p == nil || p.Family {
 		return nil
 	}
 	v, pr := productid.Norm(p.Vendor), productid.Norm(p.Product)
@@ -121,10 +138,11 @@ type IdentifyAnswer struct {
 	ActivityID string
 }
 
-// IdentifyChoice is the AI's choice for one item.
+// IdentifyChoice is the AI's choice for one item: a candidate id, none or unsure; whether the program is the product itself or a part
+// of its family (MatchExact, MatchFamily); and why.
 type IdentifyChoice struct {
-	Index          int
-	Choice, Reason string
+	Index                 int
+	Choice, Match, Reason string
 }
 
 // SetIdentifier sets the door the identification goes through (the binary sets it once while wiring, before serving).
@@ -133,6 +151,7 @@ func (s *Service) SetIdentifier(id Identifier) { s.cfg.Identifier = id }
 // identityRow is one row of fnd_identity.
 type identityRow struct {
 	Publisher, Name, Kind, Choice string
+	Fit                           string // MatchExact or MatchFamily for a product, "" otherwise
 	Vendor, Product               string
 	Record                        bool
 	Kev, Title, Reason            string
@@ -174,7 +193,7 @@ func (s *Service) identities(ctx context.Context) (*identities, error) {
 	if s.idCache.have != nil {
 		return s.idCache.have, nil
 	}
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT publisher, name, kind, choice, vendor, product, record, kev, title, reason, candidates, model,
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT publisher, name, kind, choice, fit, vendor, product, record, kev, title, reason, candidates, model,
 		ifnull(activity_id, ''), by, at FROM fnd_identity`)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading identities: %w", err)
@@ -184,7 +203,7 @@ func (s *Service) identities(ctx context.Context) (*identities, error) {
 	for rows.Next() {
 		var r identityRow
 		var at string
-		if err := rows.Scan(&r.Publisher, &r.Name, &r.Kind, &r.Choice, &r.Vendor, &r.Product, &r.Record, &r.Kev, &r.Title, &r.Reason, &r.Candidates,
+		if err := rows.Scan(&r.Publisher, &r.Name, &r.Kind, &r.Choice, &r.Fit, &r.Vendor, &r.Product, &r.Record, &r.Kev, &r.Title, &r.Reason, &r.Candidates,
 			&r.Model, &r.ActivityID, &r.By, &at); err != nil {
 			return nil, fmt.Errorf("findings: reading identities: %w", err)
 		}
@@ -208,8 +227,9 @@ func (s *Service) identities(ctx context.Context) (*identities, error) {
 	return out, nil
 }
 
-// aiProductOf is the product the AI chose for line sw, nil when it chose none, a person rejected it, or the line has names of its own
-// that standard data reads (a CPE, a distribution package, a catalogue alias).
+// aiProductOf is the product the AI chose for line sw (Family set when it is only a part of that product's family), nil when it chose
+// none, a person rejected it, or the line has names of its own that standard data reads (a CPE, a distribution package, a catalogue
+// alias).
 func (ids *identities) aiProductOf(sw Software) *AIProduct {
 	if len(ids.ai) == 0 || sw.CPE != "" || sw.Packaged || sw.Guess ||
 		len(cpeAliases[identity{vendor: productid.Norm(sw.Vendor), product: productid.Norm(sw.Product)}]) > 0 {
@@ -225,7 +245,7 @@ func (ids *identities) aiProductOf(sw Software) *AIProduct {
 		return nil
 	}
 	return &AIProduct{Vendor: r.Vendor, Product: r.Product, Record: r.Record, Kev: r.Kev, Title: cmpNonEmpty(r.Title, titleOf(r.product())),
-		Publisher: pub, Name: name}
+		Publisher: pub, Name: name, Family: r.Fit == MatchFamily}
 }
 
 // withAIProducts gives each line of a the product the AI chose for it (Software.AIProduct). The rows are copied before any is
@@ -290,10 +310,11 @@ type identityAsk struct {
 	vendor, product, display, version string
 }
 
-// unlinkedOf is line s of a match as the identification asks about it, when s has no identity at all and its version is the device's
-// or a person's word (only such a version may open a finding on no exploited list): ok false otherwise.
+// unlinkedOf is line s of a match as the identification asks about it, when s has no identity of its own (none, or only the AI's) and
+// its version is the device's or a person's word (only such a version may open a finding on no exploited list): ok false otherwise. A
+// line the AI identified is asked again only when its product leaves the candidates (identify).
 func unlinkedOf(s Software, in swInfo, method string) (identityAsk, bool) {
-	if method != IdentityNone || s.Guess || !in.given || !trustedReading(s) {
+	if method != IdentityNone && method != IdentityAI && method != IdentityAIFamily || s.Guess || !in.given || !trustedReading(s) {
 		return identityAsk{}, false
 	}
 	pub, name, ok := IdentityKey(s)
@@ -307,6 +328,32 @@ func unlinkedOf(s Software, in swInfo, method string) (identityAsk, bool) {
 type identityState struct {
 	mu      sync.Mutex
 	running bool
+	failed  map[nameKey]time.Time // names of a call that failed, until when they wait (identityFailedWait); kept in memory only
+}
+
+// waiting says whether name k waits after a failed call at now.
+func (st *identityState) waiting(k nameKey, now time.Time) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	until, ok := st.failed[k]
+	return ok && now.Before(until)
+}
+
+// fail makes the names of a failed call wait until until.
+func (st *identityState) fail(keys []nameKey, until time.Time) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.failed == nil {
+		st.failed = map[nameKey]time.Time{}
+	}
+	for k, t := range st.failed { // forget what no longer waits
+		if !t.After(until.Add(-identityFailedWait)) {
+			delete(st.failed, k)
+		}
+	}
+	for _, k := range keys {
+		st.failed[k] = until
+	}
 }
 
 // AutoIdentify starts the identification of the lines the last match pass left without an identity, in the background: when the AI can
@@ -352,10 +399,10 @@ type identityDue struct {
 	set   string
 }
 
-// identify asks the AI about the names of asks that are due (no answer yet for the candidates they are offered now, or an unsure one
-// older than identityUnsureAgain), the names whose candidates include an exploited-list product first, then the most CVEs; stores
-// what the box verified, and matches again the devices (devices: by name) whose lines got a product. It returns how many names got
-// one. A budget or a missing profile stops it; what was stored stays.
+// identify asks the AI about the names of asks that are due (askAgain), the names whose candidates include an exploited-list product
+// first, then the most CVEs; stores what the box verified, and matches again the devices (devices: by name) whose lines got a product.
+// It returns how many names got one that opens. A budget or a missing profile stops it; what was stored stays. A call that fails after
+// it was sent costs its names a day's wait (identityFailedWait) and the run goes on with the next names.
 func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[nameKey][]string) (int, error) {
 	names, err := s.cfg.Identifier.Products(ctx)
 	if err != nil {
@@ -369,15 +416,17 @@ func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[
 	now := s.now()
 	var due []identityDue
 	for _, a := range asks {
+		if s.ident.waiting(a.key, now) {
+			continue // a call about it failed less than a day ago
+		}
 		cands := ix.identityCandidates(strings.Fields(a.key.publisher), strings.Fields(a.key.name), ids.rejected[a.key])
 		if len(cands) == 0 {
 			continue // no catalogue product shares a word with it: it stays none, and nothing is asked
 		}
-		set := candidateSet(cands)
-		if r, ok := ids.ai[a.key]; ok && r.Candidates == set && (r.Choice != ChoiceUnsure || now.Sub(r.At) < identityUnsureAgain) {
+		if r, ok := ids.ai[a.key]; ok && !askAgain(r, cands, now) {
 			continue
 		}
-		due = append(due, identityDue{ask: a, cands: cands, set: set})
+		due = append(due, identityDue{ask: a, cands: cands, set: topSet(cands)})
 	}
 	slices.SortStableFunc(due, func(a, b identityDue) int {
 		ea, eb := exploitedCand(a.cands), exploitedCand(b.cands)
@@ -421,14 +470,21 @@ func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[
 			if stop := (*CheckStop)(nil); errors.As(err, &stop) {
 				break // no profile, or a budget: what was stored stays, the rest waits for the next pass
 			}
-			return linked, err
+			// the call failed after it was sent (an answer outside the schema, the provider): its names wait a day, the rest go on
+			keys := make([]nameKey, len(batch))
+			for k, d := range batch {
+				keys[k] = d.ask.key
+			}
+			s.ident.fail(keys, now.Add(identityFailedWait))
+			s.cfg.Log.WarnContext(ctx, "findings: an identification call failed; its software waits a day", "names", len(batch), "error", err)
+			continue
 		}
 		rows := verifyChoices(batch, ans, now)
 		if err := s.storeIdentities(ctx, rows); err != nil {
 			return linked, err
 		}
 		for _, r := range rows {
-			if r.Choice == ChoiceProduct {
+			if r.Choice == ChoiceProduct && r.Fit == MatchExact {
 				linked++
 				for _, d := range devices[nameKey{r.Publisher, r.Name}] {
 					touched[d] = true
@@ -443,6 +499,29 @@ func (s *Service) identify(ctx context.Context, asks []identityAsk, devices map[
 		}
 	}
 	return linked, nil
+}
+
+// askAgain says whether the stored answer r is asked again with the candidates offered now: a product only when it left the
+// candidates; none or unsure after identityRecheck, or after identityNewTop when a candidate the answer was not offered entered the
+// top identityTopN. The rest of the candidates coming and going (the catalogue changes every day) asks nothing.
+func askAgain(r identityRow, cands []identityCandidate, now time.Time) bool {
+	if r.Choice == ChoiceProduct {
+		return !slices.ContainsFunc(cands, func(c identityCandidate) bool { return c.Product.key() == r.product().key() })
+	}
+	age := now.Sub(r.At)
+	if age >= identityRecheck {
+		return true
+	}
+	if age < identityNewTop {
+		return false
+	}
+	was := strings.Fields(r.Candidates)
+	for _, h := range strings.Fields(topSet(cands)) {
+		if !slices.Contains(was, h) {
+			return true
+		}
+	}
+	return false
 }
 
 func exploitedCand(cs []identityCandidate) bool {
@@ -460,7 +539,7 @@ func mostCVEs(cs []identityCandidate) int {
 // verifyChoices is the rows the box keeps of the AI's answer for a batch: a product only when its id is one the item was offered and
 // its name shares a word that may tell the product with the line's name; none and unsure as they are; a choice that is neither (an id
 // not offered, a product that fails the check, no answer for the item) is kept as unsure with the box's own reason, so the same
-// candidates are not asked again before identityUnsureAgain.
+// candidates are not asked again before askAgain says so. A product the AI did not say is the program itself is a family match.
 func verifyChoices(batch []identityDue, ans IdentifyAnswer, now time.Time) []identityRow {
 	by := map[int]IdentifyChoice{}
 	for _, c := range ans.Choices {
@@ -489,7 +568,10 @@ func verifyChoices(batch []identityDue, ans IdentifyAnswer, now time.Time) []ide
 					break
 				}
 				p := cand.Product
-				r.Choice, r.Reason = ChoiceProduct, oneLine(c.Reason, identityReasonMax)
+				r.Choice, r.Fit, r.Reason = ChoiceProduct, MatchExact, oneLine(c.Reason, identityReasonMax)
+				if c.Match != MatchExact { // only the program itself opens: a part of the family, or no word on it, opens nothing
+					r.Fit = MatchFamily
+				}
 				r.Vendor, r.Product, r.Record, r.Kev, r.Title = clipRunes(p.Vendor, 200), clipRunes(p.Product, 200), p.Record, clipRunes(p.Kev, 400), clipRunes(cand.Title, 200)
 			}
 		}
@@ -508,8 +590,8 @@ func (s *Service) storeIdentities(ctx context.Context, rows []identityRow) error
 			if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_identity WHERE publisher = ? AND name = ? AND kind = 'ai'`, r.Publisher, r.Name); err != nil {
 				return fmt.Errorf("findings: storing an identity: %w", err)
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_identity (publisher, name, kind, choice, vendor, product, record, kev, title, reason, candidates,
-				model, activity_id, by, at) VALUES (?, ?, 'ai', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?)`, r.Publisher, r.Name, r.Choice, r.Vendor,
+			if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_identity (publisher, name, kind, choice, fit, vendor, product, record, kev, title, reason, candidates,
+				model, activity_id, by, at) VALUES (?, ?, 'ai', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), ?, ?)`, r.Publisher, r.Name, r.Choice, r.Fit, r.Vendor,
 				r.Product, r.Record, r.Kev, r.Title, r.Reason, r.Candidates, r.Model, clipRunes(r.ActivityID, 96), r.By, store.FormatTS(r.At)); err != nil {
 				return fmt.Errorf("findings: storing an identity: %w", err)
 			}

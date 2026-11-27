@@ -185,7 +185,7 @@ func TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens(t *testing.T) {
 			if it := quillItem(t, e); it.State == PossibleSettled {
 				t.Errorf("an inference settled the CVE: %+v", it.Check)
 			}
-			if (tc.edit != nil && v.Status != StatementAffected || tc.rows != nil) && status != StatementUnsure {
+			if (tc.edit != nil && v.Status != StatementAffected && v.Status != StatementNotAffected || tc.rows != nil) && status != StatementUnsure {
 				t.Errorf("an inference read %s was kept as %s, want unsure", v.Status, status)
 			}
 		})
@@ -395,8 +395,8 @@ func TestLineReading_AReleaseTheQuotePairsWithAnotherProductIsAnInference(t *tes
 			st.VendorPage = true
 			verdict, fix := st.verdictFor(id), st.fix(id)
 			if tc.inferred {
-				if st.Basis != BasisInferred || verdict == VerdictNotAffected || fix.Kind != FixUnknown {
-					t.Errorf("basis %s, verdict %q, fix %+v: want an inference (no fix, never not affected)", st.Basis, verdict, fix)
+				if st.Basis != BasisInferred || fix.Kind != FixUnknown || verdict == VerdictNotAffected && !st.asCheck(id).Proposal() {
+					t.Errorf("basis %s, verdict %q, fix %+v: want an inference (no fix, not affected only as a proposal)", st.Basis, verdict, fix)
 				}
 				return
 			}
@@ -407,21 +407,21 @@ func TestLineReading_AReleaseTheQuotePairsWithAnotherProductIsAnInference(t *tes
 	}
 }
 
-// The closing side is strict: an AI reading settles "not affected" (or gives a fix) only when every version in its quote follows this
-// product's own name as the record or the catalogue writes it (only spaces, or the record's own edition word for it, between). Anything
-// else the vendor's page calls not affected is an AI proposal a person confirms or rejects; "affected" still opens.
-func TestLineReading_OnlyAVersionNamedWithThisProductSettles(t *testing.T) {
+// An AI reading's "not affected" is always a proposal for a person; whether every version of its quote follows this product's own name
+// (the record's or the catalogue's, only spaces or its own edition word between) says only whether it is stated or unpaired, which
+// decides whether it may give a fix.
+func TestLineReading_OnlyAVersionNamedWithThisProductIsStated(t *testing.T) {
 	t.Parallel()
 	const url = "https://www.quillfeather.com/security/QF-2026-01"
 	for _, tc := range []struct {
 		name, quote string
-		want        string // PossibleSettled or PossibleProposal
+		basis       string
 	}{
-		{"another product's name before the version", "Quillfeather Mail Server 115.42 is not affected.", PossibleProposal},
-		{"this product's name before the version", "Quillfeather Mail 115.42 is not affected.", PossibleSettled},
-		{"this product's edition word between", "Quillfeather Mail ESR 115.42 is not affected.", PossibleSettled},
-		{"no name before the version", "Release 115.42 is not affected.", PossibleProposal},
-		{"two versions, one not named with this product", "Quillfeather Mail 115.42 and 115.43 are not affected.", PossibleProposal},
+		{"another product's name before the version", "Quillfeather Mail Server 115.42 is not affected.", BasisUnpaired},
+		{"this product's name before the version", "Quillfeather Mail 115.42 is not affected.", BasisStated},
+		{"this product's edition word between", "Quillfeather Mail ESR 115.42 is not affected.", BasisStated},
+		{"no name before the version", "Release 115.42 is not affected.", BasisUnpaired},
+		{"two versions, one not named with this product", "Quillfeather Mail 115.42 and 115.43 are not affected.", BasisUnpaired},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -433,11 +433,11 @@ func TestLineReading_OnlyAVersionNamedWithThisProductSettles(t *testing.T) {
 			fc.verdicts[cveQuill+"|115.42"] = ProposeVerdict{Status: StatementNotAffected, Line: "115.42", Quote: tc.quote, Source: 1, Reason: "Not affected."}
 			runCheck(t, e)
 			it := quillItem(t, e)
-			if it.State != tc.want {
-				t.Fatalf("state %s (check %+v), want %s", it.State, it.Check, tc.want)
+			if it.State != PossibleProposal || it.Check == nil || it.Check.Verdict != VerdictNotAffected || PossibleCause(it, e.svc.ReadState(t.Context())) != CauseNeedsPerson {
+				t.Fatalf("state %s (check %+v), want the AI's not affected as a proposal for a person", it.State, it.Check)
 			}
-			if tc.want == PossibleProposal && (it.Check == nil || it.Check.Verdict != VerdictNotAffected || PossibleCause(it, e.svc.ReadState(t.Context())) != CauseNeedsPerson) {
-				t.Errorf("proposal %+v: want the AI's not affected for a person", it.Check)
+			if b := it.Check.Reading.Basis; b != tc.basis {
+				t.Errorf("basis %s, want %s", b, tc.basis)
 			}
 		})
 	}
@@ -488,7 +488,7 @@ func TestNamedWithThisProduct_EveryVersionLikeToken(t *testing.T) {
 		{"Quillfeather Mails 140.17 are not affected.", false},
 		{"Quillfeather Mail: 140.17 is not affected.", false},
 	} {
-		if got := namedWithThisProduct(tc.quote, names, editions); got != tc.want {
+		if got := namedWithThisProduct(tc.quote, names, editions, []string{"quillfeather"}); got != tc.want {
 			t.Errorf("%q: %v, want %v", tc.quote, got, tc.want)
 		}
 	}
@@ -506,5 +506,49 @@ func TestLineReading_AWholeNumberReleaseOfAnotherProductDoesNotSettle(t *testing
 	it := quillItem(t, e)
 	if it.State == PossibleSettled {
 		t.Fatalf("settled by another product's release (check %+v), want a proposal for a person", it.Check)
+	}
+}
+
+// A name of this product counts only when the word before it is the vendor's name, the sentence's start, punctuation or a lower-case word:
+// a capitalised other word makes it another product's name ("Thunder Mail 2.3" is no release of Mail).
+func TestNamedWithThisProduct_TheWordBeforeTheName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		quote string
+		want  bool
+	}{
+		{"Thunder Mail 2.3 is not affected.", false},
+		{"Exchange Mail 2.3 fixes it.", false},
+		{"Quillfeather Mail 2.3 fixes it.", true},
+		{"Mail 2.3 fixes it.", true},
+		{"Upgrade the Mail 2.3 release.", true},
+		{"Fixed (Mail 2.3).", true},
+	} {
+		if got := namedWithThisProduct(tc.quote, []string{"mail"}, nil, []string{"quillfeather"}); got != tc.want {
+			t.Errorf("%q: %v, want %v", tc.quote, got, tc.want)
+		}
+	}
+}
+
+// An AI reading never settles "not affected" by itself, whatever its page and basis: even a stated reading of the vendor's own page
+// for a CVE on no exploited list is an AI proposal a person confirms or rejects; confirming it answers the question not affected.
+func TestLineReading_AnAIReadingNeverSettlesNotAffected(t *testing.T) {
+	t.Parallel()
+	const url = "https://www.quillfeather.com/security/QF-2026-03"
+	const quote = "Quillfeather Mail 115.42 is not affected."
+	e, fc := quillWorld(t, "115.42")
+	fc.pages[cveQuill] = []FetchedPage{{URL: url, Status: "ok", Text: cveQuill + ". " + quote}}
+	fc.verdicts[cveQuill+"|115.42"] = ProposeVerdict{Status: StatementNotAffected, Line: "115.42", Quote: quote, Source: 1, Reason: "Not affected."}
+	runCheck(t, e)
+	it := quillItem(t, e)
+	if it.State != PossibleProposal || it.Check == nil || it.Check.Verdict != VerdictNotAffected || it.Check.Reading == nil ||
+		it.Check.Reading.Basis != BasisStated || !it.Check.Reading.VendorPage {
+		t.Fatalf("state %s, check %+v: want a proposal of the stated vendor reading", it.State, it.Check)
+	}
+	if _, err := e.svc.ConfirmProposal(t.Context(), it.Question.ID, "ana@example.com", false); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = '` + it.Question.ID + `' AND answer = 'not_affected'`); n != 1 {
+		t.Error("confirming the proposal did not answer the question not affected")
 	}
 }

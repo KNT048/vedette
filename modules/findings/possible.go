@@ -156,8 +156,6 @@ func possibleItemOf(q Question, cve string, in causeInputs) PossibleItem {
 	}
 	it.Check = &c
 	switch {
-	case c.Reading != nil && c.Verdict == VerdictNotAffected && c.RejectedBy == "" && c.Reading.settles(it.Exploited):
-		it.State = PossibleSettled
 	case c.Settled() && c.Verdict == VerdictNotAffected:
 		it.State = PossibleSettled
 	case c.Proposal():

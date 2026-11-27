@@ -174,7 +174,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **M-14 Decision coverage.** Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched
   (a row of the line reached by the entry's key or rows, or a finding or question of the pair), what decided it: the source (the
   `range_origin` vocabulary, `platform_list` for the hand list of platform limits, `person` for an answered question, `advisory` for a
-  check the box settled, `ai_read` for a vendor's "not affected" the AI read) as affected or not affected; else why it is undecided: its
+  check the box settled, `ai_read` for a finding the AI's reading opened; an AI "not affected" decides only once a person confirms it,
+  `person`) as affected or not affected; else why it is undecided: its
   cause (`PossibleCause`, as the lists show it) with the matcher's own reason under it (`CoverageCause.details`: the question's
   `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
   its undecided reason as the cause and no details), for a distribution's package its distribution's data has no word on and no
@@ -250,7 +251,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   page's number). The box keeps it in `fnd_line_statement` (`LineStatement`), keyed by the CVE, product, line, the CVE record's stamp
   (`CheckID.Record`) and the cited page's text hash: `quote_found` when the quote is in the text the box fetched itself, word for word;
   a bound only when the quote or the cited page names it (a tracker's "present-in" and "fixed-in" lines), of which only a bound the
-  quote names settles a version as not affected or becomes the fix (`TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles`); `fixed`
+  quote names places a version past it or becomes the fix (`TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles`); `fixed`
   with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
   states line N of that product fixed or affected in a release N.x and nothing for this product's line N) is stored with `basis inferred`
   (`fnd_line_statement.basis`, else `stated`; an answer whose quote is only in another product's row of the record is inferred whatever
@@ -261,31 +262,35 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestLineReading_ABoundPairedWithAnotherProductIsAnInference`, `TestLineReading_AReleaseTheQuotePairsWithAnotherProductIsAnInference`),
   keeps no bound and stands only
   as `affected`, with a quote naming that release, and only while no row of this product names a release of line N
-  (`ownRowOnLine`), never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
+  (`ownRowOnLine`), or as `not_affected` (a proposal for a person like every AI "not affected"), never as `fixed`; a cited page that names neither the CVE nor an advisory
   the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
-  scheme or the generic order (`verdictFor`). An inferred reading is decided from its basis, not its quote: it never gives a fix and never
-  says not affected, and when its quote names its stated line only through releases of it ("115.42" for line 115) it speaks for a
+  scheme or the generic order (`verdictFor`). An inferred reading is decided from its basis, not its quote: it never gives a fix, and when its quote names its stated line only through releases of it ("115.42" for line 115) it speaks for a
   version on that line before every such release (`namedByRelease`), with evidence that says the AI inferred it
-  (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`, `TestLineStatement_AnInferredReadingIsNeverAFixNorNotAffected`).
+  (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`, `TestLineStatement_AnInferredReadingIsNeverAFix`).
   Asymmetry: inside the stated affected releases is a finding by itself (range origin
   `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names, its `fixed_in` or a "before X" on the version's
   own train: `LineStatement.fix`; What to do cites the page and the sentence), rejected in one click
   (`POST /findings/possible/checks/{key}/reject` with the reading's key, audit `findings.ai_reading_rejected`: every device of the CVE is
-  matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`); past the stated fix on the same
-  line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`: tagged vendor-advisory or on
-  the vendor's host, never by what a path reads, `TestMarkVendorPages_OnlyTheVendorsTagOrHost`), only when every version of the quote
-  follows this product's own name as the record or the catalogue writes it, with only spaces or its own edition word between
-  (`basis stated`, `namedWithThisProduct`: "Mail 115.42", "Mail ESR 115.42"; never "Mail Server 115.42", "fixed in 115.42" or a quote with
-  a second version not so named, which are `basis unpaired`), and never an exploited one; any other such "not affected" is an AI proposal
-  a person confirms or rejects (`TestLineReading_OnlyAVersionNamedWithThisProductSettles`). The fix of a finding a reading opened comes
-  only from a `stated` reading (`TestLineStatement_AFixOnlyFromAReleaseNamedWithThisProduct`); readings stored before the basis existed
-  are `unpaired` until read again. Anything else decides nothing. A reading is read again when the record changes (the old one
+  matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`). **An AI reading never settles
+  "not affected" by itself:** past the stated fix on the same line, or the line named not affected, on any page and with any basis, is an
+  AI proposal a person confirms or rejects (P-5: `needs_person`, an exploited CVE's never in bulk;
+  `TestLineReading_AnAIReadingNeverSettlesNotAffected`, `TestLineReading_NotAffectedOnlyFromTheVendorAndNeverAloneForAnExploitedCVE`).
+  The vendor's own page (`FetchedPage.Vendor`: tagged vendor-advisory or on the vendor's host, never by what a path reads,
+  `TestMarkVendorPages_OnlyTheVendorsTagOrHost`) is shown with the proposal. The fix of a finding a reading opened comes only from a
+  `basis stated` reading: every version-like token of the quote follows this product's own name as the record or the catalogue writes it,
+  with only spaces or its own edition word between, and the word before that name is the vendor's name, the start, punctuation or a
+  lower-case word (`namedWithThisProduct`: "Mail 115.42", "Mail ESR 115.42"; never "Mail Server 115.42", "Thunder Mail 115.42", "fixed in
+  115.42" or a quote with a second version not so named, which are `basis unpaired`;
+  `TestLineReading_OnlyAVersionNamedWithThisProductIsStated`, `TestLineStatement_AFixOnlyFromAReleaseNamedWithThisProduct`,
+  `TestNamedWithThisProduct_EveryVersionLikeToken`, `TestNamedWithThisProduct_TheWordBeforeTheName`); readings stored before the basis
+  existed are `unpaired` until read again. Anything else decides nothing. A reading is read again when the record changes (the old one
   applies until then), after 30 days when `unsure`, and its page is fetched again after 30 days (no AI call when its text is unchanged:
   `seen_at`). A finding the reading opened has no question, so the match notes its line when due (`noteReadingDue`) for the next check.
   `TestLineReading_*`, `TestLineStatement_VerdictFor`.
-- **P-7 The reading runs by itself.** After each reconcile pass the box starts the automatic reading (`AutoRead`, actor `system`, at most
+- **P-7 The reading runs by itself.** What it reads never closes a CVE by itself: its "affected" opens a suspected finding, its "not
+  affected" is a proposal a person confirms (P-6). After each reconcile pass the box starts the automatic reading (`AutoRead`, actor `system`, at most
   200 evidence identities, exploited CVEs first, then the highest CVSS score) while a check can run, the AI settings have it on and its
   reads for today are not used up (`PossibleChecker.Budget`); a person's check still runs as before. It runs only after the hourly
   reconcile pass, not on its own timer. Only a real stop ends a run (`CheckStop`: the AI unavailable, the reading switched off, a budget

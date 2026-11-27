@@ -974,7 +974,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 				st.Status = StatementUnsure // the record has a row of this product on the line: its own row, not another product's, decides
 				st.Reason = oneLine("The record has a row of this product on line "+st.StatedLine+", so another product's line decides nothing: "+st.Reason, 600)
 			}
-			if st.Basis == BasisStated && !namedWithThisProduct(st.Quote, ownNames(rec, l.units[0].id.Product), ownEditions(rec, l.units[0].id.Product, edition(l.units[0].q))) {
+			if st.Basis == BasisStated && !namedWithThisProduct(st.Quote, ownNames(rec, l.units[0].id.Product), ownEditions(rec, l.units[0].id.Product, edition(l.units[0].q)), ownVendors(l.units[0].id.Product)) {
 				st.Basis = BasisUnpaired // a version the quote does not pair with this product's own name: it may open, never settle or fix
 			}
 			res.readings = append(res.readings, st)
@@ -1049,8 +1049,11 @@ var reVersionLike = regexp.MustCompile(`(?:^|[^0-9a-z])([a-z]{1,3}[0-9]+(?:[.\-_
 // only such a quote may settle "not affected" or give a fix. A CVE id is no version, and a number inside one of the product's own names
 // ("Server 2019") is the name's. A quote with no version, a version after another name ("Mail Server 115.42", a name the record does not
 // know) or after no name ("fixed in 115.42", "3 issues") is not.
-func namedWithThisProduct(quote string, names, editions []string) bool {
+func namedWithThisProduct(quote string, names, editions, vendors []string) bool {
 	q := strings.ToLower(quote)
+	if len(q) != len(quote) {
+		return false // a quote whose case changes its length: positions would not line up with the original's words
+	}
 	var spans [][]int
 	for _, m := range reVersionLike.FindAllStringSubmatchIndex(q, -1) {
 		spans = append(spans, m[2:4])
@@ -1058,9 +1061,23 @@ func namedWithThisProduct(quote string, names, editions []string) bool {
 	if len(spans) == 0 {
 		return false
 	}
+	// a name of this product ends p, and the word before it is the vendor's name, the start, punctuation or a lower-case word: a
+	// capitalised other word makes it another product's name ("Thunder Mail")
 	endsWithName := func(p string) bool {
 		for _, n := range names {
-			if strings.HasSuffix(p, n) && (len(p) == len(n) || !isAlnum(p[len(p)-len(n)-1])) {
+			if !strings.HasSuffix(p, n) || len(p) > len(n) && isAlnum(p[len(p)-len(n)-1]) {
+				continue
+			}
+			head := strings.TrimRight(p[:len(p)-len(n)], " \t")
+			if head == "" || !isAlnum(head[len(head)-1]) {
+				return true
+			}
+			k := len(head)
+			for k > 0 && isAlnum(head[k-1]) {
+				k--
+			}
+			w := head[k:]
+			if slices.Contains(vendors, w) || quote[len(head)-len(w)] >= 'a' && quote[len(head)-len(w)] <= 'z' {
 				return true
 			}
 		}
@@ -1176,9 +1193,11 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 		st.Basis = BasisInferred
 		st.Introduced, st.FixedIn, st.Last = "", "", "" // the bounds of another product are none of this one's
 		st.Reason = oneLine("Inferred from "+from+": "+v.Reason, 600)
-		if st.Status != StatementAffected || !st.coversLine(id) && !st.namedByRelease(id) {
+		switch {
+		case st.Status == StatementNotAffected: // a person decides it, like every "not affected" the AI reads (a proposal)
+		case st.Status != StatementAffected || !st.coversLine(id) && !st.namedByRelease(id):
 			st.Status = StatementUnsure
-			st.Reason = oneLine("An inference from "+from+" decides only \"affected\", from a quote that names a release of this line: "+v.Reason, 600)
+			st.Reason = oneLine("An inference from "+from+" opens only from a quote that names a release of this line: "+v.Reason, 600)
 		}
 	}
 	if cited.url != "" && st.Status != StatementUnsure && !aboutCVE(cited.text, cve, refs) {
@@ -1592,4 +1611,14 @@ func devicesOfCVE(ctx context.Context, q querier, cve string) ([]string, error) 
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+// ownVendors is the vendor's name as the product key and the catalogue write it (lower case).
+func ownVendors(product string) []string {
+	vendor, _, _ := strings.Cut(product, "|")
+	out := []string{strings.ToLower(strings.TrimSpace(vendor))}
+	if p, ok := productid.ByKey(product); ok && p.Vendor != "" {
+		out = append(out, strings.ToLower(strings.TrimSpace(p.Vendor)))
+	}
+	return out
 }

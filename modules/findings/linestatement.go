@@ -262,8 +262,8 @@ func (st LineStatement) verdictFor(id CheckID) string {
 	if !st.QuoteFound || st.RejectedBy != "" {
 		return ""
 	}
-	if st.Basis == BasisInferred && st.Status != StatementAffected {
-		return "" // an inference from another product's line only ever opens
+	if st.Basis == BasisInferred && st.Status != StatementAffected && st.Status != StatementNotAffected {
+		return "" // an inference from another product's line opens, or proposes "not affected" to a person; it states no fix
 	}
 	scheme := productScheme(id.Product)
 	names := namesToken(st.Quote, id.Version) || namesToken(st.Quote, id.Line) || st.coversLine(id)
@@ -429,17 +429,11 @@ func versionBefore(id CheckID, x string) (before, ok bool) {
 	return c < 0, ok
 }
 
-// settles says a "not affected" of the reading may settle the CVE without a person: the vendor's own page, a quote whose every version
-// follows this product's own name (BasisStated), and never an exploited CVE; any other "not affected" is a proposal a person confirms.
-func (st LineStatement) settles(exploited bool) bool {
-	return st.VendorPage && !exploited && (st.Basis == BasisStated || st.Basis == "")
-}
-
 // asCheck is the reading as the lists show a check of a possible CVE: decided by the AI, the verdict it gives this version (unsure when
 // it decides nothing here, or when a "not affected" comes from a page that is not the vendor's), the quote and its page.
 func (st LineStatement) asCheck(id CheckID) Check {
 	verdict := st.verdictFor(id)
-	if verdict == VerdictNotAffected && !st.VendorPage || verdict == "" {
+	if verdict == "" {
 		verdict = VerdictUnsure
 	}
 	c := Check{Key: st.Key, CVE: st.CVE, ID: id, DecidedBy: DecidedAI, Verdict: verdict, Reason: cleanOr(st.Reason, "The AI read the vendor's statement."),

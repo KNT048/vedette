@@ -2097,7 +2097,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 // of the same numbers is of the branch ("1.1.1w"), and a row in another notation ("2016" against "16.0.1", schemeClash) or of a
 // network OS's own scheme is not another branch: none of them is.
 func otherBranch(c CPE, r VersionRange, ver string) bool {
-	if osScheme(c) != "" {
+	if osScheme(c) != "" || isPlaceholder(ver) { // a placeholder ("0", "0.0.0") is no version, so of no branch
 		return false
 	}
 	if r.IsZero() {

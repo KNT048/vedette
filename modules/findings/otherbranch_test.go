@@ -115,3 +115,23 @@ func TestDecide_OtherNotationIsNotAnotherBranch(t *testing.T) {
 		t.Fatalf("an exact row in another notation was set aside: %v", got)
 	}
 }
+
+// A placeholder version ("0", "0.0.0") is no version at all, so it is of no release branch: an exact row it does not compare with may
+// be the release installed. The row is not set aside, even beside a row that rules itself out, and the line still asks for its version.
+func TestDecide_PlaceholderVersionIsOfNoBranch(t *testing.T) {
+	t.Parallel()
+	v := uncVuln("CVE-2026-80134", "Example", "Example App", uncNew,
+		Affected{CPE: "cpe:2.3:a:example:example_app:1.5.2:*:*:*:*:*:*:*"},
+		Affected{CPE: "cpe:2.3:a:example:example_app:*:*:*:*:*:macos:*:*", Range: VersionRange{EndExcl: "2.0.0"}})
+	for _, ver := range []string{"0", "0.0.0"} {
+		s := Software{ID: "s-app", Display: "Example App", Vendor: "Example", Product: "Example App", Version: ver, Source: "agent",
+			CPE: "cpe:2.3:a:example:example_app:*:*:*:*:*:windows:*:*", KevKeys: []string{"example|example app"}}
+		if got, _, _, _ := decide(newSWInfo(s, ""), v, keyIDs(v)); got != Unknown {
+			t.Errorf("version %q: %v, want Unknown (the exact row may be the release installed)", ver, got)
+		}
+		a := Asset{ID: "pc", Name: "pc-01", OS: "Windows 11", Software: []Software{s}}
+		if res := MatchAsset(a, []Vuln{v}, nil, uncNow); len(res.NeedVersion) != 1 {
+			t.Errorf("version %q: need version %+v, unchecked %+v, want one item asking for the version", ver, res.NeedVersion, res.Unchecked)
+		}
+	}
+}

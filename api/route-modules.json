@@ -280,6 +280,7 @@
   "POST /findings/questions/{id}/unanswer": "findings",
   "POST /findings/{id}/ai": "mitigation",
   "POST /findings/{id}/applied": "mitigation",
+  "POST /findings/{id}/identity/reject": "findings",
   "POST /findings/{id}/reopen": "findings",
   "POST /findings/{id}/unverify": "findings",
   "POST /findings/{id}/verify": "findings",

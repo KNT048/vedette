@@ -247,7 +247,8 @@ const possibleSchema = `{"type":"object","additionalProperties":false,"required"
 "fixed_in":{"type":"string"},"last_affected":{"type":"string"},"line":{"type":"string"},"reason":{"type":"string"},"quote":{"type":"string"},
 "source":{"type":"integer"}}}}}}`
 
-// autoReadSummary starts the summary of every call of the automatic reading: the daily count of reads counts these rows.
+// autoReadSummary starts the summary of every call of the automatic reading, answered or failed (its count tag): the daily count of
+// reads counts these rows.
 const autoReadSummary = "Read the vendor's statement"
 
 // dailyReadsReached is the automatic reading's own stop: today's number of reads (Settings.DailyReads) is used up; it goes on tomorrow.
@@ -290,11 +291,13 @@ func (s *Service) ProposePossible(ctx context.Context, actor string, req Possibl
 		Items []PossibleVerdict `json:"items"`
 	}
 	summary := fmt.Sprintf("Checked %s for %d products from %d public pages", req.CVE, len(req.Items), len(req.Pages))
+	tag := ""
 	if actor == "system" {
+		tag = autoReadSummary
 		summary = fmt.Sprintf("%s for %d release lines of %s from %d public pages", autoReadSummary, len(req.Items), req.CVE, len(req.Pages))
 	}
 	res, err := s.RunJob(ctx, JobSpec{
-		Job: JobExplainFinding, Actor: actor, Task: possibleTask, publicOnly: true,
+		Job: JobExplainFinding, Actor: actor, Task: possibleTask, publicOnly: true, countTag: tag,
 		Question:  "What does the vendor state about " + req.CVE + " for the release line of each of these items? Items: " + string(items),
 		Data:      data,
 		Schema:    &provider.Schema{Name: "line_statement", JSON: json.RawMessage(possibleSchema)},
@@ -329,21 +332,38 @@ type AutoRead struct {
 	Used   int
 	Left   int
 	Paused bool
+	// IdentifyUsed is how many of today's calls identified software (identity.go); IdentifyLeft how many more it may make: at most
+	// half of the daily number, so the reading of advisories keeps its share.
+	IdentifyUsed, IdentifyLeft int
 }
 
-// AutoReadState reads how the automatic reading stands now.
+// AutoReadState reads how the automatic reading stands now. Its daily number counts the automatic identification of software too
+// (identity.go): both are background AI calls of explaining findings under one switch. Every call that reached the provider counts,
+// answered or failed (its rows carry the call's tag, JobSpec.countTag); a call stopped before it was sent ("Not sent") does not.
 func (s *Service) AutoReadState(ctx context.Context) AutoRead {
 	cfg := s.snap.Load().cfg
 	st := AutoRead{Auto: !cfg.AutoReadOff, Daily: cfg.dailyReads()}
 	start := store.FormatTS(s.meter.DayStart())
-	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM ai_activity WHERE job = ? AND trigger = 'system:schedule' AND ts >= ? AND
-		substr(summary, 1, ?) = ?`, string(JobExplainFinding), start, len(autoReadSummary), autoReadSummary).Scan(&st.Used); err != nil {
-		st.Used = st.Daily // a count that cannot be read holds the reading: never more reads than set
+	count := func(tag string) (int, error) {
+		var n int
+		err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM ai_activity WHERE job = ? AND trigger = 'system:schedule' AND ts >= ? AND
+			substr(summary, 1, ?) = ? AND substr(summary, 1, ?) <> ?`, string(JobExplainFinding), start, len(tag), tag, len(tag)+10, tag+": Not sent").Scan(&n)
+		return n, err
+	}
+	read, err1 := count(autoReadSummary)
+	ident, err2 := count(autoIdentifySummary)
+	st.Used, st.IdentifyUsed = read+ident, ident
+	if err1 != nil || err2 != nil {
+		st.Used, st.IdentifyUsed = st.Daily, st.Daily // a count that cannot be read holds the reading: never more reads than set
 	}
 	st.Left = max(0, st.Daily-st.Used)
+	st.IdentifyLeft = min(st.Left, max(0, identifyShare(st.Daily)-st.IdentifyUsed))
 	st.Paused = s.scheduledPaused()
 	return st
 }
+
+// identifyShare is the most automatic calls a day the identification of software may make: half of the daily number (at least one).
+func identifyShare(daily int) int { return max(1, daily/2) }
 
 // PossibleReady is nil when a proposal call can run (the module, a profile for explain-finding, its skill on).
 func (s *Service) PossibleReady() error { return s.Ready(JobExplainFinding) }

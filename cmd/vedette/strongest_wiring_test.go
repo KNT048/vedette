@@ -314,9 +314,11 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 	if f := findings.FixedInFor(a, sshKEVVuln); f == nil || f.Kind != "distro" {
 		t.Errorf("finding page %+v", f)
 	}
+	// the exploited CVE and the recommended-update one: Alpine's data names no fix of either, so its package is its upstream release
+	// and NVD's range decides both (Alpine's secdb lists fixed releases only)
 	recs, err := s.d.Findings.List(ctx, id)
-	if err != nil || len(recs) != 1 || recs[0].SoftwareID != agentRow {
-		t.Fatalf("finding %+v %v, want one on the agent's row", recs, err)
+	if err != nil || len(recs) != 2 || recs[0].SoftwareID != agentRow || recs[1].SoftwareID != agentRow {
+		t.Fatalf("findings %+v %v, want both on the agent's row", recs, err)
 	}
 }
 
@@ -360,7 +362,7 @@ func TestWiringPersonsUbuntuReleaseAsksForItsSourcePackage(t *testing.T) {
 	addSSHDevice(t, s, "10.142.0.51", sshRows{os: "Ubuntu 24.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
 	addSSHDevice(t, s, "10.142.0.52", sshRows{os: "Ubuntu 22.04 LTS", banner: "10.2p1 Ubuntu 2ubuntu3.8", manual: "pkg", manualPkg: "1:10.2p1-2ubuntu3.8"})
 	dist, err := feedsInventory{inv: s.d.Inventory}.Distros(ctx)
-	if err != nil || !dist["ubuntu"]["openssh"] {
+	if err != nil || !dist["ubuntu"].Packages["openssh"] {
 		t.Fatalf("Distros = %v %v, want ubuntu openssh (the person's row names its source by its product)", dist, err)
 	}
 }

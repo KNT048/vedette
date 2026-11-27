@@ -155,6 +155,8 @@ export const useConfirmProposal = () => useModelWrite((v: { id: string }) => api
 export const useConfirmProposals = () => useModelWrite((v: { verdict: 'affected' | 'not_affected'; confidence: 'confident' | 'likely'; device?: string }) =>
   api.post<{ confirmed: number }>('/findings/possible/confirm', v))
 export const useRejectProposal = () => useModelWrite((v: { key: string }) => api.post<{ ok: true }>(`/findings/possible/checks/${encodeURIComponent(v.key)}/reject`, {}))
+/** Not this product: the AI's identification of a finding's software was wrong (every device with the software, audited). */
+export const useRejectIdentity = () => useModelWrite((v: { id: string }) => api.post<{ ok: true }>(`/findings/${encodeURIComponent(v.id)}/identity/reject`, {}))
 
 /** GET /findings/coverage (admin): the decision coverage of the last match pass (Settings → Diagnostics). */
 export const useCoverage = () => useQuery({ queryKey: ['findings', 'coverage'], queryFn: () => api.get<Coverage>('/findings/coverage') })

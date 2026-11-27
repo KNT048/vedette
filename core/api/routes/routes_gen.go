@@ -233,6 +233,7 @@ var Operations = map[string]Operation{
 	"findings_post_findings_handle":                          {Method: "POST", Path: "/findings/handle", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_ai":                           {Method: "POST", Path: "/findings/{id}/ai", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_applied":                      {Method: "POST", Path: "/findings/{id}/applied", MinRole: Operator, Tag: "findings"},
+	"findings_post_findings_id_identity_reject":              {Method: "POST", Path: "/findings/{id}/identity/reject", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_reopen":                       {Method: "POST", Path: "/findings/{id}/reopen", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_unverify":                     {Method: "POST", Path: "/findings/{id}/unverify", MinRole: Admin, Tag: "findings"},
 	"findings_post_findings_id_verify":                       {Method: "POST", Path: "/findings/{id}/verify", MinRole: Admin, Tag: "findings"},

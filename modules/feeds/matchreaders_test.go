@@ -47,6 +47,17 @@ func TestMatchReaders(t *testing.T) {
 			t.Errorf("RangeProducts %+v: no %+v", prods, want)
 		}
 	}
+	// the candidates of an identification: every product with its CVE count, a record key apart from a CPE of the same names
+	cat, err := s.CatalogueProducts(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []CatalogueProduct{{Vendor: "acme", Product: "box", CVEs: 1}, {Vendor: "acme", Product: "box", Record: true, CVEs: 1},
+		{Vendor: "paloalto", Product: "panos", Record: true, CVEs: 1}} {
+		if !slices.Contains(cat, want) {
+			t.Errorf("CatalogueProducts %+v: no %+v", cat, want)
+		}
+	}
 	got, err := s.RangesOf(t.Context(), []string{"CVE-2026-0201", "CVE-2026-0202", "CVE-2026-0203", "CVE-2099-0001"})
 	if err != nil {
 		t.Fatal(err)

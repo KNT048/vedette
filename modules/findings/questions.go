@@ -87,6 +87,9 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			continue
 		}
 		s, in := d.sws[i], d.infos[i]
+		if d.own != nil && d.own[i] != nil { // a row the AI identified is unchecked only as its own names read it (aiGuard)
+			in = d.own[i].info
+		}
 		own := rowEntries(s, in, v)
 		switch u.Reason {
 		case UncheckedNotComparable:

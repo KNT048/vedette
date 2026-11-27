@@ -9868,6 +9868,91 @@ func decodeFindingsPostFindingsIDAppliedParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
+// FindingsPostFindingsIDIdentityRejectParams is parameters of findings_post_findings_id_identity_reject operation.
+type FindingsPostFindingsIDIdentityRejectParams struct {
+	ID string
+}
+
+func unpackFindingsPostFindingsIDIdentityRejectParams(packed middleware.Parameters) (params FindingsPostFindingsIDIdentityRejectParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeFindingsPostFindingsIDIdentityRejectParams(args [1]string, argsEscaped bool, r *http.Request) (params FindingsPostFindingsIDIdentityRejectParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     64,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.ID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // FindingsPostFindingsIDReopenParams is parameters of findings_post_findings_id_reopen operation.
 type FindingsPostFindingsIDReopenParams struct {
 	ID string

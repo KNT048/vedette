@@ -510,6 +510,40 @@ func (s *Store) RangeProducts(ctx context.Context) ([]RangeProduct, error) {
 	return out, rows.Err()
 }
 
+// CatalogueProduct is a product the catalogue names (CatalogueProducts): a range's vendor and product (a CPE's names, or, Record set,
+// a CVE record's product key), or an exploited-list entry's own vendor and product (Kev set; Record too when no range names it), with
+// how many catalogue CVEs name it and how many of those are on an exploited list.
+type CatalogueProduct struct {
+	Vendor, Product string
+	Record          bool
+	Kev             bool
+	CVEs, Exploited int
+}
+
+// CatalogueProducts is every product the catalogue names, each once, with its CVE counts: the candidates the AI may choose a software
+// line's product from (findings' identification), so a product no catalogue CVE names is never offered. One read of the ranges and
+// one of the exploited lists.
+func (s *Store) CatalogueProducts(ctx context.Context) ([]CatalogueProduct, error) {
+	q := `SELECT r.vendor, r.product, r.cpe = '', count(DISTINCT r.cve), count(DISTINCT k.cve), 0 FROM feeds_cve_range r
+		LEFT JOIN (SELECT DISTINCT cve FROM feeds_kev) k ON k.cve = r.cve GROUP BY 1, 2, 3
+		UNION ALL
+		SELECT vendor, product, 1, count(DISTINCT cve), count(DISTINCT cve), 1 FROM feeds_kev WHERE vendor <> '' AND product <> '' GROUP BY 1, 2`
+	rows, err := s.db.Reader().QueryContext(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: catalogue products: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []CatalogueProduct
+	for rows.Next() {
+		var p CatalogueProduct
+		if err := rows.Scan(&p.Vendor, &p.Product, &p.Record, &p.CVEs, &p.Exploited, &p.Kev); err != nil {
+			return nil, fmt.Errorf("feeds: catalogue products: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 // MatchName is the vendor and product a range names, as the matcher compares them with a device's software: a CPE's own names; for a
 // CVE record's product key (record), the product the catalogue knows by that name (core/productid ByRangeName), by its NVD name
 // when it has one, else by its own normalised name; a record key the catalogue does not know stays as it is. So a record that names

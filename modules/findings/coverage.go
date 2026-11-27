@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,13 +32,18 @@ const (
 	IdentityCatalogue = "catalogue" // the product catalogue gives it CPE names (content/catalog/products)
 	IdentityRecord    = "record"    // its own vendor and product name the product of a CVE record or NVD row it is matched to
 	IdentityNone      = "none"      // nothing in the catalogue is matched to it
+	// IdentityAI (aiidentity.go): the customer's AI chose its product among the catalogue's.
 )
 
 // IdentityMethods lists the identity methods, in the order the coverage shows them.
-var IdentityMethods = []string{IdentityStated, IdentityCatalogue, IdentityRecord, IdentityNone}
+var IdentityMethods = []string{IdentityStated, IdentityCatalogue, IdentityRecord, IdentityAI, IdentityAIFamily, IdentityNone}
 
 // CoveragePlatformList is the source of a "not affected" the platform list decided (content/catalog/platform-limits.json): hand data.
 const CoveragePlatformList = "platform_list"
+
+// CoverageDistroNoFix is the source of a pair the distribution's data decides "affected, no fix yet" for a CVE on no exploited list:
+// decided affected, with no finding until the fix or an exploited list comes (distroVerdict), so counted apart from RangeDistro.
+const CoverageDistroNoFix = "distro_no_fix"
 
 // CoverageOther is the cause of a pair the matcher reached that is neither decided nor a possible finding with a reason the box gives.
 // The coverage tells three such classes apart (CoverageOther* below, each starting with CoverageOther), so the unnamed share says where
@@ -47,7 +53,8 @@ const CoverageOther = "other"
 // The unnamed classes: nobody is told why these pairs are undecided.
 const (
 	// CoverageOtherDistroSilent: a distribution's package whose distribution's data has no word on the CVE (only it may decide the
-	// package: NVD's upstream ranges do not see its backported fixes).
+	// package: NVD's upstream ranges do not see its backported fixes), for no cause of DistroSilences (a release a person gave). Such a
+	// pair with a cause is counted under it (distroSilence).
 	CoverageOtherDistroSilent = "other_distro_silent"
 	// CoverageOtherRecordUnread: the record or NVD's rows name the product, and the matcher read nothing it could compare (no bounded
 	// range, a row shape it does not read).
@@ -108,6 +115,10 @@ type deviceCover struct {
 	decided  map[string][2]int // source -> affected, not affected
 	possible map[causeDetail]int
 	identity map[string]int
+	// unlinked are the lines of identity none the AI may be asked about (unlinkedOf), by name; byAI the names of the lines the AI
+	// identified (a person's "Not this product" matches these devices again at once).
+	unlinked map[nameKey]identityAsk
+	byAI     map[nameKey]bool
 }
 
 // covers is the counts of each device the pass matched, by device id, and the sum of the last pass.
@@ -115,6 +126,41 @@ type covers struct {
 	mu   sync.Mutex
 	m    map[string]deviceCover
 	last *Coverage
+}
+
+// unlinked is every line of identity none of the devices' last full matches, once per name (the first device's reading, by device
+// id), with the devices that have it.
+func (c *covers) unlinked() ([]identityAsk, map[nameKey][]string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var out []identityAsk
+	devices := map[nameKey][]string{}
+	for _, id := range slices.Sorted(maps.Keys(c.m)) {
+		for k, a := range c.m[id].unlinked {
+			if _, ok := devices[k]; !ok {
+				out = append(out, a)
+			}
+			devices[k] = append(devices[k], id)
+		}
+	}
+	slices.SortFunc(out, func(a, b identityAsk) int {
+		return cmp.Or(strings.Compare(a.key.publisher, b.key.publisher), strings.Compare(a.key.name, b.key.name))
+	})
+	return out, devices
+}
+
+// withName is the devices whose last full match had a line of name k, unidentified or identified by the AI, by id.
+func (c *covers) withName(k nameKey) []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var out []string
+	for id, d := range c.m {
+		if _, ok := d.unlinked[k]; ok || d.byAI[k] {
+			out = append(out, id)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 func (c *covers) set(id string, d deviceCover) {
@@ -284,7 +330,22 @@ func coverOf(dm *devMatch, rows deviceRows, in causeInputs) deviceCover {
 		}
 		counted[s.ID] = true
 		d.lines++
-		d.identity[identityOf(s, dm.infos[i], linked[storedLine(s.ID)])]++
+		m := identityOf(s, dm.infos[i], linked[storedLine(s.ID)])
+		d.identity[m]++
+		if p := s.AIProduct; p != nil && (m == IdentityAI || m == IdentityAIFamily) {
+			if d.byAI == nil {
+				d.byAI = map[nameKey]bool{}
+			}
+			d.byAI[nameKey{p.Publisher, p.Name}] = true
+		}
+		if ask, ok := unlinkedOf(s, dm.infos[i], m); ok {
+			if d.unlinked == nil {
+				d.unlinked = map[nameKey]identityAsk{}
+			}
+			if _, ok := d.unlinked[ask.key]; !ok {
+				d.unlinked[ask.key] = ask
+			}
+		}
 	}
 	return d
 }
@@ -342,8 +403,10 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 				continue
 			}
 			line, class := storedLine(s.ID), CoverageOtherRecordUnread
-			if _, ok := distroVerdict(dm.infos[i], v); !ok && dm.infos[i].pkgBuilt() {
-				class = CoverageOtherDistroSilent
+			if in := dm.infos[i]; in.pkgBuilt() && !upstreamJudges(in, v) {
+				if _, ok := distroVerdict(in, v); !ok { // only its distribution's word may decide it: why it has none (distroSilence)
+					class = cmp.Or(distroSilence(in, v), CoverageOtherDistroSilent)
+				}
 			}
 			if key := lineKey(v.CVE, line); related[key] == "" {
 				related[key] = class
@@ -400,6 +463,8 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			state[key] = pairState{by: proofs[key]}
 		case ruledOut[key] != "":
 			state[key] = pairState{by: ruledOut[key]}
+		case class == DistroNoFixYet: // the distribution says affected and has no fix: decided, raised once a fix or an exploited list comes
+			state[key] = pairState{by: CoverageDistroNoFix, affected: true}
 		default: // reached, and neither a finding, a question nor a proof
 			state[key] = pairState{cause: class}
 		}
@@ -430,14 +495,18 @@ func recordNames(in swInfo, v Vuln) bool {
 	return false
 }
 
-// identityOf is how the box knows what product line s is: its source states it, the catalogue names it, or its own name reaches a
-// record (linked: a pair of the line is related), else none.
+// identityOf is how the box knows what product line s is: its source states it, the catalogue names it, the customer's AI chose it,
+// or its own name reaches a record (linked: a pair of the line is related), else none.
 func identityOf(s Software, in swInfo, linked bool) string {
 	switch {
 	case in.hasCPE || in.pkgBuilt():
 		return IdentityStated
 	case len(cpeAliases[identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}]) > 0:
 		return IdentityCatalogue
+	case s.AIProduct != nil && s.AIProduct.Family:
+		return IdentityAIFamily
+	case s.AIProduct != nil:
+		return IdentityAI
 	case linked:
 		return IdentityRecord
 	}

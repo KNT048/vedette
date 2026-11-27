@@ -45995,15 +45995,15 @@
                             },
                             "distro": {
                               "type": "string",
-                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
+                              "description": "\"Ubuntu\", \"Debian\" or \"Alpine Linux\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
                             "distro_fixed": {
                               "type": "string",
-                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version` is then the device's full package version. Empty when the distribution's data does not say"
                             },
                             "distro_release": {
                               "type": "string",
-                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\", \"3.23\"); empty otherwise"
                             },
                             "distro_pro": {
                               "type": "boolean",
@@ -46015,7 +46015,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\""
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" / \"Alpine Linux security database\""
                             }
                           },
                           "required": [
@@ -47678,15 +47678,15 @@
                             },
                             "distro": {
                               "type": "string",
-                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
+                              "description": "\"Ubuntu\", \"Debian\" or \"Alpine Linux\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
                             "distro_fixed": {
                               "type": "string",
-                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version` is then the device's full package version. Empty when the distribution's data does not say"
                             },
                             "distro_release": {
                               "type": "string",
-                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\", \"3.23\"); empty otherwise"
                             },
                             "distro_pro": {
                               "type": "boolean",
@@ -47698,7 +47698,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\""
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" / \"Alpine Linux security database\""
                             }
                           },
                           "required": [
@@ -49363,15 +49363,15 @@
                             },
                             "distro": {
                               "type": "string",
-                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
+                              "description": "\"Ubuntu\", \"Debian\" or \"Alpine Linux\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
                             "distro_fixed": {
                               "type": "string",
-                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                              "description": "Kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version` is then the device's full package version. Empty when the distribution's data does not say"
                             },
                             "distro_release": {
                               "type": "string",
-                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\", \"3.23\"); empty otherwise"
                             },
                             "distro_pro": {
                               "type": "boolean",
@@ -49383,7 +49383,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\""
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none, or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" / \"Alpine Linux security database\""
                             }
                           },
                           "required": [
@@ -50365,6 +50365,63 @@
                     "ai_available",
                     "applied",
                     "hardening"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/{id}/identity/reject": {
+      "post": {
+        "operationId": "findings_post_findings_id_identity_reject",
+        "summary": "Not this product: the software of a finding the AI's identification opened is not the product the AI chose. Stored for the software's name (every device with it), it wins over the AI: that product is never offered for the name again, and every finding resting on the choice closes at once (matched again). A second click changes nothing. 404 not_found when the finding does not rest on the AI's identification. Audit findings.ai_identity_rejected",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
                   ],
                   "additionalProperties": false
                 }
@@ -51440,6 +51497,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -51458,7 +51562,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -52515,6 +52620,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -52533,7 +52685,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -53611,6 +53764,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -53629,7 +53829,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -54687,6 +54888,53 @@
                         }
                       ],
                       "description": "A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement opened (range origin ai_read, reading set: labelled \"Read by AI from <host>\", rejected in one click): the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
+                    },
+                    "identity": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "method": {
+                              "type": "string",
+                              "const": "ai"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "The readable name of the catalogue product the AI chose (\"Identified by AI as <title>\")"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's product key)"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "description": "The AI's reason; \"\" when the choice is no longer stored"
+                            },
+                            "model": {
+                              "type": "string",
+                              "description": "The model that chose; \"\" when the choice is no longer stored"
+                            }
+                          },
+                          "required": [
+                            "method",
+                            "title",
+                            "vendor",
+                            "product",
+                            "reason",
+                            "model"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The software of the finding is named by no standard data; the customer's AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product's affected range. A person can say \"Not this product\" (POST /findings/{id}/identity/reject)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding opened through the AI's identification of its software: labelled \"Identified by AI as <title>\", with \"Not this product\". null for any other finding"
                     }
                   },
                   "required": [
@@ -54705,7 +54953,8 @@
                     "first_seen",
                     "last_seen",
                     "events",
-                    "ai_check"
+                    "ai_check",
+                    "identity"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -55310,7 +55559,7 @@
                           "by": {
                             "type": "string",
                             "maxLength": 64,
-                            "description": "The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory, ai_confirmed, person, scan) or platform_list (the hand list of platform limits)"
+                            "description": "The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory, ai_confirmed, person, scan) or platform_list (the hand list of platform limits), or distro_no_fix (the distribution lists the package affected with no fix yet for a CVE on no exploited list: affected, no finding until the fix or an exploited list comes)"
                           },
                           "affected": {
                             "type": "integer",
@@ -55340,7 +55589,7 @@
                           "cause": {
                             "type": "string",
                             "maxLength": 64,
-                            "description": "The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here"
+                            "description": "The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a distribution's package its distribution's data has no word on stays undecided with no question (distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the CVE; distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here"
                           },
                           "count": {
                             "type": "integer",
@@ -55392,9 +55641,11 @@
                               "stated",
                               "catalogue",
                               "record",
+                              "ai",
+                              "ai_family",
                               "none"
                             ],
-                            "description": "stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the catalogue is matched to it"
+                            "description": "stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI chose its product among the catalogue's; ai_family: the AI said it is only a part of a catalogue product's family (an agent, a client), which opens no finding; none: nothing in the catalogue is matched to it"
                           },
                           "lines": {
                             "type": "integer",

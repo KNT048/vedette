@@ -155,19 +155,25 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 var _ feeds.DistroLister = feedsInventory{} // A drifted signature would silently pull every feed again (review M1)
 
 // The adapter tells feeds which distributions need their files: a device of that OS with a deb package an agent read, with
-// its source packages as the security data names them (the tier rows are kept for those only).
+// its source packages and release as the security data names them (the tier rows are kept for those only).
 func TestFeedsInventoryDistros(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
 	inv := feedsInventory{s.d.Inventory}
+	var rels map[string]map[string]bool // the releases of the last answer, by distribution
 	distros := func() map[string]map[string]bool {
 		t.Helper()
 		got, err := inv.Distros(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return got
+		out := map[string]map[string]bool{}
+		rels = map[string]map[string]bool{}
+		for d, dd := range got {
+			out[d], rels[d] = dd.Packages, dd.Releases
+		}
+		return out
 	}
 	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "web-01", OS: "Ubuntu 24.04"})
 	if err != nil {
@@ -183,22 +189,22 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "osquery"); err != nil {
 		t.Fatal(err)
 	}
-	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"ubuntu": {"openssh": true}}) {
-		t.Fatalf("an agent's deb package on Ubuntu: %v", got)
+	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"ubuntu": {"openssh": true}}) || !reflect.DeepEqual(rels["ubuntu"], map[string]bool{"24.04": true}) {
+		t.Fatalf("an agent's deb package on Ubuntu: %v %v", got, rels)
 	}
 	if _, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "web-01", OS: "Debian GNU/Linux 12 (bookworm)"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"debian": {"openssh": true}}) {
-		t.Fatalf("the same box on Debian: %v", got)
+	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"debian": {"openssh": true}}) || !reflect.DeepEqual(rels["debian"], map[string]bool{"12": true}) {
+		t.Fatalf("the same box on Debian: %v %v", got, rels)
 	}
 	// a person says the device runs Alpine Linux (inventory INV-41): alpine-osv is needed, with no package; cleared, it is not
 	alpine, none := "Alpine Linux 3.23", ""
 	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &alpine}); err != nil {
 		t.Fatal(err)
 	}
-	if got := distros(); got["alpine"] == nil || len(got["alpine"]) != 0 {
-		t.Fatalf("a person's Alpine Linux: %v", got)
+	if got := distros(); got["alpine"] == nil || len(got["alpine"]) != 0 || rels["alpine"] != nil {
+		t.Fatalf("a person's Alpine Linux (every branch's rows): %v %v", got, rels)
 	}
 	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &none}); err != nil {
 		t.Fatal(err)

@@ -120,12 +120,12 @@ export const FixedIn = z.object({
   branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
   more: z.number().int().min(0).describe('Release lines with a fix left out of branches'),
   no_fix: z.number().int().min(0).describe('Release lines NVD gives no fixed release for (a range that ends at an affected version)'),
-  distro: z.string().describe('"Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds "if you installed it from the distribution\'s packages, install its security updates instead"'),
-  distro_fixed: z.string().describe('Kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
-  distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12"); empty otherwise'),
+  distro: z.string().describe('"Ubuntu", "Debian" or "Alpine Linux" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds "if you installed it from the distribution\'s packages, install its security updates instead"'),
+  distro_fixed: z.string().describe('Kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
+  distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12", "3.23"); empty otherwise'),
   distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
   restart_into: z.string().optional().describe('Kind distro on a Linux kernel only: the installed kernel (package release, at or above distro_fixed) the device runs after a restart, so a restart alone fixes it; absent otherwise'),
-  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security Tracker"'),
+  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security Tracker" / "Alpine Linux security database"'),
 })
 export const KnownVersion = z.object({
   software: z.string().describe('Display name of the software the finding was matched on'),
@@ -480,6 +480,14 @@ export const FindingEvent = z.object({
   via: Via.nullable().describe('handled: how'),
   note: z.string().nullable(),
 })
+export const AiIdentity = z.object({
+  method: z.literal('ai'),
+  title: z.string().describe('The readable name of the catalogue product the AI chose ("Identified by AI as <title>")'),
+  vendor: z.string(),
+  product: z.string().describe('The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record\'s product key)'),
+  reason: z.string().max(200).describe('The AI\'s reason; "" when the choice is no longer stored'),
+  model: z.string().describe('The model that chose; "" when the choice is no longer stored'),
+}).describe('The software of the finding is named by no standard data; the customer\'s AI chose its product among candidates the box generated from its own catalogue, and the version is inside that product\'s affected range. A person can say "Not this product" (POST /findings/{id}/identity/reject)')
 export const View = z.object({
   id: z.string(),
   cve,
@@ -497,6 +505,7 @@ export const View = z.object({
   last_seen: iso.describe('The last match that still detected it'),
   events: z.array(FindingEvent).describe('Oldest first, append-only'),
   ai_check: PossibleCheck.nullable().describe('A finding a person confirmed from an AI proposal, or one the AI\'s reading of the vendor\'s statement opened (range origin ai_read, reading set: labelled "Read by AI from <host>", rejected in one click): the AI\'s check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding'),
+  identity: AiIdentity.nullable().describe('A finding opened through the AI\'s identification of its software: labelled "Identified by AI as <title>", with "Not this product". null for any other finding'),
 }).describe('A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields')
 export const FirstItem = z.object({ device: DeviceRef, block: FixBlock })
 export const FirstRunSummary = z.object({
@@ -571,11 +580,11 @@ export const Coverage = z.object({
   pairs: coverageCount.describe('(software line, CVE) pairs the catalogue relates on them'),
   outside_window: coverageCount.describe('CVEs naming a product the devices run that the pass set aside as outside the reporting window (published before the last 12 months, no evidence of exploitation in the wild, no public exploit in that time): not judged, so neither decided nor undecided and not in pairs. 0 while CVEs of every age are reported'),
   decided: z.array(z.object({
-    by: z.string().max(64).describe('The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory, ai_confirmed, person, scan) or platform_list (the hand list of platform limits)'),
+    by: z.string().max(64).describe('The source whose data decided: a range origin (nvd, cna, adp, distro, vendor_line, advisory, ai_confirmed, person, scan) or platform_list (the hand list of platform limits), or distro_no_fix (the distribution lists the package affected with no fix yet for a CVE on no exploited list: affected, no finding until the fix or an exploited list comes)'),
     affected: coverageCount, not_affected: coverageCount,
   })).describe('Decided pairs by source, the most first'),
   possible: z.array(z.object({
-    cause: z.string().max(64).describe('The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here'),
+    cause: z.string().max(64).describe('The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a distribution\'s package its distribution\'s data has no word on stays undecided with no question (distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the CVE; distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here'),
     count: coverageCount,
     details: z.array(z.object({
       detail: z.string().max(64).describe('The matcher\'s own reason: an undecided reason (Undecided.reason, such as version_scheme_mismatch or exact_releases_only), else the question\'s kind'),
@@ -583,7 +592,7 @@ export const Coverage = z.object({
     })).describe('The same pairs by the matcher\'s own reason, the most first; empty for an unnamed class and for a pass counted before details were kept'),
   })).describe('Undecided pairs by cause, the most first'),
   identity: z.array(z.object({
-    method: z.enum(['stated', 'catalogue', 'record', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the catalogue is matched to it'),
+    method: z.enum(['stated', 'catalogue', 'record', 'ai', 'ai_family', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer\'s AI chose its product among the catalogue\'s; ai_family: the AI said it is only a part of a catalogue product\'s family (an agent, a client), which opens no finding; none: nothing in the catalogue is matched to it'),
     lines: coverageCount,
   })).describe('Software lines by how the box knows what product they are'),
 }).describe('Decision coverage of the last match pass: what decided each related (line, CVE) pair, why the rest is undecided, and how each line is identified. Counts only, no device data')
@@ -678,6 +687,8 @@ export const endpoints = defineEndpoints([
     params: idParams, body: z.object({ note: z.string().max(500) }), response: View },
   { method: 'post', path: '/findings/{id}/verify', summary: 'Confirm vulnerability on your own word: verified by a person; the note says what makes you sure; history and audit', stories: ['S-MIT-1'], role: 'admin',
     params: idParams, body: z.object({ note: z.string().max(500).describe('At least 3 characters') }), response: View },
+  { method: 'post', path: '/findings/{id}/identity/reject', summary: 'Not this product: the software of a finding the AI\'s identification opened is not the product the AI chose. Stored for the software\'s name (every device with it), it wins over the AI: that product is never offered for the name again, and every finding resting on the choice closes at once (matched again). A second click changes nothing. 404 not_found when the finding does not rest on the AI\'s identification. Audit findings.ai_identity_rejected', stories: ['S-MIT-1'], role: 'operator',
+    params: idParams, response: z.object({ ok: z.literal(true) }) },
   { method: 'post', path: '/findings/{id}/unverify', summary: 'Undo Confirm vulnerability: a finding a person confirmed is not confirmed again (one a scan or the device confirmed is refused, 409 not_confirmed_by_person); history and audit', stories: ['S-MIT-1'], role: 'admin',
     params: idParams, response: View },
   { method: 'post', path: '/findings/questions/{id}/answer', summary: 'Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit', stories: ['S-MIT-1'], role: 'operator',

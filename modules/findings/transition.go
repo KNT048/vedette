@@ -37,7 +37,8 @@ type Trigger struct {
 	Kind TriggerKind
 	At   time.Time // when it happened (the pass, the person's action, the clock)
 	// Actor is the person of handle, reopen, verify and unverify, of gone via not_installed (who said the software is not
-	// installed) and of gone via version_moved on a person's entry (who changed the version); "" means SystemUser.
+	// installed), of gone via version_moved on a person's entry (who changed the version) and of gone via data_corrected, corrected,
+	// on a person's "Not this product" (who said it); "" means SystemUser.
 	Actor string
 
 	Detection Detection // TrDetected
@@ -307,8 +308,10 @@ func (t *transition) gone(tr Trigger) error {
 		from, to = "", ""
 	}
 	by := SystemUser
-	if via == ViaNotInstalled || via == ViaVersionMoved && t.actor != SystemUser {
-		by = t.actor // a person said the software is not installed, or changed the version they had entered: theirs, not Vedette's
+	if via == ViaNotInstalled || (via == ViaVersionMoved || via == ViaDataCorrected && tr.Corrected) && t.actor != SystemUser {
+		// a person said the software is not installed, changed the version they had entered, or said it is not the product the AI
+		// chose: theirs, not Vedette's
+		by = t.actor
 	}
 	f.Detected = false
 	res := ResolutionNotRelevant

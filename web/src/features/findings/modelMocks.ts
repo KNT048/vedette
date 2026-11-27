@@ -187,7 +187,7 @@ function view(r: FindingRecord & { asset: Asset }): View {
     reopened: r.state === 'open' && r.reopened ? { by: null, ...r.reopened } : null,
     fix: { channel: 'public' as const, ...r.fix },
     same_cve: same.map((x) => ({ id: x.id, software: x.software, status: statusOf(x) })),
-    first_seen: r.first_seen, last_seen: r.last_seen, events: r.events, ai_check: r.ai_check ?? null,
+    first_seen: r.first_seen, last_seen: r.last_seen, events: r.events, ai_check: r.ai_check ?? null, identity: r.identity ?? null,
   }
 }
 
@@ -344,7 +344,7 @@ export const modelHandlers = [
       { cause: 'needs_reading', count: 402, details: [{ detail: 'version_scheme_mismatch', count: 211 }, { detail: 'exact_releases_only', count: 117 }, { detail: 'product_not_named', count: 74 }] },
       { cause: 'other_distro_silent', count: 31, details: [] },
     ],
-    identity: [{ method: 'stated', lines: 1795 }, { method: 'catalogue', lines: 61 }, { method: 'record', lines: 23 }, { method: 'none', lines: 261 }],
+    identity: [{ method: 'stated', lines: 1795 }, { method: 'catalogue', lines: 61 }, { method: 'record', lines: 23 }, { method: 'ai', lines: 49 }, { method: 'ai_family', lines: 5 }, { method: 'none', lines: 207 }],
   } satisfies Coverage)),
   http.get(`${API}/findings/possible/check`, () => read(() => ({ ready: false, reason: 'The preview has no AI profile to check possible findings with.', run: null }) satisfies PossibleCheckState)),
   http.post(`${API}/findings/possible/check`, () => guard('operator') ?? fail(409, 'ai_unavailable', 'The preview has no AI profile to check possible findings with.')),
@@ -383,6 +383,19 @@ export const modelHandlers = [
     return HttpResponse.json({ handled: change.length, skipped: found.length - change.length })
   }),
 
+  // Not this product: every open finding resting on the same AI identification of the same software closes as the person's correction
+  http.post(`${API}/findings/:id/identity/reject`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const r = one(String(params.id))
+    if (!r?.identity) return fail(404, 'not_found', 'This finding does not rest on the AI\'s identification of its software.')
+    const same = (x: FindingRecord) => x.state === 'open' && x.identity?.product === r.identity!.product && x.identity.vendor === r.identity!.vendor && x.software?.name === r.software?.name
+    const ids = rows().filter(same).map((x) => x.id)
+    const user = who(), at = nowIso()
+    patch(ids, (x) => ({ ...x, state: 'handled', resolution: 'not_relevant', via: 'data_corrected', resolved_by: user, resolved_at: at,
+      events: [...x.events, event(user, 'handled', { note: `A person said this software is not ${r.identity!.title}.` })] }))
+    if (ids.length) audit('findings.ai_identity_rejected', r.id, `${r.cve}: the software "${r.software?.name ?? ''}" is not ${r.identity.title} (${r.identity.vendor}:${r.identity.product}), as the AI chose; applies to every device with it`)
+    return HttpResponse.json({ ok: true })
+  }),
   http.post(`${API}/findings/:id/reopen`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const r = one(String(params.id))

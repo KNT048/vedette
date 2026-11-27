@@ -13,6 +13,7 @@ the product reads findings from.
 |---|---|
 | `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/answered`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
 | `GET /findings?asset=` (one device), `GET /findings/{id}` (the finding page's evidence and "What to do", filled by mitigation) | viewer |
+| `POST /findings/{id}/identity/reject` (Not this product, P-9) | operator |
 | `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer`, `POST /findings/questions/ignore`, `POST /findings/questions/accept-risk` | operator |
 | `POST /findings/{id}/verify`, `POST /findings/{id}/unverify`, `GET /findings/coverage` | admin |
 
@@ -176,9 +177,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   check the box settled, `ai_read` for a vendor's "not affected" the AI read) as affected or not affected; else why it is undecided: its
   cause (`PossibleCause`, as the lists show it) with the matcher's own reason under it (`CoverageCause.details`: the question's
   `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
-  its undecided reason as the cause and no details), or an unnamed class
-  (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is
-  told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
+  its undecided reason as the cause and no details), for a distribution's package its distribution's data has no word on and no
+  question asks about, why (`DistroSilences`:
+  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_no_data`,
+  `version_needed` for an agent's package row without its release; `TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed`), or an
+  unnamed class (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor
+  asked, so nobody is told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
   pass finds unchanged keeps the counts of its last full match; the sum of each pass is one row of `fnd_coverage_run` (the newest 30
   kept, in the data export) and `GET /findings/coverage` (admin, counts only, Settings → Diagnostics) serves the last one. Counting reads the pass's readings and the rows its write left and
   changes no finding or question. The test-only build tag `holdout` runs the matcher without the catalogue's CPE aliases, so the same pass
@@ -258,6 +262,34 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
   list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`).
   `TestPossibleCause_EveryPossibleRowHasOne`, `TestLineReading_CauseWithoutAIAndWithTheBudgetUsedUp`.
+- **P-9 The customer's AI identifies what no standard data names.** A software line with no CPE, no distribution package, no catalogue
+  alias and no CVE record that writes its names (coverage identity `none`), whose version the agent, SNMP or a person stated, is asked
+  about after a match pass (`AutoIdentify`, the same switch, readiness and daily reads as P-7, before the reading). The box generates up to
+  20 candidates itself (`identitycand.go`), only from products its own catalogue names (`Identifier.Products`: a range's CPE
+  vendor:product, a CVE record's product key, an exploited-list entry; nothing is fetched): the publisher and display name are cleaned
+  (legal-entity words, the line's version, version numbers, architecture, language and text in parentheses dropped, `IdentityKey`) and
+  ranked by the words they share with each product's vendor and name; the same cleaned name is only the first candidate, never a link.
+  A name no product shares a word with is not asked (it stays `none`). The AI answers by schema a candidate's id, `none` or `unsure`,
+  whether the program is that product itself (`exact`) or only a part of its family (`family`: an agent, a client, a plugin of it), with
+  a reason (at most 5 names a call, exploited-list candidates first); the box keeps a product only when it is one it offered and shares
+  a non-stopword with the name (`verifyChoices`; anything else is stored `unsure`; a product not said to be `exact` is `family`). A
+  `family` match is stored and counted (coverage identity `ai_family`) and opens nothing yet. One row per cleaned (publisher, name) in
+  `fnd_identity` serves every device. It is asked again (`askAgain`) only when the chosen product left the candidates, or, for `none` and
+  `unsure`, after 30 days, or after 7 days when a product it was not offered entered the top 5 (the top 5 are kept as short hashes); other
+  candidates coming and going ask nothing. A call that fails after it was sent (an answer outside the schema, the provider) makes its
+  names wait a day and the run goes on with the next names; a budget or a missing profile stops the run. Every call that reached the
+  provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
+  have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
+  (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only
+  opens. A version inside its ranges is a finding unless the line's own names decide the CVE; the finding's evidence carries the
+  identity (`Evidence.Identity`), it is never confirmed by the version alone (suspected: the device states its version, not that the
+  CVE is about this software), and the view says "Identified by AI as <title>" (`View.identity`, with the AI's reason and model). What
+  its ranges say otherwise (outside, a version needed, a question) decides nothing: the pair reads as the line's own names read it, so
+  nothing is closed, proved or asked on the AI's word. "Not this product" (`POST /findings/{id}/identity/reject`, operator, audit
+  `findings.ai_identity_rejected`) stores a `rejected` row for the name that wins over the AI (the product is never offered for it
+  again), drops the AI's choice and matches again at once the finding's device and every device whose last match had a line of that
+  name (the findings close `data_corrected`, resolved by that person: `goneVia`, `identityRejectedBy`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
+  `TestIdentityCandidates`, `TestIdentityScrubber`.
 
 ## Invariants
 
@@ -284,7 +316,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version known affected, not a fix) on a train it covers (OSV's introduced/fixed): past a row from
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
-  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
+  train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
+  so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an
+  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
@@ -344,7 +380,19 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-6c** A line a person marked not installed is not matched; its findings close as `not_relevant` via `not_installed` under
   that person's name.
 - **INV-11** "I have this" on a versionless product matches, on exactly the declared device, only entries added since its start date.
-- **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges. A package the
+- **INV-14** A packaged agent line on Ubuntu, Debian or Alpine Linux is judged by the distribution's fix data before NVD's ranges, one
+  path for every distribution the feeds supply (`distroVerdict` through the distribution's adapter `distroData`: its release, release
+  order, own builds and which row decides). A fixed release compares with the distribution's own build of the same upstream release, or
+  of a later one (never a kernel's). An Alpine package release (`-rN`) counts within its branch only: only the device's own branch's
+  fix of the same upstream release proves a package fixed; another branch's fixes on the package's own upstream release line
+  (major.minor, `apkLine`) only show a release below them (an older upstream release than every one of them), never fixed; a fix on
+  another line says nothing; otherwise NVD's upstream ranges decide, on an exploited CVE as on any other (`alpineFixBranch`,
+  `TestMatchAsset_AnotherAlpineBranchsFixNeverPatches`, `TestMatchAsset_AnotherAlpineBranchsFixOfAnotherLineOpensNothing`). Alpine's data
+  lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
+  Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
+  list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts
+  it decided affected (`distro_no_fix`).
+  `TestMatchAsset_AlpineRowsDecideCatalogueCVEs`, `TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs`. A package the
   distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
   while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a
   finding with no fixed package yet (fix `none_yet`; Debian's reason when it publishes no security update), and with no word yet NVD's

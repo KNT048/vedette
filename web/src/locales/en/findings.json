@@ -826,6 +826,15 @@
       "more_other": "{{count}} more answers are not shown."
     }
   },
+  "identity": {
+    "by": "Identified by AI as {{title}}",
+    "topic": "How the AI identified this software",
+    "info": "No standard data names this software, so Vedette asked your AI which product of its own catalogue it is. The AI chose {{title}} ({{product}}) among candidates the box offered, and the installed version is inside an affected range of that product. If it is another product, choose Not this product.",
+    "reason": "The AI: {{reason}}",
+    "reject": "Not this product",
+    "rejectOf": "{{title}} is not this software",
+    "rejected": "Noted: this software is not {{title}}. Its findings close on every device, and Vedette never offers that product for it again."
+  },
   "proposals": {
     "caption": "AI proposals about possible findings",
     "col": "Proposal",
@@ -971,6 +980,8 @@
       "stated": "stated by the source {{n}}",
       "catalogue": "product catalogue {{n}}",
       "record": "own name {{n}}",
+      "ai": "identified by AI {{n}}",
+      "ai_family": "part of a product family per AI {{n}}",
       "none": "not identified {{n}}"
     },
     "by": {
@@ -978,6 +989,7 @@
       "cna": "CVE record (CNA)",
       "adp": "CVE record (ADP)",
       "distro": "Distribution data",
+      "distro_no_fix": "Distribution data: affected, no fix yet (not exploited, no finding until a fix)",
       "vendor_line": "Vendor release lines",
       "advisory": "Vendor advisory read by the box",
       "ai_confirmed": "AI proposal a person confirmed",
@@ -1018,6 +1030,11 @@
       "platform": "Platform unknown",
       "package_release": "Package release unknown",
       "older_line": "Older line not listed",
+      "distro_other_packages": "Distribution lists other packages only",
+      "distro_other_releases": "Distribution lists other releases only",
+      "distro_other_build": "Distribution's fix is about another build",
+      "distro_not_listed": "Distribution has not listed it",
+      "distro_no_data": "No security data for this distribution",
       "other_distro_silent": "Unnamed: the distribution's data has no word",
       "other_record_unread": "Unnamed: the record's rows were not read",
       "other_dropped": "Unnamed: matched on the name alone, not listed"

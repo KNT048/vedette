@@ -215,6 +215,7 @@ const (
 	FindingsPostFindingsHandleOperation                      OperationName = "FindingsPostFindingsHandle"
 	FindingsPostFindingsIDAiOperation                        OperationName = "FindingsPostFindingsIDAi"
 	FindingsPostFindingsIDAppliedOperation                   OperationName = "FindingsPostFindingsIDApplied"
+	FindingsPostFindingsIDIdentityRejectOperation            OperationName = "FindingsPostFindingsIDIdentityReject"
 	FindingsPostFindingsIDReopenOperation                    OperationName = "FindingsPostFindingsIDReopen"
 	FindingsPostFindingsIDUnverifyOperation                  OperationName = "FindingsPostFindingsIDUnverify"
 	FindingsPostFindingsIDVerifyOperation                    OperationName = "FindingsPostFindingsIDVerify"

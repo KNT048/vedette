@@ -1546,6 +1546,16 @@ type Handler interface {
 	//
 	// POST /findings/{id}/applied
 	FindingsPostFindingsIDApplied(ctx context.Context, req *FindingsPostFindingsIDAppliedReq, params FindingsPostFindingsIDAppliedParams) (*FindingsPostFindingsIDAppliedOK, error)
+	// FindingsPostFindingsIDIdentityReject implements findings_post_findings_id_identity_reject operation.
+	//
+	// Not this product: the software of a finding the AI's identification opened is not the product the AI
+	// chose. Stored for the software's name (every device with it), it wins over the AI: that product is
+	// never offered for the name again, and every finding resting on the choice closes at once (matched
+	// again). A second click changes nothing. 404 not_found when the finding does not rest on the AI's
+	// identification. Audit findings.ai_identity_rejected.
+	//
+	// POST /findings/{id}/identity/reject
+	FindingsPostFindingsIDIdentityReject(ctx context.Context, params FindingsPostFindingsIDIdentityRejectParams) (*FindingsPostFindingsIDIdentityRejectOK, error)
 	// FindingsPostFindingsIDReopen implements findings_post_findings_id_reopen operation.
 	//
 	// Open a handled finding again (a person's handling was a mistake); history and audit.

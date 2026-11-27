@@ -92,7 +92,7 @@ for (const theme of THEMES) {
       if (await dlg.locator('#cn-username').count()) await dlg.locator('#cn-username').fill('ops')
       await dlg.locator('#cn-allow').fill(k.value === 'ssh' ? 'uname -a' : t)
       await dlg.getByRole('button', { name: /^(Add|Save)/ }).last().click()
-      await expect(page.getByRole('heading', { name: new RegExp(`QA ${k.value}`) })).toBeVisible()
+      await expect(page.getByRole('article', { name: new RegExp(`QA ${k.value}`) })).toBeVisible()
       if (i === KINDS.length - 1) await shot('all-added')
     }
     await noHScroll(page, 'connections')
@@ -107,7 +107,7 @@ test.describe('connections: the pinned key and the moved tab', () => {
     const errors = collectErrors(page)
     await begin(page, 'light')
     await page.goto('/settings/connections')
-    const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { level: 2, name: /File server/ }) })
+    const card = page.getByRole('article', { name: /File server/ })
     await expect(card.getByText(/Pinned host key/)).toBeVisible()
     await card.getByRole('button', { name: /^Edit / }).click()
     const dlg = page.getByRole('dialog')

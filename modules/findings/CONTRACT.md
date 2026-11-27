@@ -341,9 +341,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   path for every distribution the feeds supply (`distroVerdict` through the distribution's adapter `distroData`: its release, release
   order, own builds and which row decides). A fixed release compares with the distribution's own build of the same upstream release, or
   of a later one (never a kernel's). An Alpine package release (`-rN`) counts within its branch only: only the device's own branch's
-  fix of the same upstream release proves a package fixed; another branch's fixes only show a release below them (an older upstream
-  release than every one of them), never fixed, and otherwise NVD's upstream ranges decide, on an exploited CVE as on any other
-  (`alpineFixBranch`, `TestMatchAsset_AnotherAlpineBranchsFixNeverPatches`). Alpine's data
+  fix of the same upstream release proves a package fixed; another branch's fixes on the package's own upstream release line
+  (major.minor, `apkLine`) only show a release below them (an older upstream release than every one of them), never fixed; a fix on
+  another line says nothing; otherwise NVD's upstream ranges decide, on an exploited CVE as on any other (`alpineFixBranch`,
+  `TestMatchAsset_AnotherAlpineBranchsFixNeverPatches`, `TestMatchAsset_AnotherAlpineBranchsFixOfAnotherLineOpensNothing`). Alpine's data
   lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
   Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
   list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts

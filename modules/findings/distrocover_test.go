@@ -143,10 +143,10 @@ func TestMatchAsset_AlpineRowsDecideCatalogueCVEs(t *testing.T) {
 	if f == nil || f.Kind != "distro" || f.Distro != "Alpine Linux" || f.DistroFixed != "3.5.9-r2" || f.DistroRelease != "3.23" || f.Source != "Alpine Linux security database" {
 		t.Fatalf("fixed in: %+v", f)
 	}
-	later := v // another branch's fix of an older upstream release shows the release below it, and the evidence names that branch
-	later.Distro = []DistroFix{{Distro: "alpine", Release: "3.24", Package: "openssl", Status: "fixed", Fixed: "3.6.1-r0"}}
+	later := v // another branch's fix of a later upstream release on the same line shows the release below it, naming that branch
+	later.Distro = []DistroFix{{Distro: "alpine", Release: "3.24", Package: "openssl", Status: "fixed", Fixed: "3.5.10-r0"}}
 	if r := MatchAsset(ssl("3.5.9-r0"), []Vuln{later}, nil, now); len(r.New) != 1 ||
-		!strings.Contains(r.New[0].Evidence.Summary, "from Alpine Linux 3.23's packages. Alpine Linux fixed CVE-2026-60020 in openssl 3.6.1-r0 for its 3.24 branch") {
+		!strings.Contains(r.New[0].Evidence.Summary, "from Alpine Linux 3.23's packages. Alpine Linux fixed CVE-2026-60020 in openssl 3.5.10-r0 for its 3.24 branch") {
 		t.Fatalf("a later branch's fix: %+v", r.New)
 	}
 	none := v
@@ -250,5 +250,37 @@ func TestMatchAsset_AnotherAlpineBranchsFixNeverPatches(t *testing.T) {
 				t.Errorf("%s, exploited %v: 3.24's 1.2.0-r3 decided 1.2.3-r2: %+v", osName, exploited, d)
 			}
 		}
+	}
+}
+
+// Another Alpine branch's fix opens a finding only on the package's own upstream release line (major.minor): 3.24's python3 3.14.7-r0
+// says nothing about 3.12 on a 3.23 device, which NVD's upstream ranges judge (they carry each line's fix).
+func TestMatchAsset_AnotherAlpineBranchsFixOfAnotherLineOpensNothing(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 27, 10, 0, 0, 0, time.UTC)
+	a := Asset{ID: "a", Name: "gw-01", OS: "Alpine Linux 3.23.8", Software: []Software{{ID: "s-py", Display: "Python", Vendor: "Python", Product: "Python",
+		Version: "3.12.16", Source: "agent", Packaged: true, PkgVersion: "3.12.16-r0", PkgSource: "python3"}}}
+	vuln := func(ranges []Affected, fixes ...string) Vuln {
+		v := Vuln{CVE: "CVE-2026-60050", NVDAnswered: true, Origin: RangeNVD, Published: now.AddDate(0, -1, 0), Affected: ranges}
+		for i, f := range fixes {
+			v.Distro = append(v.Distro, DistroFix{Distro: "alpine", Release: []string{"3.24", "3.22"}[i], Package: "python3", Status: "fixed", Fixed: f})
+		}
+		return v
+	}
+	cpe := "cpe:2.3:a:python:python:*:*:*:*:*:*:*:*"
+	line312Fixed := []Affected{{CPE: cpe, Range: VersionRange{StartIncl: "3.12.0", EndExcl: "3.12.13"}}, {CPE: cpe, Range: VersionRange{StartIncl: "3.14.0", EndExcl: "3.14.7"}}}
+	line312Open := []Affected{{CPE: cpe, Range: VersionRange{StartIncl: "3.12.0", EndExcl: "3.12.20"}}, {CPE: cpe, Range: VersionRange{StartIncl: "3.14.0", EndExcl: "3.14.7"}}}
+	if d, ok := distroVerdict(swInfoOn(a.Software[0], a), vuln(line312Fixed, "3.14.7-r0")); ok {
+		t.Fatalf("3.24's 3.14.7-r0 decided 3.12.16-r0: %+v", d)
+	}
+	if r := MatchAsset(a, []Vuln{vuln(line312Fixed, "3.14.7-r0")}, nil, now); len(r.New) != 0 {
+		t.Errorf("NVD's 3.12 line is fixed at 3.12.13: %+v", r.New)
+	}
+	if r := MatchAsset(a, []Vuln{vuln(line312Open, "3.14.7-r0")}, nil, now); len(r.New) != 1 {
+		t.Errorf("NVD's 3.12 line is affected up to 3.12.20: %+v", r.New)
+	}
+	// a fix on the package's own line on another branch still shows the release below it, whatever another line's fix says
+	if d, ok := distroVerdict(swInfoOn(a.Software[0], a), vuln(line312Fixed, "3.14.7-r0", "3.12.18-r0")); !ok || d.kind != distroNeeded || d.fixed != "3.12.18-r0" {
+		t.Errorf("3.22's 3.12.18-r0: %+v %v", d, ok)
 	}
 }

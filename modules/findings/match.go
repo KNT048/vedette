@@ -2028,7 +2028,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			// of it that shipped an affected package: the release is not the version of that package, so it neither
 			// proves nor rules out (a kernel CVE stays a product finding, medium).
 			t = Unknown
-		case t == Unknown && own && !(isJ && isJunos(c)) && otherBranch(c, af.Range, in.ver):
+		case t == Unknown && own && (!isJ || !isJunos(c)) && otherBranch(c, af.Range, in.ver):
 			// A row of another release branch the version does not compare with (OpenSSL's "1.1.1" to "1.1.1zk" beside its 3.x
 			// ranges, against 3.5.0): it cannot hold the version, whatever its letters mean, so it is set aside and the rows that
 			// compare decide.

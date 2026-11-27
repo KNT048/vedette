@@ -248,7 +248,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   quote names settles a version as not affected or becomes the fix (`TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles`); `fixed`
   with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
   states line N of that product fixed or affected in a release N.x and nothing for this product's line N) keeps no bound and stands only
-  as `affected`, with a quote naming that release, never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
+  as `affected`, with a quote naming that release, and only while no row of this product names a release of line N
+  (`ownRowOnLine`), never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
   the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's

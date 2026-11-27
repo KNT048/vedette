@@ -127,7 +127,7 @@ func TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens(t *testing.T) {
 		version string
 		edit    func(v *ProposeVerdict)
 		finding bool
-		settled bool
+		rows    []RecordRow // more rows of the record
 	}{
 		{name: "affected from another product's line", version: "115.9.0", finding: true},
 		{name: "a version past the named release", version: "115.50.0"},
@@ -139,10 +139,15 @@ func TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens(t *testing.T) {
 			v.Status, v.Line, v.FixedIn = StatementNotAffected, "157", ""
 		}},
 		{name: "fixed from an inference", version: "115.50.0", edit: func(v *ProposeVerdict) { v.Status = StatementFixed }},
+		{name: "the record has a row of this product on the line", version: "115.9.0", rows: []RecordRow{
+			{Vendor: "Quillfeather", Product: "Mail", Text: "Quillfeather Mail (edition esr): affected from 115.0 before 115.6 [cna]"}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			e, fc := quillWorld(t, tc.version)
+			r := fc.records[cveQuill]
+			r.Rows = append(r.Rows, tc.rows...)
+			fc.records[cveQuill] = r
 			v := infer
 			if tc.edit != nil {
 				tc.edit(&v)
@@ -173,7 +178,7 @@ func TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens(t *testing.T) {
 			if it := quillItem(t, e); it.State == PossibleSettled {
 				t.Errorf("an inference settled the CVE: %+v", it.Check)
 			}
-			if tc.edit != nil && v.Status != StatementAffected && status != StatementUnsure {
+			if (tc.edit != nil && v.Status != StatementAffected || tc.rows != nil) && status != StatementUnsure {
 				t.Errorf("an inference read %s was kept as %s, want unsure", v.Status, status)
 			}
 		})

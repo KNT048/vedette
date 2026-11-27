@@ -129,6 +129,26 @@ func readRecordRows(rec CVERecordText, product string, q Question) []string {
 	return out[:min(len(out), recordRowsMax)]
 }
 
+// ownRowOnLine says a row of the record about product names a release of release line ("115.13" or "115.13.0" for line 115): an inference
+// from another product's line N stands only while the record says nothing of this product's own line N.
+func ownRowOnLine(rec CVERecordText, product, line string) bool {
+	if line == "" {
+		return false
+	}
+	vendor, name, _ := strings.Cut(product, "|")
+	for _, r := range rec.Rows {
+		if productid.Norm(r.Vendor) != productid.Norm(vendor) || productid.Norm(r.Product) != productid.Norm(name) {
+			continue
+		}
+		for _, tok := range reVersionToken.FindAllString(r.Text, -1) {
+			if tok == line || dottedPrefix(line, tok) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // recordText is the text of the record the AI reads as data block 0 and its quotes are looked up in: the description, the solution and
 // the rows, one per line.
 func recordText(rec CVERecordText, rows []string) string {
@@ -805,7 +825,12 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 				res.failed += len(l.units)
 				continue
 			}
-			res.readings = append(res.readings, readingOfAnswer(cve, l.units[0].id, v, okPages, recText, rec.Refs, ans, actor, now))
+			st := readingOfAnswer(cve, l.units[0].id, v, okPages, recText, rec.Refs, ans, actor, now)
+			if st.Status == StatementAffected && v.InferredFrom != "" && ownRowOnLine(rec, l.units[0].id.Product, st.StatedLine) {
+				st.Status = StatementUnsure // the record has a row of this product on the line: its own row, not another product's, decides
+				st.Reason = oneLine("The record has a row of this product on line "+st.StatedLine+", so another product's line decides nothing: "+st.Reason, 600)
+			}
+			res.readings = append(res.readings, st)
 		}
 	}
 	return res

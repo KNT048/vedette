@@ -350,20 +350,20 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s
 	return out, rows.Err()
 }
 
-// DistroOn lists the distributions ("ubuntu", "debian") whose security data decides their own packages: one of their feeds is on and
-// has rows or a completed pull, or is loading (DistroLoading). findings judges a package such a distribution built by its word alone; a
-// distribution whose feeds are off, or were given up after failing, falls back to NVD's ranges.
+// DistroOn lists the distributions ("ubuntu", "debian") whose security data decides their own packages: the feed that says which
+// packages are affected and fixed (debian-tracker, ubuntu-osv) is on and has rows or a completed pull, or is loading (as DistroLoading
+// counts it). findings judges a package such a distribution built by its word alone; a distribution whose feeds are off, or were given
+// up after failing, falls back to NVD's ranges. ubuntu-vex does not count: it keeps only "not affected", so with ubuntu-osv off no row
+// could ever say an Ubuntu package is affected.
 func (s *Store) DistroOn(ctx context.Context) (map[string]bool, error) {
-	out, err := s.DistroLoading(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('debian-tracker', 'ubuntu-osv', 'ubuntu-vex')
-AND (s.last_success IS NOT NULL OR EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id))`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('debian-tracker', 'ubuntu-osv')
+AND (s.last_success IS NOT NULL OR EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) OR s.failures < ? AND `+kevCanArrive+`)`,
+		DistroGiveUpFailures, DistroGiveUpFailures)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro on: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	out := map[string]bool{}
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -371,7 +371,6 @@ AND (s.last_success IS NOT NULL OR EXISTS (SELECT 1 FROM feeds_distro_fix d WHER
 		}
 		out[distroOfFeed[id]] = true
 	}
-	delete(out, DistroAlpine) // Alpine's packages keep the platform list's rule (findings platformCheck)
 	return out, rows.Err()
 }
 

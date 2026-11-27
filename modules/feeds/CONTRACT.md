@@ -40,7 +40,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   Alpine device at all).
 - **INV-22a** A distribution feed keeps, for every CVE of the CISA list, the distribution's word fixed, not affected and "affected, no
   fix yet" (`open`), and findings reads all three (`DistroFixes`, `DistroFixesFor`): findings judges a package the distribution built by
-  that word alone while the distribution's feeds are on (`DistroOn`: on and loaded, or loading). Open rows of other CVEs are kept only
+  that word alone while the distribution's feed of fixed and affected rows (debian-tracker, ubuntu-osv; never ubuntu-vex, which holds only "not affected") is on (`DistroOn`: on and loaded, or loading). Open rows of other CVEs are kept only
   for the plan (tier CVEs of the packages devices run).
 - **INV-38** Spamhaus DROP (`spamhaus-drop`) is off on a new box and on a box that updates to a version that adds it
   (`Source.DefaultOff`): the box asks `www.spamhaus.org` nothing until an administrator turns it on. Once on, it reads Spamhaus's

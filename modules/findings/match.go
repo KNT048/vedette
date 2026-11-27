@@ -191,7 +191,7 @@ type Vuln struct {
 	// DistroLoading: the distributions one of whose feeds is on but holds no row yet (feeds' DistroLoading): a platform-limited
 	// CVE whose fixed list that distribution's data gives stays a question then, instead of NVD deciding (it would raise a false finding).
 	DistroLoading map[string]bool
-	// DistroOn: the distributions ("ubuntu", "debian") one of whose security feeds is on and loaded or loading (feeds' DistroOn). A
+	// DistroOn: the distributions ("ubuntu", "debian") whose feed of fixed and affected rows is on and loaded or loading (feeds' DistroOn). A
 	// package such a distribution built is judged by its data alone (distroDecides); with its feeds off, NVD's ranges decide as before.
 	DistroOn map[string]bool
 }

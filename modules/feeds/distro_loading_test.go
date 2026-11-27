@@ -111,7 +111,7 @@ func TestDistroOn(t *testing.T) {
 	if got := on(); len(got) != 0 {
 		t.Fatalf("every feed off: %v", got)
 	}
-	set(ubuntuVEXFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
+	set(ubuntuOSVFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
 	set(alpineOSVFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
 	if got := on(); !maps.Equal(got, map[string]bool{DistroUbuntu: true}) {
 		t.Fatalf("Ubuntu loaded, Alpine left to its own rule: %v", got)
@@ -119,5 +119,40 @@ func TestDistroOn(t *testing.T) {
 	set(debianTrackerFeedID, `enabled = 1, last_success = NULL, status = 'error', failures = 6`)
 	if got := on(); got[DistroDebian] {
 		t.Fatalf("a Debian feed given up is on: %v", got)
+	}
+}
+
+// ubuntu-vex keeps only "not affected" statements: it can never say a package is affected or fixed. Ubuntu's data decides Ubuntu's own
+// packages only while ubuntu-osv (the feed with Ubuntu's fixed and "affected, no fix yet" rows) is on; with ubuntu-osv off, loaded VEX
+// rows alone would leave every Ubuntu-built package with an exploited CVE unjudged (no finding at all).
+func TestDistroOnNeedsAFeedThatSaysAffected(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	set := func(id, set string) {
+		t.Helper()
+		execSQL(t, e.db, `UPDATE feeds_source SET `+set+` WHERE id = '`+id+`'`)
+	}
+	on := func() map[string]bool {
+		t.Helper()
+		l, err := e.svc.st.DistroOn(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+	for _, id := range []string{alpineOSVFeedID, debianTrackerFeedID, ubuntuOSVFeedID, ubuntuVEXFeedID} {
+		set(id, `enabled = 0`)
+	}
+	set(ubuntuVEXFeedID, `enabled = 1`) // never pulled: loading
+	if got := on(); got[DistroUbuntu] {
+		t.Fatalf("ubuntu-vex loading, ubuntu-osv off: Ubuntu decides its packages: %v", got)
+	}
+	set(ubuntuVEXFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
+	if got := on(); got[DistroUbuntu] {
+		t.Fatalf("ubuntu-vex loaded, ubuntu-osv off: Ubuntu decides its packages: %v", got)
+	}
+	set(ubuntuOSVFeedID, `enabled = 1, last_success = '2026-11-05T11:00:00.000Z', status = 'ok', failures = 0`)
+	if got := on(); !got[DistroUbuntu] {
+		t.Fatalf("ubuntu-osv loaded: Ubuntu does not decide its packages: %v", got)
 	}
 }

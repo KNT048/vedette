@@ -217,6 +217,7 @@ var Operations = map[string]Operation{
 	"feeds_put_feeds_sources_id":                             {Method: "PUT", Path: "/feeds/sources/{id}", MinRole: Admin, Tag: "feeds"},
 	"findings_get_findings":                                  {Method: "GET", Path: "/findings", MinRole: Viewer, Tag: "findings"},
 	"findings_get_findings_answered":                         {Method: "GET", Path: "/findings/answered", MinRole: Viewer, Tag: "findings"},
+	"findings_get_findings_coverage":                         {Method: "GET", Path: "/findings/coverage", MinRole: Admin, Tag: "findings"},
 	"findings_get_findings_devices":                          {Method: "GET", Path: "/findings/devices", MinRole: Viewer, Tag: "findings"},
 	"findings_get_findings_fixes":                            {Method: "GET", Path: "/findings/fixes", MinRole: Viewer, Tag: "findings"},
 	"findings_get_findings_handled":                          {Method: "GET", Path: "/findings/handled", MinRole: Viewer, Tag: "findings"},

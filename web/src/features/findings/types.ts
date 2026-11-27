@@ -87,3 +87,4 @@ export type FirstItem = z.infer<typeof C.FirstItem>
 /** Home at a glance. */
 export type Overview = z.infer<typeof C.Overview>
 export type FirstRunSummary = z.infer<typeof C.FirstRunSummary>
+export type Coverage = z.infer<typeof C.Coverage>

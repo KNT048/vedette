@@ -199,6 +199,7 @@ const (
 	FeedsPutFeedsSourcesIDOperation                          OperationName = "FeedsPutFeedsSourcesID"
 	FindingsGetFindingsOperation                             OperationName = "FindingsGetFindings"
 	FindingsGetFindingsAnsweredOperation                     OperationName = "FindingsGetFindingsAnswered"
+	FindingsGetFindingsCoverageOperation                     OperationName = "FindingsGetFindingsCoverage"
 	FindingsGetFindingsDevicesOperation                      OperationName = "FindingsGetFindingsDevices"
 	FindingsGetFindingsFixesOperation                        OperationName = "FindingsGetFindingsFixes"
 	FindingsGetFindingsHandledOperation                      OperationName = "FindingsGetFindingsHandled"

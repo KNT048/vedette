@@ -1435,6 +1435,13 @@ type Handler interface {
 	//
 	// GET /findings/answered
 	FindingsGetFindingsAnswered(ctx context.Context, params FindingsGetFindingsAnsweredParams) (*FindingsGetFindingsAnsweredOK, error)
+	// FindingsGetFindingsCoverage implements findings_get_findings_coverage operation.
+	//
+	// Decision coverage of the last match pass: pairs decided by source, undecided by cause, lines by
+	// identity method.
+	//
+	// GET /findings/coverage
+	FindingsGetFindingsCoverage(ctx context.Context) (*FindingsGetFindingsCoverageOK, error)
 	// FindingsGetFindingsDevices implements findings_get_findings_devices operation.
 	//
 	// By device: one card per device with open findings (devices not added yet included, ignored ones only

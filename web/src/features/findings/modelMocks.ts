@@ -18,7 +18,7 @@ import { checkOfQuestion, possibleCounts } from './possibleMocks'
 import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
-  CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
+  Coverage, CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
   AnsweredList, AnsweredQuestion, InputGroupItem, InputItem, InputList, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View, PossibleCheckState, PossibleList,
 } from './types'
 
@@ -334,6 +334,15 @@ export const modelHandlers = [
   // possible findings: the sample box has none yet, and no AI profile to check them with
   http.get(`${API}/findings/possible`, () => read(() => ({ items: [], total: 0, counts: { possible: 0, proposals: 0, unchecked: 0, settled: 0, causes: { vendor_silent: 0, page_unreadable: 0, needs_reading: 0, ai_unsure: 0, ai_budget: 0, identity_unproven: 0, version_needed: 0, pending_nvd: 0, needs_person: 0 } } }) satisfies PossibleList)),
   http.get(`${API}/findings/possible/audit`, () => read(() => ({ groups: [] }))),
+  // Settings → Diagnostics: the coverage of the sample box's last match pass (illustrative counts)
+  http.get(`${API}/findings/coverage`, () => guard('admin') ?? HttpResponse.json({
+    at: nowIso(), devices: 12, lines: 2140, pairs: 47940,
+    decided: [{ by: 'distro', affected: 412, not_affected: 39870 }, { by: 'nvd', affected: 96, not_affected: 5310 }, { by: 'cna', affected: 21, not_affected: 1288 },
+      { by: 'vendor_line', affected: 6, not_affected: 64 }, { by: 'person', affected: 2, not_affected: 11 }, { by: 'platform_list', affected: 0, not_affected: 9 }],
+    possible: [{ cause: 'no_version', count: 402 }, { cause: 'version_scheme_mismatch', count: 211 }, { cause: 'exact_releases_only', count: 117 },
+      { cause: 'product_not_named', count: 74 }, { cause: 'other_distro_silent', count: 31 }, { cause: 'platform_unknown', count: 16 }],
+    identity: [{ method: 'stated', lines: 1795 }, { method: 'catalogue', lines: 61 }, { method: 'record', lines: 23 }, { method: 'none', lines: 261 }],
+  } satisfies Coverage)),
   http.get(`${API}/findings/possible/check`, () => read(() => ({ ready: false, reason: 'The preview has no AI profile to check possible findings with.', run: null }) satisfies PossibleCheckState)),
   http.post(`${API}/findings/possible/check`, () => guard('operator') ?? fail(409, 'ai_unavailable', 'The preview has no AI profile to check possible findings with.')),
   http.post(`${API}/findings/possible/confirm`, () => guard('operator') ?? HttpResponse.json({ confirmed: 0 })),

@@ -237,6 +237,7 @@ const PAGE_TITLES: { entry: string; file: string; key: string }[] = [
   { entry: 'common:shell.siem', file: 'features/logs/SiemSettings.tsx', key: 'common:shell.siem' },
   { entry: 'common:shell.aiSettings', file: 'features/ai/AiSettings.tsx', key: 'common:shell.aiSettings' },
   { entry: 'common:shell.feedsSettings', file: 'features/feeds/FeedsSettings.tsx', key: 'common:shell.feedsSettings' },
+  { entry: 'common:shell.diagnostics', file: 'features/findings/CoverageSection.tsx', key: 'common:shell.diagnostics' },
   { entry: 'common:shell.channels', file: 'features/notify/ChannelsSettings.tsx', key: 'common:shell.channels' },
   { entry: 'common:shell.responseSettings', file: 'features/response/ResponseSettings.tsx', key: 'common:shell.responseSettings' },
   { entry: 'core:settings.general', file: 'features/core/GeneralSection.tsx', key: 'settings.general' },

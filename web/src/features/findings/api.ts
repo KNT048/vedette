@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PAGE_MAX } from './contract'
-import type { AnsweredList, ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, Overview, PossibleCheckRun, PossibleCheckState, PossibleList, Resolution, View } from './types'
+import type { AnsweredList, ApplyItem, Coverage, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, Overview, PossibleCheckRun, PossibleCheckState, PossibleList, Resolution, View } from './types'
 
 /** GET /findings?asset=: one device's findings in every state, each with its history (what a version entry, "I updated it" or
  *  "Not installed" changed). */
@@ -155,3 +155,6 @@ export const useConfirmProposal = () => useModelWrite((v: { id: string }) => api
 export const useConfirmProposals = () => useModelWrite((v: { verdict: 'affected' | 'not_affected'; confidence: 'confident' | 'likely'; device?: string }) =>
   api.post<{ confirmed: number }>('/findings/possible/confirm', v))
 export const useRejectProposal = () => useModelWrite((v: { key: string }) => api.post<{ ok: true }>(`/findings/possible/checks/${encodeURIComponent(v.key)}/reject`, {}))
+
+/** GET /findings/coverage (admin): the decision coverage of the last match pass (Settings → Diagnostics). */
+export const useCoverage = () => useQuery({ queryKey: ['findings', 'coverage'], queryFn: () => api.get<Coverage>('/findings/coverage') })

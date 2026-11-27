@@ -215,6 +215,7 @@ var operationRolesSession = map[string][]string{
 	FeedsPutFeedsSourcesIDOperation:                          []string{},
 	FindingsGetFindingsOperation:                             []string{},
 	FindingsGetFindingsAnsweredOperation:                     []string{},
+	FindingsGetFindingsCoverageOperation:                     []string{},
 	FindingsGetFindingsDevicesOperation:                      []string{},
 	FindingsGetFindingsFixesOperation:                        []string{},
 	FindingsGetFindingsHandledOperation:                      []string{},

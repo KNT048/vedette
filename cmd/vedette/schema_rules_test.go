@@ -47,6 +47,7 @@ var jsonColumnAllowList = []string{
 	"feeds_signal.detail",
 	"feeds_source.distro_packages",
 	"feeds_source.parser",
+	"fnd_coverage_run.counts", // a pass's coverage counts, read whole
 	"fnd_finding.evidence",
 	"fnd_finding_event.detail",
 	"fnd_possible_check.detail",  // the undecided reason and the evidence that blocked a decision, read whole for an audit

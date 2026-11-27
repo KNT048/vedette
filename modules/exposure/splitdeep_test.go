@@ -121,3 +121,32 @@ func TestDeepScanFallsBackToOneRunOnAnOlderWorker(t *testing.T) {
 		t.Fatalf("services = %+v", s.Services)
 	}
 }
+
+// A port the port scan found open that the service run then did not see open (it stopped answering between the two runs, or nmap's
+// second look lost it) was not missed by the sweep: the scan says nothing about it. It is never closed on that scan, and the service
+// step says the scan is incomplete there.
+func TestDeepScanNeverClosesAPortItsPortScanFoundOpen(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan([]int{80, 22}, swept(80, 22), nil)
+	if state(22) != ServiceOpen {
+		t.Fatalf("22 after the first scan: %s", state(22))
+	}
+	sv := &splitServices{open: OpenPorts{Open: []int{22, 80}, Ports: 65535}, services: swept(80)}
+	e.svc.cfg.Services = sv
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 80, Service: "http", Ident: IdentProbed}}}})
+	r, err := e.svc.Scan(e.ctx(), "admin@acme.example", e.detectedID(ipA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sv.listed) != 1 || !slices.Equal(sv.listed[0], []int{22, 80}) {
+		t.Fatalf("the service run read %v", sv.listed)
+	}
+	if state(22) == ServiceClosed || closedByNewest(e) != 0 {
+		t.Fatalf("22, which the port scan found open, was closed (%s; the scan says %d closed)", state(22), closedByNewest(e))
+	}
+	d := e.runDetail(e.ctx(), r.RunID)
+	if v := d.Steps[3]; v.Status != corerun.Partial || v.Note == nil || !strings.Contains(*v.Note, "found 1 TCP port open that the service identification moments later did not") {
+		t.Fatalf("service step = %s %v, want partly done", v.Status, v.Note)
+	}
+}

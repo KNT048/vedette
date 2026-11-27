@@ -612,7 +612,7 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 		how = "through the domain fence, name " + stD.Domain.Name
 	}
 	// INV-47: a fresh deep scan of the address itself at an equal or wider scope gives the address-level layer; the web layer runs here
-	if src, why := s.reuseFor(ctx, st, stD, a); src != nil {
+	if src, why := s.reuseFor(ctx, st, stD, a, sub.Ports); src != nil {
 		return s.reuseIP(ctx, stD, a, src, sub, how, c)
 	} else if why != "" {
 		s.cfg.Log.InfoContext(ctx, "exposure: a domain's address is scanned, not reused", "target", st.Value, "ip", a.ip, "why", why)
@@ -671,7 +671,7 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan: " + line}}, audit: "not done: the re-check refused it", state: GBRunNotRun})
 			continue
 		}
-		if src := s.observerOf(ctx).reusedOf(a.ip.String()); src != nil { // INV-47: its results came with the address's own deep scan
+		if src := s.observerOf(ctx).reusedOf(a.ip.String()); src != nil && src.openVAS { // INV-47: its results came with the address's own deep scan
 			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan again: " + s.reuseLine(src) + "."}}, audit: "reused from run " + src.runID, state: GBRunNotRun})
 			continue
 		}

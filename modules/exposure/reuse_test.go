@@ -475,6 +475,39 @@ func TestDomainReuse_OpenVASOfAWiderSourceIsNotReused(t *testing.T) {
 	}
 }
 
+// reuseNarrower alone: a finding of a check the domain's step would not run (a script group its settings turn off, a disruptive
+// group of the source's run it does not have) is never taken; equal groups are.
+func TestDomainReuse_Narrower(t *testing.T) {
+	t.Parallel()
+	def := DefaultDeepSettings() // DoS off: logins and the checks that may change data on
+	script := issueIn{engine: EngineSurface, key: keyScript + ipA + " ssl-x:Weak finding"}
+	vas := issueIn{engine: EngineOpenVAS, key: "1.3.6.1.4.1.25623.1.0.1:443@" + ipA}
+	dis := issueIn{engine: EngineSurface, key: keyScriptDisruptive + ipA + " ftp-brute:Weak password"}
+	plain := ScanTarget{Mode: ScanMode{Full: true, WebActive: true, OpenVAS: true}, Groups: def.Groups()}
+	withD := plain
+	withD.Mode.Disruptive, withD.Mode.Logins, withD.Mode.Change = true, true, true
+	noLogins := plain
+	noLogins.Groups &^= GroupLogins
+	for _, tc := range []struct {
+		name       string
+		step       ScanTarget
+		disruptive bool
+		ins        []issueIn
+		ok         bool
+	}{
+		{"equal, no disruptive checks", plain, false, []issueIn{script, vas}, true},
+		{"equal, with the disruptive checks", withD, true, []issueIn{script, vas, dis}, true},
+		{"the source's run had the disruptive checks, the step not: OpenVAS", plain, true, []issueIn{vas}, false},
+		{"the source's run had the disruptive checks, the step not: no finding to take", plain, true, nil, true},
+		{"the step's settings turn logins off: a script finding", noLogins, false, []issueIn{script}, false},
+		{"the step's settings turn logins off: only OpenVAS of a run without the disruptive checks", noLogins, false, []issueIn{vas}, true},
+	} {
+		if why := reuseNarrower(tc.step, def, tc.disruptive, tc.ins); (why == "") != tc.ok {
+			t.Errorf("%s: reuseNarrower = %q, want reuse %v", tc.name, why, tc.ok)
+		}
+	}
+}
+
 // The address's own settings turn OpenVAS off: its scan ran no OpenVAS, so the domain's OpenVAS step must not say that OpenVAS's
 // results were reused from it; it says what a normal scan says (turned off in the settings), and nothing is sent.
 func TestDomainReuse_OpenVASOffForTheAddressIsNotCalledReused(t *testing.T) {

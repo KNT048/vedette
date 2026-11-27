@@ -28,7 +28,8 @@ import (
 // terms and deep-scan settings were last changed before it started, its port and service steps ran, its settings allowed at least
 // what the domain's step allows now (no group it turned off that the step has on, the normal speed unless the step is gentle, every
 // port and web path it skipped skipped by the step too), and its OpenVAS and disruptive steps ran when the domain's step would run
-// them now on an address with open ports. A reuse must never close or reopen anything of the domain by itself: when the domain holds
+// them now on an address with open ports; every open port this run found there was seen by it; and no finding it would give comes from
+// a check the domain's step would not run (reuseNarrower). A reuse must never close or reopen anything of the domain by itself: when the domain holds
 // an open port of the address the source did not see, an open address-level issue (nmap scripts, OpenVAS, the comparison with
 // exploited CVEs) the source did not report, or one gone or marked patched or mitigated that it did report, the address is scanned.
 
@@ -93,17 +94,18 @@ func groupsNamed(names []string) (Groups, bool) {
 }
 
 // reuseFor is the source a domain's deep step stD may reuse for address a, or nil with why not (for the log; "" when the address has
-// no IP target). st is the domain's run; stD the step as deepGate gave it. Every error is a no (fail closed).
-func (s *Service) reuseFor(ctx context.Context, st, stD ScanTarget, a deepAddr) (*reuseSource, string) {
+// no IP target). st is the domain's run; stD the step as deepGate gave it; seen the ports this run itself found open at the address.
+// Every error is a no (fail closed).
+func (s *Service) reuseFor(ctx context.Context, st, stD ScanTarget, a deepAddr, seen []PortRow) (*reuseSource, string) {
 	q := s.cfg.DB.Reader()
 	ip := a.ip.String()
 	it, found, err := loadTargetByValue(ctx, q, ip)
 	if err != nil || !found || it.Kind != KindIP || it.Deep.Problem != nil {
 		return nil, ""
 	}
-	var runID, status, started, ended, mode, summary string
-	err = q.QueryRowContext(ctx, `SELECT r.id, r.status, coalesce(r.started_at, ''), r.ended_at, x.mode, x.summary FROM exp_scan x JOIN core_run r ON r.id = x.run_id
-		WHERE x.target_id = ? AND r.ended_at IS NOT NULL ORDER BY r.ended_at DESC, r.started_at DESC LIMIT 1`, it.ID).Scan(&runID, &status, &started, &ended, &mode, &summary)
+	var runID, status, started, ended, mode, summary, by string
+	err = q.QueryRowContext(ctx, `SELECT r.id, r.status, coalesce(r.started_at, ''), r.ended_at, x.mode, x.summary, r.requested_by FROM exp_scan x JOIN core_run r ON r.id = x.run_id
+		WHERE x.target_id = ? AND r.ended_at IS NOT NULL ORDER BY r.ended_at DESC, r.started_at DESC LIMIT 1`, it.ID).Scan(&runID, &status, &started, &ended, &mode, &summary, &by)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, "no finished scan of the address"
@@ -123,10 +125,11 @@ func (s *Service) reuseFor(ctx context.Context, st, stD ScanTarget, a deepAddr) 
 	}
 	// The IP target's terms and settings as that run had them: a change since (a group turned on, fewer ports skipped) is never reused.
 	var setAt, termsAt string
+	var termsDisruptive bool
 	if err := q.QueryRowContext(ctx, `SELECT updated_at FROM exp_deep_setting WHERE target_id = ?`, it.ID).Scan(&setAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, "its settings could not be read"
 	}
-	if err := q.QueryRowContext(ctx, `SELECT at FROM exp_consent WHERE target_id = ? AND kind = 'terms'`, it.ID).Scan(&termsAt); err != nil {
+	if err := q.QueryRowContext(ctx, `SELECT at, disruptive IS 1 FROM exp_consent WHERE target_id = ? AND kind = 'terms'`, it.ID).Scan(&termsAt, &termsDisruptive); err != nil {
 		return nil, "its testing terms are not accepted now"
 	}
 	if setAt >= started || termsAt >= started {
@@ -148,6 +151,13 @@ func (s *Service) reuseFor(ctx context.Context, st, stD ScanTarget, a deepAddr) 
 		return nil, "its services could not be read"
 	}
 	open := len(src.services) > 0
+	had := map[int]bool{}
+	for _, r := range src.services {
+		had[r.Port] = true
+	}
+	if slices.ContainsFunc(seen, func(p PortRow) bool { return !p.Unchecked && !stD.Skips(p.Port) && !had[p.Port] }) {
+		return nil, "this scan found an open port there that its deep scan did not see" // the address changed since: scan it
+	}
 	switch svc := steps[stepNameServiceDeep]; {
 	case steps[stepNamePortsDeep] != corerun.Done:
 		return nil, "its port scan did not run"
@@ -187,12 +197,40 @@ func (s *Service) reuseFor(ctx context.Context, st, stD ScanTarget, a deepAddr) 
 		in.reused = true
 		src.issues = append(src.issues, in)
 	}
+	if why := reuseNarrower(stD, it.Deep, termsDisruptive && by != SystemUser, src.issues); why != "" {
+		return nil, why
+	}
 	if why, err := s.reuseKeepsRows(ctx, q, st.ID, src, reported, stD); err != nil {
 		return nil, "the domain's rows could not be read"
 	} else if why != "" {
 		return nil, why
 	}
 	return src, ""
+}
+
+// disruptiveGroups are the groups of nmap's disruptive scripts, and of OpenVAS's brute force, default accounts and denial-of-service
+// families (levelOf).
+const disruptiveGroups = GroupDoS | GroupLogins | GroupChange
+
+// reuseNarrower says "" when no finding a reuse would take (ins) can come from a check the domain's step stD would not run: a reuse
+// never reports what the domain's own terms and settings would not have found. The source's full sweep ran nmap's scripts of its
+// target's settings' groups (d, unchanged since it started); its OpenVAS config and disruptive scripts followed the disruptive groups
+// of its run, at most those same groups and only with the disruptive terms on a run a person started (disruptive). A finding does not
+// say which group's check found it, so one such finding is enough to scan the address instead.
+func reuseNarrower(stD ScanTarget, d DeepSettings, disruptive bool, ins []issueIn) string {
+	sweep, ran := d.Groups()&disruptiveGroups, Groups(0)
+	if disruptive {
+		ran = sweep
+	}
+	for _, in := range ins {
+		switch {
+		case in.engine == EngineSurface && strings.HasPrefix(in.key, keyScript) && sweep&^stD.Groups != 0:
+			return "its deep scan ran nmap's scripts of a group this scan has turned off"
+		case (in.engine == EngineOpenVAS || strings.HasPrefix(in.key, keyScriptDisruptive)) && ran&^modeGroups(stD.Mode) != 0:
+			return "its deep scan ran disruptive checks this scan does not run"
+		}
+	}
+	return ""
 }
 
 // scopeCovers says "" when the settings a source run used (sum, with its target's settings d, unchanged since) allowed at least what

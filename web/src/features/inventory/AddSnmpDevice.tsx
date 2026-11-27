@@ -1,8 +1,9 @@
-import { useState, type RefObject } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { Notice } from '@/components/common/PageHeader'
 import { Field, Input } from '@/components/ui/input'
 import { api, ApiError } from '@/lib/api'
@@ -33,11 +34,14 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
   const [error, setError] = useState<string | null>(null)
   const [dup, setDup] = useState<{ id: string; name: string } | null>(null)
   const [created, setCreated] = useState<{ id: string; name: string } | null>(null)
+  const [adopt, setAdopt] = useState<{ id: string; name: string } | null>(null) // the device that already has this address: SNMP goes on it
+  const adoptRef = useRef<{ id: string; name: string } | null>(null)
+  const adoptDevice = (d: { id: string; name: string } | null) => { adoptRef.current = d; setAdopt(d) }
   const [saving, setSaving] = useState(false)
   const address = ip.trim()
 
   const precheck = () => {
-    if (created) return true
+    if (created || adoptRef.current) return true
     const bad = !address ? t('addDialog.snmp.needAddress') : !IPV4_RE_UI.test(address) ? t('add.ipBad') : null
     const noProduct = product ? null : t('addDialog.snmp.needProduct')
     setIpErr(bad)
@@ -49,7 +53,7 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
     setError(null); setDup(null)
     setSaving(true)
     try {
-      let target = created
+      let target = created ?? adoptRef.current
       if (!target) {
         try {
           const r = await addDevice.mutateAsync({ ...productFields(product!), name: name.trim() || undefined, ip: address })
@@ -73,7 +77,12 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
     }
   }
 
-  const lead = created ? (
+  const lead = adopt ? (
+    <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.dupUsing', { name: adopt.name, ip: address })}
+      actions={<Button size="sm" onClick={() => adoptDevice(null)}>{t('common:cancel')}</Button>}>
+      {t('addDialog.snmp.dupUsingBody')}
+    </Notice>
+  ) : created ? (
     <Notice tone="warn" role="status" className="mb-0" title={t('addDialog.snmp.addedNotSet', { name: created.name })}
       actions={<Link to={`/devices/${encodeURIComponent(created.id)}`} onClick={onDone} className="text-sm text-accent underline-offset-4 hover:underline">{t('addDialog.snmp.openDevice')}</Link>}>
       {t('addDialog.snmp.addedNotSetBody')}
@@ -82,7 +91,7 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
     <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label={t('addDialog.snmp.address')} htmlFor="add-snmp-ip" hint={t('addDialog.snmp.addressHint')} error={ipErr ?? undefined}>
-          <Input id="add-snmp-ip" inputMode="decimal" value={ip} onChange={(e) => { setIp(e.target.value); setIpErr(null) }} placeholder="192.168.10.1" />
+          <Input id="add-snmp-ip" inputMode="decimal" value={ip} onChange={(e) => { setIp(e.target.value); setIpErr(null); setDup(null); setError(null) }} placeholder="192.168.10.1" />
         </Field>
         <Field label={t('add.name')} htmlFor="add-snmp-name" hint={t('add.nameHint')}>
           <Input id="add-snmp-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={64} />
@@ -92,8 +101,15 @@ export function AddSnmpDevice({ onDone, listOpenRef }: { onDone: () => void; lis
         <ProductPicker value={product} onChange={(p) => { setProduct(p); setProductErr(null) }} label={t('addDialog.snmp.product')} listOpenRef={listOpenRef} />
         {productErr ? <p className="text-meta text-danger">{productErr}</p> : <p className="text-meta text-muted">{t('addDialog.snmp.productHint')}</p>}
       </div>
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error}
-        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
+      {error ? (dup ? (
+        <Notice tone="danger" role="alert" className="mb-0" title={t('addDialog.snmp.dupTitle', { ip: address, name: dup.name })}
+          actions={<>
+            <Button size="sm" variant="primary" onClick={(e) => { adoptDevice(dup); setError(null); const f = e.currentTarget.closest('form'); queueMicrotask(() => f?.requestSubmit()) }}>{t('addDialog.snmp.dupTurnOn')}</Button>
+            <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="inline-flex items-center text-sm text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link>
+          </>}>
+          {t('addDialog.snmp.dupBody')}
+        </Notice>
+      ) : <Notice tone="danger" role="alert" className="mb-0" title={error} />) : null}
     </>
   )
   return (

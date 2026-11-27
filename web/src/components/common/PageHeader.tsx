@@ -1,4 +1,4 @@
-import { useContext, type ReactNode, type Ref } from 'react'
+import { useContext, useEffect, useRef, type ReactNode, type Ref } from 'react'
 import { cn } from '@/lib/utils'
 import { InfoTip } from './InfoTip'
 import { StoryTag } from './StoryTag'
@@ -107,8 +107,14 @@ const NOTICE = {
 export function Notice({ tone, title, children, info, actions, role, className, ref, id, ...rest }: {
   tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; info?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status' | 'note'; className?: string; 'data-testid'?: string; ref?: Ref<HTMLDivElement>; id?: string
 }) {
+  // An error that appears inside a dialog is brought into view (a long form hides it above or below the button just pressed).
+  const own = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = own.current
+    if (role === 'alert' && el?.closest('[role="dialog"]')) el.scrollIntoView?.({ block: 'nearest' })
+  }, [role, title])
   return (
-    <div ref={ref} id={id} role={role} data-testid={rest['data-testid']} className={cn('mb-5 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center', NOTICE[tone], className)}>
+    <div ref={(el) => { own.current = el; if (typeof ref === 'function') ref(el); else if (ref) (ref as { current: HTMLDivElement | null }).current = el }} id={id} role={role} data-testid={rest['data-testid']} className={cn('mb-5 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center', NOTICE[tone], className)}>
       <div className="grid min-w-0 gap-1">
         <div className="flex items-center gap-1">
           <p className={tone === 'danger' ? 'font-medium text-danger' : 'font-medium'}>{title}</p>

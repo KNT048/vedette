@@ -751,7 +751,7 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 	}
 	var ports []int
 	if ip, perr := netip.ParseAddr(st.Value); gb && st.Kind == KindIP && perr == nil {
-		ports = gbPorts(c.Ports, ip)
+		ports = gbPorts(c.Ports, ip, st.SkipPorts)
 		if l := gbPortsLine(ports); l != "" { // no open port to check: OpenVAS is not started at all
 			gb, line = false, l
 		}

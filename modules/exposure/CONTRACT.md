@@ -239,7 +239,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   cannot judge runs, and the step says how many); nmap's disruptive scripts run only with all three disruptive groups on (one list
   until nmapargv splits it); ZAP's active pass is skipped with `web_active` off, and its disruptive rules need `dos` and
   `data_change` (the host cannot split them yet); with paths to skip ZAP runs only through a scanner that leaves them out
-  (`PathExcluder`), else not at all; OpenVAS is skipped with `openvas` off. A skipped port is not observed (INV-45): it is dropped
+  (`PathExcluder`), else not at all; OpenVAS is skipped with `openvas` off, and its scan config follows the mask of the disruptive
+  groups (`levelFor`: the Brute force and Default Accounts families and their two checkboxes with `logins`, the Denial of Service
+  family with `dos`, each family read back by itself; `safe_checks` off only when `dos` and `data_change` are both allowed, since it
+  gates both: with one of them off the run says both are narrowed for OpenVAS); the gentle speed runs its task with `max_checks` 2 and
+  `max_hosts` 1, and its port list leaves out the ports to skip. A skipped port is not observed (INV-45): it is dropped
   from what the runner and the sweep report, gets no engine, liveness check or re-check, and its stored row keeps its state and
   issues (`dropSkipped`, `observation`). The check step names the settings a run used and `exp_scan.summary` (`settings`) keeps
   them; every group or step the settings removed says "Turned off in this target's settings." A value the box cannot read narrows: a

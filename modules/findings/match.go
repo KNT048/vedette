@@ -1119,7 +1119,7 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) {
+	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}

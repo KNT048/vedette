@@ -1019,7 +1019,7 @@ export const handlers = [
       ok = t.txt_ok || checks >= 2 || !!cover
       message = ok
         ? (cover ? `Found the TXT record of ${cover} on ${cover}: it proves ${cover} and every name under it, ${t.value} included.` : `Found the TXT record vedette-verify=${t.token} on ${t.value}.`)
-        : `No TXT record vedette-verify=${t.token} was found. Vedette asked ${t.value}, _vedette-verify.${t.value}. ${t.value}: no TXT record. _vedette-verify.${t.value}: no TXT record. DNS usually updates within minutes and can take up to 72 hours. Check again later, and make sure the value was pasted without extra quotes and that the Name field is the host shown (some providers append the domain automatically).`
+        : `No TXT record vedette-verify=${t.token} was found. Vedette asked ${t.value}, _vedette-verify.${t.value}. ${t.value}: no TXT record. _vedette-verify.${t.value}: no TXT record. DNS usually updates within minutes and can take up to 72 hours, and a resolver may keep an older answer until the record's TTL runs out (often an hour). Check again later. If it still fails, make sure the Name field is the host shown (some providers append the domain automatically) and the value is exactly the one shown.`
       next = { ...t, checks, txt_ok: ok, last_check: { at, ok, message }, verified_at: ok ? (t.verified_at ?? at) : t.verified_at }
     } else if (t.typed) {
       // A typed IP: the token file, then reverse DNS. The mock finds the file from the second check on (the person has to place it first).

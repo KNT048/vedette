@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"unicode"
@@ -142,6 +143,9 @@ type proof struct {
 	reused bool
 	// failure says, when nothing was found, which names were asked and what came back (cleaned, bounded).
 	failure string
+	// authoritative: the record was found at the zone's own name servers while the box's resolver still answered an older,
+	// cached answer without it.
+	authoritative bool
 }
 
 // answer is one TXT lookup.
@@ -163,6 +167,17 @@ func (p proofResolver) LookupCNAME(ctx context.Context, name string) (string, er
 		return c.LookupCNAME(ctx, name)
 	}
 	return "", errors.New("exposure: the resolver cannot look up CNAMEs")
+}
+
+// errNoAuthority: the resolver cannot ask a zone's own name servers, so only its own answer counts.
+var errNoAuthority = errors.New("exposure: the resolver cannot ask the zone's name servers")
+
+// AuthTXT asks the zone's own name servers when the resolver is a domainfence.Authority (production's, domainfence.SystemResolver).
+func (p proofResolver) AuthTXT(ctx context.Context, name string) (domainfence.AuthAnswer, error) {
+	if a, ok := p.r.(domainfence.Authority); ok {
+		return a.AuthTXT(ctx, name)
+	}
+	return domainfence.AuthAnswer{}, errNoAuthority
 }
 
 // candidate is a record that would prove the checked target: a token (the checked target's own, or a parent target's) on a name of
@@ -202,12 +217,20 @@ func reuseCands(t Target, chain []string, all []Target) []candidate {
 }
 
 // memoResolver is the box's resolver for the lookups of one check: the same name asked for several tokens (the checked
-// target's and each other target's at the same name) is looked up once, the answer shared.
+// target's and each other target's at the same name) is looked up once, the answer shared; so is the question to the zone's own
+// name servers.
 type memoResolver struct {
 	r     proofResolver
 	mu    sync.Mutex
 	txt   map[string]*memoTXT
 	cname map[string]*memoCNAME
+	auth  map[string]*memoAuth
+}
+
+type memoAuth struct {
+	once sync.Once
+	ans  domainfence.AuthAnswer
+	err  error
 }
 
 type memoTXT struct {
@@ -223,7 +246,7 @@ type memoCNAME struct {
 }
 
 func newMemoResolver(r Resolver) *memoResolver {
-	return &memoResolver{r: proofResolver{r}, txt: map[string]*memoTXT{}, cname: map[string]*memoCNAME{}}
+	return &memoResolver{r: proofResolver{r}, txt: map[string]*memoTXT{}, cname: map[string]*memoCNAME{}, auth: map[string]*memoAuth{}}
 }
 
 func (m *memoResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
@@ -236,6 +259,18 @@ func (m *memoResolver) LookupTXT(ctx context.Context, name string) ([]string, er
 	m.mu.Unlock()
 	e.once.Do(func() { e.vals, e.err = m.r.LookupTXT(ctx, name) })
 	return e.vals, e.err
+}
+
+func (m *memoResolver) AuthTXT(ctx context.Context, name string) (domainfence.AuthAnswer, error) {
+	m.mu.Lock()
+	e, ok := m.auth[name]
+	if !ok {
+		e = &memoAuth{}
+		m.auth[name] = e
+	}
+	m.mu.Unlock()
+	e.once.Do(func() { e.ans, e.err = m.r.AuthTXT(ctx, name) })
+	return e.ans, e.err
 }
 
 func (m *memoResolver) LookupCNAME(ctx context.Context, name string) (string, error) {
@@ -298,7 +333,7 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			continue
 		}
 		cancel()
-		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID, reused: c.reused}
+		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID, reused: c.reused, authoritative: c.got.Authoritative}
 		if !p.own {
 			p.via = c.t.Value
 		}
@@ -404,6 +439,7 @@ func (s *Service) whyNot(ctx context.Context, memo *memoResolver, t Target, cand
 			b.WriteString("Not counted: " + cleanDNS(c.got.Detail, 200) + ". ")
 		}
 	}
+	b.WriteString(zoneServersText(cands))
 	var above, viaRecords []string
 	for _, c := range cands {
 		switch {
@@ -428,6 +464,32 @@ func (s *Service) whyNot(ctx context.Context, memo *memoResolver, t Target, cand
 		fmt.Fprintf(&b, "The box's %s would cover it only with its own record on that name itself (or %s before it); there is none there now. ", strings.Join(above, " and "), verifyLabel)
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// maxServersShown bounds the zone's name servers a message names.
+const maxServersShown = 4
+
+// zoneServersText says what the zone's own name servers answered when the box's resolver proved nothing: some of them serve a
+// record that would prove it and some not yet (a provider still copying the change), or they were asked and do not serve one. ""
+// when they were not asked or did not answer (a resolver that cannot ask them, port 53 blocked).
+func zoneServersText(cands []candidate) string {
+	var servers []string
+	propagating := false
+	for _, c := range cands {
+		propagating = propagating || c.got.Propagating
+		for _, s := range c.got.Servers {
+			if s = cleanDNS(s, 80); !slices.Contains(servers, s) && len(servers) < maxServersShown {
+				servers = append(servers, s)
+			}
+		}
+	}
+	switch {
+	case len(servers) == 0:
+		return ""
+	case propagating:
+		return fmt.Sprintf("Your DNS provider serves the record on some of the zone's name servers (%s asked) but not on all of them yet; providers usually update them all within minutes, so check again shortly. ", strings.Join(servers, ", "))
+	}
+	return fmt.Sprintf("The zone's own name servers (%s) were asked directly too, and they do not serve it either: the record is not in place at your DNS provider yet. ", strings.Join(servers, ", "))
 }
 
 // outcome is what one lookup gave, in words. own: the target's own name, whose CNAME is looked up to say why a record cannot sit
@@ -520,8 +582,17 @@ func reusedMessage(name, when string) string {
 	return fmt.Sprintf("Ownership already proven by the TXT record at %s (checked %s).", name, when)
 }
 
-// proofMessage is the check message of a found proof.
+// proofMessage is the check message of a found proof; one found at the zone's own name servers says why the resolver's answer
+// did not show it.
 func proofMessage(t Target, p proof, when string) string {
+	msg := proofText(t, p, when)
+	if p.authoritative {
+		msg += " Read from the zone's own name servers: this box's DNS resolver still has an older answer cached."
+	}
+	return msg
+}
+
+func proofText(t Target, p proof, when string) string {
 	switch {
 	case p.reused:
 		return reusedMessage(p.proven, when)

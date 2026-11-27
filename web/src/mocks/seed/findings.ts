@@ -1,7 +1,7 @@
 // 3 sample findings tied to real KEV CVEs. Fixed ids: f-1 (NAS, confirmed), f-2 (WordPress, suspected), f-3 (Windows Server 2016, suspected).
 // The findings module owns this file (it may add findings); other modules only read through findingsStore.
 import type { Finding } from '@/lib/types'
-import type { Basis, CveSeverity, EventKind, FindingEvent, FixKind, PossibleCheck, Reason, Resolution, UndecidedReason, Verified, Via, QuestionKind } from '@/features/findings/types'
+import type { AiIdentity, Basis, CveSeverity, EventKind, FindingEvent, FixKind, PossibleCheck, Reason, Resolution, UndecidedReason, Verified, Via, QuestionKind } from '@/features/findings/types'
 
 const D = (days: number, h = 0) => new Date(Date.now() - days * 864e5 - h * 36e5).toISOString()
 
@@ -68,6 +68,8 @@ export interface FindingRecord {
   events: FindingEvent[]
   /** A finding a person confirmed from an AI proposal: the AI's check it rests on. */
   ai_check?: PossibleCheck
+  /** A finding opened through the AI's identification of its software (no standard data names it). */
+  identity?: AiIdentity
 }
 
 /** A question only a person can answer (not a finding). */
@@ -117,6 +119,7 @@ export const SAMPLE_SEVERITY: Record<string, CveSeverity | null> = {
   'CVE-2024-49112': { band: 'critical', score: 9.8, version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H' },
   'CVE-2025-21418': { band: 'high', score: 7.8, version: '3.1', vector: 'CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H' },
   'CVE-2026-117730': { band: 'medium', score: 6.1, version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N' },
+  'CVE-2026-126041': { band: 'medium', score: 5.5, version: '3.1', vector: 'CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H' },
   'CVE-2026-109112': { band: 'medium', score: 4.3, version: '3.1', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N' },
 }
 
@@ -192,6 +195,11 @@ export function seedFindingRecords(): FindingRecord[] {
       reasons: [{ layer: 3, source: 'github-poc', name: 'GitHub', date: day(3), url: 'https://github.example.com/sample/java-poc', detail: '5 independent authors', due: null }] }, 5),
     open({ id: 'fv-pc01-java21-2', asset_id: 'a-pc01', cve: 'CVE-2026-117730', software: { id: 's-pc01-java21', name: 'Eclipse Temurin JDK 21', version: '21.0.7' }, verified: 'device', basis: 'device_version',
       fix: fixOf('eclipse:temurin-21', 'Java 21', 'update', '21.0.9'), layer: 5, reasons: [] }, 5),
+    // PC-ACCOUNTS-01: a program no standard data names; the customer's AI chose its product among the catalogue's, and the version is
+    // inside that product's affected range: suspected, never confirmed, since only the version is the device's word.
+    { ...open({ id: 'fv-pc01-ptracer-1', asset_id: 'a-pc01', cve: 'CVE-2026-126041', software: { id: 's-pc01-ptracer', name: 'Cisco Packet Tracer 8.2.1 64Bit', version: '8.2.1.118' },
+      verified: 'no', basis: 'device_version', fix: fixOf('cisco:packet_tracer', 'Cisco Packet Tracer', 'update', '8.2.2'), layer: 5, reasons: [] }, 2),
+      identity: { method: 'ai', title: 'Cisco Packet Tracer', vendor: 'cisco', product: 'packet_tracer', reason: 'The publisher is Cisco and the display name is Packet Tracer with its version.', model: 'gpt-5-mini' } },
 
     // Handled, each with who and how.
     handled({ id: 'fv-pc02-win-1', asset_id: 'a-pc02', cve: 'CVE-2025-21333', software: { id: 's-pc1', name: 'Windows', version: '11 Pro 23H2' }, verified: 'device', basis: 'device_version',

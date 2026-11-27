@@ -189,12 +189,12 @@
     },
     "autoRead": {
       "title": "Reading vendor advisories",
-      "intro": "After each match, the AI reads the vendor's advisory for possible findings Vedette cannot decide from its own data: exploited CVEs first, then the most severe.",
-      "info": "The box fetches the public advisory pages itself and sends the AI only the CVE, its public record, the product's vendor, name, version and release line, and the page text: never device names, addresses or users. The AI answers what the vendor states for the release line with the sentence it relied on; Vedette uses the answer only when it finds that sentence on the page. Affected opens a finding labelled \"Read by AI\" that you can reject; not affected settles a CVE only from the vendor's own page, and never an exploited one without a person.",
+      "intro": "After each match, the AI reads the vendor's advisory for possible findings Vedette cannot decide from its own data (exploited CVEs first, then the most severe), and chooses the product of installed software no standard data names among products of Vedette's own catalogue.",
+      "info": "The box fetches the public advisory pages itself and sends the AI only the CVE, its public record, the product's vendor, name, version and release line, and the page text: never device names, addresses or users. The AI answers what the vendor states for the release line with the sentence it relied on; Vedette uses the answer only when it finds that sentence on the page. Affected opens a finding labelled \"Read by AI\" that you can reject; not affected settles a CVE only from the vendor's own page, and never an exploited one without a person. To identify software, the AI receives the program's publisher, display name (with the names of your devices and accounts removed) and version, and up to 20 candidate products; a choice only opens findings, labelled \"Identified by AI\", and Not this product undoes it on every device.",
       "switch": "Read by itself after each match",
-      "switchHint": "Off: only Check with AI on the possible findings reads them.",
+      "switchHint": "Off: only Check with AI on the possible findings reads them, and software no standard data names stays unidentified.",
       "daily": "AI calls a day",
-      "dailyHint": "From 1 to 5,000; default 300. It also pauses with other background jobs at 80 % of the monthly budget.",
+      "dailyHint": "From 1 to 5,000; default 300. Identifying software counts here too. It also pauses with other background jobs at 80 % of the monthly budget.",
       "today": "Today: {{used}} of {{daily}} calls.",
       "err": "The number must be a whole number from 1 to 5,000."
     },

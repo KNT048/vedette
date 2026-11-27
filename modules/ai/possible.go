@@ -331,13 +331,15 @@ type AutoRead struct {
 	Paused bool
 }
 
-// AutoReadState reads how the automatic reading stands now.
+// AutoReadState reads how the automatic reading stands now. Its daily number counts the automatic identification of software too
+// (identity.go): both are background AI calls of explaining findings under one switch.
 func (s *Service) AutoReadState(ctx context.Context) AutoRead {
 	cfg := s.snap.Load().cfg
 	st := AutoRead{Auto: !cfg.AutoReadOff, Daily: cfg.dailyReads()}
 	start := store.FormatTS(s.meter.DayStart())
 	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM ai_activity WHERE job = ? AND trigger = 'system:schedule' AND ts >= ? AND
-		substr(summary, 1, ?) = ?`, string(JobExplainFinding), start, len(autoReadSummary), autoReadSummary).Scan(&st.Used); err != nil {
+		(substr(summary, 1, ?) = ? OR substr(summary, 1, ?) = ?)`, string(JobExplainFinding), start, len(autoReadSummary), autoReadSummary,
+		len(autoIdentifySummary), autoIdentifySummary).Scan(&st.Used); err != nil {
 		st.Used = st.Daily // a count that cannot be read holds the reading: never more reads than set
 	}
 	st.Left = max(0, st.Daily-st.Used)

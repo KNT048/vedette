@@ -162,3 +162,8 @@
 - **findings** (P-6, P-7, through `cmd/vedette/aipossible.go`): the answer's fields are what findings checks against the page it fetched and stores per release line; renaming a status or a bound breaks every reading. `AutoReadState` is the automatic reading's switch and budget (`PossibleChecker.Budget`): it decides whether the reading runs after a match pass and the cause `ai_budget`.
 - **web** (`features/ai/AiSettings.tsx` "Reading vendor advisories", `features/ai/contract.ts` `auto_read`, `daily_reads`, `reads_today`), PRIVACY.md flow 3 and Settings → Privacy, which say when the automatic reading sends public text and how to turn it off.
 - The daily count reads `ai_activity` rows by job, trigger and the summary prefix `autoReadSummary`: changing that summary resets the count of the day.
+
+## Modifying: `IdentifyProducts`, `IdentifyItem`, `IdentifyChoice`, `autoIdentifySummary`
+- **findings** (P-9, through `cmd/vedette/aipossible.go` `softwareIdentifier`): a choice is a candidate id findings offered, `none` or `unsure`; findings stores it per software name and lets only an offered id open findings. Renaming the choices or the schema breaks every stored identification.
+- The automatic identification shares the daily number of automatic reads: `AutoReadState` counts the summary prefixes `autoReadSummary` and `autoIdentifySummary`; changing either resets the count of the day.
+- PRIVACY.md flow 3 and Settings → Privacy say what an identification call sends (publisher, scrubbed display name, version, candidates) and how to turn it off (the same switch).

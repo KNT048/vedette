@@ -95994,8 +95994,8 @@ func (s *FindingsGetFindingsCoverageOKDecidedItem) SetNotAffected(val int) {
 type FindingsGetFindingsCoverageOKIdentityItem struct {
 	Lines int `json:"lines"`
 	// Stated: the source states the product (a CPE, a distribution package); catalogue: the product
-	// catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the
-	// catalogue is matched to it.
+	// catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI
+	// chose its product among the catalogue's; none: nothing in the catalogue is matched to it.
 	Method FindingsGetFindingsCoverageOKIdentityItemMethod `json:"method"`
 }
 
@@ -96020,14 +96020,15 @@ func (s *FindingsGetFindingsCoverageOKIdentityItem) SetMethod(val FindingsGetFin
 }
 
 // Stated: the source states the product (a CPE, a distribution package); catalogue: the product
-// catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the
-// catalogue is matched to it.
+// catalogue names it; record: its own name reaches a CVE record or NVD row; ai: the customer's AI
+// chose its product among the catalogue's; none: nothing in the catalogue is matched to it.
 type FindingsGetFindingsCoverageOKIdentityItemMethod string
 
 const (
 	FindingsGetFindingsCoverageOKIdentityItemMethodStated    FindingsGetFindingsCoverageOKIdentityItemMethod = "stated"
 	FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue FindingsGetFindingsCoverageOKIdentityItemMethod = "catalogue"
 	FindingsGetFindingsCoverageOKIdentityItemMethodRecord    FindingsGetFindingsCoverageOKIdentityItemMethod = "record"
+	FindingsGetFindingsCoverageOKIdentityItemMethodAi        FindingsGetFindingsCoverageOKIdentityItemMethod = "ai"
 	FindingsGetFindingsCoverageOKIdentityItemMethodNone      FindingsGetFindingsCoverageOKIdentityItemMethod = "none"
 )
 
@@ -96037,6 +96038,7 @@ func (FindingsGetFindingsCoverageOKIdentityItemMethod) AllValues() []FindingsGet
 		FindingsGetFindingsCoverageOKIdentityItemMethodStated,
 		FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue,
 		FindingsGetFindingsCoverageOKIdentityItemMethodRecord,
+		FindingsGetFindingsCoverageOKIdentityItemMethodAi,
 		FindingsGetFindingsCoverageOKIdentityItemMethodNone,
 	}
 }
@@ -96049,6 +96051,8 @@ func (s FindingsGetFindingsCoverageOKIdentityItemMethod) MarshalText() ([]byte, 
 	case FindingsGetFindingsCoverageOKIdentityItemMethodCatalogue:
 		return []byte(s), nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodRecord:
+		return []byte(s), nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodAi:
 		return []byte(s), nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
 		return []byte(s), nil
@@ -96068,6 +96072,9 @@ func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) UnmarshalText(data []b
 		return nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodRecord:
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodRecord
+		return nil
+	case FindingsGetFindingsCoverageOKIdentityItemMethodAi:
+		*s = FindingsGetFindingsCoverageOKIdentityItemMethodAi
 		return nil
 	case FindingsGetFindingsCoverageOKIdentityItemMethodNone:
 		*s = FindingsGetFindingsCoverageOKIdentityItemMethodNone
@@ -105824,6 +105831,9 @@ type FindingsGetFindingsIDViewOK struct {
 	// Null while open.
 	Handled NilFindingsGetFindingsIDViewOKHandled `json:"handled"`
 	ID      string                                `json:"id"`
+	// A finding opened through the AI's identification of its software: labelled "Identified by AI as ",
+	// with "Not this product". null for any other finding.
+	Identity NilFindingsGetFindingsIDViewOKIdentity `json:"identity"`
 	// The last match that still detected it.
 	LastSeen time.Time `json:"last_seen"`
 	// Null unless the finding is open again after a handling.
@@ -105885,6 +105895,11 @@ func (s *FindingsGetFindingsIDViewOK) GetHandled() NilFindingsGetFindingsIDViewO
 // GetID returns the value of ID.
 func (s *FindingsGetFindingsIDViewOK) GetID() string {
 	return s.ID
+}
+
+// GetIdentity returns the value of Identity.
+func (s *FindingsGetFindingsIDViewOK) GetIdentity() NilFindingsGetFindingsIDViewOKIdentity {
+	return s.Identity
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -105965,6 +105980,11 @@ func (s *FindingsGetFindingsIDViewOK) SetHandled(val NilFindingsGetFindingsIDVie
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsIDViewOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentity sets the value of Identity.
+func (s *FindingsGetFindingsIDViewOK) SetIdentity(val NilFindingsGetFindingsIDViewOKIdentity) {
+	s.Identity = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -108107,6 +108127,83 @@ func (s *FindingsGetFindingsIDViewOKHandledVia) UnmarshalText(data []byte) error
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// The software of the finding is named by no standard data; the customer's AI chose its product among
+// candidates the box generated from its own catalogue, and the version is inside that product's
+// affected range. A person can say "Not this product" (POST /findings/{id}/identity/reject).
+type FindingsGetFindingsIDViewOKIdentity struct {
+	Method string `json:"method"`
+	// The model that chose; "" when the choice is no longer stored.
+	Model string `json:"model"`
+	// The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's
+	// product key).
+	Product string `json:"product"`
+	// The AI's reason; "" when the choice is no longer stored.
+	Reason string `json:"reason"`
+	// The readable name of the catalogue product the AI chose ("Identified by AI as ").
+	Title  string `json:"title"`
+	Vendor string `json:"vendor"`
+}
+
+// GetMethod returns the value of Method.
+func (s *FindingsGetFindingsIDViewOKIdentity) GetMethod() string {
+	return s.Method
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsIDViewOKIdentity) GetModel() string {
+	return s.Model
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsIDViewOKIdentity) GetProduct() string {
+	return s.Product
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsIDViewOKIdentity) GetReason() string {
+	return s.Reason
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDViewOKIdentity) GetTitle() string {
+	return s.Title
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsGetFindingsIDViewOKIdentity) GetVendor() string {
+	return s.Vendor
+}
+
+// SetMethod sets the value of Method.
+func (s *FindingsGetFindingsIDViewOKIdentity) SetMethod(val string) {
+	s.Method = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsIDViewOKIdentity) SetModel(val string) {
+	s.Model = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsIDViewOKIdentity) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsIDViewOKIdentity) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDViewOKIdentity) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsGetFindingsIDViewOKIdentity) SetVendor(val string) {
+	s.Vendor = val
 }
 
 // An open finding that was handled before: the line that says why it is open again.
@@ -130470,6 +130567,20 @@ func (s *FindingsPostFindingsIDAppliedReqItem) UnmarshalText(data []byte) error 
 	}
 }
 
+type FindingsPostFindingsIDIdentityRejectOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *FindingsPostFindingsIDIdentityRejectOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *FindingsPostFindingsIDIdentityRejectOK) SetOk(val bool) {
+	s.Ok = val
+}
+
 // A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices
 // and the AI read the same fields.
 type FindingsPostFindingsIDReopenOK struct {
@@ -130487,6 +130598,9 @@ type FindingsPostFindingsIDReopenOK struct {
 	// Null while open.
 	Handled NilFindingsPostFindingsIDReopenOKHandled `json:"handled"`
 	ID      string                                   `json:"id"`
+	// A finding opened through the AI's identification of its software: labelled "Identified by AI as ",
+	// with "Not this product". null for any other finding.
+	Identity NilFindingsPostFindingsIDReopenOKIdentity `json:"identity"`
 	// The last match that still detected it.
 	LastSeen time.Time `json:"last_seen"`
 	// Null unless the finding is open again after a handling.
@@ -130548,6 +130662,11 @@ func (s *FindingsPostFindingsIDReopenOK) GetHandled() NilFindingsPostFindingsIDR
 // GetID returns the value of ID.
 func (s *FindingsPostFindingsIDReopenOK) GetID() string {
 	return s.ID
+}
+
+// GetIdentity returns the value of Identity.
+func (s *FindingsPostFindingsIDReopenOK) GetIdentity() NilFindingsPostFindingsIDReopenOKIdentity {
+	return s.Identity
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -130628,6 +130747,11 @@ func (s *FindingsPostFindingsIDReopenOK) SetHandled(val NilFindingsPostFindingsI
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDReopenOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentity sets the value of Identity.
+func (s *FindingsPostFindingsIDReopenOK) SetIdentity(val NilFindingsPostFindingsIDReopenOKIdentity) {
+	s.Identity = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -132772,6 +132896,83 @@ func (s *FindingsPostFindingsIDReopenOKHandledVia) UnmarshalText(data []byte) er
 	}
 }
 
+// The software of the finding is named by no standard data; the customer's AI chose its product among
+// candidates the box generated from its own catalogue, and the version is inside that product's
+// affected range. A person can say "Not this product" (POST /findings/{id}/identity/reject).
+type FindingsPostFindingsIDReopenOKIdentity struct {
+	Method string `json:"method"`
+	// The model that chose; "" when the choice is no longer stored.
+	Model string `json:"model"`
+	// The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's
+	// product key).
+	Product string `json:"product"`
+	// The AI's reason; "" when the choice is no longer stored.
+	Reason string `json:"reason"`
+	// The readable name of the catalogue product the AI chose ("Identified by AI as ").
+	Title  string `json:"title"`
+	Vendor string `json:"vendor"`
+}
+
+// GetMethod returns the value of Method.
+func (s *FindingsPostFindingsIDReopenOKIdentity) GetMethod() string {
+	return s.Method
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDReopenOKIdentity) GetModel() string {
+	return s.Model
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDReopenOKIdentity) GetProduct() string {
+	return s.Product
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsPostFindingsIDReopenOKIdentity) GetReason() string {
+	return s.Reason
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDReopenOKIdentity) GetTitle() string {
+	return s.Title
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDReopenOKIdentity) GetVendor() string {
+	return s.Vendor
+}
+
+// SetMethod sets the value of Method.
+func (s *FindingsPostFindingsIDReopenOKIdentity) SetMethod(val string) {
+	s.Method = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDReopenOKIdentity) SetModel(val string) {
+	s.Model = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDReopenOKIdentity) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsPostFindingsIDReopenOKIdentity) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDReopenOKIdentity) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDReopenOKIdentity) SetVendor(val string) {
+	s.Vendor = val
+}
+
 // An open finding that was handled before: the line that says why it is open again.
 type FindingsPostFindingsIDReopenOKReopened struct {
 	// Still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened.
@@ -133729,6 +133930,9 @@ type FindingsPostFindingsIDUnverifyOK struct {
 	// Null while open.
 	Handled NilFindingsPostFindingsIDUnverifyOKHandled `json:"handled"`
 	ID      string                                     `json:"id"`
+	// A finding opened through the AI's identification of its software: labelled "Identified by AI as ",
+	// with "Not this product". null for any other finding.
+	Identity NilFindingsPostFindingsIDUnverifyOKIdentity `json:"identity"`
 	// The last match that still detected it.
 	LastSeen time.Time `json:"last_seen"`
 	// Null unless the finding is open again after a handling.
@@ -133790,6 +133994,11 @@ func (s *FindingsPostFindingsIDUnverifyOK) GetHandled() NilFindingsPostFindingsI
 // GetID returns the value of ID.
 func (s *FindingsPostFindingsIDUnverifyOK) GetID() string {
 	return s.ID
+}
+
+// GetIdentity returns the value of Identity.
+func (s *FindingsPostFindingsIDUnverifyOK) GetIdentity() NilFindingsPostFindingsIDUnverifyOKIdentity {
+	return s.Identity
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -133870,6 +134079,11 @@ func (s *FindingsPostFindingsIDUnverifyOK) SetHandled(val NilFindingsPostFinding
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDUnverifyOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentity sets the value of Identity.
+func (s *FindingsPostFindingsIDUnverifyOK) SetIdentity(val NilFindingsPostFindingsIDUnverifyOKIdentity) {
+	s.Identity = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -136014,6 +136228,83 @@ func (s *FindingsPostFindingsIDUnverifyOKHandledVia) UnmarshalText(data []byte) 
 	}
 }
 
+// The software of the finding is named by no standard data; the customer's AI chose its product among
+// candidates the box generated from its own catalogue, and the version is inside that product's
+// affected range. A person can say "Not this product" (POST /findings/{id}/identity/reject).
+type FindingsPostFindingsIDUnverifyOKIdentity struct {
+	Method string `json:"method"`
+	// The model that chose; "" when the choice is no longer stored.
+	Model string `json:"model"`
+	// The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's
+	// product key).
+	Product string `json:"product"`
+	// The AI's reason; "" when the choice is no longer stored.
+	Reason string `json:"reason"`
+	// The readable name of the catalogue product the AI chose ("Identified by AI as ").
+	Title  string `json:"title"`
+	Vendor string `json:"vendor"`
+}
+
+// GetMethod returns the value of Method.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) GetMethod() string {
+	return s.Method
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) GetModel() string {
+	return s.Model
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) GetProduct() string {
+	return s.Product
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) GetReason() string {
+	return s.Reason
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) GetTitle() string {
+	return s.Title
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) GetVendor() string {
+	return s.Vendor
+}
+
+// SetMethod sets the value of Method.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) SetMethod(val string) {
+	s.Method = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) SetModel(val string) {
+	s.Model = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) SetVendor(val string) {
+	s.Vendor = val
+}
+
 // An open finding that was handled before: the line that says why it is open again.
 type FindingsPostFindingsIDUnverifyOKReopened struct {
 	// Still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened.
@@ -136957,6 +137248,9 @@ type FindingsPostFindingsIDVerifyOK struct {
 	// Null while open.
 	Handled NilFindingsPostFindingsIDVerifyOKHandled `json:"handled"`
 	ID      string                                   `json:"id"`
+	// A finding opened through the AI's identification of its software: labelled "Identified by AI as ",
+	// with "Not this product". null for any other finding.
+	Identity NilFindingsPostFindingsIDVerifyOKIdentity `json:"identity"`
 	// The last match that still detected it.
 	LastSeen time.Time `json:"last_seen"`
 	// Null unless the finding is open again after a handling.
@@ -137018,6 +137312,11 @@ func (s *FindingsPostFindingsIDVerifyOK) GetHandled() NilFindingsPostFindingsIDV
 // GetID returns the value of ID.
 func (s *FindingsPostFindingsIDVerifyOK) GetID() string {
 	return s.ID
+}
+
+// GetIdentity returns the value of Identity.
+func (s *FindingsPostFindingsIDVerifyOK) GetIdentity() NilFindingsPostFindingsIDVerifyOKIdentity {
+	return s.Identity
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -137098,6 +137397,11 @@ func (s *FindingsPostFindingsIDVerifyOK) SetHandled(val NilFindingsPostFindingsI
 // SetID sets the value of ID.
 func (s *FindingsPostFindingsIDVerifyOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentity sets the value of Identity.
+func (s *FindingsPostFindingsIDVerifyOK) SetIdentity(val NilFindingsPostFindingsIDVerifyOKIdentity) {
+	s.Identity = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -139240,6 +139544,83 @@ func (s *FindingsPostFindingsIDVerifyOKHandledVia) UnmarshalText(data []byte) er
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// The software of the finding is named by no standard data; the customer's AI chose its product among
+// candidates the box generated from its own catalogue, and the version is inside that product's
+// affected range. A person can say "Not this product" (POST /findings/{id}/identity/reject).
+type FindingsPostFindingsIDVerifyOKIdentity struct {
+	Method string `json:"method"`
+	// The model that chose; "" when the choice is no longer stored.
+	Model string `json:"model"`
+	// The catalogue product as the CVE data writes it (vendor and product of a CPE, or a CVE record's
+	// product key).
+	Product string `json:"product"`
+	// The AI's reason; "" when the choice is no longer stored.
+	Reason string `json:"reason"`
+	// The readable name of the catalogue product the AI chose ("Identified by AI as ").
+	Title  string `json:"title"`
+	Vendor string `json:"vendor"`
+}
+
+// GetMethod returns the value of Method.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) GetMethod() string {
+	return s.Method
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) GetModel() string {
+	return s.Model
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) GetProduct() string {
+	return s.Product
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) GetReason() string {
+	return s.Reason
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) GetTitle() string {
+	return s.Title
+}
+
+// GetVendor returns the value of Vendor.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) GetVendor() string {
+	return s.Vendor
+}
+
+// SetMethod sets the value of Method.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) SetMethod(val string) {
+	s.Method = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) SetModel(val string) {
+	s.Model = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *FindingsPostFindingsIDVerifyOKIdentity) SetVendor(val string) {
+	s.Vendor = val
 }
 
 // An open finding that was handled before: the line that says why it is open again.
@@ -196152,6 +196533,51 @@ func (o NilFindingsGetFindingsIDViewOKHandled) Or(d FindingsGetFindingsIDViewOKH
 	return d
 }
 
+// NewNilFindingsGetFindingsIDViewOKIdentity returns new NilFindingsGetFindingsIDViewOKIdentity with value set to v.
+func NewNilFindingsGetFindingsIDViewOKIdentity(v FindingsGetFindingsIDViewOKIdentity) NilFindingsGetFindingsIDViewOKIdentity {
+	return NilFindingsGetFindingsIDViewOKIdentity{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDViewOKIdentity is nullable FindingsGetFindingsIDViewOKIdentity.
+type NilFindingsGetFindingsIDViewOKIdentity struct {
+	Value FindingsGetFindingsIDViewOKIdentity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDViewOKIdentity) SetTo(v FindingsGetFindingsIDViewOKIdentity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDViewOKIdentity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDViewOKIdentity) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDViewOKIdentity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDViewOKIdentity) Get() (v FindingsGetFindingsIDViewOKIdentity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDViewOKIdentity) Or(d FindingsGetFindingsIDViewOKIdentity) FindingsGetFindingsIDViewOKIdentity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDViewOKReopened returns new NilFindingsGetFindingsIDViewOKReopened with value set to v.
 func NewNilFindingsGetFindingsIDViewOKReopened(v FindingsGetFindingsIDViewOKReopened) NilFindingsGetFindingsIDViewOKReopened {
 	return NilFindingsGetFindingsIDViewOKReopened{
@@ -198674,6 +199100,51 @@ func (o NilFindingsPostFindingsIDReopenOKHandled) Or(d FindingsPostFindingsIDReo
 	return d
 }
 
+// NewNilFindingsPostFindingsIDReopenOKIdentity returns new NilFindingsPostFindingsIDReopenOKIdentity with value set to v.
+func NewNilFindingsPostFindingsIDReopenOKIdentity(v FindingsPostFindingsIDReopenOKIdentity) NilFindingsPostFindingsIDReopenOKIdentity {
+	return NilFindingsPostFindingsIDReopenOKIdentity{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDReopenOKIdentity is nullable FindingsPostFindingsIDReopenOKIdentity.
+type NilFindingsPostFindingsIDReopenOKIdentity struct {
+	Value FindingsPostFindingsIDReopenOKIdentity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDReopenOKIdentity) SetTo(v FindingsPostFindingsIDReopenOKIdentity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDReopenOKIdentity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDReopenOKIdentity) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDReopenOKIdentity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDReopenOKIdentity) Get() (v FindingsPostFindingsIDReopenOKIdentity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDReopenOKIdentity) Or(d FindingsPostFindingsIDReopenOKIdentity) FindingsPostFindingsIDReopenOKIdentity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDReopenOKReopened returns new NilFindingsPostFindingsIDReopenOKReopened with value set to v.
 func NewNilFindingsPostFindingsIDReopenOKReopened(v FindingsPostFindingsIDReopenOKReopened) NilFindingsPostFindingsIDReopenOKReopened {
 	return NilFindingsPostFindingsIDReopenOKReopened{
@@ -199124,6 +199595,51 @@ func (o NilFindingsPostFindingsIDUnverifyOKHandled) Or(d FindingsPostFindingsIDU
 	return d
 }
 
+// NewNilFindingsPostFindingsIDUnverifyOKIdentity returns new NilFindingsPostFindingsIDUnverifyOKIdentity with value set to v.
+func NewNilFindingsPostFindingsIDUnverifyOKIdentity(v FindingsPostFindingsIDUnverifyOKIdentity) NilFindingsPostFindingsIDUnverifyOKIdentity {
+	return NilFindingsPostFindingsIDUnverifyOKIdentity{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnverifyOKIdentity is nullable FindingsPostFindingsIDUnverifyOKIdentity.
+type NilFindingsPostFindingsIDUnverifyOKIdentity struct {
+	Value FindingsPostFindingsIDUnverifyOKIdentity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnverifyOKIdentity) SetTo(v FindingsPostFindingsIDUnverifyOKIdentity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnverifyOKIdentity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnverifyOKIdentity) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnverifyOKIdentity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnverifyOKIdentity) Get() (v FindingsPostFindingsIDUnverifyOKIdentity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnverifyOKIdentity) Or(d FindingsPostFindingsIDUnverifyOKIdentity) FindingsPostFindingsIDUnverifyOKIdentity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDUnverifyOKReopened returns new NilFindingsPostFindingsIDUnverifyOKReopened with value set to v.
 func NewNilFindingsPostFindingsIDUnverifyOKReopened(v FindingsPostFindingsIDUnverifyOKReopened) NilFindingsPostFindingsIDUnverifyOKReopened {
 	return NilFindingsPostFindingsIDUnverifyOKReopened{
@@ -199568,6 +200084,51 @@ func (o NilFindingsPostFindingsIDVerifyOKHandled) Get() (v FindingsPostFindingsI
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDVerifyOKHandled) Or(d FindingsPostFindingsIDVerifyOKHandled) FindingsPostFindingsIDVerifyOKHandled {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDVerifyOKIdentity returns new NilFindingsPostFindingsIDVerifyOKIdentity with value set to v.
+func NewNilFindingsPostFindingsIDVerifyOKIdentity(v FindingsPostFindingsIDVerifyOKIdentity) NilFindingsPostFindingsIDVerifyOKIdentity {
+	return NilFindingsPostFindingsIDVerifyOKIdentity{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDVerifyOKIdentity is nullable FindingsPostFindingsIDVerifyOKIdentity.
+type NilFindingsPostFindingsIDVerifyOKIdentity struct {
+	Value FindingsPostFindingsIDVerifyOKIdentity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDVerifyOKIdentity) SetTo(v FindingsPostFindingsIDVerifyOKIdentity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDVerifyOKIdentity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDVerifyOKIdentity) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDVerifyOKIdentity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDVerifyOKIdentity) Get() (v FindingsPostFindingsIDVerifyOKIdentity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDVerifyOKIdentity) Or(d FindingsPostFindingsIDVerifyOKIdentity) FindingsPostFindingsIDVerifyOKIdentity {
 	if v, ok := o.Get(); ok {
 		return v
 	}

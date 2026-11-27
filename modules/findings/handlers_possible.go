@@ -121,3 +121,16 @@ func (h *FindingHandlers) FindingsPostFindingsPossibleChecksKeyReject(ctx contex
 	}
 	return &oas.FindingsPostFindingsPossibleChecksKeyRejectOK{Ok: true}, nil
 }
+
+// FindingsPostFindingsIDIdentityReject implements findings_post_findings_id_identity_reject: a person's "Not this product" on a finding
+// the AI's identification of its software opened.
+func (h *FindingHandlers) FindingsPostFindingsIDIdentityReject(ctx context.Context, params oas.FindingsPostFindingsIDIdentityRejectParams) (*oas.FindingsPostFindingsIDIdentityRejectOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if err := h.svc.RejectIdentity(ctx, params.ID, p.Email); err != nil {
+		return nil, ToAPIError(err)
+	}
+	return &oas.FindingsPostFindingsIDIdentityRejectOK{Ok: true}, nil
+}

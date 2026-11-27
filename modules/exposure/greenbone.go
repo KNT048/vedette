@@ -92,7 +92,7 @@ type KEVEntry struct {
 }
 
 // GreenboneRow is one result of Greenbone's report (contract.ts GreenboneResult): severity (CVSS 0.1 to 10), the test's name, the port
-// ("443/tcp", "general/tcp"; "" when it gave none that reads as one), QoD (70 to 100), the CVE ids the test names, Greenbone's advice
+// ("443/tcp", "general/tcp"; "" when it gave none that reads as one), QoD (70 to 100; an allowlisted configuration fact any), the CVE ids the test names, Greenbone's advice
 // (clipped) and the test's OID. IP is the scanned address.
 type GreenboneRow struct {
 	IP       string   `json:"ip"`
@@ -178,9 +178,10 @@ const (
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	// notGBNotOwn: the address is not the box's own proven IP (no sighting inside its days, or a typed IP without its scope), so
 	// OpenVAS, which has no fence of its own on the host, gets nothing (INV-13).
-	notGBNotOwn = "OpenVAS did not scan: this IP is not the box's own proven address (the box has not seen it as its address within the last 90 days, or it is a typed IP without its proof), so nothing was sent."
-	notGBNoLog  = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
-	notGBSlow   = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
+	notGBNotOwn      = "OpenVAS did not scan: this IP is not the box's own proven address (the box has not seen it as its address within the last 90 days, or it is a typed IP without its proof), so nothing was sent."
+	notGBNoLog       = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
+	notGBFactsUnread = "OpenVAS's configuration facts (password logins, TRACE, certificate and key exchange notes) could not be read this time; its other results are shown."
+	notGBSlow        = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
 	notGBPartial     = "OpenVAS was stopped after 90 minutes; these are the results it had found by then."
 	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
@@ -1025,7 +1026,8 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	g.mu.Lock()
 	poll, limit := g.poll, g.cap
 	g.mu.Unlock()
-	res, err := s.runGreenbone(ctx, limit, st, ip, ports, plog, poll)
+	fu := &factsUnread{}
+	res, err := s.runGreenbone(context.WithValue(ctx, factsUnreadKey{}, fu), limit, st, ip, ports, plog, poll)
 	rows, problems := res.rows, res.problems
 	var out gbOutcome
 	if len(problems) > 0 {
@@ -1086,11 +1088,19 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 			cves[id] = true
 		}
 	}
-	low := 0
+	// A configuration fact is read at any QoD (gmpFacts): it is counted on its own, so "QoD 70 or more" stays true of the rest.
+	low, facts := 0, 0
 	for _, r := range rows {
-		if r.Severity < GreenboneLowBelow {
+		switch {
+		case isFactOID(r.OID):
+			facts++
+		case r.Severity < GreenboneLowBelow:
 			low++
 		}
+	}
+	factText := ""
+	if facts > 0 {
+		factText = " and " + plural(facts, "configuration fact")
 	}
 	out.rows, out.state = rows, GBRunDone
 	how, text, audit := "scanned", "", "done"
@@ -1104,10 +1114,14 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 		how, out.state, text, audit = "partly scanned", GBRunEnded, notGBEnded+res.reason, "ended by OpenVAS"
 	}
 	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
-		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
-		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows), "result"), GreenboneMinQoD, len(rows)-low, plural(low, "hardening note"), plural(len(cves), "CVE")), maxLineText)}}
+		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s)%s, %s named.",
+		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows)-facts, "result"), GreenboneMinQoD, len(rows)-facts-low, plural(low, "hardening note"), factText,
+		plural(len(cves), "CVE")), maxLineText)}}
 	if text != "" {
 		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
+	}
+	if fu.failed.Load() {
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: notGBFactsUnread})
 	}
 	if len(rows) > maxGreenboneRows {
 		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("OpenVAS: only the %d highest-severity of %d results are kept.", maxGreenboneRows, len(rows))})
@@ -1513,7 +1527,7 @@ func cleanGreenboneRow(r GreenboneRow) (GreenboneRow, bool) {
 	}
 	r.CVEs = cves
 	r.Severity = float64(int(r.Severity*10+0.5)) / 10
-	if r.Name == "" || r.Severity <= 0 || r.Severity > 10 || r.QoD < GreenboneMinQoD || r.QoD > 100 {
+	if r.Name == "" || r.Severity <= 0 || r.Severity > 10 || (r.QoD < GreenboneMinQoD && !isFactOID(r.OID)) || r.QoD > 100 {
 		return GreenboneRow{}, false
 	}
 	return r, true

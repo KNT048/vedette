@@ -158,7 +158,7 @@ export const VulnRow = z.object({
   backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
   template: z.string().describe('Id of the safe template that ran for this CVE; "" when none ran'),
   template_result: z.enum(['', 'matched', 'no_match', 'error']).describe('What that template did: matched (basis becomes template), no_match (one check, never "not vulnerable") or error; "" when none ran'),
-  qod: z.number().int().optional().describe('Basis greenbone only: Greenbone\'s quality of detection, 70 to 100'),
+  qod: z.number().int().optional().describe('Basis greenbone only: Greenbone\'s quality of detection: 70 to 100 for a vulnerability, any value for a configuration fact'),
 })
 export const DeepSeverity = z.enum(['info', 'low', 'medium', 'high', 'critical', 'unknown'])
 export const TemplateRow = z.object({
@@ -185,11 +185,11 @@ export const WebFinding = z.object({
   software: z.array(WebSoftware).describe('versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules'),
 })
 
-// S-EXP-2 (INV-25): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
+// S-EXP-2 (INV-25): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70, plus a few configuration facts at any QoD.
 export const GreenboneResult = z.object({
   ip: z.string(), port: z.string().describe('"443/tcp", "general/tcp"; "" when Greenbone gave none'),
   severity: z.number().describe('CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an alert'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
-  qod: z.number().int().describe('Quality of detection, 70 to 100'), cves: z.array(z.string()).describe('CVE ids the test names'),
+  qod: z.number().int().describe('Quality of detection: 70 to 100 for a vulnerability, any value for a configuration fact'), cves: z.array(z.string()).describe('CVE ids the test names'),
   solution: z.string().describe('Greenbone\'s advice, plain text, clipped'), oid: z.string().describe('OID of the test; "" when not read'),
 })
 

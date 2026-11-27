@@ -270,15 +270,17 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4)', () => {
   })
 
   it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named', async () => {
-    aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 })) // the sample calls of this month add well under 1 %
+    // The sample calls of this month grow with the day of the month (up to about 100,000 tokens near its end), so the
+    // budget is large enough that they stay under 0.1 % on any day.
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 100_000_000 }))
     aiRunsStore.set([])
-    spend(8_500_000)
+    spend(85_000_000)
     const v = renderApp('/')
     expect(await screen.findByText("This month's AI budget is at 85 %")).toBeInTheDocument()
     expect(screen.getByText(/At 100 % every AI job .* stops until the budget renews on/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Raise the AI budget' })).toHaveAttribute('href', '/settings/ai#ai-cap')
     v.unmount()
-    spend(2_000_000)
+    spend(20_000_000)
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, monthly_budget: 100_000_000 } : p)))
     spend(90_000_000, 'Claude Sonnet')
     renderApp('/')

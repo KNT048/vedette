@@ -399,7 +399,7 @@
       "ready": "OpenVAS is ready. The next scan of an IP of this box uses it."
     },
     "loading": "OpenVAS is loading its vulnerability tests.",
-    "what": "It looks at your public IP from outside without logging in, with the OpenVAS \"Full and fast\" tests, only once that IP's testing terms are accepted (Ownership tab): every non-disruptive check, active ones included, with safe checks on; with the disruptive checks (part of the accepted testing terms, only in a scan a person starts), brute force, default accounts, denial of service and generic web application scanning too, with safe checks off (this can run up to the time cap).",
+    "what": "It looks at your public IP from outside without logging in, with the OpenVAS \"Full and fast\" tests, only once that IP's testing terms are accepted (Ownership tab): every non-disruptive check, active ones included, with safe checks on; with the disruptive checks (part of the accepted testing terms, only in a scan a person starts), brute force, default accounts and denial of service too, with safe checks off. OpenVAS's generic web fuzzing is off at every level: the web scan covers the web.",
     "apart": "Its results are shown in their own section of each scan. They never replace or hide what Vedette found by version, and finding nothing is not proof that nothing is affected.",
     "weekly": "While it is on, Vedette updates the OpenVAS feed once a week, never during a scan, and only with 60 GB free.",
     "offKeeps": "Turning it off stops its containers and keeps its images and data, so turning it on again does not download them again.",

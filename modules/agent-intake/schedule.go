@@ -19,8 +19,8 @@ type scheduleQuery struct {
 
 // programsQuery is the Windows package list with the versions the machine itself registers for what runs: each SQL Server
 // instance's PatchLevel, and each installed version of the .NET shared frameworks. The registry arms are first: a compound SELECT
-// takes its column names from the first, and their rows come before the list's. reg_key is the registry key of a registry row, ''
-// on a program.
+// takes its column names from the first, and their rows come before the list's. reg_key is the registry key of a registry row,
+// empty on a program.
 const programsQuery = `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS reg_key FROM registry r ` +
 	`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL%\Setup' AND r.name = 'PatchLevel' ` +
 	`UNION ALL SELECT '', r.name, '', '', r.key FROM registry r ` +

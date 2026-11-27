@@ -53,6 +53,18 @@ func TestRecordSystems_EntryLimitedToSystems(t *testing.T) {
 		t.Fatalf("CPEs %v, want %v", cpes, want)
 	}
 
+	// a record row that carries the CNA's own CPE names its system in that CPE's target_sw, unless the CPE already pins one
+	for _, tc := range []struct{ cpe, want string }{
+		{"cpe:2.3:a:example:text_editor:*:*:*:*:*:*:*:*", "cpe:2.3:a:example:text_editor:*:*:*:*:*:windows:*:*"},
+		{"cpe:2.3:a:example:text_editor:*:*:*:*:*:macos:*:*", "cpe:2.3:a:example:text_editor:*:*:*:*:*:macos:*:*"},
+	} {
+		r := Range{CVE: "CVE-2026-1000", Origin: OriginCNA, Part: "a", Vendor: "example", Product: "text_editor", CPE: tc.cpe,
+			EndExcl: "8.9.4", Platforms: []string{"windows"}}
+		if row, ok := r.MatchRow(); !ok || row.CPE != tc.want {
+			t.Errorf("record row with a CPE: %s (%v), want %s", row.CPE, ok, tc.want)
+		}
+	}
+
 	// a platform that is neither a processor nor a system (a model) still leaves the entry unread, and a scheme's product keeps its rule
 	if s, ok := recordSystems([]string{"Windows", "GW-400"}); ok || s != nil {
 		t.Errorf("a model beside a system: %v %v", s, ok)

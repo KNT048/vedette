@@ -16,17 +16,21 @@ import (
 // The reporting window (INV-34). The box reports, and its catalogue keeps, the CVEs published in the last windowDays days, and an older
 // CVE only while there is evidence that it is exploited in the wild: an exploited-list entry (the CISA list, VulnCheck KEV, a custom
 // list) or an exploited signal (a vendor or a research team says it is exploited), of any age. Old flaws on those lists are what
-// attackers use most, so they never age out. A public exploit (Exploit-DB, Metasploit, a proof of concept) keeps an older CVE only
-// while its source dates it inside the window: a new exploit of an old flaw renews its risk, an old one does not. The scan template
-// index gives no date (its first_seen is when this box first read it, the same day for every template on a new box), so it renews
-// nothing. An administrator may report CVEs of every age instead (core_setting windowSettingKey): the catalogue then keeps every CVE
-// NVD and the CVE Program publish.
+// attackers use most, so they never age out. A public exploit keeps an older CVE only while it appeared inside the window: a new exploit
+// of an old flaw renews its risk, an old one does not. Only a date that means the exploit appeared counts: Exploit-DB's publication day
+// and a proof of concept's repository date (datedSignalSources, first_seen). Metasploit's index dates a module by its last change
+// (mod_time), never by its arrival, and the scan template index gives no date at all (first_seen is the day this box first read it):
+// for those, the day this box first stored the entry (stored_at) counts, and only once the box has held entries of that source since
+// before the window. Before that, every entry is "new" to the box (a new box reads every index the same day). An administrator may
+// report CVEs of every age instead (core_setting windowSettingKey): the catalogue then keeps every CVE NVD and the CVE Program publish.
 
 // windowSettingKey is the core_setting row of the reporting window.
 const windowSettingKey = "feeds.cve_window"
 
-// undatedSignalSources are the signal sources whose first_seen is when this box first read the entry, not a date the source gives.
-var undatedSignalSources = []string{nucleiFeedID}
+// datedSignalSources are the public-exploit sources whose first_seen is the day the exploit appeared: Exploit-DB's date_published, a
+// proof of concept's repository creation (or the day it began to qualify). Any other source's first_seen is a change date (Metasploit's
+// mod_time) or this box's first read (the scan templates), never the exploit's arrival.
+var datedSignalSources = []string{exploitDBFeedID, pocGitHubFeedID}
 
 // windowSetting is the stored value of windowSettingKey.
 type windowSetting struct {
@@ -78,19 +82,29 @@ func saveWindow(ctx context.Context, tx *sql.Tx, everyAge bool, by string, now t
 // since is the window's start as an SQL literal: store.FormatTS writes digits and the separators "-:.TZ" only.
 func (w Window) since() string { return "'" + store.FormatTS(w.Cutoff) + "'" }
 
-// signalKeeps is the condition on a feeds_signal row (alias s) under which it keeps its CVE whatever the CVE's age.
-func (w Window) signalKeeps(s string) string {
-	if w.EveryAge {
-		return s + `.qualifies = 1`
+// keptSignalsSQL is the CVEs of the feeds_signal rows that keep their CVE whatever its age: a qualifying exploited signal; a qualifying
+// public exploit of a dated source whose first_seen is inside the window; a qualifying signal of another source that this box first
+// stored inside the window (stored_at) while it has held entries of that source since before it (the source's oldest stored_at). Every
+// qualifying signal while every age is reported. sources, when not empty, limits the rows to those sources (constants of this package).
+func (w Window) keptSignalsSQL(sources []string) string {
+	only := ""
+	if len(sources) > 0 {
+		only = ` AND s.source IN ('` + strings.Join(sources, `', '`) + `')`
 	}
-	return s + `.qualifies = 1 AND (` + s + `.kind = '` + SignalExploited + `' OR ` + s + `.first_seen >= ` + w.since() + ` AND ` + s +
-		`.source NOT IN ('` + strings.Join(undatedSignalSources, `', '`) + `'))`
+	if w.EveryAge {
+		return `SELECT s.cve FROM feeds_signal s WHERE s.qualifies = 1` + only
+	}
+	c, dated := w.since(), `('`+strings.Join(datedSignalSources, `', '`)+`')`
+	return `SELECT s.cve FROM feeds_signal s JOIN (SELECT source, min(stored_at) AS watched FROM feeds_signal GROUP BY source) b ON b.source = s.source
+WHERE s.qualifies = 1` + only + ` AND (s.kind = '` + SignalExploited + `'
+ OR s.source IN ` + dated + ` AND s.first_seen >= ` + c + `
+ OR s.source NOT IN ` + dated + ` AND s.stored_at >= ` + c + ` AND b.watched < ` + c + `)`
 }
 
 // keptSQL is the CVEs the window keeps whatever their publication day: an exploited-list entry, an exploited signal, a public exploit
-// dated inside the window (every qualifying signal while every age is reported). Pinned CVEs are added by the caller.
+// that appeared inside the window (keptSignalsSQL). Pinned CVEs are added by the caller.
 func (w Window) keptSQL() string {
-	return `SELECT cve FROM feeds_kev UNION SELECT s.cve FROM feeds_signal s WHERE ` + w.signalKeeps("s")
+	return `SELECT cve FROM feeds_kev UNION ` + w.keptSignalsSQL(nil)
 }
 
 // publicListedSQL is the kept CVEs a public source names: the CISA list, VulnCheck KEV and the kept signals of publicSignalSources (the
@@ -99,8 +113,7 @@ func (w Window) keptSQL() string {
 // signal a box builds from what it sees, or a finding's CVE is never asked for by ID. A CVE the window does not keep is not asked for:
 // it would be dropped again at once.
 func (w Window) publicListedSQL() string {
-	return missingKEVSQL + ` UNION SELECT s.cve FROM feeds_signal s WHERE ` + w.signalKeeps("s") + ` AND s.source IN ('` +
-		strings.Join(publicSignalSources, `', '`) + `')`
+	return missingKEVSQL + ` UNION ` + w.keptSignalsSQL(publicSignalSources)
 }
 
 // Window is the reporting window now.

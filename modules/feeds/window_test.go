@@ -29,12 +29,12 @@ func TestWindow_OldCVEsStayOnlyWithEvidenceOfExploitation(t *testing.T) {
 			cve, kind, source string
 			first             time.Time
 		}{
-			{"CVE-2019-0002", SignalExploited, msrcFeedID, old},              // the vendor said exploited, years ago
-			{"CVE-2019-0003", SignalPublicExploit, exploitDBFeedID, old},     // an exploit as old as the flaw
-			{"CVE-2019-0004", SignalPublicExploit, metasploitFeedID, recent}, // a new exploit of an old flaw
-			{"CVE-2019-0004", SignalPublicExploit, exploitDBFeedID, old},     // beside an old one
-			{"CVE-2019-0005", SignalPublicExploit, nucleiFeedID, now},        // a scan template, dated by this box
-			{"CVE-2019-0006", SignalPublicExploit, pocGitHubFeedID, recent},  // a proof of concept that does not qualify
+			{"CVE-2019-0002", SignalExploited, msrcFeedID, old},             // the vendor said exploited, years ago
+			{"CVE-2019-0003", SignalPublicExploit, exploitDBFeedID, old},    // an exploit as old as the flaw
+			{"CVE-2019-0004", SignalPublicExploit, pocGitHubFeedID, recent}, // a new proof of concept of an old flaw
+			{"CVE-2019-0004", SignalPublicExploit, exploitDBFeedID, old},    // beside an old one
+			{"CVE-2019-0005", SignalPublicExploit, nucleiFeedID, now},       // a scan template, dated by this box
+			{"CVE-2019-0006", SignalPublicExploit, pocGitHubFeedID, recent}, // a proof of concept that does not qualify
 		} {
 			if err := putSignal(t.Context(), tx, g.cve, g.kind, g.source, ts(g.first), ts(now), g.cve != "CVE-2019-0006", ""); err != nil {
 				return err
@@ -141,5 +141,51 @@ func TestWindow_SettingIsAdminsAuditedAndRematches(t *testing.T) {
 	if c, _, _ := e.do("PUT", "/feeds/window", "admin", `{"every_age":true}`); c != 200 || len(e.pub.named(EventRangesUpdated)) != 1 ||
 		count(t, e.db, `SELECT count(*) FROM core_audit WHERE action = 'feeds.report_window'`) != 1 {
 		t.Fatal("a save that changes nothing audited or re-matched")
+	}
+}
+
+// Only a date that means the exploit appeared renews an old CVE: Exploit-DB's publication day and a proof of concept's repository date
+// count; Metasploit's mod_time is the module's last change and never does, nor does the day this box first read a scan template. For a
+// source without such a date, the box's own first sight of the entry (stored_at) counts only once the box has held that source's
+// entries since before the window: on a box that read the source for the first time inside the window, every entry is "new".
+func TestWindow_OnlyADateThatMeansTheExploitAppearedRenews(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	now := epoch0
+	old, recent, longAgo := now.AddDate(-6, 0, 0), now.AddDate(0, -2, 0), now.AddDate(-2, 0, 0)
+	ts := func(t time.Time) string { return store.FormatTS(t) }
+	cves := []string{"CVE-2018-0101", "CVE-2018-0102", "CVE-2018-0103", "CVE-2018-0104", "CVE-2018-0105", "CVE-2018-0106"}
+	write(t, db, func(tx *sql.Tx) error {
+		var recs []NVDRecord
+		for _, c := range cves {
+			recs = append(recs, NVDRecord{CVE: c, Published: old, LastModified: now, Status: "Analyzed"})
+		}
+		_, err := writeNVDRecords(t.Context(), tx, recs, retention{all: true}, now) // the catalogue holds them (a pin, say)
+		return err
+	})
+	put := func(cve, source string, first, stored time.Time) {
+		write(t, db, func(tx *sql.Tx) error {
+			return putSignal(t.Context(), tx, cve, SignalPublicExploit, source, ts(first), ts(stored), true, "")
+		})
+	}
+	outside := func() []string {
+		got, err := s.OutsideWindow(t.Context(), cves, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return slices.Sorted(maps.Keys(got))
+	}
+	put("CVE-2018-0101", metasploitFeedID, recent, now) // a module changed two months ago: its mod_time
+	put("CVE-2018-0102", exploitDBFeedID, recent, now)  // an exploit published two months ago
+	put("CVE-2018-0103", nucleiFeedID, now, now)        // a template this box read today, its first read of the index
+	put("CVE-2018-0106", pocGitHubFeedID, recent, now)  // a proof of concept of two months ago
+	if got, want := outside(), []string{"CVE-2018-0101", "CVE-2018-0103", "CVE-2018-0104", "CVE-2018-0105"}; !slices.Equal(got, want) {
+		t.Fatalf("a box that reads the sources since today: outside %v, want %v", got, want)
+	}
+	// the box has read Metasploit and the templates for two years: an entry it first saw inside the window is new
+	put("CVE-2018-0104", metasploitFeedID, old, longAgo)
+	put("CVE-2018-0105", nucleiFeedID, longAgo, longAgo)
+	if got, want := outside(), []string{"CVE-2018-0104", "CVE-2018-0105"}; !slices.Equal(got, want) {
+		t.Fatalf("a box that has watched the sources for two years: outside %v, want %v", got, want)
 	}
 }

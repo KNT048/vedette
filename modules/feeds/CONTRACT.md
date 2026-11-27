@@ -85,8 +85,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 **Catalogue**
 - **INV-34** The reporting window (`window.go`). A CVE is inside it while it was published within 365 days, or has an exploited-list
   entry (the CISA list, VulnCheck KEV, a custom list), or a qualifying `exploited` signal (a vendor or a research team says it is
-  exploited) of any age, or a qualifying signal of another kind (a public exploit) its source dates within 365 days (`first_seen`; the
-  scan template index, whose `first_seen` is the day this box first read it, renews nothing: `undatedSignalSources`). An administrator
+  exploited) of any age, or a qualifying public exploit that appeared within 365 days. Only a date that means the exploit appeared
+  counts: `first_seen` of Exploit-DB (date_published) and PoC-in-GitHub (the repository's date) (`datedSignalSources`). Metasploit's
+  `first_seen` is a module's last change (mod_time) and the scan templates' is the day this box first read them: for those the day the
+  box first stored the entry (`stored_at`) counts, and only once the box has held entries of that source since before the window (its
+  oldest `stored_at`), so a box that first read an index inside the window renews nothing from it. `TestWindow_OnlyADateThatMeansTheExploitAppearedRenews`. An administrator
   may report CVEs of every age (`PUT /feeds/window`, core_setting `feeds.cve_window`, off by default, audited
   `feeds.report_window`): every CVE is then inside. The catalogue keeps the CVEs inside the window that NVD has not rejected, and the
   CVEs a finding pins (`Deps.Pins`): a pin keeps the CVE's data (its page, a finding's history, a report), never puts it inside the

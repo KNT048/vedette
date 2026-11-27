@@ -33,7 +33,7 @@ type AnsweredJS struct {
 	Answer   string         `json:"answer"`
 	By       string         `json:"by"`
 	At       string         `json:"at"`
-	Check    *CheckJS       `json:"check"` // the check of its evidence (a confirmed AI proposal, an advisory); nil when none
+	Check    *CheckJS       `json:"check"` // the check of its evidence stored by the time of the answer (a confirmed AI proposal, an advisory); nil when none
 }
 
 // AnsweredList is contract.ts AnsweredList.
@@ -102,7 +102,9 @@ func (s *Service) Answered(ctx context.Context, device string, p Page) (Answered
 				cve := x.CVE
 				it.CVE = &cve
 			}
-			if c, ok := checks[x.CheckKey]; ok && x.CheckKey != "" {
+			// only a check stored by the time of the answer: one made later (for another device sharing the evidence) was not
+			// what the person answered against
+			if c, ok := checks[x.CheckKey]; ok && x.CheckKey != "" && !c.CheckedAt.After(x.AnsweredAt) {
 				it.Check = checkJS(&c)
 			}
 			out.Items = append(out.Items, it)

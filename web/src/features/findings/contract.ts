@@ -437,7 +437,7 @@ export const AnsweredQuestion = z.object({
   answer: z.literal('not_affected'),
   by: z.string().describe('Who answered'),
   at: iso,
-  check: PossibleCheck.nullable().describe('The check of its evidence when one is stored: decided_by ai when the answer is a confirmed AI proposal (its pages and model); null when none'),
+  check: PossibleCheck.nullable().describe('The check of its evidence stored by the time of the answer (a later one, made for another device sharing the evidence, is not what the person answered): decided_by ai when the answer is a confirmed AI proposal (its pages and model); null when none'),
 }).describe('A question a person answered "not affected": no finding records it, so it is listed here and can be asked again')
 export const AnsweredList = z.object({
   items: z.array(AnsweredQuestion).describe('The newest answer first'),

@@ -94236,8 +94236,9 @@ type FindingsGetFindingsAnsweredOKItemsItem struct {
 	At     time.Time `json:"at"`
 	// Who answered.
 	By string `json:"by"`
-	// The check of its evidence when one is stored: decided_by ai when the answer is a confirmed AI
-	// proposal (its pages and model); null when none.
+	// The check of its evidence stored by the time of the answer (a later one, made for another device
+	// sharing the evidence, is not what the person answered): decided_by ai when the answer is a confirmed
+	// AI proposal (its pages and model); null when none.
 	Check  NilFindingsGetFindingsAnsweredOKItemsItemCheck `json:"check"`
 	Cve    NilString                                      `json:"cve"`
 	Cves   int                                            `json:"cves"`

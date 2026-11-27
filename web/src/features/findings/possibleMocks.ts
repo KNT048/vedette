@@ -46,10 +46,12 @@ function items(device?: string | null): Item[] {
 
 const checkable = (it: Item) => !!it.key && !it.check
 
-/** The stored check of a question about one CVE (the Answered list names a confirmed AI proposal by it); null when none. */
+/** The check of a question about one CVE stored by the time of its answer (the Answered list names a confirmed AI proposal by it);
+ *  null when none. */
 export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
   const key = q.cve ? checkKeyOf(q, q.cve) : ''
-  return key ? checks.get()[key] ?? null : null
+  const c = key ? checks.get()[key] ?? null : null
+  return c && (!q.answered || Date.parse(c.checked_at) <= Date.parse(q.answered.at)) ? c : null
 }
 
 export function possibleCounts(device?: string): PossibleCounts {

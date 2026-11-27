@@ -54559,7 +54559,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The check of its evidence when one is stored: decided_by ai when the answer is a confirmed AI proposal (its pages and model); null when none"
+                            "description": "The check of its evidence stored by the time of the answer (a later one, made for another device sharing the evidence, is not what the person answered): decided_by ai when the answer is a confirmed AI proposal (its pages and model); null when none"
                           }
                         },
                         "required": [

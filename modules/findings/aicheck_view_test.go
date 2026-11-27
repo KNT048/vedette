@@ -2,6 +2,7 @@ package findings
 
 import (
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
 )
@@ -91,5 +92,49 @@ func TestAIChecked_ViewAndAnsweredCarryTheCheck(t *testing.T) {
 	}
 	if seen != 2 {
 		t.Errorf("found %d of the 2 answered questions in the list", seen)
+	}
+}
+
+// A person's "not affected" answer given before any check of its evidence was stored does not carry a check made later (here for another
+// device that shares the evidence): the answer was not a confirmation of it, so the Answered list must not present it as one.
+func TestAIChecked_AnswerBeforeTheCheckCarriesNone(t *testing.T) {
+	t.Parallel()
+	e, _ := possibleWorld(t)
+	twin := e.inv.match["nas-01"]
+	twin.ID, twin.Name = "nas-02", "nas-02"
+	e.inv.match[twin.ID] = twin
+	e.inv.assets[twin.ID] = AssetView{ID: twin.ID, Name: twin.ID, Hostname: ptr(twin.ID), IP: "192.0.2.90", Kind: "server", Approved: true}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	items, err := e.svc.possibleItems(t.Context(), "nas-02")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var early Question
+	for _, it := range items {
+		if it.CVE == "CVE-2026-82002" {
+			early = it.Question
+		}
+	}
+	if early.ID == "" || early.CheckKey == "" || early.CheckKey != possibleByCVE(t, e)["CVE-2026-82002"].Question.CheckKey {
+		t.Fatalf("nas-02 has no question about CVE-2026-82002 sharing nas-01's evidence: %+v", early)
+	}
+	if _, err := e.svc.AnswerQuestion(t.Context(), early.ID, AnswerNotAffected, "not on this build", "ana@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	*e.clock = e.clock.Add(time.Hour)
+	runCheck(t, e) // checks nas-01's open question: the AI proposes "not affected" for the shared evidence
+	if it := possibleByCVE(t, e)["CVE-2026-82002"]; it.State != PossibleProposal {
+		t.Fatalf("nas-01 82002: %s, want a proposal", it.State)
+	}
+	list, err := e.svc.Answered(t.Context(), "nas-02", Page{Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range list.Items {
+		if x.ID == early.ID && x.Check != nil {
+			t.Errorf("an answer given before any check carries the later check %+v", x.Check)
+		}
 	}
 }

@@ -55407,7 +55407,7 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem struct {
 	Oid string `json:"oid"`
 	// "443/tcp", "general/tcp"; "" when Greenbone gave none.
 	Port string `json:"port"`
-	// Quality of detection, 70 to 100.
+	// Quality of detection: 70 to 100 for a vulnerability, any value for a configuration fact.
 	Qod int `json:"qod"`
 	// CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an
 	// alert.
@@ -57154,7 +57154,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	IP        string    `json:"ip"`
 	Name      string    `json:"name"`
 	Port      int       `json:"port"`
-	// Basis greenbone only: Greenbone's quality of detection, 70 to 100.
+	// Basis greenbone only: Greenbone's quality of detection: 70 to 100 for a vulnerability, any value for
+	// a configuration fact.
 	Qod        OptInt `json:"qod"`
 	Ransomware bool   `json:"ransomware"`
 	Summary    string `json:"summary"`

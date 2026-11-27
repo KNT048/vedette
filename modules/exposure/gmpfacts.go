@@ -29,9 +29,9 @@ var gmpFacts = []gmpFact{
 		title: "HTTP compression over TLS allows the BREACH attack",
 		fix:   "Turn off HTTP compression for pages that carry secrets or tokens, or mask CSRF tokens per response."},
 	{oid: "1.3.6.1.4.1.25623.1.0.153974", // Allowed HTTP Methods Enumeration
-		title: "The web server allows PUT, DELETE or TRACE",
-		fix:   "Allow only GET, HEAD and POST (and OPTIONS) in the web server or reverse proxy, and answer 405 to the rest.",
-		when:  regexp.MustCompile(`\b(PUT|DELETE|TRACE)\b`)},
+		title: "The web server allows TRACE",
+		fix:   "Disable the TRACE method (Apache: TraceEnable off; nginx: return 405 for TRACE; most reverse proxies: block it).",
+		when:  regexp.MustCompile(`\bTRACE\b`)},
 	{oid: "1.3.6.1.4.1.25623.1.0.103140", // Self-Signed Certificate
 		title: "The TLS certificate is self-signed",
 		fix:   "Install a certificate from a public certificate authority (for example Let's Encrypt)."},

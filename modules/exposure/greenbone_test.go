@@ -83,6 +83,8 @@ type fakeGVM struct {
 	ran         bool            // the task was served "Running" once: its progress is 50 from then on, -1 before
 	hangOnce    map[string]bool // commands not answered the first time they come
 	faf         []fakeFam       // the families "Full and fast" selects; nil is the short default list
+	factsReport string          // the get_reports answer to the facts-only request ("nvt=" in its filter); "" is report
+	factsFail   bool            // the facts-only request is answered with 400
 }
 
 // fakeFam is one family of the fake "Full and fast": how many of its max NVTs it selects, whether it is growing, and which NVTs
@@ -399,6 +401,14 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return ok(`<task id="bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"><name>x</name><status>` + st + `</status><progress>` + progress + `</progress></task>`)
 	case "get_reports":
+		if strings.Contains(body, "nvt=") {
+			if f.factsFail {
+				return `<get_reports_response status="400" status_text="Bogus"/>`
+			}
+			if f.factsReport != "" {
+				return strings.ReplaceAll(f.factsReport, ipA, f.lastHost)
+			}
+		}
 		if f.lastHost != "" {
 			return strings.ReplaceAll(f.report, ipA, f.lastHost)
 		}
@@ -1115,8 +1125,8 @@ func TestContract_INV25_Timeout(t *testing.T) {
 				}
 				h.gvm.mu.Lock()
 				reads, stops := 0, 0
-				for _, c := range h.gvm.cmds {
-					reads += map[bool]int{true: 1}[c == "get_reports"]
+				for i, c := range h.gvm.cmds {
+					reads += map[bool]int{true: 1}[c == "get_reports" && !strings.Contains(h.gvm.bodies[i], "nvt=")] // the facts read is a second request
 					stops += map[bool]int{true: 1}[c == "stop_task"]
 				}
 				h.gvm.mu.Unlock()

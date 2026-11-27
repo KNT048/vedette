@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -810,16 +811,62 @@ func (g *gmpConn) taskStatus(ctx context.Context, task string) (string, int, err
 	return st, p, nil
 }
 
-// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops): those with
-// QoD at least GreenboneMinQoD and severity above 0, and the allowlisted configuration facts (gmpFacts) at any level and QoD. The
-// report is asked for with every level and QoD and sorted out here, because gvmd filters by one QoD for all results.
+// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops) with QoD at
+// least GreenboneMinQoD, levels high, medium and low: the read, and its caps, that every scan has always had. The configuration
+// facts (gmpFacts) are read with a second request for their OIDs only, at any level and QoD, so the log notes of a big host never
+// count against the main read's size and result caps. The facts are best effort: a failure or cap on that read is told to the scan
+// (factsUnread) and never costs the main results.
 func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, error) {
 	r := &gmpReport{}
-	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=0 levels=hmlg apply_overrides=0 rows=-1 first=1 sort-reverse=severity"/>`, gmpMaxReport, r); err != nil {
+	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=`+
+		strconv.Itoa(GreenboneMinQoD)+` levels=hml apply_overrides=0 rows=-1 first=1 sort-reverse=severity"/>`, gmpMaxReport, r); err != nil {
 		return nil, err
 	}
 	rows, _, err := parseGMPReport(r, report, ip)
-	return rows, err
+	if err != nil {
+		return nil, err
+	}
+	facts, ferr := g.factRows(ctx, report, ip)
+	if ferr != nil {
+		if ctx.Err() != nil {
+			return rows, nil // the run is stopping: the caller sees it
+		}
+		markFactsUnread(ctx)
+		return rows, nil
+	}
+	for _, f := range facts {
+		if !slices.ContainsFunc(rows, func(x GreenboneRow) bool { return x.OID == f.OID && x.Port == f.Port }) {
+			rows = append(rows, f)
+		}
+	}
+	return rows, nil
+}
+
+// factRows reads the allowlisted results of a report: only those NVTs (gvmd's result filter column nvt is the OID), any QoD, log
+// level included, kept only when their text states the fact.
+func (g *gmpConn) factRows(ctx context.Context, report, ip string) ([]GreenboneRow, error) {
+	terms := make([]string, len(gmpFacts))
+	for i, f := range gmpFacts {
+		terms[i] = "nvt=" + f.oid
+	}
+	r := &gmpReport{}
+	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="`+strings.Join(terms, " or ")+
+		` min_qod=0 levels=hmlg apply_overrides=0 rows=-1 first=1"/>`, gmpMaxReport, r); err != nil {
+		return nil, err
+	}
+	return parseGMPFacts(r, report, ip)
+}
+
+// factsUnread tells the scan that the second, facts-only read of a report failed. It travels in the context so the five places that
+// read a report need not carry it.
+type factsUnread struct{ failed atomic.Bool }
+
+type factsUnreadKey struct{}
+
+func markFactsUnread(ctx context.Context) {
+	if f, ok := ctx.Value(factsUnreadKey{}).(*factsUnread); ok {
+		f.failed.Store(true)
+	}
 }
 
 // cleanup stops (when running) and deletes the task with its report, the target and the port list (in that order: gvmd refuses to
@@ -1025,6 +1072,16 @@ var (
 // did) unless it is an allowlisted configuration fact (gmpFacts), which is kept as a Low row with its fix line. Text is plain, printable and clipped; a port that is not "22/tcp" or "general/tcp" is ""; CVE ids are checked, without
 // repeats, at most gmpMaxCVEs. It returns the rows and how many results the report held.
 func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error) {
+	return parseGMPResults(r, report, ip, false)
+}
+
+// parseGMPFacts is the rows of the allowlisted configuration facts of a report, and no other row.
+func parseGMPFacts(r *gmpReport, report, ip string) ([]GreenboneRow, error) {
+	rows, _, err := parseGMPResults(r, report, ip, true)
+	return rows, err
+}
+
+func parseGMPResults(r *gmpReport, report, ip string, factsOnly bool) ([]GreenboneRow, int, error) {
 	if len(r.Report) != 1 || r.Report[0].ID != report || r.Report[0].Inner.Results == nil {
 		return nil, 0, fmt.Errorf("%w: get_reports did not answer with the one report asked for", ErrGMPBad)
 	}
@@ -1057,7 +1114,7 @@ func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error
 			rows = append(rows, row)
 			continue
 		}
-		if qod < GreenboneMinQoD || sev <= 0 {
+		if factsOnly || qod < GreenboneMinQoD || sev <= 0 {
 			continue
 		}
 		name := plainText(x.NVT.Name, gmpMaxName)

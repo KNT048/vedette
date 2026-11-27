@@ -129,17 +129,43 @@ func TestOpenVASTuning_ConfigurationFactBecomesALowIssue(t *testing.T) {
 	}
 }
 
-// The report is asked for with every level and QoD, so the facts at the log level reach the parser.
-func TestOpenVASTuning_ReportIsReadAtEveryLevel(t *testing.T) {
+// The main report read is as it always was (QoD 70, high, medium, low), so its size and result caps behave as before; the facts are
+// a second request for the allowlisted OIDs only, at any QoD and level.
+func TestOpenVASTuning_FactsAreASecondRequest(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
 	e.enable()
 	e.scanIP(gbOpen())
 	h.gvm.mu.Lock()
 	defer h.gvm.mu.Unlock()
-	i := slices.IndexFunc(h.gvm.cmds, func(c string) bool { return c == "get_reports" })
-	if i < 0 || !strings.Contains(h.gvm.bodies[i], "levels=hmlg") {
-		t.Fatalf("get_reports bodies = %q", h.gvm.bodies)
+	var reads []string
+	for i, c := range h.gvm.cmds {
+		if c == "get_reports" {
+			reads = append(reads, h.gvm.bodies[i])
+		}
+	}
+	if len(reads) != 2 || !strings.Contains(reads[0], "min_qod=70 levels=hml ") || strings.Contains(reads[0], "nvt=") ||
+		!strings.Contains(reads[1], "nvt=1.3.6.1.4.1.25623.1.0.10267") || !strings.Contains(reads[1], "min_qod=0") || !strings.Contains(reads[1], "levels=hmlg") {
+		t.Fatalf("get_reports bodies = %q", reads)
+	}
+}
+
+// A fact read at the log level reaches the stored rows; a facts read that fails never loses the main results, and the step says so.
+func TestOpenVASTuning_FactsAreBestEffort(t *testing.T) {
+	t.Parallel()
+	fact := fxWrap(fxResult("SSH Server type and version", "1.3.6.1.4.1.25623.1.0.10267", "22/tcp", 0, 80, "Remote SSH supported authentication: password,publickey"))
+	for _, fail := range []bool{false, true} {
+		e, h := gbEnv(t)
+		e.enable()
+		h.gvm.with(func(g *fakeGVM) { g.factsReport, g.factsFail = fact, fail })
+		s := e.scanIP(gbOpen())
+		hasFact := slices.ContainsFunc(s.Greenbone, func(r GreenboneRow) bool { return r.OID == "1.3.6.1.4.1.25623.1.0.10267" })
+		noted := slices.ContainsFunc(notChecked(s), func(l string) bool {
+			return strings.Contains(l, "configuration facts") && strings.Contains(l, "could not be read")
+		})
+		if len(s.Greenbone) < 4 || hasFact == fail || noted != fail {
+			t.Errorf("facts failing=%v: rows %d, fact shown %v, noted %v, not checked %q", fail, len(s.Greenbone), hasFact, noted, notChecked(s))
+		}
 	}
 }
 
@@ -151,7 +177,7 @@ func TestOpenVASFactsHaveTitleAndFix(t *testing.T) {
 		"1.3.6.1.4.1.25623.1.0.10267":  "Remote SSH supported authentication: publickey,password",
 		"1.3.6.1.4.1.25623.1.0.117839": "The server offers diffie-hellman-group-exchange-sha256",
 		"1.3.6.1.4.1.25623.1.0.117414": "HTTP compression is enabled on /",
-		"1.3.6.1.4.1.25623.1.0.153974": "Supported methods: GET, HEAD, OPTIONS, PUT, TRACE",
+		"1.3.6.1.4.1.25623.1.0.153974": "Supported methods: GET, HEAD, OPTIONS, TRACE",
 		"1.3.6.1.4.1.25623.1.0.103140": "The certificate is self-signed",
 		"1.3.6.1.4.1.25623.1.0.103141": "The certificate subject does not match",
 		"1.3.6.1.4.1.25623.1.0.117764": "The certificate is not trusted",
@@ -184,13 +210,13 @@ func TestOpenVASFactsHaveTitleAndFix(t *testing.T) {
 	}
 }
 
-// A note of an NVT on the allowlist that does not state the fact is no issue: SSH with key logins only, methods without PUT, DELETE or
-// TRACE.
+// A note of an NVT on the allowlist that does not state the fact is no issue: SSH with key logins only, methods without TRACE (PUT and DELETE are normal on
+// an API).
 func TestOpenVASFactsNeedTheirDetectionText(t *testing.T) {
 	t.Parallel()
 	rows, _, err := readReport(fxWrap(
 		fxResult("SSH Server type and version", "1.3.6.1.4.1.25623.1.0.10267", "22/tcp", 0, 80, "Remote SSH supported authentication: publickey"),
-		fxResult("Allowed HTTP Methods Enumeration", "1.3.6.1.4.1.25623.1.0.153974", "80/tcp", 0, 70, "Supported methods: GET, HEAD, POST"),
+		fxResult("Allowed HTTP Methods Enumeration", "1.3.6.1.4.1.25623.1.0.153974", "80/tcp", 0, 70, "Supported methods: GET, HEAD, POST, PUT, DELETE"),
 	))
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("rows %+v, %v", rows, err)

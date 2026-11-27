@@ -96,9 +96,11 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 	}
 }
 
-// How each error of a reading call is sorted: refusals of the call are the item's, the AI unavailable or a budget stops the check, the
-// rest is the item's failure for a later run.
-func TestProposeError_SortsRefusalsStopsAndFailures(t *testing.T) {
+// How each error of a call of a background run (the reading of advisories, the identification of software) is sorted: refusals of the
+// call are its items' alone and the run goes on, the AI unavailable, a budget or the fuse stops the run, the rest is the call's failure
+// for a later run.
+func TestAICallError_SortsRefusalsStopsAndFailures(t *testing.T) {
+	t.Parallel()
 	refused, stop, other := "refused", "stop", "other"
 	for _, tc := range []struct {
 		err  error
@@ -115,7 +117,7 @@ func TestProposeError_SortsRefusalsStopsAndFailures(t *testing.T) {
 		{apierr.New(http.StatusGatewayTimeout, "ai_timeout", "slow"), other},
 		{errors.New("plain"), other},
 	} {
-		got := proposeError(tc.err)
+		got := aiCallError(tc.err)
 		var r *findings.ItemRefused
 		var s *findings.CheckStop
 		kind := other

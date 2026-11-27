@@ -53,6 +53,9 @@ type ServiceConfig struct {
 	// Checker reads a possible CVE's references and asks the AI (possiblecheck.go); nil: no check of possible findings (the AI module
 	// is off).
 	Checker PossibleChecker
+	// Identifier gives the AI's identification of software lines nothing else identifies its catalogue and its door to the AI
+	// (aiidentity.go); nil: no identification (the AI module is off).
+	Identifier Identifier
 }
 
 // Have is the scope of one device declared by "I have this" (INV-11): its software of KEV key Key that has no version
@@ -74,6 +77,8 @@ type Service struct {
 	stamps    stamps        // each device's match stamp of its last full match (matchstamp.go)
 	covers    covers        // each device's decision coverage of its last full match, and the last pass's sum (coverage.go)
 	check     checkState    // the one check of possible findings at a time (possiblecheck.go)
+	idCache   identityCache // fnd_identity as the match reads it (aiidentity.go)
+	ident     identityState // the one identification run at a time (aiidentity.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -85,7 +90,9 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{cfg: cfg, now: now}, nil
+	svc := &Service{cfg: cfg, now: now}
+	svc.cfg.Inventory = aiInventory{Inventory: cfg.Inventory, s: svc} // every match reads the AI's identifications (aiidentity.go)
+	return svc, nil
 }
 
 // publishTimeout bounds the delivery of the events of one committed change.

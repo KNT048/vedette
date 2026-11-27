@@ -70,6 +70,8 @@ const (
 	DataWeb      DataKind = "web"
 	DataDocument DataKind = "document"
 	DataTool     DataKind = "tool" // the result of a tool the model called
+	// DataInventory is what the box read about installed software (a program's publisher, name and version).
+	DataInventory DataKind = "inventory"
 	// DataMemory is what an administrator told the box about the network (INV-8). It is data, in a fenced block like the others, never
 	// part of the instructions.
 	DataMemory DataKind = "memory"

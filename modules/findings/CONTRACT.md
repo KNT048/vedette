@@ -13,6 +13,7 @@ the product reads findings from.
 |---|---|
 | `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/answered`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
 | `GET /findings?asset=` (one device), `GET /findings/{id}` (the finding page's evidence and "What to do", filled by mitigation) | viewer |
+| `POST /findings/{id}/identity/reject` (Not this product, P-9) | operator |
 | `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer`, `POST /findings/questions/ignore`, `POST /findings/questions/accept-risk` | operator |
 | `POST /findings/{id}/verify`, `POST /findings/{id}/unverify`, `GET /findings/coverage` | admin |
 
@@ -242,12 +243,48 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestLineReading_*`, `TestLineStatement_VerdictFor`.
 - **P-7 The reading runs by itself.** After each reconcile pass the box starts the automatic reading (`AutoRead`, actor `system`, at most
   200 evidence identities, exploited CVEs first, then the highest CVSS score) while a check can run, the AI settings have it on and its
-  reads for today are not used up (`PossibleChecker.Budget`); a person's check still runs as before. `TestAutoRead_RunsOnlyWhenSwitchedOn`.
+  reads for today are not used up (`PossibleChecker.Budget`); a person's check still runs as before. It runs only after the hourly
+  reconcile pass, not on its own timer. Only a real stop ends a run (`CheckStop`: the AI unavailable, the reading switched off, a budget
+  or the runaway fuse, the provider unreachable). A call refused for its own text or answer (`ItemRefused`: a hook, an answer outside the
+  schema or cut off) is that call's items alone: the run goes on with the next item, and the automatic reading leaves those items until
+  their retry time (a day), so one item that cannot be read is never first again at every run. Any other failed call does the same with
+  an hour's wait; `aiFailStreak` (3) such failures in a row, with no answer between, stop the run. A person's check reads held items at
+  once; an answer clears the hold (kept in memory only). `TestAutoRead_RunsOnlyWhenSwitchedOn`, `TestAutoRead_ARefusedItemDoesNotStopTheNext`,
+  `TestPossibleCheck_TheAIFailingInARowStopsTheRun`.
 - **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
   possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
   list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`).
   `TestPossibleCause_EveryPossibleRowHasOne`, `TestLineReading_CauseWithoutAIAndWithTheBudgetUsedUp`.
+- **P-9 The customer's AI identifies what no standard data names.** A software line with no CPE, no distribution package, no catalogue
+  alias and no CVE record that writes its names (coverage identity `none`), whose version the agent, SNMP or a person stated, is asked
+  about after a match pass (`AutoIdentify`, the same switch, readiness and daily reads as P-7, before the reading). The box generates up to
+  20 candidates itself (`identitycand.go`), only from products its own catalogue names (`Identifier.Products`: a range's CPE
+  vendor:product, a CVE record's product key, an exploited-list entry; nothing is fetched): the publisher and display name are cleaned
+  (legal-entity words, the line's version, version numbers, architecture, language and text in parentheses dropped, `IdentityKey`) and
+  ranked by the words they share with each product's vendor and name; the same cleaned name is only the first candidate, never a link.
+  A name no product shares a word with is not asked (it stays `none`). The AI answers by schema a candidate's id, `none` or `unsure`,
+  whether the program is that product itself (`exact`) or only a part of its family (`family`: an agent, a client, a plugin of it), with
+  a reason (at most 5 names a call, exploited-list candidates first); the box keeps a product only when it is one it offered and shares
+  a non-stopword with the name (`verifyChoices`; anything else is stored `unsure`; a product not said to be `exact` is `family`). A
+  `family` match is stored and counted (coverage identity `ai_family`) and opens nothing yet. One row per cleaned (publisher, name) in
+  `fnd_identity` serves every device. It is asked again (`askAgain`) only when the chosen product left the candidates, or, for `none` and
+  `unsure`, after 30 days, or after 7 days when a product it was not offered entered the top 5 (the top 5 are kept as short hashes); other
+  candidates coming and going ask nothing. A call that fails after it was sent (an answer outside the schema, the provider) makes its
+  names wait a day and the run goes on with the next names (a call a hook refused too); a budget, the runaway fuse, a missing profile
+  or an unreachable provider stops the run (the binary's `aiCallError`, the same rule as P-7). Every call that reached the
+  provider counts toward the daily number, and the identification may use at most half of it (ai INV-6d). The names sent
+  have the box's device and account names, email addresses and user folders replaced (`scrubber`, `Identifier.PrivateNames`). Effect
+  (`Software.AIProduct`, set by every `MatchInput` this service reads, `aiInventory`; `devMatch.aiGuard`): the chosen product only
+  opens. A version inside its ranges is a finding unless the line's own names decide the CVE; the finding's evidence carries the
+  identity (`Evidence.Identity`), it is never confirmed by the version alone (suspected: the device states its version, not that the
+  CVE is about this software), and the view says "Identified by AI as <title>" (`View.identity`, with the AI's reason and model). What
+  its ranges say otherwise (outside, a version needed, a question) decides nothing: the pair reads as the line's own names read it, so
+  nothing is closed, proved or asked on the AI's word. "Not this product" (`POST /findings/{id}/identity/reject`, operator, audit
+  `findings.ai_identity_rejected`) stores a `rejected` row for the name that wins over the AI (the product is never offered for it
+  again), drops the AI's choice and matches again at once the finding's device and every device whose last match had a line of that
+  name (the findings close `data_corrected`, resolved by that person: `goneVia`, `identityRejectedBy`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
+  `TestIdentityCandidates`, `TestIdentityScrubber`.
 
 ## Invariants
 
@@ -274,7 +311,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version known affected, not a fix) on a train it covers (OSV's introduced/fixed): past a row from
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
-  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
+  train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
+  so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an
+  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside

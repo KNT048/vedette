@@ -40,6 +40,9 @@ type JobSpec struct {
 	// publicOnly is a call on public text only that runs under a job carrying internal data (a check of possible findings runs as
 	// explain-finding): it gets neither the memory nor knowledge documents, like the public jobs.
 	publicOnly bool
+	// countTag marks every activity row of the call, answered or failed, by starting its summary with it, so a daily number of calls
+	// (AutoReadState) counts each call that reached the provider; "" for a call no daily number counts.
+	countTag string
 	// AnswerWhenBlocked makes an answer that an after_ai hook stops a result (JobResult.Blocked, text = the hook's message) instead of
 	// a 409; the row of the call still says blocked_by_hook.
 	AnswerWhenBlocked bool
@@ -153,6 +156,9 @@ func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntr
 	}
 	now := s.cfg.Clock()
 	e.ID, e.TS = store.NewID("act"), FormatTS(now)
+	if e.countTag != "" && !strings.HasPrefix(e.Summary, e.countTag) {
+		e.Summary = e.countTag + ": " + e.Summary
+	}
 	e.Summary = clipRunes(e.Summary, 600)
 	sealed, err := Seal(prev, e)
 	if err != nil {
@@ -276,7 +282,8 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if spec.Actor == "system" {
 		trigger = "system:schedule"
 	}
-	entry := ActivityEntry{Job: string(spec.Job), Trigger: trigger, Hooks: []string{}, InputHash: HashContent(""), OutputHash: HashContent(""), Result: ResultError}
+	entry := ActivityEntry{Job: string(spec.Job), Trigger: trigger, Hooks: []string{}, InputHash: HashContent(""), OutputHash: HashContent(""), Result: ResultError,
+		countTag: spec.countTag}
 
 	// One generation of the rules and hooks for the whole call: the answer is checked by the hooks that checked the question.
 	har := s.harness.Load()

@@ -67,7 +67,10 @@ type ActivityEntry struct {
 	Stop string `json:"-"`
 	// Retried is set when the answer was cut at the output limit and a second request with a higher limit was sent (Router.retryCut),
 	// so a limit that is too small shows in the log; stored beside the row, not hashed (migration 0008).
-	Retried    bool           `json:"-"`
+	Retried bool `json:"-"`
+	// countTag is the tag of a call counted by a daily number (JobSpec.countTag): every row of the call, answered or failed, starts its
+	// summary with it. Not stored as a field.
+	countTag   string
 	Model      string         `json:"model"`
 	Trigger    string         `json:"trigger"` // user:<email> or system:<what>
 	Hooks      []string       `json:"hooks"`   // names of hooks that acted

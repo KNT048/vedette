@@ -53155,6 +53155,10 @@ func (s FindingsGetFindingsCoverageOKIdentityItemMethod) Validate() error {
 		return nil
 	case "record":
 		return nil
+	case "ai":
+		return nil
+	case "ai_family":
+		return nil
 	case "none":
 		return nil
 	default:
@@ -58505,6 +58509,24 @@ func (s *FindingsGetFindingsIDViewOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Identity.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identity",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Reopened.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -59337,6 +59359,41 @@ func (s FindingsGetFindingsIDViewOKHandledVia) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *FindingsGetFindingsIDViewOKIdentity) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Reason)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *FindingsGetFindingsIDViewOKReopened) Validate() error {
@@ -70772,6 +70829,24 @@ func (s *FindingsPostFindingsIDReopenOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Identity.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identity",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Reopened.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -71606,6 +71681,41 @@ func (s FindingsPostFindingsIDReopenOKHandledVia) Validate() error {
 	}
 }
 
+func (s *FindingsPostFindingsIDReopenOKIdentity) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Reason)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FindingsPostFindingsIDReopenOKReopened) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -72191,6 +72301,24 @@ func (s *FindingsPostFindingsIDUnverifyOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "handled",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Identity.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identity",
 			Error: err,
 		})
 	}
@@ -73029,6 +73157,41 @@ func (s FindingsPostFindingsIDUnverifyOKHandledVia) Validate() error {
 	}
 }
 
+func (s *FindingsPostFindingsIDUnverifyOKIdentity) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Reason)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FindingsPostFindingsIDUnverifyOKReopened) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -73579,6 +73742,24 @@ func (s *FindingsPostFindingsIDVerifyOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "handled",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Identity.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identity",
 			Error: err,
 		})
 	}
@@ -74415,6 +74596,41 @@ func (s FindingsPostFindingsIDVerifyOKHandledVia) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *FindingsPostFindingsIDVerifyOKIdentity) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     200,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Reason)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *FindingsPostFindingsIDVerifyOKReopened) Validate() error {

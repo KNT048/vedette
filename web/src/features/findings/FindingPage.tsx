@@ -19,7 +19,7 @@ import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatus, legacySeverity } from './legacyStatus'
 import { overdue } from './accept'
 import { useFinding, useReopen, useView } from './api'
-import { AiCheckedBadge, AiReadReject } from './Possible'
+import { AiCheckedBadge, AiIdentityBadge, AiIdentityReject, AiReadReject } from './Possible'
 import { useFindingAgentGone } from './agentNow'
 import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
@@ -250,6 +250,8 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
             {view.data?.reopened ? <ReopenedLine reopened={view.data.reopened} version={view.data.software?.version} proOnly={view.data.fix.channel === 'ubuntu_pro'} /> : null}
             {/* confirmed by a person from an AI proposal: the check it rests on, behind the info icon */}
             {view.data?.ai_check ? <AiCheckedBadge check={view.data.ai_check} /> : null}
+            {/* the software is named by no standard data: the customer's AI chose its product, behind the info icon why */}
+            {view.data?.identity ? <AiIdentityBadge identity={view.data.identity} /> : null}
             <SeverityBadge severity={legacySeverity(f)} detail />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
@@ -265,6 +267,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
             <SampleDataNote />
             <IUpdatedFinding f={f} />
             {view.data?.ai_check ? <AiReadReject check={view.data.ai_check} /> : null}
+            {view.data?.identity && open_ ? <AiIdentityReject findingId={f.id} identity={view.data.identity} /> : null}
             {canConfirm(f) && !f.asset ? <ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} /> : null}
             {canUndo(f) ? <UndoButton f={f} /> : null}
             {open_ ? <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button> : null}

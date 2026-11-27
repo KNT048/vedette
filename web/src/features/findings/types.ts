@@ -74,6 +74,7 @@ export type PossibleCheck = z.infer<typeof C.PossibleCheck>
 export type UndecidedReason = z.infer<typeof C.Undecided>['reason']
 export type PossibleCause = z.infer<typeof C.PossibleCause>
 export type AiReading = z.infer<typeof C.AiReading>
+export type AiIdentity = z.infer<typeof C.AiIdentity>
 export type PossibleCheckState = z.infer<typeof C.PossibleCheckState>
 export type PossibleCheckRun = z.infer<typeof C.PossibleCheckRun>
 export type AnsweredQuestion = z.infer<typeof C.AnsweredQuestion>

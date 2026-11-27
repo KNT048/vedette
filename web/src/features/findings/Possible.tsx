@@ -27,14 +27,14 @@ import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDeviceAction } from '@/features/inventory/api'
 import { VersionDialog } from '@/features/inventory/VersionDialog'
-import { useAllPossible, useAnswer, useAnswered, useConfirmProposal, useIgnoreQuestions, usePossibleCheck, useRejectProposal, useStartPossibleCheck, useUnanswer } from './api'
+import { useAllPossible, useAnswer, useAnswered, useConfirmProposal, useIgnoreQuestions, usePossibleCheck, useRejectIdentity, useRejectProposal, useStartPossibleCheck, useUnanswer } from './api'
 import { AcceptRiskDialog } from './AcceptRiskDialog'
 import { AskDialog } from './AskDialog'
 import { PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { linkLabels } from './links'
 import { DeviceLine, useDeviceRow } from './parts'
-import type { AnsweredQuestion, DeviceRef, PossibleCheck, PossibleCheckRun, PossibleCounts, PossibleRow, SoftwareRef } from './types'
+import type { AiIdentity, AnsweredQuestion, DeviceRef, PossibleCheck, PossibleCheckRun, PossibleCounts, PossibleRow, SoftwareRef } from './types'
 
 /** At most this many evidence identities are checked per click (the server's limit). */
 export const CHECK_MAX = 40
@@ -183,6 +183,40 @@ export function AiReadReject({ check }: { check: PossibleCheck }) {
         onSuccess: () => toast.success(t('possible.aiReadRejected')),
         onError: (e) => toast.error(errMsg(e)),
       })}>{t('possible.aiReadRejectShort')}</Button>
+  )
+}
+
+/** "Identified by AI as <title>" on a finding opened through the AI's identification of its software (no standard data names it): the
+ *  AI's reason and model behind the info icon. Its "Not this product" is AiIdentityReject, among the page's actions. */
+export function AiIdentityBadge({ identity }: { identity: AiIdentity }) {
+  const { t } = useTranslation('findings')
+  return (
+    <span className="inline-flex items-center gap-1" data-testid="ai-identity">
+      <Chip tone="accent" icon={Bot} title={identity.model ? t('possible.chip.model', { model: identity.model }) : undefined}>{t('identity.by', { title: identity.title })}</Chip>
+      <InfoTip topic={t('identity.topic')}>
+        <div className="grid gap-2">
+          <p>{t('identity.info', { title: identity.title, product: `${identity.vendor}:${identity.product}` })}</p>
+          {identity.reason ? <p className="text-meta text-muted">{t('identity.reason', { reason: identity.reason })}</p> : null}
+          {identity.model ? <p className="text-meta text-muted">{t('possible.chip.model', { model: identity.model })}</p> : null}
+        </div>
+      </InfoTip>
+    </span>
+  )
+}
+
+/** "Not this product" in one click: the AI's identification is wrong for this software on every device; the findings resting on it
+ *  close at once and that product is never offered for this software again. */
+export function AiIdentityReject({ findingId, identity }: { findingId: string; identity: AiIdentity }) {
+  const { t } = useTranslation('findings')
+  const roles = useRoles()
+  const reject = useRejectIdentity()
+  return (
+    <Button disabled={!roles.operator} title={roles.needOperator} busy={reject.isPending} busyLabel={t('common:busy.saving')}
+      aria-label={t('identity.rejectOf', { title: identity.title })}
+      onClick={() => reject.mutate({ id: findingId }, {
+        onSuccess: () => toast.success(t('identity.rejected', { title: identity.title })),
+        onError: (e) => toast.error(errMsg(e)),
+      })}>{t('identity.reject')}</Button>
   )
 }
 

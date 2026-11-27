@@ -89,6 +89,10 @@ type Software struct {
 	// stated: the row holds the very release of the network OS the device states about itself (statedRow, set by deviceSoftware):
 	// whoever recorded it, its version is the device's own word.
 	stated bool
+	// AIProduct is the catalogue product the customer's AI chose for the line when nothing else identifies it (aiidentity.go: one
+	// choice per cleaned publisher and name, set on the line when findings reads its device); nil otherwise. It only opens: a version
+	// inside one of its ranges is a finding, and what its ranges say otherwise decides nothing (devMatch.aiGuard).
+	AIProduct *AIProduct `json:",omitempty"`
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.
@@ -135,6 +139,10 @@ type Asset struct {
 	// NotInstalled are the reported rows a person said are not installed on the device (inventory INV-41 (6)), as the source reports
 	// them, with Correction naming the person; they are not in Software. The open findings only they produce close (INV-6c).
 	NotInstalled []Software
+	// rejectedBy is, per cleaned publisher and name, the products a person said the line is not ("Not this product", by
+	// CatalogueProduct.key) and who said it: a finding opened through the AI's choice of one of them closes as that person's
+	// (identityRejectedBy); nil when none. Shared, never changed.
+	rejectedBy map[nameKey]map[string]string
 	// winList is the whole stored exploited list a Windows release row's build month is read from when
 	// the match gets only a part of it (Reconcile's backlog and recent writes); nil: the match's own list.
 	winList []Vuln
@@ -306,6 +314,18 @@ type Evidence struct {
 	// version match, never sent. A later proof that the same software's version moved outside every range is an update the device got
 	// (Finding.FixedByUpdate) only against it; nil on a finding written before it was kept (priorReading then reads the sentence).
 	Read *Reading
+	// Identity is, on a finding opened through the product the customer's AI chose for the line (Software.AIProduct), that choice:
+	// the finding page says "Identified by AI as <title>" and offers "Not this product". nil for any other finding.
+	Identity *IdentityNote `json:",omitempty"`
+}
+
+// IdentityNote is the identification a finding rests on when the line's own names do not reach the CVE (Evidence.Identity).
+type IdentityNote struct {
+	Method          string // IdentityAI
+	Vendor, Product string // the catalogue product chosen
+	Title           string // its readable name
+	// Publisher and Name are the line's cleaned publisher and name the choice is stored under (IdentityKey).
+	Publisher, Name string
 }
 
 // Reading is one reading of a software row as the matcher compared it (Evidence.Read).
@@ -347,6 +367,8 @@ type Match struct {
 	// the version compared is the upstream one, never the package release, and nothing confirms it
 	upstream bool
 	every    bool // NVD lists every version of the product as affected: the version cannot change it (#803)
+	// agreed: the verdict rests on every reading of the record giving it (everyReading); the sentence names them. "" otherwise.
+	agreed string
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
 	// installer"), "" otherwise. The agent's version is then compared with nothing, so an agent row is no evidence (confirmedMatch).
 	others string
@@ -641,6 +663,15 @@ type devMatch struct {
 	allRows   []int
 	namedRows map[int][]int // entry -> the rows its NVD list may name, in row order
 	reads     []*entryRead  // per entry, its reading of the rows; nil until asked
+	// own is, per row the AI identified (Software.AIProduct), the row read by its own names alone; nil for every other row.
+	own []*ownRow
+}
+
+// ownRow is a row the AI identified as its own names alone read it: its reading, its KEV keys and the entries NVD's list may name it in.
+type ownRow struct {
+	info  swInfo
+	keys  []string
+	named map[int]bool
 }
 
 // entryRead is one entry's reading of every row of the device (matchOne on each), before the findings the device has decide what
@@ -683,6 +714,21 @@ func newDevMatch(a Asset, vulns []Vuln, now time.Time) *devMatch {
 	}
 	named := nvdCandidates(sws, vulns)
 	distroCandidates(infos, vulns, named)
+	var own []*ownRow
+	for i, s := range sws {
+		if len(s.AIProduct.ids()) == 0 { // none, or only a part of the product's family: the row reads by its own names alone
+			continue
+		}
+		if own == nil {
+			own = make([]*ownRow, len(sws))
+		}
+		plain := s
+		plain.AIProduct = nil
+		own[i] = &ownRow{info: infos[i].own(), keys: keys[i], named: nvdCandidates([]Software{plain}, vulns)[0]}
+		if k := s.AIProduct.Kev; k != "" { // an exploited-list entry the AI chose reaches the row by the entry's own key
+			keys[i] = append(slices.Clip(keys[i]), productid.NormalizeKey(k))
+		}
+	}
 	allRows := make([]int, len(sws))
 	namedRows := map[int][]int{}
 	for i := range sws {
@@ -695,7 +741,7 @@ func newDevMatch(a Asset, vulns []Vuln, now time.Time) *devMatch {
 		slices.Sort(namedRows[vi])
 	}
 	return &devMatch{a: a, vulns: vulns, now: now, sws: sws, infos: infos, keys: keys, named: named, allRows: allRows, namedRows: namedRows,
-		reads: make([]*entryRead, len(vulns))}
+		reads: make([]*entryRead, len(vulns)), own: own}
 }
 
 // read is entry vi's reading of the device's rows, computed once.
@@ -720,7 +766,14 @@ func (d *devMatch) read(vi int) *entryRead {
 		if keyed && !haveKey {
 			key, haveKey = keyIDs(v), true
 		}
-		m, out := matchOne(a, s, infos[i], v, keyed, key, named[i][vi], now)
+		info, nm := infos[i], named[i][vi]
+		m, out := matchOne(a, s, info, v, keyed, key, nm, now)
+		if d.own != nil && d.own[i] != nil {
+			var byAI bool
+			if m, out, byAI = d.aiGuard(i, vi, ek, key, m, out); !byAI { // the row reads as its own names alone read it, here too
+				info, nm = d.own[i].info, d.own[i].named[vi]
+			}
+		}
 		if out != outNone {
 			e.outs = append(e.outs, rowOut{row: i, out: out})
 		}
@@ -729,13 +782,13 @@ func (d *devMatch) read(vi int) *entryRead {
 			// not (CVE-2018-0171, "IOS and IOS XE", NVD only classic cisco:ios): could not be checked, not a product finding;
 			// #910 rule 2 reads it as NVD naming another product (not_named, unless NVD gives no version at all)
 			e.other, e.otherVer, e.unproved = keep(m), s.Version, true
-			if r, ok := uncheckedReason(s, infos[i], v, false); ok {
+			if r, ok := uncheckedReason(s, info, v, false); ok {
 				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
 			}
 			continue
 		}
-		if out == outRuledOut || out == outNone && named[i][vi] {
-			if r, ok := uncheckedRow(a, s, infos[i], v, named[i][vi], m, out); ok {
+		if out == outRuledOut || out == outNone && nm {
+			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
 				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
 			}
 		}
@@ -784,6 +837,27 @@ func (d *devMatch) read(vi int) *entryRead {
 	}
 	d.reads[vi] = e
 	return e
+}
+
+// aiGuard is row i's reading of entry vi (and whether the AI's choice made it) when the AI chose the row's product (Software.AIProduct), from its reading m, out with that
+// product: the AI's choice only opens. A version inside the chosen product's ranges (a match with version evidence) is a finding,
+// labelled with the identity (Evidence.Identity), unless the row's own names already decide the entry; anything else the chosen
+// product's ranges say (outside them, a version needed, a question) decides nothing, and the row reads as its own names alone read it:
+// a pair the box has no other word on stays as it was, possible when it was possible, and nothing is closed on the AI's word.
+func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out outcome) (Match, outcome, bool) {
+	r, s, v := d.own[i], d.sws[i], d.vulns[vi]
+	keyed := keyedBy(r.keys, ek)
+	if keyed && key == nil {
+		key = keyIDs(v)
+	}
+	m0, out0 := matchOne(d.a, s, r.info, v, keyed, key, r.named[vi], d.now)
+	if out == outMatch && versionBacked(m) && out0 != outNotAffected && (out0 != outMatch || !versionBacked(m0)) {
+		m.Evidence.Identity = s.AIProduct.note()
+		m.Evidence.Summary = strings.TrimSpace(m.Evidence.Summary + " No standard data names this software: the AI identified it as " +
+			clean(cmpNonEmpty(s.AIProduct.Title, s.AIProduct.Product)) + " among the products of Vedette's catalogue.")
+		return m, out, true
+	}
+	return m0, out0, false
 }
 
 // result is the MatchResult of the entries idx of the list (every entry, in list order, when idx is nil) for a device that has a
@@ -1126,7 +1200,7 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
+	if out == outNotAffected && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}
@@ -1320,6 +1394,9 @@ func rowVendors(s Software) []string {
 	for _, a := range cpeAliases[n] {
 		out = append(out, a.vendor)
 	}
+	for _, a := range s.AIProduct.ids() {
+		out = append(out, a.vendor)
+	}
 	if s.CPE != "" {
 		if c, err := ParseCPE(s.CPE); err == nil {
 			if vn, ok := c.Vendor.Literal(); ok {
@@ -1442,6 +1519,15 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed && !pastRecordFix(in, v, key) {
 		tri, proof = Unknown, proofNone // the CNA's list may skip branches: outside it proves nothing, unless past a fix of a train it covers
 	}
+	agreed := "" // the readings every one of which gave the verdict (everyReading)
+	if tri == Unknown && !schemed && !isWin && in.given && ps.ask == askNone && !ps.below {
+		if ag, ok := everyReading(in, v, key, s.Display); ok {
+			tri, within, agreed = ag.t, ag.within, ag.says
+			if tri == No {
+				proof = proofRange
+			}
+		}
+	}
 	switch {
 	case tri == No && schemed:
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
@@ -1468,7 +1554,10 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if b := in.installClause(v, key, nil); b != "" && proof == proofRange && !isWin {
 			note = strings.Replace(note, ". Vedette closed this", fmt.Sprintf(" (NVD's rows for other builds do not apply: %s). Vedette closed this", b), 1)
 		}
-		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}
+		if agreed != "" {
+			note = "Not affected: " + agreed + ". Vedette closed this by itself and reopens it if a later match says the device is affected."
+		}
+		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed}
 		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
 			m.provedOn = strings.TrimSpace(in.ver)
 		}
@@ -1729,6 +1818,13 @@ func newSWInfo(s Software, osName string) swInfo {
 			in.ids = append(in.ids, r)
 		}
 	}
+	in.ids = append(in.ids, s.AIProduct.ids()...)
+	return in
+}
+
+// own is the row's reading without the product the AI chose for it (Software.AIProduct): what the line's own names decide.
+func (in swInfo) own() swInfo {
+	in.ids = slices.DeleteFunc(slices.Clone(in.ids), func(i identity) bool { return i.ai })
 	return in
 }
 
@@ -2193,6 +2289,8 @@ type identity struct {
 	// record: the name a CVE record writes for a product without a CPE (company words and the vendor's name in front dropped,
 	// recordIdentity); it names only a record's range (part ANY), never an NVD CPE.
 	record bool
+	// ai: the product the customer's AI chose for the line (Software.AIProduct), not a name the line or the catalogue gives it.
+	ai bool
 }
 
 // recordIdentity is a software's own names as a CVE record's product key is written (feeds' RecordProductKey: "Palo Alto Networks",

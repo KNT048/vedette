@@ -945,6 +945,12 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	// a check of possible findings reads a CVE's references and asks the AI through this door (findings imports neither)
 	d.Findings.SetChecker(possibleChecker{feeds: fs.Store(), ai: d.AI, reg: d.Reg})
+	// software no standard data names is identified by the AI among the catalogue's products through this door (aiidentity.go)
+	ident := softwareIdentifier{feeds: fs.Store(), ai: d.AI, inv: inv}
+	if d.Auth != nil {
+		ident.users = d.Auth.ListUsers
+	}
+	d.Findings.SetIdentifier(ident)
 	aiDoor := aiMitigation{svc: d.AI, cases: cases, inv: d.Inventory, log: d.Log}
 	if d.HostSocket != "" { // the box's subnets and gateways decide which firewalls are on a device's path; no host, not known
 		aiDoor.net = aiNetReader(hostclient.New(d.HostSocket))

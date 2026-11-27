@@ -101,7 +101,7 @@ func (w DistroWant) CVE(c string) bool { return w.KEV[c] || w.Tier[c] }
 
 // Row says whether the row of the CVE for the source package with this status is kept: every row of a CVE of the CISA list (the
 // matcher's: fixed, not affected, or open), and every row of a tier CVE for a package some device runs (the plan's).
-func (w DistroWant) Row(cve, pkg, status string) bool {
+func (w DistroWant) Row(cve, pkg, _ string) bool { // the status no longer decides: every row of a kept CVE is kept
 	return w.KEV[cve] || w.Tier[cve] && w.Packages[pkg]
 }
 

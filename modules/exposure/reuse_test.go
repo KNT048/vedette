@@ -204,6 +204,20 @@ func TestDomainReuse_NoReuse(t *testing.T) {
 		{name: "the domain's settings turn off a group whose scripts the source's sweep ran", before: func(r *reuseEnv) {
 			r.deepRow(r.dom.ID, false, false, true, true, true, SpeedNormal, "[]", "[]") // password guessing and default logins off for the domain
 		}},
+		// nmap's full sweep leaves out the scripts that follow ports another service names once any port is skipped: a source that
+		// skipped none ran them, the domain's step that skips one would not
+		{name: "the domain skips a port, the source skipped none, so its sweep ran the scripts a skip leaves out", before: func(r *reuseEnv) {
+			r.deepRow(r.dom.ID, false, true, true, true, true, SpeedNormal, "[8443]", "[]")
+		}},
+		// every open port the source saw is one the domain's step skips: that step would send nothing there, so a finding about the
+		// whole address (no port) cannot be taken from the source
+		{name: "the domain skips every open port the source saw and the source has a finding about the whole address", before: func(r *reuseEnv) {
+			r.deepRow(r.box, false, true, true, true, true, SpeedNormal, "[25]", "[]")
+			r.deepRow(r.dom.ID, false, true, true, true, true, SpeedNormal, "[25,443]", "[]")
+			r.seams.mu.Lock()
+			r.seams.scripts = append(r.seams.scripts, ScriptRow{IP: ipA, Port: 0, ID: "host-x", Output: "VULNERABLE", Findings: []ScriptFinding{{Title: "Host finding", State: "vulnerable"}}})
+			r.seams.mu.Unlock()
+		}},
 		{name: "this run finds an open port there that the source did not see", after: func(r *reuseEnv) {
 			r.run.content.Ports = append(slices.Clone(r.run.content.Ports), PortRow{IP: ipA, Port: 8080, Service: "http", HTTP: true})
 		}},
@@ -507,6 +521,27 @@ func TestDomainReuse_Narrower(t *testing.T) {
 		{"the step's settings turn logins off: only OpenVAS of a run without the disruptive checks", noLogins, false, []issueIn{vas}, true},
 	} {
 		if why := reuseNarrower(tc.step, def, tc.disruptive, tc.ins); (why == "") != tc.ok {
+			t.Errorf("%s: reuseNarrower = %q, want reuse %v", tc.name, why, tc.ok)
+		}
+	}
+	// the scripts that follow ports another service names run only in a sweep that skips no port
+	skips := plain
+	skips.SkipPorts = []int{8443}
+	skipped := def
+	skipped.SkipPorts = []int{8443}
+	for _, tc := range []struct {
+		name string
+		step ScanTarget
+		d    DeepSettings
+		ins  []issueIn
+		ok   bool
+	}{
+		{"the step skips a port, the source none: a script finding", skips, def, []issueIn{script}, false},
+		{"the step skips a port, the source none: only OpenVAS", skips, def, []issueIn{vas}, true},
+		{"both skip a port: a script finding", skips, skipped, []issueIn{script}, true},
+		{"neither skips a port: a script finding", plain, def, []issueIn{script}, true},
+	} {
+		if why := reuseNarrower(tc.step, tc.d, false, tc.ins); (why == "") != tc.ok {
 			t.Errorf("%s: reuseNarrower = %q, want reuse %v", tc.name, why, tc.ok)
 		}
 	}

@@ -45,7 +45,8 @@ func PossibleCause(it PossibleItem, rs ReadState) string {
 	case q.Detail.NVDPending || reason == UndecidedNVDPending:
 		return CausePendingNVD
 	case q.Kind == QuestionVersionNeeded || q.Kind == QuestionPlatform || q.Kind == QuestionPackageRelease,
-		slices.Contains([]string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute}, reason):
+		slices.Contains([]string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage}, reason),
+		reason == UndecidedAttribute && q.CheckKey == "": // an unlisted release line the reading can decide is the reading's (checkable)
 		return CauseVersionNeeded
 	}
 	if c := it.Check; c != nil {

@@ -210,8 +210,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **P-2 Why undecided.** Every possible CVE carries a machine-readable `detail.undecided` (`UndecidedReasons`: the reason, the range rows
   read, the advisory text that blocked a decision with its address), also in the export (`fnd_question.detail`,
   `fnd_possible_check.detail`) and grouped by `GET /findings/possible/audit`. `TestPossible_Count_EveryPossibleCVEHasAReason`.
-- **P-3 Check identity.** The match pass gives each checkable question (one CVE, a line with a version, no_range_data, older_line or a
-  not_comparable no build attribute decides, NVD answered) `check_key`: the CVE, product, release line, exact version and the CVE record's
+- **P-3 Check identity.** The match pass gives each checkable question (one CVE, a line with a version, no_range_data, older_line, a
+  not_comparable no build attribute decides or one whose edition is known and whose release line the rows do not list, `unlisted_line`, NVD answered) `check_key`: the CVE, product, release line, exact version and the CVE record's
   stamp (`feeds.RecordStamps`). A changed version or record gives a new key. `TestPossibleCheck_KeyFollowsTheEvidence`. A changed
   record alone never drops a verdict: the last check of the same CVE, product, release line and release (version and stated build) keeps
   applying, either way, until a check of the new key replaces it, and the CVE is checkable again (`checksFor`).
@@ -224,11 +224,14 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`decided_by advisory`, quoted) and the next match applies it like range data (affected: a finding, range origin `advisory`, its basis
   and confirmation from who stated the version; not affected: the question stays, listed as settled). Only the rest goes to the AI
   (P-6: a reading of the release line; checks `decided_by ai` stored before P-6 stay proposals, `confident` or `likely`); unsure keeps the
-  CVE possible with the reason. A failed or budget-stopped call stores nothing. No page read: no AI call and
-  nothing stored (the next check fetches again); no reference the box may read: stored undecided (`no_reference_page`, `decided_by
-  structured`) without an AI call (`TestPossibleCheck_NoPageReadNoAICall`). A page whose text has no CVE id and no version number, or
-  names neither the CVE nor the product (a script-rendered portal's shell), is not read; when every reference is such a page, the CVE is
-  stored undecided (`fetch_failed`, `decided_by structured`) without an AI call (`TestPossibleCheck_AScriptShellIsNotARead`). The AI request carries no device data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
+  CVE possible with the reason. A failed or budget-stopped call stores nothing. The AI reads the whole CVE record beside the pages (its
+  description, the CNA's solution and the affected rows of every product it names, the line's own first, at most 40), and the record
+  alone when no page could be read (none referenced, every page failed, or a script-rendered shell): a person reads the record too
+  (`TestPossibleCheck_NoPageReadTheAIReadsTheRecord`, `TestLineReading_TheRecordAloneIsReadWhenNoPageIs`); a record with no text and no
+  page read is not sent and nothing is stored. A check stored before this that says only that no page could be read (`no_reference_page`,
+  `fetch_failed`, `decided_by structured`) is checkable again (`TestLineReading_ACheckThatReadNoPageIsReadAgainFromTheRecord`). A page
+  whose text has no CVE id and no version number, or names neither the CVE nor the product (a script-rendered portal's shell), is not
+  read and its text is not sent (`TestPossibleCheck_AScriptShellIsNotARead`). The AI request carries no device data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
 - **P-5 A person decides proposals.** Confirm one (`POST /findings/possible/{id}/confirm`; affected needs an admin) records the finding
   (range origin `ai_confirmed`, kept by the match while the answer applies; its confirmation from the version's source, never from the AI;
   its view carries the AI's check as `ai_check`: pages, quote, model) or answers not affected (the Answered list carries the check as
@@ -241,16 +244,25 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`affected`, `fixed` with `fixed_in`, `not_affected`, `unsure`; `introduced`, `fixed_in`, `last_affected`, `line`, a verbatim `quote`, the
   page's number). The box keeps it in `fnd_line_statement` (`LineStatement`), keyed by the CVE, product, line, the CVE record's stamp
   (`CheckID.Record`) and the cited page's text hash: `quote_found` when the quote is in the text the box fetched itself, word for word;
-  a bound only when the quote names it; `fixed` with no named bound is `unsure`; a cited page that names neither the CVE nor an advisory
+  a bound only when the quote or the cited page names it (a tracker's "present-in" and "fixed-in" lines), of which only a bound the
+  quote names settles a version as not affected or becomes the fix (`TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles`); `fixed`
+  with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
+  states line N of that product fixed or affected in a release N.x and nothing for this product's line N) keeps no bound and stands only
+  as `affected`, with a quote naming that release, never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
   the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
-  scheme or the generic order (`verdictFor`). Asymmetry: inside the stated affected releases is a finding by itself (range origin
+  scheme or the generic order (`verdictFor`). An affected reading with no bound whose quote names its stated line only through releases
+  of it ("115.42" for line 115) speaks for a version on that line before every such release (`namedByRelease`), with no fix (the release
+  may be another product's) and evidence that says the AI inferred it (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`).
+  Asymmetry: inside the stated affected releases is a finding by itself (range origin
   `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names, its `fixed_in` or a "before X" on the version's
   own train: `LineStatement.fix`; What to do cites the page and the sentence), rejected in one click
   (`POST /findings/possible/checks/{key}/reject` with the reading's key, audit `findings.ai_reading_rejected`: every device of the CVE is
   matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`); past the stated fix on the same
-  line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`) and never an exploited one
+  line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`: tagged vendor-advisory, on
+  the vendor's host, or on the project's own site the record points to, a path that starts with the vendor's or product's name or a
+  person's home and then it, `projectPath`, `TestMarkVendorPages_TheProjectsOwnSite`) and never an exploited one
   (a proposal a person confirms one by one); anything else decides nothing. A reading is read again when the record changes (the old one
   applies until then), after 30 days when `unsure`, and its page is fetched again after 30 days (no AI call when its text is unchanged:
   `seen_at`). A finding the reading opened has no question, so the match notes its line when due (`noteReadingDue`) for the next check.
@@ -276,7 +288,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
   possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
-  list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`).
+  list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`); an unlisted release line the reading can
+  decide (checkable) has the reading's cause, not `version_needed` (`TestCheckable_AnUnlistedLineIsRead`).
   `TestPossibleCause_EveryPossibleRowHasOne`, `TestLineReading_CauseWithoutAIAndWithTheBudgetUsedUp`.
 - **P-9 The customer's AI identifies what no standard data names.** A software line with no CPE, no distribution package, no catalogue
   alias and no CVE record that writes its names (coverage identity `none`), whose version the agent, SNMP or a person stated, is asked

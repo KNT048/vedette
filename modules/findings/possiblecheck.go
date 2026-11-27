@@ -87,10 +87,57 @@ const (
 	aiFailStreak  = 3
 )
 
-// CVERecordText is the public text of a CVE's record.
+// CVERecordText is the public text of a CVE's record: its description, the CNA's solution, the affected rows of every product it names
+// and its references.
 type CVERecordText struct {
 	Description string
+	Solution    string // the CNA's solution text, "" when none
+	Rows        []RecordRow
 	Refs        []RefLink
+}
+
+// RecordRow is one affected row of a CVE record as a person reads it, with the product it is about (the record's words).
+type RecordRow struct {
+	Vendor, Product string
+	Text            string // "acme widget (edition esr): affected from 3.0 before 3.4.2 [nvd]"
+}
+
+// recordRowsMax is the most rows of the record one reading sends (the item's own product first).
+const recordRowsMax = 40
+
+// readRecordRows is the record's rows the AI reads for the product: its own rows first, then every other product's, at most recordRowsMax;
+// the rows the match read for the question when the record gave none.
+func readRecordRows(rec CVERecordText, product string, q Question) []string {
+	if len(rec.Rows) == 0 {
+		return q.undecidedRows()
+	}
+	vendor, name, _ := strings.Cut(product, "|")
+	own := func(r RecordRow) bool {
+		return productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name)
+	}
+	var mine, others []string
+	for _, r := range rec.Rows {
+		if t := strings.TrimSpace(r.Text); t != "" {
+			if own(r) {
+				mine = append(mine, t)
+			} else {
+				others = append(others, t)
+			}
+		}
+	}
+	out := append(mine, others...)
+	return out[:min(len(out), recordRowsMax)]
+}
+
+// recordText is the text of the record the AI reads as data block 0 and its quotes are looked up in: the description, the solution and
+// the rows, one per line.
+func recordText(rec CVERecordText, rows []string) string {
+	parts := []string{strings.TrimSpace(rec.Description)}
+	if s := strings.TrimSpace(rec.Solution); s != "" {
+		parts = append(parts, s)
+	}
+	parts = append(parts, rows...)
+	return strings.TrimSpace(strings.Join(parts, "\n"))
 }
 
 // RefLink is one reference of a CVE record with its tags ("Vendor Advisory", "Patch").
@@ -110,10 +157,11 @@ type FetchedPage struct {
 	Empty bool
 }
 
-// ProposeItem is one product version of a CVE the AI is asked about (no device data).
+// ProposeItem is one product version of a CVE the AI is asked about (no device data). Edition is the build's edition as a CPE
+// sw_edition when the box knows it and the record's rows pin editions ("esr"), "" otherwise.
 type ProposeItem struct {
-	Index                          int
-	Vendor, Product, Version, Line string
+	Index                                   int
+	Vendor, Product, Version, Line, Edition string
 }
 
 // ProposeRequest is one AI call: the CVE's public record and pages, and the items.
@@ -132,6 +180,9 @@ type ProposeVerdict struct {
 	Line                              string // the release line as the statement names it
 	Reason, Quote                     string
 	Source                            int // 1-based page index, 0 for the record
+	// InferredFrom names the other product of the record whose release line the answer infers this one's from ("" when the text states
+	// it for this product): such an answer may only say "affected" (readingOfAnswer).
+	InferredFrom string
 }
 
 // ProposeAnswer is the answer of one AI call.
@@ -652,27 +703,17 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		unparsed[u.key] = why
 		ask = append(ask, u)
 	}
-	switch {
-	case len(ask) == 0:
+	if len(ask) == 0 {
 		return res
-	case len(urls) == 0: // no reference the box may read: the AI would see the record alone; undecided until the record changes
-		for _, u := range ask {
-			res.checks = append(res.checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure,
-				Reason: "The CVE record lists no reference page the box can read.", Undecided: &Undecided{Reason: UndecidedNoReference},
-				CheckedBy: actor, CheckedAt: now})
-		}
-		return res
-	case !read && !slices.ContainsFunc(pages, func(p FetchedPage) bool { return !p.Empty }):
-		// every reference answered without advisory text (a script-rendered portal's shell): no AI call, and undecided until the record
-		// changes, since fetching again gives the same
-		for _, u := range ask {
-			res.checks = append(res.checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure, Sources: sources,
-				Reason:    "The CVE's reference pages have no advisory text the box can read (they may need a browser).",
-				Undecided: &Undecided{Reason: UndecidedFetchFailed}, CheckedBy: actor, CheckedAt: now})
-		}
-		return res
-	case !read: // no page answered: no AI call and nothing stored, so the next check tries the pages again (fetches cost no tokens)
+	}
+	// The AI reads the whole record (its description, solution and every product's rows) beside the pages; when no page could be read
+	// (none referenced, a script-rendered shell, a refusal) it reads the record alone, as a person would. A record with no text and no
+	// page read is not sent: nothing is stored, and the next check tries the pages again.
+	rows := readRecordRows(rec, group[0].id.Product, group[0].q)
+	recText := recordText(rec, rows)
+	if !read && recText == "" {
 		res.failed = len(ask)
+		s.markUnread(keys, true, now)
 		return res
 	}
 	okPages := slices.DeleteFunc(slices.Clone(pages), func(p FetchedPage) bool { return p.Status != "ok" })
@@ -687,7 +728,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 	for _, l := range lines {
 		unsureAgain := l.last != nil && l.last.RejectedBy == "" && l.last.Status == StatementUnsure && now.Sub(l.last.AskedAt) >= statementRecheck
 		if st := l.last; st != nil && st.RecordHash == l.units[0].id.Record && !unsureAgain {
-			if text, ok := pageText(st, okPages, rec.Description); ok && pageHash(text) == st.PageHash {
+			if text, ok := pageText(st, okPages, recText); ok && pageHash(text) == st.PageHash {
 				res.seen = append(res.seen, st.Key)
 				continue
 			}
@@ -696,7 +737,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 	}
 	for start := 0; start < len(asks); start += possibleCheckItems {
 		part := asks[start:min(start+possibleCheckItems, len(asks))]
-		req := ProposeRequest{CVE: cve, Description: rec.Description, Rows: part[0].units[0].q.undecidedRows(), Pages: okPages}
+		req := ProposeRequest{CVE: cve, Description: recordText(CVERecordText{Description: rec.Description, Solution: rec.Solution}, nil), Rows: rows, Pages: okPages}
 		for k, l := range part {
 			id := l.units[0].id
 			vendor, product, _ := strings.Cut(id.Product, "|")
@@ -706,7 +747,12 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 					versions = append(versions, u.id.Release())
 				}
 			}
-			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line})
+			edition := ""
+			if l.units[0].q.Detail.Attribute == AttrUnlistedLine {
+				edition = mozillaESR // the edition is known, its line is what the rows do not list
+			}
+			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line,
+				Edition: edition})
 		}
 		var keys []string
 		for _, l := range part {
@@ -759,7 +805,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 				res.failed += len(l.units)
 				continue
 			}
-			res.readings = append(res.readings, readingOfAnswer(cve, l.units[0].id, v, okPages, rec, ans, actor, now))
+			res.readings = append(res.readings, readingOfAnswer(cve, l.units[0].id, v, okPages, recText, rec.Refs, ans, actor, now))
 		}
 	}
 	return res
@@ -805,10 +851,14 @@ func pageText(st *LineStatement, pages []FetchedPage, record string) (string, bo
 }
 
 // readingOfAnswer is the AI's answer for one release line as the box keeps it: the quote looked up word for word in the text the box
-// fetched, a version bound kept only when the quote names it, a "fixed" with no bound left unsure, and a page that is not about this
-// CVE (it names neither the CVE nor an advisory the record references: aboutCVE) left unsure whatever the AI read in it.
-func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPage, rec CVERecordText, ans ProposeAnswer, actor string, now time.Time) LineStatement {
-	cited := citedText(v.Source, pages, rec.Description)
+// fetched (a page, or the record's text for source 0), a version bound kept only when the quote or the cited page names it, a "fixed"
+// with no bound left unsure, and a page that is not about this CVE (it names neither the CVE nor an advisory the record references:
+// aboutCVE) left unsure whatever the AI read in it. An answer inferred from another product's release line keeps no bound (they are
+// the other product's) and stands only as "affected" with a quote naming a release of the item's line (namedByRelease) or the line
+// itself; anything else it says is unsure.
+func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPage, record string, refs []RefLink, ans ProposeAnswer, actor string,
+	now time.Time) LineStatement {
+	cited := citedText(v.Source, pages, record)
 	quote := oneLine(v.Quote, 400)
 	st := LineStatement{CVE: cve, Product: id.Product, Line: id.Line, StatedLine: clipBytes(strings.TrimSpace(v.Line), 200),
 		RecordHash: cmpNonEmpty(id.Record, recordHash("")), PageHash: pageHash(cited.text), Status: v.Status, Reason: oneLine(v.Reason, 600), Quote: quote,
@@ -817,9 +867,11 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 	if v.Source >= 1 && v.Source <= len(pages) {
 		st.VendorPage = pages[v.Source-1].Vendor
 	}
+	// a bound counts when the quote names it, or the cited page does (a tracker's "present-in" and "fixed-in" lines are two sentences);
+	// only a bound the quote names may settle a version as not affected or become the fix (pastFix, fix)
 	bound := func(b string) string {
 		b = strings.TrimSpace(b)
-		if len(b) > 100 || !namesToken(quote, b) {
+		if len(b) > 100 || !namesToken(quote, b) && !namesToken(cited.text, b) {
 			return ""
 		}
 		return b
@@ -829,12 +881,20 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 	case StatementAffected, StatementNotAffected, StatementUnsure:
 	case StatementFixed:
 		if st.FixedIn == "" && st.Last == "" {
-			st.Status = StatementUnsure // "fixed" in a release the quote does not name decides nothing
+			st.Status = StatementUnsure // "fixed" in a release the text does not name decides nothing
 		}
 	default:
 		st.Status = StatementUnsure
 	}
-	if cited.url != "" && st.Status != StatementUnsure && !aboutCVE(cited.text, cve, rec.Refs) {
+	if from := oneLine(v.InferredFrom, 100); from != "" {
+		st.Introduced, st.FixedIn, st.Last = "", "", "" // the bounds of another product are none of this one's
+		st.Reason = oneLine("Inferred from "+from+": "+v.Reason, 600)
+		if st.Status != StatementAffected || !st.coversLine(id) && !st.namedByRelease(id) {
+			st.Status = StatementUnsure
+			st.Reason = oneLine("An inference from "+from+" decides only \"affected\", from a quote that names a release of this line: "+v.Reason, 600)
+		}
+	}
+	if cited.url != "" && st.Status != StatementUnsure && !aboutCVE(cited.text, cve, refs) {
 		st.Status = StatementUnsure
 		st.Reason = "The page the AI read names neither " + cve + " nor an advisory the CVE record references, so it decides nothing for this CVE."
 	}
@@ -875,7 +935,7 @@ func emptyPages(pages []FetchedPage, cve string, group []checkUnit) {
 }
 
 // markVendorPages marks the pages that are the vendor's own advisory (FetchedPage.Vendor): the reference is tagged vendor-advisory, or
-// the page is on the vendor's host.
+// the page is on the vendor's host, or on the project's own site the record's reference points to (projectPath).
 func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 	vendor, _, _ := strings.Cut(product, "|")
 	for i := range pages {
@@ -884,10 +944,26 @@ func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 				pages[i].Vendor = true
 			}
 		}
-		if u, err := url.Parse(pages[i].URL); err == nil && vendorHost(u.Hostname(), vendor) {
+		if u, err := url.Parse(pages[i].URL); err == nil && (vendorHost(u.Hostname(), vendor) || projectPath(u.Path, product)) {
 			pages[i].Vendor = true
 		}
 	}
+}
+
+// projectPath says an address's path is the project's own site on a shared host: its first part is the vendor's or the product's name
+// ("/<name>/…", a project on a code host), or a person's home and then that name ("/~<user>/<name>/…"), with a page below it. A name
+// shorter than three letters and digits is too common to tell.
+func projectPath(path, product string) bool {
+	vendor, name, _ := strings.Cut(product, "|")
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) > 0 && strings.HasPrefix(parts[0], "~") {
+		parts = parts[1:]
+	}
+	if len(parts) < 2 {
+		return false
+	}
+	p := productid.Norm(parts[0])
+	return len(p) >= 3 && (p == productid.Norm(vendor) || p == productid.Norm(name))
 }
 
 // vendorHost says host is the vendor's own: the label before its top-level domain (or before a country's second level, as in

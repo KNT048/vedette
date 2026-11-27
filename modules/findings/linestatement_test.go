@@ -430,6 +430,13 @@ func TestLineStatement_VerdictFor(t *testing.T) {
 		{"quote not found", LineStatement{Status: StatementAffected, StatedLine: "3.4", Quote: "Widget 3.4 is affected.", QuoteFound: false}, ""},
 		{"affected range ends before the version", LineStatement{Status: StatementAffected, Introduced: "3.0", Last: "3.3.9", Quote: "3.0 through 3.3.9", QuoteFound: true}, ""},
 		{"unsure", LineStatement{Status: StatementUnsure, Quote: "Widget 3.4.1", QuoteFound: true}, ""},
+		{"the line named by a later release of it", LineStatement{Status: StatementAffected, StatedLine: "3", Quote: "Fixed in Gadget 3.9 and Widget 4.2.",
+			QuoteFound: true}, VerdictAffected},
+		{"the line named by an earlier release of it", LineStatement{Status: StatementAffected, StatedLine: "3", Quote: "Fixed in Gadget 3.2 and Widget 4.2.",
+			QuoteFound: true}, ""},
+		{"a release of another line", LineStatement{Status: StatementAffected, StatedLine: "3", Quote: "Fixed in Gadget 4.9.", QuoteFound: true}, ""},
+		{"a fix the quote does not name settles nothing", LineStatement{Status: StatementFixed, FixedIn: "3.4.0", StatedLine: "3.4",
+			Quote: "Release 3.4 is affected.", QuoteFound: true}, ""},
 	} {
 		if got := tc.st.verdictFor(id); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)

@@ -63,8 +63,10 @@ func statementKey(cve, product, line, record, page string) string {
 	return hashHex("ls1\x1f" + cve + "\x1f" + product + "\x1f" + line + "\x1f" + record + "\x1f" + page)
 }
 
-// recordHash is the identity of a CVE record's stamp (Vuln.Stamp) as a reading is keyed by it.
-func recordHash(stamp string) string { return hashHex("rec1\x1f" + stamp) }
+// recordHash is the identity of a CVE record's stamp (Vuln.Stamp) as a reading is keyed by it, and of what the reading reads of the
+// record: rec2 is the whole record (the description, the solution and every product's rows), so each line read from the description and
+// the line's own rows alone is read once more (the old reading applies until then, P-3).
+func recordHash(stamp string) string { return hashHex("rec2\x1f" + stamp) }
 
 // pageHash is the identity of a page's text as the box fetched it.
 func pageHash(text string) string { return hashHex("page1\x1f" + text) }
@@ -268,8 +270,8 @@ func (st LineStatement) verdictFor(id CheckID) string {
 					return "" // "before X" and the version is X or later: the sentence does not call it affected
 				}
 			}
-			if names {
-				return VerdictAffected // the vendor names the line or the version as affected
+			if names || st.namedByRelease(id) {
+				return VerdictAffected // the vendor names the line or the version as affected, or a release of the line the version is before
 			}
 			return ""
 		}
@@ -296,15 +298,21 @@ func (st LineStatement) verdictFor(id CheckID) string {
 // pastFix says id's version is at or past the stated fix (or past the last affected release) on the same line: the vendor's own scheme
 // says so for its train, or the quote states the line, or a bound "before X" names the fix.
 func (st LineStatement) pastFix(id CheckID) bool {
-	end, incl := st.FixedIn, false
+	quoted := func(b string) string { // a bound read from the page beside the quote may open a finding, never settle one
+		if namesToken(st.Quote, b) {
+			return b
+		}
+		return ""
+	}
+	end, incl := quoted(st.FixedIn), false
 	if end == "" {
-		end, incl = st.Last, true
+		end, incl = quoted(st.Last), true
 	}
 	if end == "" {
 		return false
 	}
 	if scheme := productScheme(id.Product); scheme != nil {
-		r := textRange{start: st.Introduced, end: end, endIncl: incl, quote: st.Quote}
+		r := textRange{start: quoted(st.Introduced), end: end, endIncl: incl, quote: st.Quote}
 		v, _, ok := judgeTextRanges([]textRange{r}, id.Version, id.Build, scheme)
 		return ok && v == VerdictNotAffected
 	}
@@ -337,9 +345,44 @@ func onFixTrain(fix, version string) bool {
 	return i > 0 && dottedPrefix(strings.ToLower(fix[:i]), strings.ToLower(version))
 }
 
+// reVersionToken is a dotted version as a sentence writes it ("115.42", "7.2.1"; never a lone number).
+var reVersionToken = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)+`)
+
+// namedByRelease says the quote names the reading's stated line through releases of it only ("Browser ESR 115.42" names line 115), and
+// id's version is on that line and before every such release: a vendor states line N of one product fixed in release N.x, so N.y of
+// the same line before it carried the flaw. A version at or past a named release, or one off the line, is not named.
+func (st LineStatement) namedByRelease(id CheckID) bool {
+	l := st.StatedLine
+	if l == "" || !dottedPrefix(l, id.Version) || namesToken(st.Quote, l) {
+		return false
+	}
+	n := 0
+	for _, tok := range reVersionToken.FindAllString(st.Quote, -1) {
+		if tok == l || !dottedPrefix(l, tok) || !namesToken(st.Quote, tok) {
+			continue
+		}
+		if before, ok := versionBefore(id, tok); !ok || !before {
+			return false
+		}
+		n++
+	}
+	return n > 0
+}
+
+// inferred says the reading speaks for id only through a release of its line the quote names (namedByRelease): the quote names
+// neither the version, nor its line, nor a line containing it.
+func (st LineStatement) inferred(id CheckID) bool {
+	return st.Status == StatementAffected && st.Introduced == "" && st.FixedIn == "" && st.Last == "" &&
+		!namesToken(st.Quote, id.Version) && !namesToken(st.Quote, id.Line) && !st.coversLine(id) && st.namedByRelease(id)
+}
+
 // fix is the fix a finding the reading opened says for id: the stated fixed release, kept only when the quote names it; else the
-// release a "before X" of the quote names on id's own train, when id is before it.
+// release a "before X" of the quote names on id's own train, when id is before it; none when the reading speaks for id only through a
+// release of its line the quote names (inferred).
 func (st LineStatement) fix(id CheckID) Fix {
+	if st.inferred(id) {
+		return Fix{Kind: FixUnknown} // the release the quote names may be another product's: none of this one's
+	}
 	if st.FixedIn != "" && namesToken(st.Quote, st.FixedIn) {
 		return Fix{Kind: FixUpdate, Version: st.FixedIn}
 	}
@@ -531,6 +574,10 @@ func aiReadNote(q Question, st LineStatement) string {
 		where = st.Host
 	}
 	note := fmt.Sprintf("Read by AI from %s: the vendor's statement lists %s %s as affected by %s", where, clean(q.Detail.Software), clean(q.Detail.Version), q.CVE)
+	if q.Detail.Check != nil && st.inferred(*q.Detail.Check) {
+		note = fmt.Sprintf("Read by AI from %s: the statement names release line %s of %s, not %s %s itself; the AI infers that the same line of %s carried "+
+			"the flaw (%s)", where, clean(st.StatedLine), q.CVE, clean(q.Detail.Software), clean(q.Detail.Version), clean(q.Detail.Software), oneLine(st.Reason, 200))
+	}
 	if st.Quote != "" {
 		note += ": \"" + oneLine(st.Quote, 300) + "\""
 	}

@@ -385,3 +385,59 @@ func TestPossibleCheck_Count_ExploitedNeverVanish(t *testing.T) {
 		}
 	}
 }
+
+// The product an AI call names is the catalogue's product, never the software name as the device or a person wrote it (a manual entry
+// or an agent's display name may carry the device's own name).
+func TestPossibleCheck_SendsTheCatalogueProductNotTheDisplayName(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	a := e.inv.match["nas-01"]
+	a.Software[0].Display = "DSM on nas-01 in the accounts office"
+	e.inv.match["nas-01"] = a
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	runCheck(t, e)
+	if len(fc.sent) == 0 {
+		t.Fatal("no AI call")
+	}
+	b, err := json.Marshal(fc.sent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "accounts office") || strings.Contains(string(b), "nas-01") {
+		t.Errorf("the AI request carries the software's display name: %s", b)
+	}
+}
+
+// The check identity carries the whole release the device states: two ESXi 8.0 hosts on different updates (builds) never share a check,
+// a proposal or a rejection; two on the same build do.
+func TestPossibleCheck_KeyCarriesTheStatedBuild(t *testing.T) {
+	t.Parallel()
+	e, _ := possibleWorld(t)
+	keys := func() map[string]string {
+		t.Helper()
+		items, err := e.svc.possibleItems(t.Context(), "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]string{}
+		for _, it := range items {
+			if it.CVE == "CVE-2026-81002" {
+				out[it.Question.AssetID] = it.Question.CheckKey
+			}
+		}
+		return out
+	}
+	k := keys()
+	if k["esx-01"] == "" || k["esx-01"] != k["esx-02"] {
+		t.Fatalf("same build: keys %v, want one shared key", k)
+	}
+	e.inv.match["esx-02"] = esxiStated("esx-02", "8.0", "update_1", "21495797")
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if k = keys(); k["esx-02"] == "" || k["esx-01"] == k["esx-02"] {
+		t.Errorf("8.0 Update 3 and 8.0 Update 1 share the check key %v", k)
+	}
+}

@@ -41,8 +41,9 @@ func keyQuestions(qs []Question, lines map[string]line, byCVE map[string]Vuln) {
 		if product == "" {
 			continue
 		}
-		id := CheckID{Product: product, Line: releaseLine(product, q.Detail.Version), Version: q.Detail.Version,
-			Evidence: hashHex("v1\x1f" + q.Detail.Version + "\x1f" + byCVE[q.CVE].Stamp)}
+		build := statedBuild(l.sw) // ESXi 8.0 Update 1 and Update 3 are both version 8.0: the build tells them apart
+		id := CheckID{Product: product, Line: releaseLine(product, q.Detail.Version, build), Version: q.Detail.Version, Build: build,
+			Evidence: hashHex("v1\x1f" + CheckID{Version: q.Detail.Version, Build: build}.Release() + "\x1f" + byCVE[q.CVE].Stamp)}
 		q.Detail.Check, q.CheckKey = &id, checkKey(q.CVE, id)
 	}
 }
@@ -53,13 +54,21 @@ func checkKey(cve string, id CheckID) string {
 }
 
 // releaseLine is the release line of version as the product's scheme names it ("15.1" of Junos "15.1R7.9"), else the version itself.
-func releaseLine(product, version string) string {
+func releaseLine(product, version, build string) string {
 	if sc := productScheme(product); sc != nil {
-		if v, ok := sc.Installed(version, ""); ok {
+		if v, ok := sc.Installed(version, build); ok {
 			return versionscheme.LineStart(v).Label
 		}
 	}
 	return version
+}
+
+// Release is the version with the build the device states, as a person and the AI read it ("8.0 (build 24022510)").
+func (id CheckID) Release() string {
+	if id.Build == "" {
+		return id.Version
+	}
+	return id.Version + " (build " + id.Build + ")"
 }
 
 func hashHex(s string) string {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -356,7 +357,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 		req := ProposeRequest{CVE: cve, Description: rec.Description, Rows: part[0].q.undecidedRows(), Pages: okPages}
 		for k, u := range part {
 			vendor, product, _ := strings.Cut(u.id.Product, "|")
-			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: cmpNonEmpty(u.q.Detail.Software, product), Version: u.id.Version, Line: u.id.Line})
+			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(u.id.Product, product), Version: u.id.Release(), Line: u.id.Line})
 		}
 		ans, err := s.cfg.Checker.Propose(ctx, actor, req)
 		if err != nil {
@@ -400,6 +401,15 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 		}
 	}
 	return checks, failed, ""
+}
+
+// catalogueName is the product's name as the catalogue writes it: never the software's name as the device or a person wrote it, which
+// may carry the device's own name.
+func catalogueName(key, product string) string {
+	if p, ok := productid.ByKey(key); ok && p.Display != "" {
+		return p.Display
+	}
+	return product
 }
 
 func cmpNonEmpty(a, b string) string {

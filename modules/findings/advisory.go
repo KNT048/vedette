@@ -108,7 +108,7 @@ func readAdvisory(pages []FetchedPage, id CheckID, cve string) (v advisoryVerdic
 		}
 		// "not affected" from plain text needs a page about this CVE alone: on a page that names others, the ranges read may be another
 		// CVE's while this one's are in words the box cannot read (a CSAF document's ranges are the CVE's own)
-		if verdict, quote, decided := judgeTextRanges(rs, id.Version, scheme); decided && (verdict == VerdictAffected || p.JSON || !others) {
+		if verdict, quote, decided := judgeTextRanges(rs, id.Version, id.Build, scheme); decided && (verdict == VerdictAffected || p.JSON || !others) {
 			return advisoryVerdict{verdict: verdict, quote: quote, url: p.URL}, true, nil
 		}
 		if unparsed == nil {
@@ -154,9 +154,9 @@ func snippetAround(text string, id CheckID) string {
 
 // judgeTextRanges decides one version against the ranges a page states: affected inside one (the first that contains it is quoted); not
 // affected only when a range of the version's own release train ends at or before it and none contains it; else nothing.
-func judgeTextRanges(rs []textRange, version string, scheme *versionscheme.Scheme) (verdict, quote string, ok bool) {
+func judgeTextRanges(rs []textRange, version, build string, scheme *versionscheme.Scheme) (verdict, quote string, ok bool) {
 	if scheme != nil {
-		installed, okI := scheme.Installed(version, "")
+		installed, okI := scheme.Installed(version, build)
 		if !okI {
 			return "", "", false
 		}
@@ -191,7 +191,10 @@ func judgeTextRanges(rs []textRange, version string, scheme *versionscheme.Schem
 		}
 		return "", "", false
 	}
-	// no scheme: only "affected" is decided, by the generic order, inside a range with an end
+	// no scheme: only "affected" is decided, by the generic order, inside a range with an end (never for a version a build qualifies)
+	if build != "" {
+		return "", "", false
+	}
 	for _, r := range rs {
 		start := r.start
 		if start == "" {

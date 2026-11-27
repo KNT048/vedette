@@ -210,7 +210,9 @@ type nodeEntry struct {
 // one affected row per release line its vulnerable range names, from the start the range gives (none: the whole line), up to the
 // release its patched range gives for that line (none: no fix yet). An entry limited to some platforms keeps its lines listed with
 // the platforms, so they are never read as "not listed". It fails closed: an entry whose ranges do not read, name one line twice,
-// or disagree is dropped and counted by reason, never stored in part.
+// or disagree is dropped and counted by reason, never stored in part. A CVE several entries list is read from all of them (a line of a
+// later entry missing from the statement would read "not affected"), and dropped whole when one of them is not read or two state one line
+// differently.
 func parseNodeLines(body []byte, product string) ([]lineStatement, Stats, error) {
 	var idx map[string]json.RawMessage
 	if err := json.Unmarshal(body, &idx); err != nil {
@@ -218,6 +220,7 @@ func parseNodeLines(body []byte, product string) ([]lineStatement, Stats, error)
 	}
 	t := newTally()
 	byCVE := map[string]lineStatement{}
+	unread := map[string]bool{} // CVEs of an entry not read, or that two entries state differently: never stored in part
 	keys := slices.Sorted(maps.Keys(idx))
 	for i, k := range keys {
 		var e nodeEntry
@@ -227,6 +230,9 @@ func parseNodeLines(body []byte, product string) ([]lineStatement, Stats, error)
 		}
 		st, reason := nodeStatement(e)
 		if reason != "" {
+			for _, cve := range e.CVE {
+				unread[cve] = true
+			}
 			t.reject(i+1, "entry %s: "+reason, k)
 			continue
 		}
@@ -234,18 +240,33 @@ func parseNodeLines(body []byte, product string) ([]lineStatement, Stats, error)
 			if !nodeCVERE.MatchString(cve) {
 				continue
 			}
-			if _, dup := byCVE[cve]; dup { // the index repeats an entry now and then: the first one stands
+			s, seen := byCVE[cve]
+			if !seen {
+				s = st
+				s.CVE, s.Product, s.Rows = cve, product, slices.Clone(st.Rows)
+				byCVE[cve] = s
 				continue
 			}
-			s := st
-			s.CVE, s.Product = cve, product
+			// the index lists the CVE again (repeated, or another platform or line): every line of every entry counts
+			for _, r := range st.Rows {
+				j := slices.IndexFunc(s.Rows, func(o lineRow) bool { return o.Line == r.Line })
+				switch {
+				case j < 0:
+					s.Rows = append(s.Rows, r)
+				case !sameLineRow(s.Rows[j], r):
+					unread[cve] = true
+				}
+			}
+			s.Ref = cmpOrStr(s.Ref, st.Ref)
 			byCVE[cve] = s
 		}
 		t.Accepted++
 	}
 	out := make([]lineStatement, 0, len(byCVE))
 	for _, c := range slices.Sorted(maps.Keys(byCVE)) {
-		out = append(out, byCVE[c])
+		if !unread[c] {
+			out = append(out, byCVE[c])
+		}
 	}
 	return out, t.stats(), nil
 }
@@ -294,6 +315,12 @@ func nodeStatement(e nodeEntry) (lineStatement, string) {
 	return st, ""
 }
 
+// sameLineRow says two entries state one release line alike.
+func sameLineRow(a, b lineRow) bool {
+	return a.Line == b.Line && a.Status == b.Status && a.Introduced == b.Introduced && a.LastAffected == b.LastAffected && a.Fixed == b.Fixed &&
+		a.Explicit == b.Explicit && slices.Equal(a.Platforms, b.Platforms)
+}
+
 func cmpOrStr(a, b string) string {
 	if a != "" {
 		return a
@@ -338,13 +365,13 @@ func parseEOL(body []byte, names map[string]string) ([]lineSupport, Stats, error
 			if r.EolFrom != nil {
 				ls.AssessedUntil, ls.EOL = *r.EolFrom, *r.EolFrom
 			}
-			if r.Latest != nil && dayRE.MatchString(r.Latest.Date) {
+			if r.Latest != nil && isDay(r.Latest.Date) {
 				ls.Last = r.Latest.Date
 			}
 			switch {
-			case ls.Line == "" || len(ls.Line) > 40 || !dayRE.MatchString(ls.Released):
+			case ls.Line == "" || len(ls.Line) > 40 || !isDay(ls.Released):
 				t.reject(0, "%s: a release line with no name or release day", p.Name)
-			case ls.EOL != "" && !dayRE.MatchString(ls.EOL), r.IsEol && ls.EOL == "":
+			case ls.EOL != "" && !isDay(ls.EOL), r.IsEol && ls.EOL == "":
 				t.reject(0, "%s: a release line past its end with no day", p.Name)
 			default:
 				t.Accepted++
@@ -353,6 +380,12 @@ func parseEOL(body []byte, names map[string]string) ([]lineSupport, Stats, error
 		}
 	}
 	return out, t.stats(), nil
+}
+
+// isDay says s is a calendar day written YYYY-MM-DD: a day findings could not read would count as "no end".
+func isDay(s string) bool {
+	_, err := time.Parse(time.DateOnly, s)
+	return dayRE.MatchString(s) && err == nil
 }
 
 // buildLines pulls a line source (Node.js's index) or the support source (endoflife.date). The whole file every time (145 kB and

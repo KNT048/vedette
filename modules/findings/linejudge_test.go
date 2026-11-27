@@ -141,3 +141,26 @@ func TestLineJudge_EvidenceFixAndOrigin(t *testing.T) {
 		t.Errorf("not affected = %+v", res.NotAffected)
 	}
 }
+
+// An NVD row that covers the version and names the device's release line keeps the finding even when another NVD row that only passes
+// through the line (and ends later) covers it too: the vendor's "fixed" on the line yields to the row naming the line, whichever row
+// explains the finding best.
+func TestLineJudge_NVDNamesLineBesideAPassingRow(t *testing.T) {
+	t.Parallel()
+	cover := LineCover{Source: "nodejs-security-wg", Product: "node.js|node.js", StatedAt: lineCVEDay, Absent: AbsentUnaffectedIfSupported}
+	v := Vuln{CVE: "CVE-2026-105481", Published: lineCVEDay, NVDAnswered: true, LineCovers: []LineCover{cover}, LineSupport: nodeLineSupport,
+		Lines: []LineRow{{Source: cover.Source, Product: cover.Product, Line: "22", Status: "affected", Fixed: "22.23.4", Explicit: true}},
+		Affected: []Affected{
+			{CPE: "cpe:2.3:a:nodejs:node.js:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "20.0.0", EndExcl: "30.0.0"}},  // passes through line 22
+			{CPE: "cpe:2.3:a:nodejs:node.js:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "22.0.0", EndExcl: "22.30.0"}}, // names line 22
+		}}
+	a := Asset{ID: "dev", Name: "dev.example.com", Software: []Software{nodeRow("22.24.0")}}
+	s := a.Software[0]
+	in := swInfoOn(s, a)
+	if lr := lineJudge(a, s, in, v); lr.decides() {
+		t.Errorf("verdict %d decides, want none: an NVD row names line 22 and covers 22.24.0", lr.verdict)
+	}
+	if res := MatchAsset(a, []Vuln{v}, nil, lineNow); len(res.New) != 1 {
+		t.Errorf("matches = %+v, want the finding NVD's row on line 22 states", res)
+	}
+}

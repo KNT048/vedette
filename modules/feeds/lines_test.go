@@ -225,3 +225,56 @@ func TestLineSources_Data(t *testing.T) {
 		}
 	}
 }
+
+// A CVE the index lists in more than one entry is read from all of them: lines of a later entry are never lost (a line missing from the
+// statement reads "not affected" by the source's convention). Entries that state one line differently, or a CVE also in an entry
+// that is not read, drop the CVE whole.
+func TestParseNodeLines_CVEInSeveralEntries(t *testing.T) {
+	t.Parallel()
+	body := `{"1":{"cve":["CVE-2026-2001"],"vulnerable":"20.x","patched":"^20.18.2","affectedEnvironments":["all"]},
+"2":{"cve":["CVE-2026-2001"],"vulnerable":"22.x","patched":"^22.12.0","affectedEnvironments":["win32"]},
+"3":{"cve":["CVE-2026-2002"],"vulnerable":"22.x","patched":"^22.12.0","affectedEnvironments":["all"]},
+"4":{"cve":["CVE-2026-2002"],"vulnerable":"22.x","patched":"^22.13.0","affectedEnvironments":["all"]},
+"5":{"cve":["CVE-2026-2003"],"vulnerable":"20.x","patched":"^20.18.2","affectedEnvironments":["all"]},
+"6":{"cve":["CVE-2026-2003"],"vulnerable":"22.x || 22.x","patched":"^22.12.0","affectedEnvironments":["all"]},
+"7":{"cve":["CVE-2026-2004"],"vulnerable":"22.x","patched":"^22.12.0","affectedEnvironments":["all"]},
+"8":{"cve":["CVE-2026-2004"],"vulnerable":"22.x","patched":"^22.12.0","affectedEnvironments":["all"]}}`
+	sts, _, err := parseNodeLines([]byte(body), "node.js|node.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[string][]string{}
+	for _, s := range sts {
+		for _, r := range s.Rows {
+			by[s.CVE] = append(by[s.CVE], r.Line)
+		}
+	}
+	if got := by["CVE-2026-2001"]; !slices.Equal(got, []string{"20", "22"}) {
+		t.Errorf("CVE-2026-2001 lines = %v, want 20 and 22", got)
+	}
+	if _, ok := by["CVE-2026-2002"]; ok {
+		t.Errorf("CVE-2026-2002 kept although two entries fix line 22 in different releases: %v", by["CVE-2026-2002"])
+	}
+	if _, ok := by["CVE-2026-2003"]; ok {
+		t.Errorf("CVE-2026-2003 kept from part of its entries: %v", by["CVE-2026-2003"])
+	}
+	if got := by["CVE-2026-2004"]; !slices.Equal(got, []string{"22"}) {
+		t.Errorf("CVE-2026-2004 lines = %v, want 22 once", got)
+	}
+}
+
+// A support day that is no calendar day (it would read as "no end", so a line past its end as still assessed) drops the line.
+func TestParseEOL_NotADay(t *testing.T) {
+	t.Parallel()
+	body := `{"result":[{"name":"nodejs","releases":[
+{"name":"18","releaseDate":"2022-04-19","isEol":true,"eolFrom":"2025-02-30"},
+{"name":"20","releaseDate":"2023-13-18","isEol":true,"eolFrom":"2026-04-30"},
+{"name":"22","releaseDate":"2024-04-24","isEol":false,"eolFrom":"2027-04-30","latest":{"date":"2026-11-31"}}]}]}`
+	sup, st, err := parseEOL([]byte(body), map[string]string{"nodejs": "node.js|node.js"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sup) != 1 || sup[0].Line != "22" || sup[0].Last != "" || st.Rejected != 2 {
+		t.Errorf("lines %+v, stats %+v", sup, st)
+	}
+}

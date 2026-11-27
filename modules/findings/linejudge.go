@@ -204,14 +204,36 @@ func utcDay(t time.Time) time.Time {
 }
 
 // nvdNamesLine says an NVD row (or the CVE record's, where NVD has none) covers the version and names the device's release line
-// itself: it starts on the line or lists one of its releases. A row from version 0, or from an older line, only passes through.
+// itself: it starts on the line or lists one of its releases. A row from version 0, or from an older line, only passes through. Every
+// covering row counts, not only the one that explains the finding best: a wider row that passes through the line does not hide a
+// narrower one on the line.
 func nvdNamesLine(in swInfo, v Vuln, p productid.Product, line string) bool {
 	t, within, _, _ := decide(in, v, keyIDs(v))
 	if t != Yes {
 		return false
 	}
-	start := cmp.Or(within.StartIncl, within.StartExcl)
-	return start != "" && p.Line(p.Canonical(start)) == line
+	onLine := func(start string) bool { return start != "" && p.Line(p.Canonical(start)) == line }
+	if onLine(cmp.Or(within.StartIncl, within.StartExcl)) {
+		return true
+	}
+	named := v
+	named.Affected = nil
+	for _, af := range v.Affected {
+		start := cmp.Or(af.Range.StartIncl, af.Range.StartExcl)
+		if af.Range.IsZero() {
+			if c, err := af.cpe(); err == nil {
+				start, _ = c.Version.Literal()
+			}
+		}
+		if onLine(start) {
+			named.Affected = append(named.Affected, af)
+		}
+	}
+	if len(named.Affected) == 0 {
+		return false
+	}
+	t, _, _, _ = decide(in, named, keyIDs(named))
+	return t == Yes
 }
 
 // lineDecision is judge's reading of a line verdict that decides: the tri-state, the vendor's affected range of the line, and the

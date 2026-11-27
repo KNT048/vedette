@@ -145,7 +145,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   speaks about the CVE for the product, with the day of its statement and the advisory link) and `feeds_line_status` (one row per
   release line its vulnerable range names: from the start it gives, up to the release its patched range gives for that line; limited to
   the platforms the entry names). An entry whose ranges do not read, name one line twice or disagree is dropped whole and counted, never
-  stored in part. Only catalogue CVEs are kept (INV-34; the catalogue's pruning drops the rest), and a statement that did not change keeps
+  stored in part; a CVE several entries list is read from all of them, and dropped whole when one of them is not read or two state
+  one line differently. Only catalogue CVEs are kept (INV-34; the catalogue's pruning drops the rest), and a statement that did not change keeps
   its day, so an unchanged index changes nothing for findings. endoflife.date (`endoflife-date`) fills `feeds_line_support` (release day,
   end of security support, latest release) of the products the file names, and is never a CVE verdict. `LineData` gives findings the
   rows, covers and support of the sources that are on; a cover is `Stale` when its source is more than a day past its interval.

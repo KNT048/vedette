@@ -2,6 +2,7 @@ package findings
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"slices"
 	"strings"
@@ -526,5 +527,118 @@ func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
 	st := LineStatement{Status: StatementAffected, StatedLine: "7.2.1", Quote: quote, QuoteFound: true}
 	if v := st.verdictFor(past); v != "" {
 		t.Errorf("a version past the quoted fix: %q, want nothing decided", v)
+	}
+}
+
+// autoReadToEnd starts the automatic reading and waits for its run to finish.
+func autoReadToEnd(t *testing.T, e *env) CheckRun {
+	t.Helper()
+	if !e.svc.AutoRead(t.Context()) {
+		t.Fatal("the automatic reading did not start")
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if run, _ := e.svc.CheckStatus(t.Context()); run != nil && !run.Running {
+			return *run
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the automatic reading did not finish")
+		}
+		runtime.Gosched()
+	}
+}
+
+func sentFor(fc *fakeChecker, cve string) int {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	n := 0
+	for _, r := range fc.sent {
+		if r.CVE == cve {
+			n++
+		}
+	}
+	return n
+}
+
+// One item whose call is refused (a hook stopped its text, the answer was unusable) does not stop the reading: the next CVE is read in
+// the same run, the refused one is left by the automatic reading until its retry time (it is not first again at the next run), and a
+// person's check reads it at once. On a real box one reference page refused by a hook stopped every hourly run at the same CVE.
+func TestAutoRead_ARefusedItemDoesNotStopTheNext(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	fc.pages["CVE-2026-82003"] = []FetchedPage{{URL: dsmPageURL + "#82003", Status: "ok", Text: "CVE-2026-82003 concerns Synology DiskStation Manager (DSM) 7.2; see the release notes."}}
+	fc.refuse = map[string]error{"CVE-2026-82002": &ItemRefused{Reason: "The AI was not asked: a hook stopped the data sent with it.", RetryAfter: 24 * time.Hour}}
+	run := autoReadToEnd(t, e)
+	if run.Stopped != nil || run.Failed == 0 || run.Readings == 0 {
+		t.Fatalf("run %+v: want it to go past the refused item, read the next and count the refused one", run)
+	}
+	if sentFor(fc, "CVE-2026-82002") != 1 || sentFor(fc, "CVE-2026-82003") != 1 {
+		t.Fatalf("calls: 82002 %d, 82003 %d; want one each", sentFor(fc, "CVE-2026-82002"), sentFor(fc, "CVE-2026-82003"))
+	}
+	// the next automatic run leaves the refused item until its retry time: nothing else is due, so no run starts
+	if e.svc.AutoRead(t.Context()) {
+		autoReadToEnd(t, e)
+	}
+	if n := sentFor(fc, "CVE-2026-82002"); n != 1 {
+		t.Errorf("the refused item was asked %d times, want it left until its retry time", n)
+	}
+	// a person's check reads it at once, and an answer clears the hold
+	fc.refuse = nil
+	runCheck(t, e)
+	if n := sentFor(fc, "CVE-2026-82002"); n != 2 {
+		t.Errorf("a person's check did not read the refused item (%d calls)", n)
+	}
+	if len(e.svc.check.held) != 0 {
+		t.Errorf("held after an answer: %v", e.svc.check.held)
+	}
+}
+
+// A call that fails for a reason Propose does not name (the provider answered an error) is that item's failure too, left for the next
+// run; only aiFailStreak such failures in a row stop the run, since the AI then answers nothing at all.
+func TestPossibleCheck_TheAIFailingInARowStopsTheRun(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	var units []checkUnit
+	fc.refuse = map[string]error{}
+	for i := range 5 {
+		cve := fmt.Sprintf("CVE-2026-9100%d", i)
+		fc.pages[cve] = []FetchedPage{{URL: dsmPageURL + "#" + cve, Status: "ok", Text: cve + " concerns Synology DiskStation Manager (DSM) 7.2."}}
+		fc.refuse[cve] = errors.New("the AI provider returned an error (HTTP 500)")
+		units = append(units, checkUnit{key: "k-" + cve, cve: cve, id: CheckID{Product: "synology|diskstation_manager", Line: "7.2.1", Version: "7.2.1-69057-5", Record: "r"},
+			devs: []string{"nas-01"}})
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), units, SystemUser)
+	run := *e.svc.check.run
+	if run.Stopped == nil || !strings.Contains(*run.Stopped, "in a row") || len(fc.sent) != aiFailStreak {
+		t.Fatalf("run %+v after %d calls: want it stopped after %d failures in a row", run, len(fc.sent), aiFailStreak)
+	}
+	if h, ok := e.svc.check.held["k-CVE-2026-91000"]; !ok || h.reason == "" || !h.until.After(e.svc.now()) {
+		t.Errorf("the failed item is not held with its reason and retry time: %+v", h)
+	}
+}
+
+// The streak counts calls, not CVEs: a CVE with more release lines than one call carries (possibleCheckItems a call) makes several calls,
+// and when the AI answers none of them the run stops after aiFailStreak calls, not after every call of that CVE.
+func TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	const cve = "CVE-2026-91100"
+	fc.pages[cve] = []FetchedPage{{URL: dsmPageURL + "#" + cve, Status: "ok", Text: cve + " concerns Synology DiskStation Manager (DSM)."}}
+	fc.refuse = map[string]error{cve: errors.New("the AI provider returned an error (HTTP 500)")}
+	var units []checkUnit
+	for i := range (aiFailStreak + 2) * possibleCheckItems {
+		line := fmt.Sprintf("7.%d", i)
+		units = append(units, checkUnit{key: "k-" + line, cve: cve, id: CheckID{Product: "synology|diskstation_manager", Line: line, Version: line + ".1-69057-5", Record: "r"},
+			devs: []string{"nas-01"}})
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), units, SystemUser)
+	run := *e.svc.check.run
+	if run.Stopped == nil || !strings.Contains(*run.Stopped, "in a row") || len(fc.sent) != aiFailStreak {
+		t.Fatalf("run %+v after %d calls: want it stopped after %d failures in a row", run, len(fc.sent), aiFailStreak)
+	}
+	if run.Failed != len(units) {
+		t.Errorf("failed %d of %d units: every unit the stop left is not checked", run.Failed, len(units))
 	}
 }

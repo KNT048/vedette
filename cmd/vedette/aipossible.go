@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/auth"
@@ -68,10 +70,7 @@ func (c possibleChecker) Propose(ctx context.Context, actor string, req findings
 	}
 	ans, err := c.ai.ProposePossible(ctx, actor, r)
 	if err != nil {
-		if ae, ok := apierr.As(err); ok && (ae.Status == 409 || ae.Status == 429) {
-			return findings.ProposeAnswer{}, &findings.CheckStop{Reason: ae.Message} // no profile, or a budget: the check stops
-		}
-		return findings.ProposeAnswer{}, err
+		return findings.ProposeAnswer{}, aiCallError(err)
 	}
 	out := findings.ProposeAnswer{Model: ans.Model, Profile: ans.Profile, ActivityID: ans.ActivityID}
 	for _, v := range ans.Verdicts {
@@ -79,6 +78,28 @@ func (c possibleChecker) Propose(ctx context.Context, actor string, req findings
 			LastAffected: v.LastAffected, Line: v.Line, Reason: v.Reason, Quote: v.Quote, Source: v.Source})
 	}
 	return out, nil
+}
+
+// refusedRetry is how long a background run leaves the items of a refused call: the same text is refused again until the record,
+// the page, the names or the hooks change.
+const refusedRetry = 24 * time.Hour
+
+// aiCallError sorts the error of one call of a background AI run over items (the reading of advisories, the identification of
+// software), the same way for both: a refusal of that call's text or answer (a hook, an answer outside the schema or cut off) is that
+// call's items alone (findings.ItemRefused) and the run goes on with the next items; the AI unavailable (no profile, the skill or the
+// reading switched off, the provider unreachable), a budget reached or the runaway fuse stops the run (findings.CheckStop); anything
+// else is that call's failure, and its items wait for a later run.
+func aiCallError(err error) error {
+	ae, ok := apierr.As(err)
+	switch {
+	case !ok:
+		return err
+	case ae.Code == "blocked_by_hook", ae.Code == "ai_bad_format", ae.Code == "ai_cut_off":
+		return &findings.ItemRefused{Reason: ae.Message, RetryAfter: refusedRetry}
+	case ae.Status == http.StatusConflict, ae.Status == http.StatusTooManyRequests, ae.Code == "unreachable":
+		return &findings.CheckStop{Reason: ae.Message}
+	}
+	return err
 }
 
 // Budget is how the automatic reading stands in the AI settings: on or off, and whether today's reads or this month's budget for
@@ -123,23 +144,13 @@ func (c softwareIdentifier) Identify(ctx context.Context, actor string, req find
 	}
 	ans, err := c.ai.IdentifyProducts(ctx, actor, items)
 	if err != nil {
-		return findings.IdentifyAnswer{}, identifyErr(err)
+		return findings.IdentifyAnswer{}, aiCallError(err)
 	}
 	out := findings.IdentifyAnswer{Model: ans.Model, ActivityID: ans.ActivityID}
 	for _, ch := range ans.Choices {
 		out.Choices = append(out.Choices, findings.IdentifyChoice{Index: ch.Index, Choice: ch.Choice, Match: ch.Match, Reason: ch.Reason})
 	}
 	return out, nil
-}
-
-// identifyErr is the error of one identification call as the run reads it: no profile, or a budget, stops the whole run
-// (findings.CheckStop); a hook that stopped the call is about the names of that call, so the call failed and its names wait while the
-// run goes on (a deterministic hook would otherwise stop every run at the same names).
-func identifyErr(err error) error {
-	if ae, ok := apierr.As(err); ok && (ae.Status == 409 || ae.Status == 429) && ae.Code != "blocked_by_hook" {
-		return &findings.CheckStop{Reason: ae.Message}
-	}
-	return err
 }
 
 // PrivateNames are every device's name and hostname, and every account's name, email address and the part of it before the @.

@@ -203,15 +203,20 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 }
 
 // guard runs the before_ai hooks on the question and on every data block, separately, so a mask never touches the markers around
-// them. Any block, hold or failed run stops the call (fail closed): nothing is sent. stop says which part was stopped (the question,
+// them; a block of public text the box fetched itself (DataBlock.public) goes through the customer's own hooks only, the question always
+// through all of them. Any block, hold or failed run stops the call (fail closed): nothing is sent. stop says which part was stopped (the question,
 // or the data from a named source) and why; matched is set when a hook matched it (a rephrase or a change of the hook helps), not
 // when the hooks could not run.
 func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string, matched bool) {
 	// The same deadline as the after_ai pass, for the whole pass: a hook that cannot finish is a block (fail closed).
 	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
-	run := func(text, where string) (string, bool) {
-		r, err := hooks.Run(ctx, BeforeAI, text)
+	run := func(text, where string, public bool) (string, bool) {
+		check := func() (HookResult, error) { return hooks.Run(ctx, BeforeAI, text) }
+		if public { // text the box fetched itself from a public source: the customer's own hooks only (DataBlock.public)
+			check = func() (HookResult, error) { return hooks.runPublic(ctx, text) }
+		}
+		r, err := check()
 		if errors.Is(err, ErrHookInputTooLarge) {
 			stop = "The text of " + where + " is too long to check against the hooks, so it was not sent."
 			return "", false
@@ -227,12 +232,12 @@ func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (q
 		}
 		return r.Text, true
 	}
-	q, ok := run(spec.Question, "the question")
+	q, ok := run(spec.Question, "the question", false)
 	if !ok {
 		return "", nil, dedupe(names), stop, matched
 	}
 	for _, d := range spec.Data {
-		t, ok := run(d.Text, fmt.Sprintf("the data sent with it (%s)", clipRunes(cleanLine(d.Source, 80), 80)))
+		t, ok := run(d.Text, fmt.Sprintf("the data sent with it (%s)", clipRunes(cleanLine(d.Source, 80), 80)), d.public)
 		if !ok {
 			return "", nil, dedupe(names), stop, matched
 		}

@@ -279,9 +279,11 @@ func (s *Service) ProposePossible(ctx context.Context, actor string, req Possibl
 	for _, r := range req.Rows {
 		rec.WriteString("\n" + clipBytes(sanitizeWeb(r), 300))
 	}
-	data := []DataBlock{{Kind: DataFeed, Source: "0: the CVE record", Text: rec.String()}}
+	// The record and the pages are public text the box read itself (public): only the customer's own hooks read them. The question,
+	// which carries the products and versions of the customer's inventory, goes through every hook.
+	data := []DataBlock{{Kind: DataFeed, Source: "0: the CVE record", Text: rec.String(), public: true}}
 	for i, p := range req.Pages {
-		data = append(data, DataBlock{Kind: DataWeb, Source: fmt.Sprintf("%d: %s", i+1, webLine(p.URL, 200)), Text: clipBytes(p.Text, refTextBytes)})
+		data = append(data, DataBlock{Kind: DataWeb, Source: fmt.Sprintf("%d: %s", i+1, webLine(p.URL, 200)), Text: clipBytes(p.Text, refTextBytes), public: true})
 	}
 	items, err := json.Marshal(req.Items)
 	if err != nil {

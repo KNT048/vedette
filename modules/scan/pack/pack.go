@@ -27,7 +27,14 @@ const (
 	maxTags      = 32
 	maxRequest   = 200
 	maxName      = 120
+	// MaxRequests bounds Template.Requests: the largest http template of nuclei-templates 10.5.1 sends 57 different requests.
+	MaxRequests = 64
 )
+
+// RequestUnknown is the entry of Template.Requests that stands for requests whose path the builder cannot list: more than
+// MaxRequests of them, a line too long or not printable, fuzzing, a block with neither path nor raw, or a raw request sent unsafe
+// with redirects followed (nuclei's -dr does not reach that client). It is no request line, so it never passes for one.
+const RequestUnknown = "?"
 
 // SafeTags are the tags a template of the KEV set must carry one of: the KEV sets (CISA KEV, VulnCheck KEV) (INV-4).
 var SafeTags = []string{"kev", "vkev"}
@@ -52,6 +59,13 @@ type Template struct {
 	SHA256  string   `json:"sha256"`        // of the template file
 	Tags    []string `json:"tags"`          //
 	Request string   `json:"request"`       // the first request line, for the probe log (contract.ts ProbeEntry.request)
+	// Requests are the request lines of every request an http template can send, "METHOD target" in the order of the file (the
+	// first one is Request's), each written once: every path: entry with its block's method, the request line of every raw request,
+	// with an inline payload or a literal variable put in where the line names it, and RequestUnknown for what cannot be listed.
+	// What is left as {{…}} is built while the template runs. Core leaves a template out of a target's web paths to skip
+	// unless every line is known and outside them. Absent outside http/ and in an index built before the list: core then knows
+	// only Request. Not part of the index label (Index.SHA256): it is read from the template files that the label covers.
+	Requests []string `json:"requests,omitempty"`
 	// OwnIP says the template may run on the box's own public IP (exposure's safe checks): decided when the pack is built
 	// (scripts/scanpack) from the template itself, conservatively: http only, every request GET or HEAD without a body, no
 	// credential, no command, no refused tag (OwnIPRefusedTag), and the file passes OwnIPText. Absent = false: a template the
@@ -226,6 +240,10 @@ func (t Template) check() error {
 		return fmt.Errorf("a template has 1 to %d tags", maxTags)
 	case len(t.Request) > maxRequest || !requestRE.MatchString(t.Request):
 		return errors.New("request is not one printable request line")
+	case len(t.Requests) > MaxRequests || len(t.Requests) > 0 && !strings.HasPrefix(t.Path, "http/"):
+		return fmt.Errorf("an http template lists at most %d requests, another template none", MaxRequests)
+	case slices.ContainsFunc(t.Requests, func(r string) bool { return len(r) > maxRequest || !requestRE.MatchString(r) }):
+		return errors.New("requests holds a line that is not one printable request line")
 	}
 	safe, disruptive := false, false
 	forbidden := nucleiargv.ForbiddenTags() // nuclei is told to exclude the same list (-etags)

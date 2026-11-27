@@ -195,7 +195,6 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 	sent := map[string]bool{}
 	var silent []string // review r1 M1: handed to nuclei, no line printed: not run
 	handed := 0
-	unknown := map[string]bool{}                                      // templates whose path could not be told against the web paths to skip (they ran)
 	run := func(tmpls []pack.Template) (map[string][]string, error) { // template id -> matcher names of its matching lines
 		found := map[string][]string{}
 		for c := range slices.Chunk(tmpls, nucleiargv.MaxFullTemplates) {
@@ -204,13 +203,8 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 				return nil, err
 			}
 			c = slices.DeleteFunc(slices.Clone(c), func(tp pack.Template) bool {
-				return sent[tp.ID] || !tp.RunsAt(true, m.Disruptive) || !groupAllows(m, tp) || templatePathOf(tp, t.SkipPaths) == tplPathSkipped
+				return sent[tp.ID] || !tp.RunsAt(true, m.Disruptive) || !groupAllows(m, tp) || templatePathOf(tp, t.SkipPaths) != tplPathRuns
 			})
-			for _, tp := range c {
-				if templatePathOf(tp, t.SkipPaths) == tplPathUnknown {
-					unknown[tp.ID] = true
-				}
-			}
 			if len(c) == 0 {
 				continue
 			}
@@ -240,7 +234,7 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 		return err
 	}
 	var plan []pack.Template
-	f := tplFilter{m: m, paths: t.SkipPaths} // the room of the port goes only to templates that may leave
+	f := tplFilter{m: m, paths: t.SkipPaths, left: map[string]tplPathVerdict{}} // the room of the port goes only to templates that may leave
 	if p.target.Scheme == "" {
 		plan = otherPlan(ix, p, f)
 	} else {
@@ -264,7 +258,7 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 	if len(silent) > 0 {
 		out.NotChecked = append(out.NotChecked, fmt.Sprintf(notRunFull, p.port, len(silent), handed))
 	}
-	if l := pathsLine(len(unknown), p.port, t.SkipPaths); l != "" {
+	if l := pathsLine(f.left, p.port, t.SkipPaths); l != "" {
 		out.NotChecked = append(out.NotChecked, l)
 	}
 	return err
@@ -404,7 +398,7 @@ func otherPlan(ix *pack.Index, p fullPort, f tplFilter) []pack.Template {
 	seen := map[string]bool{}
 	var plan []pack.Template
 	add := func(tp pack.Template) {
-		if !seen[tp.ID] && f.runs(tp) && !strings.HasPrefix(tp.Path, "http/") && len(plan) < exposure.FullTemplatesPerPort {
+		if !seen[tp.ID] && !strings.HasPrefix(tp.Path, "http/") && f.runs(tp) && len(plan) < exposure.FullTemplatesPerPort {
 			seen[tp.ID] = true
 			plan = append(plan, tp)
 		}

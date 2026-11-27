@@ -847,7 +847,7 @@
     "paths": {
       "label": "Web paths to skip",
       "help": "Web scans leave these paths out (at most {{max}}). nmap and OpenVAS cannot skip a path: skip its port instead.",
-      "info": "Matched as written from the start of the path, not as a pattern. The web scanner skips them; nuclei does so as far as it can, by the first request of each check. The run page says when it could not.",
+      "info": "Matched as written from the start of the path, not as a pattern. The web scanner skips them. nuclei leaves out every check that sends any request under one of them, or a request whose path is only built while it runs. The run page says how many checks were left out.",
       "placeholder": "For example /admin/delete",
       "noSlash": "\"{{value}}\" does not start with /.",
       "tooLong": "A path is longer than {{max}} characters.",

@@ -400,7 +400,7 @@ const deepGroups = {
   openvas: z.boolean().describe('OpenVAS on this target; it still needs the box-wide OpenVAS switch on'),
   speed: DeepSpeed.describe('gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)'),
   skip_ports: z.array(z.number().int().min(1).max(65535)).max(MAX_SKIP_PORTS).describe('TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)'),
-  skip_paths: z.array(z.string()).max(MAX_SKIP_PATHS).describe('URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port'),
+  skip_paths: z.array(z.string()).max(MAX_SKIP_PATHS).describe('URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port'),
 }
 export const DeepSettings = z.object({
   ...deepGroups,

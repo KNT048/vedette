@@ -79,3 +79,23 @@ func TestTheCommittedIndexIsThePinnedPack(t *testing.T) {
 		t.Errorf("the index sha256 %s is not its label %s: the file was edited by hand", ix.SHA256, got)
 	}
 }
+
+// Every http template of the committed pack lists the requests it can send (core holds them all against a target's web paths to
+// skip), and no other template lists any. A template's later requests are there: the GitLab sign-up check asks /users/sign_in,
+// then /users/sign_up.
+func TestTheCommittedIndexListsEveryRequest(t *testing.T) {
+	t.Parallel()
+	ix, err := Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tpl := range ix.Templates {
+		if http := strings.HasPrefix(tpl.Path, "http/"); http != (len(tpl.Requests) > 0) {
+			t.Fatalf("%s lists %d requests: run `make scan-pack` and commit content/nucleipack", tpl.ID, len(tpl.Requests))
+		}
+	}
+	tpl, ok := ix.Get("gitlab-public-signup")
+	if !ok || strings.Join(tpl.Requests, " ") != "GET {{BaseURL}}/users/sign_in GET {{BaseURL}}/users/sign_up" {
+		t.Fatalf("gitlab-public-signup: %q", tpl.Requests)
+	}
+}

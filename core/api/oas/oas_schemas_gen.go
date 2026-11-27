@@ -50546,8 +50546,9 @@ type ExposureDeleteExposureTreeIDTermsOKDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -61685,8 +61686,9 @@ type ExposureGetExposureTreeIDOKDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -64436,8 +64438,9 @@ type ExposureGetExposureTreeOKItemsItemDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -66174,8 +66177,9 @@ type ExposurePatchExposureTreeIDOKDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -75209,8 +75213,9 @@ type ExposurePostExposureTreeCreatedDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -77392,8 +77397,9 @@ type ExposurePostExposureTreeIDVerifyOKNodeDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -81295,8 +81301,9 @@ type ExposurePutExposureTreeIDDeepSettingsOKDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -82526,8 +82533,9 @@ type ExposurePutExposureTreeIDDeepSettingsReq struct {
 	Logins bool `json:"logins"`
 	// OpenVAS on this target; it still needs the box-wide OpenVAS switch on.
 	Openvas bool `json:"openvas"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).
@@ -83178,8 +83186,9 @@ type ExposurePutExposureTreeIDTermsOKDeepSettings struct {
 	// Why the stored settings cannot be read (the scan of the target refuses to run until they are saved
 	// again); null when they read fine.
 	Problem NilString `json:"problem"`
-	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by
-	// the first request of each template; nmap and OpenVAS keep off a path only by skipping its port.
+	// URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei,
+	// which runs a template only when every request it can send is known and outside them; nmap and
+	// OpenVAS keep off a path only by skipping its port.
 	SkipPaths []string `json:"skip_paths"`
 	// TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan
 	// that skipped them).

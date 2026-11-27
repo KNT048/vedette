@@ -92,10 +92,11 @@ func TestParse_Sets(t *testing.T) {
 	}
 }
 
-// The limits hold the measured full pack (8260 templates, 4.3 MB of index) with room for the next releases of nuclei-templates.
+// The limits hold the measured full pack (8260 templates; 4.5 MB of index once every request of an http template is listed) with
+// room for the next releases of nuclei-templates.
 func TestLimitsHoldTheMeasuredPack(t *testing.T) {
 	t.Parallel()
-	if MaxTemplates < 2*8260 || MaxSize < 2*4302648 {
+	if MaxTemplates < 2*8260 || MaxSize < 2*4523607 {
 		t.Fatalf("limits %d templates, %d bytes: below twice the measured pack", MaxTemplates, MaxSize)
 	}
 	many := make([]map[string]any, MaxTemplates+1)

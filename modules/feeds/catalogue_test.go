@@ -399,3 +399,27 @@ func TestCatalogue_OlderRecordNeverReplacesANewerOne(t *testing.T) {
 		t.Fatalf("the older record replaced the newer one: %+v", w)
 	}
 }
+
+// NVD's "running on" operating systems of a configuration reach the matcher with the vulnerable row they belong to (KevAffected), so
+// findings can tell the environment from the affected product; a row with no such condition carries none.
+func TestKevAffected_CarriesNVDsRunningOnSystems(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	applyV(t, db, epoch0, kevFeedID, []Vuln{vuln("CVE-2026-0202", "Example", "Example OS", "2026-11-01")}, false)
+	app := AffectedRow{CPE: "cpe:2.3:a:example:font_viewer:*:*:*:*:*:*:*:*", EndExcl: "3.1"}
+	lib := AffectedRow{CPE: "cpe:2.3:a:example:font_lib:*:*:*:*:*:*:*:*", EndExcl: "1.4"}
+	rec := NVDRecord{CVE: "CVE-2026-0202", Published: epoch0.AddDate(0, -1, 0), LastModified: epoch0.Add(-time.Hour), Status: "Analyzed",
+		Affected: []AffectedRow{app, lib}, Platforms: [][]string{{"example:example_os_5", "example:example_os_6"}, nil}}
+	write(t, db, func(tx *sql.Tx) error { return storeRecords(t.Context(), tx, []NVDRecord{rec}, epoch0) })
+	aff, err := s.KevAffected(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][]string{}
+	for _, r := range aff["CVE-2026-0202"] {
+		got[r.CPE] = r.Platforms
+	}
+	if len(got) != 2 || !slices.Equal(got[app.CPE], []string{"example:example_os_5", "example:example_os_6"}) || got[lib.CPE] != nil {
+		t.Fatalf("KevAffected = %+v", aff["CVE-2026-0202"])
+	}
+}

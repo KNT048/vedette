@@ -483,7 +483,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE, AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix,
-				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
+				Platforms: r.Platforms, Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
 		}
 		for _, d := range distro[v.CVE] {
 			out[i].Distro = append(out[i].Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro, Reason: d.Reason})
@@ -691,7 +691,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
 			if row, ok := r.MatchRow(); ok {
 				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly, VendorList: row.VendorList, LineFix: row.LineFix,
-					Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
+					Platforms: row.Platforms, Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
 			}
 		}
 		switch {

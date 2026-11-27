@@ -53,7 +53,7 @@ func (e *env) garble(id, set string) {
 			return err
 		}
 		defer func() { _, _ = tx.ExecContext(e.ctx(), `PRAGMA ignore_check_constraints = OFF`) }()
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_deep_setting SET `+set+` WHERE target_id = ?`, id)
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_deep_setting SET `+set+` WHERE target_id = ?`, id) //nolint:gosec // G202: the columns the test garbles, fixed in the test
 		return err
 	}); err != nil {
 		e.t.Fatal(err)
@@ -121,7 +121,7 @@ func TestDeepSettings_TheSchemaHoldsAndARowGoesWithItsTarget(t *testing.T) {
 	id := e.detect(ipA)[0].ID
 	ins := func(cols, vals string) error {
 		return e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(e.ctx(), `INSERT INTO exp_deep_setting (target_id, updated_at, updated_by`+cols+`) VALUES (?, '2026-11-09T10:00:00.000Z', 'admin@acme.example'`+vals+`)`, id)
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO exp_deep_setting (target_id, updated_at, updated_by`+cols+`) VALUES (?, '2026-11-09T10:00:00.000Z', 'admin@acme.example'`+vals+`)`, id) //nolint:gosec // G202: the columns of each refused row, fixed in the test
 			return err
 		})
 	}

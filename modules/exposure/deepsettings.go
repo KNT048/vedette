@@ -229,17 +229,17 @@ func (g Groups) Names() []string {
 // rules allowed and the settings removed, and then Disruptive is DoS || Logins || Change. It is the last step of runMode.
 func narrow(m ScanMode, s DeepSettings) ScanMode {
 	m = m.norm()
-	clear := func(on *bool, keep bool, g Groups) {
+	drop := func(on *bool, keep bool, g Groups) {
 		if *on && !keep {
 			*on = false
 			m.Off |= g
 		}
 	}
-	clear(&m.DoS, s.DoS, GroupDoS)
-	clear(&m.Logins, s.Logins, GroupLogins)
-	clear(&m.Change, s.DataChange, GroupChange)
-	clear(&m.WebActive, s.WebActive, GroupWebActive)
-	clear(&m.OpenVAS, s.OpenVAS, GroupOpenVAS)
+	drop(&m.DoS, s.DoS, GroupDoS)
+	drop(&m.Logins, s.Logins, GroupLogins)
+	drop(&m.Change, s.DataChange, GroupChange)
+	drop(&m.WebActive, s.WebActive, GroupWebActive)
+	drop(&m.OpenVAS, s.OpenVAS, GroupOpenVAS)
 	return m.norm()
 }
 
@@ -271,17 +271,6 @@ func intersect(a, b DeepSettings) DeepSettings {
 
 // Skips says port is one this scan leaves out.
 func (t ScanTarget) Skips(port int) bool { return slices.Contains(t.SkipPorts, port) }
-
-// SkipsPath says a request to path (as sent, with or without its query) is one the web scans leave out: path starts with a skipped
-// prefix.
-func (t ScanTarget) SkipsPath(path string) bool {
-	for _, p := range t.SkipPaths {
-		if strings.HasPrefix(path, p) {
-			return true
-		}
-	}
-	return false
-}
 
 // dropSkipped takes the ports this scan leaves out out of what an engine reported: they are not observed, so their stored rows stay
 // as they are (no verdict, never closed or retired) and no later engine gets them.

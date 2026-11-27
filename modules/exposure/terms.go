@@ -366,9 +366,9 @@ func auditClip(d string) string {
 	return clipText(d, auditDetailMax-utf8.RuneCountInString(termsClipNote)) + termsClipNote
 }
 
-// above says whether mode a may do more than mode b.
-func (a ScanMode) above(b ScanMode) bool {
-	return (a.Full && !b.Full) || (a.Disruptive && !b.Disruptive)
+// above says whether mode m may do more than mode b.
+func (m ScanMode) above(b ScanMode) bool {
+	return (m.Full && !b.Full) || (m.Disruptive && !b.Disruptive)
 }
 
 // stopRunAbove stops the scan of target id that runs now when its mode is above m: withdrawing the terms must reach a

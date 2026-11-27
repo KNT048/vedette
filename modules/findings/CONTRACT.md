@@ -99,6 +99,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   with version evidence is a finding whatever its urgency. Every finding whose CVE is in the set and that the pass no longer detects
   goes away the way the data says. A pass that changes nothing writes nothing; a device whose inputs did not move is not matched
   again (`matchstamp.go`). Findings tells feeds which CVEs to keep (`PinnedCVEs`).
+  The match after one device's change (`OnMatchChanged`) and the pass decide a (device, CVE) the same way: one matcher on the same
+  inputs. Feeds hands every CVE with every row of it, whichever devices or findings reached it (an entry never depends on the scope a
+  match asks with; a CVE record's list is complete by its author's rows, not another publisher's, and another publisher's row that does not state
+  the rest only ever says "affected"), and the Windows releases feeds
+  stored are known before findings is built (`learnWindowsReleases` in `buildServices`), so no match reads a build with the hand
+  table alone. `TestWiringMatchSetEntryIsTheSameForEveryScope`, `TestWiringStoredWindowsReleaseOneDecisionOnEveryPath`.
 - **M-8 One fix resolver.** `FixOf(device, line, CVE)` is the only reading of what fixes a finding; the match write stores it with
   `fix_key` and `range_origin`. The fix carries its channel (`fix_channel`): `ubuntu_pro` when only Ubuntu Pro's archive has the
   distribution's fixed package (a public fix of the same package wins), `esu` when the Windows build comes only with Extended Security

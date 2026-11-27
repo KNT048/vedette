@@ -453,24 +453,9 @@ type ProductKey struct{ Vendor, Product string }
 // Ranges returns the ranges of every catalogue CVE that names one of these products, as the match reads them per CVE (matchRows: NVD's
 // rows with the CNA's beside them, else the CVE record's). Sorted by CVE, then as stored.
 func (s *Store) Ranges(ctx context.Context, keys []ProductKey) ([]Range, error) {
-	cves := map[string]bool{}
-	for chunk := range slices.Chunk(keys, 400) {
-		pairs := make([][2]string, len(chunk))
-		for i, k := range chunk {
-			pairs[i] = [2]string{strings.ToLower(k.Vendor), strings.ToLower(k.Product)}
-		}
-		part, err := json.Marshal(pairs)
-		if err != nil {
-			return nil, fmt.Errorf("feeds: ranges: %w", err)
-		}
-		got, err := stringSet(ctx, s.db.Reader(), `SELECT DISTINCT r.cve FROM json_each(?) j
-JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product = json_extract(j.value, '$[1]')`, string(part))
-		if err != nil {
-			return nil, err
-		}
-		for c := range got {
-			cves[c] = true
-		}
+	cves, err := s.rangeCVEs(ctx, keys)
+	if err != nil {
+		return nil, err
 	}
 	want := map[ProductKey]bool{}
 	for _, k := range keys {
@@ -497,6 +482,39 @@ JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product
 	return out, nil
 }
 
+// RangeCVEs returns, sorted, the catalogue CVEs a range of which names one of these products (Ranges' CVEs): the match reads every
+// row of each (RangesOf), so a CVE carries the same rows whichever products of a scope reached it.
+func (s *Store) RangeCVEs(ctx context.Context, keys []ProductKey) ([]string, error) {
+	cves, err := s.rangeCVEs(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	return slices.Sorted(mapsKeys(cves)), nil
+}
+
+func (s *Store) rangeCVEs(ctx context.Context, keys []ProductKey) (map[string]bool, error) {
+	cves := map[string]bool{}
+	for chunk := range slices.Chunk(keys, 400) {
+		pairs := make([][2]string, len(chunk))
+		for i, k := range chunk {
+			pairs[i] = [2]string{strings.ToLower(k.Vendor), strings.ToLower(k.Product)}
+		}
+		part, err := json.Marshal(pairs)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: ranges: %w", err)
+		}
+		got, err := stringSet(ctx, s.db.Reader(), `SELECT DISTINCT r.cve FROM json_each(?) j
+JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product = json_extract(j.value, '$[1]')`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for c := range got {
+			cves[c] = true
+		}
+	}
+	return cves, nil
+}
+
 // RangeProduct is a product a catalogue range names: a CPE's vendor and product, or, Record set, a CVE record's product key (no CPE).
 type RangeProduct struct {
 	Vendor, Product string
@@ -504,7 +522,7 @@ type RangeProduct struct {
 }
 
 // RangeProducts is every product a catalogue range names, each once: the match pass keeps those its devices run and reads only their
-// ranges (Ranges). One walk of the (vendor, product, cpe) index.
+// ranges (RangeCVEs). One walk of the (vendor, product, cpe) index.
 func (s *Store) RangeProducts(ctx context.Context) ([]RangeProduct, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product, cpe = '' FROM feeds_cve_range`)
 	if err != nil {

@@ -107,12 +107,20 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 // Distros implements feeds.DistroLister: the distributions of the devices whose packages the distributions' data names, as
 // findings decides it, each with those devices' source packages as the security data names them (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
 // and "alpine" while a device states Alpine Linux (findings.StatesAlpine), with its apk source packages when an agent read them.
-func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool, error) {
+func (a feedsInventory) Distros(ctx context.Context) (map[string]feeds.DistroDevices, error) {
 	ids, err := a.inv.AssetIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]map[string]bool{}
+	out := map[string]feeds.DistroDevices{}
+	add := func(dist string) feeds.DistroDevices {
+		d, ok := out[dist]
+		if !ok {
+			d = feeds.DistroDevices{Packages: map[string]bool{}}
+			out[dist] = d
+		}
+		return d
+	}
 	for _, id := range ids {
 		d, ok, err := a.inv.MatchInput(ctx, id)
 		if err != nil {
@@ -123,18 +131,23 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		}
 		// the same rows as the matcher's (vendor and product too: a person's Debian release names its source package by them)
 		fa := findingsAsset(d)
-		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // fetched while a device states Alpine, even with no apk row yet
-			out[findings.DistroAlpine] = map[string]bool{}
+		if findings.StatesAlpine(fa) { // fetched while a device states Alpine, even with no apk row yet
+			add(findings.DistroAlpine)
 		}
-		dist, _, pkgs := findings.DevicePackages(fa)
+		dist, rel, pkgs := findings.DevicePackages(fa)
 		if dist == "" {
 			continue
 		}
-		if out[dist] == nil {
-			out[dist] = map[string]bool{}
-		}
+		dd := add(dist)
 		for _, p := range pkgs {
-			out[dist][p] = true
+			dd.Packages[p] = true
+		}
+		if rel != "" { // "" (Alpine): every release's rows are read
+			if dd.Releases == nil {
+				dd.Releases = map[string]bool{}
+			}
+			dd.Releases[rel] = true
+			out[dist] = dd
 		}
 	}
 	return out, nil

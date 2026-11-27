@@ -120,12 +120,12 @@ export const FixedIn = z.object({
   branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
   more: z.number().int().min(0).describe('Release lines with a fix left out of branches'),
   no_fix: z.number().int().min(0).describe('Release lines NVD gives no fixed release for (a range that ends at an affected version)'),
-  distro: z.string().describe('"Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds "if you installed it from the distribution\'s packages, install its security updates instead"'),
-  distro_fixed: z.string().describe('Kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
-  distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12"); empty otherwise'),
+  distro: z.string().describe('"Ubuntu", "Debian" or "Alpine Linux" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds "if you installed it from the distribution\'s packages, install its security updates instead"'),
+  distro_fixed: z.string().describe('Kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker, Alpine Linux security database); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
+  distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12", "3.23"); empty otherwise'),
   distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
   restart_into: z.string().optional().describe('Kind distro on a Linux kernel only: the installed kernel (package release, at or above distro_fixed) the device runs after a restart, so a restart alone fixes it; absent otherwise'),
-  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security Tracker"'),
+  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security Tracker" / "Alpine Linux security database"'),
 })
 export const KnownVersion = z.object({
   software: z.string().describe('Display name of the software the finding was matched on'),
@@ -556,7 +556,7 @@ export const Coverage = z.object({
     affected: coverageCount, not_affected: coverageCount,
   })).describe('Decided pairs by source, the most first'),
   possible: z.array(z.object({
-    cause: z.string().max(64).describe('An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a question with no known reason), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed)'),
+    cause: z.string().max(64).describe('An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a question with no known reason), why a distribution\'s package its distribution\'s data has no word on stays undecided (outside_window: older than the 12 months tracked and on no exploited list; distro_no_fix_yet: the distribution lists it affected with no fix and it is on no exploited list; distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the CVE; distro_no_data: no data of that distribution), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed)'),
     count: coverageCount,
   })).describe('Undecided pairs by cause, the most first'),
   identity: z.array(z.object({

@@ -44,9 +44,10 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		return nil, err
 	}
 	var row sourceRow
-	var rematch []string // The CVEs a distribution feed turned on or off decides
+	var rematch []string  // The CVEs a distribution feed turned on or off decides
+	distroSwitch := false // a distribution feed was turned on or off
 	err = h.s.DB.Write(ctx, func(tx *sql.Tx) error {
-		rematch = nil
+		rematch, distroSwitch = nil, false
 		cur, err := sourceTx(ctx, tx, params.ID)
 		if errors.Is(err, ErrNotFound) {
 			return noSuchFeed()
@@ -122,6 +123,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			}
 		}
 		if enabled != cur.Enabled && distroFeeds[cur.ID] {
+			distroSwitch = true
 			if rematch, err = distroCVEs(ctx, tx, cur.ID); err != nil {
 				return err
 			}
@@ -143,8 +145,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			h.s.Log.WarnContext(ctx, "removing the CVE records work folder failed", "error", err)
 		}
 	}
-	if len(rematch) > 0 { // findings follow the switch now: off goes back to NVD's ranges, on uses the rows again
-		h.s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rematch})
+	if distroSwitch { // findings follow the switch now: off goes back to NVD's ranges, on uses the rows again; the rows of the other CVEs
+		// (the catalogue's last 12 months) decide in findings' match pass (Catalogue)
+		h.s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rematch, Catalogue: true})
 	}
 	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(h.s.live(ctx, row)))
 }

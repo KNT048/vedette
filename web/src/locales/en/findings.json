@@ -973,6 +973,13 @@
       "ai_unsure": "AI unsure",
       "ai_proposal": "AI proposal waits for a person",
       "other": "Other reason",
+      "outside_window": "Older than 12 months and not exploited: not tracked",
+      "distro_no_fix_yet": "Distribution: affected, no fix yet (not exploited)",
+      "distro_other_packages": "Distribution lists other packages only",
+      "distro_other_releases": "Distribution lists other releases only",
+      "distro_other_build": "Distribution's fix is about another build",
+      "distro_not_listed": "Distribution has not listed it",
+      "distro_no_data": "No security data for this distribution",
       "other_distro_silent": "Unnamed: the distribution's data has no word",
       "other_record_unread": "Unnamed: the record's rows were not read",
       "other_dropped": "Unnamed: matched on the name alone, not listed"

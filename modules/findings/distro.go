@@ -88,7 +88,8 @@ type distroAnswer struct {
 	kind    distroKind
 	pkg     string // the source package the distribution's data names ("linux" for a linux-signed kernel)
 	name    string // "Ubuntu", "Debian"
-	release string // "24.04", "12"
+	release string // the device's release ("24.04", "12", "3.23"), else the release of the row that decided
+	from    string // the release of the row that decided when it is another than the device's (an Alpine fix of a later branch), else ""
 	fixed   string // the fixed version (fixed here, needed)
 	pro     bool   // the fix is in Ubuntu Pro (ESM) only
 	reason  string // affected with no fix (open, fixed ""): why the distribution publishes no security update (Debian), "" otherwise
@@ -96,8 +97,11 @@ type distroAnswer struct {
 
 // DistroSource names where a distribution's word comes from, for the evidence line and FixedIn.Source.
 func DistroSource(name string) string {
-	if name == "Debian" {
+	switch name {
+	case "Debian":
 		return "Debian Security Tracker"
+	case "Alpine Linux":
+		return "Alpine Linux security database"
 	}
 	return "Ubuntu security data"
 }
@@ -167,7 +171,7 @@ func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
 		}
 		in := newSWInfo(s, osName)
 		in.install = installOf(s, a)
-		in.pkgVer, in.pkgSrc = ver, src
+		in.pkgVer, in.pkgSrc, in.pkgDistro, in.pkgRel = ver, src, d, release
 		rows = append(rows, distroPkgRow{s: s, in: in, ver: ver, pkg: d.source(src)})
 	}
 	return d, release, rows
@@ -360,65 +364,82 @@ func distroDecides(in swInfo, v Vuln) bool {
 	return ubuntuOwnRE.MatchString(rev)
 }
 
-// distroVerdict reads v.Distro for the software row; ok is false when the distribution has no word on it.
+// distroVerdict reads v.Distro for the software row through its distribution's adapter (distroData), the same way for every
+// distribution the feeds supply; ok is false when the distribution has no word on it (no row of the package for the release, a fixed
+// release about another build, a build that is not the distribution's own).
 func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
-	if in.pkgVer == "" || in.pkgSrc == "" || len(v.Distro) == 0 {
+	d := in.pkgDistro
+	if d == nil || in.pkgVer == "" || in.pkgSrc == "" || len(v.Distro) == 0 || in.pkgRel == "" && !d.anyRelease {
 		return distroAnswer{}, false
 	}
-	d, rel := distroOf(in)
-	if d == "" || rel == "" {
+	ver := d.release(in.pkgVer)
+	if ver == "" {
 		return distroAnswer{}, false
 	}
-	pkg := securitySource(d, in.pkgSrc)
-	var fix *DistroFix
-	notAffected, open, reason := false, false, ""
-	for i := range v.Distro {
-		f := &v.Distro[i]
-		if f.Distro != d || f.Release != rel || f.Package != pkg {
-			continue
-		}
-		switch f.Status {
-		case "fixed":
-			if fix == nil || fix.Pro && !f.Pro { // a public fix over one only Ubuntu Pro has
-				fix = f
-			}
-		case "not_affected":
-			notAffected = true
-		case "open":
-			open, reason = true, cmp.Or(reason, f.Reason)
+	pkg := d.source(in.pkgSrc)
+	var rows []DistroFix
+	for _, f := range v.Distro {
+		if f.Distro == d.id && f.Package == pkg {
+			rows = append(rows, f)
 		}
 	}
-	a := distroAnswer{pkg: pkg, name: distroName(in), release: rel}
-	switch {
-	case fix != nil:
-		// only the backport case: the same epoch and upstream release, a revision the distribution builds (review H2). Debian's kernel
-		// is the exception: a stable release moves it to newer upstream point releases (6.12.48-1, then 6.12.57-1) and the tracker
-		// names the first of them that fixes a CVE, so its own builds compare across upstream releases (debianKernelMoves)
-		if !debver.SameUpstream(in.pkgVer, fix.Fixed) && !debianKernelMoves(d, pkg, in.pkgVer, fix.Fixed) || !ownBuild(d, pkg, in.pkgVer, false) {
+	f, ok := d.choose(rows, in.pkgRel, ver)
+	if !ok {
+		return distroAnswer{}, false
+	}
+	a := distroAnswer{pkg: pkg, name: d.name, release: cmp.Or(in.pkgRel, f.Release)}
+	if f.Release != a.release {
+		a.from = f.Release
+	}
+	switch f.Status {
+	case "fixed":
+		if !d.applies(pkg, ver, f.Fixed) {
 			return distroAnswer{}, false
 		}
-		c, err := debver.Compare(in.pkgVer, fix.Fixed)
-		if err != nil {
+		c, ok := d.compare(ver, f.Fixed)
+		if !ok {
 			return distroAnswer{}, false // a version Vedette cannot compare: NVD decides
 		}
-		a.fixed, a.pro, a.kind = fix.Fixed, fix.Pro, distroNeeded
+		a.fixed, a.pro, a.kind = f.Fixed, f.Pro, distroNeeded
 		if c >= 0 {
 			a.kind = distroFixedHere
 		}
-	case notAffected:
-		if !ownBuild(d, pkg, in.pkgVer, true) {
+	case "not_affected": // no version to compare: the strict rule, or a kernel the distribution signed itself
+		if !d.own(pkg, ver, true) && (!d.kernelRule || !signedKernel(in.pkgSrc) || !d.own(pkg, ver, false)) {
 			return distroAnswer{}, false
 		}
 		a.kind = distroNotAffected
-	case open: // affected, no fix yet: the device has the flaw until the distribution publishes a fixed package
-		if !ownBuild(d, pkg, in.pkgVer, false) {
+	case "open": // affected, no fix yet: the device has the flaw until the distribution publishes a fixed package
+		// Of a CVE on no exploited list it raises nothing: such a finding asks for an update (StartUrgency) that does not exist, so it
+		// waits for the distribution's fix or an exploited list (DistroNoFixYet names why it is undecided meanwhile).
+		if !v.listed() || !d.own(pkg, ver, false) {
 			return distroAnswer{}, false
 		}
-		a.kind, a.reason = distroNeeded, reason
+		a.kind, a.reason = distroNeeded, f.Reason
 	default:
 		return distroAnswer{}, false
 	}
 	return a, true
+}
+
+// signedKernel says a source package is a signing source of a kernel ("linux-signed", "linux-signed-hwe-7.0", "linux-signed-amd64"): the
+// distribution signs its own kernel images, so the image's plain ABI revision ("44.44") is the distribution's build, and the
+// distribution's "not affected" for the kernel's source applies to it (a mainline or vendor kernel is not built by a signing source).
+func signedKernel(src string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(src)), "linux-signed")
+}
+
+// upstreamJudges says NVD's upstream ranges judge a package the distribution built for v: the distribution's data lists fixed
+// releases only (distroData.fixedOnly, Alpine's secdb) and has no word on the package, and its feed is not loading (with its first
+// pull still to come, the matcher waits for it rather than read the upstream ranges). A package of such a distribution is its upstream
+// release unless the data names a fix of its own (Grype's apk matcher: an NVD match stands unless secdb has a fix for it).
+func upstreamJudges(in swInfo, v Vuln) bool {
+	d := in.pkgDistro
+	if d == nil || !d.fixedOnly || !in.packaged || v.DistroLoading[d.id] {
+		return false
+	}
+	_, ok := distroVerdict(in, v)
+	return !ok
 }
 
 // debianKernelMoves says the package is Debian's kernel (source linux, its signed images included: securitySource), whose stable
@@ -488,6 +509,9 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	if d.pro {
 		pro = " (Ubuntu Pro)"
 	}
+	if d.from != "" { // the fix of another branch decides (alpineFixBranch): say which
+		pro += fmt.Sprintf(" for its %s branch", d.from)
+	}
 	said := fmt.Sprintf("%s fixed %s in %s %s%s (%s)", d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)
 	until := fmt.Sprintf("so this device has the flaw until it installs %s's security updates.", d.name)
 	if d.fixed == "" { // the distribution's word "affected, no fix yet"
@@ -513,4 +537,88 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, said, until)
 	}
 	return m, outMatch
+}
+
+// Why a distribution's package stays undecided for a CVE (distroSilence): the package is judged by its distribution's word alone and
+// the distribution's data the box keeps has no word it may decide by. A closed list.
+const (
+	// DistroOutsideWindow: a CVE on no exploited list published before the catalogue's last 12 months. The box tracks the exploited
+	// CVEs and those of the last 12 months (product scope), so the distribution feeds keep no row of it.
+	DistroOutsideWindow = "outside_window"
+	// DistroNoFixYet: the distribution lists its package as affected with no fixed release yet, and the CVE is on no exploited list:
+	// it becomes a finding when the distribution publishes the fix or the CVE is exploited.
+	DistroNoFixYet = "distro_no_fix_yet"
+	// DistroOtherPackages: the distribution lists the CVE for other packages only (another kernel flavour of the release, such as
+	// linux-aws or linux-azure, or the package in no release the box keeps).
+	DistroOtherPackages = "distro_other_packages"
+	// DistroOtherReleases: the distribution lists the CVE for this package in other releases only (most often a CVE fixed before the
+	// device's release came out, which the distribution never lists for it).
+	DistroOtherReleases = "distro_other_releases"
+	// DistroOtherBuild: the distribution's row for the package is about another build than the installed one (a PPA or a vendor's
+	// package of the same source, an earlier upstream release than its fix).
+	DistroOtherBuild = "distro_other_build"
+	// DistroNotListed: the distribution's data has no row of the CVE at all (not triaged yet, or its feed holds no row of it yet).
+	DistroNotListed = "distro_not_listed"
+	// DistroNoData: Vedette has no security data of the device's distribution (Red Hat, SUSE and the other RPM distributions).
+	DistroNoData = "distro_no_data"
+)
+
+// DistroSilences lists every cause of distroSilence (with UndecidedPackage: an agent's package row without its release or source).
+var DistroSilences = []string{DistroOutsideWindow, DistroNoFixYet, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNotListed,
+	DistroNoData, UndecidedPackage}
+
+// catalogueDays is the catalogue's window of CVEs on no exploited list (feeds' recentDays): the distribution feeds keep their rows of
+// those CVEs and of the exploited ones only.
+const catalogueDays = 365
+
+// distroSilence is why the distribution's data decides nothing for a package it built (distroVerdict has no word and NVD's upstream
+// ranges may not judge it: upstreamJudges), one of DistroSilences; "" when its data or the upstream ranges decide, or the row is not an
+// agent's package row. now is the time of the match pass.
+func distroSilence(in swInfo, v Vuln, now time.Time) string {
+	d := in.pkgDistro
+	switch {
+	case !in.packaged:
+		return "" // a release a person gave: the matcher does not read it against the distribution's data
+	case d == nil:
+		return DistroNoData
+	case in.pkgVer == "" || in.pkgSrc == "":
+		return UndecidedPackage
+	}
+	if _, ok := distroVerdict(in, v); ok || upstreamJudges(in, v) {
+		return ""
+	}
+	pkg := d.source(in.pkgSrc)
+	release := func(f DistroFix) bool { return d.anyRelease || f.Release == in.pkgRel }
+	var mine, sameRelease, samePkg, listed bool
+	open := false
+	for _, f := range v.Distro {
+		if f.Distro != d.id {
+			continue
+		}
+		listed = true
+		switch {
+		case f.Package == pkg && release(f):
+			mine = true
+			open = open || f.Status == "open"
+		case release(f):
+			sameRelease = true
+		case f.Package == pkg:
+			samePkg = true
+		}
+	}
+	switch {
+	case open && !v.listed():
+		return DistroNoFixYet
+	case mine:
+		return DistroOtherBuild
+	case !v.listed() && !v.Published.IsZero() && v.Published.Before(now.AddDate(0, 0, -catalogueDays)):
+		return DistroOutsideWindow
+	case sameRelease:
+		return DistroOtherPackages
+	case samePkg:
+		return DistroOtherReleases
+	case listed:
+		return DistroOtherPackages
+	}
+	return DistroNotListed
 }

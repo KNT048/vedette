@@ -40,10 +40,17 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-22** After its first fill, a distribution feed is pulled only while a device runs that distribution (Alpine: only with an
   Alpine device at all).
 - **INV-22a** A distribution feed keeps, for every CVE of the CISA list, the distribution's word fixed, not affected and "affected, no
-  fix yet" (`open`), and findings reads all three (`DistroFixes`, `DistroFixesFor`): findings judges a package the distribution built by
-  that word alone while the distribution's feed of fixed and affected rows (debian-tracker, ubuntu-osv; never ubuntu-vex, which holds only "not affected") is on (`DistroOn`: on and loaded, or loading). Open rows of other CVEs are kept only
-  for the plan (tier CVEs of the packages devices run). Debian's open entries it will not fix in a security update (no DSA, postponed,
-  ignored, unimportant, end-of-life) are kept for the CISA list's CVEs with that reason (`feeds_distro_fix.reason`, `DistroReasons`).
+  fix yet" (`open`), and for the catalogue's CVEs of the last 12 months (the tier CVEs) the same words for the source packages and
+  releases the devices run (`DistroWant`, `DistroLister`: Alpine every branch); ubuntu-vex keeps only "not affected", Ubuntu's only word
+  that a release's package is not affected. Findings reads them all (`DistroFixes`, `DistroFixesFor`) and judges a package the
+  distribution built by that word alone while the distribution's feed of fixed and affected rows (debian-tracker, ubuntu-osv; never
+  ubuntu-vex) is on (`DistroOn`: on and loaded, or loading). Debian's open entries it will not fix in a security update (no DSA,
+  postponed, ignored, unimportant, end-of-life) are kept with that reason (`feeds_distro_fix.reason`, `DistroReasons`).
+- **INV-22b** A distribution pull depends on the catalogue's window and the inventory: a feed whose last good pull kept no tier row
+  while both are there now (`distroPartial`: the first pulls of a new box come before the window loads) shows as an error on the Feeds
+  page and is pulled again at the next check, not a day later; a device's new package or release pulls it again at the next check
+  after 6 hours (`distroBehind`). A pull whose rows of a CVE on no exploited list changed runs findings' match pass now
+  (`RangesUpdatedEvent.Catalogue`), as does turning a distribution feed on or off. `TestDistroPullRunsAgainWhenTheWindowAppears`.
 - **INV-38** Spamhaus DROP (`spamhaus-drop`) is off on a new box and on a box that updates to a version that adds it
   (`Source.DefaultOff`): the box asks `www.spamhaus.org` nothing until an administrator turns it on. Once on, it reads Spamhaus's
   `drop_v4.json` once a day by default, conditional on the last file. Spamhaus asks that the list be downloaded at most once a day,

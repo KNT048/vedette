@@ -173,9 +173,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **M-14 Decision coverage.** Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched
   (a row of the line reached by the entry's key or rows, or a finding or question of the pair), what decided it: the source (the
   `range_origin` vocabulary, `platform_list` for the hand list of platform limits, `person` for an answered question, `advisory` for a
-  check the box settled) as affected or not affected; else why it is undecided: its undecided reason, `ai_proposal`, or an unnamed class
-  (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is
-  told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
+  check the box settled) as affected or not affected; else why it is undecided: its undecided reason, `ai_proposal`, why a
+  distribution's package its distribution's data has no word on stays undecided (`DistroSilences`: `outside_window` for a CVE on no
+  exploited list older than the 12 months the box tracks, `distro_no_fix_yet`, `distro_other_packages`, `distro_other_releases`,
+  `distro_other_build`, `distro_not_listed`, `distro_no_data`, `package_unknown`), or an unnamed class (`other_distro_silent`,
+  `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is told why; the target
+  is none). `TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed`. Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
   pass finds unchanged keeps the counts of its last full match; the sum of each pass is one row of `fnd_coverage_run` (the newest 30
   kept, in the data export) and `GET /findings/coverage` (admin, counts only, Settings → Diagnostics) serves the last one. Counting reads the pass's readings and the rows its write left and
   changes no finding or question. The test-only build tag `holdout` runs the matcher without the catalogue's CPE aliases, so the same pass
@@ -304,7 +307,14 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-6c** A line a person marked not installed is not matched; its findings close as `not_relevant` via `not_installed` under
   that person's name.
 - **INV-11** "I have this" on a versionless product matches, on exactly the declared device, only entries added since its start date.
-- **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges. A package the
+- **INV-14** A packaged agent line on Ubuntu, Debian or Alpine Linux is judged by the distribution's fix data before NVD's ranges, one
+  path for every distribution the feeds supply (`distroVerdict` through the distribution's adapter `distroData`: its release, release
+  order, own builds and which row decides; Alpine's row of a later branch with the installed upstream release decides too). A fixed
+  release compares with the distribution's own build of the same upstream release, or of a later one (never a kernel's). Alpine's data
+  lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
+  Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
+  list raises no finding (it would ask for an update that does not exist): `distro_no_fix_yet` until the fix or an exploited list comes.
+  `TestMatchAsset_AlpineRowsDecideCatalogueCVEs`, `TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs`. A package the
   distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
   while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a
   finding with no fixed package yet (fix `none_yet`; Debian's reason when it publishes no security update), and with no word yet NVD's

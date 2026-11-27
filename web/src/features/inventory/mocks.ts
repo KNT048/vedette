@@ -140,6 +140,17 @@ const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
 const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
 /** Reads the settings; a range stored with host bits ("10.142.0.5/24") is reduced to the network address. A range without /prefix is kept as is so the UI shows the error on that row and does not block other actions. */
 /** A short hash of a string (FNV-1a), for the mock's versions. */
+/** Who read a row, for a person (inventory readBy): how the device stated it, a network scan, or network traffic. */
+function readBy(source: string): string {
+  switch (source) {
+    case 'agent': return 'its agent'
+    case 'snmp': return 'its SNMP answer'
+    case 'nmap': case 'scan': return 'a network scan'
+    case 'passive': return 'network traffic'
+  }
+  return source
+}
+
 export function hashOf(s: string): string {
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
@@ -1365,7 +1376,12 @@ export const handlers = [
     if (!a) return notFound(request)
     const v = validateAdd(request, { ...(await body<AddDeviceInput>(request)), ip: '' }, true)
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
-    if (a.software.some((s) => s.product === v.entry!.product && s.vendor === v.entry!.vendor && s.display === v.entry!.display)) return fail(409, 'duplicate_software', `${v.entry!.display} is already on this device. To change the version, remove it and add it again.`)
+    const dup = a.software.find((s) => s.product === v.entry!.product && s.vendor === v.entry!.vendor && (s.display === v.entry!.display || !v.version))
+    if (dup) {
+      return dup.source !== 'manual' && dup.version
+        ? fail(409, 'duplicate_software', `${dup.display} ${dup.version} is already on this device, read by ${readBy(dup.source)}: its findings follow that version. To correct it, edit the version on that row.`)
+        : fail(409, 'duplicate_software', `${v.entry!.display} is already on this device. To change the version, remove it and add it again.`)
+    }
     const sw: Software = { ...softwareOf(v.entry!, v.version), set_at: nowIso() }
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: [...x.software, sw] } : x)))
     matchAssetToKev(a.id)
@@ -1391,6 +1407,10 @@ export const handlers = [
     const line = linesOf(a).find((l) => l.id === sw.id || a.software.find((c) => c.corrects === sw.id)?.id === l.id)
     if (pkg && line && !line.package_line && !PKG_RELEASE_RE.test(pkg)) {
       return fail(400, 'not_a_package', `${sw.display} on this device is not a distribution package, so it has no package release. Give its version as the vendor writes it instead.`)
+    }
+    if (version === '' && !pkg && sw.source !== 'manual' && sw.version) { // a version-less entry never hides what a source reads
+      const day = new Date((sw as { seen_at?: string }).seen_at ?? nowIso()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      return fail(409, 'version_read', `${sw.display} ${sw.version} is read by ${readBy(sw.source)} on ${day}; Vedette uses what it reads. To change it, type the version the device really runs, or turn that source off for this device.`)
     }
     const cur = sw.source === 'manual' ? sw : a.software.find((c) => c.corrects === sw.id)
     if (cur && (version === undefined || (version || null) === cur.version) && (pkg === undefined || (pkg || null) === (cur.pkg_version ?? null))) {

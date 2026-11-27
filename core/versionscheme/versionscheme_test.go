@@ -333,3 +333,32 @@ func TestRelease_Count_WrittenNamesThatDoNotReadBack(t *testing.T) {
 		t.Errorf("%d of %d written release names do not read back", bad, n)
 	}
 }
+
+// A Java patch build ("-b33") orders only against a bound that states one: Oracle's bundled patch release 8u511b33 is after 8u511 with
+// no build or an earlier build and before 8u521; a bound with no build is the whole release, every build of it equal to it. Compare
+// never reads the build.
+func TestComparePatch_Java(t *testing.T) {
+	t.Parallel()
+	read := func(s string) Version {
+		v, ok := Java.Parse(s)
+		if !ok {
+			t.Fatalf("%q not read", s)
+		}
+		return v
+	}
+	for _, tc := range []struct {
+		v, bound string
+		want     int
+	}{
+		{"1.8.0_511", "1.8.0_511-b33", -1}, {"1.8.0_511-b09", "8u511b33", -1}, {"1.8.0_511-b33", "8u511b33", 0},
+		{"1.8.0_511-b34", "1.8.0_511-b33", 1}, {"1.8.0_521", "1.8.0_511-b33", 1}, {"1.8.0_501-b40", "1.8.0_511-b33", -1},
+		{"1.8.0_491-b10", "1.8.0_491", 0}, {"1.8.0_491-b10", "8u491", 0}, {"21.0.7", "21.0.11", -1},
+	} {
+		if got, ok := ComparePatch(read(tc.v), read(tc.bound)); !ok || got != tc.want {
+			t.Errorf("ComparePatch(%s, %s) = %d %v, want %d", tc.v, tc.bound, got, ok, tc.want)
+		}
+	}
+	if c, _ := Compare(read("1.8.0_511-b34"), read("1.8.0_511-b33")); c != 0 {
+		t.Errorf("Compare read the patch build: %d", c)
+	}
+}

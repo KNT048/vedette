@@ -1,0 +1,192 @@
+{
+ "document": {
+  "category": "csaf_security_advisory",
+  "csaf_version": "2.0",
+  "distribution": {
+   "tlp": {
+    "label": "WHITE",
+    "url": "https://www.first.org/tlp"
+   }
+  },
+  "publisher": {
+   "category": "vendor",
+   "name": "Oracle",
+   "namespace": "https://www.oracle.com"
+  },
+  "references": [
+   {
+    "url": "https://www.oracle.com/security-alerts/cspuaug2026.html"
+   },
+   {
+    "url": "https://www.oracle.com/docs/tech/security-alerts/cspuaug2026csaf.json",
+    "category": "self"
+   }
+  ],
+  "title": "cspuaug2026csaf",
+  "tracking": {
+   "id": "cspuaug2026csaf",
+   "initial_release_date": "2026-08-18T13:00:00-07:00",
+   "current_release_date": "2026-08-27T13:00:00-07:00",
+   "status": "final",
+   "version": "3"
+  }
+ },
+ "product_tree": {
+  "branches": [
+   {
+    "category": "vendor",
+    "name": "Oracle",
+    "branches": [
+     {
+      "category": "product_family",
+      "name": "Oracle Java SE",
+      "branches": [
+       {
+        "category": "product_name",
+        "name": "Oracle GraalVM Enterprise Edition",
+        "branches": [
+         {
+          "category": "product_version",
+          "name": "Oracle GraalVM Enterprise Edition Version 21.3.19",
+          "product": {
+           "name": "Oracle GraalVM Enterprise Edition Version 21.3.19",
+           "product_id": "P-13497V-21.3.19",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:graalvm:21.3.19:*:*:*:enterprise:*:*:*"
+           }
+          }
+         }
+        ]
+       },
+       {
+        "category": "product_name",
+        "name": "Oracle GraalVM for JDK",
+        "branches": [
+         {
+          "category": "product_version",
+          "name": "Oracle GraalVM for JDK Version 17.0.20",
+          "product": {
+           "name": "Oracle GraalVM for JDK Version 17.0.20",
+           "product_id": "P-13497V-17.0.20",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:graalvm_for_jdk:17.0.20:*:*:*:*:*:*:*"
+           }
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle GraalVM for JDK Version 21.0.12",
+          "product": {
+           "name": "Oracle GraalVM for JDK Version 21.0.12",
+           "product_id": "P-13497V-21.0.12",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:graalvm_for_jdk:21.0.12:*:*:*:*:*:*:*"
+           }
+          }
+         }
+        ]
+       },
+       {
+        "category": "product_name",
+        "name": "Oracle Java SE",
+        "branches": [
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version 11.0.32",
+          "product": {
+           "name": "Oracle Java SE Version 11.0.32",
+           "product_id": "P-856V-11.0.32",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:java_se:11.0.32:*:*:*:*:*:*:*"
+           }
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version 17.0.20",
+          "product": {
+           "name": "Oracle Java SE Version 17.0.20",
+           "product_id": "P-856V-17.0.20",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:java_se:17.0.20:*:*:*:*:*:*:*"
+           }
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version 21.0.12",
+          "product": {
+           "name": "Oracle Java SE Version 21.0.12",
+           "product_id": "P-856V-21.0.12",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:java_se:21.0.12:*:*:*:*:*:*:*"
+           }
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version 25.0.4",
+          "product": {
+           "name": "Oracle Java SE Version 25.0.4",
+           "product_id": "P-856V-25.0.4",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:java_se:25.0.4:*:*:*:*:*:*:*"
+           }
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version 26.0.2",
+          "product": {
+           "name": "Oracle Java SE Version 26.0.2",
+           "product_id": "P-856V-26.0.2",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:java_se:26.0.2:*:*:*:*:*:*:*"
+           }
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version 8u501",
+          "product": {
+           "name": "Oracle Java SE Version 8u501",
+           "product_id": "P-856V-8u501",
+           "product_identification_helper": {
+            "cpe": "cpe:2.3:a:oracle:java_se:8u501:*:*:*:*:*:*:*"
+           }
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "vulnerabilities": [
+  {
+   "cve": "CVE-2026-62574",
+   "notes": [
+    {
+     "category": "description",
+     "text": "Vulnerability in the Oracle Java SE, Oracle GraalVM for JDK, Oracle GraalVM Enterprise Edition product of Oracle Java SE (component: Install).",
+     "title": "Vulnerability Description"
+    }
+   ],
+   "product_status": {
+    "known_affected": [
+     "P-13497V-17.0.20",
+     "P-856V-11.0.32",
+     "P-856V-17.0.20",
+     "P-13497V-21.0.12",
+     "P-856V-26.0.2",
+     "P-856V-8u501",
+     "P-856V-25.0.4",
+     "P-856V-21.0.12",
+     "P-13497V-21.3.19"
+    ]
+   }
+  }
+ ]
+}

@@ -490,3 +490,59 @@ func sightedBy(ctx context.Context, t testing.TB, svc *Service, hint observe.Ass
 		t.Fatal(err)
 	}
 }
+
+// A line a person added without a version beside the train an agent reads of the same product (an earlier build stored the two
+// apart) becomes one line at the next start: the person's entry joins the agent's train, and the version-less line is removed. A
+// person's entry with a version on that train stays the line's value.
+func TestReidentify_AVersionlessLineJoinsTheTrainOfItsProduct(t *testing.T) {
+	t.Parallel()
+	for _, typed := range []bool{false, true} {
+		b := newBoxStart(t)
+		svc := b.start(false)
+		ctx := t.Context()
+		hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.30")}
+		sightedBy(ctx, t, svc, hint, observe.Osquery)
+		if err := svc.ReplaceSoftware(ctx, hint, observe.Osquery, nil, []observe.Software{javaItem(t, "Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)")}); err != nil {
+			t.Fatal(err)
+		}
+		var dev string
+		if err := b.db.Reader().QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = '192.0.2.30'`).Scan(&dev); err != nil {
+			t.Fatal(err)
+		}
+		train := b.lines(dev)["oracle|java se/21"]
+		if typed {
+			v := "21.0.9"
+			if err := svc.EditSoftware(ctx, "person@example.com", dev, train, SoftwareEdit{Version: &v, Confirm: true}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		const at = "2026-11-20T08:30:00.000Z"
+		if err := b.db.Write(ctx, func(tx *sql.Tx) error { // what an earlier build stored: the person's Java, no version, a line of its own
+			if _, err := tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, product_key, line, display, vendor, product, source, set_by, confidence, seen_at, first_seen, last_seen)
+				VALUES ('s-bare', ?1, 'oracle|java se', '', 'Java', 'Oracle', 'Java SE', 'manual', 'person@example.com', 1, ?2, ?2, ?2)`, dev, at); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO inv_software_reading (software_id, source, display, confidence, set_by, first_seen, seen_at, item_vendor, item_product, item_version, item_kev, item_instance)
+				VALUES ('s-bare', 'manual', 'Java', 1, 'person@example.com', ?1, ?1, 'Oracle', 'Java SE', '', '', '')`, at); err != nil {
+				return err
+			}
+			_, err := tx.ExecContext(ctx, `UPDATE inv_catalogue_pass SET revision = 'older-catalogue'`)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		b.start(false)
+		l := b.lines(dev)
+		want := "oracle|java se/21 21.0.7 present"
+		if typed {
+			want = "oracle|java se/21 21.0.9 present"
+		}
+		if len(l) != 1 || l["oracle|java se/21"] != train || b.line(train) != want {
+			t.Errorf("typed %v: lines %v, the train %s, want one line %s", typed, l, b.line(train), want)
+		}
+		if got := b.line("s-bare"); got != "oracle|java se/  removed" {
+			t.Errorf("typed %v: the version-less line is %q, want removed", typed, got)
+		}
+		b.checks()
+	}
+}

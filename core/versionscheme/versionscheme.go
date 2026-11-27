@@ -33,6 +33,9 @@ type Version struct {
 	Rank int
 	// Build is the place inside the train: ESXi [24585383], NetScaler [73 37], Linux [149].
 	Build []int
+	// Patch is a build of the release the vendor numbers apart from its place, 0 when the version states none: Java's b33 in Oracle's
+	// bundled patch release 8u511b33 (1.8.0_511-b33). Compare never reads it; ComparePatch does, only where the bound states one.
+	Patch int
 	// Train names the release train ("8.0 U3", "14.1 FIPS", "6.1"); Label the release in the vendor's words ("8.0 U3d",
 	// "14.1-73.37"); Display the release with its build when the label does not say it ("8.0 U3d (build 24585383)").
 	Train, Label, Display string
@@ -69,6 +72,18 @@ func order(a, b Version) (int, bool) {
 // Compare compares two versions of one scheme in release order (line, train, place inside the train): -1, 0 or 1. ok is false for
 // two variants, which never compare.
 func Compare(a, b Version) (int, bool) { return order(a, b) }
+
+// ComparePatch compares an installed version with a bound as Compare does and, for one release, by the bound's patch build when the
+// bound states one: a version of that release with an earlier build, or one that states no build, is before it ("1.8.0_511" and
+// "1.8.0_511-b09" are before Oracle's 8u511b33, "1.8.0_511-b34" after it). A bound that states no build is the whole release: every
+// build of it is equal to it.
+func ComparePatch(v, bound Version) (int, bool) {
+	c, ok := order(v, bound)
+	if !ok || c != 0 || bound.Patch == 0 {
+		return c, ok
+	}
+	return cmp.Compare(v.Patch, bound.Patch), true
+}
 
 // LineStart is the start of v's release line, before every release of it ("7.2.1" for DSM 7.2.1-69057-5).
 func LineStart(v Version) Version {

@@ -203,7 +203,10 @@ func (s *Service) checkClaim(ctx context.Context, tx *sql.Tx, l lineRow, rs []Re
 				cmp.Or(l.display, "This software")))
 		}
 	}
-	if e.Confirm || e.Version == nil || *e.Version == "" {
+	if e.Version != nil && *e.Version == "" && (e.PkgVersion == nil || *e.PkgVersion == "") {
+		return s.checkClear(ctx, rs)
+	}
+	if e.Confirm || e.Version == nil {
 		return nil
 	}
 	det := detectedOf(rs)
@@ -215,6 +218,36 @@ func (s *Service) checkClaim(ctx context.Context, tx *sql.Tx, l lineRow, rs []Re
 	}
 	return conflict("contradicts_device", fmt.Sprintf("The device itself reports %s (%s, %s), not %s. Save %s anyway if the device's own report is out of date: it is replaced when the device reports a newer release.",
 		swText(det.Display, det.Version, ""), statedBy(det.Source), correctionDay(det.SeenAt, orgtime.At(ctx, s.zone)), *e.Version, *e.Version))
+}
+
+// checkClear refuses a person's clearing of a line's version when a source reads a release of it: an entry without a version never
+// hides what a source reads (Resolve), so the clear would change nothing the person can see. The 409 version_read names the reading,
+// who read it and when, and the ways that do change it (a typed version, the source turned off for the device).
+func (s *Service) checkClear(ctx context.Context, rs []Reading) error {
+	cleared := []Reading{{Source: sourceManual}}
+	for _, r := range rs {
+		if !r.entry() {
+			cleared = append(cleared, r)
+		}
+	}
+	res := Resolve(LineState{State: statePresent}, cleared)
+	if r := res.Effective; r.entry() || !hasRelease(r) {
+		return nil
+	}
+	r := res.Effective
+	return conflict("version_read", fmt.Sprintf("%s is read by %s on %s; Vedette uses what it reads. To change it, type the version the device really runs, or turn that source off for this device.",
+		swText(r.Display, r.Version, ""), readBy(r.Source), correctionDay(r.SeenAt, orgtime.At(ctx, s.zone))))
+}
+
+// readBy names who read a reading, for a person: how the device stated it (statedBy), a network scan, or network traffic.
+func readBy(source string) string {
+	switch source {
+	case "nmap", "scan":
+		return "a network scan"
+	case "passive":
+		return "network traffic"
+	}
+	return statedBy(source)
 }
 
 // rankDeviceStated is the readingRank of a reading the device itself states: its agent, its SNMP answer, the OS it states over LLDP on
@@ -411,7 +444,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 		if err := softwareEvent(ctx, tx, l.assetID, id, target.productKey, next.Display, now, "entry_set", "", releaseText(next.Version, next.PkgVersion), sourceManual, actor); err != nil {
 			return false, err
 		}
-		if cur != nil { // the entry moved: this line is back to its sources
+		if cur != nil && id != l.id { // the entry moved: this line is back to its sources (a line without a train that takes one stays)
 			if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_reading WHERE software_id = ? AND source = 'manual'`, l.id); err != nil {
 				return false, fmt.Errorf("inventory: correct software: %w", err)
 			}
@@ -424,7 +457,9 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 				return false, err
 			}
 		}
-		lines = append(lines, id)
+		if id != l.id {
+			lines = append(lines, id)
+		}
 	}
 	if err := s.settled(ctx, tx, o, l.assetID, before, lines...); err != nil {
 		return false, err
@@ -443,41 +478,51 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	return true, s.auditTx(ctx, tx, actor, "inventory.correct_software", deviceName(ctx, tx, l.assetID)+": "+shownDisplay, from+" → "+swText(next.Display, next.Version, next.PkgVersion))
 }
 
-// addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is true when the device
-// already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it).
-func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup, moved bool, err error) {
+// addEntryTx declares software on a device by hand (INV-4): the person's entry on the product's line. dup is the id of the line when
+// the device already has the software from a source or a person (a guess is no duplicate: adding the product is how a person
+// confirms it); the product without a version is any train of it the device has.
+func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup string, moved bool, err error) {
 	id, version := s.ident(it, sourceManual)
 	version, display := statedRelease(id.productKey, version, it.Display)
 	var lineID, state string
 	var guess bool
 	err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.asset_id = ? AND s.product_key = ? AND s.line = ?`, assetID, id.productKey, id.line).
 		Scan(&lineID, &state, &guess)
+	if errors.Is(err, sql.ErrNoRows) && version == "" { // the product without a version is any train of it the device has (lineOf)
+		other, perr := productLine(ctx, tx, assetID, id.productKey, id.line, false)
+		if perr != nil {
+			return "", false, perr
+		}
+		if other != "" {
+			err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.id = ?`, other).Scan(&lineID, &state, &guess)
+		}
+	}
 	switch {
 	case err == nil && state == statePresent && !guess:
-		return true, false, nil
+		return lineID, false, nil
 	case err != nil && !errors.Is(err, sql.ErrNoRows):
-		return false, false, fmt.Errorf("inventory: check software: %w", err)
+		return "", false, fmt.Errorf("inventory: check software: %w", err)
 	}
 	now := s.now()
 	r := Reading{Source: sourceManual, Display: display, Version: version, Confidence: 1, SetBy: actor, FirstSeen: now, SeenAt: now}
 	lineID, err = s.lineOf(ctx, tx, assetID, id, r)
 	if err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET state = 'present', not_installed_at = NULL, not_installed_by = NULL WHERE id = ? AND state = 'not_installed'`, lineID); err != nil {
-		return false, false, fmt.Errorf("inventory: store software: %w", err)
+		return "", false, fmt.Errorf("inventory: store software: %w", err)
 	}
 	if err := putReading(ctx, tx, lineID, r, evidenceOf(it, "")); err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	if err := softwareEvent(ctx, tx, assetID, lineID, id.productKey, it.Display, now, "entry_set", "", version, sourceManual, actor); err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	if _, err := s.settleLine(ctx, tx, lineID, now, map[[2]string][2]string{{sourceManual, ""}: {it.Vendor, it.Product}}); err != nil {
-		return false, false, err
+		return "", false, err
 	}
 	moved, err = s.RecomputeAsset(ctx, tx, assetID) // a declared OS row is the device's OS in the same transaction
-	return false, moved, err
+	return "", moved, err
 }
 
 // RemoveSoftware takes back what a person said about a software line: the version they gave (the line is back to what its sources

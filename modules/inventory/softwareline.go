@@ -59,7 +59,7 @@ type SoftwareLine struct {
 	PackageLine bool `json:"package_line"`
 
 	kev   []string // the match keys
-	live  bool     // a person's entry that is the line's value on a present line (declaredIdentity reads it)
+	live  bool     // a present line that is a person's (personsLine; declaredIdentity reads it)
 	state string
 }
 
@@ -92,15 +92,20 @@ var shownLine = `(s.state <> 'removed' AND NOT ` + hiddenGuess + `)`
 
 // lineCols are the columns of a line every reader takes (scanLine), in the order of scanLine.
 var lineCols = `s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.pkg_version, s.packaged, ifnull(s.cpe, ''), s.source, s.confidence,
-	ifnull(s.set_by, ''), s.seen_at, s.differs, s.state, s.product_key, ` + fingerprintRow + `, ` + guessLine
+	ifnull(s.set_by, ''), s.seen_at, s.differs, s.state, s.product_key, ` + fingerprintRow + `, ` + guessLine + `, ` + personsLine
+
+// personsLine is the SQL condition on a software line (alias s) that it is a person's: its value is a person's entry, or a person
+// added it without a version and a source's release fills it (Resolve): the person's naming of the device still stands (INV-45).
+const personsLine = `(s.source = 'manual' OR EXISTS (SELECT 1 FROM inv_software_reading pr WHERE pr.software_id = s.id AND pr.source = 'manual'
+	AND pr.version IS NULL AND pr.pkg_version IS NULL))`
 
 // scanLine reads one row of lineCols.
 func scanLine(sc interface{ Scan(...any) error }) (asset string, l SoftwareLine, err error) {
 	var ver, pkg sql.NullString
 	var key string
-	var fingerprint, guess bool
+	var fingerprint, guess, persons bool
 	if err := sc.Scan(&asset, &l.ID, &l.Display, &l.Vendor, &l.Product, &ver, &pkg, &l.Packaged, &l.CPE, &l.Source, &l.Confidence,
-		&l.SetBy, &l.SeenAt, &l.Differs, &l.state, &key, &fingerprint, &guess); err != nil {
+		&l.SetBy, &l.SeenAt, &l.Differs, &l.state, &key, &fingerprint, &guess, &persons); err != nil {
 		return "", SoftwareLine{}, err
 	}
 	l.Version, l.PkgVersion = ptr(ver), ptr(pkg)
@@ -108,7 +113,7 @@ func scanLine(sc interface{ Scan(...any) error }) (asset string, l SoftwareLine,
 		l.Basis = basisGuess
 	}
 	l.NotInstalled = l.state == stateNotInstalled
-	l.live = l.state == statePresent && l.Source == sourceManual // a person's entry in use (declaredIdentity reads it)
+	l.live = l.state == statePresent && persons // a person's line in use (declaredIdentity reads it)
 	l.Source = sourceClass(l.Source)
 	l.kev = matchKeys(key, guess)
 	l.KevCVEs, l.AlsoSeen, l.CanCorrect = []string{}, []AlsoSeen{}, true

@@ -18,8 +18,8 @@ import (
 
 // Decision coverage (M-14). Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched,
 // what decided it and, for what stays undecided, why: decided by the source whose data decided (the range-origin vocabulary of
-// fnd_finding.range_origin, plus the platform list) as affected or not affected, or possible by its undecided reason (UndecidedReasons;
-// an AI proposal waiting for a person is ai_proposal). A pair the matcher reached that ended as neither a finding, a question nor a
+// fnd_finding.range_origin, plus the platform list) as affected or not affected, or possible by its cause (PossibleCause, the one
+// function the lists call too: a question's CVE is counted as the lists show it). A pair the matcher reached that ended as neither a finding, a question nor a
 // proof is counted under a CoverageOther class: it is undecided and no one is told why, so its target is zero. Beside it, the identity coverage
 // counts the software lines by how the box knows what product they are (CoverageIdentity*). The counts are of the readings the pass
 // made: a device the pass found unchanged keeps the counts of its last full match. Each pass's sum is one row of fnd_coverage_run; the
@@ -41,7 +41,7 @@ const CoveragePlatformList = "platform_list"
 
 // CoverageOther is the cause of a pair the matcher reached that is neither decided nor a possible finding with a reason the box gives.
 // The coverage tells three such classes apart (CoverageOther* below, each starting with CoverageOther), so the unnamed share says where
-// it comes from; CoverageOther alone is a question whose reason is none of UndecidedReasons.
+// it comes from. A question always has a named cause (PossibleCause).
 const CoverageOther = "other"
 
 // The unnamed classes: nobody is told why these pairs are undecided.
@@ -56,9 +56,6 @@ const (
 	// match on the name alone, an old entry, that is not on the could-not-check list).
 	CoverageOtherDropped = "other_dropped"
 )
-
-// CoverageAIProposal is the cause of a possible finding whose AI proposal waits for a person.
-const CoverageAIProposal = "ai_proposal"
 
 // Coverage is the decision coverage of the last match pass.
 type Coverage struct {
@@ -78,11 +75,23 @@ type CoverageSource struct {
 	NotAffected int    `json:"not_affected"`
 }
 
-// CoverageCause is how many pairs stay undecided for one cause.
+// CoverageCause is how many pairs stay undecided for one cause, and the same pairs by the matcher's own reason (Details): the cause says
+// which step of deciding is missing, the detail which record shape blocked the match, for the root-cause work on the matcher.
 type CoverageCause struct {
-	Cause string `json:"cause"`
-	Count int    `json:"count"`
+	Cause   string           `json:"cause"`
+	Count   int              `json:"count"`
+	Details []CoverageDetail `json:"details"` // the most first; empty for an unnamed class and in a row stored before details were kept
 }
+
+// CoverageDetail is how many pairs of a cause the matcher left undecided for one reason: its Undecided.Reason (UndecidedReasons), else
+// the question's kind.
+type CoverageDetail struct {
+	Detail string `json:"detail"`
+	Count  int    `json:"count"`
+}
+
+// causeDetail is one (cause, detail) key of the counts.
+type causeDetail struct{ cause, detail string }
 
 // CoverageMethod is how many software lines one identity method identifies.
 type CoverageMethod struct {
@@ -94,7 +103,7 @@ type CoverageMethod struct {
 type deviceCover struct {
 	lines    int
 	decided  map[string][2]int // source -> affected, not affected
-	possible map[string]int
+	possible map[causeDetail]int
 	identity map[string]int
 }
 
@@ -120,7 +129,7 @@ func (c *covers) pass(live map[string]bool, at time.Time) {
 	defer c.mu.Unlock()
 	maps.DeleteFunc(c.m, func(id string, _ deviceCover) bool { return !live[id] })
 	out := Coverage{At: at, Decided: []CoverageSource{}, Possible: []CoverageCause{}, Identity: []CoverageMethod{}}
-	decided, possible, identity := map[string][2]int{}, map[string]int{}, map[string]int{}
+	decided, possible, identity := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}
 	for _, d := range c.m {
 		out.Devices++
 		out.Lines += d.lines
@@ -143,8 +152,22 @@ func (c *covers) pass(live map[string]bool, at time.Time) {
 	slices.SortFunc(out.Decided, func(a, b CoverageSource) int {
 		return cmp.Or((b.Affected+b.NotAffected)-(a.Affected+a.NotAffected), cmp.Compare(a.By, b.By))
 	})
-	for cause, n := range possible {
-		out.Possible = append(out.Possible, CoverageCause{Cause: cause, Count: n})
+	index := map[string]int{}
+	for k, n := range possible {
+		i, ok := index[k.cause]
+		if !ok {
+			i = len(out.Possible)
+			index[k.cause] = i
+			out.Possible = append(out.Possible, CoverageCause{Cause: k.cause, Details: []CoverageDetail{}})
+		}
+		c := &out.Possible[i]
+		c.Count += n
+		if k.detail != "" {
+			c.Details = append(c.Details, CoverageDetail{Detail: k.detail, Count: n})
+		}
+	}
+	for i := range out.Possible {
+		slices.SortFunc(out.Possible[i].Details, func(a, b CoverageDetail) int { return cmp.Or(b.Count-a.Count, cmp.Compare(a.Detail, b.Detail)) })
 	}
 	slices.SortFunc(out.Possible, func(a, b CoverageCause) int { return cmp.Or(b.Count-a.Count, cmp.Compare(a.Cause, b.Cause)) })
 	for _, m := range IdentityMethods {
@@ -191,6 +214,11 @@ func (s *Service) Coverage(ctx context.Context) (Coverage, bool, error) {
 		return none, false, nil // an unreadable row: as if none (the next pass writes a new one)
 	}
 	c.At = t
+	for i := range c.Possible { // a row stored before details were kept: its cause is the undecided reason itself, with no details
+		if c.Possible[i].Details == nil {
+			c.Possible[i].Details = []CoverageDetail{}
+		}
+	}
 	return c, true, nil
 }
 
@@ -224,14 +252,15 @@ func (s *Service) storeCoverage(ctx context.Context) error {
 type pairState struct {
 	by       string // the deciding source; "" when undecided
 	affected bool
-	cause    string // undecided: why
+	cause    string // undecided: why (PossibleCause, or an unnamed class)
+	detail   string // undecided with a question: the matcher's own reason (coverDetail)
 }
 
 // coverOf counts device dm.a's pairs and lines from the readings of its match (dm, every entry read) and its findings and questions as
-// the pass's write left them (rows), with the checks of those questions (checks, by check key).
-func coverOf(dm *devMatch, rows deviceRows, checks map[string]Check) deviceCover {
-	state, linked := pairStates(dm, rows, checks)
-	d := deviceCover{decided: map[string][2]int{}, possible: map[string]int{}, identity: map[string]int{}}
+// the pass's write left them (rows), with what the possible CVEs of those questions are read from (in: the same as the lists).
+func coverOf(dm *devMatch, rows deviceRows, in causeInputs) deviceCover {
+	state, linked := pairStates(dm, rows, in)
+	d := deviceCover{decided: map[string][2]int{}, possible: map[causeDetail]int{}, identity: map[string]int{}}
 	for _, st := range state {
 		switch {
 		case st.by != "" && st.affected:
@@ -241,7 +270,7 @@ func coverOf(dm *devMatch, rows deviceRows, checks map[string]Check) deviceCover
 			n := d.decided[st.by]
 			d.decided[st.by] = [2]int{n[0], n[1] + 1}
 		default:
-			d.possible[st.cause]++
+			d.possible[causeDetail{st.cause, st.detail}]++
 		}
 	}
 	counted := map[string]bool{}
@@ -257,7 +286,7 @@ func coverOf(dm *devMatch, rows deviceRows, checks map[string]Check) deviceCover
 }
 
 // pairStates is the state of every pair of device dm.a, by lineKey, and the lines (stored id) with a related pair.
-func pairStates(dm *devMatch, rows deviceRows, checks map[string]Check) (map[string]pairState, map[string]bool) {
+func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairState, map[string]bool) {
 	related := map[string]string{}  // lineKey of every pair a row of the line reached -> its unnamed class, if nothing else decides it
 	proofs := map[string]string{}   // lineKey -> the source of the proof of "not affected"
 	ruledOut := map[string]string{} // lineKey -> the source of the rows that name another product (no proof)
@@ -335,24 +364,17 @@ func pairStates(dm *devMatch, rows deviceRows, checks map[string]Check) (map[str
 			state[key] = pairState{by: RangePerson, affected: q.Answer == AnswerAffected}
 			return
 		}
-		u := q.Detail.Undecided
-		if c, ok := checks[q.CheckKey]; ok && q.CheckKey != "" && q.CVE == cve {
-			switch {
-			case c.Settled() && c.Verdict == VerdictNotAffected:
-				state[key] = pairState{by: RangeAdvisory}
-				return
-			case c.Proposal():
-				state[key] = pairState{cause: CoverageAIProposal}
-				return
-			case c.Undecided != nil:
-				u = c.Undecided // the check read further than the match did
+		// as the lists read it: settled from the vendor's word, else possible with its cause (PossibleCause)
+		it := possibleItemOf(q, cve, in)
+		if it.State == PossibleSettled {
+			by := RangeAdvisory
+			if it.Check != nil && it.Check.Reading != nil {
+				by = RangeAIRead
 			}
+			state[key] = pairState{by: by}
+			return
 		}
-		cause := CoverageOther
-		if u != nil && slices.Contains(UndecidedReasons, u.Reason) {
-			cause = u.Reason
-		}
-		state[key] = pairState{cause: cause}
+		state[key] = pairState{cause: PossibleCause(it, in.rs), detail: coverDetail(q)}
 	}
 	for _, q := range rows.questions {
 		switch {
@@ -379,6 +401,15 @@ func pairStates(dm *devMatch, rows deviceRows, checks map[string]Check) (map[str
 		}
 	}
 	return state, linked
+}
+
+// coverDetail is the matcher's own reason a question's CVE is undecided: its Undecided.Reason, else the question's kind (a question the
+// matcher asks for an input, such as the version, carries no reason).
+func coverDetail(q Question) string {
+	if u := q.Detail.Undecided; u != nil && u.Reason != "" {
+		return u.Reason
+	}
+	return string(q.Kind)
 }
 
 // recordNames says a row of v names the product of the line read as in (its CPE, its name or an alias), whatever versions it gives.
@@ -433,4 +464,17 @@ func proofBy(a Asset, s Software, in swInfo, v Vuln, m Match) string {
 type rowOut struct {
 	row int
 	out outcome
+}
+
+// causeInputsOf is what the possible CVEs of questions qs are read from in the coverage of a pass, as the lists read them.
+func (s *Service) causeInputsOf(ctx context.Context, qs []Question, exploited map[string]bool) (causeInputs, error) {
+	checks, err := checksFor(ctx, s.rd(ctx), qs)
+	if err != nil {
+		return causeInputs{}, err
+	}
+	readings, err := readingsFor(ctx, s.rd(ctx), qs)
+	if err != nil {
+		return causeInputs{}, err
+	}
+	return causeInputs{checks: checks, readings: readings, exploited: exploited, unread: s.unreadKeys(), rs: s.ReadState(ctx), now: s.now()}, nil
 }

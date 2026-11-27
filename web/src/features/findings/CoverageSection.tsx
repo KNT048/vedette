@@ -29,6 +29,8 @@ function CoverageTable({ c }: { c: Coverage }) {
   const columns: ColumnDef<Row>[] = [
     { id: 'outcome', header: t('coverage.col.outcome'), enableSorting: false, accessorFn: (r) => r.outcome, cell: ({ row }) => t(`coverage.outcome.${row.original.outcome}`) },
     { id: 'source', header: t('coverage.col.source'), enableSorting: false, accessorFn: (r) => label(r), cell: ({ row }) => <span title={row.original.name}>{label(row.original)}</span> },
+    { id: 'detail', header: t('coverage.col.detail'), enableSorting: false, accessorFn: (r) => r.details.map((d) => d.detail).join(' '),
+      cell: ({ row }) => <span className="text-meta text-muted">{row.original.details.map((d) => `${t(`coverage.cause.${d.detail}`, { defaultValue: d.detail })} ${fmt(d.count)}`).join(' · ')}</span> },
     { id: 'affected', header: t('coverage.col.affected'), enableSorting: false, accessorFn: (r) => r.affected, cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.affected)}</span> },
     { id: 'notAffected', header: t('coverage.col.notAffected'), enableSorting: false, accessorFn: (r) => r.notAffected, cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.notAffected)}</span> },
     { id: 'pairs', header: t('coverage.col.pairs'), enableSorting: false, accessorFn: (r) => r.pairs, cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.pairs)}</span> },

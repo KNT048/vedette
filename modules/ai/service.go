@@ -35,6 +35,25 @@ type Settings struct {
 	Tier          Tier `json:"tier"`
 	MonthlyBudget int  `json:"monthly_budget"`
 	RedactPII     bool `json:"redact_pii"`
+	// AutoReadOff switches off the automatic reading of vendor advisories for possible findings after each match pass (on by default,
+	// so a box saved before it existed reads them); a person's "Check with AI" still runs.
+	AutoReadOff bool `json:"auto_read_off,omitempty"`
+	// DailyReads is how many AI calls the automatic reading may make a day (0: DefaultDailyReads).
+	DailyReads int `json:"daily_reads,omitempty"`
+}
+
+// The automatic reading's calls a day: the default and the range an administrator may set.
+const (
+	DefaultDailyReads = 300
+	MaxDailyReads     = 5000
+)
+
+// dailyReads is the automatic reading's calls a day.
+func (s Settings) dailyReads() int {
+	if s.DailyReads <= 0 {
+		return DefaultDailyReads
+	}
+	return s.DailyReads
 }
 
 // hookTimeout is the time one after_ai pass or one hook test may take.
@@ -57,6 +76,9 @@ func (s Settings) validate() error {
 	}
 	if !ValidMonthlyBudget(s.MonthlyBudget) {
 		return perr("invalid_cap", "The monthly AI budget must be a whole number of tokens from %d to %d.", MinMonthlyBudget, MaxMonthlyBudget)
+	}
+	if s.DailyReads < 0 || s.DailyReads > MaxDailyReads {
+		return perr("invalid_daily_reads", "The automatic reads a day must be a whole number from 1 to %d.", MaxDailyReads)
 	}
 	return nil
 }

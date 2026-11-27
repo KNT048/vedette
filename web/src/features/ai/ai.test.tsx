@@ -776,6 +776,25 @@ describe('ai: settings, token level and global cap (S-AI-4)', () => {
     await userEvent.click(within(screen.getByRole('form', { name: 'Token level' })).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(aiConfigStore.get()).toMatchObject({ tier: 'max', monthly_budget: 90000, redact_pii: false }))
   })
+  it('the automatic reading of vendor advisories: on by default with its calls a day; off and a new number are saved; out of range is caught', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    const form = await screen.findByRole('form', { name: 'Reading vendor advisories' })
+    expect(within(form).getByText('Today: 42 of 300 calls.')).toBeInTheDocument()
+    const daily = within(form).getByLabelText('AI calls a day')
+    await userEvent.clear(daily)
+    await userEvent.type(daily, '0')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await within(form).findByText('The number must be a whole number from 1 to 5,000.')).toBeInTheDocument()
+    await userEvent.clear(daily)
+    await userEvent.type(daily, '50')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Today: 42 of 50 calls.')).toBeInTheDocument()
+    const again = screen.getByRole('form', { name: 'Reading vendor advisories' })
+    await userEvent.click(within(again).getByRole('switch', { name: 'Read by itself after each match' }))
+    await userEvent.click(within(again).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(within(screen.getByRole('form', { name: 'Reading vendor advisories' })).getByRole('switch', { name: 'Read by itself after each match' })).not.toBeChecked())
+  })
 })
 
 describe('ai: panels on the CVE page (S-AI-3)', () => {

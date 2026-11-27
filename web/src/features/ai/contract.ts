@@ -36,8 +36,12 @@ export const AiConfigView = z.object({
   month_used: z.number().int().describe('Tokens used this calendar month by all profiles'), renews_on: z.string().describe('Local date (YYYY-MM-DD) the monthly budgets start again'), redact_pii: z.boolean(),
   tier_estimates: z.record(AiTier, z.number().nullable()).describe('Estimated tokens/day per tier (no money). null = depends on alert count'),
   jobs_ready: z.record(AiJob, z.boolean()).describe('Which jobs have a usable, permitted profile'),
+  auto_read: z.boolean().describe('After each match pass the AI reads the vendor advisories of possible findings by itself (exploited first, then CVSS), sending only public data; off: only a person\'s "Check with AI" reads them'),
+  daily_reads: z.number().int().min(1).max(5000).describe('The automatic reading\'s AI calls a day (default 300); it also stops with scheduled jobs at 80 % of the monthly budget'),
+  reads_today: z.number().int().min(0).describe('The automatic reading\'s AI calls so far today (box time zone)'),
 })
-export const ConfigInput = z.object({ tier: AiTier, monthly_budget: z.number().int().min(1000).max(150_000_000), redact_pii: z.boolean() })
+export const ConfigInput = z.object({ tier: AiTier, monthly_budget: z.number().int().min(1000).max(150_000_000), redact_pii: z.boolean(),
+  auto_read: z.boolean().optional().describe('Absent: unchanged'), daily_reads: z.number().int().min(1).max(5000).optional().describe('Absent: unchanged') })
 
 export const Usage = z.object({
   tier: AiTier, monthly_budget: z.number(),
@@ -135,7 +139,7 @@ const CachedCve = z.object({ explain: ExplainResult.nullable(), news: NewsResult
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/config', summary: 'Usage tier, shared monthly budget and this month\'s use, PII redaction; which jobs are ready', stories: ['S-AI-1', 'S-AI-4'], role: 'viewer', response: AiConfigView },
-  { method: 'put', path: '/ai/config', summary: 'Save token tier, shared monthly budget and PII redaction', stories: ['S-AI-4'], role: 'admin', body: ConfigInput, response: AiConfigView },
+  { method: 'put', path: '/ai/config', summary: 'Save token tier, shared monthly budget, PII redaction and the automatic reading of vendor advisories (on or off, calls a day)', stories: ['S-AI-4'], role: 'admin', body: ConfigInput, response: AiConfigView },
   { method: 'get', path: '/ai/profiles', summary: 'List AI profiles (no full keys)', stories: ['S-AI-1'], role: 'viewer', response: z.object({ items: z.array(AiProfile) }) },
   { method: 'post', path: '/ai/profiles', summary: 'Add an AI profile: Anthropic, OpenAI, Gemini, OpenAI-compatible or custom', stories: ['S-AI-1'], role: 'admin', body: ProfileInput, response: AiProfile },
   { method: 'put', path: '/ai/profiles/{id}', summary: 'Edit an AI profile (blank key = keep the old key)', stories: ['S-AI-1'], role: 'admin', params: z.object({ id: z.string() }), body: ProfileInput, response: AiProfile },

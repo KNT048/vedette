@@ -328,7 +328,16 @@ type Range struct {
 // AffectedRow is the range as the matcher's CPE entry.
 func (r Range) AffectedRow() AffectedRow {
 	return AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
-		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList}
+		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
+}
+
+// LineFix is the fixed release a CVE record states above the row's end (a lone unaffected version above every affected row of the
+// entry, on the release line the rows end on: entryVersions), "" when the row's fixed release is its own excluded end or there is none.
+func (r Range) LineFix() string {
+	if r.Origin == OriginNVD || r.Fixed == "" || r.Fixed == r.EndExcl {
+		return ""
+	}
+	return r.Fixed
 }
 
 const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.default_status, r.platforms`
@@ -748,6 +757,12 @@ func (r Range) MatchRow() (AffectedRow, bool) {
 	row := r.AffectedRow()
 	if recordEvery(r) {
 		row.StartIncl = "0"
+	}
+	if sys := recordSystem(r); sys != "" { // a record row limited to one operating system: its target_sw, as in kevRecordRow
+		if f := strings.Split(row.CPE, ":"); len(f) == 13 && f[10] == "*" {
+			f[10] = sys
+			row.CPE = strings.Join(f, ":")
+		}
 	}
 	return row, true
 }

@@ -318,7 +318,7 @@ func (st LineStatement) pastFix(id CheckID) bool {
 	if st.coversLine(id) && dottedPrefix(st.StatedLine, end) {
 		return true
 	}
-	if !sameTrain(end, id.Version) {
+	if !onFixTrain(end, id.Version) {
 		return false // "7.14 before 7.14.5 and 7.15 before 7.15.3": a fix on another train says nothing about this version
 	}
 	for _, m := range reBefore.FindAllStringSubmatch(st.Quote, -1) {
@@ -329,10 +329,10 @@ func (st LineStatement) pastFix(id CheckID) bool {
 	return false
 }
 
-// sameTrain says version is on the train of the release fix: it starts with all parts of fix but the last ("3.4.7", and the hotfix
+// onFixTrain says version is on the train of the release fix: it starts with all parts of fix but the last ("3.4.7", and the hotfix
 // "3.4.0.2", on the train of "3.4.0"; "2.450" on that of "2.442"): a release before which every version is affected is on the version's
 // own train. 3.4.1 is not on the train of 3.3.5, nor 121.0.1 on that of 120.0.1.
-func sameTrain(fix, version string) bool {
+func onFixTrain(fix, version string) bool {
 	i := strings.LastIndexAny(fix, ".-_")
 	return i > 0 && dottedPrefix(strings.ToLower(fix[:i]), strings.ToLower(version))
 }
@@ -351,11 +351,11 @@ func (st LineStatement) fix(id CheckID) Fix {
 	return Fix{Kind: FixUnknown}
 }
 
-// quotedFix is the release a "before X" of the quote names on id's own train (sameTrain), "" when none: the fix the vendor's sentence
+// quotedFix is the release a "before X" of the quote names on id's own train (onFixTrain), "" when none: the fix the vendor's sentence
 // states ("DSM 7.2.1 versions before 7.2.1-69057-6"), whether or not the AI wrote it as fixed_in.
 func (st LineStatement) quotedFix(id CheckID) string {
 	for _, m := range reBefore.FindAllStringSubmatch(st.Quote, -1) {
-		if x := strings.TrimRight(m[1], "."); sameTrain(x, id.Version) {
+		if x := strings.TrimRight(m[1], "."); onFixTrain(x, id.Version) {
 			return x
 		}
 	}

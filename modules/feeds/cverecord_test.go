@@ -131,13 +131,16 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 		{"default affected with unaffected versions", `{"vendor":"Acme","product":"Gateway","defaultStatus":"affected","versions":[{"version":"0","lessThan":"5.10","status":"unaffected"}]}`, nil, 1},
 		{"wildcard bound", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"5.15","lessThanOrEqual":"5.15.*","status":"affected"}]}`, nil, 1},
 		{"x series", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.x","status":"affected"}]}`, nil, 1},
-		{"comparison in the version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"< 2.4","status":"affected"}]}`, nil, 1},
+		{"a comparison in words", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"before 2.4","status":"affected"}]}`, nil, 1},
 		{"reversed range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5","lessThan":"3.0","status":"affected"}]}`, nil, 1},
 		{"same numbers, reversed suffix", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5-h2","lessThan":"3.0.5-h1","status":"affected"}]}`, nil, 1},
 		{"empty range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0","lessThan":"3.0","status":"affected"}]}`, nil, 1},
 		{"an unaffected backport inside the range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected"},{"version":"1.5.3","status":"unaffected"}]}`, nil, 1},
 		{"a change to affected", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected","changes":[{"at":"2.0","status":"affected"}]}]}`, nil, 1},
-		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
+		{"only some operating systems: rows per system", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`,
+			[]span{{si: "1.0", ee: "2.0", def: k}}, 0},
+		{"only some models", `{"vendor":"Acme","product":"Gateway","platforms":["GW-400 Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
+		{"a system and a model", `{"vendor":"Acme","product":"Gateway","platforms":["Windows","GW-400 Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
 		{"both bounds", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","lessThanOrEqual":"2.0","status":"affected"}]}`, nil, 1},
 		{"one bad entry spoils its product", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`, nil, 1},
 		{"letter releases: only their versions are left out, the list is partial", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.5.0","lessThan":"3.5.10","status":"affected","versionType":"semver"},{"version":"1.1.1","lessThan":"1.1.1zk","status":"affected","versionType":"custom"},{"version":"1.0.2","lessThan":"1.0.2zt","status":"affected","versionType":"custom"},{"version":"1.0.2zt","status":"unaffected"}]}`,
@@ -145,6 +148,20 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 		{"a letter release alone is an exact version", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"1.1.1zk","status":"affected"}]}`,
 			[]span{{si: "1.1.1zk", ei: "1.1.1zk", def: u}}, 0},
 		{"a letter branch alone gives no row", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"1.1.1","lessThan":"1.1.1zk","status":"affected"}]}`, nil, 0},
+		{"a lone unaffected version above every affected row: the fix of the line they end on", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"0","lessThanOrEqual":"6.49.18","status":"affected"},{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.24.0","status":"unaffected"}]}`,
+			[]span{{ei: "6.49.18", def: k}, {si: "7.0.0", ei: "7.11.2", fixed: "7.24.0", def: k}}, 0},
+		{"a lone unaffected pre-release above every affected row", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"0","lessThanOrEqual":"7.24.2","status":"affected"},{"version":"7.25beta4","status":"unaffected","versionType":"custom"}]}`,
+			[]span{{ei: "7.24.2", fixed: "7.25beta4", def: k}}, 0},
+		{"a lone unaffected version on another line than the rows end on", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"8.1.0","status":"unaffected"}]}`,
+			[]span{{si: "7.0.0", ei: "7.11.2", def: k}}, 0},
+		{"an unaffected version beside two", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.24.0","status":"unaffected"},{"version":"7.25.0","status":"unaffected"}]}`,
+			[]span{{si: "7.0.0", ei: "7.11.2", def: k}}, 0},
+		{"an unaffected range above the rows is no lone version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.24.0","lessThan":"7.30.0","status":"unaffected"}]}`,
+			[]span{{si: "7.0.0", ei: "7.11.2", def: k}}, 0},
+		{"a lone unaffected version below an affected row's end", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"7.0.0","lessThanOrEqual":"7.11.2","status":"affected"},{"version":"7.30.0","lessThan":"7.30.4","status":"affected"},{"version":"7.24.0","status":"unaffected"}]}`,
+			[]span{{si: "7.0.0", ei: "7.11.2", def: k}, {si: "7.30.0", ee: "7.30.4", def: k}}, 0},
+		{"a lone unaffected version below a left-out letter release", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0.0","lessThanOrEqual":"1.4.2","status":"affected"},{"version":"1.5.1","lessThan":"1.5.1zk","status":"affected","versionType":"custom"},{"version":"1.5.0","status":"unaffected"}]}`,
+			[]span{{si: "1.0.0", ei: "1.4.2", def: k}}, 0},
 		{"a partial entry makes its product's list partial", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.0","lessThan":"3.0.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.0","status":"unaffected"}]}`,
 			[]span{{si: "3.0", ee: "3.0.5", def: k}}, 0},
 	} {
@@ -172,7 +189,7 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 // A product the generic rules refuse keeps its versions as the vendor states them, in rows the generic comparison never reads
 // (version_type "vendor:…"): bounds as written, the fixed release where the record says the versions from there are unaffected,
 // a hotfix range split at its changes, an "affected except" list as one range per fixed release. Git commits, entries limited to
-// some systems and text the column cannot hold safely are left out.
+// some models and text the column cannot hold safely are left out.
 func TestParseCVERecord_VendorRows(t *testing.T) {
 	t.Parallel()
 	const u, a, k = DefaultUnaffected, DefaultAffected, DefaultUnknown
@@ -195,7 +212,7 @@ func TestParseCVERecord_VendorRows(t *testing.T) {
 		{"one bad entry: the product's rows kept as stated", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`,
 			[]vspan{{span{si: "1.0", ee: "1.5", def: k}, "vendor:text"}, {span{si: "2.x", ei: "2.x", def: k}, "vendor:text"}}},
 		{"git commits only", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1da177e4c3f4","lessThan":"6b2c1e3fa9d1","status":"affected","versionType":"git"}]}`, []vspan{}},
-		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, []vspan{}},
+		{"only some models", `{"vendor":"Acme","product":"Gateway","platforms":["GW-400 Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, []vspan{}},
 		{"quotes and semicolons", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0') DROP TABLE x;--","status":"affected"},{"version":"3.x","status":"affected"}]}`,
 			[]vspan{{span{si: "3.x", ei: "3.x", def: k}, "vendor:text"}}},
 	} {

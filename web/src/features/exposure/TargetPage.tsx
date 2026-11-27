@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -23,6 +23,7 @@ import { ProofPanel } from './ProofPanel'
 import { ScanBar, ScanButton, useScanFlow } from './ScanBar'
 import { ScansPanel } from './ScansPanel'
 import { ServicesPanel } from './ServicesPanel'
+import { DeepSettingsDialog } from './DeepSettingsDialog'
 import { DeleteTargetDialog, EditTargetDialog, ScanToggle } from './TargetDialogs'
 import { TermsPanel } from './TermsPanel'
 import type { TargetNode } from './types'
@@ -102,6 +103,7 @@ function TargetView({ node }: { node: TargetNode }) {
         </span>}
         actions={<>
           <ScanButton node={node} flow={flow} />
+          <Button onClick={() => flow.setSettingsOpen(true)}><SlidersHorizontal />{t('deepSettings.button')}</Button>
           {domain ? <Button onClick={() => setEditing(true)} disabled={!admin} title={needAdmin}><Pencil />{t('edit.button')}</Button> : <ScanToggle node={node} disabled={!admin} title={needAdmin} />}
           <Button onClick={() => setDeleting(true)} disabled={!admin} title={needAdmin}><Trash2 />{t('delete.button')}</Button>
         </>} />
@@ -130,6 +132,7 @@ function TargetView({ node }: { node: TargetNode }) {
         ...(node.kind === 'ip' ? [{ id: 'outside', label: t('tabs.outsideView'), panel: <OutsidePanel node={node} /> }] : []),
       ]} />
       {!operator ? <InfoLine className="mt-4 max-w-3xl text-meta text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
+      {flow.settingsOpen ? <DeepSettingsDialog node={node} open onOpenChange={flow.setSettingsOpen} /> : null}
       <EditTargetDialog node={node} open={editing} onOpenChange={setEditing} />
       <DeleteTargetDialog node={node} items={items} open={deleting} onOpenChange={setDeleting} onDone={() => void nav('/exposure')} />
     </>

@@ -9,7 +9,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { isLive, useRows, useScanNode, useTree } from './api'
 import { InfoLine } from '@/components/common/InfoLine'
-import { boxIp, runHref } from './node'
+import { boxIp, deepSummary, runHref } from './node'
 import { RunState, useTabHref } from './NodeParts'
 import type { TargetNode } from './types'
 
@@ -34,6 +34,7 @@ export function useScanFlow(node: TargetNode) {
   // confirmation the person has not seen in front of the button they press. A deep scan asks first too, once, with the one warning
   // of what it can do to the network in front of the target (the same dialog when it also records the confirmation).
   const [confirming, setConfirming] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false) // the Deep scan settings dialog, opened by its button and by Change in the confirmation
   function run() {
     scan.mutate({ id: node.id, noticeVersion: notice?.version }, {
       onSuccess: (s) => { setConfirming(false); toast.success(t(s.status === 'queued' ? 'run.queuedToast' : 'run.startedToast', { value: node.value })) },
@@ -41,14 +42,15 @@ export function useScanFlow(node: TargetNode) {
     })
   }
   const start = () => (notice || node.deep ? setConfirming(true) : run())
-  return { scan, notice, needTwoStep, blocked, roleReason, run, start, confirming, setConfirming, live: isLive(node.last_scan) }
+  return { scan, notice, needTwoStep, blocked, roleReason, run, start, confirming, setConfirming, settingsOpen, setSettingsOpen, live: isLive(node.last_scan) }
 }
 type Flow = ReturnType<typeof useScanFlow>
 
 /** The header's Scan now: "Deep scan now" once the testing terms are accepted; locked with the reason while it cannot run. */
 export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
   const { t } = useTranslation('exposure')
-  const { scope } = useScope(node)
+  const { scope, disruptive } = useScope(node)
+  const summary = <DeepSummary node={node} disruptive={disruptive} onChange={() => { flow.setConfirming(false); flow.setSettingsOpen(true) }} />
   return (
     <>
       <ScanNowButton label={node.deep ? t('scan.deepButton') : t('scan.button')} onStart={flow.start} running={flow.live} pending={flow.scan.isPending && !flow.confirming} runningLabel={t('scan.running')}
@@ -60,6 +62,7 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
               {node.commitment ? <p className="text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
               <p className="rounded-md border border-rule p-3 text-sm">{flow.notice.text}</p>
               {node.deep ? <p className="text-sm text-warn">{t('scan.deepLoad')}</p> : null}
+              {node.deep ? summary : null}
               <DialogFooter>
                 <Button disabled={flow.scan.isPending} onClick={() => flow.setConfirming(false)}>{t('common:cancel')}</Button>
                 <Button variant="primary" busy={flow.scan.isPending} busyLabel={t('common:busy.starting')} onClick={flow.run}>{t('scan.confirmButton')}</Button>
@@ -68,6 +71,7 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
           ) : flow.confirming ? (
             <DialogContent title={t('scan.deepConfirmTitle', { value: node.value })} description={scope}>
               <p className="text-sm text-warn">{t('scan.deepLoad')}</p>
+              {summary}
               <DialogFooter>
                 <Button disabled={flow.scan.isPending} onClick={() => flow.setConfirming(false)}>{t('common:cancel')}</Button>
                 <Button variant="primary" busy={flow.scan.isPending} busyLabel={t('common:busy.starting')} onClick={flow.run}>{t('scan.deepConfirmButton')}</Button>
@@ -77,6 +81,17 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
         </Dialog>
       ) : null}
     </>
+  )
+}
+
+/** What a deep scan of the node will run, in one line (the saved settings and where the disruptive groups can go), with a link to change it. */
+function DeepSummary({ node, disruptive, onChange }: { node: TargetNode; disruptive: boolean; onChange: () => void }) {
+  const { t } = useTranslation('exposure')
+  return (
+    <p className="text-sm" data-testid="deep-summary">
+      <span>{deepSummary(t, node.deep_settings, disruptive)}</span>{' '}
+      <button type="button" className={link} onClick={onChange}>{t('deepSettings.change')}</button>
+    </p>
   )
 }
 
@@ -104,15 +119,15 @@ function disruptiveLine(node: TargetNode, addresses: { ip: string; class: string
 
 /** What Scan now does on this node, in one line: the deep scan the accepted terms allow (and where its disruptive checks go), or the
  *  safe scan; disruptive says whether any address of it gets them. */
-function useScope(node: TargetNode): { scope: string; disruptive: boolean } {
+export function useScope(node: TargetNode): { scope: string; disruptive: boolean; line: string } {
   const { t } = useTranslation('exposure')
   const rows = useRows(node.id, 'addresses', { enabled: node.kind === 'domain' && node.deep && !!node.terms?.disruptive })
   const tree = useTree()
-  if (!node.deep) return { scope: t('scan.safe'), disruptive: false }
+  if (!node.deep) return { scope: t('scan.safe'), disruptive: false, line: t('deepSettings.needTerms') }
   const deepKey = `scan.deep${node.kind === 'domain' ? 'Domain' : 'Ip'}`
   const d = disruptiveLine(node, rows.data?.items, tree.data?.items)
   const line = d.ips ? t(d.key, { ips: d.ips.join(', '), count: d.ips.length }) : t(d.key)
-  return { scope: `${t(deepKey)} ${line}`, disruptive: ['scan.deepDisruptive', 'scan.deepDomainDisruptiveOn', 'scan.deepDomainDisruptiveRule'].includes(d.key) }
+  return { scope: `${t(deepKey)} ${line}`, line, disruptive: ['scan.deepDisruptive', 'scan.deepDomainDisruptiveOn', 'scan.deepDomainDisruptiveRule'].includes(d.key) }
 }
 
 /** Under the header: why Scan now is refused or what it does, the confirmation it records, and the live or last scan with its run. */

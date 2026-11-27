@@ -153,6 +153,8 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		"ai_activity.prev_hash": true, "ai_activity.hash": true, "ai_activity.input_hash": true, "ai_activity.output_hash": true, "ai_result.inputs_hash": true,
 		// Counts of tokens used (the log export keeps them too), not tokens as in credentials.
 		"ai_activity.tokens_in": true, "ai_activity.tokens_out": true, "ai_result.tokens_in": true, "ai_result.tokens_out": true,
+		// The digest of the version and the CVE record's stamp a check of a possible CVE was made for: public facts, not a secret.
+		"fnd_possible_check.evidence_hash": true,
 	}
 	for tbl, cols := range schema {
 		if !known[tbl] {

@@ -158,8 +158,8 @@ VALUES ('CVE-2026-124993', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '
 				t.Errorf("%s: open findings %v, must not have %s", c.device, got, cve)
 			}
 		}
-		// the CVE whose record names only later DSM lines waits in the device line's one older_line question, never decided
-		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND kind = 'older_line' AND detail LIKE '%"CVE-2026-124993"%' AND detail LIKE '%"line":"7.2.1"%'`,
+		// the CVE whose record names only later DSM lines waits in its own older_line question, never decided
+		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND kind = 'older_line' AND cve = 'CVE-2026-124993' AND detail LIKE '%"line":"7.2.1"%'`,
 			c.device); (c.device == nas || c.device == nasPicked) && q != 1 {
 			t.Errorf("%s: %d older_line questions holding the CVE whose record names only later DSM lines, want 1", c.device, q)
 		}

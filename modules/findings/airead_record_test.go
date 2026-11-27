@@ -22,12 +22,18 @@ const (
 // match asks), the CVE on no exploited list, and a record with no reference page the box may read.
 func quillWorld(t *testing.T, version string) (*env, *fakeChecker) {
 	t.Helper()
+	return quillWorldOf(t, "Mail", version)
+}
+
+// quillWorldOf is quillWorld with the vendor's product of that name ("Mail" or "Browser") on the workstation.
+func quillWorldOf(t *testing.T, product, version string) (*env, *fakeChecker) {
+	t.Helper()
 	e := newEnv(t)
-	sw := Software{ID: "s-quill", Display: "Quillfeather Mail", Vendor: "Quillfeather", Product: "Mail", Version: version, Source: "agent"}
+	sw := Software{ID: "s-quill", Display: "Quillfeather " + product, Vendor: "Quillfeather", Product: product, Version: version, Source: "agent"}
 	a := Asset{ID: "pc-01", Name: "pc-01", OS: "Microsoft Windows 11 Pro", Software: []Software{sw}}
 	e.inv.assets = map[string]AssetView{"pc-01": {ID: "pc-01", Hostname: ptr("pc-01"), IP: "192.0.2.10", Kind: "workstation", Approved: true}}
 	e.inv.match = map[string]Asset{"pc-01": a}
-	e.feeds.vulns = []Vuln{{CVE: cveQuill, NVDAnswered: true, Origin: RangeNVD, Affected: []Affected{{CPE: "cpe:2.3:a:quillfeather:mail:-:*:*:*:*:*:*:*"}}}}
+	e.feeds.vulns = []Vuln{{CVE: cveQuill, NVDAnswered: true, Origin: RangeNVD, Affected: []Affected{{CPE: "cpe:2.3:a:quillfeather:" + strings.ToLower(product) + ":-:*:*:*:*:*:*:*"}}}}
 	e.feeds.unlisted = map[string]bool{cveQuill: true}
 	if _, err := e.svc.Reconcile(t.Context()); err != nil {
 		t.Fatal(err)
@@ -221,23 +227,75 @@ func TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles(t *testing.T) {
 	}
 }
 
-// The project's own site is the vendor's for "not affected": a page whose path starts with the product's or vendor's name, or a
-// person's home and then that name, where the record's reference points. Another path on such a host is not.
-func TestMarkVendorPages_TheProjectsOwnSite(t *testing.T) {
+// Only a reference tagged vendor-advisory or a page on the vendor's own host is the vendor's page: a third-party site whose path names
+// the vendor and a model (/<vendor>/<model>/), a person's home page about the product, or a code host's project path is not, however
+// the path reads (a vendor page lets the box settle "not affected").
+func TestMarkVendorPages_OnlyTheVendorsTagOrHost(t *testing.T) {
 	t.Parallel()
-	for raw, want := range map[string]bool{
-		"https://www.example.org/~maker/mail/wishlist/overlarge-s.html":    true,
-		"https://code.example.net/quillfeather/mail/security/advisories/1": true,
-		"https://code.example.net/someone/mail-poc":                        false,
-		"https://www.example.org/~maker/other/mail.html":                   false,
-		"https://www.example.org/mail":                                     false,
-		"https://news.example.com/news/quillfeather/mail-flaw":             false,
+	for _, tc := range []struct {
+		raw  string
+		tag  string
+		want bool
+	}{
+		{"https://vulns.example.org/quillfeather/mail-x9/overflow.html", "third-party-advisory", false},
+		{"https://www.example.org/~maker/mail/wishlist/overlarge-s.html", "third-party-advisory", false},
+		{"https://code.example.net/quillfeather/mail/security/advisories/1", "", false},
+		{"https://www.quillfeather.com/security/QF-2026-01", "", true},
+		{"https://advisories.example.net/QF-2026-01", "vendor-advisory", true},
 	} {
-		pages := []FetchedPage{{URL: raw, Status: "ok"}}
-		markVendorPages(pages, []RefLink{{URL: raw, Tags: []string{"third-party-advisory"}}}, "quillfeather|mail")
-		if pages[0].Vendor != want {
-			t.Errorf("%s: vendor %v, want %v", raw, pages[0].Vendor, want)
+		pages := []FetchedPage{{URL: tc.raw, Status: "ok"}}
+		var tags []string
+		if tc.tag != "" {
+			tags = []string{tc.tag}
 		}
+		markVendorPages(pages, []RefLink{{URL: tc.raw, Tags: tags}}, "quillfeather|mail")
+		if pages[0].Vendor != tc.want {
+			t.Errorf("%s: vendor %v, want %v", tc.raw, pages[0].Vendor, tc.want)
+		}
+	}
+}
+
+// A sentence that names several products of the record pairs each release with the product named just before it: a bound the answer
+// gives for this product that the sentence pairs with another product ("fixed in Browser ESR 115.42 and Mail 140.17" read for the mail
+// client's line 115) is the other product's, so the reading is an inference (no bound, no fix, opens only); for the browser's line 115
+// the same sentence states its own fix.
+func TestLineReading_ABoundPairedWithAnotherProductIsAnInference(t *testing.T) {
+	t.Parallel()
+	const both = "This flaw was fixed in Quillfeather Browser ESR 115.42 and Quillfeather Mail 140.17."
+	for _, tc := range []struct {
+		product, version string
+		basis, fixed     string // stored
+		fix              string // the opened finding's fix ("" none opened)
+	}{
+		{"Mail", "115.9.0", BasisInferred, "", ""},
+		{"Browser", "115.9.0", BasisStated, "115.42", "115.42"},
+	} {
+		t.Run(tc.product, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorldOf(t, tc.product, tc.version)
+			r := fc.records[cveQuill]
+			r.Description = "Use-after-free in the layout engine. " + both
+			fc.records[cveQuill] = r
+			fc.verdicts[cveQuill+"|"+tc.version] = ProposeVerdict{Status: StatementFixed, FixedIn: "115.42", Line: "115", Quote: both, Source: 0,
+				Reason: "Fixed in 115.42."}
+			runCheck(t, e)
+			var basis, fixed string
+			if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT basis, ifnull(fixed_in, '') FROM fnd_line_statement WHERE cve = ?`, cveQuill).
+				Scan(&basis, &fixed); err != nil {
+				t.Fatal(err)
+			}
+			if basis != tc.basis || fixed != tc.fixed {
+				t.Errorf("stored basis %s fixed_in %q, want %s %q", basis, fixed, tc.basis, tc.fixed)
+			}
+			var fix string
+			if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT ifnull(max(ifnull(fix_version, '-')), '') FROM fnd_finding WHERE cve = ? AND range_origin = 'ai_read'`,
+				cveQuill).Scan(&fix); err != nil {
+				t.Fatal(err)
+			}
+			if fix != tc.fix {
+				t.Errorf("opened finding's fix %q, want %q", fix, tc.fix)
+			}
+		})
 	}
 }
 

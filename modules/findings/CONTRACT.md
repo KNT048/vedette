@@ -254,7 +254,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
   states line N of that product fixed or affected in a release N.x and nothing for this product's line N) is stored with `basis inferred`
   (`fnd_line_statement.basis`, else `stated`; an answer whose quote is only in another product's row of the record is inferred whatever
-  it says, `otherProductsRow`, `TestLineReading_AQuoteOfAnotherProductsRowIsAnInference`), keeps no bound and stands only
+  it says, `otherProductsRow`, `TestLineReading_AQuoteOfAnotherProductsRowIsAnInference`; so is one whose quote names this product and
+  another product of the record and pairs a release of the answer, a bound or the "before X" fix on the version's train, with the other
+  product, the nearest product name before it: `unpairedBound`, `TestLineReading_ABoundPairedWithAnotherProductIsAnInference`), keeps no
+  bound and stands only
   as `affected`, with a quote naming that release, and only while no row of this product names a release of line N
   (`ownRowOnLine`), never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
   the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
@@ -269,9 +272,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   own train: `LineStatement.fix`; What to do cites the page and the sentence), rejected in one click
   (`POST /findings/possible/checks/{key}/reject` with the reading's key, audit `findings.ai_reading_rejected`: every device of the CVE is
   matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`); past the stated fix on the same
-  line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`: tagged vendor-advisory, on
-  the vendor's host, or on the project's own site the record points to, a path that starts with the vendor's or product's name or a
-  person's home and then it, `projectPath`, `TestMarkVendorPages_TheProjectsOwnSite`) and never an exploited one
+  line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`: tagged vendor-advisory or on
+  the vendor's host, never by what a path reads, `TestMarkVendorPages_OnlyTheVendorsTagOrHost`) and never an exploited one
   (a proposal a person confirms one by one); anything else decides nothing. A reading is read again when the record changes (the old one
   applies until then), after 30 days when `unsure`, and its page is fetched again after 30 days (no AI call when its text is unchanged:
   `seen_at`). A finding the reading opened has no question, so the match notes its line when due (`noteReadingDue`) for the next check.

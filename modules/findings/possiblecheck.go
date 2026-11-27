@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -170,6 +171,93 @@ func otherProductsRow(rec CVERecordText, product, quote string) string {
 		}
 	}
 	return from
+}
+
+// unpairedBound names the other product of the record a release of the answer belongs to, when the quote names this product and another
+// product of the record: a bound the answer gives (or the "before X" on the version's own train the quote states, its fix) is this
+// product's only when the nearest product name before it in the quote is this product's ("fixed in Browser ESR 115.42 and Mail 140.17":
+// 115.42 is the browser's); a bound the quote does not hold is not this product's either. "" when the quote names one product only, or
+// every release of the answer is paired with this product.
+func unpairedBound(rec CVERecordText, id CheckID, v ProposeVerdict) string {
+	quote := strings.ToLower(oneLine(v.Quote, 400))
+	vendor, name, _ := strings.Cut(id.Product, "|")
+	own := func(rv, rp string) bool {
+		return productid.Norm(rv) == productid.Norm(vendor) && strings.HasPrefix(productid.Norm(rp), productid.Norm(name))
+	}
+	type named struct {
+		start, end int
+		own        bool
+		label      string
+	}
+	var names []named
+	add := func(rv, rp string) {
+		phrase := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(rp, "_", " ")))
+		if len(phrase) < 2 {
+			return
+		}
+		re := regexp.MustCompile(`(?:^|[^a-z0-9])(` + regexp.QuoteMeta(phrase) + `)(?:$|[^a-z0-9])`)
+		for _, m := range re.FindAllStringSubmatchIndex(quote, -1) {
+			names = append(names, named{start: m[2], end: m[3], own: own(rv, rp), label: strings.TrimSpace(rv + " " + rp)})
+		}
+	}
+	add(vendor, name)
+	for _, r := range rec.Rows {
+		add(r.Vendor, r.Product)
+	}
+	other := ""
+	mine := false
+	for _, n := range names {
+		if n.own {
+			mine = true
+		} else if other == "" {
+			other = n.label
+		}
+	}
+	if !mine || other == "" {
+		return ""
+	}
+	bounds := []string{v.Introduced, v.FixedIn, v.LastAffected}
+	for _, m := range reBefore.FindAllStringSubmatch(v.Quote, -1) {
+		if x := strings.TrimRight(m[1], "."); onFixTrain(x, id.Version) {
+			bounds = append(bounds, x)
+		}
+	}
+	for _, b := range bounds {
+		b = strings.ToLower(strings.TrimSpace(b))
+		if b == "" {
+			continue
+		}
+		at := tokenIndex(quote, b)
+		if at < 0 {
+			return other
+		}
+		var near *named
+		for i := range names {
+			n := &names[i]
+			if n.end > at {
+				continue
+			}
+			if near == nil || n.start > near.start || n.start == near.start && n.end > near.end {
+				near = n
+			}
+		}
+		if near == nil || !near.own {
+			if near != nil {
+				return near.label
+			}
+			return other
+		}
+	}
+	return ""
+}
+
+// tokenIndex is where text (lower case) names tok as a whole version (namesToken), -1 when it does not.
+func tokenIndex(text, tok string) int {
+	re := regexp.MustCompile(`(?:^|[^0-9a-z.])(` + regexp.QuoteMeta(tok) + `)(?:$|[^0-9a-z.]|\.(?:$|[^0-9a-z]))`)
+	if m := re.FindStringSubmatchIndex(text); m != nil {
+		return m[2]
+	}
+	return -1
 }
 
 // recordText is the text of the record the AI reads as data block 0 and its quotes are looked up in: the description, the solution and
@@ -851,6 +939,9 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			if v.InferredFrom == "" && (v.Source < 1 || v.Source > len(okPages)) {
 				v.InferredFrom = otherProductsRow(rec, l.units[0].id.Product, v.Quote) // another product's row is that product's statement
 			}
+			if v.InferredFrom == "" {
+				v.InferredFrom = unpairedBound(rec, l.units[0].id, v) // a release the sentence pairs with another product is that product's
+			}
 			st := readingOfAnswer(cve, l.units[0].id, v, okPages, recText, rec.Refs, ans, actor, now)
 			if st.Status == StatementAffected && v.InferredFrom != "" && ownRowOnLine(rec, l.units[0].id.Product, st.StatedLine) {
 				st.Status = StatementUnsure // the record has a row of this product on the line: its own row, not another product's, decides
@@ -988,7 +1079,7 @@ func emptyPages(pages []FetchedPage, cve string, group []checkUnit) {
 }
 
 // markVendorPages marks the pages that are the vendor's own advisory (FetchedPage.Vendor): the reference is tagged vendor-advisory, or
-// the page is on the vendor's host, or on the project's own site the record's reference points to (projectPath).
+// the page is on the vendor's host.
 func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 	vendor, _, _ := strings.Cut(product, "|")
 	for i := range pages {
@@ -997,26 +1088,10 @@ func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 				pages[i].Vendor = true
 			}
 		}
-		if u, err := url.Parse(pages[i].URL); err == nil && (vendorHost(u.Hostname(), vendor) || projectPath(u.Path, product)) {
+		if u, err := url.Parse(pages[i].URL); err == nil && vendorHost(u.Hostname(), vendor) {
 			pages[i].Vendor = true
 		}
 	}
-}
-
-// projectPath says an address's path is the project's own site on a shared host: its first part is the vendor's or the product's name
-// ("/<name>/…", a project on a code host), or a person's home and then that name ("/~<user>/<name>/…"), with a page below it. A name
-// shorter than three letters and digits is too common to tell.
-func projectPath(path, product string) bool {
-	vendor, name, _ := strings.Cut(product, "|")
-	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) > 0 && strings.HasPrefix(parts[0], "~") {
-		parts = parts[1:]
-	}
-	if len(parts) < 2 {
-		return false
-	}
-	p := productid.Norm(parts[0])
-	return len(p) >= 3 && (p == productid.Norm(vendor) || p == productid.Norm(name))
 }
 
 // vendorHost says host is the vendor's own: the label before its top-level domain (or before a country's second level, as in

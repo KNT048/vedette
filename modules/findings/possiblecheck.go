@@ -149,6 +149,29 @@ func ownRowOnLine(rec CVERecordText, product, line string) bool {
 	return false
 }
 
+// otherProductsRow is the product ("vendor product") of the record's row that quote is from, when that row is another product's and the
+// quote is in no row of product, nor in the description or the solution: an answer relying on it reads another product's statement,
+// so it is an inference whatever the answer says (its bounds are that product's releases). "" otherwise.
+func otherProductsRow(rec CVERecordText, product, quote string) string {
+	if quoteFound(quote, rec.Description) || quoteFound(quote, rec.Solution) {
+		return ""
+	}
+	vendor, name, _ := strings.Cut(product, "|")
+	from := ""
+	for _, r := range rec.Rows {
+		if !quoteFound(quote, r.Text) {
+			continue
+		}
+		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
+			return ""
+		}
+		if from == "" {
+			from = strings.TrimSpace(r.Vendor + " " + r.Product)
+		}
+	}
+	return from
+}
+
 // recordText is the text of the record the AI reads as data block 0 and its quotes are looked up in: the description, the solution and
 // the rows, one per line.
 func recordText(rec CVERecordText, rows []string) string {
@@ -824,6 +847,9 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			if !ok {
 				res.failed += len(l.units)
 				continue
+			}
+			if v.InferredFrom == "" && (v.Source < 1 || v.Source > len(okPages)) {
+				v.InferredFrom = otherProductsRow(rec, l.units[0].id.Product, v.Quote) // another product's row is that product's statement
 			}
 			st := readingOfAnswer(cve, l.units[0].id, v, okPages, recText, rec.Refs, ans, actor, now)
 			if st.Status == StatementAffected && v.InferredFrom != "" && ownRowOnLine(rec, l.units[0].id.Product, st.StatedLine) {

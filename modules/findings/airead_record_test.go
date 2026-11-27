@@ -267,3 +267,24 @@ func TestCheckable_AnUnlistedLineIsRead(t *testing.T) {
 		t.Errorf("an edition to state: cause %q, want %s", c, CauseVersionNeeded)
 	}
 }
+
+// An answer that quotes another product's row of the record is that product's statement, whatever the answer says of its basis: read
+// as an inference (no bound, no fix of the other product's releases), even when the answer leaves "inferred_from" empty.
+func TestLineReading_AQuoteOfAnotherProductsRowIsAnInference(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	fc.verdicts[cveQuill+"|115.9.0"] = ProposeVerdict{Status: StatementAffected, Line: "115", Introduced: "115.1.0", FixedIn: "115.42.0", Quote: quillRowESR,
+		Source: 0, Reason: "Line 115 is affected before 115.42.0."}
+	runCheck(t, e)
+	var basis, fixed string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT basis, ifnull(fixed_in, '') FROM fnd_line_statement WHERE cve = ?`, cveQuill).
+		Scan(&basis, &fixed); err != nil {
+		t.Fatal(err)
+	}
+	if basis != BasisInferred || fixed != "" {
+		t.Errorf("basis %q, fixed_in %q: want an inference with no bound of the other product", basis, fixed)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = '` + cveQuill + `' AND fix_kind <> 'unknown'`); n != 0 {
+		t.Errorf("%d findings carry the other product's release as their fix", n)
+	}
+}

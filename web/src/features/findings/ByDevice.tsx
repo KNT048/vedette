@@ -1,6 +1,7 @@
 // By device (the screen's default tab): one card per device with open findings, the most urgent first; inside, one block per fix
 // ("Update OpenSSH 10.2p1 → 10.6: fixes 3 CVEs") with its CVEs, the most severe first, each one click from its finding. A device
 // with a finding and no known fix is listed too ("No fix known yet"). The server groups, orders and pages (GET /findings/devices).
+// After them, the possible findings by device (Possible.tsx): counted apart, the count line says how many ("· 16 possible").
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -12,11 +13,12 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { CveList, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
-import { useDeviceCards } from './api'
+import { useDeviceCards, usePossibleCounts } from './api'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { HandleDialog, type HandleRow } from './HandleDialog'
 import { NotAdded } from './NotAdded'
 import { asAsset, DeviceLine, FixLink, useFixTitle } from './parts'
+import { PossibleLink, PossibleSection } from './Possible'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceCard, DeviceRef, FixBlock } from './types'
 
@@ -95,6 +97,8 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
     { id: 'device', header: t('byDevice.col'), cell: ({ row: { original: c } }) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} /> },
   ]
   const named = q.data?.items.find((c) => c.device.id === device)?.device.name
+  // the possible findings are not searched or filtered by status here: their count is said only with the whole list
+  const possible = usePossibleCounts(device || undefined, !narrowed).data?.possible ?? 0
   return (
     <div className="grid gap-3">
       <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('byDevice.search') }}>
@@ -113,13 +117,15 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
         ) : (
           <>
             <DataTable urlKey="by-device" caption={t('byDevice.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-              summary={t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}
+              summary={<>{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}<PossibleLink count={narrowed ? 0 : possible} /></>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
               mobileRow={(c) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} />} />
           </>
         )}
       </QueryState>
+      <PossibleSection by="device" device={device} />
       {handling ? <HandleDialog {...handling} onClose={() => setHandling(null)} /> : null}
     </div>
   )
 }
+

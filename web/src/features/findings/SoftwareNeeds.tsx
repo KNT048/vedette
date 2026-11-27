@@ -1,17 +1,17 @@
 // The device's Software tab says, on each software row, what it needs: its open findings (count, most urgent status, the fix that
-// closes them) and what waits for a person (Needs your input), from the same answers as the device's Findings tab (GET
-// /findings/devices?device=<id>, GET /findings/input?device=<id>); nothing on a clean row.
+// closes them) and its possible CVEs (the ones Vedette cannot decide), from the same answers as the device's Findings tab (GET
+// /findings/devices?device=<id>, GET /findings/possible?device=<id>); nothing on a clean row.
 import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/common/status'
 import { useModuleEnabled } from '@/lib/modules'
 import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
-import { useAllInput, useDeviceCards } from './api'
+import { useAllPossible, useDeviceCards } from './api'
 import { useFixTitle } from './parts'
 import type { FixBlock, OpenStatus } from './types'
 
 const ONE = { offset: 0, limit: 1 }
 
-/** What one software line needs: its fix blocks (open findings) and the items of Needs your input about it. */
+/** What one software line needs: its fix blocks (open findings) and its possible CVEs. */
 type Needs = { blocks: FixBlock[]; check: number }
 
 const layer = (s: OpenStatus) => OPEN_FINDING_STATUSES.indexOf(s)
@@ -22,10 +22,10 @@ const findingsOf = (blocks: FixBlock[]) => blocks.reduce((s, b) => s + b.finding
 export function useSoftwareNeeds(assetId: string): Map<string, Needs> | 'off' | 'pending' | 'error' {
   const on = useModuleEnabled('findings')
   const cards = useDeviceCards({ device: assetId }, ONE, on === true)
-  const input = useAllInput(assetId, on === true) // every page: a device can have more items than one page holds
+  const possible = useAllPossible({ device: assetId }, on === true) // every page: a device can have more rows than one page holds
   if (on === false) return 'off'
-  if (cards.isError || input.isError) return 'error'
-  if (on === undefined || cards.isPending || input.isPending) return 'pending'
+  if (cards.isError || possible.isError) return 'error'
+  if (on === undefined || cards.isPending || possible.isPending) return 'pending'
   const m = new Map<string, Needs>()
   const entry = (id: string) => {
     const e = m.get(id) ?? { blocks: [], check: 0 }
@@ -36,13 +36,7 @@ export function useSoftwareNeeds(assetId: string): Map<string, Needs> | 'off' | 
     if (card.device.id !== assetId) continue
     for (const b of card.blocks) if (b.software) entry(b.software.id).blocks.push(b)
   }
-  for (const i of input.data.items) {
-    if (i.kind !== 'device_needs') continue
-    for (const e of i.entries) {
-      if (e.kind === 'device_unchecked' || !e.software) continue
-      entry(e.software.id).check += e.kind === 'software_group' ? e.cves : 1
-    }
-  }
+  for (const r of possible.data.items) if (r.software) entry(r.software.id).check += 1
   return m
 }
 
@@ -61,7 +55,7 @@ export function needsByLine(needs: ReturnType<typeof useSoftwareNeeds>, lineOf: 
 }
 
 /** The order of a row by what it needs, for sorting the Software tab (higher first): the most urgent status of its open findings,
- *  then their number; a row with only items to check after every row with findings; 0 for a clean row and while the answer is not
+ *  then their number; a row with only possible CVEs after every row with findings; 0 for a clean row and while the answer is not
  *  there. */
 export function needsRank(needs: ReturnType<typeof useSoftwareNeeds>, softwareId: string): number {
   const n = needs instanceof Map ? needs.get(softwareId) : undefined
@@ -83,7 +77,7 @@ export function SoftwareNeeds({ softwareId, needs }: { assetId: string; software
   const worst = worstOf(n.blocks)
   const count = findingsOf(n.blocks)
   const fixes = [...new Set(n.blocks.filter((b) => b.fix.kind !== 'none_yet' && b.fix.kind !== 'unknown').map((b) => title(b.fix, b.software)))]
-  // plain text: the device's Findings tab and Needs your input are one click away on this page, so the rows repeat no link
+  // plain text: the device's Findings tab and its possible findings are one click away on this page, so the rows repeat no link
   return (
     <div className="grid gap-1 text-meta">
       {worst !== null ? (

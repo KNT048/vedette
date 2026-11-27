@@ -13,7 +13,7 @@ import type { FindingRow } from './types'
 type Target = Pick<FindingRow, 'id' | 'cve' | 'status' | 'basis'>
 
 /** The urgency layer of an update-recommended finding: it never asks for a confirmation (no sign of exploitation, only a version to
- *  update), so it offers no Confirm anywhere, as Needs your input lists only layers 1 to 4. */
+ *  update), so it offers no Confirm anywhere. */
 export const UPDATE_RECOMMENDED_LAYER = 5
 
 /** A suspected finding an admin can confirm on their own word, when its layer asks for one (1 to 4); a confirmation a person made can
@@ -64,7 +64,7 @@ export function UndoButton({ f, size }: { f: Target; size?: 'sm' }) {
  * The ways to confirm a suspected finding, in order (as Qualys confirms from an authenticated version check and keeps "potential" for
  * the rest): first the automatic ones, the device reporting its version itself (SNMP, or the agent: skipped when it already does) and a
  * safe vulnerability check (only when one exists for the CVE and the device can be scanned), last a person, shown only to an admin, the
- * one role that can confirm (children: Confirm on the finding page, the CVE links in Needs your input). The device page holds SNMP and "Run vulnerability checks now"; agents are set up
+ * one role that can confirm (children: Confirm on the finding page). The device page holds SNMP and "Run vulnerability checks now"; agents are set up
  * in Devices › Set up.
  */
 export function ConfirmWays({ assetId, deviceStated, checkable, children, list = false }: { assetId: string; deviceStated: boolean; checkable: boolean; children?: ReactNode; list?: boolean }) {

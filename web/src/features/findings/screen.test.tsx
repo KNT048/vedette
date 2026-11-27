@@ -1,4 +1,5 @@
-// The Findings screen: By device, By fix, Needs your input, Handled and Ignored devices on the findings model's API (the mock).
+// The Findings screen: By device, By fix (each with its possible findings), Handled and Ignored devices on the findings model's API
+// (the mock).
 import { afterEach, describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -8,7 +9,6 @@ import { server } from '@/test/server'
 import { auditStore } from '@/mocks/stores'
 import { metaStore } from '@/features/inventory/mocks'
 import { records } from './modelMocks'
-import { openNeeds } from './needsTestUtil'
 
 const T = { timeout: 5000 }
 const posts: { url: string; body: unknown }[] = []
@@ -192,69 +192,6 @@ describe('Findings: Mark as handled acts on one device', () => {
   })
 })
 
-describe('Findings: Needs your input', () => {
-  it('a device not added yet is in the queue with Add device, and leaves it once added', async () => {
-    renderApp('/findings?tab=input')
-    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    const add = await within(table).findByRole('button', { name: /^Add device / }, T)
-    const name = add.getAttribute('aria-label')!.replace('Add device ', '')
-    await userEvent.click(add)
-    await waitFor(() => expect(within(table).queryByRole('button', { name: `Add device ${name}` })).toBeNull(), T)
-  })
-
-  it('the devices not added yet with no open finding are one card, last, whose Review opens the Devices list To review', async () => {
-    renderApp('/findings?tab=input')
-    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    const words = await within(table).findByText(/^\d+ devices? not added yet with no open finding\.$/, {}, T)
-    const rows = within(table).getAllByRole('row')
-    expect(rows[rows.length - 1]).toContainElement(words)
-    expect(within(table).getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/devices?tab=review')
-  })
-
-  it('an urgent finding not confirmed yet: Run the safe check first when one exists, Confirm vulnerability, Not affected…', async () => {
-    renderApp('/findings?tab=input')
-    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    await openNeeds(table)
-    expect(await within(table).findByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' }, T)).toBeInTheDocument()
-    expect(within(table).queryByRole('button', { name: /^Run the safe check for CVE-2026-123890/ })).toBeNull()
-    await userEvent.click(within(table).getByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }))
-    const dlg = await screen.findByRole('dialog', { name: 'Confirm CVE-2026-123890 on BN340' })
-    await userEvent.type(within(dlg).getByLabelText('What makes you sure? (required)'), 'The banner and the package list agree')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Confirm vulnerability' }))
-    await waitFor(() => expect(records.get().find((r) => r.id === 'fv-bn340-ssh-1')?.verified).toBe('person'), T)
-    // update-recommended findings never ask
-    expect(within(table).queryByRole('button', { name: /^Confirm vulnerability: CVE-2026-123159/ })).toBeNull()
-  })
-
-  it('searches on the server and keeps the search in the address: only the matching items, the pager counts them', async () => {
-    // a shared link with a search opens with it
-    renderApp('/findings?tab=input&input.q=CVE-2026-123890')
-    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    const box = screen.getByRole('searchbox', { name: 'Search devices, software or CVEs' })
-    expect(box).toHaveValue('CVE-2026-123890')
-    await openNeeds(table)
-    expect(await within(table).findByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }, T)).toBeInTheDocument()
-    expect(within(table).queryByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' })).toBeNull()
-    // typing searches the whole queue on the server, not the page in view
-    await userEvent.clear(box)
-    await userEvent.type(box, 'web01')
-    await waitFor(() => expect(within(table).queryByRole('article', { name: 'What BN340 needs' })).toBeNull(), T)
-    await openNeeds(table)
-    expect(await within(table).findByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' }, T)).toBeInTheDocument()
-    await waitFor(() => expect(within(table).queryByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' })).toBeNull(), T)
-  })
-
-  it('an operator may say Not affected but not confirm', async () => {
-    renderApp('/findings?tab=input', { role: 'operator' })
-    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    await openNeeds(table)
-    expect(await within(table).findByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }, T)).toBeDisabled()
-    await userEvent.click(within(table).getByRole('button', { name: 'Not affected: CVE-2026-123890 on BN340' }))
-    const dlg = await screen.findByRole('dialog', { name: 'CVE-2026-123890 does not affect BN340' })
-    expect(within(dlg).getAllByRole('radio').map((r) => r.getAttribute('value'))).toEqual(['not_relevant', 'false_positive'])
-  })
-})
-
 describe('Findings: Handled, Ignored devices and the old links', () => {
   it('Handled says who and how; accepted risks are a filter', async () => {
     renderApp('/findings?tab=handled')
@@ -302,6 +239,13 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
     await mainNavLink(/^Findings/)
     expect(screen.queryByRole('link', { name: /Recommended updates/, hidden: true })).toBeNull()
+  })
+
+  it('a link of the earlier Needs your input tab opens By device at its possible findings', async () => {
+    renderApp('/findings?tab=input&input.q=CVE-2026-123890')
+    expect(await screen.findByRole('tab', { name: 'By device', selected: true }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Possible findings' }, T)).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Needs your input/ })).toBeNull()
   })
 
   it('a link of the earlier tabs opens its place here: To fix of one device is By device, filtered', async () => {

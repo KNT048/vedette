@@ -1,6 +1,7 @@
 // The findings of one device, on its page: the badge and the counts per status (Overview's summary line and the Findings tab's
 // count) and the Findings tab itself, which is this device's By device card: the same component and the same answer as the
-// Findings screen (fix blocks, the most urgent first, each CVE one click from its finding, Mark as handled… in place).
+// Findings screen (fix blocks, the most urgent first, each CVE one click from its finding, Mark as handled… in place), then the
+// device's possible findings (CVEs Vedette cannot decide), what a check settled not affected, and the answers given.
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -12,9 +13,10 @@ import { StatusBadge } from '@/components/common/status'
 import { useModuleEnabled } from '@/lib/modules'
 import { OPEN_FINDING_STATUSES, type OpenFindingStatus } from '@/lib/statusCodes'
 import type { DeviceBadgeValue } from '@/features/inventory/RiskMarker'
-import { useDeviceCards, useHandledList, useInputList } from './api'
+import { useDeviceCards, useHandledList, usePossibleCounts } from './api'
 import { DeviceCardView, type Handling } from './ByDevice'
 import { HandleDialog } from './HandleDialog'
+import { DevicePossible, usePossibleCheckWatch } from './Possible'
 import { StatusFilter, statusesOf } from './StatusFilter'
 import type { DeviceCard } from './types'
 
@@ -28,25 +30,24 @@ export type DeviceFindingsSummary = {
   open: number
   /** Open findings per status. */
   counts: Record<OpenFindingStatus, number> | null
-  /** Items of Needs your input for this device (0 when not known). */
-  input: number
+  /** Possible CVEs of this device (0 when not known): counted apart from the open findings. */
+  possible: number
 }
 
 /** The device's findings summary; undefined while loading or when the findings module is off. */
 export function useDeviceFindingsSummary(assetId: string): DeviceFindingsSummary | undefined {
   const on = useModuleEnabled('findings') === true
   const cards = useDeviceCards({ device: assetId }, ONE, on)
-  const input = useInputList({ device: assetId }, ONE, on && cards.isSuccess)
+  const counts = usePossibleCounts(assetId, on && cards.isSuccess)
   if (!on) return undefined
   if (!cards.data) return undefined
   const card = cards.data.items.find((c) => c.device.id === assetId) ?? null
-  // one thing per entry of the device's card (a software line is one, whatever its CVEs), one for a device nobody added yet
-  const waiting = (input.data?.items ?? []).reduce((n, i) => n + (i.kind === 'device_needs' ? i.entries.length : 1), 0)
+  const possible = counts.data?.possible ?? 0
   return {
-    badge: card?.status ?? (waiting ? { code: 'possible', count: waiting } : null),
+    badge: card?.status ?? (possible ? { code: 'possible', count: possible } : null),
     open: card?.findings ?? 0,
     counts: card?.counts ?? Object.fromEntries(OPEN_FINDING_STATUSES.map((s) => [s, 0])) as Record<OpenFindingStatus, number>,
-    input: waiting,
+    possible,
   }
 }
 
@@ -61,12 +62,13 @@ export function DeviceFindingsLine({ summary }: { summary: DeviceFindingsSummary
       {/* the counts per status; the title's badge already leads to the most urgent ones, View findings to all */}
       {statuses.map((s) => <StatusBadge key={s} code={s} count={summary.counts![s]} />)}
       {summary.open ? <Link to={keep('?tab=findings')} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('device.view')}</Link> : null}
+      {summary.possible ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLink', { count: summary.possible })}</Link> : null}
     </div>
   )
 }
 
-/** The Findings tab: the device's card (filtered by the status toggles above it), Mark as handled… in place, and the way to what
- *  waits for an answer and to what was handled. */
+/** The Findings tab: the device's card (filtered by the status toggles above it), Mark as handled… in place, the device's possible
+ *  findings, and the way to what was handled. */
 export function DeviceFindings({ assetId, summary }: { assetId: string; summary: DeviceFindingsSummary | undefined }) {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
@@ -82,8 +84,8 @@ export function DeviceFindings({ assetId, summary }: { assetId: string; summary:
   const handled = useHandledList({ device: assetId }, ONE, cards.isSuccess)
   const [handling, setHandling] = useState<Handling | null>(null)
   const id = encodeURIComponent(assetId)
-  const input = summary?.input ?? 0
   const done = handled.data?.total ?? 0
+  usePossibleCheckWatch() // a check of this device's possible findings runs in the background: its end is said here
   return (
     <section id="device-findings" aria-label={t('device.title')}>
       <div className="grid gap-3">
@@ -98,10 +100,10 @@ export function DeviceFindings({ assetId, summary }: { assetId: string; summary:
             return <Card><DeviceCardView own card={card} narrowed={!!status || !!q} onHandle={setHandling} /></Card>
           }}
         </QueryState>
-        {input || done ? (
-          <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {input ? <Link to={`/findings?tab=input&device=${id}`} className="font-medium text-accent underline-offset-4 hover:underline">{t('device.input', { count: input })}</Link> : null}
-            {done ? <Link to={`/findings?tab=handled&device=${id}`} className="text-accent underline-offset-4 hover:underline">{t('device.handled', { count: done })}</Link> : null}
+        <DevicePossible assetId={assetId} />
+        {done ? (
+          <p className="text-sm">
+            <Link to={`/findings?tab=handled&device=${id}`} className="text-accent underline-offset-4 hover:underline">{t('device.handled', { count: done })}</Link>
           </p>
         ) : null}
       </div>

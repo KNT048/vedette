@@ -2,7 +2,7 @@
 // the device is not affected by; this says so where the person is, from the device's findings (GET /findings?asset=: each finding names
 // the software row the matcher matched it on and, when Vedette closed it by proof, the version it compared). A CVE counts as closed by
 // the entry only when that version IS the entry: a closure by another rule (name only, age, an open platform question) or on another
-// version says nothing about it. Used by Needs your input right after a save and by the device's Software tab, for good.
+// version says nothing about it. Used by the device's Software tab.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'

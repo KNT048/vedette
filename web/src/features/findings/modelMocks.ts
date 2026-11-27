@@ -1,4 +1,5 @@
-// Mock of the findings model API (contract.ts, "The findings model"): lists grouped by device and by fix, Needs your input,
+// Mock of the findings model API (contract.ts, "The findings model"): lists grouped by device and by fix, the possible findings
+// (possibleMocks.ts), the older Needs your input queue,
 // Handled, a finding's View, handling and Home. Rows live in fnd_finding_model and fnd_question, apart from findingsStore, which the
 // finding page's detail (GET /findings/{id}) and the per-device list (GET /findings?asset=) read; a write on an id of findingsStore
 // passes through to mocks.ts. Every string shown is English.
@@ -13,6 +14,7 @@ import { displayName } from '@/features/inventory/nameOf'
 import { BOX_ID, isQuiet, metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { dayAfter, untilOk } from './accept'
+import { possibleCounts } from './possibleMocks'
 import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
@@ -43,12 +45,12 @@ const NOTE_NEEDED: Resolution[] = ['false_positive', 'not_relevant', 'accepted']
 
 // ---- reading the rows
 
-const assetOf = (id: string): Asset | undefined => assetsStore.get().find((a) => a.id === id)
-const isIgnored = (id: string) => !!metaStore.get()[id]?.ignored_at
-function deviceRef(a: Asset): DeviceRef {
+export const assetOf = (id: string): Asset | undefined => assetsStore.get().find((a) => a.id === id)
+export const isIgnored = (id: string) => !!metaStore.get()[id]?.ignored_at
+export function deviceRef(a: Asset): DeviceRef {
   return { id: a.id, name: displayName(a) || a.software[0]?.display || a.ip || a.kind, ip: a.ip || null, kind: a.kind, added: a.approved, ignored: isIgnored(a.id) }
 }
-const severityOf = (cve: string): CveSeverity | null => SAMPLE_SEVERITY[cve] ?? null
+export const severityOf = (cve: string): CveSeverity | null => SAMPLE_SEVERITY[cve] ?? null
 const statusOf = (r: FindingRecord): StatusCode => (r.state === 'open' ? OPEN_STATUSES[r.layer - 1]! : r.resolution!)
 const layerOf = (s: OpenStatus) => OPEN_STATUSES.indexOf(s) + 1
 const SEV_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 }
@@ -63,8 +65,8 @@ function expireAccepted() {
   records.update((l) => l.map((r) => (r.resolution === 'accepted' && r.accepted_until! < t
     ? { ...r, ...unhandled, reopened: { why: 'acceptance_expired', at: nowIso(), by: null }, events: [...r.events, event('system', 'acceptance_expired')] } : r)))
 }
-const unhandled = { state: 'open' as const, resolution: null, via: null, resolved_by: null, resolved_at: null, note: null, accepted_until: null, from_version: null, to_version: null }
-const event = (actor: string, kind: FindingRecord['events'][number]['kind'], extra: Partial<FindingRecord['events'][number]> = {}) =>
+export const unhandled = { state: 'open' as const, resolution: null, via: null, resolved_by: null, resolved_at: null, note: null, accepted_until: null, from_version: null, to_version: null }
+export const event = (actor: string, kind: FindingRecord['events'][number]['kind'], extra: Partial<FindingRecord['events'][number]> = {}) =>
   ({ ts: nowIso(), actor, kind, layer: null, resolution: null, via: null, note: null, ...extra })
 
 /** The rows on devices that still exist (a removed device takes its findings with it). */
@@ -99,14 +101,14 @@ const groupBy = <T>(l: T[], key: (x: T) => string) => { const m = new Map<string
 /** Urgency first, then the most findings, then the name: the order of cards and blocks. */
 const byUrgency = (a: { layer: number; n: number; name: string }, b: { layer: number; n: number; name: string }) => a.layer - b.layer || b.n - a.n || a.name.localeCompare(b.name)
 
-/** The device badge: the most urgent open status with its distinct CVEs, else possible when only the queue has items for it. */
+/** The device badge: the most urgent open status with its distinct CVEs, else possible with its possible CVEs. */
 export function deviceStatus(assetId: string): DeviceStatus {
   const open = rows().filter((r) => r.asset_id === assetId && r.state === 'open')
   if (open.length) {
     const layer = Math.min(...open.map((r) => r.layer))
     return { code: OPEN_STATUSES[layer - 1]!, count: new Set(open.filter((r) => r.layer === layer).map((r) => r.cve)).size }
   }
-  const n = inputItems().filter((i) => i.kind !== 'devices_not_added' && i.device.id === assetId).length
+  const n = possibleCounts(assetId).possible
   return n ? { code: 'possible', count: n } : null
 }
 
@@ -287,7 +289,7 @@ export function overview(): Overview {
     open: { findings: open.length, by_status: statusCounts(open) },
     devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus, affected },
     input: inputItems().filter((i) => i.kind !== 'devices_not_added').length,
-    possible: { possible: 0, proposals: 0, unchecked: 0, settled: 0 }, // the sample box keeps its undecided CVEs in Needs your input
+    possible: possibleCounts(),
     first, trend, trend_start: dayOf(new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString()),
     alerts: notifyOn ? { ...sentSince(new Date(Date.now() - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: notifyOn ? openIncidents() : null,

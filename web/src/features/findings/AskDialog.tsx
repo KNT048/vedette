@@ -1,6 +1,6 @@
 // A short dialog that asks for a few words or values and sends them: Confirm vulnerability, the answer to a question, Reopen, the
 // version of a software line. Forms of the Findings screen open here, never inside a row.
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,9 +11,10 @@ import { errMsg } from './errors'
 /** One value the dialog asks for. `min`: the fewest characters (a note's 3); `long`: a note (a text area). */
 export type Ask = { name: string; label: string; hint?: string; placeholder?: string; min?: number; max: number; long?: boolean; required?: boolean; check?: (v: string) => string | undefined }
 
-/** `undo`: the toast after sending offers to take it back (an answer that leaves the queue and no finding records). */
-export function AskDialog({ title, description, fields, submit, busyLabel, done, undo, onSend, onClose }: {
-  title: string; description?: string; fields: Ask[]; submit: string; busyLabel?: string; done: string
+/** `undo`: the toast after sending offers to take it back (an answer that leaves the list and no finding records). `notice`: what
+ *  the person should read before sending, above the fields (the evidence an answer contradicts). */
+export function AskDialog({ title, description, notice, fields, submit, busyLabel, done, undo, onSend, onClose }: {
+  title: string; description?: string; notice?: ReactNode; fields: Ask[]; submit: string; busyLabel?: string; done: string
   undo?: { label: string; run: () => Promise<unknown>; done: string }
   onSend: (values: Record<string, string>) => Promise<unknown>; onClose: () => void
 }) {
@@ -45,6 +46,7 @@ export function AskDialog({ title, description, fields, submit, busyLabel, done,
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent title={title} description={description}>
         <form onSubmit={send} noValidate className="grid gap-4">
+          {notice}
           {fields.map((f) => (
             <Field key={f.name} htmlFor={`${id}-${f.name}`} label={f.label} hint={f.hint} error={errors[f.name]}>
               {f.long ? (

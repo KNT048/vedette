@@ -211,7 +211,7 @@ func Resolve(line LineState, readings []Reading) Resolution {
 			}
 		}
 		res.Effective = *best
-		if named != nil {
+		if named != nil && named.Display != "" {
 			res.Effective.Display = named.Display // what the person called it ("FortiGate"), at the release a source read
 		}
 	}

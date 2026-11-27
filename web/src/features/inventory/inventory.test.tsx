@@ -2329,7 +2329,7 @@ describe('inventory: naming, versions, Software tab (S-INV-2)', () => {
     expect(screen.queryByText(/another release/)).not.toBeInTheDocument()
   })
 
-  it('PATCH software version: in place on a declared row, version checked, empty removes it; a reported row gets a correction (INV-41)', async () => {
+  it('PATCH software version: in place on a declared row, version checked, empty removes it; a reported row gets a correction, never an empty one (INV-41)', async () => {
     const id = await addOffice({ version: '2019' })
     const sid = find(id).software[0]!.id
     expect((await call('PATCH', `/devices/${id}/software/${sid}`, { version: '<b>' })).json!.error.code).toBe('bad_version')
@@ -2337,8 +2337,13 @@ describe('inventory: naming, versions, Software tab (S-INV-2)', () => {
     expect(find(id).software[0]!.version).toBe('2024')
     expect((await call('PATCH', `/devices/${id}/software/${sid}`, { version: '' })).status).toBe(200)
     expect(find(id).software[0]!.version).toBeNull()
-    const agent = assetsStore.get().find((a) => a.software.some((s) => s.source !== 'manual'))!
-    const asid = agent.software.find((s) => s.source !== 'manual')!.id
+    const agent = assetsStore.get().find((a) => a.software.some((s) => s.source !== 'manual' && s.version))!
+    const asid = agent.software.find((s) => s.source !== 'manual' && s.version)!.id
+    const cleared = await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '' }) // a source reads it: the clear is refused, said with the reading
+    expect(cleared.status).toBe(409)
+    expect(cleared.json!.error.code).toBe('version_read')
+    expect(cleared.json!.error.message).toMatch(/is read by .*; Vedette uses what it reads\. To change it, type the version/)
+    expect(find(agent.id).software.some((s) => s.corrects === asid)).toBe(false)
     expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '1' })).status).toBe(200)
     const sw = find(agent.id).software
     expect(sw.find((s) => s.id === asid)!.version).not.toBe('1') // the reported row stays as the source read it

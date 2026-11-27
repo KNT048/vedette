@@ -224,15 +224,8 @@ func duplicateSoftware(ctx context.Context, tx *sql.Tx, dup, display string) err
 	if source == sourceManual || version == "" {
 		return conflict("duplicate_software", display+" is already on this device. To change the version, remove it and add it again.")
 	}
-	by := statedBy(source)
-	switch source {
-	case "nmap", "scan":
-		by = "a network scan"
-	case "passive":
-		by = "network traffic"
-	}
 	return conflict("duplicate_software", fmt.Sprintf("%s is already on this device, read by %s: its findings follow that version. To correct it, edit the version on that row.",
-		swText(shown, version, ""), by))
+		swText(shown, version, ""), readBy(source)))
 }
 
 // mapUnique turns a lost race on the IP index into the same 409 as the check before it.

@@ -1912,7 +1912,10 @@ type Handler interface {
 	// the text itself is a distribution's release). 409 duplicate_software; 409 box_device (not_installed
 	// on the box's own software); 409 contradicts_device (the version differs from the release the device
 	// itself states: its agent, its SNMP answer, the OS it states over LLDP; the message names it; send
-	// confirm to keep the version). An edit that changes nothing writes nothing: changed false.
+	// confirm to keep the version); 409 version_read (version "" with no package release on a line a
+	// source reads a release of: an entry without a version never hides what a source reads, so the clear
+	// is refused; the message names the reading, who read it and when). An edit that changes nothing
+	// writes nothing: changed false.
 	//
 	// PATCH /inventory/devices/{id}/software/{sid}
 	InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *InventoryPatchInventoryDevicesIDSoftwareSidReq, params InventoryPatchInventoryDevicesIDSoftwareSidParams) (*InventoryPatchInventoryDevicesIDSoftwareSidOK, error)

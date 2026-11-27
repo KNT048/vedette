@@ -165,3 +165,50 @@ func TestLineMerge_VersionOnAVersionlessEntryKeepsTheLine(t *testing.T) {
 		t.Errorf("the line is %s, want %s kept", l.ID, id)
 	}
 }
+
+// A person who clears the version of a line a source reads is told so, with the reading: the source's release is what the line
+// runs (a version-less entry never hides it), so a clear that would change nothing is refused (409 version_read) and nothing is
+// written: no entry, no audit row, no history. Typing another version still wins; clearing a person's version on a line no source
+// reads a release of still clears it.
+func TestLineMerge_ClearingAVersionASourceReadsIsRefused(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	id := c.line("OpenSSH").ID
+	c.e.tick(time.Minute)
+	none := ""
+	err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &none})
+	wantAPIError(t, err, http.StatusConflict, "version_read")
+	if msg := err.Error(); !strings.Contains(msg, "OpenSSH 9.6") || !strings.Contains(msg, "a network scan") || !strings.Contains(msg, "type the version") {
+		t.Errorf("the refusal does not name the reading and the way out: %s", msg)
+	}
+	if l := c.line("OpenSSH"); ver(l) != "9.6" || l.Source != "nmap" {
+		t.Fatalf("line %+v, want the scan's 9.6", l)
+	}
+	if a := c.e.auditActions(); countOf(a, "inventory.set_software_version") != 0 || countOf(a, "inventory.correct_software") != 0 {
+		t.Errorf("a refused clear wrote audit rows: %v", a)
+	}
+	if h := c.history(id); slices.Contains(h, "entry_set") {
+		t.Errorf("a refused clear wrote history: %v", h)
+	}
+	v := "9.6p1"
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &v}); err != nil {
+		t.Fatal(err)
+	}
+	if l := c.line("OpenSSH"); ver(l) != "9.6p1" || l.Source != "manual" {
+		t.Fatalf("a typed version wins: %+v", l)
+	}
+	// a person's own line, no source: the clear goes through
+	c2 := newLineCase(t)
+	c2.send(observe.Nmap, nil)
+	dev := c2.dev()
+	if _, err := c2.e.svc.AddSoftware(c2.e.ctx(), "op@example.com", dev, inventory.AddInput{Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c2.e.svc.EditSoftware(c2.e.ctx(), "op@example.com", dev, c2.line("OpenSSH").ID, inventory.SoftwareEdit{Version: &none}); err != nil {
+		t.Fatal(err)
+	}
+	if l := c2.line("OpenSSH"); ver(l) != "" || l.Source != "manual" {
+		t.Fatalf("cleared: %+v", l)
+	}
+}

@@ -203,7 +203,10 @@ func (s *Service) checkClaim(ctx context.Context, tx *sql.Tx, l lineRow, rs []Re
 				cmp.Or(l.display, "This software")))
 		}
 	}
-	if e.Confirm || e.Version == nil || *e.Version == "" {
+	if e.Version != nil && *e.Version == "" && (e.PkgVersion == nil || *e.PkgVersion == "") {
+		return s.checkClear(ctx, rs)
+	}
+	if e.Confirm || e.Version == nil {
 		return nil
 	}
 	det := detectedOf(rs)
@@ -215,6 +218,36 @@ func (s *Service) checkClaim(ctx context.Context, tx *sql.Tx, l lineRow, rs []Re
 	}
 	return conflict("contradicts_device", fmt.Sprintf("The device itself reports %s (%s, %s), not %s. Save %s anyway if the device's own report is out of date: it is replaced when the device reports a newer release.",
 		swText(det.Display, det.Version, ""), statedBy(det.Source), correctionDay(det.SeenAt, orgtime.At(ctx, s.zone)), *e.Version, *e.Version))
+}
+
+// checkClear refuses a person's clearing of a line's version when a source reads a release of it: an entry without a version never
+// hides what a source reads (Resolve), so the clear would change nothing the person can see. The 409 version_read names the reading,
+// who read it and when, and the ways that do change it (a typed version, the source turned off for the device).
+func (s *Service) checkClear(ctx context.Context, rs []Reading) error {
+	cleared := []Reading{{Source: sourceManual}}
+	for _, r := range rs {
+		if !r.entry() {
+			cleared = append(cleared, r)
+		}
+	}
+	res := Resolve(LineState{State: statePresent}, cleared)
+	if r := res.Effective; r.entry() || !hasRelease(r) {
+		return nil
+	}
+	r := res.Effective
+	return conflict("version_read", fmt.Sprintf("%s is read by %s on %s; Vedette uses what it reads. To change it, type the version the device really runs, or turn that source off for this device.",
+		swText(r.Display, r.Version, ""), readBy(r.Source), correctionDay(r.SeenAt, orgtime.At(ctx, s.zone))))
+}
+
+// readBy names who read a reading, for a person: how the device stated it (statedBy), a network scan, or network traffic.
+func readBy(source string) string {
+	switch source {
+	case "nmap", "scan":
+		return "a network scan"
+	case "passive":
+		return "network traffic"
+	}
+	return statedBy(source)
 }
 
 // rankDeviceStated is the readingRank of a reading the device itself states: its agent, its SNMP answer, the OS it states over LLDP on

@@ -110,7 +110,8 @@ detail is in its doc comment.
   source read the line from a package database or with a package release; or the text is itself a distribution's release,
   `pkgrel.Release`), else 400 `not_a_package` (firmware such as Junos OS has one release string); a version the device itself states
   as another release (its agent, its SNMP answer, the OS it states over LLDP; `pkgrel.Same` false) is refused once with that evidence
-  (409 `contradicts_device`) and kept only with `confirm`; an edit that changes nothing writes nothing (no reading re-stamped, no
+  (409 `contradicts_device`) and kept only with `confirm`; clearing the version of a line a source reads a release of is refused
+  with that reading, who read it and when (409 `version_read`, `checkClear`: an entry without a version never hides it, INV-52); an edit that changes nothing writes nothing (no reading re-stamped, no
   event, no audit row, no rematch) and answers `changed: false`. Every version a person gives has its author, also when the device is
   added by hand or imported (`createManual`, `set_by`). `SoftwareLine.package_line` tells the dialog which value to ask. A history row
   never reads "X → X": a package release equal to the version is not a version change (`settleLine`). The job `entry-cleanup`

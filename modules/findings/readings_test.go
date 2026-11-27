@@ -69,7 +69,7 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 			return Affected{CPE: agent, Range: VersionRange{StartIncl: start, EndExcl: end}}
 		}
 		through := Affected{CPE: agent, Range: VersionRange{StartIncl: "2.1.0", EndIncl: "4.8.0"}}
-		besideNVD := func(ver string) []Affected {
+		besideNVD := func() []Affected {
 			return []Affected{{CPE: "cpe:2.3:a:example:relay_server:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "2.1.0", EndExcl: "4.8.0"}},
 				{CPE: agent, Range: VersionRange{StartIncl: "2.1.0", EndExcl: "4.8.0"}, AffectedOnly: true}}
 		}
@@ -87,10 +87,10 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 			{"past an inclusive end: no fix stated", "4.8.3", []Affected{through}, true, false, asked},
 			{"a later row of the train starts above the version", "4.8.2", []Affected{fixed("2.1.0", "4.8.0"), fixed("4.8.5", "4.8.9")}, true, false, asked},
 			{"exploited: only a person closes it", "4.8.0", []Affected{fixed("2.1.0", "4.8.0")}, true, true, asked},
-			{"a record row beside NVD rows of another product, at its fix", "4.8.0", besideNVD("4.8.0"), false, false, decided},
-			{"a record row beside NVD rows of another product, later train", "4.9.0", besideNVD("4.9.0"), false, false, asked},
+			{"a record row beside NVD rows of another product, at its fix", "4.8.0", besideNVD(), false, false, decided},
+			{"a record row beside NVD rows of another product, later train", "4.9.0", besideNVD(), false, false, asked},
 			// the catalogue keeps only the rows that name a product some device has: the record's row alone, still marked as read beside NVD's
-			{"the record's row alone, read beside NVD's", "4.8.0", besideNVD("4.8.0")[1:], true, false, decided},
+			{"the record's row alone, read beside NVD's", "4.8.0", besideNVD()[1:], true, false, decided},
 		} {
 			v := Vuln{CVE: "CVE-2099-7201", NVDAnswered: true, Published: uncNew, Affected: tc.aff}
 			s := Software{ID: "r", Display: "Example Relay Agent", Vendor: "Example", Product: "Relay Agent", Version: tc.ver, Source: "agent"}

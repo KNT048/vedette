@@ -460,3 +460,51 @@ func TestLineStatement_AFixOnlyFromAReleaseNamedWithThisProduct(t *testing.T) {
 		t.Errorf("stated reading's fix %+v, want 115.42", f)
 	}
 }
+
+// Every version-like token of the quote counts, not only a dotted one: a whole number, a wildcard line, a train with a letter, a date or a
+// "v" release that does not follow this product's own name keeps the reading from settling or fixing. A CVE id is not a version, and a
+// number inside this product's own name ("Server 2019") is part of the name.
+func TestNamedWithThisProduct_EveryVersionLikeToken(t *testing.T) {
+	t.Parallel()
+	names, editions := []string{"mail", "server 2019"}, []string{"esr"}
+	for _, tc := range []struct {
+		quote string
+		want  bool
+	}{
+		{"Quillfeather Mail 140.17 is fixed; Quillfeather Reader 116 is not affected.", false},
+		{"Quillfeather Mail 140.17 is fixed; Quillfeather Reader 115.x is not affected.", false},
+		{"Quillfeather Mail 21.4 is fixed in R2-S3.", false},
+		{"Quillfeather Mail 140.17, released 2026-01-15, fixes it.", false},
+		{"Quillfeather Mail 140.17 fixes it; v116.0 is not affected.", false},
+		{"Quillfeather Mail 8.6.5 and Reader 8.6.5p1 fix it.", false},
+		{"Quillfeather Mail 140.17 fixes 3 issues.", false},
+		{"Quillfeather Mail 115.42.0.1 fixes CVE-2026-991001.", true},
+		{"Quillfeather Mail ESR 115.42 is not affected.", true},
+		{"Quillfeather Mail 21.4R2-S3 is not affected.", true},
+		{"Quillfeather Mail 8.6.5p1 fixes it.", true},
+		{"Quillfeather Mail v115.42 is not affected.", true},
+		{"Quillfeather Server 2019 10.0.17763.5329 fixes it.", true},
+		{"QUILLFEATHER MAIL 140.17 is not affected.", true},
+		{"Quillfeather Mails 140.17 are not affected.", false},
+		{"Quillfeather Mail: 140.17 is not affected.", false},
+	} {
+		if got := namedWithThisProduct(tc.quote, names, editions); got != tc.want {
+			t.Errorf("%q: %v, want %v", tc.quote, got, tc.want)
+		}
+	}
+}
+
+// End to end: a vendor page's "not affected" for a whole-number line of a product the record does not list is no settling of this one.
+func TestLineReading_AWholeNumberReleaseOfAnotherProductDoesNotSettle(t *testing.T) {
+	t.Parallel()
+	const url = "https://www.quillfeather.com/security/QF-2026-02"
+	quote := "Quillfeather Mail 140.17 is affected; Quillfeather Reader 115 is not affected."
+	e, fc := quillWorld(t, "115.42")
+	fc.pages[cveQuill] = []FetchedPage{{URL: url, Status: "ok", Text: cveQuill + ". " + quote}}
+	fc.verdicts[cveQuill+"|115.42"] = ProposeVerdict{Status: StatementNotAffected, Line: "115", Quote: quote, Source: 1, Reason: "Not affected."}
+	runCheck(t, e)
+	it := quillItem(t, e)
+	if it.State == PossibleSettled {
+		t.Fatalf("settled by another product's release (check %+v), want a proposal for a person", it.Check)
+	}
+}

@@ -1039,13 +1039,22 @@ func ownEditions(rec CVERecordText, product, known string) []string {
 	return out
 }
 
-// namedWithThisProduct says every version in quote follows one of the product's own names (names), with only spaces, or one of its own
-// edition words, between ("Mail 115.42", "Mail ESR 115.42"): only such a quote may settle "not affected" or give a fix. A quote with no
-// version, a version after another name ("Mail Server 115.42", a name the record does not know) or after no name ("fixed in 115.42") is
-// not.
+// reVersionLike is any version-like token of a sentence (lower case), the token in group 1: one starting with a digit ("115", "115.42",
+// "115.x", "8.6.5p1", "21.4r2-s3", a date "2026-01-15") or a short letter prefix with a dotted or dashed release ("v115.42", "r2-s3").
+// Every value a reading may take as a bound, a line or a fix is one of these.
+var reVersionLike = regexp.MustCompile(`(?:^|[^0-9a-z])([a-z]{1,3}[0-9]+(?:[.\-_][0-9a-z]+)+|[0-9][0-9a-z]*(?:[.\-_][0-9a-z]+)*)`)
+
+// namedWithThisProduct says every version-like token in quote (reVersionLike: a whole number, a wildcard line or a date too) follows one
+// of the product's own names (names), with only spaces, or one of its own edition words, between ("Mail 115.42", "Mail ESR 115.42"):
+// only such a quote may settle "not affected" or give a fix. A CVE id is no version, and a number inside one of the product's own names
+// ("Server 2019") is the name's. A quote with no version, a version after another name ("Mail Server 115.42", a name the record does not
+// know) or after no name ("fixed in 115.42", "3 issues") is not.
 func namedWithThisProduct(quote string, names, editions []string) bool {
 	q := strings.ToLower(quote)
-	spans := reVersionToken.FindAllStringIndex(q, -1)
+	var spans [][]int
+	for _, m := range reVersionLike.FindAllStringSubmatchIndex(q, -1) {
+		spans = append(spans, m[2:4])
+	}
 	if len(spans) == 0 {
 		return false
 	}
@@ -1059,6 +1068,9 @@ func namedWithThisProduct(quote string, names, editions []string) bool {
 	}
 	for _, sp := range spans {
 		before := q[:sp[0]]
+		if strings.HasSuffix(before, "cve-") || endsWithName(q[:sp[1]]) {
+			continue // a CVE id, or a number of one of the product's own names
+		}
 		p := strings.TrimRight(before, " \t")
 		if len(p) == len(before) {
 			return false // no space before the version ("v115.42", "(115.42")

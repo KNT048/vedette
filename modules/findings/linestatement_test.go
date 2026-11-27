@@ -184,7 +184,7 @@ func TestLineReading_NotAffectedOnlyFromTheVendorAndNeverAloneForAnExploitedCVE(
 	} {
 		e, fc := possibleWorld(t)
 		const blog = "https://blog.example.org/dsm"
-		fc.pages["CVE-2026-82002"] = []FetchedPage{{URL: blog, Status: "ok", Text: "Synology DiskStation Manager (DSM). DSM 7.2 is not affected by this issue, which only concerns the new photo service."}}
+		fc.pages["CVE-2026-82002"] = []FetchedPage{{URL: blog, Status: "ok", Text: "CVE-2026-82002. Synology DiskStation Manager (DSM). DSM 7.2 is not affected by this issue, which only concerns the new photo service."}}
 		fc.tags = map[string][]string{blog: tc.tags}
 		fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = notAffected
 		if !tc.exploited {
@@ -434,5 +434,97 @@ func TestLineStatement_VerdictFor(t *testing.T) {
 	}
 	if !dottedPrefix("8.6", "8.6.5") || dottedPrefix("8.6", "8.60") || dottedPrefix("1", "10.2") {
 		t.Error("dottedPrefix")
+	}
+	// a hotfix of the fixed release is past the fix too: 3.4.1.2 is on the train of 3.4.1 (its first parts are 3.4)
+	hotfix := CheckID{Product: "acme|widget", Line: "3.4.1.2", Version: "3.4.1.2"}
+	if got := (LineStatement{Status: StatementFixed, FixedIn: "3.4.1", Quote: "All versions before 3.4.1 are affected.", QuoteFound: true}).verdictFor(hotfix); got != VerdictNotAffected {
+		t.Errorf("a hotfix past the fix: %q, want %q", got, VerdictNotAffected)
+	}
+}
+
+// A reading decides only from a page about this CVE: one that names the CVE, or names an advisory the CVE record itself references
+// (Synology-SA-26:01 for a reference .../Synology_SA_26_01). A vendor's page that names neither (a release note, the product's page of
+// every advisory) decides nothing either way: the CVE stays possible, ai_unsure.
+func TestLineReading_APageThatNamesNeitherTheCVENorItsAdvisoryDecidesNothing(t *testing.T) {
+	t.Parallel()
+	const fixed = "Synology DiskStation Manager (DSM). DSM 7.2.1 is affected; the fix is in DSM 7.2.1-69057-6 and later."
+	notAffected := ProposeVerdict{Status: StatementNotAffected, Line: "7.2.1", Quote: "DSM 7.2.1 is not affected.", Source: 1}
+	for _, tc := range []struct {
+		name    string
+		text    string
+		verdict *ProposeVerdict // nil: the fix of lineWorld
+		finding int
+		state   string
+		cause   string
+	}{
+		{"affected, the CVE named", dsmFixedText, nil, 1, "", ""},
+		{"affected, the referenced advisory named", "Synology-SA-26:01 " + fixed, nil, 1, "", ""},
+		{"affected, neither named", fixed, nil, 0, PossibleOpen, CauseAIUnsure},
+		{"affected, another advisory named", "Synology-SA-25:09 " + fixed, nil, 0, PossibleOpen, CauseAIUnsure},
+		{"affected, another CVE named", "CVE-2026-82001. " + fixed, nil, 0, PossibleOpen, CauseAIUnsure},
+		{"not affected, the CVE named", "CVE-2026-82002. Synology DiskStation Manager (DSM). DSM 7.2.1 is not affected.", &notAffected, 0, PossibleSettled, ""},
+		{"not affected, neither named", "Synology DiskStation Manager (DSM). DSM 7.2.1 is not affected.", &notAffected, 0, PossibleOpen, CauseAIUnsure},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, fc := lineWorld(t)
+			e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
+			fc.pages["CVE-2026-82002"][0].Text = tc.text
+			if tc.verdict != nil {
+				fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = *tc.verdict
+			}
+			runCheck(t, e)
+			if n := aiReadFindings(t, e, "nas-01"); n != tc.finding {
+				t.Errorf("%d findings, want %d", n, tc.finding)
+			}
+			if tc.state == "" {
+				return
+			}
+			it := possibleByCVE(t, e)["CVE-2026-82002"]
+			if c := PossibleCause(it, e.svc.ReadState(t.Context())); it.State != tc.state || c != tc.cause {
+				t.Errorf("state %s cause %q, want %s %q", it.State, c, tc.state, tc.cause)
+			}
+		})
+	}
+}
+
+// The advisory ids a reference's address carries: one id token per path part or query value, with letters and digits; a version, a
+// year, a word or a file name is none.
+func TestAboutCVE_AdvisoryIDsOfAReference(t *testing.T) {
+	t.Parallel()
+	for raw, want := range map[string][]string{
+		"https://www.fortiguard.com/psirt/FG-IR-24-015":                        {"fgir24015"},
+		"https://www.vmware.com/security/advisories/VMSA-2024-0001.html":       {"vmsa20240001"},
+		"https://kb.example.com/article?id=SA44312":                            {"sa44312"},
+		"https://docs.example.com/fortios/7.4.3/release-notes/2024/index.html": nil,
+		"https://example.com/security/advisories":                              nil,
+	} {
+		if got := advisoryIDsOf(raw); !slices.Equal(got, want) {
+			t.Errorf("%s: %v, want %v", raw, got, want)
+		}
+	}
+	refs := []RefLink{{URL: "https://www.fortiguard.com/psirt/FG-IR-24-015"}}
+	if !aboutCVE("Advisory FG-IR-24-015: FortiOS 7.4 before 7.4.3.", "CVE-2024-1", refs) || aboutCVE("Advisory FG-IR-24-0150: FortiOS 7.4.", "CVE-2024-1", refs) {
+		t.Error("aboutCVE does not match the referenced advisory id as a whole token")
+	}
+}
+
+// A fix release the quote states ("before X" on the version's own train) is the finding's fix even when the AI gave no fixed_in; a
+// version at or past that X is not inside what the sentence calls affected, so the reading opens no finding for it.
+func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
+	t.Parallel()
+	const quote = "DSM 7.2.1 versions before 7.2.1-69057-6 are affected."
+	affected := ProposeVerdict{Status: StatementAffected, Line: "7.2.1", Quote: quote, Source: 1}
+	e, fc := lineWorld(t)
+	fc.pages["CVE-2026-82002"][0].Text = "CVE-2026-82002: " + quote // names DSM only: the box's own reader leaves it to the AI
+	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = affected
+	runCheck(t, e)
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = 'CVE-2026-82002' AND range_origin = 'ai_read' AND fix_kind = 'update' AND fix_version = '7.2.1-69057-6'`); n != 1 {
+		t.Errorf("%d findings with the quoted fix 7.2.1-69057-6, want 1", n)
+	}
+	past := CheckID{Product: "synology|diskstation manager", Line: "7.2.1", Version: "7.2.1-69057-7"}
+	st := LineStatement{Status: StatementAffected, StatedLine: "7.2.1", Quote: quote, QuoteFound: true}
+	if v := st.verdictFor(past); v != "" {
+		t.Errorf("a version past the quoted fix: %q, want nothing decided", v)
 	}
 }

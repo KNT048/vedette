@@ -263,6 +263,11 @@ func (st LineStatement) verdictFor(id CheckID) string {
 	switch st.Status {
 	case StatementAffected:
 		if !bounded {
+			if x := st.quotedFix(id); x != "" {
+				if before, ok := versionBefore(id, x); ok && !before {
+					return "" // "before X" and the version is X or later: the sentence does not call it affected
+				}
+			}
 			if names {
 				return VerdictAffected // the vendor names the line or the version as affected
 			}
@@ -324,25 +329,50 @@ func (st LineStatement) pastFix(id CheckID) bool {
 	return false
 }
 
-// sameTrain says two versions differ only in their last part ("3.4.0" and "3.4.7", "2.442" and "2.450"): a release before which every
-// version is affected is on the version's own train. 3.3.5 and 3.4.1 are not, nor are 120.0.1 and 121.0.1.
-func sameTrain(a, b string) bool {
-	train := func(v string) string {
-		if i := strings.LastIndexAny(v, ".-_"); i > 0 {
-			return strings.ToLower(v[:i])
-		}
-		return ""
-	}
-	ta := train(a)
-	return ta != "" && ta == train(b)
+// sameTrain says version is on the train of the release fix: it starts with all parts of fix but the last ("3.4.7", and the hotfix
+// "3.4.0.2", on the train of "3.4.0"; "2.450" on that of "2.442"): a release before which every version is affected is on the version's
+// own train. 3.4.1 is not on the train of 3.3.5, nor 121.0.1 on that of 120.0.1.
+func sameTrain(fix, version string) bool {
+	i := strings.LastIndexAny(fix, ".-_")
+	return i > 0 && dottedPrefix(strings.ToLower(fix[:i]), strings.ToLower(version))
 }
 
-// fix is the fix a finding the reading opened says: the stated fixed release, kept only when the quote names it.
-func (st LineStatement) fix() Fix {
+// fix is the fix a finding the reading opened says for id: the stated fixed release, kept only when the quote names it; else the
+// release a "before X" of the quote names on id's own train, when id is before it.
+func (st LineStatement) fix(id CheckID) Fix {
 	if st.FixedIn != "" && namesToken(st.Quote, st.FixedIn) {
 		return Fix{Kind: FixUpdate, Version: st.FixedIn}
 	}
+	if x := st.quotedFix(id); x != "" {
+		if before, ok := versionBefore(id, x); ok && before {
+			return Fix{Kind: FixUpdate, Version: x}
+		}
+	}
 	return Fix{Kind: FixUnknown}
+}
+
+// quotedFix is the release a "before X" of the quote names on id's own train (sameTrain), "" when none: the fix the vendor's sentence
+// states ("DSM 7.2.1 versions before 7.2.1-69057-6"), whether or not the AI wrote it as fixed_in.
+func (st LineStatement) quotedFix(id CheckID) string {
+	for _, m := range reBefore.FindAllStringSubmatch(st.Quote, -1) {
+		if x := strings.TrimRight(m[1], "."); sameTrain(x, id.Version) {
+			return x
+		}
+	}
+	return ""
+}
+
+// versionBefore says id's version is before release x, by the product's scheme or the generic order; ok false when they do not compare.
+func versionBefore(id CheckID, x string) (before, ok bool) {
+	if scheme := productScheme(id.Product); scheme != nil {
+		v, _, ok := judgeTextRanges([]textRange{{end: x}}, id.Version, id.Build, scheme)
+		return v == VerdictAffected, ok
+	}
+	if id.Build != "" {
+		return false, false
+	}
+	c, ok := CompareVersions(id.Version, x)
+	return c < 0, ok
 }
 
 // settles says a "not affected" of the reading may settle the CVE without a person: the vendor's own page (exploited CVEs never).
@@ -407,6 +437,82 @@ func (r lineReading) due(id CheckID, now time.Time) bool {
 		return true
 	}
 	return now.Sub(last.SeenAt) >= statementRecheck
+}
+
+// aboutCVE says a page's text is about cve: it names the CVE, or it names an advisory the CVE's own record references (the id in the
+// reference's address: FG-IR-24-015 for .../psirt/FG-IR-24-015, Synology-SA-26:01 for .../Synology_SA_26_01). A page that names neither
+// (a product's release notes, a list of every advisory) may state ranges of another flaw, so the AI's reading of it decides nothing.
+func aboutCVE(text, cve string, refs []RefLink) bool {
+	if names, _ := cveMentions(text, cve); names {
+		return true
+	}
+	ids := map[string]bool{}
+	for _, r := range refs {
+		for _, id := range advisoryIDsOf(r.URL) {
+			ids[id] = true
+		}
+	}
+	if len(ids) == 0 {
+		return false
+	}
+	for _, tok := range reIDToken.FindAllString(text, -1) {
+		if ids[normID(tok)] {
+			return true
+		}
+	}
+	return false
+}
+
+// reIDToken is a run of letters and digits joined by "-", "_" or ":", as an advisory id is written (FG-IR-24-015, Synology-SA-26:01).
+var reIDToken = regexp.MustCompile(`[A-Za-z0-9]+(?:[-_:][A-Za-z0-9]+)*`)
+
+// normID is an advisory id compared without case or separators: Synology_SA_26_01 and Synology-SA-26:01 are the same advisory.
+func normID(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r + 'a' - 'A'
+		}
+		return -1
+	}, s)
+}
+
+// advisoryIDsOf is the advisory ids a reference's address carries (normID): each part of its path or query value that is one id token,
+// without a file extension, with at least two letters and two digits ("FG-IR-24-015", "cisco-sa-ssh-x9F2", "VMSA-2024-0001.html"); a
+// version ("7.4.3"), a year or a word ("advisories") is no id.
+func advisoryIDsOf(raw string) []string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil
+	}
+	parts := strings.Split(u.Path, "/")
+	for _, vs := range u.Query() {
+		parts = append(parts, vs...)
+	}
+	var out []string
+	for _, p := range parts {
+		if i := strings.LastIndexByte(p, '.'); i > 0 && slices.Contains([]string{"html", "htm", "txt", "pdf", "asp", "aspx", "php", "jsp", "json", "xml"}, strings.ToLower(p[i+1:])) {
+			p = p[:i]
+		}
+		if len(p) < 5 || len(p) > 80 || reIDToken.FindString(p) != p {
+			continue
+		}
+		letters, digits := 0, 0
+		for _, r := range p {
+			switch {
+			case r >= '0' && r <= '9':
+				digits++
+			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+				letters++
+			}
+		}
+		if letters >= 2 && digits >= 2 {
+			out = append(out, normID(p))
+		}
+	}
+	return out
 }
 
 // hostOf is the host of a page address, "" when none.

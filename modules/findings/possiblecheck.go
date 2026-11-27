@@ -639,7 +639,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 				res.failed += len(l.units)
 				continue
 			}
-			res.readings = append(res.readings, readingOfAnswer(cve, l.units[0].id, v, okPages, rec.Description, ans, actor, now))
+			res.readings = append(res.readings, readingOfAnswer(cve, l.units[0].id, v, okPages, rec, ans, actor, now))
 		}
 	}
 	return res
@@ -685,9 +685,10 @@ func pageText(st *LineStatement, pages []FetchedPage, record string) (string, bo
 }
 
 // readingOfAnswer is the AI's answer for one release line as the box keeps it: the quote looked up word for word in the text the box
-// fetched, a version bound kept only when the quote names it, a "fixed" with no bound left unsure.
-func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPage, record string, ans ProposeAnswer, actor string, now time.Time) LineStatement {
-	cited := citedText(v.Source, pages, record)
+// fetched, a version bound kept only when the quote names it, a "fixed" with no bound left unsure, and a page that is not about this
+// CVE (it names neither the CVE nor an advisory the record references: aboutCVE) left unsure whatever the AI read in it.
+func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPage, rec CVERecordText, ans ProposeAnswer, actor string, now time.Time) LineStatement {
+	cited := citedText(v.Source, pages, rec.Description)
 	quote := oneLine(v.Quote, 400)
 	st := LineStatement{CVE: cve, Product: id.Product, Line: id.Line, StatedLine: clipBytes(strings.TrimSpace(v.Line), 200),
 		RecordHash: cmpNonEmpty(id.Record, recordHash("")), PageHash: pageHash(cited.text), Status: v.Status, Reason: oneLine(v.Reason, 600), Quote: quote,
@@ -712,6 +713,10 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 		}
 	default:
 		st.Status = StatementUnsure
+	}
+	if cited.url != "" && st.Status != StatementUnsure && !aboutCVE(cited.text, cve, rec.Refs) {
+		st.Status = StatementUnsure
+		st.Reason = "The page the AI read names neither " + cve + " nor an advisory the CVE record references, so it decides nothing for this CVE."
 	}
 	st.Key = statementKey(cve, st.Product, st.Line, st.RecordHash, st.PageHash)
 	return st

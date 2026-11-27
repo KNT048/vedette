@@ -50,8 +50,9 @@ func syntheticProducts() []synthetic {
 			vuln: cna("CVE-2026-990005", RangesCVEOrgPartial, Affected{CPE: "cpe:2.3:*:dovetail:notes:4.1.3:*:*:*:*:*:*:*", AffectedOnly: true}), cause: "vendor_silent",
 			pending: "the matcher reads a third-party CNA's tested build as saying nothing and asks no question: the possible finding gets the named cause vendor_silent with the possible-cause rules"},
 		{name: "NVD NA row beside a range", sw: line("s-ember", "Emberlight", "Proxy", "1.9.0"),
-			vuln: nvd("CVE-2026-990006", Affected{CPE: "cpe:2.3:a:emberlight:proxy:-:*:*:*:*:*:*:*"}, r("cpe:2.3:a:emberlight:proxy:*:*:*:*:*:*:*:*", "1.0", "1.8.5")), by: RangeNVD,
-			pending: "the NA row (version \"-\") is read as a version this one does not compare with: decided once an NA row is a product apart from the valued rows (record shape rules)"},
+			vuln: nvd("CVE-2026-990006", Affected{CPE: "cpe:2.3:a:emberlight:proxy:-:*:*:*:*:*:*:*"}, r("cpe:2.3:a:emberlight:proxy:*:*:*:*:*:*:*:*", "1.0", "1.8.5")), by: RangeNVD},
+		{name: "NVD NA row alone", sw: line("s-glow", "Glowmere", "Relay", "2.3.0"),
+			vuln: nvd("CVE-2026-990008", Affected{CPE: "cpe:2.3:a:glowmere:relay:-:*:*:*:*:*:*:*"}), cause: UndecidedNoRanges},
 		{name: "NVD CPE without the vendor's prefix the publisher puts in the name", sw: line("s-fenn", "Fennwick Labs", "Fennwick Draw", "7.2.0"),
 			vuln: nvd("CVE-2026-990007", r("cpe:2.3:a:fennwick:draw:*:*:*:*:*:*:*:*", "7.0", "7.3")), by: RangeNVD, affect: true,
 			pending: "nothing links the line to NVD's fennwick:draw yet: identified once identity reaches the product NVD names (a learned alias or the AI's choice among NVD's candidates)"},
@@ -111,14 +112,14 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 	}
 	// The pass's sum: what decided each pair, why the rest is undecided, and how each line is identified. The line nothing links
 	// is no pair: it counts under the identity "none".
-	want := Coverage{Devices: 1, Lines: len(cases), Pairs: 6,
-		Decided:  []CoverageSource{{By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangeNVD, Affected: 1, NotAffected: 1}},
-		Possible: []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1}, {Cause: UndecidedSchemeMismatch, Count: 1}},
-		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 6}, {IdentityNone, 1}}}
+	want := Coverage{Devices: 1, Lines: len(cases), Pairs: 7,
+		Decided:  []CoverageSource{{By: RangeNVD, Affected: 1, NotAffected: 2}, {By: RangeCNA, Affected: 1, NotAffected: 1}},
+		Possible: []CoverageCause{{Cause: UndecidedNoRanges, Count: 1}, {Cause: CoverageOtherRecordUnread, Count: 1}},
+		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 7}, {IdentityNone, 1}}}
 	checkCoverage(t, e.svc, want)
 	// A person's answer decides its pair; a pass that finds the device unchanged keeps its counts
 	var qid string
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_question WHERE cve = 'CVE-2026-990006'`).Scan(&qid); err != nil {
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_question WHERE cve = 'CVE-2026-990008'`).Scan(&qid); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.AnswerQuestion(t.Context(), qid, AnswerNotAffected, "", "it@acme.example"); err != nil {
@@ -129,7 +130,7 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 		if _, err := e.svc.Reconcile(t.Context()); err != nil {
 			t.Fatal(err)
 		}
-		want.Decided = []CoverageSource{{By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangeNVD, Affected: 1, NotAffected: 1}, {By: RangePerson, NotAffected: 1}}
+		want.Decided = []CoverageSource{{By: RangeNVD, Affected: 1, NotAffected: 2}, {By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangePerson, NotAffected: 1}}
 		want.Possible = []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1}}
 		checkCoverage(t, e.svc, want)
 	}

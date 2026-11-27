@@ -234,6 +234,19 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   against 3.0.20, `otherBranch`) is set aside: the rows that compare decide, and rows set aside alone decide nothing
   (`TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision`). OpenSSL's letter releases past `z` (`0.9.8za`, `1.0.2zd`, `1.1.1zk`) order
   after `z` and compare like any other (`TestDecide_OpenSSLLetterBranches`).
+- **INV-4f** Record shapes (`recordshape.go`), read from the rows' shape, never from the product they name: an application row whose
+  version is NA (`-`) beside a row that versions the same product is about no version and does not apply to a line with a version (CPE
+  name matching: NA and a value are disjoint; alone, or on an operating system or firmware, it stays undecided; an NA row that names a
+  build, an edition, system or architecture, is apart only beside a versioned row of that same build); a bare row of every version
+  beside a row of the same product and build that ends and has no start is NVD's legacy "and earlier" marker, and the bounded row decides; an exact
+  row named by a word ("preview_release") is set aside, and decides nothing unless the version is past the end of a row that says No. A
+  partial CVE record proves "not affected" for a version past a fix it states (an excluded end; an included end, "through", is the last
+  version known affected, not a fix) on a train it covers (OSV's introduced/fixed): past a row from
+  0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
+  states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
+  version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`). A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
+  scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
   every applicable range.
 - **INV-4c** Network device operating systems become software lines through one table, `content/catalog/network-os.json`. The

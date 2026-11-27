@@ -19,11 +19,14 @@ import (
 //
 // Versions. "affected" versions become ranges: version + lessThan = [version, lessThan), + lessThanOrEqual = [version, x], a version
 // alone is that exact version ([v, v]), a start of "0", "*" or "n/a" is no start, an end of "*" is no end. fixed is the end of a
-// lessThan range whose change at that end says unaffected (the CNA states the fixed release). version_type is the entry's versionType.
+// lessThan range whose change at that end says unaffected (the CNA states the fixed release), or, on the highest row of an entry whose
+// only unaffected statement is one version above every affected row on that row's release line, that version (lineFixOf).
+// version_type is the entry's versionType.
 // Whatever cannot be compared without guessing makes the whole product's rows from that container unusable (counted, none stored):
 // git commits, wildcards and text ("3.x", "before 2.4", "all"), a reversed range, a status change inside a range or an unaffected version
-// inside an affected one (a hotfix hole), "affected except the listed versions", an entry limited to some operating systems or models
-// (platforms other than processors: anyPlatform). "n/a" and "unspecified" say nothing and are passed over; "all versions" is every
+// inside an affected one (a hotfix hole), "affected except the listed versions", an entry limited to some models
+// (platforms other than processors and operating systems: recordSystems; an entry limited to operating systems gives its rows once per
+// system, the system in platforms). "n/a" and "unspecified" say nothing and are passed over; "all versions" is every
 // version. Versions a CNA writes in a notation of its own inside these fields (GitHub's comparators "< 2.4", ">= 2.0, < 2.3.1"; the
 // product's name in front, "openssl-1.1.0"; a fix per release train after lessThan, "1.20.4,2.0.2") are read first
 // (recordNotation, cverecord_notation.go); one that does not read makes the product unusable, as above.
@@ -120,7 +123,7 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			}
 			for _, r := range got {
 				r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE, r.DefaultStatus = cve, origin, part, vendor, product, cpe, def
-				if j := slices.IndexFunc(g.rows, func(h Range) bool { return sameSpan(h, r) }); j >= 0 {
+				if j := slices.IndexFunc(g.rows, func(h Range) bool { return sameSpan(h, r) && slices.Equal(h.Platforms, r.Platforms) }); j >= 0 {
 					if def == DefaultUnknown {
 						g.rows[j].DefaultStatus = DefaultUnknown // a row two entries give carries the weaker word
 					}
@@ -620,9 +623,33 @@ type cnaSpan struct {
 // (letterBranch) is left out alone, not the entry: the entry is then not complete.
 // reads is the product's version scheme reading a range (schemeReads; nil for a product without one): a letter-release branch it reads
 // is not left out (the entry then stays as the vendor states it, which the scheme reads).
+//
+// An entry limited to operating systems (platforms ["Windows"]) gives each row once per system, the system kept in Platforms: the
+// matcher reads it as the CPE's target_sw, as NVD writes a row for one system (recordSystems). Only for a product without a version
+// scheme (reads nil): a scheme's product keeps its rule for limited entries (statedRows).
 func entryRows(a cnaAffected, reads func(start, end string, incl bool) bool) (rows []Range, complete, ok bool) {
-	if len(a.Versions) > recordMaxVersions || !anyPlatform(a.Platforms) {
-		return nil, false, false // only some operating systems: the rows would name every device of the product
+	systems, ok := recordSystems(a.Platforms)
+	if !ok || len(systems) > 0 && reads != nil {
+		return nil, false, false // only some models, or systems of a scheme's product: the rows would name every device of the product
+	}
+	rows, complete, ok = entryVersions(a, reads)
+	if !ok || len(systems) == 0 {
+		return rows, complete, ok
+	}
+	out := make([]Range, 0, len(rows)*len(systems))
+	for _, sys := range systems {
+		for _, r := range rows {
+			r.Platforms = []string{sys}
+			out = append(out, r)
+		}
+	}
+	return out, complete, true
+}
+
+// entryVersions is entryRows for every platform of the entry.
+func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool) (rows []Range, complete, ok bool) {
+	if len(a.Versions) > recordMaxVersions {
+		return nil, false, false
 	}
 	if cnaDefault(a.DefaultStatus) == DefaultAffected { // versions not listed are affected
 		for _, v := range a.Versions {
@@ -634,13 +661,19 @@ func entryRows(a cnaAffected, reads func(start, end string, incl bool) bool) (ro
 	}
 	var spans []cnaSpan
 	var fixed []string // the unaffected versions the entry lists
+	unaffected := 0    // the entry's unaffected statements, of any form
+	lone := ""         // its one unaffected version, when that is all it states unaffected (no range)
 	partial := false   // a letter-release version was left out
 	for _, v := range a.Versions {
 		switch strings.ToLower(strings.TrimSpace(v.Status)) {
 		case "affected":
 		case "unaffected":
+			unaffected++
 			if start := withoutProduct(strings.TrimSpace(v.Version), a); cnaVersionOK(start) && start != "0" {
 				fixed = append(fixed, start)
+				if v.LessThan == nil && v.LessThanOrEqual == nil {
+					lone = start
+				}
 			}
 			continue
 		default: // "unknown" says nothing
@@ -727,7 +760,40 @@ func entryRows(a cnaAffected, reads func(start, end string, incl bool) bool) (ro
 			}
 		}
 	}
+	if unaffected == 1 && lone != "" && !partial && reads == nil {
+		if i, ok := lineFixOf(lone, spans); ok {
+			rows[i].Fixed = lone
+		}
+	}
 	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected && !partial, true
+}
+
+// lineFixOf says which affected row a lone unaffected version y of an entry fixes, read as OSV reads "fixed": the entry lists its
+// affected versions from 0 up to a last one ("0 through 6.49.18", "7.0.0 through 7.11.2") and states only y unaffected ("7.24.0"),
+// above every one of them. y is then the fix of the release line the highest row ends on, when y is on that line (its first number):
+// a version at or past y on that line is not affected (Range.LineFix, read by the matcher for a partial list only). A version between
+// the last affected one and y, or on another line, is not stated either way. ok is false when y is not above every row's end (it would
+// be a backport or a release of an earlier line), a row has no end, an end does not compare, or y is on another line.
+func lineFixOf(y string, spans []cnaSpan) (top int, ok bool) {
+	if len(spans) == 0 {
+		return 0, false
+	}
+	for i, sp := range spans {
+		if sp.end == "" {
+			return 0, false
+		}
+		if c, ok := cmpLead(y, sp.end); !ok || c <= 0 {
+			return 0, false
+		}
+		if c, ok := cmpLead(sp.end, spans[top].end); !ok {
+			return 0, false
+		} else if c > 0 {
+			top = i
+		}
+	}
+	x, okY := leadNums(y)
+	z, okE := leadNums(spans[top].end)
+	return top, okY && okE && len(x) > 0 && len(z) > 0 && x[0] == z[0]
 }
 
 // letterReleaseRE is a release in a letter notation: numbers, then up to two lower-case letters ("1.1.1", "1.1.1zk", "3.6a").
@@ -767,6 +833,48 @@ func anyPlatform(ps []string) bool {
 		}
 	}
 	return true
+}
+
+// systemWords are the platforms of a CVE record entry that name an operating system, as NVD's target_sw writes it.
+var systemWords = map[string]string{
+	"windows": "windows", "microsoft windows": "windows",
+	"macos": "macos", "mac os": "macos", "mac os x": "macos", "macosx": "macos", "os x": "macos",
+	"linux":   "linux",
+	"android": "android",
+	"ios":     "iphone_os", "iphone os": "iphone_os", "ipados": "iphone_os",
+}
+
+// systemTargets are the target_sw words of systemWords.
+var systemTargets = map[string]bool{"windows": true, "macos": true, "linux": true, "android": true, "iphone_os": true}
+
+// recordSystems are the operating systems an entry's platforms limit it to, as target_sw words, sorted and once each; none when the
+// platforms do not limit it (anyPlatform). ok is false when a platform is neither a processor word nor an operating system (a model,
+// "Unix"): which devices it means is not known.
+func recordSystems(ps []string) (systems []string, ok bool) {
+	for _, p := range ps {
+		w := strings.ToLower(strings.Join(strings.Fields(p), " "))
+		if archWords[w] {
+			continue
+		}
+		sys, known := systemWords[w]
+		if !known {
+			return nil, false
+		}
+		if !slices.Contains(systems, sys) {
+			systems = append(systems, sys)
+		}
+	}
+	slices.Sort(systems)
+	return systems, true
+}
+
+// recordSystem is the operating system a record row is limited to (one of recordSystems' words), "" for an NVD row, a row of every
+// system or one limited to models.
+func recordSystem(r Range) string {
+	if r.Origin == OriginNVD || len(r.Platforms) != 1 || !systemTargets[r.Platforms[0]] {
+		return ""
+	}
+	return r.Platforms[0]
 }
 
 // The defaultStatus words of an affected entry, as feeds_cve_range.default_status keeps them (NVD's rows: "").

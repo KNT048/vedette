@@ -158,7 +158,8 @@ func TestUnchecked_910_DistroPackageTheTrackerDoesNotCover(t *testing.T) {
 	other := []DistroFix{{Distro: "ubuntu", Release: "22.04", Package: "widget", Status: "fixed", Fixed: "1.9-1ubuntu0.1"}}
 	inRange := uncVuln("CVE-2026-0030", "Acme", "Widget", uncNew, uncAff("cpe:2.3:a:acme:widget:*:*:*:*:*:*:*:*", "3.0"))
 	inRange.Distro = other
-	partial := uncVuln("CVE-2026-0031", "Acme", "Widget", uncNew, uncAff("cpe:2.3:a:acme:widget:*:*:*:*:*:*:*:*", "1.5"))
+	// the partial list covers the 1.4 train only, so 2.0 past its end is not past a fix of a train it covers (pastRecordFix)
+	partial := uncVuln("CVE-2026-0031", "Acme", "Widget", uncNew, Affected{CPE: "cpe:2.3:a:acme:widget:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "1.4.0", EndExcl: "1.4.5"}})
 	partial.Distro, partial.RangesFrom = other, RangesCVEOrgPartial
 	res := MatchAsset(a, []Vuln{inRange, partial}, nil, uncNow)
 	if len(res.New) != 1 || res.New[0].Basis != BasisVersion || len(res.NameOnly) != 1 || res.NameOnly[0].CVE != "CVE-2026-0031" ||

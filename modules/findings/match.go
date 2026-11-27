@@ -148,6 +148,9 @@ type Affected struct {
 	// affected, a version outside it proves nothing (the record and NVD disagree: the affected answer wins). VendorList: a row of a
 	// record list that states what every unlisted version is (complete): an exact version it lists decides like a range.
 	AffectedOnly, VendorList bool
+	// LineFix: a release a partial CVE record states fixed above this row's end, for the release line the row ends on (a lone
+	// "unaffected" version above every affected row: OSV's fixed); read only by pastRecordFix.
+	LineFix string
 	// parsed is CPE already parsed; nil: parse when read.
 	parsed *CPE
 }
@@ -1436,8 +1439,8 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	if tri == Yes && !schemed && v.RangesFrom == "" && recordDecided(in, v) { // the record's rows beside NVD's call it affected: the texts name the record
 		v.RangesFrom = RangesCVEOrgPartial
 	}
-	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed { // the CNA's list may skip branches: outside it proves nothing
-		tri, proof = Unknown, proofNone
+	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed && !pastRecordFix(in, v, key) {
+		tri, proof = Unknown, proofNone // the CNA's list may skip branches: outside it proves nothing, unless past a fix of a train it covers
 	}
 	switch {
 	case tri == No && schemed:
@@ -1978,6 +1981,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	// decided: a row of the software's own said Yes or No; aside: a row of another release branch did not compare with the version
 	// (otherBranch) and was set aside. Rows set aside never decide alone: with no row deciding, the answer stays Unknown.
 	decided, aside := false, false
+	// worded: a row named by a word was set aside (wordRelease); past: a row of the software's own that the version is after the end of
+	// said No. A row set aside for its word is no numbered release, yet it is the record's: only a fix the version is past outweighs it.
+	worded, past := false, false
 	var yes *VersionRange // the range the version is inside that explains the finding and names its fix (explainsBetter)
 	jv, isJ := junosParse(in.ver)
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means
@@ -1996,6 +2002,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		if !own && !byKey {
 			undecidable = undecidable || !known
 			continue
+		}
+		if naVersionApart(c, in.ver, v.Affected) || earlierMarker(c, af, v.Affected) {
+			continue // the row is not about this install (NA), or it only repeats a bounded row's "and earlier" (legacy NVD)
 		}
 		if af.AffectedOnly { // only "affected" counts from it, and only for a version it states: outside it, it neither applies nor proves
 			if t, r := in.eval(c, af.Range, in.ver, sib); t == Yes && own && versionEvidence(af) {
@@ -2038,6 +2047,11 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			// compare decide.
 			aside = true
 			continue
+		case t == Unknown && own && wordRelease(c, af.Range, in.ver):
+			// An exact row named by a word, not a number ("preview_release"): it is no numbered release, so it is set aside like a
+			// row of another branch, but only a fix the version is past may then decide (past).
+			aside, worded = true, true
+			continue
 		}
 		switch t {
 		case Yes:
@@ -2049,6 +2063,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			result = Unknown
 		case No:
 			decided = true
+			past = past || own && pastEnd(af.Range, in.ver)
 			trainOnly = trainOnly || dottedListGuess(c, af.Range, in.ver)
 			beyond = beyond && (osScheme(c) != schemeDotted || dottedAfter(c, af.Range, in.ver))
 		}
@@ -2073,7 +2088,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		}
 		return No, VersionRange{}, false, proofNone // NVD lists other products only: no finding, but no proof (its list can lag the advisory)
 	}
-	if !applicable || undecidable && result == No || aside && !decided {
+	if !applicable || undecidable && result == No || aside && !decided || worded && !past {
 		return Unknown, VersionRange{}, every, proofNone
 	}
 	if junosSeen && result == No { // NVD's Junos lists have gaps: a missing update is not a proof (#703)

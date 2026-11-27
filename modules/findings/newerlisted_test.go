@@ -157,8 +157,8 @@ func TestUnchecked_NewerThanListed_ReleaseLines(t *testing.T) {
 }
 
 // The class, on a row CISA's key reaches (the "No that proves nothing" branch) and one only NVD's list names: NVD names the row only
-// at exact versions, all older than its own → no row. One entry the row is not later than (the same version, a newer one, "-", a
-// version that does not read, a range, every version) keeps the row as before.
+// at exact versions, all older than its own → no row. One entry the row is not later than (the same version, a newer one, "-" with no
+// version of the product beside it, a version that does not read, a range, every version) keeps the row as before.
 func TestUnchecked_NewerThanListed_Class(t *testing.T) {
 	t.Parallel()
 	exact := func(vs ...string) []Affected {
@@ -179,8 +179,12 @@ func TestUnchecked_NewerThanListed_Class(t *testing.T) {
 		{"older only, NVD's list", exact("1.0", "1.1"), "2.0", false, false},
 		{"one newer, NVD's list", exact("1.0", "3.0"), "2.0", false, true},
 		{"one equal, NVD's list", exact("1.0", "2.0"), "2.0", false, true},
-		{"older and NA, keyed", exact("1.0", "-"), "2.0", true, true},
-		{"older and NA, NVD's list", exact("1.0", "-"), "2.0", false, true},
+		// NA ("-") beside a version of the same product is about no version (CPE name matching: DISJOINT), so it does not keep the row
+		{"older and NA, keyed", exact("1.0", "-"), "2.0", true, false},
+		{"older and NA, NVD's list", exact("1.0", "-"), "2.0", false, false},
+		// NA alone may be a product whose release is in its name: it keeps the row
+		{"NA only, keyed", exact("-"), "2.0", true, true},
+		{"NA only, NVD's list", exact("-"), "2.0", false, true},
 		{"a version that does not read, keyed", exact("1.0"), "2.0(1)M3", true, true},
 		{"a version that does not read, NVD's list", exact("1.0"), "2.0(1)M3", false, true},
 		{"a patch of the listed release, keyed", exact("8.9"), "8.9p1", true, true},

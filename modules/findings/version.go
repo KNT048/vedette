@@ -368,6 +368,9 @@ type VersionRange struct {
 // IsZero reports whether the range has no bounds (all versions).
 func (r VersionRange) IsZero() bool { return r == VersionRange{} }
 
+// fromZero says the range is "from version 0, no end": every version (a CVE record's statement that all versions are affected).
+func (r VersionRange) fromZero() bool { return r == VersionRange{StartIncl: "0"} }
+
 // Contains says whether version v lies inside the range. A bound that is
 // violated for sure gives No even if another bound cannot be compared; if no
 // bound is violated but one cannot be compared, the answer is Unknown. Versions

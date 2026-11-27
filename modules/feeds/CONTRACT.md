@@ -84,7 +84,15 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 **Catalogue**
 - **INV-34** A CVE stays in the catalogue while it was published within 365 days (and NVD has not rejected it), or has an
   exploited-list entry, or a qualifying signal, or an open finding pins it (`Deps.Pins`). Pulls store only CVEs this rule keeps.
-- **INV-35** Affected ranges are kept per origin (`nvd`, `cna`, `adp`); NVD rows win over vendor rows when read. A vendor row that
+- **INV-35** Affected ranges are kept per origin (`nvd`, `cna`, `adp`). When read for matching (`matchRows`, the exploited-list view
+  `KevAffected`), NVD's rows lead and the CNA's rows of the CVE record are read beside them, as CVE JSON 5 states a version's status (the
+  entry that names it, else the entry's `defaultStatus`, else unknown; cve-schema `versions.md`): a version either calls affected is
+  affected. A CNA row whose product's list is complete (every row says what an unlisted version is) also decides "not affected"
+  (`VendorList`); any other CNA row beside NVD's only says "affected" (`AffectedOnly`), and only for a version it states. An ADP row is
+  read only when NVD gives none. `defaultStatus: unaffected` is kept only from the vendor's own CNA (`ownCNA`: assigner and vendor name
+  the same company, or the entry names no vendor); a third-party CNA's is stored `unknown` on the generic rows. An entry whose
+  `defaultStatus` is affected states every version affected: the matcher reads its row from version 0 (`recordEvery`); a version word
+  ("all") without it does not. `TestCVE5Status_DefaultStatusByAssigner`, `TestCVE5Status_EndToEnd` (cmd/vedette). A vendor row that
   no version scheme can order is shown, never matched. A record row that states no version is never read in a version scheme (it stays
   the generic comparison's); for a scheme whose vendor states its fixed releases in the description only (DSM: "before 7.2.1-69057-10,
   7.2.2-72806-7"), those releases are the record's rows (`describedRows`), each from the start of its line. A line the description

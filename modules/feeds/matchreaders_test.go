@@ -55,8 +55,9 @@ func TestMatchReaders(t *testing.T) {
 	for _, r := range got {
 		origins = append(origins, r.CVE+"/"+r.Origin)
 	}
-	if !slices.Equal(origins, []string{"CVE-2026-0201/nvd", "CVE-2026-0202/cna"}) { // NVD's win; the vendor's notation is never generic
-		t.Errorf("RangesOf %v", origins)
+	// NVD's lead, the CNA's are read beside them (its complete list: it decides both ways); the vendor's notation is never generic
+	if !slices.Equal(origins, []string{"CVE-2026-0201/nvd", "CVE-2026-0201/cna", "CVE-2026-0202/cna"}) || !got[1].VendorList || got[1].AffectedOnly {
+		t.Errorf("RangesOf %v %+v", origins, got)
 	}
 	vendor, err := s.SchemeRangesOf(t.Context(), []string{"CVE-2026-0201", "CVE-2026-0203"})
 	if err != nil || len(vendor) != 1 || vendor[0].CVE != "CVE-2026-0203" {
@@ -65,7 +66,7 @@ func TestMatchReaders(t *testing.T) {
 	if _, sp, fixed, ok := RangeScheme(vendor[0]); !ok || sp.End == nil || fixed == nil {
 		t.Errorf("the ESXi row does not read in its scheme")
 	}
-	row, ok := got[1].MatchRow()
+	row, ok := got[2].MatchRow()
 	if !ok || row.CPE != "cpe:2.3:*:paloalto:panos:*:*:*:*:*:*:*:*" || row.StartIncl != "11.1.0" || row.EndExcl != "11.1.5" {
 		t.Errorf("record row of a product the catalogue files do not list, as the matcher reads it: %+v %v", row, ok) // the line answers to it (recordIdentity)
 	}

@@ -13,6 +13,7 @@ import (
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/content/oui"
+	"github.com/knt048/vedette/core/observe"
 )
 
 // Platform limits (KF-4, KF-5). Some exploited CVEs affect a product only on some platforms: CVE-2026-123158 is
@@ -111,6 +112,7 @@ var platformWords = []struct {
 	{"macos", "macOS", regexp.MustCompile(`(?i)\b(mac ?os|os x)\b`)},
 	{"bsd", "a BSD", regexp.MustCompile(`(?i)\b(freebsd|openbsd|netbsd)\b`)},
 	{"junos", "Juniper Junos OS", regexp.MustCompile(`(?i)\bjunos\b`)},
+	{"esxi", "VMware ESXi", regexp.MustCompile(`(?i)\besxi\b`)}, // a hypervisor of its own, no Linux distribution
 }
 
 // networkOS are the platforms of network gear whose own statement of its OS also says what a service a scan sees on it runs on:
@@ -223,9 +225,21 @@ func platformOS(s Software, a Asset) string {
 	case b == "snmp":
 		return cmp.Or(a.ManualOS, a.SNMPOS) // the SNMP answer at the device's own address, never an LLDP frame (review r2)
 	case s.Source == "manual" && s.PkgVersion != "":
-		return cmp.Or(a.ManualOS, a.AgentOS, a.SNMPOS, networkStated(a))
+		return cmp.Or(a.ManualOS, a.AgentOS, a.SNMPOS, networkStated(a), selfStatedOS(a))
 	}
-	return networkStated(a)
+	return cmp.Or(networkStated(a), selfStatedOS(a))
+}
+
+// selfStatedOS is the OS a device states itself through its management interface (core/observe's self-statements: a hypervisor's
+// API, a management controller's page, a phone's SIP answer, each written with what no fingerprint has, such as the build), on a
+// device no agent reports another OS for; "" otherwise. Such firmware runs no container behind its own address, so the OS is the
+// platform of every row a scan sees there, as networkStated's is. It only rules a row out when it names a platform Vedette
+// recognises (platformsIn) that the CVE does not affect.
+func selfStatedOS(a Asset) string {
+	if a.AgentOS != "" || observe.SelfStatedBasis(strings.TrimSpace(a.OS)) == "" {
+		return ""
+	}
+	return strings.TrimSpace(a.OS)
 }
 
 // debRPM is the evidence id of a row an agent read from a deb or rpm database: a Debian, Ubuntu, Red Hat or SUSE family build,

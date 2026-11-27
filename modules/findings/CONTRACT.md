@@ -117,7 +117,14 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
   inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
   inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
-  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
+  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). A model-limited row of the vendor's own
+  record (`SchemedRange.Complete`: its `defaultStatus` unaffected, feeds keeps it only from the product's own CNA) whose hardware
+  (`Platforms`) the device's stated model cannot be is not about the device (`otherHardware`, read by the names' shape only: "<letters>
+  Series", "<letters><number>", a numbered series; a model or a platform of another shape is never ruled out, and only an operating
+  system's or firmware's rows are read so, `deviceFirmware`); when every row of the product is such a row, the device is not affected
+  ("lists the OS as affected only on QRX Series, and the switch is a ZX4200-48T"); a version of the vendor's rows for every device, an NVD
+  row covering it or an unread row still decide as before. With no row for every device, the starts of the vendor's own model-limited
+  rows say where the flaw came in (`olderThanEveryStart`, below). `TestOtherHardware`, `TestMatchAsset_ModelRowsOfOtherHardware`. (`notAffectedByStatements`,
   `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
   `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). Where the vendor's affected ranges start also decides "not affected" (Junos OS only: the one scheme whose
   first release of a branch is read, `branchStart`; the proof says "NVD lists" when NVD's rows are the ones read):
@@ -429,7 +436,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestDistroKernelOnceOnTheRunningKernel`, `TestCount_DistributionKernelFindings`, `TestMatchAsset_DebianKernelComparesOnlyInsideItsSeries`.
 - **INV-15** A Windows release line is judged by its build revision against Microsoft's fixed builds (`windows.go`).
 - **INV-16** CVEs in `content/catalog/platform-limits.json` affect only the platforms listed; platform evidence comes only from the
-  device's own reading (agent OS, its SNMP answer). No platform evidence is a `platform` question (INV-16c); the fixed versions per
+  device's own reading (agent OS, its SNMP answer, or the OS it states itself through its management interface, core/observe's
+  self-statements such as a hypervisor's build, which counts for every row a scan sees at its address: `selfStatedOS`,
+  `TestPlatform_SelfStatedOSIsThePlatformOfItsScanRows`). No platform evidence is a `platform` question (INV-16c); the fixed versions per
   release are built from the distribution's data, never copied by hand (INV-16d). A person's correction follows the corrected
   source's rules and earns no credit (INV-16a).
 - **INV-17** A version match on an agent line says, in its evidence, what the agent reported.

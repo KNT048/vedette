@@ -30,6 +30,9 @@ type schemeRead struct {
 	origin  string // who stated the rows (RangeCNA, RangeADP)
 	vendor  string // the product's vendor as the catalogue names it ("VMware")
 	product string // the product as the catalogue names it ("VMware ESXi")
+	// elsewhere is set when the vendor's own record lists the product as affected only on other hardware than the device's model
+	// (otherHardware): the hardware it names. nil otherwise.
+	elsewhere []string
 }
 
 // buildRE reads the build a device states beside its version ("VMware ESXi 8.0 Update 3 (build 24022510)").
@@ -61,6 +64,11 @@ type statements struct {
 	unaffected, models []versionscheme.Span
 	origin             string
 	unread             bool // an affected row of the product did not read in its scheme (SchemedRange.Unread)
+	// elsewhere is the hardware of the vendor's own model-limited rows that are not about the device (otherHardware): left out of
+	// models, they say the product is affected on that hardware only.
+	elsewhere []string
+	// modelsTold: every row in models is the vendor's own record that states its unlisted versions unaffected (SchemedRange.Complete).
+	modelsTold bool
 }
 
 // vendorRows is schemedSpans with the vendor's statements of the same product (statements).
@@ -77,7 +85,7 @@ func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, 
 	}
 	var spans []versionscheme.Span
 	var scheme *versionscheme.Scheme
-	var st statements
+	st := statements{modelsTold: true}
 	origin := ""
 	for _, r := range v.Schemed {
 		if r.Product != p.Key || r.Scheme == nil || r.Scheme.Name != p.Scheme {
@@ -90,11 +98,24 @@ func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, 
 		if fipsWithoutTheWord(r) {
 			continue
 		}
+		if r.ModelOnly && r.Complete && deviceFirmware(p) && otherHardware(a.Model, r.Platforms) {
+			st.scheme = r.Scheme
+			for _, h := range r.Platforms {
+				if !slices.Contains(st.elsewhere, h) {
+					st.elsewhere = append(st.elsewhere, h)
+				}
+			}
+			if st.origin == "" || r.Origin == RangeCNA {
+				st.origin = r.Origin
+			}
+			continue
+		}
 		if r.Unaffected || r.ModelOnly {
 			if r.Unaffected {
 				st.unaffected = append(st.unaffected, r.Span)
 			} else {
 				st.models = append(st.models, r.Span)
+				st.modelsTold = st.modelsTold && r.Complete
 			}
 			if st.scheme = r.Scheme; st.origin == "" || r.Origin == RangeCNA {
 				st.origin = r.Origin
@@ -204,14 +225,25 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 	}
 	// only Junos OS's numbering is read for where a branch starts (branchStart): another scheme's first release of a line is a build
 	// number that reads as a release inside it, so the rule would close an older line the rows say nothing about
-	if scheme == versionscheme.Junos && !st.unread && !namesLine(spans, installed) && !inside(installed, st.models) {
-		if first, ok := olderThanEveryStart(installed, spans); ok && !nvdCovers(in, v) {
+	// with no row for every device, the vendor's own model-limited rows say where the flaw came in on the hardware they name, and the
+	// rest of the product is unaffected by the same record (modelsTold): a release older than each of their starts is not affected
+	starts := spans
+	if len(spans) == 0 && st.modelsTold {
+		starts = st.models
+	}
+	if read == versionscheme.Junos && !st.unread && !namesLine(spans, installed) && !inside(installed, st.models) {
+		if first, ok := olderThanEveryStart(installed, starts); ok && !nvdCovers(in, v) {
 			out.verdict, out.before = versionscheme.Verdict{State: versionscheme.NotAffected}, first
 			return out, true
 		}
 	}
 	if notAffectedByStatements(installed, spans, st) && !nvdCovers(in, v) {
 		out.verdict, out.stated, out.origin = versionscheme.Verdict{State: versionscheme.NotAffected}, true, cmpOr(st.origin, origin)
+		return out, true
+	}
+	// every row of the vendor's own record is for other hardware than the device's model: the product is affected there only
+	if len(st.elsewhere) > 0 && len(spans) == 0 && len(st.models) == 0 && !st.unread && !nvdCovers(in, v) {
+		out.verdict, out.elsewhere, out.origin = versionscheme.Verdict{State: versionscheme.NotAffected}, st.elsewhere, cmpOr(st.origin, origin)
 		return out, true
 	}
 	return schemeRead{}, false
@@ -390,6 +422,10 @@ func schemeDecision(a Asset, v Vuln, r schemeRead) (Tri, VersionRange, string) {
 			}
 			return No, VersionRange{}, fmt.Sprintf("Not affected: %s lists the releases of %s that have %s starting from %s, and %s runs %s %s, older than the first affected release %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
 				lister, clean(r.product), v.CVE, clean(releaseName(*r.before)), clean(a.Name), clean(r.product), clean(release), first, clean(releaseName(*r.before)))
+		}
+		if len(r.elsewhere) > 0 {
+			return No, VersionRange{}, fmt.Sprintf("Not affected: %s lists %s as affected by %s only on %s, and %s is a %s. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+				who, clean(r.product), v.CVE, clean(orList(r.elsewhere)), clean(a.Name), clean(a.Model))
 		}
 		if r.stated {
 			return No, VersionRange{}, fmt.Sprintf("Not affected: %s states which releases of %s have %s, and %s runs %s %s, which is not one of them. Vedette closed this by itself and reopens it if a later match says the device is affected.",

@@ -55163,17 +55163,42 @@
                           "cause": {
                             "type": "string",
                             "maxLength": 64,
-                            "description": "An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a question with no known reason), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed)"
+                            "description": "The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here"
                           },
                           "count": {
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 9007199254740991
+                          },
+                          "details": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "detail": {
+                                  "type": "string",
+                                  "maxLength": 64,
+                                  "description": "The matcher's own reason: an undecided reason (Undecided.reason, such as version_scheme_mismatch or exact_releases_only), else the question's kind"
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "detail",
+                                "count"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The same pairs by the matcher's own reason, the most first; empty for an unnamed class and for a pass counted before details were kept"
                           }
                         },
                         "required": [
                           "cause",
-                          "count"
+                          "count",
+                          "details"
                         ],
                         "additionalProperties": false
                       },

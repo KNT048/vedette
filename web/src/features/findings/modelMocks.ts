@@ -339,8 +339,11 @@ export const modelHandlers = [
     at: nowIso(), devices: 12, lines: 2140, pairs: 47940,
     decided: [{ by: 'distro', affected: 412, not_affected: 39870 }, { by: 'nvd', affected: 96, not_affected: 5310 }, { by: 'cna', affected: 21, not_affected: 1288 },
       { by: 'vendor_line', affected: 6, not_affected: 64 }, { by: 'person', affected: 2, not_affected: 11 }, { by: 'platform_list', affected: 0, not_affected: 9 }],
-    possible: [{ cause: 'no_version', count: 402 }, { cause: 'version_scheme_mismatch', count: 211 }, { cause: 'exact_releases_only', count: 117 },
-      { cause: 'product_not_named', count: 74 }, { cause: 'other_distro_silent', count: 31 }, { cause: 'platform_unknown', count: 16 }],
+    possible: [
+      { cause: 'version_needed', count: 418, details: [{ detail: 'no_version', count: 402 }, { detail: 'platform_unknown', count: 16 }] },
+      { cause: 'needs_reading', count: 402, details: [{ detail: 'version_scheme_mismatch', count: 211 }, { detail: 'exact_releases_only', count: 117 }, { detail: 'product_not_named', count: 74 }] },
+      { cause: 'other_distro_silent', count: 31, details: [] },
+    ],
     identity: [{ method: 'stated', lines: 1795 }, { method: 'catalogue', lines: 61 }, { method: 'record', lines: 23 }, { method: 'none', lines: 261 }],
   } satisfies Coverage)),
   http.get(`${API}/findings/possible/check`, () => read(() => ({ ready: false, reason: 'The preview has no AI profile to check possible findings with.', run: null }) satisfies PossibleCheckState)),

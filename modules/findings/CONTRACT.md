@@ -173,7 +173,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **M-14 Decision coverage.** Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched
   (a row of the line reached by the entry's key or rows, or a finding or question of the pair), what decided it: the source (the
   `range_origin` vocabulary, `platform_list` for the hand list of platform limits, `person` for an answered question, `advisory` for a
-  check the box settled) as affected or not affected; else why it is undecided: its undecided reason, `ai_proposal`, or an unnamed class
+  check the box settled, `ai_read` for a vendor's "not affected" the AI read) as affected or not affected; else why it is undecided: its
+  cause (`PossibleCause`, as the lists show it) with the matcher's own reason under it (`CoverageCause.details`: the question's
+  `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
+  its undecided reason as the cause and no details), or an unnamed class
   (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor asked, so nobody is
   told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
   pass finds unchanged keeps the counts of its last full match; the sum of each pass is one row of `fnd_coverage_run` (the newest 30
@@ -223,11 +226,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`affected`, `fixed` with `fixed_in`, `not_affected`, `unsure`; `introduced`, `fixed_in`, `last_affected`, `line`, a verbatim `quote`, the
   page's number). The box keeps it in `fnd_line_statement` (`LineStatement`), keyed by the CVE, product, line, the CVE record's stamp
   (`CheckID.Record`) and the cited page's text hash: `quote_found` when the quote is in the text the box fetched itself, word for word;
-  a bound only when the quote names it; `fixed` with no named bound is `unsure`. Only the newest reading of a (CVE, product, line) is kept;
+  a bound only when the quote names it; `fixed` with no named bound is `unsure`; a cited page that names neither the CVE nor an advisory
+  the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
   scheme or the generic order (`verdictFor`). Asymmetry: inside the stated affected releases is a finding by itself (range origin
-  `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names: `LineStatement.fix`), rejected in one click
+  `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names, its `fixed_in` or a "before X" on the version's
+  own train: `LineStatement.fix`; What to do cites the page and the sentence), rejected in one click
   (`POST /findings/possible/checks/{key}/reject` with the reading's key, audit `findings.ai_reading_rejected`: every device of the CVE is
   matched again at once, the finding closes `data_corrected` and the CVE is possible again, `findingKeys`); past the stated fix on the same
   line, or the line named not affected, settles the CVE only from the vendor's own page (`FetchedPage.Vendor`) and never an exploited one

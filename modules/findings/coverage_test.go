@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"database/sql"
 	"log/slog"
 	"reflect"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/store"
 )
 
 // synthetic is one made-up product no catalogue knows, installed on one device line, with one CVE record in a standard shape.
@@ -112,8 +114,9 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 	// The pass's sum: what decided each pair, why the rest is undecided, and how each line is identified. The line nothing links
 	// is no pair: it counts under the identity "none".
 	want := Coverage{Devices: 1, Lines: len(cases), Pairs: 6,
-		Decided:  []CoverageSource{{By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangeNVD, Affected: 1, NotAffected: 1}},
-		Possible: []CoverageCause{{Cause: CauseNeedsReading, Count: 1}, {Cause: CoverageOtherRecordUnread, Count: 1}},
+		Decided: []CoverageSource{{By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangeNVD, Affected: 1, NotAffected: 1}},
+		Possible: []CoverageCause{{Cause: CauseNeedsReading, Count: 1, Details: []CoverageDetail{{Detail: UndecidedSchemeMismatch, Count: 1}}},
+			{Cause: CoverageOtherRecordUnread, Count: 1, Details: []CoverageDetail{}}},
 		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 6}, {IdentityNone, 1}}}
 	checkCoverage(t, e.svc, want)
 	// A person's answer decides its pair; a pass that finds the device unchanged keeps its counts
@@ -130,7 +133,7 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 			t.Fatal(err)
 		}
 		want.Decided = []CoverageSource{{By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangeNVD, Affected: 1, NotAffected: 1}, {By: RangePerson, NotAffected: 1}}
-		want.Possible = []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1}}
+		want.Possible = []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1, Details: []CoverageDetail{}}}
 		checkCoverage(t, e.svc, want)
 	}
 	// Each pass is a row; a service started again on the same database serves the newest until its own first pass
@@ -186,5 +189,29 @@ func TestCoverage_EndpointIsTheLastPass(t *testing.T) {
 	decided, _ := b["decided"].([]any)
 	if code != 200 || b["at"] == nil || b["devices"] != float64(1) || b["pairs"] != float64(1) || len(decided) != 1 {
 		t.Fatalf("after a pass: %d %v", code, b)
+	}
+}
+
+// A coverage row stored before the counts kept the matcher's reason under each cause (its cause is the undecided reason itself) is
+// served as it was, with no details; the new shape carries both.
+func TestCoverage_ARowStoredBeforeDetailsReadsAsItWas(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	old := `{"devices":1,"lines":2,"pairs":5,"decided":[{"by":"nvd","affected":1,"not_affected":1}],` +
+		`"possible":[{"cause":"version_scheme_mismatch","count":2},{"cause":"other_dropped","count":1}],"identity":[{"method":"record","lines":2}]}`
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO fnd_coverage_run (ran_at, counts) VALUES (?, ?)`, store.FormatTS(*e.clock), old)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	code, b := e.call("GET", "/findings/coverage", "admin", "")
+	possible, _ := b["possible"].([]any)
+	if code != 200 || len(possible) != 2 {
+		t.Fatalf("an old row: %d %v", code, b)
+	}
+	first := possible[0].(map[string]any)
+	if details, ok := first["details"].([]any); first["cause"] != UndecidedSchemeMismatch || first["count"] != float64(2) || !ok || len(details) != 0 {
+		t.Errorf("an old row's cause %v, want its reason with its count and no details", first)
 	}
 }

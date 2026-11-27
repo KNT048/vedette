@@ -574,8 +574,12 @@ export const Coverage = z.object({
     affected: coverageCount, not_affected: coverageCount,
   })).describe('Decided pairs by source, the most first'),
   possible: z.array(z.object({
-    cause: z.string().max(64).describe('An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a question with no known reason), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed)'),
+    cause: z.string().max(64).describe('The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here'),
     count: coverageCount,
+    details: z.array(z.object({
+      detail: z.string().max(64).describe('The matcher\'s own reason: an undecided reason (Undecided.reason, such as version_scheme_mismatch or exact_releases_only), else the question\'s kind'),
+      count: coverageCount,
+    })).describe('The same pairs by the matcher\'s own reason, the most first; empty for an unnamed class and for a pass counted before details were kept'),
   })).describe('Undecided pairs by cause, the most first'),
   identity: z.array(z.object({
     method: z.enum(['stated', 'catalogue', 'record', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the catalogue is matched to it'),

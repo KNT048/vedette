@@ -84,12 +84,12 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	checks, err := checksFor(t.Context(), e.db.Reader(), rows.questions)
+	in, err := e.svc.causeInputsOf(t.Context(), rows.questions, cveSet(vulns))
 	if err != nil {
 		t.Fatal(err)
 	}
 	dm := newDevMatch(a, vulns, *e.clock)
-	states, linked := pairStates(dm, rows, checks)
+	states, linked := pairStates(dm, rows, in)
 	for i, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			st, ok := states[lineKey(c.vuln.CVE, c.sw.ID)]
@@ -113,7 +113,7 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 	// is no pair: it counts under the identity "none".
 	want := Coverage{Devices: 1, Lines: len(cases), Pairs: 6,
 		Decided:  []CoverageSource{{By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangeNVD, Affected: 1, NotAffected: 1}},
-		Possible: []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1}, {Cause: UndecidedSchemeMismatch, Count: 1}},
+		Possible: []CoverageCause{{Cause: CauseNeedsReading, Count: 1}, {Cause: CoverageOtherRecordUnread, Count: 1}},
 		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 6}, {IdentityNone, 1}}}
 	checkCoverage(t, e.svc, want)
 	// A person's answer decides its pair; a pass that finds the device unchanged keeps its counts

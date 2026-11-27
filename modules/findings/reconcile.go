@@ -763,8 +763,8 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 		return sum, err
 	}
 	if last != nil && last.wrote && !last.changed { // counted from the readings the writes were made of (coverage.go)
-		if checks, err := checksFor(ctx, s.rd(ctx), last.rows.questions); err == nil {
-			s.covers.set(a.ID, coverOf(dm, last.rows, checks))
+		if ci, err := s.causeInputsOf(ctx, last.rows.questions, in.set.cveSetOnce()); err == nil {
+			s.covers.set(a.ID, coverOf(dm, last.rows, ci))
 		} else { // the device keeps its last counts: they change nothing
 			s.cfg.Log.WarnContext(ctx, "findings: could not count the decision coverage of a device", "device", a.ID, "error", err)
 		}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/store"
 )
@@ -78,41 +79,13 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 	if err != nil {
 		return nil, err
 	}
-	unread := s.unreadKeys()
-	now := s.now()
+	in := causeInputs{checks: checks, readings: readings, exploited: exploited, unread: s.unreadKeys(), now: s.now()}
 	var out []PossibleItem
 	add := func(q Question, cve string) {
 		if cve == "" || had[lineKey(cve, q.SoftwareID)] {
 			return
 		}
-		it := PossibleItem{Question: q, CVE: cve, Exploited: exploited[cve], State: PossibleOpen}
-		if q.CheckKey != "" && q.CVE == cve {
-			it.Unread = unread[q.CheckKey]
-			c, ok := checks[q.CheckKey]
-			r, read := readings[q.CheckKey]
-			it.Due = q.Detail.Check != nil && (!read || r.due(*q.Detail.Check, now))
-			switch {
-			case ok && !c.Stale && c.Settled(): // the box's own reading of the vendor's advisory comes first
-			case read && q.Detail.Check != nil && (r.applied != nil || r.rejected != nil):
-				st := r.applied
-				if st == nil {
-					st = r.rejected
-				}
-				c, ok = st.asCheck(*q.Detail.Check), true
-			}
-			if ok {
-				it.Check = &c
-				switch {
-				case c.Reading != nil && c.Verdict == VerdictNotAffected && c.RejectedBy == "" && c.Reading.settles(it.Exploited):
-					it.State = PossibleSettled
-				case c.Settled() && c.Verdict == VerdictNotAffected:
-					it.State = PossibleSettled
-				case c.Proposal():
-					it.State = PossibleProposal
-				}
-			}
-		}
-		out = append(out, it)
+		out = append(out, possibleItemOf(q, cve, in))
 	}
 	for _, q := range qs {
 		switch {
@@ -130,6 +103,54 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 			-cmpBool(a.Exploited, b.Exploited), cmp.Compare(a.CVE, b.CVE))
 	})
 	return out, nil
+}
+
+// causeInputs is what the state and the cause of a possible CVE are read from: the checks and the AI's readings of the questions (by
+// check key), the exploited list, the check keys whose pages the last check could not read, the AI's reading as it stands, and now.
+// The lists (possibleItems) and the coverage of a match pass (pairStates) read a possible CVE the same way, through possibleItemOf and
+// PossibleCause.
+type causeInputs struct {
+	checks    map[string]Check
+	readings  map[string]lineReading
+	exploited map[string]bool
+	unread    map[string]bool
+	rs        ReadState
+	now       time.Time
+}
+
+// possibleItemOf is the possible CVE cve of question q as the lists show it: its check (the box's own reading of the vendor's advisory
+// first, else the AI's reading of the line), and its state (settled, a proposal for a person, or open).
+func possibleItemOf(q Question, cve string, in causeInputs) PossibleItem {
+	it := PossibleItem{Question: q, CVE: cve, Exploited: in.exploited[cve], State: PossibleOpen}
+	if q.CheckKey == "" || q.CVE != cve {
+		return it
+	}
+	it.Unread = in.unread[q.CheckKey]
+	c, ok := in.checks[q.CheckKey]
+	r, read := in.readings[q.CheckKey]
+	it.Due = q.Detail.Check != nil && (!read || r.due(*q.Detail.Check, in.now))
+	switch {
+	case ok && !c.Stale && c.Settled(): // the box's own reading of the vendor's advisory comes first
+	case read && q.Detail.Check != nil && (r.applied != nil || r.rejected != nil):
+		st := r.applied
+		if st == nil {
+			st = r.rejected
+		}
+		c, ok = st.asCheck(*q.Detail.Check), true
+	}
+	if !ok {
+		return it
+	}
+	it.Check = &c
+	switch {
+	case c.Reading != nil && c.Verdict == VerdictNotAffected && c.RejectedBy == "" && c.Reading.settles(it.Exploited):
+		it.State = PossibleSettled
+	case c.Settled() && c.Verdict == VerdictNotAffected:
+		it.State = PossibleSettled
+	case c.Proposal():
+		it.State = PossibleProposal
+	}
+	return it
 }
 
 func cmpBool(a, b bool) int {

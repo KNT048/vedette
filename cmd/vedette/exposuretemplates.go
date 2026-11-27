@@ -51,9 +51,6 @@ type exposureTemplateScan struct {
 	mode func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
 
-// templatesHostErrors is -mhe of a run: nuclei stops on the address after 3 errors in a row (the scan module's default).
-const templatesHostErrors = 3
-
 // The reasons exposure shows after "Safe templates for exploited vulnerabilities did not run: ".
 const (
 	templatesOff     = "the Active discovery module is off, so the scan container does not run them. An admin can turn it on in Settings, Modules."
@@ -295,7 +292,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, &exposure.Unavailable{Reason: templatesNoLog}
 	}
 	got, err = a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
-		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: scope,
+		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: nucleiargv.HostErrors(depth, rate), Scope: scope,
 		Depth: depth, Disruptive: r.full && r.disruptive, Domain: dom, ProvenAt: proven})
 	if err != nil && ctx.Err() == nil && refusedBeforeSending(err) { // kf-scan item 5: nothing was sent; the rows say refused
 		for i := range rows {

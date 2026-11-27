@@ -116,6 +116,27 @@ func TimeScale(rate int) int {
 	return 0
 }
 
+// HostErrors is the -mhe of a job of the shape of depth and rate: nuclei gives a port up after two whole waves of the templates the
+// shape keeps in flight got no answer with no answer in between, never fewer than DefaultHostErrors. In nuclei 3.11.1
+// (pkg/protocols/common/hosterrorscache) the count is per host:port, only HTTP requests feed it, one answer resets it, and a
+// permanent error (connection refused, no route) gives the port up at once whatever -mhe says. A full job keeps FullConcurrency
+// templates in flight, so one burst of a slow port (an HTTPS admin page under load) can time out all of them together: 3 dropped
+// such a port at its first burst. 20 waits for a second silent wave, still inside the 2..20 every released worker accepts (nuclei's
+// own default is 30, sized for -c 25). The gentle shape (2 in flight) gets 4, a LAN or own_ip job (1 in flight) keeps 3.
+func HostErrors(depth string, rate int) int {
+	inFlight := 1
+	if depth == DepthFull {
+		inFlight = FullConcurrency
+		if rate == GentleFullRate {
+			inFlight = GentleFullConcurrency
+		}
+	}
+	return min(max(2*inFlight, DefaultHostErrors), MaxHostErrors)
+}
+
+// DefaultHostErrors is the -mhe of a job that runs one template at a time (the scan module's default unresponsive_after).
+const DefaultHostErrors = 3
+
 // disruptiveTags are the tags of the disruptive checks: only a full job with the extra tick of the terms runs them.
 // brute-force and default-login try passwords, authenticated logs in with a user name and password of the template's own, dos may
 // stop the service.

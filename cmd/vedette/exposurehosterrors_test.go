@@ -71,9 +71,6 @@ func TestExposureTemplatesSlowPortKeepsItsTemplates(t *testing.T) {
 			}
 			want := map[string]string{}
 			for _, r := range f.reqs {
-				if r.MaxHostErrors != c.mhe {
-					t.Fatalf("-mhe %d, want %d", r.MaxHostErrors, c.mhe)
-				}
 				for i, id := range r.Templates {
 					want[id] = map[bool]string{false: exposure.OutcomeNoMatch, true: exposure.OutcomeError}[c.noAnswer(i)]
 				}
@@ -86,6 +83,11 @@ func TestExposureTemplatesSlowPortKeepsItsTemplates(t *testing.T) {
 			}
 			if bad > 0 || len(got.Results) != len(want) {
 				t.Fatalf("%d of %d templates have another outcome than their answer (%d results)", bad, len(want), len(got.Results))
+			}
+			for _, r := range f.reqs {
+				if r.MaxHostErrors != c.mhe {
+					t.Fatalf("-mhe %d, want %d", r.MaxHostErrors, c.mhe)
+				}
 			}
 		})
 	}

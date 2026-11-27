@@ -1521,7 +1521,7 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 		t.Fatal(err)
 	}
 	dials := h.dialCount()
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeAll}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBTerms || h.dialCount() != dials {
 		t.Fatalf("step = %+v, %v, dials %d -> %d", o, err, dials, h.dialCount())
 	}
@@ -1936,7 +1936,7 @@ func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *tes
 	h.gvm.cmds = nil
 	h.gvm.mu.Unlock()
 	e.advance(ValidDays * 24 * time.Hour)
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeDeepOnly}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || len(o.missed) != 0 || h.gvm.seen("create_target") { // a refusal: a plain skip
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
@@ -1955,7 +1955,7 @@ func TestContract_INV25_OpenVASNeverScansAReplacedAddress(t *testing.T) {
 	e.acceptTerms(ips[0].ID, false)
 	e.advance(ScanEvery)
 	e.fullAs(ipB) // B is new: A was never seen while B was in use
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeDeepOnly}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || len(o.missed) != 0 || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
@@ -1983,7 +1983,7 @@ func TestContract_INV25_OpenVASNeverScansATypedIPWithoutItsScope(t *testing.T) {
 	}
 	w.acceptTerms(v.ID, false)
 	w.enable()
-	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: ScanMode{Full: true}, Typed: true}, []int{443})
+	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: modeDeepOnly, Typed: true}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") ||
 		!strings.Contains(o.not[0].Text, "not the box's own proven address") || !strings.Contains(o.audit, "not the box's own proven IP") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)

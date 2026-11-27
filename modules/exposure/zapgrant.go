@@ -36,7 +36,7 @@ type pressGrant struct {
 // disruptive rules, and says why.
 func (s *Service) askGrant(ctx context.Context, runID, user string, t Target) {
 	g, ok := s.cfg.Web.(DisruptiveGranter)
-	if !ok || user == SystemUser || t.Kind != KindIP || t.Typed || !t.mode().Disruptive {
+	if !ok || user == SystemUser || t.Kind != KindIP || t.Typed || !narrow(t.mode(), t.Deep).WebDisruptive() { // no grant when the settings leave ZAP no disruptive rule
 		return
 	}
 	ip, err := netip.ParseAddr(t.Value)

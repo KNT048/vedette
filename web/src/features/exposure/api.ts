@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Address, BoxIpDetectResult, BoxIpSettings, Greenbone, Host, Issue, OutsideView, Resolution, Scan, ScopeMode, Service, TargetKind, TargetNode, TargetTree } from './types'
+import type { Address, BoxIpDetectResult, BoxIpSettings, DeepSettingsBody, Greenbone, Host, Issue, OutsideView, Resolution, Scan, ScopeMode, Service, TargetKind, TargetNode, TargetTree } from './types'
 
 const enc = encodeURIComponent
 
@@ -84,6 +84,12 @@ export function useAcceptTerms(id: string) {
 export function useRevokeTerms(id: string) {
   const inv = useInvalidate()
   return useMutation({ mutationFn: () => api.del<TargetNode>(`/exposure/tree/${enc(id)}/terms`), onSuccess: inv })
+}
+
+/** Save the deep-scan settings of a node, whole (admin; turning the denial-of-service group on needs two-step sign-in). */
+export function useSaveDeepSettings(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (b: DeepSettingsBody) => api.put<TargetNode>(`/exposure/tree/${enc(id)}/deep-settings`, b), onSuccess: inv })
 }
 
 export type HandleBody = { ids: string[]; resolution: Resolution; note: string; accepted_until?: string }

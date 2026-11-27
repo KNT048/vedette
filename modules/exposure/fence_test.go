@@ -144,7 +144,7 @@ func TestOpenVASStopsWhenTheHostsFenceSaysNoMidRun(t *testing.T) {
 	e.svc.cfg.Greenbone = fg
 	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Running"} })
 	e.svc.gb().poll = time.Millisecond
-	st := ScanTarget{ID: "t", Kind: KindDomain, Value: "acme.example", User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true},
+	st := ScanTarget{ID: "t", Kind: KindDomain, Value: "acme.example", User: "admin@acme.example", Mode: modeAll,
 		Domain: &DomainScope{Domain: "acme.example", Name: "www.acme.example", Token: deepToken, Chain: "www.acme.example -> web.acme.example"}}
 	type res struct {
 		r   gbResult

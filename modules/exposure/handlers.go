@@ -507,6 +507,25 @@ func (h *ExposureHandlers) ExposurePutExposureTreeIDTerms(ctx context.Context, r
 	return into[oas.ExposurePutExposureTreeIDTermsOK](n)
 }
 
+// ExposurePutExposureTreeIDDeepSettings implements exposure_put_exposure_tree_id_deep_settings (admin; two-step sign-in to turn the
+// denial-of-service checks on): the node's deep-scan settings, whole.
+func (h *ExposureHandlers) ExposurePutExposureTreeIDDeepSettings(ctx context.Context, req *oas.ExposurePutExposureTreeIDDeepSettingsReq, params oas.ExposurePutExposureTreeIDDeepSettingsParams) (*oas.ExposurePutExposureTreeIDDeepSettingsOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	e := DeepSettingsEdit{DoS: req.Dos, Logins: req.Logins, WebActive: req.WebActive, DataChange: req.DataChange, OpenVAS: req.Openvas,
+		Speed: string(req.Speed), SkipPorts: req.SkipPorts, SkipPaths: req.SkipPaths}
+	if err := h.svc.PutDeepSettings(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, e); err != nil {
+		return nil, ToAPIError(err)
+	}
+	n, err := h.svc.Node(ctx, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePutExposureTreeIDDeepSettingsOK](n)
+}
+
 // ExposureDeleteExposureTreeIDTerms implements exposure_delete_exposure_tree_id_terms (admin): withdraw the testing terms.
 func (h *ExposureHandlers) ExposureDeleteExposureTreeIDTerms(ctx context.Context, params oas.ExposureDeleteExposureTreeIDTermsParams) (*oas.ExposureDeleteExposureTreeIDTermsOK, error) {
 	user, err := actor(ctx)

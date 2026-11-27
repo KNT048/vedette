@@ -126,7 +126,7 @@ func TestTerms_ModeReachesTheScanners(t *testing.T) {
 	scan()
 	e.acceptTerms(id, true)
 	scan()
-	want := []ScanMode{{}, {Full: true}, {Full: true, Disruptive: true}}
+	want := []ScanMode{{}, modeDeepOnly, modeAll}
 	if len(r.modes) != 3 || r.modes[0] != want[0] || r.modes[1] != want[1] || r.modes[2] != want[2] {
 		t.Fatalf("modes = %+v", r.modes)
 	}

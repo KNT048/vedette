@@ -123,8 +123,8 @@ func TestPortBoundIsTheReachablePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	products := pack.ProductTags(ix.Templates)
-	p := fullPorts(ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")})[0]
-	bound := portBound(ix, products, p, false)
+	p := fullPorts(ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")}, nil)[0]
+	bound := portBound(ix, products, p, tplFilter{m: exposure.ScanMode{Full: true}})
 	tech := 0
 	every := map[string][]string{}
 	for _, tp := range ix.Templates {
@@ -134,7 +134,7 @@ func TestPortBoundIsTheReachablePlan(t *testing.T) {
 		}
 	}
 	for name, found := range map[string]map[string][]string{"nothing matched": nil, "nginx": {"nginx-version": {"nginx"}}, "every technologies template": every} {
-		plan, _ := webPlan(ix, p, foundTags(ix, products, found, p), false, exposure.FullTemplatesPerPort-tech)
+		plan, _ := webPlan(ix, p, foundTags(ix, products, found, p), tplFilter{m: exposure.ScanMode{Full: true}}, exposure.FullTemplatesPerPort-tech)
 		if n := int64(tech + len(plan)); n > bound {
 			t.Errorf("%s: %d templates sent, over the bound %d", name, n, bound)
 		}

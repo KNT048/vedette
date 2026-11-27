@@ -49,7 +49,10 @@ const (
 	notDisruptiveNoPorts    = "No open port was found for nmap's disruptive scripts to check."
 	notDisruptiveEverywhere = "More than 40 ports answered, more than a normal box exposes (a router or firewall that answers for every port looks like this), so nmap's disruptive scripts were not sent over them."
 	notDisruptiveFail       = "nmap's disruptive scripts failed, so they checked nothing. The box log has the error."
-	notDisruptiveSlow       = "nmap's disruptive scripts did not finish within %d minutes, so what they found is not shown."
+	// notDisruptiveSettings: nmap's disruptive scripts are one list of denial-of-service, password-guessing and data-changing
+	// scripts, so they run only while this target's settings keep all three groups on.
+	notDisruptiveSettings = notSettings + " nmap's disruptive scripts run only while the denial-of-service checks, password guessing and the exploit checks that may change data are all on."
+	notDisruptiveSlow     = "nmap's disruptive scripts did not finish within %d minutes, so what they found is not shown."
 )
 
 // disruptiveStep is the last step of a deep scan: nmap's disruptive scripts on the open ports this scan found on the box's own public IP
@@ -71,8 +74,11 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 	case user == SystemUser:
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveScheduled)
 		return
-	case !mode.Disruptive:
+	case !mode.Disruptive && mode.Off&(GroupDoS|GroupLogins|GroupChange) == 0:
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveOff)
+		return
+	case !mode.AllDisruptive():
+		rs.skip(ctx, stepKeyDisruptive, notDisruptiveSettings)
 		return
 	case ds == nil:
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveNoScanner)
@@ -107,7 +113,7 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 			if err != nil {
 				return
 			}
-			if line == "" && stD.Mode.Disruptive && stD.Domain == nil { // the box's own IP, reached through a name of the domain
+			if line == "" && stD.Mode.AllDisruptive() && stD.Domain == nil { // the box's own IP, reached through a name of the domain
 				addrs = append(addrs, addr{stD, a.ip})
 			}
 		}
@@ -137,7 +143,7 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 	failed, ran := false, false
 	for _, a := range addrs {
 		k := a.ip.String()
-		ports := slices.DeleteFunc(slices.Clone(open[k]), func(p int) bool { return s.lostPort(ctx, k, p) })
+		ports := slices.DeleteFunc(slices.Clone(open[k]), func(p int) bool { return s.lostPort(ctx, k, p) || a.st.Skips(p) })
 		if len(ports) == 0 { // every open port of it stopped answering earlier in the run: the note says so
 			if len(open[k]) > 0 {
 				notes = append(notes, clipText("Not run on "+k+". "+s.lostText(ctx, lt, map[string][]int{k: s.observerOf(ctx).lostOf()[k]}), maxLineText))

@@ -373,6 +373,7 @@
   "PUT /exposure/box-ip/settings": "exposure",
   "PUT /exposure/greenbone": "exposure",
   "PUT /exposure/targets/{id}/terms": "exposure",
+  "PUT /exposure/tree/{id}/deep-settings": "exposure",
   "PUT /exposure/tree/{id}/terms": "exposure",
   "PUT /feeds/custom/{id}": "feeds",
   "PUT /feeds/sources/{id}": "feeds",

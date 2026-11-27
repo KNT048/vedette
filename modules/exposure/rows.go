@@ -213,6 +213,8 @@ type scanSummary struct {
 	Found      *Counts         `json:"found,omitempty"`  // the numbers of what this scan itself found
 	Checks     []CheckRow      `json:"checks,omitempty"`
 	NotChecked []NotCheckedRow `json:"not_checked,omitempty"`
+	// Settings are the target's deep-scan settings this run used (written at its check step); nil on a run before them.
+	Settings *settingsSummary `json:"settings,omitempty"`
 }
 
 // ScanView is one scan of a target: its shared run, with the exposure facts (contract.ts Scan).

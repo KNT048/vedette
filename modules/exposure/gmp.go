@@ -67,8 +67,13 @@ const (
 )
 
 // gmpDisruptiveFamilies are the families of "Full and fast" that guess passwords, log in with default accounts or try to crash a
-// service: on only when the accepted testing terms include the disruptive checks.
-var gmpDisruptiveFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
+// service: each on only when the run's mode allows its group (gmpLoginFamilies: password guessing and default logins; gmpDoSFamily:
+// denial of service).
+var (
+	gmpLoginFamilies      = []string{"Brute force attacks", "Default Accounts"}
+	gmpDoSFamily          = "Denial of Service"
+	gmpDisruptiveFamilies = append(slices.Clone(gmpLoginFamilies), gmpDoSFamily)
+)
 
 // gmpWebFuzzOff are the generic "Directory Traversal / File Inclusion" active checks (Web Root, Web Dirs, Web URL Parameter) of the
 // family Web application abuses. They have a script timeout of 30 minutes each, the first of them is not gated by the checkbox
@@ -90,44 +95,73 @@ type gmpCheckbox struct {
 // are on, safe_checks, the checkboxes and the NVTs left out. Everything else is "Full and fast" as Greenbone ships it. A level never
 // changes into another: each has its config, found by name.
 type gbLevel struct {
-	name       string // the config's name in Greenbone
-	text       string // what it does, for the check line and the probe log
-	disruptive bool   // the disruptive families on
-	safeChecks string // "yes" or "no"
+	name       string   // the config's name in Greenbone
+	text       string   // what it does, for the check line and the probe log
+	families   []string // the disruptive families on (of gmpDisruptiveFamilies); every other one is off
+	safeChecks string   // "yes" or "no"
 	prefs      []gmpCheckbox
 	webOff     []string // NVTs of the family Web application abuses left out of the config
 }
 
-// The two levels: the deep scan of accepted testing terms, and the deep scan with the disruptive checks.
+// gbDeep is the level of a deep scan without any disruptive group; gbDisruptive the one with every group.
 var (
-	gbDeep = gbLevel{
-		name: "vedette-deep-full-and-fast", disruptive: false, safeChecks: "yes",
-		text: "Full and fast, every non-disruptive check (active ones included; generic web fuzzing off); safe checks on",
-		prefs: []gmpCheckbox{
-			{gmpBruteOID, "Disable brute force checks", "yes"},
-			{gmpBruteOID, "Disable default account checks", "yes"},
-			{gmpGlobalOID, "Enable generic web application scanning", "no"},
-		},
-		webOff: gmpWebFuzzOff,
-	}
-	gbDisruptive = gbLevel{
-		name: "vedette-disruptive-full-and-fast", disruptive: true, safeChecks: "no",
-		text: "Full and fast, every check (brute force, default accounts and denial of service included; generic web fuzzing off); safe checks off",
-		prefs: []gmpCheckbox{
-			{gmpBruteOID, "Disable brute force checks", "no"},
-			{gmpBruteOID, "Disable default account checks", "no"},
-			{gmpGlobalOID, "Enable generic web application scanning", "no"},
-		},
-		webOff: gmpWebFuzzOff,
-	}
+	gbDeep       = levelFor(false, false, false)
+	gbDisruptive = levelFor(true, true, true)
 )
 
-// levelOf is the config of a scan mode; only a Full mode reaches Greenbone.
+// levelOf is the config of a scan mode (only a Full mode reaches Greenbone): one level per mask of the disruptive groups it allows.
 func levelOf(m ScanMode) gbLevel {
-	if m.Disruptive {
-		return gbDisruptive
+	m = m.norm()
+	return levelFor(m.DoS, m.Logins, m.Change)
+}
+
+// levelFor is the level of a mask of the disruptive groups: the Brute force and Default Accounts families and the two checkboxes
+// of "Options for Brute Force NVTs" follow password guessing, the Denial of Service family follows denial of service, and
+// safe_checks is off only when both denial of service and the exploit checks that may change data are allowed: that one scanner
+// option gates the denial-of-service and the destructive NVTs of every family together, so either group off keeps it on (narrower).
+// Levels with the same content share a name, so at most six configs exist; the two of no group and of every group keep their names.
+func levelFor(dos, logins, change bool) gbLevel {
+	safe := !dos || !change
+	lv := gbLevel{safeChecks: map[bool]string{true: "yes", false: "no"}[safe], webOff: gmpWebFuzzOff,
+		prefs: []gmpCheckbox{
+			{gmpBruteOID, "Disable brute force checks", map[bool]string{true: "no", false: "yes"}[logins]},
+			{gmpBruteOID, "Disable default account checks", map[bool]string{true: "no", false: "yes"}[logins]},
+			{gmpGlobalOID, "Enable generic web application scanning", "no"},
+		}}
+	name, text := "vedette-deep", "Full and fast, every non-disruptive check (active ones included; generic web fuzzing off)"
+	if logins {
+		lv.families = append(lv.families, gmpLoginFamilies...)
+		name, text = name+"-logins", text+"; brute force and default accounts"
 	}
-	return gbDeep
+	if dos {
+		lv.families = append(lv.families, gmpDoSFamily)
+		name, text = name+"-dos", text+"; denial of service"
+	}
+	if !safe {
+		name = name + "-safe-off"
+	}
+	text += "; safe checks " + onOff(safe)
+	switch name {
+	case "vedette-deep":
+		name = "vedette-deep-full-and-fast"
+	case "vedette-deep-logins-dos-safe-off":
+		name = "vedette-disruptive-full-and-fast"
+	default:
+		name += "-full-and-fast"
+	}
+	lv.name, lv.text = name, text
+	return lv
+}
+
+// gbSafeChecksLine says, when the run allows the disruptive checks and the settings keep denial of service or the data-changing checks
+// off, that OpenVAS left out both: safe_checks holds them together. "" otherwise.
+func gbSafeChecksLine(m ScanMode) string {
+	m = m.norm()
+	if !m.Disruptive || (m.DoS && m.Change) || m.Off&(GroupDoS|GroupChange) == 0 {
+		return ""
+	}
+	return "OpenVAS's denial-of-service checks and its checks that may change data: " + NotBySettings +
+		" One OpenVAS option (safe checks) holds both, so both stay off while either group is off."
 }
 
 // GMPLogin is the GMP user and password the host created for Vedette when it set Greenbone up (kept in core/secrets, never logged).
@@ -472,7 +506,7 @@ func levelFamilies(base []gmpFamily, lv gbLevel) []gmpFamily {
 	var out []gmpFamily
 	for _, f := range base {
 		name := strings.TrimSpace(f.Name)
-		if name == "" || !f.on() || (!lv.disruptive && slices.Contains(gmpDisruptiveFamilies, name)) {
+		if name == "" || !f.on() || (slices.Contains(gmpDisruptiveFamilies, name) && !slices.Contains(lv.families, name)) {
 			continue
 		}
 		out = append(out, f)
@@ -491,10 +525,11 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel, base []gm
 	if len(got.Configs) != 1 || got.Configs[0].ID != id {
 		return fmt.Errorf("%w: get_configs did not answer about Vedette's config", ErrGMPBad)
 	}
-	for _, f := range gmpDisruptiveFamilies {
+	for _, f := range gmpDisruptiveFamilies { // each family by itself, as the level's groups set it
+		want := slices.Contains(lv.families, f)
 		on := slices.ContainsFunc(got.Configs[0].Families, func(x gmpFamily) bool { return strings.TrimSpace(x.Name) == f && x.on() })
-		if on != lv.disruptive {
-			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + f + "\" " + onOff(lv.disruptive) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
+		if on != want {
+			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + f + "\" " + onOff(want) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 		}
 	}
 	for _, want := range levelFamilies(base, lv) {
@@ -755,9 +790,18 @@ func (g *gmpConn) createTarget(ctx context.Context, name, ip, portList string) (
 	return gmpID(id, "target")
 }
 
-func (g *gmpConn) createTask(ctx context.Context, name, target, config string) (string, error) {
+// gbGentlePrefs are the task preferences of the gentle speed: one host at a time, and fewer checks at once on it than Greenbone's
+// default of 4. The normal speed sets none (Greenbone's defaults).
+const gbGentlePrefs = `<preferences><preference><scanner_name>max_checks</scanner_name><value>2</value></preference>` +
+	`<preference><scanner_name>max_hosts</scanner_name><value>1</value></preference></preferences>`
+
+func (g *gmpConn) createTask(ctx context.Context, name, target, config string, gentle bool) (string, error) {
+	prefs := ""
+	if gentle {
+		prefs = gbGentlePrefs
+	}
 	id, err := g.do(ctx, "create_task", "<create_task><name>"+esc(name)+`</name><comment>Started by Vedette (external exposure, optional deep scan).</comment><config id="`+
-		config+`"/><target id="`+target+`"/><scanner id="`+gmpOpenVAS+`"/></create_task>`, gmpMaxAnswer, nil)
+		config+`"/><target id="`+target+`"/><scanner id="`+gmpOpenVAS+`"/>`+prefs+`</create_task>`, gmpMaxAnswer, nil)
 	if err != nil {
 		return "", err
 	}

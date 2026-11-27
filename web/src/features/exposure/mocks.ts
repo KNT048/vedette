@@ -20,10 +20,10 @@ import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
 import { serviceLabel } from './services'
 import { seedTree, seedTreeRows, type StoredNode, type TreeRows } from './treeSeed'
-import { MAX_ISSUE_IDS, MAX_SELECTED, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_KEPT_VERSIONS, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
+import { MAX_ISSUE_IDS, MAX_SELECTED, MAX_SKIP_PATHS, MAX_SKIP_PORTS, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_KEPT_VERSIONS, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { mockDeviceProgress } from '@/lib/progress'
 import { scheduleSubjects } from '@/features/core/schedulesMock'
-import type { Proof, ProofState, Resolution, RunStatus, Scan, ScopeMode, Severity, TargetKind, TargetNode } from './types'
+import type { DeepSettings, Proof, ProofState, Resolution, RunStatus, Scan, ScopeMode, Severity, TargetKind, TargetNode } from './types'
 import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 
@@ -524,6 +524,17 @@ function advanceRuns() {
   if (changed) treeRows.set({ ...rows, scans })
 }
 
+/** The settings of a node without saved ones: the denial-of-service checks off, everything else on (modules/exposure DefaultDeepSettings). */
+const DEFAULT_DEEP_SETTINGS: DeepSettings = { dos: false, logins: true, web_active: true, data_change: true, openvas: true, speed: 'normal', skip_ports: [], skip_paths: [], updated_at: null, updated_by: null, problem: null }
+
+/** Why a path to skip is refused, or null (modules/exposure validSkipPath): it starts with /, at most 200 characters of a URL path, matched as written. */
+function skipPathProblem(p: string): string | null {
+  if (!p.startsWith('/')) return `"${p.slice(0, 40)}" does not start with /`
+  if (p.length > 200) return 'a path is longer than 200 characters'
+  if (!/^[A-Za-z0-9._~%!&',;=:@/-]+$/.test(p)) return `"${p.slice(0, 40)}" holds a character a path to skip cannot have (only letters, digits and - . _ ~ % ! & ' , ; = : @ /; it is matched as written, not as a pattern)`
+  return null
+}
+
 function nodeView(n: StoredNode, all = tree.get()): TargetNode {
   const rows = treeRows.get()
   const proof = nodeProof(n, all)
@@ -540,6 +551,7 @@ function nodeView(n: StoredNode, all = tree.get()): TargetNode {
     terms_notice: { version: TERMS_VERSION, text: (n.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', n.value) },
     terms_warning: null,
     deep: termsInForce(n.terms?.version),
+    deep_settings: n.deep_settings ?? DEFAULT_DEEP_SETTINGS,
     blocked: !n.enabled ? 'disabled' : proof.state !== 'proven' && proof.state !== 'covered' ? 'proof' : !commitmentCurrent ? 'no_commitment' : null,
     last_scan: scans[0] ?? null,
     counts: { hosts: (rows.hosts[n.id] ?? []).length, services: open.length, web: open.filter((s) => s.is_web).length, issues: issues.length, worst },
@@ -731,6 +743,29 @@ const treeHandlers = [
     }))
     audit('exposure.terms_accept', n.value, 'disruptive checks: yes')
     return HttpResponse.json(nodeView(next))
+  }),
+
+  http.put(`${API}/exposure/tree/:id/deep-settings`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    const b = await body<Omit<DeepSettings, 'updated_at' | 'updated_by' | 'problem'>>(request)
+    if (b.speed !== 'normal' && b.speed !== 'gentle') return fail(400, 'invalid_settings', 'The speed is normal or gentle.')
+    const ports = [...new Set(b.skip_ports ?? [])].sort((x, y) => x - y)
+    const badPort = ports.find((p) => !Number.isInteger(p) || p < 1 || p > 65535)
+    if (badPort !== undefined) return fail(400, 'invalid_settings', `Ports to skip: ${badPort} is not a port number (1 to 65535).`)
+    if (ports.length > MAX_SKIP_PORTS) return fail(400, 'invalid_settings', `Ports to skip: more than ${MAX_SKIP_PORTS} ports.`)
+    const paths = [...new Set(b.skip_paths ?? [])]
+    const why = paths.map(skipPathProblem).find((x) => x !== null)
+    if (why) return fail(400, 'invalid_settings', `Web paths to skip: ${why}.`)
+    if (paths.length > MAX_SKIP_PATHS) return fail(400, 'invalid_settings', `Web paths to skip: more than ${MAX_SKIP_PATHS} paths.`)
+    const before = n.deep_settings ?? DEFAULT_DEEP_SETTINGS
+    const me = currentUser()!
+    if (b.dos && !before.dos && !me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then turn the denial-of-service checks on again.')
+    const after: DeepSettings = { dos: !!b.dos, logins: !!b.logins, web_active: !!b.web_active, data_change: !!b.data_change, openvas: !!b.openvas, speed: b.speed,
+      skip_ports: ports, skip_paths: paths, updated_at: nowIso(), updated_by: me.email, problem: null }
+    audit('exposure.deep_settings', n.value, 'settings saved')
+    return HttpResponse.json(nodeView(patchNode(n.id, (x) => ({ ...x, deep_settings: after }))))
   }),
 
   http.delete(`${API}/exposure/tree/:id/terms`, ({ params }) => {

@@ -78,6 +78,7 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_address":            {export: "id host_id target_id ip family class first_seen last_seen"},
 	"exp_attempt":            {export: "id ts"},
 	"exp_consent":            {export: "target_id kind version text by_name user_id method disruptive at"},
+	"exp_deep_setting":       {export: "target_id dos logins web_active data_change openvas speed updated_at updated_by", json: "skip_ports skip_paths"},
 	"exp_host":               {export: "id target_id name source selected child_target_id cname first_seen last_seen"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
 	"exp_issue":              {export: "id target_id service_id engine key title severity state resolution resolved_by resolved_at note accepted_until first_seen last_seen last_run_id", json: "cves detail"},

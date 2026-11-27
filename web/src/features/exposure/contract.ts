@@ -387,6 +387,27 @@ export const Scan = z.object({
 })
 
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
+/** The deep-scan settings of a target: they only narrow what the testing terms and the scan's own rules allow (a scheduled scan, a
+ * typed IP, an address that is not the box's own, carrier-grade NAT never get the disruptive groups, whatever is set here). */
+export const MAX_SKIP_PORTS = 64
+export const MAX_SKIP_PATHS = 20
+export const DeepSpeed = z.enum(['normal', 'gentle'])
+const deepGroups = {
+  dos: z.boolean().describe('Denial-of-service and crash checks (off by default): the disruptive checks that can exhaust or crash a service'),
+  logins: z.boolean().describe('Password guessing and sign-ins with default or well-known passwords'),
+  web_active: z.boolean().describe('The active web scan (ZAP): its spider and attack rules; its disruptive rules also need dos and data_change'),
+  data_change: z.boolean().describe('Exploit checks that send more than a harmless read and may create or change data'),
+  openvas: z.boolean().describe('OpenVAS on this target; it still needs the box-wide OpenVAS switch on'),
+  speed: DeepSpeed.describe('gentle: the engines that can run slower do (OpenVAS runs fewer checks at once)'),
+  skip_ports: z.array(z.number().int().min(1).max(65535)).max(MAX_SKIP_PORTS).describe('TCP ports no engine is sent to; their stored services are left as they are (never closed by a scan that skipped them)'),
+  skip_paths: z.array(z.string()).max(MAX_SKIP_PATHS).describe('URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port'),
+}
+export const DeepSettings = z.object({
+  ...deepGroups,
+  updated_at: z.iso.datetime().nullable().describe('When the settings were saved; null while the target has the defaults'),
+  updated_by: z.string().nullable().describe('Who saved them; null while the target has the defaults'),
+  problem: z.string().nullable().describe('Why the stored settings cannot be read (the scan of the target refuses to run until they are saved again); null when they read fine'),
+})
 export const NodeBlock = z.enum(['disabled', 'proof', 'no_commitment'])
 export const TargetNode = z.object({
   id: z.string(),
@@ -403,6 +424,7 @@ export const TargetNode = z.object({
   terms_notice: TermsNotice.describe('The current testing terms for this node, to accept or read again'),
   terms_warning: z.string().nullable().describe('IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)'),
   deep: z.boolean().describe('Scans of this node are deep scans: the current testing terms are accepted'),
+  deep_settings: DeepSettings.describe('How hard the deep scan may hit this node: the groups it may run, its speed, and the ports and web paths it leaves out'),
   blocked: NodeBlock.nullable().describe('Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor covered), no_commitment (no scan confirmation of the current sentence: an administrator\'s Scan now records it, an operator\'s is refused); null when it can be scanned'),
   last_scan: Scan.nullable().describe('The newest run of this node, live or ended; null when never scanned'),
   counts: z.object({
@@ -524,6 +546,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/exposure/tree/{id}/verify', summary: 'Check ownership now: a domain\'s TXT record, a typed IP\'s file or reverse DNS name, or that the box still goes out through its own IP. A node covered by a proven ancestor is verified by that proof. Not found is a normal answer (verified false). 429 rate_limited as before', stories: ['S-EXP-1'], role: 'operator', params: id, response: z.object({ verified: z.boolean(), message: z.string(), node: TargetNode }) },
   { method: 'put', path: '/exposure/tree/{id}/terms', summary: 'Accept the testing terms of a node whose proof holds (proven, covered, or the box\'s own IP it does not go out through now), one acceptance: its scans are then deep scans, and a scan a person starts also runs the disruptive checks; scheduled scans never do. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified or expired; 409 shared_address for the box\'s IP behind carrier-grade NAT. Every refusal is logged (WARN, code and node id). Records the scan confirmation too when the node has none of the current sentence. Audited', stories: ['S-EXP-2'], role: 'admin', params: id, body: z.object({ version: z.string(), disruptive: z.boolean().optional().describe('Ignored (sent by older pages): every acceptance includes the disruptive checks') }), response: TargetNode },
   { method: 'delete', path: '/exposure/tree/{id}/terms', summary: 'Withdraw the testing terms: the next scan is a surface scan, and a deep scan of this node that runs now is stopped. Audited', stories: ['S-EXP-2'], role: 'admin', params: id, response: TargetNode },
+  { method: 'put', path: '/exposure/tree/{id}/deep-settings', summary: `Save the deep-scan settings of a node, whole. They only narrow: a group turned on here still runs only where the testing terms and the scan's rules allow it. Turning dos on needs two-step sign-in (403 twofa_required); 400 invalid_settings for a port outside 1-65535, more than ${MAX_SKIP_PORTS} ports, a path that does not start with /, holds a pattern, a query or a space, is over 200 characters, or more than ${MAX_SKIP_PATHS} paths. A scan that runs now takes a group turned off at its next step and never a group turned on; the ports and web paths to skip and the speed apply from the next scan. Audited (exposure.deep_settings, before and after)`, stories: ['S-EXP-2'], role: 'admin', params: id, body: z.object(deepGroups), response: TargetNode },
   { method: 'post', path: '/exposure/tree/{id}/scan', status: 202, summary: 'Scan now: queues a run for this node (202 with the scan, status queued or running). Refused when blocked: 409 disabled, 409 not_verified (the proof is re-checked right before), 400 commitment_required for an operator; an administrator\'s first Scan now records the confirmation and needs two-step sign-in (403 twofa_required) and notice_version (409 notice_changed when not current). 409 busy when a run of this node is queued or running. Stop it through the shared run', stories: ['S-EXP-1'], role: 'operator', params: id, body: z.object({ notice_version: z.string().optional() }), bodyOptional: true, response: Scan },
   { method: 'get', path: '/exposure/tree/{id}/scans', summary: 'The runs of this node, newest first (at most 100)', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(Scan) }), example: nodeEx },
   { method: 'get', path: '/exposure/tree/{id}/hosts', summary: 'Names found under this domain node, with source, first and last seen, the choice for scope selected and the child target that owns a name; empty for an IP', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(Host) }), example: nodeEx },

@@ -199,7 +199,7 @@ func TestTypedScope_ADomainDeepStepToATypedAddressUsesTheStricterTerms(t *testin
 		t.Fatal(err)
 	}
 	d.acceptTerms(d.dom.ID, true) // the domain accepted the deep scan and the disruptive checks
-	st := ScanTarget{ID: d.dom.ID, Kind: KindDomain, Value: d.dom.Value, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}
+	st := ScanTarget{ID: d.dom.ID, Kind: KindDomain, Value: d.dom.Value, User: "admin@acme.example", Mode: modeAll}
 	ip := netip.MustParseAddr(ipB)
 	if _, why, err := d.svc.deepGate(d.ctx(), st, ip, []string{"www.acme.example"}); err != nil || why != deepTerms {
 		t.Fatalf("the IP has no terms: %q %v", why, err)

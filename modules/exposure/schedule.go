@@ -162,7 +162,7 @@ func (s *Service) createScanRun(ctx context.Context, tx *sql.Tx, t Target, trigg
 // terms allow. A person's Scan now and Run once now keep what the terms allow.
 func boxMode(actor string, m ScanMode) ScanMode {
 	if actor == SystemUser {
-		m.Disruptive = false
+		m = m.withoutDisruptive()
 	}
 	return m
 }

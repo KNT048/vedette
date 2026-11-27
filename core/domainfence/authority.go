@@ -25,7 +25,8 @@ import (
 // with the same rules:
 //
 //   - the servers are the NS records of the registered domain of the name asked (proofat.Registered), looked up through the box's
-//     resolver, at most maxNameServers of them, each at its first public IPv4 address (never a private, loopback or local one);
+//     resolver (none when that name is a CNAME: the NS records would be its target's), at most maxNameServers of them, each at
+//     its first public IPv4 address (never a private, loopback or local one);
 //   - each query asks for no recursion; an answer counts only from a server that answers with authority (the AA flag), for the
 //     question asked, with the message id sent: a referral (a server answering for a parent zone only), a lame server, a recursive
 //     resolver listed as a name server, or an answer to another question counts for nothing;
@@ -59,9 +60,11 @@ type Authority interface {
 	AuthTXT(ctx context.Context, name string) (AuthAnswer, error)
 }
 
-// NSResolver is what Authoritative asks the box's resolver: the zone's NS records and their addresses; *net.Resolver satisfies it.
+// NSResolver is what Authoritative asks the box's resolver: the zone's NS records and their addresses, and whether the zone's name is
+// a CNAME; *net.Resolver satisfies it.
 type NSResolver interface {
 	LookupNS(ctx context.Context, name string) ([]*net.NS, error)
+	LookupCNAME(ctx context.Context, host string) (string, error)
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
@@ -170,6 +173,16 @@ type nameServer struct {
 
 // servers is the zone's name servers, each with its first public IPv4 address, sorted by name, at most maxNameServers.
 func (a *Authoritative) servers(ctx context.Context, zone string) ([]nameServer, error) {
+	// A resolver follows a CNAME, and LookupNS keeps every NS record of the answer: for a registered domain that is a CNAME (a name
+	// under a private public suffix such as a platform's host name) those would be the NS records of the CNAME's target, whose
+	// servers may claim the zone's names. Such a zone has no servers of its own to ask.
+	cn, err := a.R.LookupCNAME(ctx, zone+".")
+	switch {
+	case err != nil && !notFound(err):
+		return nil, err
+	case err == nil && strings.ToLower(strings.TrimSuffix(strings.TrimSpace(cn), ".")) != zone:
+		return nil, errors.New(zone + " is a CNAME to another name: it has no name servers of its own")
+	}
 	nss, err := a.R.LookupNS(ctx, zone+".")
 	if err != nil {
 		return nil, err

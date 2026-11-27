@@ -34,6 +34,7 @@ type fakeServer struct {
 type fakeZones struct {
 	mu      sync.Mutex
 	ns      map[string][]string     // zone -> its name server host names (the box resolver's NS answer)
+	cname   map[string]string       // name -> canonical name: an NS question for it is answered with the target's NS records
 	addr    map[string][]netip.Addr // name server host -> addresses
 	servers map[netip.Addr]*fakeServer
 	asked   []netip.Addr
@@ -45,6 +46,9 @@ func (z *fakeZones) LookupNS(_ context.Context, name string) ([]*net.NS, error) 
 	z.mu.Lock()
 	defer z.mu.Unlock()
 	z.nsAsked = append(z.nsAsked, name)
+	if cn, ok := z.cname[name]; ok { // a recursive resolver follows the CNAME, and LookupNS takes every NS record of the answer
+		name = cn
+	}
 	hosts, ok := z.ns[name]
 	if !ok {
 		return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
@@ -54,6 +58,19 @@ func (z *fakeZones) LookupNS(_ context.Context, name string) ([]*net.NS, error) 
 		out = append(out, &net.NS{Host: h + "."})
 	}
 	return out, nil
+}
+
+func (z *fakeZones) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if cn, ok := z.cname[name]; ok {
+		return cn + ".", nil
+	}
+	if _, ok := z.ns[name]; ok {
+		return name + ".", nil
+	}
+	return "", &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
 }
 
 func (z *fakeZones) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {
@@ -181,6 +198,7 @@ var (
 	ns1 = netip.MustParseAddr("97.74.104.44")
 	ns2 = netip.MustParseAddr("173.201.72.44")
 	nsX = netip.MustParseAddr("198.18.7.7") // a name server of another zone
+	nsA = netip.MustParseAddr("45.79.0.53") // a public name server of another zone
 )
 
 // authWorld is acme.example: the box's resolver still answers the previous install's token (cached), while the zone's two name
@@ -278,6 +296,14 @@ func TestOwnedAsksTheZonesOwnServers(t *testing.T) {
 					z.servers[s].txt["acme.example"] = []string{"v=spf1 -all"}
 				}
 			}, servers: true},
+		{name: "the registered domain is a CNAME: its target's servers are not the zone's", domain: "acme.example",
+			change: func(_ *fakeDNS, z *fakeZones) {
+				// a dangling CNAME to a domain someone else registers: its servers claim acme.example's names with authority
+				z.cname = map[string]string{"acme.example": "attacker.example"}
+				z.addr["ns.attacker.example"] = []netip.Addr{nsA}
+				z.servers[nsA] = &fakeServer{zone: "acme.example", cname: map[string]string{}, txt: map[string][]string{
+					"acme.example": {"vedette-verify=" + tok}, "_vedette-verify.acme.example": {"vedette-verify=" + tok}}}
+			}},
 		{name: "the name is a CNAME at its servers: its target's record does not count", domain: "acme.example",
 			change: func(_ *fakeDNS, z *fakeZones) {
 				for _, s := range z.servers {

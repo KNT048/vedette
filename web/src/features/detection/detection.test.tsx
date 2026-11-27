@@ -13,7 +13,7 @@ const row = async (id: string) => within(await screen.findByTestId(`watcher-${id
 describe('intrusion detection page', () => {
   it('shows each watcher with its true state and one action, and no row for an engine that does not exist', async () => {
     renderApp('/detection')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Intrusion detection' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Overview' }, T)).toBeInTheDocument()
     const items = (await screen.findAllByTestId(/^watcher-/, undefined, T)).map((x) => x.getAttribute('data-testid'))
     expect(items).toEqual(['watcher-traps', 'watcher-logs', 'watcher-mirror_port', 'watcher-ips_events', 'watcher-bad-addresses'])
     expect(document.body.textContent).not.toMatch(/Suricata|signature engine/i)

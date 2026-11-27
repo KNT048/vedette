@@ -91,7 +91,7 @@ export function IncidentRespondOff({ id }: { id: string }) {
   const q = useIncident(id)
   return (
     <>
-      <PageHeader title={t('page.title')} stories={['S-RESP-3']} />
+      <PageHeader title={t('common:shell.response')} stories={['S-RESP-3']} />
       <Card id="incident-respond" title={t('incident.heading')} className="mb-5">
         <div className="grid gap-3">
         {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : (

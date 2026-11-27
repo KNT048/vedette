@@ -129,7 +129,7 @@ export default function PrivacySection() {
   const q = usePrivacy()
   return (
     <>
-      <PageHeader title={t('privacy.title')} meta={t('privacy.meta')} info={t('privacy.metaInfo')} stories={['S-CORE-4']} />
+      <PageHeader title={t('settings.privacy')} meta={t('privacy.meta')} info={t('privacy.metaInfo')} stories={['S-CORE-4']} />
       <QueryState query={q}>{(d) => <Body d={d} />}</QueryState>
     </>
   )

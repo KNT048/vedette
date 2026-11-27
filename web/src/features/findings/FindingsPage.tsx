@@ -48,7 +48,8 @@ function Screen() {
   return (
     <>
       <PageHeader
-        title={!o ? t('titleLoading') : o.open.findings === 0 ? t('titleNone') : t('page.title', { count: o.open.findings })}
+        title={t('common:shell.findings')}
+        meta={!o ? null : o.open.findings === 0 ? t('titleNone') : t('page.title', { count: o.open.findings })}
         stories={['S-MIT-1', 'S-TIER-1']}
         info={<><p>{t('page.info')}</p><p>{t('page.infoStatus')}</p></>}
         actions={<SampleDataNote />}

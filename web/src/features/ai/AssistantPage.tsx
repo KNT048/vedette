@@ -31,9 +31,10 @@ export default function AssistantPage() {
   const cfg = useAiConfig(on)
   const u = usage.data
   const [q, setQ] = useState('') // held here: switching tabs unmounts a tab, and a half-typed question must survive a look at History
-  const title = gate.state === 'off' ? t('page.titleOff')
-    : gate.state === 'unconfigured' ? t(gate.text === 'keyLost' ? 'page.titleKeyLost' : 'page.titleUnconfigured')
-      : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : t('page.titleLoading')
+  // Not connected, or the key lost: the empty screen of the Ask tab already says so, the header only names the page.
+  const status = gate.state === 'off' ? t('page.titleOff')
+    : gate.state === 'unconfigured' ? null
+      : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : null
   const tabs: PageTab[] = [{ id: 'ask', label: t('page.tabAsk'), panel: <Ask q={q} setQ={setQ} /> }]
   if (on) tabs.push({ id: 'history', label: t('page.tabHistory'), panel: <History /> })
   // AI not connected and never run: a 0/cap gauge and an empty log only add noise; the empty screen in the Ask tab already says what to do.
@@ -43,7 +44,7 @@ export default function AssistantPage() {
   }
   return (
     <>
-      <PageHeader title={title} info={t('page.info')} meta={cfg.data?.configured ? t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) }) : undefined} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
+      <PageHeader title={t('common:shell.assistant')} info={t('page.info')} meta={<>{status}{cfg.data?.configured ? ` ${t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) })}` : ''}</>} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
       {/* S-UI-1: the meter is a KPI only when a person acts on it (80 % of the month's budget or more); below that the title already says it. */}
       {on && u && budgetPct(u.month.total, u.monthly_budget) >= 80 ? (
         <KpiStrip label={t('page.kpiLabel')} items={[{ value: `${fmtNumber(u.month.total)} / ${fmtNumber(u.monthly_budget)}`, label: t('page.kpiTokens'), to: '?tab=usage' }]} />

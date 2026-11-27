@@ -1,5 +1,4 @@
 {
-  "titleLoading": "External exposure",
   "title": {
     "none": "No domain or verified public IP yet",
     "pending_one": "{{count}} target needs ownership proof before it can be scanned",
@@ -11,9 +10,6 @@
     "issues_other": "{{count}} open issues on your Internet-facing targets",
     "services_one": "{{count}} service is open to the Internet",
     "services_other": "{{count}} services are open to the Internet"
-  },
-  "meta": {
-    "rule": "Only what you have proven you own and confirmed is scanned."
   },
   "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership of each target: a domain with a DNS TXT record; a public IP you type in with a token file served on it or a reverse DNS name under one of your proved domains; a public IP the box finds as its own egress address is proved by that detection. Every proof is looked for again right before every scan and by the box itself before it runs out; each time it is found it holds for 90 days more. A check that does not find it is shown as a warning and does not stop scans until those 90 days have passed. Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
   "kpi": {

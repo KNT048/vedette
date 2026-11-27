@@ -263,7 +263,7 @@ test.describe('findings: clean install', () => {
     const errors = collectErrors(page)
     await clean(page)
     await page.goto('/findings')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('No open findings')
+    await expect(page.locator('header:has(h1)').first()).toContainText('No open findings')
     await expect(page.locator('body')).not.toContainText('NAS')
     await expect(page.getByRole('link', { name: 'Open Devices' }).first()).toHaveAttribute('href', '/devices')
     await expect(page.getByRole('link', { name: 'Open Settings, Scanning' }).first()).toHaveAttribute('href', '/settings/scanning')

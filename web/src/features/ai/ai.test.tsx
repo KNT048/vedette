@@ -39,7 +39,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
   })
   it('first sentence says how many tokens were used; no a11y violations', async () => {
     renderApp('/assistant?tab=usage')
-    expect(await screen.findByRole('heading', { level: 1, name: /[\d,]+ of 1,800,000 tokens used this month/ })).toBeInTheDocument()
+    expect(await screen.findByText(/[\d,]+ of 1,800,000 tokens used this month/)).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Log of AI calls' })).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'Tokens used this month against the monthly budget' })).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -182,7 +182,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
   it('no AI profile: guides to add one and nothing can be asked', async () => {
     clearProfiles()
     renderApp('/assistant')
-    expect(await screen.findByRole('heading', { level: 1, name: /No AI profile yet/ })).toBeInTheDocument()
+    expect(await screen.findByText('No AI profile yet')).toBeInTheDocument()
     expect(screen.getByText(/Add an AI profile \(provider, model and key\)/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open Settings, AI assistant' })).toHaveAttribute('href', '/settings/ai#ai-profiles')
     // docs/UI.md §0: the first profile is added right here
@@ -207,7 +207,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     const asked: string[] = []
     server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.includes('/ai/')) asked.push(new URL(request.url).pathname) })
     renderApp('/assistant')
-    expect(await screen.findByRole('heading', { level: 1, name: /AI assistant is off/ })).toBeInTheDocument()
+    expect(await screen.findByText(/AI assistant is off/)).toBeInTheDocument()
     // Only the module-off card; no calls to routes that are 404 and no "Not found" cards for the meter and the logs.
     expect(screen.queryByText(/Not found/)).toBeNull()
     expect(screen.queryByRole('heading', { name: /Activity log/i })).toBeNull()

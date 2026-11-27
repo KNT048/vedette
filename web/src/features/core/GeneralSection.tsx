@@ -92,7 +92,7 @@ export default function GeneralSection() {
   const terms = useTerms()
   return (
     <>
-      <PageHeader title={q.data ? t('general.title', { name: q.data.name }) : t('settings.general')} meta={t('general.meta')} info={t('general.metaInfo')} stories={['S-CORE-1']} />
+      <PageHeader title={t('settings.general')} meta={t('general.meta')} info={t('general.metaInfo')} stories={['S-CORE-1']} />
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>{(d) => <Form initial={d} />}</QueryState>
       <QueryState query={terms}>{(d) => <Terms s={d} />}</QueryState>

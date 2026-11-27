@@ -424,7 +424,7 @@ describe('core: initial setup', () => {
 describe('core: Settings frame and roles', () => {
   it('/settings redirects to the first section, a11y clean', async () => {
     renderApp('/settings')
-    expect(await screen.findByRole('heading', { level: 1, name: /Sample Company box/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'General' })).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
     for (const n of ['General', 'Modules', 'Users', 'Connections', 'Audit log', 'Updates', 'Privacy', 'MCP server', 'Data']) expect(within(nav).getByRole('link', { name: n })).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -513,7 +513,7 @@ describe('core: module (S-CORE-1)', () => {
       renderApp('/settings/modules')
       expect(await screen.findByRole('switch', { name: /module Vulnerability scan$/ })).toBeInTheDocument()
       expect(screen.queryByText('Credentialed scan')).toBeNull()
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(`of ${modulesStore.get().length - 1} modules`)
+      expect(screen.getByRole('heading', { level: 1 }).closest('header')).toHaveTextContent(`of ${modulesStore.get().length - 1} modules`)
     } finally { credFlag.CREDENTIALED_IN_UI = true }
   })
 
@@ -572,12 +572,11 @@ describe('core: privacy (S-CORE-4)', () => {
     expect(got.telemetry.enabled).toBe(false)
   })
 
-  it.each([true, false])('the title never says a signal is sent, whatever telemetry.enabled is (%s)', async (enabled) => {
+  it.each([true, false])('the page header never says a signal is sent, whatever telemetry.enabled is (%s)', async (enabled) => {
     await fetch(`${location.origin}/api/v1/core/privacy`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telemetry: enabled }) }) // true is refused (400): the title does not depend on it
     renderApp('/settings/privacy')
-    const h1 = await screen.findByRole('heading', { level: 1 })
-    expect(h1).toHaveTextContent('The box connects out only for the flows listed below')
-    expect(h1.textContent).not.toMatch(/sends an anonymous signal/i)
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'Privacy' })
+    expect(h1.closest('header')!.textContent).not.toMatch(/sends an anonymous signal/i)
     expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
     expect(screen.queryByText(/Sending every hour/)).toBeNull()
   })
@@ -1669,7 +1668,7 @@ describe('core: MCP (S-MCP-1)', () => {
   it('turn on, create a token shown only once, revoke', async () => {
     const u = user()
     renderApp('/settings/mcp')
-    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    expect(await screen.findByText(/^MCP server is off/)).toBeInTheDocument()
     await u.click(screen.getByRole('switch', { name: 'Turn on MCP server' }))
     expect(await screen.findByText('127.0.0.1:8765')).toBeInTheDocument()
     await u.click(screen.getByRole('button', { name: 'Create token' })) // opens the dialog
@@ -1697,12 +1696,12 @@ describe('core: MCP (S-MCP-1)', () => {
     const u = user()
     setModule('mcp-server', true)
     renderApp('/settings/mcp')
-    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })).toBeInTheDocument()
+    expect(await screen.findByText(/^MCP server is on, read-only, 0 tokens/)).toBeInTheDocument()
     const real = globalThis.fetch
     const asked: string[] = []
     const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { asked.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
     await u.click(screen.getByRole('switch', { name: 'Turn off MCP server' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    expect(await screen.findByText(/^MCP server is off/)).toBeInTheDocument()
     expect(await screen.findByRole('switch', { name: 'Turn on MCP server' })).toBeInTheDocument()
     expect(asked.filter((x) => x.endsWith('/api/v1/core/mcp'))).toEqual([]) // no 404 call once it is off
     spy.mockRestore()
@@ -1724,7 +1723,7 @@ describe('core: MCP (S-MCP-1)', () => {
   it('refuses what the server refuses: bad name, unknown scope, an 11th token', async () => {
     setModule('mcp-server', true)
     renderApp('/settings/mcp') // signs the admin in
-    await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })
+    await screen.findByText(/^MCP server is on, read-only, 0 tokens/)
     const create = (b: object) => call('/core/mcp/tokens', 'POST', b)
     expect(await errCode(await create({ name: '<b>', scopes: ['feeds'] }))).toBe('invalid_name')
     expect(await errCode(await create({ name: 'ok', scopes: ['feeds', 'secrets'] }))).toBe('invalid_scopes')
@@ -2176,7 +2175,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   it('shows the operating system part even when the software part is not built yet (501, issue #230)', async () => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
     renderApp('/settings/updates?tab=os')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
+    expect(await screen.findByText('Ubuntu 24.04.3 LTS: 5 security updates waiting', undefined, T)).toBeInTheDocument()
     expect(osSection().getByRole('button', { name: 'Check for OS updates' })).toBeInTheDocument()
     await user().click(screen.getByRole('tab', { name: /^Vedette/ }))
     expect(await screen.findByText('Not built yet.')).toBeInTheDocument()
@@ -2191,7 +2190,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     renderApp('/settings/updates?tab=os')
     expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()
     await u.click(osSection().getByRole('button', { name: 'Check for OS updates' }))
-    expect(await screen.findByRole('heading', { level: 1, name: /Ubuntu 24.04.3 LTS/ }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Updates' }, T)).toBeInTheDocument()
     expect(osSection().getByRole('table', { name: 'Pending operating system updates' })).toBeInTheDocument()
   })
 
@@ -2200,7 +2199,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     const os = await (await fetch(BASE)).json()
     server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ ...os, pending: os.pending.slice(0, 1).map((p: object) => ({ ...p, security: true })) })))
     renderApp('/settings/updates?tab=os')
-    expect(await screen.findByRole('heading', { level: 1, name: /: 1 security update waiting$/ }, T)).toBeInTheDocument()
+    expect(await screen.findByText(/: 1 security update waiting$/, undefined, T)).toBeInTheDocument()
   })
 
   it('a container-only install: the 409 is titled for what it is and the heading stays (issues #239, #241)', async () => {
@@ -2229,7 +2228,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   it('shows the release, kernel, support end, auto updates, pending packages with security and CVEs, and guidance for a release upgrade', async () => {
     renderApp('/settings/updates?tab=os')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
+    expect(await screen.findByText('Ubuntu 24.04.3 LTS: 5 security updates waiting', undefined, T)).toBeInTheDocument()
     const os = osSection()
     expect(await os.findByText('6.8.0-71-generic')).toBeInTheDocument()
     expect(os.getByText('Until May 2029')).toBeInTheDocument()
@@ -2252,7 +2251,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json(debian)))
     renderApp('/settings/updates?tab=os')
     const os = osSection
-    expect(await screen.findByRole('heading', { level: 1, name: 'Debian GNU/Linux 12 (bookworm): no security updates waiting' }, T)).toBeInTheDocument()
+    expect(await screen.findByText('Debian GNU/Linux 12 (bookworm): no security updates waiting', undefined, T)).toBeInTheDocument()
     expect(os().getByText('Standard support ended')).toBeInTheDocument()
     expect(os().getByText('Extended (LTS) support until June 2028')).toBeInTheDocument()
     expect(os().getByText('Release upgrade to Debian 13 (trixie) is available')).toBeInTheDocument()
@@ -2283,7 +2282,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     expect(within(panel).getByText(/^vedette-pre-update-.*\.db\.gz \(4\.2 MB\)$/)).toBeInTheDocument()
     for (const n of ['vedette-api', 'database', 'sensor', 'web interface']) expect(within(panel).getByText(n)).toBeInTheDocument()
     // no security update waits, but the installed ones need a reboot: the headline says that, not "nothing waiting"
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ubuntu 24.04.3 LTS: updates installed, a reboot is needed to use them'), T)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).closest('header')).toHaveTextContent('Ubuntu 24.04.3 LTS: updates installed, a reboot is needed to use them'), T)
     const os = osSection()
     expect(os.getAllByText('Reboot required').length).toBeGreaterThan(0)
     expect(os.getByText(/Needed by: linux-image-6.8.0-87-generic .*libc6/)).toBeInTheDocument()
@@ -2317,7 +2316,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   it('viewer sees everything read-only: every action is disabled with the reason', async () => {
     renderApp('/settings/updates?tab=os', { role: 'viewer' })
     const os = osSection
-    await screen.findByRole('heading', { level: 1, name: /security updates waiting/ }, T)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Updates' }).closest('header')).toHaveTextContent(/security updates waiting/), T)
     for (const n of [/^Install security updates/, 'Install all updates', 'Reboot now', 'Schedule reboot', 'Check for OS updates']) expect(os().getByRole('button', { name: n })).toBeDisabled()
     expect(os().getByRole('switch', { name: 'Automatic security updates' })).toBeDisabled()
     expect(os().getByRole('button', { name: 'Save window' })).toBeDisabled()

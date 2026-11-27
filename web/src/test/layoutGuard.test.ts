@@ -9,6 +9,8 @@
 //  - a row or block that opens: ExpandToggle (a chevron pointing right when closed, down when open); no page pairs aria-expanded
 //    with a chevron icon of its own;
 //  - a detail page goes back with breadcrumbs (PageHeader `breadcrumbs`), not a "Back to …" arrow link;
+//  - a page title is the short noun of the page's sidebar entry or settings menu entry ("Findings", "Devices", "Logs", "Updates"), never a
+//    sentence or a count: those go in the header's `meta` line under it (see PAGE_TITLES);
 //  - a tab panel does not open with a heading that repeats its tab's name ("Trap hits" in the Hits tab): its Section has no
 //    `title`, only a `label` (the English texts of the feature's tab labels and Section titles are compared).
 // A named exception is listed in ALLOWED with why it stays; an entry no longer used fails too, so the list only shrinks.
@@ -116,6 +118,47 @@ const TAB_HEADING_ALLOWED: { file: string; key: string; why: string }[] = [
   { file: 'features/response/MetricsTab.tsx', key: 'metrics.rejectedTitle', why: 'one of several blocks of the metrics tab, not the Requests tab' },
 ]
 
+/** The page behind each sidebar entry and settings menu entry: its source file and the translation key of its entry. The page's
+ *  PageHeader title is that same key (`t('common:shell.findings')`, or `t('settings.users')` in core), so the heading is the word the
+ *  person just clicked. A status line or a count goes in `meta`. A new nav or settings entry must be listed here (or in
+ *  TITLE_EXEMPT) or the test below fails. */
+const PAGE_TITLES: { entry: string; file: string; key: string }[] = [
+  { entry: 'common:shell.findings', file: 'features/findings/FindingsPage.tsx', key: 'common:shell.findings' },
+  { entry: 'common:shell.devices', file: 'features/inventory/DevicesPage.tsx', key: 'common:shell.devices' },
+  { entry: 'common:shell.exposure', file: 'features/exposure/ExposurePage.tsx', key: 'common:shell.exposure' },
+  { entry: 'common:shell.logs', file: 'features/logs/LogsPage.tsx', key: 'common:shell.logs' },
+  { entry: 'common:shell.assistant', file: 'features/ai/AssistantPage.tsx', key: 'common:shell.assistant' },
+  { entry: 'common:shell.honeypot', file: 'features/honeypot/HoneypotPage.tsx', key: 'common:shell.honeypot' },
+  { entry: 'common:shell.reports', file: 'features/reports/ReportsPage.tsx', key: 'common:shell.reports' },
+  { entry: 'common:shell.incidents', file: 'features/notify/IncidentsPage.tsx', key: 'common:shell.incidents' },
+  { entry: 'common:shell.detection', file: 'features/detection/DetectionPage.tsx', key: 'common:shell.detection' },
+  { entry: 'common:shell.response', file: 'features/response/ResponsePage.tsx', key: 'common:shell.response' },
+  { entry: 'common:shell.lookup', file: 'features/feeds/LookupPage.tsx', key: 'common:shell.lookup' },
+  { entry: 'common:shell.scanning', file: 'features/scanning/ScanningPage.tsx', key: 'common:shell.scanning' },
+  { entry: 'common:shell.siem', file: 'features/logs/SiemSettings.tsx', key: 'common:shell.siem' },
+  { entry: 'common:shell.aiSettings', file: 'features/ai/AiSettings.tsx', key: 'common:shell.aiSettings' },
+  { entry: 'common:shell.feedsSettings', file: 'features/feeds/FeedsSettings.tsx', key: 'common:shell.feedsSettings' },
+  { entry: 'common:shell.channels', file: 'features/notify/ChannelsSettings.tsx', key: 'common:shell.channels' },
+  { entry: 'common:shell.responseSettings', file: 'features/response/ResponseSettings.tsx', key: 'common:shell.responseSettings' },
+  { entry: 'core:settings.general', file: 'features/core/GeneralSection.tsx', key: 'settings.general' },
+  { entry: 'core:settings.modules', file: 'features/core/ModulesSection.tsx', key: 'settings.modules' },
+  { entry: 'core:settings.users', file: 'features/core/UsersSection.tsx', key: 'settings.users' },
+  { entry: 'core:settings.connections', file: 'features/core/ConnectionsSection.tsx', key: 'settings.connections' },
+  { entry: 'core:settings.audit', file: 'features/core/AuditSection.tsx', key: 'settings.audit' },
+  { entry: 'core:settings.updates', file: 'features/core/UpdatesSection.tsx', key: 'settings.updates' },
+  { entry: 'core:settings.network', file: 'features/core/NetworkSection.tsx', key: 'settings.network' },
+  { entry: 'core:settings.privacy', file: 'features/core/PrivacySection.tsx', key: 'settings.privacy' },
+  { entry: 'core:settings.mcp', file: 'features/core/McpSection.tsx', key: 'settings.mcp' },
+  { entry: 'core:settings.data', file: 'features/core/DataSection.tsx', key: 'settings.data' },
+  { entry: 'core:settings.myAccount', file: 'features/core/AccountPage.tsx', key: 'settings.myAccount' },
+]
+
+/** Entries whose page keeps a heading of its own, with why. */
+const TITLE_EXEMPT: { entry: string; why: string }[] = [
+  { entry: 'common:shell.home', why: 'the dashboard: its heading is the answer to "is anything I run being exploited?", not the word Home' },
+  { entry: 'common:shell.declared', why: 'a block of the device settings, drawn as a Section, not a page with its own header' },
+]
+
 describe('layout guard: tabs, list toolbars, count lines, row toggles and breadcrumbs come from the shared parts', () => {
   it('reads the app sources', () => {
     expect(files.length).toBeGreaterThan(200)
@@ -143,6 +186,32 @@ describe('layout guard: tabs, list toolbars, count lines, row toggles and breadc
     expect(stale).toEqual([])
     expect(tabLabels.get('features/honeypot')?.has('hits')).toBe(true)
     expect(tabHeadings('features/honeypot/X.tsx', `useTranslation('honeypot')\n<Section id="x" title={t('hits.title')}>`)).toEqual(['hits.title'])
+  })
+
+  it('page-title: a page header carries its sidebar or settings entry name, not a sentence or a count', () => {
+    // Every entry of the shell is listed.
+    const entries = files.flatMap((f) => [...f.text.matchAll(/\blabel: '((?:common:shell|core:settings)\.\w+)'/g)].map((m) => m[1]!))
+    const unlisted = [...new Set(entries)].filter((e) => !PAGE_TITLES.some((p) => p.entry === e) && !TITLE_EXEMPT.some((x) => x.entry === e))
+    expect(unlisted, `nav or settings entries with no page in PAGE_TITLES (add the page, or an exemption with why):\n${unlisted.join('\n')}`).toEqual([])
+    const gone = [...PAGE_TITLES.map((p) => p.entry), ...TITLE_EXEMPT.map((x) => x.entry)].filter((e) => !entries.includes(e))
+    expect(gone, `listed entries that no longer exist:\n${gone.join('\n')}`).toEqual([])
+    // Each listed page titles itself with that key, and no header of its file computes a title from data.
+    const bad = PAGE_TITLES.flatMap((p) => {
+      const text = files.find((f) => f.file === p.file)?.text
+      if (text === undefined) return [`${p.file}: no such file`]
+      const out: string[] = []
+      if (!new RegExp(`<PageHeader\\s+title=\\{t\\('${p.key}'\\)\\}`).test(text)) out.push(`${p.file}: no PageHeader title={t('${p.key}')}`)
+      for (const m of text.matchAll(/<PageHeader\s+title=\{(?!t\(')([^}]{0,40})/g)) out.push(`${p.file}: PageHeader title computed from data (${m[1]}): put the status in meta`)
+      return out
+    })
+    expect(bad).toEqual([])
+    // The names themselves are short nouns: a status sentence in a locale entry would pass the checks above.
+    for (const p of PAGE_TITLES) {
+      const [ns, k] = p.entry.split(':') as [string, string]
+      const v = english(ns, k) ?? ''
+      expect(v.split(' ').length, `${p.entry} reads as a sentence: "${v}"`).toBeLessThanOrEqual(5)
+      expect(v, `${p.entry} carries a count or punctuation: "${v}"`).not.toMatch(/[.:,{}\d]/)
+    }
   })
 
   it('the rules find what they are written for', () => {

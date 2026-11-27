@@ -62,7 +62,7 @@ export default function ModulesSection() {
 
   return (
     <>
-      <PageHeader title={listed ? t('modules.title', { on: listed.filter((m) => m.enabled).length, total: listed.length }) : t('settings.modules')} meta={t('modules.meta')} info={t('modules.metaInfo')} stories={['S-CORE-1']} />
+      <PageHeader title={t('settings.modules')} meta={listed ? `${t('modules.title', { on: listed.filter((m) => m.enabled).length, total: listed.length })}. ${t('modules.meta')}` : t('modules.meta')} info={t('modules.metaInfo')} stories={['S-CORE-1']} />
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>
         {(d) => {

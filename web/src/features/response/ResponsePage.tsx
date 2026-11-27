@@ -60,7 +60,7 @@ function Content() {
   const incident = new URLSearchParams(search).get('incident') // Respond on an incident
   return (
     <FrozenCtx.Provider value={leaving}>
-      <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
+      <PageHeader title={t('common:shell.response')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
         meta={<span className="inline-flex flex-wrap items-center gap-2">{t('page.meta')}<SampleDataNote /></span>} info={t('page.metaInfo')} />
       {/* One note per cause: paused (breaker or Emergency stop) says it and links to Settings, so "Execution is off" is not repeated under it */}
       {s && paused ? (

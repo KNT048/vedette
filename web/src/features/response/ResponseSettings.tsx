@@ -157,7 +157,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const s = q.data
   return (
     <>
-      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-meta text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} />}
+      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-meta text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('common:shell.responseSettings')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} />}
       <FrozenCtx.Provider value={leaving}>
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">

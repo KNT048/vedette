@@ -194,11 +194,12 @@ var revisionTypes = map[string]bool{"rpm": true, "deb": true, "dpkg": true, "deb
 //     release (reads: NetScaler's "14.1-73.37"), a single number after the hyphen (a revision or build), B below A ("9.3.1-2.1": a
 //     revision is below its own release);
 //   - the same release twice: that release;
-//   - a range from A through B: B a letter release of A ("1.1.0-1.1.0g"), or B above A with the same first number ("12.0.0-12.1.1",
-//     "17.1-17.12"), or B of three numbers or more above A ("1.0.0-6.6.1"; a revision of three numbers after a release does not occur
-//     in a "version" field of the CVE list);
-//   - unsure: B of two numbers with a higher first number ("5.1-19.2" a range, "0.154-3.1" a revision), A a single number other than
-//     0 ("20-30.05.24"), or a "v" in front (no generic order). The entry is then unusable, never read narrower than the record means.
+//   - a range from A through B: B a letter release of A ("1.1.0-1.1.0g"), or A zero ("0-0.7.0", "0.0-2.2": the earliest version),
+//     or B above A with the same first number ("12.0.0-12.1.1", "17.1-17.12"), or B of three numbers or more above A ("1.0.0-6.6.1";
+//     a revision of three numbers after a release does not occur in a "version" field of the CVE list);
+//   - unsure: B of two numbers with a higher first number ("5.1-19.2" a range, "0.154-3.1" a revision), or A a single number other
+//     than 0 ("20-30.05.24"). The entry is then unusable, never read narrower than the record means. A range of releases written with
+//     a "v" ("v9.20-v9.26") is kept as written, and entryRows refuses it as any range it cannot order.
 func hyphenRead(s, versionType string, reads func(start, end string, incl bool) bool) (kind hyphenKind, from, to string) {
 	m := hyphenRE.FindStringSubmatch(s)
 	if m == nil || revisionTypes[strings.ToLower(strings.TrimSpace(versionType))] || reads != nil && reads(s, s, true) {
@@ -218,14 +219,13 @@ func hyphenRead(s, versionType string, reads func(start, end string, incl bool) 
 		kind = hyphenOne
 	case c > 0 || len(y) == 1:
 		return hyphenNone, "", "" // a revision or build of release A
-	case len(x) == 1 && x[0] != 0:
+	case !slices.ContainsFunc(x, func(n int) bool { return n != 0 }):
+		kind = hyphenRange // "0.0-2.2": from the first release (CVE JSON 5: "0 denotes the earliest possible version")
+	case len(x) == 1:
 		return hyphenUnsure, "", ""
 	case x[0] == y[0] || len(y) >= 3:
 		kind = hyphenRange
 	default:
-		return hyphenUnsure, "", ""
-	}
-	if m[1] != "" || m[3] != "" {
 		return hyphenUnsure, "", ""
 	}
 	return kind, from, to

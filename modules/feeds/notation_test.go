@@ -130,6 +130,8 @@ func TestParseCVERecord_HyphenRange(t *testing.T) {
 			[]span{{si: "1.0.0", ei: "6.6.1", def: u}, {si: "1.0", ei: "4.6.1", def: u}}, 0},
 		{"a range from 0", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"0-0.7.0","status":"affected"}]}`,
 			[]span{{ei: "0.7.0", def: u}}, 0},
+		{"a range from the first release", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"0.0-2.2","status":"affected"}]}`,
+			[]span{{si: "0.0", ei: "2.2", def: u}}, 0},
 		{"a range after the product's name", `{"vendor":"acme","product":"Ledger","versions":[{"version":"Ledger 1.0-1.23","status":"affected"}]}`,
 			[]span{{si: "1.0", ei: "1.23", def: k}}, 0},
 		{"one release written as a range", `{"vendor":"acme","product":"ledger","defaultStatus":"unaffected","versions":[{"version":"6.2.0-6.2.0","status":"affected"}]}`,

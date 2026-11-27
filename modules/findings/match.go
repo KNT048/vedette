@@ -845,7 +845,7 @@ func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out 
 		key = keyIDs(v)
 	}
 	m0, out0 := matchOne(d.a, s, r.info, v, keyed, key, r.named[vi], d.now)
-	if out == outMatch && versionBacked(m) && out0 != outNotAffected && !(out0 == outMatch && versionBacked(m0)) {
+	if out == outMatch && versionBacked(m) && out0 != outNotAffected && (out0 != outMatch || !versionBacked(m0)) {
 		m.Evidence.Identity = s.AIProduct.note()
 		m.Evidence.Summary = strings.TrimSpace(m.Evidence.Summary + " No standard data names this software: the AI identified it as " +
 			clean(cmpNonEmpty(s.AIProduct.Title, s.AIProduct.Product)) + " among the products of Vedette's catalogue.")

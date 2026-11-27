@@ -506,7 +506,7 @@ func (s *Service) storeIdentities(ctx context.Context, rows []identityRow) error
 	return err
 }
 
-// ErrNoIdentity: the finding does not rest on the AI's identification of its software.
+// ErrNoIdentity says the finding does not rest on the AI's identification of its software.
 var ErrNoIdentity = &APIError{"not_found", 404, "This finding does not rest on the AI's identification of its software."}
 
 // RejectIdentity is a person's "Not this product" on a finding opened through the AI's identification of its software: the product is

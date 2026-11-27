@@ -116,7 +116,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
   covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
   `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
-  `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). Where the vendor's affected ranges start also decides "not affected":
+  `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). Where the vendor's affected ranges start also decides "not affected" (Junos OS only: the one scheme whose
+  first release of a branch is read, `branchStart`; the proof says "NVD lists" when NVD's rows are the ones read):
   when every one of them has a start and the version is older than the first, and that first start is a release inside its branch
   (Juniper's "23.2 versions from 23.2R2-S1 before 23.2R2-S5"), the flaw came in with it and the older release is not affected
   (`olderThanEveryStart`; the proof and closing note say "older than the first affected release the vendor lists (23.2R2-S1)"). A range

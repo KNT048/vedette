@@ -202,7 +202,9 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or inside a
 		// model-limited range: only the vendor's statements below may still say "not affected"
 	}
-	if scheme != nil && !st.unread && !namesLine(spans, installed) && !inside(installed, st.models) {
+	// only Junos OS's numbering is read for where a branch starts (branchStart): another scheme's first release of a line is a build
+	// number that reads as a release inside it, so the rule would close an older line the rows say nothing about
+	if scheme == versionscheme.Junos && !st.unread && !namesLine(spans, installed) && !inside(installed, st.models) {
 		if first, ok := olderThanEveryStart(installed, spans); ok && !nvdCovers(in, v) {
 			out.verdict, out.before = versionscheme.Verdict{State: versionscheme.NotAffected}, first
 			return out, true
@@ -380,8 +382,13 @@ func schemeDecision(a Asset, v Vuln, r schemeRead) (Tri, VersionRange, string) {
 		return Yes, within, ""
 	case versionscheme.NotAffected:
 		if r.before != nil {
-			return No, VersionRange{}, fmt.Sprintf("Not affected: %s lists the releases of %s that have %s starting from %s, and %s runs %s %s, older than the first affected release the vendor lists (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
-				who, clean(r.product), v.CVE, clean(releaseName(*r.before)), clean(a.Name), clean(r.product), clean(release), clean(releaseName(*r.before)))
+			// who listed the ranges: the vendor's own record, or NVD when its rows are the ones read in the scheme
+			lister, first := who, "the vendor lists"
+			if r.origin == RangeNVD {
+				lister, first = "NVD", "NVD lists"
+			}
+			return No, VersionRange{}, fmt.Sprintf("Not affected: %s lists the releases of %s that have %s starting from %s, and %s runs %s %s, older than the first affected release %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
+				lister, clean(r.product), v.CVE, clean(releaseName(*r.before)), clean(a.Name), clean(r.product), clean(release), first, clean(releaseName(*r.before)))
 		}
 		if r.stated {
 			return No, VersionRange{}, fmt.Sprintf("Not affected: %s states which releases of %s have %s, and %s runs %s %s, which is not one of them. Vedette closed this by itself and reopens it if a later match says the device is affected.",

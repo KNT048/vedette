@@ -17,10 +17,16 @@ type scheduleQuery struct {
 	interval              int
 }
 
-// programsQuery is the Windows package list with each SQL Server instance's PatchLevel. The registry arm is first: a compound
-// SELECT takes its column names from it, and its rows come before the list's.
-const programsQuery = `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r ` +
+// programsQuery is the Windows package list with the versions the machine itself registers for what runs: each SQL Server
+// instance's PatchLevel, and each installed version of the .NET shared frameworks. The registry arms are first: a compound SELECT
+// takes its column names from the first, and their rows come before the list's. reg_key is the registry key of a registry row, ''
+// on a program.
+const programsQuery = `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS reg_key FROM registry r ` +
 	`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL%\Setup' AND r.name = 'PatchLevel' ` +
+	`UNION ALL SELECT '', r.name, '', '', r.key FROM registry r ` +
+	`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\dotnet\Setup\InstalledVersions\%\sharedfx\%' AND r.type != 'subkey' ` +
+	`UNION ALL SELECT '', r.name, '', '', r.key FROM registry r ` +
+	`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\%\sharedfx\%' AND r.type != 'subkey' ` +
 	`UNION ALL SELECT name, version, publisher, install_date, '' FROM programs;`
 
 var schedule = []scheduleQuery{
@@ -31,11 +37,17 @@ var schedule = []scheduleQuery{
 	{name: "interfaces", query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600},
 	{name: "deb_packages", query: "SELECT name, version, arch, source FROM deb_packages;", interval: 3600, platform: "linux"},
 	{name: "rpm_packages", query: "SELECT name, version, release, arch, epoch FROM rpm_packages;", interval: 3600, platform: "linux"},
-	// With the installed programs, one registry value: the build of each SQL Server instance (Setup\PatchLevel, cumulative updates
-	// included), whose release's own Uninstall entry has no version. In the same query so the value and the list come in one snapshot
-	// (the mapper sets the release's row from it; a query of its own would arrive in another request). First, so a list cut at maxRows
-	// keeps it; marked by sql_setup, '' on every program row. The key pattern is exact: osquery lists the subkeys of
-	// "Microsoft SQL Server" and reads their Setup key, and only MSSQL<n>.<instance>\Setup PatchLevel is returned.
+	// With the installed programs, the versions the machine registers for what runs, where an Uninstall entry does not say it:
+	// - the build of each SQL Server instance (Setup\PatchLevel, cumulative and security updates included), whose release's own
+	//   Uninstall entry has no version or the one it was installed with. The key pattern is exact: osquery lists the subkeys of
+	//   "Microsoft SQL Server" and reads their Setup key, and only MSSQL<n>.<instance>\Setup PatchLevel is returned.
+	// - each installed version of each .NET shared framework (Microsoft.NETCore.App, Microsoft.AspNetCore.App,
+	//   Microsoft.WindowsDesktop.App): the runtime installers register one value per version under
+	//   dotnet\Setup\InstalledVersions\<arch>\sharedfx\<framework> (both registry views are read), the list `dotnet --list-runtimes`
+	//   prints. The Uninstall entries are not it: the host resolver's stays at the runtime that installed it, a hosting bundle's names
+	//   several frameworks. Two levels below a fixed path, one value per installed version.
+	// In the same query so the values and the list come in one snapshot (the mapper sets the rows from them; a query of its own would
+	// arrive in another request). First, so a list cut at maxRows keeps them; marked by reg_key, '' on every program row.
 	{name: "programs", query: programsQuery, interval: 3600, platform: "windows"},
 	// The running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
 	// big host's package list longer than osquery's logger_tls_max_linesize, and osquery drops such a line whole).

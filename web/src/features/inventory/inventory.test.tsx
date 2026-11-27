@@ -2033,9 +2033,10 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(sched.deb_packages!.platform).toBe('linux')
     expect(sched.os_revision!.platform).toBe('windows') // Windows's update revision, a Windows-only column of os_version
     expect(sched.os_revision!.query).not.toMatch(/registry/) // the revision comes from os_version, not the registry table
-    // The one registry read is each SQL Server instance's PatchLevel, in the Windows programs query
+    // The registry reads are in the Windows programs query: each SQL Server instance's PatchLevel and the installed .NET framework versions
     for (const [name, q] of Object.entries(sched)) if (name !== 'programs') expect(q.query).not.toMatch(/registry/)
     expect(sched.programs!.query).toContain("FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Microsoft SQL Server\\MSSQL%\\Setup' AND r.name = 'PatchLevel' UNION ALL")
+    expect(sched.programs!.query).toContain("FROM registry r WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\dotnet\\Setup\\InstalledVersions\\%\\sharedfx\\%' AND r.type != 'subkey' UNION ALL")
     expect(sched.programs!.query).toMatch(/FROM programs;$/)
 
     const wz = wazuhReaderSteps()

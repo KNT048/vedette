@@ -86,8 +86,10 @@ const (
 	// when this changes: "ranges-2" keeps the versions a vendor writes in its own notation (statedRows); "ranges-3" reads VMware's ESXi
 	// versions written as words ("8.0 prior to ESXi80a-20842819", esxiTextRows); "ranges-4" keeps Juniper's fix per maintenance branch
 	// ("22.3R2-S2, 22.3R3-S1") as one row per branch (branchFixes); "ranges-5" keeps, for a product with a version scheme, the ranges a
-	// vendor states unaffected (unaffectedRows) and the rows of an entry limited to some models, with the models (statedRows).
-	recordReader = "ranges-5"
+	// vendor states unaffected (unaffectedRows) and the rows of an entry limited to some models, with the models (statedRows);
+	// "ranges-6" leaves out a range inside one letter-release branch alone ("1.1.1" before "1.1.1zk", letterBranch) instead of the
+	// product, so OpenSSL's numeric ranges beside it are read.
+	recordReader = "ranges-6"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"
 )

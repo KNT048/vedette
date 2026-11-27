@@ -29,8 +29,10 @@ func resolveRow(r inventoryRow) (Product, bool) {
 // (vendor, product and shown name). It may only go down: a catalogue change that leaves more names unresolved fails here.
 // Before this package (commit 304c96663, where a name was tied to an NVD product only by a stored CPE, an alias of
 // content/catalog/nvd-cpe.json, a curated or network-OS entry with a CPE, or a pair of modules/agent-intake/pkgmap.json) the
-// same fixture left 1,526 distinct names (2,393 rows); the pull request that added this test shows the script.
-const maxUnresolved = 1291
+// same fixture left 1,526 distinct names (2,393 rows); the pull request that added this test shows the script. 13 of them are the
+// .NET host and host resolver entries ("Microsoft .NET Host FX Resolver - 6.0.16 (x64)"), on purpose: they are not the runtime, and
+// their version is that of a runtime that may be gone.
+const maxUnresolved = 1304
 
 var jdkName = regexp.MustCompile(`(?i)\b(?:jdk|jre|openjdk|temurin|corretto|zulu|liberica|semeru|java\(tm\)|java \d+ update|java se)\b`)
 

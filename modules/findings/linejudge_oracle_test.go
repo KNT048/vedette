@@ -99,3 +99,33 @@ func TestLineJudge_OracleTexts(t *testing.T) {
 		t.Errorf("not affected %+v", res.NotAffected)
 	}
 }
+
+// A CVE in a part of Java only Oracle's own build ships (its installer, the Java plugin, JavaFX in Java 8: the cover is limited to
+// Oracle's builds) is decided by Oracle's rows for Oracle's Java only. For Temurin, which ships no such part, Oracle's "affected up to
+// 21.0.12" decides nothing: the answer is the one without the line source.
+func TestLineJudge_OracleOwnBuildPart(t *testing.T) {
+	t.Parallel()
+	c := oracleCover
+	c.OnlyBuilds = []string{"Oracle"}
+	v := Vuln{CVE: "CVE-2026-62574", Published: oracleDay, NVDAnswered: true, LineCovers: []LineCover{c},
+		Lines: []LineRow{oracleRow("8", "affected", "1.8.0_501", true), oracleRow("21", "affected", "21.0.12", true)}}
+	for _, tc := range []struct {
+		sw   Software
+		want lineVerdict
+	}{
+		{javaRow("Java 8 Update 491 (64-bit)", "8.0.4910.10"), lineAffected},
+		{javaRow("Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "21.0.7"), lineNone},
+		{javaRow("Eclipse Temurin JDK with Hotspot 8u482-b08 (x64)", "1.8.0_482"), lineNone},
+	} {
+		a := Asset{ID: "pc", Name: "pc.example.com", Software: []Software{tc.sw}}
+		s := a.Software[0]
+		in := swInfoOn(s, a)
+		if got := lineJudge(a, s, in, v).verdict; got != tc.want {
+			t.Errorf("%s: verdict %d, want %d", tc.sw.Display, got, tc.want)
+		}
+		res := MatchAsset(a, []Vuln{v}, nil, lineNow)
+		if open := len(res.New) == 1; open != (tc.want == lineAffected) {
+			t.Errorf("%s: new findings %+v", tc.sw.Display, res.New)
+		}
+	}
+}

@@ -3,6 +3,7 @@ package feeds
 import (
 	"database/sql"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -277,6 +278,13 @@ func TestOracleLinesPull(t *testing.T) {
 	if len(rows) != 6 {
 		t.Errorf("rows %+v", rows)
 	}
+	if len(covers) == 1 && len(covers[0].OnlyBuilds) != 0 {
+		t.Errorf("a CVE of the JSSE limited to builds %v", covers[0].OnlyBuilds)
+	}
+	// the August CVE is in Oracle's installer: a part only Oracle's own build ships
+	if _, covers, _, err := st.LineData(t.Context(), []string{"CVE-2026-62574"}, e.clock()); err != nil || len(covers) != 1 || !slices.Equal(covers[0].OnlyBuilds, []string{"Oracle"}) {
+		t.Errorf("installer CVE covers %+v %v", covers, err)
+	}
 	for path := range served {
 		if n := o.count(path); n != 1 {
 			t.Errorf("%s asked %d times", path, n)
@@ -311,5 +319,58 @@ func TestOracleLinesPull(t *testing.T) {
 	}
 	if f := e.feed(oracleLineFeedID); f.Status != "ok" {
 		t.Errorf("%+v", f)
+	}
+}
+
+// oracleNotedDoc is a CSAF document of Oracle Java SE 8u491 and 21.0.11 whose vulnerabilities (cve -> description notes) all affect both.
+func oracleNotedDoc(id string, vulns map[string][]string) string {
+	var vs []string
+	for _, cve := range slices.Sorted(maps.Keys(vulns)) {
+		var notes []string
+		for _, n := range vulns[cve] {
+			notes = append(notes, fmt.Sprintf(`{"category":"description","text":%q}`, n))
+		}
+		vs = append(vs, fmt.Sprintf(`{"cve":%q,"notes":[%s],"product_status":{"known_affected":["J8","J21"]}}`, cve, strings.Join(notes, ",")))
+	}
+	return fmt.Sprintf(`{"document":{"tracking":{"id":%q,"initial_release_date":"2026-10-20T13:00:00-07:00"}},"vulnerabilities":[%s],
+"product_tree":{"branches":[{"category":"vendor","name":"Oracle","branches":[{"category":"product_name","name":"Oracle Java SE","branches":[
+{"category":"product_version","name":"8u491","product":{"name":"Oracle Java SE Version 8u491","product_id":"J8","product_identification_helper":{"cpe":"cpe:2.3:a:oracle:java_se:8u491:*:*:*:*:*:*:*"}}},
+{"category":"product_version","name":"21.0.11","product":{"name":"Oracle Java SE Version 21.0.11","product_id":"J21","product_identification_helper":{"cpe":"cpe:2.3:a:oracle:java_se:21.0.11:*:*:*:*:*:*:*"}}}]}]}]}}`,
+		id, strings.Join(vs, ","))
+}
+
+// A CVE in a part of Java only Oracle's own build ships (line-sources.json csaf own_components: its installer, the Java plugin, JavaFX
+// in Java 8), as the description of the Java SE family names it, is stated for Oracle's builds only: Temurin, Zulu or Corretto ship no
+// such part. The component is read from the Java SE family's description only (one vulnerability carries one description per product
+// family); a CVE whose components are not all such parts, or whose Java SE description names none, is stated for every build, and so is
+// one that any document states for every build.
+func TestOracleLines_OwnBuildParts(t *testing.T) {
+	t.Parallel()
+	const java = "Vulnerability in the Oracle Java SE, Oracle GraalVM for JDK product of Oracle Java SE (component: %s).  Supported versions that are affected are ..."
+	oct := oracleNotedDoc("cpuoct2026csaf", map[string][]string{
+		"CVE-2026-90001": {fmt.Sprintf(java, "Install")},
+		"CVE-2026-90002": {"Vulnerability in the Oracle Hyperion product of Oracle Hyperion (component: Installation and Configuration (libpng)).", fmt.Sprintf(java, "JavaFX (WebKitGTK)")},
+		"CVE-2026-90003": {"Vulnerability in Oracle Java SE (component: Java plugin).  Supported versions that are affected are ..."},
+		"CVE-2026-90004": {fmt.Sprintf(java, "AWT, JavaFX")},
+		"CVE-2026-90005": {fmt.Sprintf(java, "Libraries")},
+		"CVE-2026-90006": {},
+		"CVE-2026-90007": {"Vulnerability in the Oracle Hyperion product of Oracle Hyperion (component: Install)."},
+		"CVE-2026-90008": {fmt.Sprintf(java, "Install")},
+	})
+	nov := oracleNotedDoc("cspunov2026csaf", map[string][]string{"CVE-2026-90008": {fmt.Sprintf(java, "2D")}})
+	sts := combineOracle([]oracleDoc{oracleDocOf(t, oct), oracleDocOf(t, nov)}, true)
+	got := map[string][]string{}
+	for _, st := range sts {
+		got[st.CVE] = st.OnlyBuilds
+	}
+	want := map[string][]string{"CVE-2026-90001": {"Oracle"}, "CVE-2026-90002": {"Oracle"}, "CVE-2026-90003": {"Oracle"}, "CVE-2026-90004": nil,
+		"CVE-2026-90005": nil, "CVE-2026-90006": nil, "CVE-2026-90007": nil, "CVE-2026-90008": nil}
+	if len(sts) != len(want) {
+		t.Errorf("%d statements, want %d", len(sts), len(want))
+	}
+	for cve, w := range want {
+		if !slices.Equal(got[cve], w) {
+			t.Errorf("%s: limited to %v, want %v", cve, got[cve], w)
+		}
 	}
 }

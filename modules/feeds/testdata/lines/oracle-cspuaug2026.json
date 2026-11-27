@@ -167,6 +167,13 @@
  "vulnerabilities": [
   {
    "cve": "CVE-2026-62574",
+   "notes": [
+    {
+     "category": "description",
+     "text": "Vulnerability in the Oracle Java SE, Oracle GraalVM for JDK, Oracle GraalVM Enterprise Edition product of Oracle Java SE (component: Install).",
+     "title": "Vulnerability Description"
+    }
+   ],
    "product_status": {
     "known_affected": [
      "P-13497V-17.0.20",

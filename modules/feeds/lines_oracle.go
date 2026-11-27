@@ -65,7 +65,20 @@ type CSAFSelector struct {
 	// Other are texts that mark another edition of the product in a release's name or CPE ("-perf", Java SE's Enterprise Performance
 	// Pack, which runs a newer JVM): such a release is not the product's, so a CVE listed only for it does not make the line affected.
 	Other []string `json:"other"`
+	// Own are the components of the product only the source's builds ship ("Install", "Java plugin", "JavaFX"), as the description of
+	// the branch's product family names them ("... product of Oracle Java SE (component: Install)"): a CVE all of whose components are
+	// such parts is stated for the source's builds only (lineStatement.OnlyBuilds).
+	Own []string `json:"own_components"`
+
+	builds []string // the source's builds (LineSourceDef.Builds), set when line-sources.json is read
 }
+
+// csafComponentRE reads the product family and the components a CSAF description of Oracle's names ("Vulnerability in the Oracle Java
+// SE, Oracle GraalVM for JDK product of Oracle Java SE (component: JavaFX (WebKitGTK))": family "Oracle Java SE", components "JavaFX").
+var csafComponentRE = regexp.MustCompile(`^Vulnerability in (?:the .{1,600}? product of )?(.{1,200}?) \(component: ([^()]{1,200}?)(?: \([^()]{0,200}\))?\)`)
+
+// csafComponent is one description's product family and components.
+type csafComponent struct{ family, components string }
 
 // csafRawProduct is one product of a document's tree: its id, name, CPE and the product it is a version of (the name of the nearest
 // branch above it of category product_name, else product_family).
@@ -85,8 +98,9 @@ type csafRawDoc struct {
 }
 
 type csafRawVuln struct {
-	CVE    string
-	Status map[string][]string // product_status category -> product ids
+	CVE        string
+	Status     map[string][]string // product_status category -> product ids
+	Components []csafComponent     // the family and components each description names (one description per product family)
 }
 
 // parseCSAFLines reads one CSAF document as a stream: its tracking id and first release, its reference URLs, every product of its tree
@@ -223,6 +237,25 @@ func parseCSAFLines(r io.Reader) (csafRawDoc, error) {
 			switch k {
 			case "cve":
 				v.CVE, err = j.str(64)
+			case "notes":
+				err = j.array(csafMaxNotes, nil, "notes", func() error {
+					var cat, text string
+					_, err := j.object(func(k string) (err error) {
+						switch k {
+						case "category":
+							cat, err = j.str(64)
+						case "text":
+							text, err = j.str(1000)
+						default:
+							err = j.skip()
+						}
+						return err
+					})
+					if m := csafComponentRE.FindStringSubmatch(text); cat == "description" && m != nil {
+						v.Components = append(v.Components, csafComponent{family: m[1], components: m[2]})
+					}
+					return err
+				})
 			case "product_status":
 				_, err = j.object(func(cat string) error {
 					return j.array(oracleMaxStatusID, &statIDs, "product statuses", func() error {
@@ -329,6 +362,7 @@ type oracleLine struct {
 type oracleDocCVE struct {
 	lines  map[string]oracleLine
 	unread bool
+	own    bool // the CVE is in a part only the source's builds ship (CSAFSelector.Own)
 }
 
 // oracleDoc is the facts kept of one document: its day (first release, UTC), the page a person reads, and per catalogue product
@@ -336,6 +370,7 @@ type oracleDocCVE struct {
 type oracleDoc struct {
 	Day, Ref string
 	CVEs     map[string]map[string]oracleDocCVE // product key -> CVE -> statement
+	builds   map[string][]string                // product key -> the source's builds (CSAFSelector)
 }
 
 // oracleProductRelease is a product of the tree read as a release of a catalogue product.
@@ -438,7 +473,7 @@ func cmpRelease(a, b string) int {
 // known_not_affected, or lists a release not affected below one it lists affected on the same line.
 func oracleFacts(d csafRawDoc, sels map[string]CSAFSelector) oracleDoc {
 	day, _ := csafTime(d.Initial)
-	out := oracleDoc{Day: day.Format(time.DateOnly), CVEs: map[string]map[string]oracleDocCVE{}}
+	out := oracleDoc{Day: day.Format(time.DateOnly), CVEs: map[string]map[string]oracleDocCVE{}, builds: map[string][]string{}}
 	for _, u := range d.Refs {
 		if strings.HasPrefix(u, "https://www.oracle.com/") && len(u) <= 500 && !strings.ContainsAny(u, " \"<>") {
 			out.Ref = u
@@ -477,6 +512,7 @@ func oracleFacts(d csafRawDoc, sels map[string]CSAFSelector) oracleDoc {
 			affected    map[string]string
 			notAffected map[string][]string
 			unread      bool
+			own         int // the vulnerability entries of the CVE: 1 all in parts only the source's builds ship, -1 one is not
 		}{}
 		for _, v := range d.Vulns {
 			cve := strings.ToUpper(strings.TrimSpace(v.CVE))
@@ -495,8 +531,16 @@ func oracleFacts(d csafRawDoc, sels map[string]CSAFSelector) oracleDoc {
 							affected    map[string]string
 							notAffected map[string][]string
 							unread      bool
+							own         int
 						}{affected: map[string]string{}, notAffected: map[string][]string{}}
 						cves[cve] = c
+					}
+					switch {
+					case c.own < 0:
+					case ownPart(v.Components, sel):
+						c.own = 1
+					default:
+						c.own = -1
 					}
 					switch {
 					case r.unread, cat != "known_affected" && cat != "known_not_affected":
@@ -516,7 +560,7 @@ func oracleFacts(d csafRawDoc, sels map[string]CSAFSelector) oracleDoc {
 		}
 		stated := map[string]oracleDocCVE{}
 		for cve, c := range cves {
-			st := oracleDocCVE{lines: map[string]oracleLine{}, unread: c.unread}
+			st := oracleDocCVE{lines: map[string]oracleLine{}, unread: c.unread, own: c.own > 0 && len(sel.builds) > 0}
 			for line, rels := range perLine {
 				na := slices.Sorted(slices.Values(c.notAffected[line]))
 				na = slices.Compact(na)
@@ -535,8 +579,31 @@ func oracleFacts(d csafRawDoc, sels map[string]CSAFSelector) oracleDoc {
 			stated[cve] = st
 		}
 		out.CVEs[key] = stated
+		out.builds[key] = sel.builds
 	}
 	return out
+}
+
+// ownPart says whether the descriptions of a vulnerability name, for the selector's product family (its branch), only components the
+// source's builds alone ship: at least one such description, and every component each names one of sel.Own. A description of another
+// family says nothing about the product; none for the family, or one other component, is a part every build ships.
+func ownPart(descs []csafComponent, sel CSAFSelector) bool {
+	if sel.Branch == "" || len(sel.Own) == 0 {
+		return false
+	}
+	seen := false
+	for _, d := range descs {
+		if d.family != sel.Branch {
+			continue
+		}
+		seen = true
+		for c := range strings.SplitSeq(d.components, ",") {
+			if !slices.ContainsFunc(sel.Own, func(o string) bool { return strings.EqualFold(strings.TrimSpace(c), o) }) {
+				return false
+			}
+		}
+	}
+	return seen
 }
 
 // combineOracle is the line statements of every document read (in the feed's order): per product and CVE, the rows of all the
@@ -549,6 +616,8 @@ func combineOracle(docs []oracleDoc, complete bool) []lineStatement {
 	type acc struct {
 		lines  map[string]oracleLine
 		unread bool
+		own    bool // every document states the CVE in a part only the source's builds ship
+		builds []string
 		day    string
 		ref    string
 	}
@@ -558,10 +627,14 @@ func combineOracle(docs []oracleDoc, complete bool) []lineStatement {
 			for cve, st := range cves {
 				a := by[[2]string{key, cve}]
 				if a == nil {
-					a = &acc{lines: map[string]oracleLine{}}
+					a = &acc{lines: map[string]oracleLine{}, own: true}
 					by[[2]string{key, cve}] = a
 				}
 				a.unread = a.unread || st.unread
+				a.own = a.own && st.own
+				if a.builds == nil {
+					a.builds = d.builds[key]
+				}
 				if d.Day >= a.day {
 					a.day, a.ref = d.Day, cmp.Or(d.Ref, a.ref)
 				}
@@ -593,6 +666,9 @@ func combineOracle(docs []oracleDoc, complete bool) []lineStatement {
 			continue
 		}
 		st := lineStatement{CVE: k[1], Product: k[0], Ref: a.ref, StatedAt: a.day}
+		if a.own {
+			st.OnlyBuilds = a.builds
+		}
 		for _, line := range slices.Sorted(maps.Keys(a.lines)) {
 			l := a.lines[line]
 			switch l.state {

@@ -120,3 +120,51 @@ func TestMatchSet_CarriesOracleLineStatements(t *testing.T) {
 		t.Fatalf("Temurin 8u492 closed by Oracle's numbering: %+v", res.NotAffected)
 	}
 }
+
+// A statement Oracle makes on a part of Java only its own build ships (its installer: the cover is limited to Oracle's builds) reaches
+// findings through the wiring with its limit: Oracle's Java 8 gets the finding, Temurin 21.0.7 none from Oracle's row.
+func TestMatchSet_CarriesOracleOwnBuildLimit(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	pub := time.Now().AddDate(0, -1, 0)
+	const cve = "CVE-2026-62574"
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, cve, pub, 5); err != nil {
+			return err
+		}
+		for _, q := range []string{
+			`INSERT INTO feeds_line_cve (source_id, product, cve, stated_at, ref, only_builds) VALUES ('oracle-cpu-csaf', 'oracle|java se', '` + cve + `', '` + pub.Format(time.DateOnly) + `', 'https://www.oracle.com/security-alerts/cspuaug2026.html', '["Oracle"]')`,
+			`INSERT INTO feeds_line_status (source_id, product, cve, line, status, last_affected, explicit) VALUES ('oracle-cpu-csaf', 'oracle|java se', '` + cve + `', '8', 'affected', '1.8.0_501', 1)`,
+			`INSERT INTO feeds_line_status (source_id, product, cve, line, status, last_affected, explicit) VALUES ('oracle-cpu-csaf', 'oracle|java se', '` + cve + `', '21', 'affected', '21.0.12', 1)`,
+			`UPDATE feeds_source SET enabled = 1, last_success = '` + store.FormatTS(time.Now().UTC()) + `' WHERE id = 'oracle-cpu-csaf'`,
+		} {
+			if _, err := tx.ExecContext(ctx, q); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	java := func(display, version string) findings.Software {
+		return findings.Software{ID: "java", Display: display, Vendor: "Oracle", Product: "Java SE", Version: version, Source: "agent"}
+	}
+	host := findings.Asset{ID: "pc", Name: "pc01", Software: []findings.Software{java("Java 8 Update 491 (64-bit)", "8.0.4910.10")}}
+	set, err := findingsFeeds{st: fs.Store()}.MatchSet(ctx, findings.NewMatchScope([]findings.Asset{host}, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res := findings.MatchAsset(host, set, nil, time.Now()); len(res.New) != 1 || !strings.Contains(res.New[0].Evidence.Summary, "up to 1.8.0_501") {
+		t.Fatalf("Java 8: new %+v", res.New)
+	}
+	host.Software[0] = java("Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "21.0.7")
+	if res := findings.MatchAsset(host, set, nil, time.Now()); len(res.New) != 0 {
+		t.Fatalf("Temurin 21: new %+v", res.New)
+	}
+}

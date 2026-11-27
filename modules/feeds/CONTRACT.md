@@ -165,8 +165,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   an explicit `unaffected` row. A statement is dated by its document's first release. A CVE that names a release Vedette cannot read, a
   status it does not read, or a release not affected at or below an affected one on the same line (in one document or across several) is
   dropped whole; several documents on a CVE are combined (the newest affected release of a line wins). When a document of the feed
-  cannot be read, no convention row is written until it can. `TestParseNodeLines_Count`, `TestParseNodeLines_FailsClosed`,
-  `TestParseEOL_Count`, `TestLineSourcesPull`, `TestOracleLines_Count`, `TestOracleLines_FailsClosed`, `TestOracleLinesPull`.
+  cannot be read, no convention row is written until it can. A CVE whose Java SE description names only components only Oracle's own
+  build ships (line-sources.json `own_components`: installer, Java plugin, JavaFX in Java 8) is stated for those builds only
+  (`feeds_line_cve.only_builds`, `LineCover.OnlyBuilds`); one of any other component, or none named, for every build.
+  `TestParseNodeLines_Count`, `TestParseNodeLines_FailsClosed`, `TestParseEOL_Count`, `TestLineSourcesPull`, `TestOracleLines_Count`,
+  `TestOracleLines_FailsClosed`, `TestOracleLinesPull`, `TestOracleLines_OwnBuildParts`.
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
   the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the

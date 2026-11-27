@@ -34,7 +34,10 @@ type LineCover struct {
 	StatedAt             time.Time
 	Absent               string   // unaffected_if_supported, unaffected_if_assessed, unknown
 	Builds               []string // the product's builds whose releases the source numbers ("Oracle"); empty: every build
-	Stale                bool
+	// OnlyBuilds are the builds the statement is limited to: the CVE is in a part of the product only they ship (Oracle's installer,
+	// Java plugin, JavaFX in Java 8). For another build the source says nothing about the CVE. Empty: every build.
+	OnlyBuilds []string
+	Stale      bool
 }
 
 // LineSupport is one release line of a product: released, and assessed by its vendor until AssessedUntil (zero: still assessed).
@@ -103,7 +106,8 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 	}
 	covers := map[string]LineCover{}
 	for _, c := range v.LineCovers {
-		if c.Product == p.Key {
+		// a statement on a part only some builds ship says nothing about another build
+		if c.Product == p.Key && (len(c.OnlyBuilds) == 0 || slices.Contains(c.OnlyBuilds, p.Distribution)) {
 			covers[c.Source] = c
 		}
 	}

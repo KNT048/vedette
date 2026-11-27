@@ -602,7 +602,7 @@ CREATE TABLE feeds_line_cve (
     product   TEXT NOT NULL CHECK (length(product) BETWEEN 1 AND 60),
     cve       TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     stated_at TEXT NOT NULL CHECK (stated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    ref       TEXT NOT NULL DEFAULT '' CHECK (length(ref) <= 500),
+    ref       TEXT NOT NULL DEFAULT '' CHECK (length(ref) <= 500), only_builds TEXT,
     PRIMARY KEY (source_id, product, cve)
 ) WITHOUT ROWID;
 

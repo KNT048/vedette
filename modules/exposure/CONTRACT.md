@@ -284,7 +284,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   exploited CVEs) it did not report, or one gone or marked patched or mitigated that it did report, the address is scanned as
   before; the reused findings are written as the domain's (`issueIn.reused`: added and kept, never opened again), and the comparison
   closes nothing on reused services. Every doubt (a row that cannot be read, a run of an older release without its settings) scans.
-  The web layer always runs for the domain: the templates with the domain's step and Host, ZAP by name, the certificates by name.
+  The web layer always runs for the domain: the templates again with the domain's step (a template job's host is the address
+  itself, as in every deep step), ZAP by name, the certificates by name.
   OpenVAS is not split: its task scans the address with one config, with no host name, so its network and service checks cannot
   be taken apart from its web checks; the whole OpenVAS result of the address is reused, and ZAP and the templates are the
   domain's web checks. Nothing is sent to the address for the reused layer but the liveness checks before the web layer (INV-42).

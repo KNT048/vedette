@@ -428,7 +428,7 @@ func (s *Service) reuseIP(ctx context.Context, stD ScanTarget, a deepAddr, src *
 	if src.disruptive {
 		parts = append(parts, "nmap's disruptive scripts")
 	}
-	sub.Checks = append(sub.Checks, CheckRow{Kind: "services", At: now, Text: fmt.Sprintf("%s (%s): %s, %s. The templates ran here with this domain's name.",
+	sub.Checks = append(sub.Checks, CheckRow{Kind: "services", At: now, Text: fmt.Sprintf("%s (%s): %s, %s. The templates ran here again in this scan.",
 		line, strings.Join(parts, ", "), servicesRead(src.services), plural(len(src.issues), "finding"))})
 	s.observerOf(ctx).noteReused(src)
 	var err error

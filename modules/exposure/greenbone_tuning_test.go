@@ -196,3 +196,24 @@ func TestOpenVASFactsNeedTheirDetectionText(t *testing.T) {
 		t.Fatalf("rows %+v, %v", rows, err)
 	}
 }
+
+// The check line keeps "QoD 70 or more" true: an allowlisted configuration fact is read at any QoD, so it is counted on its own and
+// not among the results with QoD 70 or more.
+func TestOpenVASTuning_CheckLineCountsFactsApart(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	h.gvm.with(func(g *fakeGVM) {
+		g.report = fxWrap(
+			fxResult("SSH Server type and version", "1.3.6.1.4.1.25623.1.0.10267", "22/tcp", 0, 80, "Remote SSH supported authentication: password,publickey"),
+			fxResult("D(HE)ater", "1.3.6.1.4.1.25623.1.0.117839", "22/tcp", 7, 30, "DHE key exchange offered"),
+			fxResult("TCP Timestamps", "1.3.6.1.4.1.25623.1.0.80091", "general/tcp", 2, 80, "timestamps"),
+		)
+	})
+	e.enable()
+	s := e.scanIP(gbOpen())
+	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
+		return c.Kind == "greenbone" && strings.Contains(c.Text, "1 result with QoD 70 or more (0 high or medium, 1 hardening note) and 2 configuration facts,")
+	}) {
+		t.Fatalf("checks = %+v", s.Checks)
+	}
+}

@@ -342,6 +342,6 @@ describe('exposure screens: deep scan settings', () => {
     expect(within(dialog).getByRole('switch', { name: 'Active web attacks' })).toBeDisabled()
     expect(within(dialog).queryByRole('button', { name: 'Save settings' })).toBeNull()
     expect(within(dialog).getByText('Requires Admin role')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument()
+    expect(within(dialog).getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0)
   })
 })

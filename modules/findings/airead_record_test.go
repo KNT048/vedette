@@ -226,12 +226,12 @@ func TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles(t *testing.T) {
 func TestMarkVendorPages_TheProjectsOwnSite(t *testing.T) {
 	t.Parallel()
 	for raw, want := range map[string]bool{
-		"https://www.example.org/~maker/mail/wishlist/overlarge-s.html": true,
+		"https://www.example.org/~maker/mail/wishlist/overlarge-s.html":    true,
 		"https://code.example.net/quillfeather/mail/security/advisories/1": true,
-		"https://code.example.net/someone/mail-poc":                       false,
-		"https://www.example.org/~maker/other/mail.html":                  false,
-		"https://www.example.org/mail":                                    false,
-		"https://news.example.com/news/quillfeather/mail-flaw":            false,
+		"https://code.example.net/someone/mail-poc":                        false,
+		"https://www.example.org/~maker/other/mail.html":                   false,
+		"https://www.example.org/mail":                                     false,
+		"https://news.example.com/news/quillfeather/mail-flaw":             false,
 	} {
 		pages := []FetchedPage{{URL: raw, Status: "ok"}}
 		markVendorPages(pages, []RefLink{{URL: raw, Tags: []string{"third-party-advisory"}}}, "quillfeather|mail")

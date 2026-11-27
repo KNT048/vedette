@@ -171,6 +171,11 @@ type pullPlan struct {
 	winRelUpd []winrel.Update  // windows-releases: the monthly updates of the pages read, replaced per release
 	hasWinRel bool
 
+	lines      []lineStatement // nodejs-security-wg: what the line source states, replaced whole (applyLines)
+	hasLines   bool
+	support    []lineSupport // endoflife-date: the line support of the catalogue's products, replaced whole (applySupport)
+	hasSupport bool
+
 	signals    []publicSignal // metasploit, exploit-db, poc-in-github: the index's CVEs, replaced whole (applyPublicSignals)
 	hasSignals bool
 
@@ -318,6 +323,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildRecent(ctx, src, p)
 	case DecoderWinRel:
 		return s.buildWinRel(ctx, src, p)
+	case DecoderNodeLines, DecoderEOL:
+		return s.buildLines(ctx, src, p, dec)
 	case DecoderMetasploit, DecoderExploitDB, DecoderPoCGitHub:
 		return s.buildPublicExploit(ctx, src, p, dec)
 	case DecoderMSRC:
@@ -640,6 +647,15 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 			case p.hasVendor:
 				if p.out.Records, err = applyVendorClaims(ctx, tx, p.out.Finished, prevGood(src), src.ID, p.vendor); err != nil {
+					return err
+				}
+			case p.hasLines: // findings matches the CVEs whose line statements changed
+				if rangesChanged, err = applyLines(ctx, tx, p.out.Finished, src.ID, p.lines); err != nil {
+					return err
+				}
+				rangesFirst, catalogue = cur.LastSuccess == nil, len(rangesChanged) > 0 // most are CVEs on no exploited list
+			case p.hasSupport: // a line's support decides what a line a source does not list means: every device is matched again
+				if catalogue, err = applySupport(ctx, tx, src.ID, p.support); err != nil {
 					return err
 				}
 			case p.hasWinRel: // findings matches the Windows entries again when the releases changed

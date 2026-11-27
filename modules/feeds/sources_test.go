@@ -29,6 +29,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"www.rapid7.com":                             true, // Rapid7's blog (its RSS feed)
 		"cloudblog.withgoogle.com":                   true, // Google Threat Intelligence's blog (its RSS feed)
 		"www.spamhaus.org":                           true, // Spamhaus DROP (off until an administrator turns it on)
+		"endoflife.date":                             true, // endoflife.date's release lines and support dates (line support only)
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -70,8 +71,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 28 {
-		t.Fatalf("expected the 28 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 30 {
+		t.Fatalf("expected the 30 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

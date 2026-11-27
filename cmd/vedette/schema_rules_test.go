@@ -43,6 +43,7 @@ var jsonColumnAllowList = []string{
 	"feeds_cve_ref.tags",
 	"feeds_fetch_log.reject_reasons",
 	"feeds_kev.links",
+	"feeds_line_status.platforms", // the platforms a vendor line statement is limited to, read whole
 	"feeds_signal.detail",
 	"feeds_source.distro_packages",
 	"feeds_source.parser",

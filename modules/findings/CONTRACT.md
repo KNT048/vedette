@@ -152,6 +152,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   says each stored code in words (resolution, way, reason to reopen, detection basis, question kind; an unknown code of an open
   vocabulary with its underscores as spaces), never the code: `auditAction`, `questionAuditDetail`, `TestAuditDetailsSayEveryCodeInWords`.
   Lines written before keep their text (the log is append-only).
+- **M-13 Release-line verdicts.** A vendor's statement per release line (feeds INV-40) is read in one place, `lineJudge`, inside `judge`
+  after the distribution, platform and Edge steps and before the vendor's scheme rows and NVD's ranges. The line of the version is the
+  product's trains after its `version_map` (catalogue data). Only the vendor's explicit rows and its fresh convention change a decision:
+  a row whose affected releases hold the version is a finding (range origin `vendor_line`, the vendor's fix of the line as `FixOf`'s
+  release, the evidence naming the vendor and its advisory); a row whose fix the version is at or past, or one stating the line
+  unaffected, is "not affected" unless an NVD row covering the version names the line itself (starts or ends on it, or lists one
+  of its releases); a line the source does not list is "not affected" by the convention `unaffected_if_supported` only when the vendor supported
+  the line on the day the CVE was published (line support), the source is fresh and its statement not older than the CVE, and no NVD row
+  covers the version. A line the vendor no longer assessed, a status that is not public yet, and a row limited to some platforms decide
+  nothing: the CVE record's own statement decides as before. A distribution's package is never read here. `TestLineJudge_EveryVerdict`,
+  `TestLineJudge_EvidenceFixAndOrigin`.
 
 ## Possible findings and the check of their advisories
 

@@ -86,6 +86,9 @@ type Product struct {
 	Scheme string
 	Trains Trains
 	Class  Class
+	// VersionMap rewrites a version as a source reports it into the vendor's own notation before its release line is read
+	// (Canonical): Java on Windows reports "8.0.4910.10" for Java 8 Update 491 ("1.8.0_491"). Data, never per-product code.
+	VersionMap []VersionMap
 	// VersionPrefix are words a vendor writes before the release in the version a program reports ("ad " of AnyDesk's "ad 9.7.6"),
 	// lower case; OwnVersion drops them.
 	VersionPrefix []string
@@ -127,6 +130,19 @@ type fileEntry struct {
 	VersionPrefix []string      `json:"version_prefix"`
 	Record        []string      `json:"record"`
 	KEVShared     []string      `json:"kev_shared"`
+	VersionMap    []fileMap     `json:"version_map"`
+}
+
+// fileMap is one row of a product's version_map: an expression over the whole reported version and its rewrite ("$1" groups).
+type fileMap struct {
+	Re string `json:"re"`
+	To string `json:"to"`
+}
+
+// VersionMap is one rewrite of Product.VersionMap: the first row whose expression matches the version gives the vendor's notation.
+type VersionMap struct {
+	re *regexp.Regexp
+	to string
 }
 
 type filePattern struct {
@@ -276,6 +292,13 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 		if !versionPrefixRE.MatchString(w) {
 			return nil, fmt.Errorf("version_prefix %q must be lower-case letters, then a space or a hyphen", w)
 		}
+	}
+	for _, m := range fe.VersionMap {
+		re, err := regexp.Compile(m.Re)
+		if err != nil || !strings.HasPrefix(m.Re, "^") || !strings.HasSuffix(m.Re, "$") || strings.TrimSpace(m.To) == "" {
+			return nil, fmt.Errorf("version_map %q must compile, match the whole version (^…$) and rewrite it to something", m.Re)
+		}
+		p.VersionMap = append(p.VersionMap, VersionMap{re: re, to: m.To})
 	}
 	p.KEV = []string{p.Key}
 	for _, k := range fe.KEV {
@@ -636,6 +659,16 @@ func nameWords(s string) []string {
 
 // spaced writes the no-break spaces a list name may hold ("Commerce and\u202fMagento") as plain spaces.
 func spaced(s string) string { return strings.NewReplacer("\u00a0", " ", "\u202f", " ").Replace(s) }
+
+// ByID is the catalogue product of a stable id ("nodejs"); false for an id no products file lists.
+func ByID(id string) (Product, bool) {
+	for _, e := range cat.entries {
+		if e.p.ID != "" && e.p.ID == id {
+			return e.p, true
+		}
+	}
+	return Product{}, false
+}
 
 // ByKey is the product whose Key is key (lower(vendor)|lower(product)), a curated one too.
 func ByKey(key string) (Product, bool) {

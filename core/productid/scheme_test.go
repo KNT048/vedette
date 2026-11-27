@@ -72,3 +72,31 @@ func TestKEVShared(t *testing.T) {
 		t.Errorf("Broadcom's ESX name: %+v %v", p, ok)
 	}
 }
+
+// A product's version_map rewrites a reported version into the vendor's notation before its release line is read (Java on Windows
+// reports "8.0.4910.10" for 8u491); a row that does not match the whole version, or rewrites it to nothing, is refused at load.
+func TestCatalogue_VersionMap(t *testing.T) {
+	t.Parallel()
+	fsys := fstest.MapFS{"products/x.json": {Data: []byte(`{"products":[{"id":"x","display":"X","vendor":"Acme","product":"X","trains":"major",
+		"version_prefix":["ad "],
+		"version_map":[{"re":"^8\\.0\\.(\\d{1,3})0\\.\\d+$","to":"1.8.0_$1"}]}]}`)}}
+	c, err := load(fsys, catalogdata.Curated, catalogdata.KEVProducts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := c.byKey["acme|x"].p
+	for in, want := range map[string]string{"8.0.4910.10": "1.8.0_491", "ad 9.0.4": "9.0.4", "ad 8.0.4910.10": "1.8.0_491", "21.0.7": "21.0.7", " 8.0.4910.10 ": "1.8.0_491"} {
+		if got := p.Canonical(in); got != want {
+			t.Errorf("Canonical(%q) = %q, want %q", in, got, want)
+		}
+	}
+	for _, bad := range []string{`{"re":"8\\.0","to":"x"}`, `{"re":"^(\\d$","to":"x"}`, `{"re":"^x$","to":" "}`} {
+		fsys := fstest.MapFS{"products/x.json": {Data: []byte(`{"products":[{"id":"x","display":"X","vendor":"Acme","product":"X","version_map":[` + bad + `]}]}`)}}
+		if _, err := load(fsys, catalogdata.Curated, catalogdata.KEVProducts); err == nil || !strings.Contains(err.Error(), "version_map") {
+			t.Errorf("%s loaded: %v", bad, err)
+		}
+	}
+	if p, ok := ByID("nodejs"); !ok || p.Key != "node.js|node.js" || p.Line("22.19.0") != "22" {
+		t.Errorf("ByID(nodejs) = %+v, %v", p, ok)
+	}
+}

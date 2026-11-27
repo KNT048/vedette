@@ -305,7 +305,7 @@ AND cve NOT IN (SELECT value FROM json_each(?))`, cutoff, string(pins)); err != 
 		now.UTC().AddDate(0, 0, -epssHistKeep).Format(time.DateOnly)); err != nil {
 		return fmt.Errorf("feeds: prune EPSS history: %w", err)
 	}
-	return nil
+	return pruneLines(ctx, tx)
 }
 
 // Range is one affected-versions row of the catalogue.

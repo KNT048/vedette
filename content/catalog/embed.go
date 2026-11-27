@@ -53,3 +53,9 @@ var ExploitAuthors []byte
 //
 //go:embed cwe-names.json
 var CWENames []byte
+
+// LineSources is line-sources.json: the vendor sources that state per release line whether a CVE affects it, with how each is read
+// (what a listed row states, what an unlisted line means), and the sources of line support, read by feeds.
+//
+//go:embed line-sources.json
+var LineSources []byte

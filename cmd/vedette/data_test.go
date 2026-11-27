@@ -199,7 +199,7 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		}
 	}
 	slices.Sort(skipAll)
-	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_ioc", "feeds_ioc_source", "feeds_nvd_cursor",
+	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_ioc", "feeds_ioc_source", "feeds_line_cve", "feeds_line_status", "feeds_line_support", "feeds_nvd_cursor",
 		// logs.db: the data export reads vedette.db only (received lines leave through GET /core/logs/export)
 		"logs_anomaly_sent", "logs_events", "logs_ioc_hits", "logs_signature_addrs", "logs_signature_buckets", "logs_signature_daily", "logs_source_buckets", "logs_source_seen", "logs_volume",
 		"notify_slack_button", "notify_slack_final", "notify_slack_team", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}

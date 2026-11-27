@@ -27,6 +27,9 @@ import (
 //
 // It never guesses: a range's end that is itself listed affected (Junos' release-by-release lists) is no fix.
 func FixOf(a Asset, s Software, v Vuln) Fix {
+	if f, ok := lineFix(a, s, v); ok { // the vendor's fixed release of the device's release line (M-13)
+		return f
+	}
 	if f, ok := schemeFix(a, s, v); ok {
 		return f
 	}

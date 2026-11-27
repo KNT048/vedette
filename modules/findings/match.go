@@ -183,6 +183,11 @@ type Vuln struct {
 	// the product they name: the matcher decides a line by them before the generic comparison when they reach its release line
 	// (schemeJudge), and FixOf names the vendor's fixed release of the device's train from them.
 	Schemed []SchemedRange
+	// Lines are what vendor line sources state about the CVE per release line (feeds_line_status), LineCovers the products they speak
+	// about it for, LineSupport the support of those products' lines: lineJudge reads them first (M-13).
+	Lines       []LineRow
+	LineCovers  []LineCover
+	LineSupport []LineSupport
 	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom): NVD's when NVD has any, the CVE record's
 	// rows read beside them marked (Affected.AffectedOnly, VendorList); the finding stores it (range_origin), RangeCNA when the record's
 	// rows beside NVD's are what call it affected (recordDecided).
@@ -1114,7 +1119,7 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) {
+	if out == outNotAffected && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}
@@ -1129,6 +1134,9 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 // NVD's list names it (nvdNames), it is not an Edge Legacy row, and a row its distribution may have built has the distribution's
 // word. Reachability reads the same.
 func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
+	if lineJudge(a, s, in, v).decides() { // a vendor's release-line statement names the product and decides the line
+		return true
+	}
 	if schemeNames(a, s, in, v) {
 		return true
 	}
@@ -1285,6 +1293,12 @@ func entryVendors(v Vuln) []string {
 			out = append(out, vn)
 		}
 	}
+	for _, c := range v.LineCovers { // a vendor's line statement reaches its product's rows
+		vn, _, _ := strings.Cut(c.Product, "|")
+		if vn = productid.Norm(vn); vn != "" {
+			out = append(out, vn)
+		}
+	}
 	return out
 }
 
@@ -1398,7 +1412,11 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	pinned := ""     // #939: the version is inside whatever the edition or target the row does not state
 	vendorNote := "" // the proof note of the vendor's rows (schemeJudge)
 	schemed := false
-	if !isWin {
+	var lined lineRead // a vendor's release-line statement decided (M-13)
+	if lr := lineJudge(a, s, in, v); !isWin && ps.ask == askNone && !ps.below && lr.decides() {
+		tri, within, vendorNote = lineDecision(s, v, lr)
+		proof, schemed, lined = proofRange, true, lr
+	} else if !isWin {
 		if r, ok := schemeJudge(a, s, in, v); ok { // the vendor's own rows, read in the product's version scheme, decide first
 			tri, within, vendorNote = schemeDecision(a, v, r)
 			proof, schemed = proofRange, true
@@ -1476,6 +1494,9 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if schemed {
 			m.Evidence.Summary = schemeAffectedNote(a, s, in, v, within)
 		}
+		if lined.decides() {
+			m.Evidence.Summary = lineAffectedNote(a, s, v, lined)
+		}
 		if pinned != "" {
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s)"+suspectedClause, name, sw, v.CVE, pinned, clean(within.String()))
 		}
@@ -1489,6 +1510,9 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 			if schemed {
 				m.Evidence.Summary = schemeAffectedNote(a, s, in, v, within)
+			}
+			if lined.decides() {
+				m.Evidence.Summary = lineAffectedNote(a, s, v, lined)
 			}
 		}
 		if s.Source == SourceSNMP && pinned == "" && w.via == "" && endBound(within) {

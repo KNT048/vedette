@@ -92,6 +92,7 @@ type deepSeams struct {
 	extra     []ServiceRow                    // more services ScanServices answers, for their own address
 	errFor    map[string]error                // ScanServices answers it for that address when set
 	none      bool                            // ScanServices finds no open port on any address (a sweep that got no answer)
+	scripts   []ScriptRow                     // the script results ScanServices answers, for their own address
 }
 
 func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error) {
@@ -100,7 +101,7 @@ func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Add
 		f.bad = append(f.bad, ip.String())
 	}
 	f.services = append(f.services, deepCall{ip.String(), t})
-	hook, svcErr, extra, none := f.onService, f.svcErr, f.extra, f.none
+	hook, svcErr, extra, none, scripts := f.onService, f.svcErr, f.extra, f.none, f.scripts
 	if e := f.errFor[ip.String()]; e != nil {
 		svcErr = e
 	}
@@ -122,7 +123,13 @@ func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Add
 			rows = append(rows, r)
 		}
 	}
-	return ServiceScan{Ports: 65535, Services: rows}, nil
+	var own []ScriptRow
+	for _, r := range scripts {
+		if r.IP == ip.String() {
+			own = append(own, r)
+		}
+	}
+	return ServiceScan{Ports: 65535, Services: rows, Scripts: own}, nil
 }
 
 func (f *deepSeams) ScanTemplates(_ context.Context, t ScanTarget, ip netip.Addr, jobs []TemplateJob) (TemplateScan, error) {

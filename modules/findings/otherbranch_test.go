@@ -93,6 +93,9 @@ func TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision(t *testing.T) {
 		{"a version of the row's branch", "0.4.3", []Affected{ac3, {CPE: vlc, Range: VersionRange{StartIncl: "2.0.0", EndExcl: "2.0.5"}}}, Unknown, proofNone},
 		// A row with no start is no branch: "up to 0.4.3-ac3" spans every older release.
 		{"a range with no start", "3.0.20", []Affected{{CPE: vlc, Range: VersionRange{EndIncl: "0.4.3-ac3"}}}, Unknown, proofNone},
+		// The same beside a range that decides: "up to 3.1.0-ac3" holds 3.0.20 whatever its suffix means, so it is never set aside.
+		{"a range with no start beside one that decides", "3.0.20", []Affected{{CPE: vlc, Range: VersionRange{EndIncl: "3.1.0-ac3"}},
+			{CPE: vlc, Range: VersionRange{StartIncl: "2.0.0", EndExcl: "2.0.5"}}}, Unknown, proofNone},
 	} {
 		v := uncVuln("CVE-2026-80131", "VideoLAN", "VLC media player", uncNew, tc.aff...)
 		got, _, _, proof := decide(newSWInfo(row(tc.ver), ""), v, keyIDs(v))

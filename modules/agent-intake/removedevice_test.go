@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// Removing a device whose osquery agent reports (INV-27, inventory INV-59). Stop: the device's node goes, so its next log or config
+// Removing a device whose osquery agent reports (INV-28, inventory INV-59). Stop: the device's node goes, so its next log or config
 // call gets node_invalid and no device comes back; a token made for that device alone goes too; a token other machines use stays, the
 // other machine keeps reporting, and this machine cannot enrol with that token again. Keep: the agent adds the device back on its next
 // report, and nothing is kept. The audit row of the delete names the choice.

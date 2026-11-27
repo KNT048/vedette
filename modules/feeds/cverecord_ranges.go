@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // The affected versions of a CVE record as catalogue ranges (feeds_cve_range, origin cna or adp).
@@ -102,7 +103,7 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			if cnaDefault(a.DefaultStatus) == DefaultUnaffected && (origin != OriginCNA || !ownCNA(assigner, a.Vendor)) {
 				a.DefaultStatus = DefaultUnknown // what a third party did not list, it did not test (ownCNA); g.entries keep its word
 			}
-			got, complete, ok := entryRows(a)
+			got, complete, ok := entryRows(a, schemeReads(part, vendor, product))
 			if !ok {
 				g.unusable, g.rows = true, nil
 				continue
@@ -112,6 +113,9 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 				g.noRowPart = true
 			}
 			def := cnaDefault(a.DefaultStatus)
+			if def == DefaultUnaffected && !complete {
+				def = DefaultUnknown // a version of the entry was left out (a letter release): an unlisted version may be one of it
+			}
 			for _, r := range got {
 				r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE, r.DefaultStatus = cve, origin, part, vendor, product, cpe, def
 				if j := slices.IndexFunc(g.rows, func(h Range) bool { return sameSpan(h, r) }); j >= 0 {
@@ -610,8 +614,11 @@ type cnaSpan struct {
 }
 
 // entryRows converts the versions of one affected entry (recordGroup rules); ok false: they cannot be ranges without guessing.
-// complete says whether the entry states the status of the versions it does not list.
-func entryRows(a cnaAffected) (rows []Range, complete, ok bool) {
+// complete says whether the entry states the status of the versions it does not list. A version with a letter-release bound
+// (letterBranch) is left out alone, not the entry: the entry is then not complete.
+// reads is the product's version scheme reading a range (schemeReads; nil for a product without one): a letter-release branch it reads
+// is not left out (the entry then stays as the vendor states it, which the scheme reads).
+func entryRows(a cnaAffected, reads func(start, end string, incl bool) bool) (rows []Range, complete, ok bool) {
 	if len(a.Versions) > recordMaxVersions || !anyPlatform(a.Platforms) {
 		return nil, false, false // only some operating systems: the rows would name every device of the product
 	}
@@ -625,6 +632,7 @@ func entryRows(a cnaAffected) (rows []Range, complete, ok bool) {
 	}
 	var spans []cnaSpan
 	var fixed []string // the unaffected versions the entry lists
+	partial := false   // a letter-release version was left out
 	for _, v := range a.Versions {
 		start := strings.TrimSpace(v.Version)
 		switch strings.ToLower(strings.TrimSpace(v.Status)) {
@@ -696,6 +704,10 @@ func entryRows(a cnaAffected) (rows []Range, complete, ok bool) {
 		}
 		if start != "" && end != "" { // a reversed, empty or unordered range is a typo, not data
 			c, ok := cmpLead(start, end)
+			if ok && c == 0 && start != end && letterBranch(start, end) && (reads == nil || !reads(start, end, incl)) {
+				partial = true // one letter-release branch ("1.1.1" to "1.1.1zk"): this version is left out, not the entry
+				continue
+			}
 			if !ok || c > 0 || c == 0 && (start != end || !incl) { // equal numbers, other texts ("3.0.5-h2" to "3.0.5-h1"): no order to trust
 				return nil, false, false
 			}
@@ -710,7 +722,20 @@ func entryRows(a cnaAffected) (rows []Range, complete, ok bool) {
 			}
 		}
 	}
-	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected, true
+	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected && !partial, true
+}
+
+// letterReleaseRE is a release in a letter notation: numbers, then up to two lower-case letters ("1.1.1", "1.1.1zk", "3.6a").
+var letterReleaseRE = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+){1,3}[a-z]{0,2}$`)
+
+// letterBranch says whether a range's two bounds with the same numbers are releases of one letter-release branch (OpenSSL's
+// "1.1.1" lessThan "1.1.1zk", beside the numeric 3.x ranges of the same entry). Only the letters order them (1.1.1 < 1.1.1k <
+// 1.1.1za), which the generic comparison does not read: such a version is left out alone. Before, it made the record's whole product
+// unusable, and the numeric ranges beside it were lost.
+//
+// A product whose version scheme reads such a range keeps the rule before it (schemeReads, entryRows).
+func letterBranch(start, end string) bool {
+	return letterReleaseRE.MatchString(start) && letterReleaseRE.MatchString(end) && (hasLetter(start) || hasLetter(end))
 }
 
 // saysNothing and everyVersion are the version words of an "affected" entry without a range that are not versions: no version to
@@ -851,4 +876,24 @@ func cpeEscape(s string) string {
 
 func isAlnumByte(b byte) bool {
 	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
+// schemeReads is the version scheme of the product a record names reading a range, nil for a product without a scheme.
+func schemeReads(part, vendor, product string) func(start, end string, incl bool) bool {
+	p, ok := productid.ByRangeName(part, vendor, product)
+	if !ok || p.Scheme == "" {
+		return nil
+	}
+	s, ok := versionscheme.Lookup(p.Scheme)
+	if !ok {
+		return nil
+	}
+	return func(start, end string, incl bool) bool {
+		if incl {
+			_, ok := s.Span(start, "", end)
+			return ok
+		}
+		_, ok := s.Span(start, end, "")
+		return ok
+	}
 }

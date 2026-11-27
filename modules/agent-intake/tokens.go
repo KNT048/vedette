@@ -265,7 +265,7 @@ func EnrolKey(token, hostIdentifier string) string {
 }
 
 // DeviceDeleted is agent-intake's part of a device delete (core/lifecycle). With the person's choice to stop the device's agent
-// (d.StopAgent, INV-27): the node of the device goes, so its next call gets node_invalid. Its token goes with it only when the token was
+// (d.StopAgent, INV-28): the node of the device goes, so its next call gets node_invalid. Its token goes with it only when the token was
 // made for this device and no other machine uses it; a token other machines share is never revoked, and the machine's enrolment on it
 // is handed to the inventory's removal (Block), which refuses it at the next enrol. Without the choice nothing changes here (the token
 // made for the device is released by its foreign key).

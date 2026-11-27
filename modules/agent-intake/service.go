@@ -51,7 +51,7 @@ type Config struct {
 	Approver observe.Approver     // the inventory: the enrolment approves the device a node reports on
 	Services observe.ServiceSink  // the inventory: the open ports a machine's agent reports (INV-22); nil: they are not recorded
 	// Removed says whether an enrolment (EnrolKey) belongs to a device a person removed with its agent stopped (the inventory's
-	// RemovedAgent): that enrolment is refused (INV-27). nil: none is.
+	// RemovedAgent): that enrolment is refused (INV-28). nil: none is.
 	Removed func(ctx context.Context, key string) (bool, error)
 	Secrets *secrets.Store // the Wazuh password (purpose intake_wazuh.password)
 	Conn    *conn.Service  // the HTTPS client and address policy for the Wazuh server
@@ -259,7 +259,7 @@ func (s *Service) Enroll(ctx context.Context, src netip.Addr, in enrollIn) (stri
 	if err != nil {
 		return "", err
 	}
-	if s.cfg.Removed != nil { // a machine whose device a person removed with its agent stopped (INV-27): refused, not counted as a guess
+	if s.cfg.Removed != nil { // a machine whose device a person removed with its agent stopped (INV-28): refused, not counted as a guess
 		removed, err := s.cfg.Removed(ctx, EnrolKey(t.id, in.hostIdentifier))
 		if err != nil {
 			return "", err

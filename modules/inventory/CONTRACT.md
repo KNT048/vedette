@@ -160,7 +160,7 @@ detail is in its doc comment.
   removals of its cards and of the address where it makes the device, so the Removed list does not name it (audit
   `inventory.removal_forget`). By design a re-enrolled agent (the person ran the install command again) brings a removed device back,
   and so does any enrolled node that reports the card: a node is a credential a person handed out. A stopped agent on a shared token
-  cannot enrol again (`RemovedAgent`, agent-intake INV-27). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
+  cannot enrol again (`RemovedAgent`, agent-intake INV-28). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
   only move identifiers between devices that exist, and an SNMP read with a device hint carries no MAC, so neither can bring one
   back. A person undoes a removal by forgetting it (`GET /inventory/removed`, `DELETE /inventory/removed/{id}`) or by adding a device by
   hand at a kept address, which forgets only removals kept by that address (a removed card stays out though the address is reused).

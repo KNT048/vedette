@@ -13,7 +13,7 @@ import (
 // Uninstall entry without a version and its 13 components at the RTM build, among other Microsoft rows that are not of the release.
 func labSQL() []row {
 	r := func(name, version string) row {
-		return row{"name": name, "version": version, "publisher": "Microsoft Corporation", "install_date": "20261012", "sql_setup": ""}
+		return row{"name": name, "version": version, "publisher": "Microsoft Corporation", "install_date": "20261012", "reg_key": ""}
 	}
 	const rtm = "16.0.1000.6"
 	return []row{
@@ -42,7 +42,7 @@ func labSQL() []row {
 // setupRow is a row of the programs query's registry arm: an instance's PatchLevel.
 func setupRow(instance, build string) row {
 	return row{"name": "", "version": build, "publisher": "", "install_date": "",
-		"sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\` + instance + `\Setup`}
+		"reg_key": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\` + instance + `\Setup`}
 }
 
 // sqlRows maps a programs list and returns its rows keyed to CISA's "Microsoft | SQL Server".
@@ -169,9 +169,9 @@ func TestSQLServer_NoGuess(t *testing.T) {
 
 // The setup values are read strictly. Several instances of the release give the lowest build; an instance of another
 // release, Analysis Services' key, a build of another family under the key, and text that is no build are not read; an umbrella
-// row that has a version keeps it.
+// row that has a version of its own (the build the release was installed with) takes the setup value too.
 func TestSQLServer_SetupValues(t *testing.T) {
-	umbrella := row{"name": "Microsoft SQL Server 2022 (64-bit)", "version": "", "publisher": "Microsoft Corporation", "sql_setup": ""}
+	umbrella := row{"name": "Microsoft SQL Server 2022 (64-bit)", "version": "", "publisher": "Microsoft Corporation", "reg_key": ""}
 	versionOf := func(rows ...row) string {
 		t.Helper()
 		for _, s := range sqlRows(t, append(rows, umbrella)) {
@@ -190,21 +190,25 @@ func TestSQLServer_SetupValues(t *testing.T) {
 	}
 	for name, r := range map[string]row{
 		"another release":   setupRow("MSSQL15.MSSQLSERVER", "15.0.4385.2"),
-		"Analysis Services": {"name": "", "version": "16.0.43.1", "sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSAS16.MSSQLSERVER\Setup`},
+		"Analysis Services": {"name": "", "version": "16.0.43.1", "reg_key": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSAS16.MSSQLSERVER\Setup`},
 		"another family":    setupRow("MSSQL16.MSSQLSERVER", "15.0.4385.2"),
 		"no build":          setupRow("MSSQL16.MSSQLSERVER", "16.0.4135"),
 		"text":              setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4 CU14"),
-		"another key":       {"name": "", "version": "16.0.4135.4", "sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Evil\MSSQL16.X\Setup`},
-		"a deeper key":      {"name": "", "version": "16.0.4135.4", "sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.X\Setup\SQL_Engine_Core_Inst`},
+		"another key":       {"name": "", "version": "16.0.4135.4", "reg_key": `HKEY_LOCAL_MACHINE\SOFTWARE\Evil\MSSQL16.X\Setup`},
+		"a deeper key":      {"name": "", "version": "16.0.4135.4", "reg_key": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.X\Setup\SQL_Engine_Core_Inst`},
 	} {
 		if v := versionOf(r); v != "" {
 			t.Errorf("%s: the umbrella row took %q", name, v)
 		}
 	}
-	// an umbrella row that has a version keeps it; the one without takes the setup value
-	two := sqlRows(t, []row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4"), {"name": "Microsoft SQL Server 2022 (64-bit)", "version": "16.0.4003.1"}, umbrella})
-	if len(two) != 2 || two[0].Version != "16.0.4003.1" || two[1].Version != "16.0.4135.4" {
+	// an umbrella row with a version of its own takes the setup value as the one without does: one row
+	two := sqlRows(t, []row{setupRow("MSSQL16.MSSQLSERVER", "16.0.4135.4"), {"name": "Microsoft SQL Server 2022 (64-bit)", "version": "16.0.1000.6"}, umbrella})
+	if len(two) != 1 || two[0].Version != "16.0.4135.4" {
 		t.Errorf("an umbrella row with a version: %+v", two)
+	}
+	// without a setup value it keeps its own
+	if own := sqlRows(t, []row{{"name": "Microsoft SQL Server 2022 (64-bit)", "version": "16.0.4003.1"}}); len(own) != 1 || own[0].Version != "16.0.4003.1" {
+		t.Errorf("an umbrella row with a version, no setup value: %+v", own)
 	}
 	// 2008 R2 keys carry the minor: MSSQL10_50 gives 10.50 builds to the 2008 R2 release, not to 2008
 	r2 := row{"name": "Microsoft SQL Server 2008 R2 (64-bit)", "version": "", "publisher": "Microsoft Corporation"}
@@ -217,20 +221,28 @@ func TestSQLServer_SetupValues(t *testing.T) {
 	}
 }
 
-// The programs query reads the registry for one value of one key pattern, with the list, and the registry arm comes first (a
-// list cut at maxRows keeps it). The SQL is SQLite's: a compound SELECT whose arms have the same five columns.
+// The programs query reads the registry for the version values of fixed key patterns, with the list, and the registry arms come first
+// (a list cut at maxRows keeps them). The SQL is SQLite's: a compound SELECT whose arms have the same five columns.
 func TestSQLServer_ProgramsQuery(t *testing.T) {
 	q := programsQuery
-	want := `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS sql_setup FROM registry r ` +
+	want := `SELECT '' AS name, r.data AS version, '' AS publisher, '' AS install_date, r.key AS reg_key FROM registry r ` +
 		`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL%\Setup' AND r.name = 'PatchLevel' ` +
+		`UNION ALL SELECT '', r.name, '', '', r.key FROM registry r ` +
+		`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\dotnet\Setup\InstalledVersions\%\sharedfx\%' AND r.type != 'subkey' ` +
+		`UNION ALL SELECT '', r.name, '', '', r.key FROM registry r ` +
+		`WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\%\sharedfx\%' AND r.type != 'subkey' ` +
 		`UNION ALL SELECT name, version, publisher, install_date, '' FROM programs;`
 	if q != want {
 		t.Fatalf("programs query:\n%s\nwant\n%s", q, want)
 	}
-	if strings.Count(q, "%") != 1 || strings.Contains(q, "%%") || regexp.MustCompile(`(?i)\bOR\b`).MatchString(q) {
-		t.Fatal("the key pattern must stay one level and one constraint (osquery pushes a single LIKE on key down, %% recurses)")
+	// each registry arm is one key LIKE below a fixed path, each % one key level (osquery pushes a single LIKE on key down; %% recurses)
+	arms := strings.Split(q, " UNION ALL ")
+	for _, a := range arms[:len(arms)-1] {
+		if strings.Count(a, "r.key LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\") != 1 || strings.Contains(a, "%%") || regexp.MustCompile(`(?i)\bOR\b`).MatchString(a) {
+			t.Fatalf("registry arm %q", a)
+		}
 	}
-	if !slices.Contains(columns["programs"], "sql_setup") {
-		t.Fatal("sql_setup is not read")
+	if !strings.HasSuffix(arms[len(arms)-1], "FROM programs;") || !slices.Contains(columns["programs"], "reg_key") {
+		t.Fatal("the list is not the last arm, or reg_key is not read")
 	}
 }

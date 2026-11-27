@@ -802,3 +802,33 @@ func TestDeepSettings_AGroupTurnedOnMidRunNeverWidensIt(t *testing.T) {
 		}
 	}
 }
+
+// A domain's passive web scan of a page on an address that is an IP target with web paths to skip: the scanner is asked with the paths
+// of both targets, as the active scan is, and a scanner that cannot leave paths out is not asked at all.
+func TestDeepSettings_ADomainPassivePageOnAnIPTargetSkipsThatTargetsPathsToo(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	w := e.wireActive(emptyReport)
+	e.svc.cfg.Web = pathWeb{w}
+	box := e.committedIP(ipA)
+	e.deepRow(box.ID, false, true, true, true, true, SpeedNormal, "[]", `["/admin"]`)
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, true) // the terms write the target's settings row
+	e.deepRow(dom.ID, false, true, true, true, true, SpeedNormal, "[]", `["/private"]`)
+	e.svc.SetRunner(&fakeRunner{content: Content{
+		Hosts: []HostRow{{Name: "acme.example", IP: ipA}},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}},
+	}})
+	w.targets = nil // the calls of the setup are not the scan's
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(w.targets) == 0 {
+		t.Fatal("the passive scan did not run")
+	}
+	for i, st := range w.targets {
+		if !slices.Contains(st.SkipPaths, "/admin") || !slices.Contains(st.SkipPaths, "/private") {
+			t.Errorf("passive call %d (%s %s) got the paths %v, want both targets' paths", i, st.Kind, st.Value, st.SkipPaths)
+		}
+	}
+}

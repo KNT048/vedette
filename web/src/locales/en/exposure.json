@@ -838,8 +838,8 @@
     },
     "ports": {
       "label": "Ports to skip",
-      "help": "No scan engine is sent to these ports (at most {{max}}).",
-      "info": "Their stored services are left as they are: a scan that skipped a port never marks it closed. Separate several ports with spaces or commas.",
+      "help": "No scan engine is sent to these TCP ports (at most {{max}}).",
+      "info": "TCP ports only: a few discovery checks still use UDP (for example NetBIOS name lookup on port 137). Their stored services are left as they are: a scan that skipped a port never marks it closed. Separate several ports with spaces or commas.",
       "placeholder": "For example 8080, 3389",
       "bad": "\"{{value}}\" is not a port number (1 to 65535).",
       "tooMany": "At most {{max}} ports can be skipped."

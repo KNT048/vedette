@@ -741,6 +741,25 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	rs := runStepsOf(ctx)
 	for i, page := range pages {
 		rs.say(stepKeyZAP, fmt.Sprintf("page %d of %d: %s", i+1, len(pages), page.URL))
+		pst := st
+		if st.Kind == KindDomain { // a page on an address that is an IP target too: that target's web paths to skip apply as well
+			it, found, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), page.IP.Unmap().String())
+			switch {
+			case err != nil:
+				s.cfg.Log.ErrorContext(ctx, "exposure: reading the settings of a page's address failed", "target", st.Value, "page", page.URL, "error", err)
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebFail, maxLineText)})
+				continue
+			case found && it.Deep.Problem != nil:
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+deepSettingsUnread, maxLineText)})
+				continue
+			case found:
+				pst.SkipPaths = intersect(DeepSettings{SkipPaths: st.SkipPaths}, it.Deep).SkipPaths
+			}
+			if !s.webKeepsPaths(pst) { // that target's paths, which this box's ZAP cannot leave out
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebPaths, maxLineText)})
+				continue
+			}
+		}
 		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil { // LEGAL §3: logged before ZAP starts
 			if ctx.Err() != nil {
 				return c, err
@@ -752,12 +771,12 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		}
 		wctx, cancel := context.WithTimeout(ctx, WebScanTimeout)
 		steps.begin(StepZAP, false)
-		res, err := s.cfg.Web.Baseline(wctx, st, page)
+		res, err := s.cfg.Web.Baseline(wctx, pst, page)
 		slow := wctx.Err() != nil
 		cancel()
 		if err == nil {
 			rows, perr := parseZAPWithRules(res.Report, page.URL) // The rule list applied
-			c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, st.SkipPaths)
+			c.WebSkippedPaths = addSkippedPaths(c.WebSkippedPaths, page.URL, pst.SkipPaths)
 			switch {
 			case perr == nil:
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)

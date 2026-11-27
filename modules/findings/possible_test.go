@@ -644,3 +644,35 @@ func TestConfirmProposal_AffectedOnACatalogueCVEUsesItsRecord(t *testing.T) {
 		t.Errorf("the confirmed finding %q differs from what the match makes of it %q", confirmed, matched)
 	}
 }
+
+// A reference that answers with a script-rendered portal's shell (no CVE id, no product: "Loading", "CSS Error", "Refresh") is not a
+// page read: when every reference is such a page, the AI is not called and the CVE is stored undecided (fetch_failed), since fetching
+// again gives the same shell until the record changes. A page that failed for a moment still stores nothing.
+func TestPossibleCheck_AScriptShellIsNotARead(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	shell := "Example Community\n\nLoading\n\n× Sorry to interrupt\nCSS Error\n\nRefresh"
+	fc.pages["CVE-2026-82003"] = []FetchedPage{{URL: "https://portal.example.com/A72300", Status: "ok", Text: shell}}
+	runCheck(t, e)
+	for _, req := range fc.sent {
+		if req.CVE == "CVE-2026-82003" {
+			t.Error("the AI was asked about a CVE whose only page is a script shell")
+		}
+	}
+	cs, err := checksOf(t.Context(), e.db.Reader(), allKeys(t, e))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got *Check
+	for _, c := range cs {
+		if c.CVE == "CVE-2026-82003" {
+			got = &c
+		}
+	}
+	if got == nil || got.DecidedBy != DecidedStructured || got.Verdict != VerdictUnsure || got.Undecided == nil || got.Undecided.Reason != UndecidedFetchFailed {
+		t.Fatalf("82003 check %+v: want structured, unsure, fetch_failed", got)
+	}
+	if len(got.Sources) != 1 || got.Sources[0].Status == "ok" {
+		t.Errorf("82003 sources %+v: want the shell listed as not read", got.Sources)
+	}
+}

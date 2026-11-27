@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -43,9 +44,13 @@ type RefPage struct {
 	Note   string `json:"note,omitempty"`
 	Text   string `json:"-"` // the page's text (HTML reduced to text, JSON as sent), at most refScanBytes; "" unless ok
 	JSON   bool   `json:"-"` // the page is a JSON document (a CSAF advisory)
+	Empty  bool   `json:"-"` // the page answered with no advisory text (an empty page, a script-rendered shell): fetching it again gives the same
 }
 
 var errRefRedirect = errors.New("ai refs: redirect refused")
+
+// reAdvisoryContent is what a page needs to be an advisory the box can read: a CVE id or a version number.
+var reAdvisoryContent = regexp.MustCompile(`(?i)\bCVE-[0-9]{4}-[0-9]{4,}\b|\b[0-9]+\.[0-9]+`)
 
 // refFetcher reads public reference pages over HTTPS: only global unicast addresses on port 443, checked on the resolved address and
 // again in the socket's Control hook (and so on every redirect, at most refMaxRedirects), no proxy, no cookies, no credentials.
@@ -163,8 +168,12 @@ func (f *refFetcher) one(ctx context.Context, raw string) RefPage {
 	default:
 		p.Text = clipBytes(sanitizeWeb(string(body)), refScanBytes)
 	}
-	if strings.TrimSpace(p.Text) == "" {
-		p.Note = "the page has no text the box can read (it may need a browser)"
+	// A page with no CVE id and no version number in its text states nothing a check can use: a script-rendered portal answers a
+	// shell ("Loading", "Refresh") the box cannot run. It is not read (it leaves its place to the next page) and is marked empty:
+	// fetching it again gives the same.
+	if strings.TrimSpace(p.Text) == "" || !reAdvisoryContent.MatchString(p.Text) {
+		p.Text, p.Empty = "", true
+		p.Note = "the page has no advisory text the box can read (it may need a browser)"
 		return p
 	}
 	p.Status = "ok"

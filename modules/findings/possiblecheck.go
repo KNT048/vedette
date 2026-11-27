@@ -75,6 +75,8 @@ type FetchedPage struct {
 	// Vendor says the page is the vendor's own advisory: its reference is tagged vendor-advisory or it is on the vendor's host
 	// (vendorHost). Only such a page may settle "not affected"; findings sets it from the CVE record.
 	Vendor bool
+	// Empty says the page answered but has no advisory text (emptyPages): fetching it again gives the same.
+	Empty bool
 }
 
 // ProposeItem is one product version of a CVE the AI is asked about (no device data).
@@ -335,6 +337,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 		pages = s.cfg.Checker.Fetch(ctx, urls)
 	}
 	markVendorPages(pages, rec.Refs, group[0].id.Product)
+	emptyPages(pages, cve, group)
 	read := slices.ContainsFunc(pages, func(p FetchedPage) bool { return p.Status == "ok" })
 	sources := make([]CheckSource, 0, len(pages))
 	for _, p := range pages {
@@ -361,6 +364,15 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 			checks = append(checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure,
 				Reason: "The CVE record lists no reference page the box can read.", Undecided: &Undecided{Reason: UndecidedNoReference},
 				CheckedBy: actor, CheckedAt: now})
+		}
+		return checks, 0, ""
+	case !read && !slices.ContainsFunc(pages, func(p FetchedPage) bool { return !p.Empty }):
+		// every reference answered without advisory text (a script-rendered portal's shell): no AI call, and undecided until the record
+		// changes, since fetching again gives the same
+		for _, u := range ask {
+			checks = append(checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure, Sources: sources,
+				Reason:    "The CVE's reference pages have no advisory text the box can read (they may need a browser).",
+				Undecided: &Undecided{Reason: UndecidedFetchFailed}, CheckedBy: actor, CheckedAt: now})
 		}
 		return checks, 0, ""
 	case !read: // no page answered: no AI call and nothing stored, so the next check tries the pages again (fetches cost no tokens)
@@ -436,6 +448,22 @@ func cmpUndecided(a, b *Undecided) *Undecided {
 		return a
 	}
 	return b
+}
+
+// emptyPages marks a page read whose text names neither the CVE nor a product of the group as not read and empty: it is no advisory of
+// this CVE (a script-rendered portal's shell, "Loading … Refresh", names neither), and its text is not sent to the AI.
+func emptyPages(pages []FetchedPage, cve string, group []checkUnit) {
+	for i := range pages {
+		p := &pages[i]
+		if p.Status != "ok" {
+			continue
+		}
+		if names, _ := cveMentions(p.Text, cve); names || slices.ContainsFunc(group, func(u checkUnit) bool { return mentionsProduct(p.Text, u.id) }) {
+			continue
+		}
+		p.Status, p.Empty, p.Text = "failed", true, ""
+		p.Note = "the page has no advisory text about this CVE (it may need a browser)"
+	}
 }
 
 // markVendorPages marks the pages that are the vendor's own advisory (FetchedPage.Vendor): the reference is tagged vendor-advisory, or

@@ -179,7 +179,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`decided_by ai`): a proposal, `confident` when its quote is in the page word for word and names a range of the version's line, else
   `likely`; unsure keeps the CVE possible with the reason. A failed or budget-stopped call stores nothing. No page read: no AI call and
   nothing stored (the next check fetches again); no reference the box may read: stored undecided (`no_reference_page`, `decided_by
-  structured`) without an AI call (`TestPossibleCheck_NoPageReadNoAICall`). The AI request carries no device data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
+  structured`) without an AI call (`TestPossibleCheck_NoPageReadNoAICall`). A page whose text has no CVE id and no version number, or
+  names neither the CVE nor the product (a script-rendered portal's shell), is not read; when every reference is such a page, the CVE is
+  stored undecided (`fetch_failed`, `decided_by structured`) without an AI call (`TestPossibleCheck_AScriptShellIsNotARead`). The AI request carries no device data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
 - **P-5 A person decides proposals.** Confirm one (`POST /findings/possible/{id}/confirm`; affected needs an admin) records the finding
   (range origin `ai_confirmed`, kept by the match while the answer applies; its confirmation from the version's source, never from the AI)
   or answers not affected; confirm a class at once (`POST /findings/possible/confirm`), never an exploited CVE proposed not affected (an

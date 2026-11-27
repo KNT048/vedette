@@ -51,7 +51,7 @@ func (c possibleChecker) Record(ctx context.Context, cve string) (findings.CVERe
 func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.FetchedPage {
 	var out []findings.FetchedPage
 	for _, p := range c.ai.FetchReferences(ctx, urls) {
-		out = append(out, findings.FetchedPage{URL: p.URL, Title: p.Title, Status: p.Status, Note: p.Note, Text: p.Text, JSON: p.JSON})
+		out = append(out, findings.FetchedPage{URL: p.URL, Title: p.Title, Status: p.Status, Note: p.Note, Text: p.Text, JSON: p.JSON, Empty: p.Empty})
 	}
 	return out
 }

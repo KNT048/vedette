@@ -71,3 +71,40 @@ func TestRefFetcher_Limits(t *testing.T) {
 		t.Errorf("text of the page: %q", pages[2].Text)
 	}
 }
+
+// A page that answers but carries no advisory text (a script-rendered portal's shell: "Loading", "Refresh", no CVE id and no version
+// number) is not read: it is marked empty and leaves its place to the next page.
+func TestRefFetcher_AScriptShellIsNotRead(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		switch r.URL.Path {
+		case "/shell":
+			_, _ = w.Write([]byte(`<html><head><title>Example Community</title><script src="/app.js"></script></head><body><div>Loading</div>` +
+				`<div>&times; Sorry to interrupt</div><div>CSS Error</div><a href="#">Refresh</a></body></html>`))
+		default:
+			_, _ = w.Write([]byte("<html><body><p>CVE-2099-0001: Example OS 15.1 versions before 15.1R7-S13 are affected.</p></body></html>"))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	resolve := func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
+	}
+	connect := func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, srv.Listener.Addr().String())
+	}
+	f := newRefFetcher(resolve, connect)
+	pool := x509.NewCertPool()
+	pool.AddCert(srv.Certificate())
+	f.client.Transport.(*http.Transport).TLSClientConfig = srv.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+	f.client.Transport.(*http.Transport).TLSClientConfig.RootCAs = pool
+	pages := f.fetch(t.Context(), []string{"https://example.com/shell", "https://example.com/a1", "https://example.com/a2", "https://example.com/a3"})
+	if len(pages) != 4 || pages[0].Status != "failed" || !pages[0].Empty || pages[0].Text != "" {
+		t.Fatalf("the shell page: %+v, want failed, empty, no text", pages)
+	}
+	for _, p := range pages[1:] {
+		if p.Status != "ok" || p.Empty {
+			t.Errorf("%s: %s empty %v, want read (the shell leaves its place)", p.URL, p.Status, p.Empty)
+		}
+	}
+}

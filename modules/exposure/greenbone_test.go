@@ -1463,7 +1463,7 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 		t.Fatal(err)
 	}
 	dials := h.dialCount()
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}, []int{443})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: modeAll}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBTerms || h.dialCount() != dials {
 		t.Fatalf("step = %+v, %v, dials %d -> %d", o, err, dials, h.dialCount())
 	}

@@ -123,7 +123,7 @@ func TestPortBoundIsTheReachablePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	products := pack.ProductTags(ix.Templates)
-	p := fullPorts(ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")})[0]
+	p := fullPorts(ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")}, nil)[0]
 	bound := portBound(ix, products, p, false)
 	tech := 0
 	every := map[string][]string{}

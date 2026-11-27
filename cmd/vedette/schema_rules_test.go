@@ -30,6 +30,8 @@ var jsonColumnAllowList = []string{
 	"core_schedule.weekdays",
 	"core_schedule.window_days",
 	"core_setting.value",
+	"exp_deep_setting.skip_paths", // the web paths a person skips, read whole by every scan of the target; never filtered
+	"exp_deep_setting.skip_ports", // the ports a person skips, read whole by every scan of the target; never filtered
 	"exp_issue.cves",
 	"exp_issue.detail",
 	"exp_outside.answer",

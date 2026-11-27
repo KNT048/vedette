@@ -679,13 +679,16 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		complete := true
 		for _, r := range rows {
 			// the list is complete when its author's every row says what is not listed (the CNA's, as an exploited-list entry reads
-			// it): another publisher's row beside it (an ADP's row of another product) neither completes nor breaks it
+			// it): another publisher's row beside it (an ADP's row of another product) neither completes nor breaks it. Such a row that
+			// does not say what it does not list only ever says "affected": the author's complete word is about its own products, so a
+			// version outside that row proves nothing
+			stated := r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected
 			if r.Origin == v.Origin {
-				complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
+				complete = complete && stated
 			}
 			if row, ok := r.MatchRow(); ok {
-				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly, VendorList: row.VendorList, VendorCNA: row.VendorCNA, LineFix: row.LineFix,
-					Platforms: row.Platforms, Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
+				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly || r.Origin != v.Origin && !stated, VendorList: row.VendorList, VendorCNA: row.VendorCNA,
+					LineFix: row.LineFix, Platforms: row.Platforms, Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
 			}
 		}
 		switch {

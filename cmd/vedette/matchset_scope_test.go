@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -112,4 +113,57 @@ func TestWiringRecordListCompletenessIsItsAuthors(t *testing.T) {
 		}
 	}
 	t.Fatalf("%s is not in the match set", cve)
+}
+
+// Another publisher's row (an ADP's) of a product the CNA's complete list does not name, with no status for the versions it does not
+// list, only ever says "affected": a version outside it is not proved unaffected by the CNA's word about its own product, so a finding
+// of that product stays open. A version inside it is still affected.
+func TestWiringOtherPublishersOpenRowNeverClosesItsProduct(t *testing.T) {
+	t.Parallel()
+	const cve = "CVE-2026-90103"
+	for _, c := range []struct{ name, startIncl, endIncl, endExcl, version string }{
+		{"after an inclusive end", "2.4.0", "2.4.1", "", "2.4.3"},
+		{"below the start", "2.0.0", "", "2.5.0", "1.9.0"},
+		{"on a later train than the end", "1.0.0", "", "2.0.0", "3.0.0"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := newStack(t)
+			ctx := t.Context()
+			err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+				if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve (cve, published, updated_at) VALUES (?, ?, ?)`, cve, "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z"); err != nil {
+					return err
+				}
+				_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, version_type, default_status, platforms) VALUES
+(?, 'cna', 'o', 'acme', 'router_os', 'cpe:2.3:o:acme:router_os:*:*:*:*:*:*:*:*', '7.6.1', '', '7.6.6', '', 'semver', 'unaffected', NULL),
+(?, 'adp', 'a', 'globex', 'edge_appliance', 'cpe:2.3:a:globex:edge_appliance:*:*:*:*:*:*:*:*', ?, '', ?, ?, 'semver', 'unknown', NULL)`,
+					cve, cve, c.startIncl, c.endIncl, c.endExcl)
+				return err
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			device := func(version string) findings.Asset {
+				return findings.Asset{ID: "a-edge", Software: []findings.Software{{ID: "s-1", Display: "Edge Appliance", Vendor: "globex", Product: "edge_appliance",
+					Version: version, CPE: "cpe:2.3:a:globex:edge_appliance:" + version + ":*:*:*:*:*:*:*", Source: "agent"}}}
+			}
+			fs, err := feedsService(*s.d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
+			outside := device(c.version)
+			vs, err := feed.MatchSet(ctx, findings.NewMatchScope([]findings.Asset{outside}, []string{cve}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range findings.MatchAsset(outside, vs, map[string]bool{cve: true}, time.Now()).NotAffected {
+				t.Errorf("%s %s is closed on the CNA's word about another product: %s", c.version, m.CVE, m.Evidence.Summary)
+			}
+			inside := device(c.startIncl)
+			if res := findings.MatchAsset(inside, vs, nil, time.Now()); !slices.ContainsFunc(res.New, func(m findings.Match) bool { return m.CVE == cve }) {
+				t.Errorf("%s, inside the row, is not affected by %s", c.startIncl, cve)
+			}
+		})
+	}
 }

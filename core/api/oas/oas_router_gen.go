@@ -12262,7 +12262,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "PUT":
 									r.name = AiPutAiConfigOperation
-									r.summary = "Save token tier, shared monthly budget and PII redaction"
+									r.summary = "Save token tier, shared monthly budget, PII redaction and the automatic reading of vendor advisories (on or off, calls a day)"
 									r.operationID = "ai_put_ai_config"
 									r.operationGroup = ""
 									r.pathPattern = "/ai/config"
@@ -17250,7 +17250,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													switch method {
 													case "POST":
 														r.name = FindingsPostFindingsPossibleChecksKeyRejectOperation
-														r.summary = "Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is possible again on every device that shares it. Audit findings.proposal_rejected"
+														r.summary = "Reject an AI proposal, or the AI's reading of a vendor's statement (the key of a check or of a reading): it stays stored (the same evidence or page is never applied again) and the CVE is possible again on every device that shares it; a finding the reading opened closes at once (every device on the line is matched again). Audit findings.proposal_rejected or findings.ai_reading_rejected"
 														r.operationID = "findings_post_findings_possible_checks_key_reject"
 														r.operationGroup = ""
 														r.pathPattern = "/findings/possible/checks/{key}/reject"

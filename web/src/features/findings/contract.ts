@@ -418,6 +418,19 @@ export const CheckSource = z.object({
   url: z.string(), title: z.string().optional(), status: z.enum(['ok', 'failed', 'skipped']), note: z.string().optional().describe('Why it was not read'),
   cited: z.boolean().optional().describe('The verdict\'s quote is from this page'),
 }).describe('One reference page a check read or tried to')
+export const AiReading = z.object({
+  status: z.enum(['affected', 'fixed', 'not_affected', 'unsure']).describe('What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not affected, or unsure'),
+  line: z.string().describe('The release line the reading is keyed by (the product\'s scheme line, else the version)'),
+  stated_line: z.string().nullable().describe('The release line as the AI wrote it; it extends the reading to other versions of that line only when the quote names it'),
+  introduced: z.string().nullable().describe('The first affected release; null unless the quote names it'),
+  fixed_in: z.string().nullable().describe('The release that fixes it; null unless the quote names it (only then is it the finding\'s fix)'),
+  last_affected: z.string().nullable().describe('The last affected release; null unless the quote names it'),
+  host: z.string().nullable().describe('The host of the page the quote is from; null when it is from the CVE record'),
+  vendor_page: z.boolean().describe('The page is the vendor\'s own advisory: only then may "not affected" settle the CVE (never an exploited one)'),
+  quote_found: z.boolean().describe('The box found the quote word for word in the page text it fetched itself; a reading whose quote was not found decides nothing'),
+}).describe('The AI\'s reading of the vendor\'s statement for one release line, as the box checked it; applied to every device and version on that line')
+export const PossibleCause = z.enum(['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget', 'identity_unproven', 'version_needed', 'pending_nvd', 'needs_person'])
+  .describe('Why the CVE is still possible and what would decide it: vendor_silent (no vendor page states more than the record), page_unreadable (the pages could not be read), needs_reading (the vendor\'s advisory must be read: no AI set up, or the reading is still to come), ai_unsure (the AI could not tell, or its quote was not in the page), ai_budget (the AI\'s reading waits for the budget), identity_unproven (the software is not tied to a product the records name), version_needed (the version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a rejected reading)')
 export const PossibleCheck = z.object({
   key: z.string().describe('The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)'),
   decided_by: z.enum(['structured', 'advisory', 'ai']).describe('advisory: the box read the vendor\'s advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects'),
@@ -425,7 +438,8 @@ export const PossibleCheck = z.object({
   confidence: z.enum(['confident', 'likely']).nullable().describe('ai only: confident when the AI\'s quote is in the page word for word and names a release range of this version\'s line; likely otherwise. null for the box\'s own verdicts and for unsure'),
   reason: z.string(), quote: z.string().describe('The sentence the verdict rests on, as the page writes it; "" when none'),
   sources: z.array(CheckSource), model: z.string().nullable().describe('ai only: the model'), checked_by: z.string(), checked_at: iso,
-  rejected: z.boolean().describe('A person rejected this AI proposal: the CVE is possible again'),
+  rejected: z.boolean().describe('A person rejected this AI proposal or reading: the CVE is possible again'),
+  reading: AiReading.nullable().describe('The AI\'s reading of the vendor\'s statement for the line this check shows (key: the reading); null for a check of one version'),
 }).describe('A check of a possible CVE\'s advisories')
 export const AnsweredQuestion = z.object({
   id: z.string().describe('The question'),
@@ -482,7 +496,7 @@ export const View = z.object({
   first_seen: iso,
   last_seen: iso.describe('The last match that still detected it'),
   events: z.array(FindingEvent).describe('Oldest first, append-only'),
-  ai_check: PossibleCheck.nullable().describe('A finding a person confirmed from an AI proposal: the AI\'s check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding'),
+  ai_check: PossibleCheck.nullable().describe('A finding a person confirmed from an AI proposal, or one the AI\'s reading of the vendor\'s statement opened (range origin ai_read, reading set: labelled "Read by AI from <host>", rejected in one click): the AI\'s check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding'),
 }).describe('A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields')
 export const FirstItem = z.object({ device: DeviceRef, block: FixBlock })
 export const FirstRunSummary = z.object({
@@ -517,17 +531,21 @@ export const PossibleRow = z.object({
   undecided: Undecided, line: z.string().nullable().describe('older_line: the device\'s release line'), fixes: z.array(z.string()).describe('older_line: the newest fixed release of each newer line'),
   check: PossibleCheck.nullable(), checkable: z.boolean().describe('A check of its advisories can still run for it'),
   bulk: z.boolean().describe('proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not affected (one by one)'),
+  cause: PossibleCause.nullable().describe('Why it is still possible; null for a settled row'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
   possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once)'),
   proposals: z.number().int().min(0).describe('AI proposals waiting for a person'),
   unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at: what the "Check possible with AI" button counts'),
   settled: z.number().int().min(0).describe('Settled not affected by the box from a vendor\'s advisory'),
+  causes: z.object(Object.fromEntries(PossibleCause.options.map((c) => [c, z.number().int().min(0)])) as Record<z.infer<typeof PossibleCause>, z.ZodNumber>)
+    .describe('The possible CVEs by cause; every cause of the list is present'),
 })
 export const PossibleCheckRun = z.object({
   running: z.boolean(), total: z.number().int().min(0), done: z.number().int().min(0),
   advisory: z.number().int().min(0).describe('Decided by the box from a vendor\'s advisory, no AI'),
-  proposals: z.number().int().min(0).describe('AI proposals made'), undecided: z.number().int().min(0), failed: z.number().int().min(0).describe('Not checked: a page or AI call failed; the next check asks again'),
+  proposals: z.number().int().min(0).describe('AI proposals made'),
+  readings: z.number().int().min(0).describe('AI readings of a vendor\'s statement stored, one per release line'), undecided: z.number().int().min(0), failed: z.number().int().min(0).describe('Not checked: a page or AI call failed; the next check asks again'),
   stopped: z.string().nullable().describe('Why the check stopped before the end (the AI unavailable, the budget reached)'),
   by: z.string(), started_at: iso, finished_at: iso.nullable(),
 })
@@ -556,8 +574,12 @@ export const Coverage = z.object({
     affected: coverageCount, not_affected: coverageCount,
   })).describe('Decided pairs by source, the most first'),
   possible: z.array(z.object({
-    cause: z.string().max(64).describe('An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a question with no known reason), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed)'),
+    cause: z.string().max(64).describe('The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading, ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution\'s package its data has no word on; other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped: matched on the name alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason (Undecided.reason), ai_proposal or other here'),
     count: coverageCount,
+    details: z.array(z.object({
+      detail: z.string().max(64).describe('The matcher\'s own reason: an undecided reason (Undecided.reason, such as version_scheme_mismatch or exact_releases_only), else the question\'s kind'),
+      count: coverageCount,
+    })).describe('The same pairs by the matcher\'s own reason, the most first; empty for an unnamed class and for a pass counted before details were kept'),
   })).describe('Undecided pairs by cause, the most first'),
   identity: z.array(z.object({
     method: z.enum(['stated', 'catalogue', 'record', 'none']).describe('stated: the source states the product (a CPE, a distribution package); catalogue: the product catalogue names it; record: its own name reaches a CVE record or NVD row; none: nothing in the catalogue is matched to it'),
@@ -626,7 +648,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/findings/possible/confirm', summary: 'Confirm every AI proposal of one class (verdict and confidence) at once, of one device or all, at most 500; an exploited CVE proposed not affected is never among them. affected needs an admin', stories: ['S-MIT-1'], role: 'operator',
     body: z.object({ verdict: z.enum(['affected', 'not_affected']), confidence: z.enum(['confident', 'likely']), device: z.string().max(96).optional() }),
     response: z.object({ confirmed: z.number().int().min(0) }) },
-  { method: 'post', path: '/findings/possible/checks/{key}/reject', summary: 'Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is possible again on every device that shares it. Audit findings.proposal_rejected', stories: ['S-MIT-1'], role: 'operator',
+  { method: 'post', path: '/findings/possible/checks/{key}/reject', summary: 'Reject an AI proposal, or the AI\'s reading of a vendor\'s statement (the key of a check or of a reading): it stays stored (the same evidence or page is never applied again) and the CVE is possible again on every device that shares it; a finding the reading opened closes at once (every device on the line is matched again). Audit findings.proposal_rejected or findings.ai_reading_rejected', stories: ['S-MIT-1'], role: 'operator',
     params: z.object({ key: z.string().regex(/^[0-9a-f]{64}$/) }), response: z.object({ ok: z.literal(true) }) },
   { method: 'get', path: '/findings/answered', summary: 'The questions a person answered "not affected" (ignored devices left out), the newest first: each can be asked again', stories: ['S-MIT-1'], role: 'viewer',
     query: z.object({ device: deviceFilter, offset, limit }), response: AnsweredList, example: { query: {} } },

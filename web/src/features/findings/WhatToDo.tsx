@@ -5,6 +5,7 @@
 // the firewall Vedette knows (or lets the person add it right here) and offers "Ask my AI"; 4 how to check that it is fixed.
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ExternalLink } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RequireModule } from '@/components/common/States'
@@ -25,9 +26,34 @@ import { linkLabels } from './links'
 import { overdue } from './accept'
 import { softwareFor, useDeviceSoftware } from './rematch'
 import { useFindingAgentGone } from './agentNow'
-import type { FindingDetail, View } from './types'
+import type { FindingDetail, PossibleCheck, View } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline'
+
+/** The AI's reading of the vendor's statement a finding stands on (it opened the finding), while no person rejected it; else null. */
+function aiReadOf(view: View | undefined): PossibleCheck | null {
+  const c = view?.ai_check
+  return c?.reading && !c.rejected ? c : null
+}
+
+/** The source of a fix the AI's reading opened the finding with: the vendor's page it read (its host, linked) and the sentence it quoted,
+ *  the only place the release comes from (the box keeps a release only when the quote names it). */
+function AiReadFixSource({ check }: { check: PossibleCheck }) {
+  const { t } = useTranslation('findings')
+  const page = check.sources.find((p) => p.cited) ?? check.sources[0]
+  const host = check.reading?.host
+  return (
+    <p className="text-caption text-muted [overflow-wrap:anywhere]" data-testid="ai-read-fix-source">
+      {host && page ? (
+        <>
+          {t('todo.fixAiReadPage')}{' '}
+          <a href={page.url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1 ${link}`}>{host}<ExternalLink className="size-3" aria-hidden /></a>
+        </>
+      ) : t('todo.fixAiReadRecord')}
+      {check.quote ? <>: <span lang="en" className="italic">“{check.quote}”</span></> : null}
+    </p>
+  )
+}
 
 /** The release that fixes this device as one sentence, or null when the box knows none (the caller then points to the advisory). */
 export function storedFixText(t: TFunction<'findings'>, f: FindingDetail, view: View | undefined): string | null {
@@ -65,14 +91,16 @@ function FixLine({ f, view, product, links }: { f: FindingDetail; view: View | u
   // this CVE's own fix, so the page says so instead of claiming the two are the same.
   const later = !!plan?.version && !!stored?.version && plan.version !== stored.version
   const planLine = later ? <p className="text-meta" data-testid="plan-fix">{t('todo.fixPlan', { product: plan!.product || product, device: deviceName(f.asset, t('removedDevice')), target: plan!.version })}</p> : null
-  if (fi && same) return <>{<FixedInNote finding={f} />}{planLine}</>
+  // a finding the AI's reading opened: the release its quote names is the fix, and the vendor's page with that sentence its source
+  const ai = aiReadOf(view)
+  if (fi && same && !(ai && stored?.version)) return <>{<FixedInNote finding={f} />}{planLine}</>
   const text = storedFixText(t, f, view)
   if (text) {
     return (
       <div className="grid max-w-3xl gap-1" data-testid="stored-fix">
         <p className="text-sm font-medium">{text}</p>
         {planLine}
-        <p className="text-caption text-muted">{t(plan && !later ? 'todo.fixSource' : 'todo.fixAdvisory')}</p>
+        {ai ? <AiReadFixSource check={ai} /> : <p className="text-caption text-muted">{t(plan && !later ? 'todo.fixSource' : 'todo.fixAdvisory')}</p>}
       </div>
     )
   }
@@ -177,6 +205,7 @@ export function FixGuide({ f }: { f: FindingDetail }) {
   const fiNamesStored = !!fi && (!view?.fix.version || fi.fixed === view.fix.version || fi.distro_fixed === view.fix.version)
   const fixed = fi && fiNamesStored ? (fi.kind === 'fixed' ? fi.fixed : fi.distro_fixed || null) : view?.fix.version || null
   const workaround = !!b?.workaround
+  const aiFix = !!aiReadOf(view) && !!view?.fix.version // the release the vendor's page states, read by AI (step 1 quotes it)
   // a restart only where the update is the device's own system: an OS build, a kernel, an appliance's firmware (never an app's update)
   const restart = ['os_update', 'feature_update'].includes(view?.fix.kind ?? '') || /kernel|linux-image/i.test(known ?? '') ||
     ['firewall', 'router', 'switch', 'nas', 'hypervisor', 'ap', 'printer', 'camera'].includes(actsAs(f.asset?.kind ?? ''))
@@ -192,8 +221,8 @@ export function FixGuide({ f }: { f: FindingDetail }) {
   return (
     <div className="grid gap-5" data-testid="fix-guide">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted">
-        <span className="font-medium text-ink">{t('rec.noPack')}</span>
-        <span>{t('todo.source')}</span>
+        <span className="font-medium text-ink">{t(aiFix ? 'rec.aiReadFix' : 'rec.noPack')}</span>
+        <span>{t(aiFix ? 'todo.aiReadSource' : 'todo.source')}</span>
         <InfoTip topic={t('rec.noPack')}><p>{t('rec.noPackBodyInfo')}</p><p>{t('rec.noPackAi')}</p></InfoTip>
       </div>
       <section aria-labelledby="todo-fix" className="grid gap-2">

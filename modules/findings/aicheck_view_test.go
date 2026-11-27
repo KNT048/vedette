@@ -12,9 +12,8 @@ import (
 // Answered list, and a person's own answer carries none.
 func TestAIChecked_ViewAndAnsweredCarryTheCheck(t *testing.T) {
 	t.Parallel()
-	e, fc := possibleWorld(t)
-	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = ProposeVerdict{Verdict: VerdictAffected, Reason: "DSM 7.2 is affected.", Quote: "DSM 7.2 is not affected by this issue", Source: 1}
-	runCheck(t, e)
+	e, _ := possibleWorld(t)
+	seedProposal(t, e, "CVE-2026-82002", VerdictAffected)
 	it := possibleByCVE(t, e)["CVE-2026-82002"]
 	if it.State != PossibleProposal {
 		t.Fatalf("82002: %s, want a proposal", it.State)

@@ -763,8 +763,8 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 		return sum, err
 	}
 	if last != nil && last.wrote && !last.changed { // counted from the readings the writes were made of (coverage.go)
-		if checks, err := checksFor(ctx, s.rd(ctx), last.rows.questions); err == nil {
-			s.covers.set(a.ID, coverOf(dm, last.rows, checks))
+		if ci, err := s.causeInputsOf(ctx, last.rows.questions, in.set.cveSetOnce()); err == nil {
+			s.covers.set(a.ID, coverOf(dm, last.rows, ci))
 		} else { // the device keeps its last counts: they change nothing
 			s.cfg.Log.WarnContext(ctx, "findings: could not count the decision coverage of a device", "device", a.ID, "error", err)
 		}
@@ -808,10 +808,11 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 }
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
-// starts, then every ReconcileEvery; urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
+// starts, then every ReconcileEvery, and starts the automatic reading of possible findings after its pass (AutoRead); urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
+		svc.AutoRead(ctx) // after the match pass: the AI reads what the pass left undecided, in the background, within its budget
 		return err
 	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
 		r, err := svc.RateUrgency(ctx, "")

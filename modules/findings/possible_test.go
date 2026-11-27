@@ -2,6 +2,7 @@ package findings
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -19,9 +20,12 @@ type fakeChecker struct {
 	stop     *CheckStop
 	sent     []ProposeRequest
 	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
+	budget   ReadBudget
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
+
+func (f *fakeChecker) Budget(context.Context) ReadBudget { return f.budget }
 
 func (f *fakeChecker) Record(_ context.Context, cve string) (CVERecordText, error) {
 	var refs []RefLink
@@ -75,14 +79,15 @@ func possibleWorld(t *testing.T) (*env, *fakeChecker) {
 	t.Helper()
 	e, _ := residueWorld(t)
 	fc := &fakeChecker{
+		budget: ReadBudget{Auto: true},
 		pages: map[string][]FetchedPage{
 			"CVE-2026-82001": {{URL: dsmPageURL + "#82001", Status: "ok", Text: "CVE-2026-82001. Affected products: Synology DiskStation Manager (DSM).\n7.2.1 versions before 7.2.1-69057-6 are affected. Upgrade to 7.2.1-69057-6 or above."}},
-			"CVE-2026-82002": {{URL: dsmPageURL + "#82002", Status: "ok", Text: "Synology DiskStation Manager (DSM). DSM 7.2 is not affected by this issue, which only concerns the new photo service."}},
+			"CVE-2026-82002": {{URL: dsmPageURL + "#82002", Status: "ok", Text: "CVE-2026-82002. Synology DiskStation Manager (DSM). DSM 7.2 is not affected by this issue, which only concerns the new photo service."}},
 			"CVE-2026-82003": {{URL: dsmPageURL + "#82003", Status: "failed", Note: "the site answered 403"}},
 		},
 		verdicts: map[string]ProposeVerdict{
-			"CVE-2026-82002|7.2.1-69057-5": {Verdict: VerdictNotAffected, Reason: "DSM 7.2 is not affected.", Quote: "DSM 7.2 is not affected by this issue", Source: 1},
-			"CVE-2026-82003|7.2.1-69057-5": {Verdict: VerdictUnsure, Reason: "The advisory could not be read."},
+			"CVE-2026-82002|7.2.1-69057-5": {Status: StatementNotAffected, Line: "7.2", Reason: "DSM 7.2 is not affected.", Quote: "DSM 7.2 is not affected by this issue", Source: 1},
+			"CVE-2026-82003|7.2.1-69057-5": {Status: StatementUnsure, Reason: "The advisory could not be read."},
 		},
 	}
 	e.svc.SetChecker(fc)
@@ -97,7 +102,7 @@ func runCheck(t *testing.T, e *env) CheckRun {
 		t.Fatal(err)
 	}
 	e.svc.check.run = &CheckRun{Running: true}
-	e.svc.runPossibleCheck(t.Context(), checkUnits(items), "ana@example.com")
+	e.svc.runPossibleCheck(t.Context(), e.svc.unitsToCheck(t.Context(), items), "ana@example.com")
 	return *e.svc.check.run
 }
 
@@ -168,14 +173,14 @@ func TestPossible_NeverHidesOrDoublesAFinding(t *testing.T) {
 }
 
 // The app decides first: a vendor's advisory the box reads decides without AI (and the match applies it: a finding with the advisory as
-// its range origin); only what it leaves goes to the AI, in one call per CVE, as proposals. A CVE whose page could not be read is not
-// sent to the AI and is not stored (not checked). A second check sends nothing: every key was checked.
+// its range origin); only what it leaves goes to the AI, in one call per CVE, as readings of the release line. A CVE whose page could
+// not be read is not sent to the AI and is not stored (not checked). A second check sends nothing: every key was checked.
 func TestPossibleCheck_AppFirstThenAIProposalsOnce(t *testing.T) {
 	t.Parallel()
 	e, fc := possibleWorld(t)
 	run := runCheck(t, e)
-	if run.Advisory != 1 || run.Proposals != 1 || run.Failed != 1 || run.Stopped != nil {
-		t.Errorf("run %+v: want 1 decided from the advisory, 1 proposal, 1 not checked", run)
+	if run.Advisory != 1 || run.Readings != 1 || run.Failed != 1 || run.Stopped != nil {
+		t.Errorf("run %+v: want 1 decided from the advisory, 1 reading, 1 not checked", run)
 	}
 	for _, req := range fc.sent {
 		if req.CVE == "CVE-2026-82001" {
@@ -196,8 +201,9 @@ func TestPossibleCheck_AppFirstThenAIProposalsOnce(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'nas-01' AND cve = 'CVE-2026-82001' AND range_origin = 'advisory' AND state = 'open'`); n != 1 {
 		t.Error("the match did not turn the advisory's verdict into a finding")
 	}
-	if c := rows["CVE-2026-82002"]; c.DecidedBy != DecidedAI || c.Verdict != VerdictNotAffected || c.Confidence != ConfidenceLikely || c.Model == "" {
-		t.Errorf("82002 check %+v: want an AI proposal, not affected, likely (the quote names no 7.2.1 range)", c)
+	if c := possibleByCVE(t, e)["CVE-2026-82002"].Check; c == nil || c.Reading == nil || c.DecidedBy != DecidedAI || c.Verdict != VerdictNotAffected ||
+		!c.Reading.QuoteFound || !c.Reading.VendorPage || c.Model == "" {
+		t.Errorf("82002 check %+v: want the AI's reading of the vendor's page, not affected, its quote found", c)
 	}
 	if c, ok := rows["CVE-2026-82003"]; ok {
 		t.Errorf("82003 check %+v: want none (its page could not be read)", c)
@@ -266,7 +272,7 @@ func TestPossibleCheck_ProposalsAreConfirmedOrRejectedByAPerson(t *testing.T) {
 	if n, err := e.svc.ConfirmProposals(t.Context(), "", VerdictNotAffected, ConfidenceLikely, "ana@example.com", true); err != nil || n != 0 {
 		t.Errorf("bulk confirm of exploited not-affected proposals: %d, %v; want 0", n, err)
 	}
-	if err := e.svc.RejectProposal(t.Context(), prop.Question.CheckKey, "ana@example.com"); err != nil {
+	if err := e.svc.RejectProposal(t.Context(), prop.Check.Key, "ana@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	if st := possibleByCVE(t, e)["CVE-2026-82002"].State; st != PossibleOpen {
@@ -486,7 +492,8 @@ func TestPossibleCheck_NotAffectedOnlyFromTheVendorsAdvisory(t *testing.T) {
 		fc.tags = map[string][]string{blog: tc.tags}
 		runCheck(t, e)
 		var by, verdict string
-		if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT decided_by, verdict FROM fnd_possible_check WHERE cve = 'CVE-2026-82003'`).Scan(&by, &verdict); err != nil {
+		if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT decided_by, verdict FROM fnd_possible_check WHERE cve = 'CVE-2026-82003'
+			UNION ALL SELECT 'ai', status FROM fnd_line_statement WHERE cve = 'CVE-2026-82003'`).Scan(&by, &verdict); err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
 		if got := by + " " + verdict; !strings.HasPrefix(got, tc.want) {
@@ -575,8 +582,11 @@ func TestPossibleCheck_ARecordChangeKeepsTheLastVerdict(t *testing.T) {
 		t.Error("the check on the new evidence did not ask about CVE-2026-82002 again")
 	}
 	it = possibleByCVE(t, e)["CVE-2026-82002"]
-	if it.Check == nil || it.Check.Key != it.Question.CheckKey || it.Checkable() {
-		t.Errorf("82002 after the new check: check %+v; want the new evidence's check, not checkable", it.Check)
+	if it.Check == nil || it.Check.Reading == nil || it.Check.Reading.RecordHash != it.Question.Detail.Check.Record || it.Checkable() {
+		t.Errorf("82002 after the new check: check %+v; want the reading of the new record, not checkable", it.Check)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_line_statement WHERE cve = 'CVE-2026-82002'`); n != 1 {
+		t.Errorf("%d readings of 82002 kept, want only the newest", n)
 	}
 	if e.count(open) != 1 {
 		t.Error("the new check closed the finding")
@@ -589,7 +599,7 @@ func TestConfirmProposals_FailClosedWhenTheExploitedListCannotBeRead(t *testing.
 	t.Parallel()
 	e, _ := possibleWorld(t)
 	e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
-	runCheck(t, e)
+	seedProposal(t, e, "CVE-2026-82002", VerdictNotAffected)
 	it := possibleByCVE(t, e)["CVE-2026-82002"]
 	if !it.Bulk() {
 		t.Fatalf("82002 (on no exploited list) is not offered in bulk: %+v", it)
@@ -617,8 +627,8 @@ func TestConfirmProposal_AffectedOnACatalogueCVEUsesItsRecord(t *testing.T) {
 	t.Parallel()
 	e, fc := possibleWorld(t)
 	e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
-	fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = ProposeVerdict{Verdict: VerdictAffected, Reason: "DSM 7.2 is affected.", Quote: "DSM 7.2 is not affected by this issue", Source: 1}
-	runCheck(t, e)
+	_ = fc
+	seedProposal(t, e, "CVE-2026-82002", VerdictAffected)
 	it := possibleByCVE(t, e)["CVE-2026-82002"]
 	if it.State != PossibleProposal {
 		t.Fatalf("82002: %s, want a proposal", it.State)
@@ -674,5 +684,21 @@ func TestPossibleCheck_AScriptShellIsNotARead(t *testing.T) {
 	}
 	if len(got.Sources) != 1 || got.Sources[0].Status == "ok" {
 		t.Errorf("82003 sources %+v: want the shell listed as not read", got.Sources)
+	}
+}
+
+// seedProposal stores an AI proposal of one version as checks made before readings of release lines were stored (fnd_possible_check,
+// decided by ai, likely), for the device nas-01's question about cve.
+func seedProposal(t *testing.T, e *env, cve, verdict string) {
+	t.Helper()
+	q := possibleByCVE(t, e)[cve].Question
+	if q.CheckKey == "" || q.Detail.Check == nil {
+		t.Fatalf("%s has no check identity on nas-01", cve)
+	}
+	c := Check{Key: q.CheckKey, CVE: cve, ID: *q.Detail.Check, DecidedBy: DecidedAI, Verdict: verdict, Confidence: ConfidenceLikely, Reason: "The page says so.",
+		Quote: "DSM 7.2 is not affected by this issue", Sources: []CheckSource{{URL: dsmPageURL, Status: "ok", Cited: true}}, Model: "test-model",
+		Profile: "test", CheckedBy: "ana@example.com", CheckedAt: e.svc.now()}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { return insertCheck(t.Context(), tx, c) }); err != nil {
+		t.Fatal(err)
 	}
 }

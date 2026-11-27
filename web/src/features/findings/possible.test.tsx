@@ -30,6 +30,23 @@ describe('Possible findings in By device and By fix', () => {
     expect(sum).toBe(n)
   })
 
+  it('every possible CVE names its cause in one sentence: a reading from a third party, an unsure one, a rejected one, a page that cannot be read', async () => {
+    renderApp('/findings?tab=device')
+    const s = await section()
+    await openRow(s, /^Show or hide the possible CVEs of RT-BACKUP/)
+    const line = await within(s).findByRole('article', { name: 'MikroTik RouterOS 7.14' }, T)
+    await userEvent.click(within(line).getByRole('button', { name: /^Show all \d+ CVEs/ }))
+    const rows = within(line).getAllByTestId('possible-row')
+    const causes = new Set(rows.map((r) => within(r).queryByTestId('possible-cause')?.getAttribute('data-cause')))
+    for (const c of ['vendor_silent', 'ai_unsure', 'needs_person', 'page_unreadable', 'pending_nvd']) expect(causes).toContain(c)
+    expect(causes).not.toContain(undefined)
+    const third = rows.find((r) => r.textContent?.includes('CVE-2026-240108'))!
+    expect(third).toHaveTextContent('blog.example.net says not affected (not the vendor\'s page)')
+    expect(third).toHaveTextContent('No page from the vendor states more than the CVE record for this release line.')
+    const counts = possibleCounts().causes
+    expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(possibleCounts().possible)
+  })
+
   it('a device with 30 possible CVEs lists its line once, exploited first, the first 8 then "Show all 30 CVEs"', async () => {
     renderApp('/findings?tab=device')
     const s = await section()

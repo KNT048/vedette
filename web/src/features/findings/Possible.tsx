@@ -2,9 +2,12 @@
 // counted apart from the open findings ("158 open findings · 16 possible") and shown after them: in By device one row per device,
 // in By fix one row per product and version, on the device page the device's software lines. Each software line says the one input
 // that would decide its CVEs (the version, the system, the package release) and each CVE says in plain words why it is undecided,
-// with one answer menu (Affected, Not affected, Accept the risk). "Check N possible" reads the CVEs' vendor advisories on the box
-// first and asks the AI only about the rest; an AI verdict is a proposal a person confirms or rejects. What the box settled as not
-// affected from a vendor advisory is listed under "Checked, not affected", and a person can still say it is affected.
+// with one answer menu (Affected, Not affected, Accept the risk), and one sentence names its cause (what would decide it). "Check N
+// possible" reads the CVEs' vendor advisories on the box first and asks the AI only about the rest; with an AI provider set up, the box
+// also does this by itself after each match pass. The AI reads the vendor's statement for the release line: affected (its quote found
+// in the page) opens a finding labelled "Read by AI from <host>" that a person rejects in one click; not affected from the vendor's own
+// page settles the CVE, except an exploited one, which a person confirms. What is settled is listed under "Checked, not affected", and a
+// person can still say it is affected.
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -123,6 +126,15 @@ export function CheckChip({ check }: { check: PossibleCheck | null }) {
   const { t } = useTranslation('findings')
   if (!check) return null
   const model = check.model ? t('possible.chip.model', { model: check.model }) : undefined
+  const rd = check.reading
+  if (rd) {
+    const host = rd.host ?? t('possible.chip.theRecord')
+    if (check.rejected) return <Chip tone="off" icon={Bot} title={model}>{t('possible.chip.readRejected')}</Chip>
+    if (check.verdict === 'not_affected') return <Chip tone={check.confidence ? 'ok' : 'off'} icon={Bot} title={model}>{t('possible.chip.readNotAffected', { host })}</Chip>
+    if (check.verdict === 'affected') return <Chip tone="accent" icon={Bot} title={model}>{t('possible.chip.readAffected', { host })}</Chip>
+    if (rd.status === 'not_affected' && !rd.vendor_page && rd.quote_found) return <Chip tone="off" icon={Bot} title={model}>{t('possible.chip.readThirdParty', { host })}</Chip>
+    return <Chip tone="off" icon={Bot} title={model}>{t(rd.quote_found ? 'possible.chip.readUndecided' : 'possible.chip.readUnverified', { host })}</Chip>
+  }
   if (check.decided_by !== 'ai') return <Chip tone={check.verdict === 'not_affected' ? 'ok' : 'off'} icon={ShieldCheck}>{t(`possible.chip.advisory_${check.verdict}`)}</Chip>
   if (check.rejected) return <Chip tone="off" icon={Bot} title={model}>{t('possible.chip.rejected')}</Chip>
   if (check.verdict === 'unsure') return <Chip tone="off" icon={Bot} title={model}>{t('possible.chip.unsure')}</Chip>
@@ -130,15 +142,54 @@ export function CheckChip({ check }: { check: PossibleCheck | null }) {
 }
 
 /** "AI checked" on a finding or an answer a person confirmed from an AI proposal; the check (its reason, quote, pages and model) is
- *  behind the info icon. */
+ *  behind the info icon. A finding the AI's reading opened says "Read by AI from <host>" and has its one-click Reject. */
 export function AiCheckedBadge({ check }: { check: PossibleCheck }) {
   const { t } = useTranslation('findings')
+  if (check.reading) return <AiReadBadge check={check} />
   return (
     <span className="inline-flex items-center gap-1" data-testid="ai-checked">
       <Chip tone="accent" icon={Bot} title={check.model ? t('possible.chip.model', { model: check.model }) : undefined}>{t('possible.aiChecked')}</Chip>
       <InfoTip topic={t('possible.aiCheckedTopic')}><CheckDetails check={check} /></InfoTip>
     </span>
   )
+}
+
+/** "Read by AI from <host>" on a finding the AI's reading of the vendor's statement opened: the reading behind the info icon. Its Reject
+ *  is AiReadReject, among the page's actions. */
+function AiReadBadge({ check }: { check: PossibleCheck }) {
+  const { t } = useTranslation('findings')
+  const host = check.reading?.host ?? t('possible.chip.theRecord')
+  return (
+    <span className="inline-flex items-center gap-1" data-testid="ai-read">
+      <Chip tone="accent" icon={Bot} title={check.model ? t('possible.chip.model', { model: check.model }) : undefined}>{t('possible.aiRead', { host })}</Chip>
+      <InfoTip topic={t('possible.aiReadTopic')}><CheckDetails check={check} /></InfoTip>
+      {check.rejected ? <span className="text-meta text-muted">{t('possible.chip.readRejected')}</span> : null}
+    </span>
+  )
+}
+
+/** Reject of the AI's reading a finding rests on, in one click: the finding closes on every device of the line and the CVE is possible
+ *  again. Nothing once the reading is rejected. */
+export function AiReadReject({ check }: { check: PossibleCheck }) {
+  const { t } = useTranslation('findings')
+  const roles = useRoles()
+  const reject = useRejectProposal()
+  if (!check.reading || check.rejected) return null
+  const host = check.reading.host ?? t('possible.chip.theRecord')
+  return (
+    <Button disabled={!roles.operator} title={roles.needOperator} busy={reject.isPending} busyLabel={t('common:busy.saving')}
+      aria-label={t('possible.aiReadReject', { host })}
+      onClick={() => reject.mutate({ key: check.key }, {
+        onSuccess: () => toast.success(t('possible.aiReadRejected')),
+        onError: (e) => toast.error(errMsg(e)),
+      })}>{t('possible.aiReadRejectShort')}</Button>
+  )
+}
+
+/** What holds the CVE, and what would decide it, in one sentence. */
+export function useCause() {
+  const { t } = useTranslation('findings')
+  return (r: PossibleRow) => (r.cause ? t(`possible.cause.${r.cause}`) : null)
 }
 
 /** Why the CVE is undecided, in plain words. */
@@ -295,6 +346,7 @@ export function ProposalActions({ r }: { r: PossibleRow }) {
 export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled?: boolean }) {
   const { t } = useTranslation('findings')
   const reason = useReason()
+  const cause = useCause()
   const [open, setOpen] = useState(false)
   const panel = `possible-${rowKey(r).replace(/[^\w-]/g, '_')}`
   // a version_needed CVE is decided by the line's version, not one by one
@@ -306,7 +358,9 @@ export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled
       meta={[
         // a version_needed CVE: the line already says the version decides it
         (settled && r.check) || !perCve ? null : reason(r),
-        settled && r.check?.quote ? <span key="quote" className="[overflow-wrap:anywhere]">“{r.check.quote}”</span> : null,
+        // the second line: the quote of what settled it, or what holds the CVE (its cause)
+        settled ? (r.check?.quote ? <span key="quote" className="[overflow-wrap:anywhere]">“{r.check.quote}”</span> : null)
+          : r.cause ? <span key="cause" data-testid="possible-cause" data-cause={r.cause}>{cause(r)}</span> : null,
       ]}
       actions={r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <AnswerMenu r={r} /> : null}>
       {open && r.check ? <div id={panel}><CheckDetails check={r.check} /></div> : null}

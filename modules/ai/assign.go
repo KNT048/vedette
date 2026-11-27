@@ -158,10 +158,13 @@ type ConfigView struct {
 	RedactPII     bool            `json:"redact_pii"`
 	TierEstimates map[Tier]*int   `json:"tier_estimates"`
 	JobsReady     map[string]bool `json:"jobs_ready"`
+	AutoRead      bool            `json:"auto_read"`   // the automatic reading of vendor advisories for possible findings is on
+	DailyReads    int             `json:"daily_reads"` // its AI calls a day
+	ReadsToday    int             `json:"reads_today"` // its AI calls so far today
 }
 
 // Config returns the settings. Tier is the configured level (the monthly budget never lowers it).
-func (s *Service) Config() ConfigView {
+func (s *Service) Config(ctx context.Context) ConfigView {
 	sn := s.snap.Load()
 	v := ConfigView{Tier: s.meter.Tier(), MonthlyBudget: sn.cfg.MonthlyBudget, MonthUsed: s.meter.Used(), RenewsOn: s.meter.Renews().Format("2006-01-02"), RedactPII: s.redactPII(),
 		TierEstimates: map[Tier]*int{}, JobsReady: make(map[string]bool, len(Jobs()))}
@@ -179,6 +182,8 @@ func (s *Service) Config() ConfigView {
 		c, _ := s.router.Candidates(j)
 		v.JobsReady[string(j)] = len(c) > 0
 	}
+	ar := s.AutoReadState(ctx)
+	v.AutoRead, v.DailyReads, v.ReadsToday = ar.Auto, ar.Daily, min(ar.Used, ar.Daily)
 	return v
 }
 
@@ -212,7 +217,8 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 		if err := saveHookSwitch(ctx, tx, HookBlockPII, in.RedactPII); err != nil {
 			return err
 		}
-		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t", in.Tier, in.MonthlyBudget, in.RedactPII))
+		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t, auto_read=%t, daily_reads=%d", in.Tier, in.MonthlyBudget, in.RedactPII,
+			!in.AutoReadOff, in.dailyReads()))
 	})
 	if err != nil {
 		return ConfigView{}, err
@@ -222,5 +228,5 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 	}
 	s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: in})
 	s.harness.Store(hnext)
-	return s.Config(), nil
+	return s.Config(ctx), nil
 }

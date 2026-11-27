@@ -442,11 +442,12 @@ type QuestionDetail struct {
 
 // CheckID is the identity of the evidence one question rests on (checkKey): no device data, so devices with the same software share it.
 type CheckID struct {
-	Product  string `json:"product"`         // the core/productid key
-	Line     string `json:"line"`            // the release line as the product's scheme names it ("15.1"), else the version
-	Version  string `json:"version"`         // the exact version the line runs
-	Build    string `json:"build,omitempty"` // the build the device states with it (ESXi), which the version alone does not say
-	Evidence string `json:"evidence"`        // sha256 hex of the version and the CVE record's stamp
+	Product  string `json:"product"`          // the core/productid key
+	Line     string `json:"line"`             // the release line as the product's scheme names it ("15.1"), else the version
+	Version  string `json:"version"`          // the exact version the line runs
+	Build    string `json:"build,omitempty"`  // the build the device states with it (ESXi), which the version alone does not say
+	Evidence string `json:"evidence"`         // sha256 hex of the version and the CVE record's stamp
+	Record   string `json:"record,omitempty"` // sha256 hex of the CVE record's stamp alone: what an AI reading of the line is keyed by
 }
 
 // Undecided is why a CVE stays possible: one reason of UndecidedReasons, the range rows that were read and did not decide it, and the

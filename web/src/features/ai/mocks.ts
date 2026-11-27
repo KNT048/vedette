@@ -98,7 +98,12 @@ const draftTestOf = (p: StoredProfile) => { const d = draftTests.get()[me()]; re
 const endDraftTest = () => draftTests.update((m) => { const n = { ...m }; delete n[me()]; return n })
 const profileView = (p: StoredProfile): AiProfile => ({ ...p, key_lost: false, usable: aiProfileUsable(p), used_month: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
-const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
+/** The automatic reading of vendor advisories (sample data: on, 300 calls a day, 42 made today). */
+const autoReads = collection<{ on: boolean; daily: number; today: number }>('ai_auto_read', () => ({ on: true, daily: 300, today: 42 }), () => ({ on: true, daily: 300, today: 0 }))
+/** Today's automatic reads are used up (the possible findings' cause ai_budget). */
+export const autoReadReached = () => { const a = autoReads.get(); return a.on && a.today >= a.daily }
+const view = (): AiConfigView => { const c = aiConfigStore.get(); const autoRead = autoReads.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady(),
+  auto_read: autoRead.on, daily_reads: autoRead.daily, reads_today: Math.min(autoRead.today, autoRead.daily) } }
 
 /** `configured` (shared with other modules) = at least one usable profile; provider/model/key mirror the first usable profile. */
 function syncConfig() {
@@ -321,8 +326,11 @@ export const handlers = [
     if (!['min', 'med', 'max'].includes(String(b.tier))) return fail(400, 'invalid_tier', 'Pick a tier: minimum, medium or maximum.')
     const cap = Number(b.monthly_budget)
     if (!Number.isInteger(cap) || cap < 1000 || cap > 150_000_000) return fail(400, 'invalid_cap', 'The monthly AI budget must be a whole number of tokens from 1000 to 150000000.')
+    if (b.daily_reads !== undefined && (!Number.isInteger(b.daily_reads) || b.daily_reads < 1 || b.daily_reads > 5000)) return fail(400, 'invalid_daily_reads', 'The automatic reads a day must be a whole number from 1 to 5000.')
     aiConfigStore.update((c) => ({ ...c, tier: b.tier as AiTier, monthly_budget: cap, redact_pii: b.redact_pii !== false }))
-    audit('ai.config', 'tier', `tier=${b.tier}, monthly_budget=${cap}, redact_pii=${b.redact_pii !== false}`)
+    autoReads.update((a) => ({ ...a, on: b.auto_read ?? a.on, daily: b.daily_reads ?? a.daily }))
+    const autoRead = autoReads.get()
+    audit('ai.config', 'tier', `tier=${b.tier}, monthly_budget=${cap}, redact_pii=${b.redact_pii !== false}, auto_read=${autoRead.on}, daily_reads=${autoRead.daily}`)
     return HttpResponse.json(view())
   }),
 

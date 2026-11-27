@@ -2,25 +2,10 @@ import { useTranslation } from 'react-i18next'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
-import { fmtDateTime } from '@/lib/format'
+import { fmtDateTime, fmtNumber } from '@/lib/format'
 import { useCoverage } from './api'
+import { coverageRows, share, type CoverageRow as Row } from './coverage'
 import type { Coverage } from './types'
-
-/** One row of the coverage table: a source that decided pairs, or a reason pairs stay undecided. */
-type Row = { key: string; outcome: 'decided' | 'undecided'; name: string; affected: number | null; notAffected: number | null; pairs: number }
-
-/** The rows of the table: decided by source, then undecided by cause, each the most first (the box's order). */
-export function coverageRows(c: Coverage): Row[] {
-  return [
-    ...c.decided.map((d): Row => ({ key: `d-${d.by}`, outcome: 'decided', name: d.by, affected: d.affected, notAffected: d.not_affected, pairs: d.affected + d.not_affected })),
-    ...c.possible.map((p): Row => ({ key: `u-${p.cause}`, outcome: 'undecided', name: p.cause, affected: null, notAffected: null, pairs: p.count })),
-  ]
-}
-
-/** A share of a whole as a percentage with one decimal ("1.9 %"); 0 % of nothing. */
-export function share(n: number, of: number): string {
-  return `${(of > 0 ? (100 * n) / of : 0).toFixed(1)} %`
-}
 
 /** Settings → Diagnostics (admin): what the last match pass decided, by source, and why the rest is undecided, by reason (S-MIT-1). */
 export default function CoverageSection() {
@@ -28,15 +13,15 @@ export default function CoverageSection() {
   const q = useCoverage()
   return (
     <>
-      <PageHeader title={t('coverage.title')} meta={t('coverage.meta')} info={t('coverage.info')} stories={['S-MIT-1']} />
-      <QueryState query={q}>{(c) => (c.at === null ? <EmptyState title={t('coverage.title')}>{t('coverage.none')}</EmptyState> : <CoverageTable c={c} />)}</QueryState>
+      <PageHeader title={t('common:shell.diagnostics')} meta={t('coverage.meta')} info={t('coverage.info')} stories={['S-MIT-1']} />
+      <QueryState query={q}>{(c) => (c.at === null ? <EmptyState title={t('common:shell.diagnostics')}>{t('coverage.none')}</EmptyState> : <CoverageTable c={c} />)}</QueryState>
     </>
   )
 }
 
 function CoverageTable({ c }: { c: Coverage }) {
   const { t } = useTranslation('findings')
-  const fmt = (n: number | null) => (n === null ? '' : n.toLocaleString('en'))
+  const fmt = (n: number | null) => (n === null ? '' : fmtNumber(n))
   const decided = c.decided.reduce((n, d) => n + d.affected + d.not_affected, 0)
   const undecided = c.possible.reduce((n, p) => n + p.count, 0)
   const other = c.possible.reduce((n, p) => n + (p.cause.startsWith('other') ? p.count : 0), 0) // every class nobody is told the reason of
@@ -57,7 +42,7 @@ function CoverageTable({ c }: { c: Coverage }) {
         <span className="block font-medium text-ink">{t('coverage.decidedShare', { share: share(decided, c.pairs) })} · {t('coverage.undecidedShare', { share: share(undecided, c.pairs) })} · {t('coverage.otherShare', { share: share(other, c.pairs) })}</span>
         <span className="block">{t('coverage.identity', { list: identity })}</span>
       </>}>
-      <DataTable urlKey="coverage" data={coverageRows(c)} columns={columns} caption={t('coverage.caption')} search={false} pageSize={50} />
+      <DataTable urlKey="coverage" data={coverageRows(c)} columns={columns} caption={t('coverage.caption')} pageSize={50} />
     </Section>
   )
 }

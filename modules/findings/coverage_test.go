@@ -153,3 +153,24 @@ func checkCoverage(t *testing.T, svc *Service, want Coverage) {
 		t.Errorf("coverage\n got %+v\nwant %+v", got, want)
 	}
 }
+
+// GET /findings/coverage is for an admin: at null and every count 0 before the first pass, the pass's counts after it.
+func TestCoverage_EndpointIsTheLastPass(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	if code, _ := e.call("GET", "/findings/coverage", "operator", ""); code != 403 {
+		t.Errorf("an operator got %d, want 403", code)
+	}
+	code, b := e.call("GET", "/findings/coverage", "admin", "")
+	if code != 200 || b["at"] != nil || b["pairs"] != float64(0) || len(b["identity"].([]any)) != len(IdentityMethods) {
+		t.Fatalf("before a pass: %d %v", code, b)
+	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	code, b = e.call("GET", "/findings/coverage", "admin", "")
+	decided, _ := b["decided"].([]any)
+	if code != 200 || b["at"] == nil || b["devices"] != float64(1) || b["pairs"] != float64(1) || len(decided) != 1 {
+		t.Fatalf("after a pass: %d %v", code, b)
+	}
+}

@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { API } from '@/mocks/http'
-import { coverageRows, share } from './CoverageSection'
+import { coverageRows, share } from './coverage'
 
 const T = { timeout: 8000 }
 
@@ -15,9 +15,9 @@ describe('Settings → Diagnostics', () => {
     renderApp('/settings/diagnostics')
     const table = await screen.findByRole('table', { name: 'Decision coverage of the last match pass' }, T)
     const rows = within(table).getAllByRole('row').slice(1)
-    expect(rows[0]).toHaveTextContent(/^DecidedDistribution data41239,87040,28284\.0 %$/)
-    expect(within(table).getByRole('row', { name: /the distribution's data has no word/ })).toHaveTextContent(/^UndecidedUnnamed: the distribution's data has no word310\.1 %$/)
-    expect(screen.getByText(/^Decided 98\.2 % · Undecided 1\.8 % · Unnamed 0\.1 %$/)).toBeInTheDocument()
+    expect(rows[0]).toHaveTextContent(/^DecidedDistribution data41239,87040,28284%$/)
+    expect(within(table).getByRole('row', { name: /the distribution's data has no word/ })).toHaveTextContent(/^UndecidedUnnamed: the distribution's data has no word310\.1%$/)
+    expect(screen.getByText(/^Decided 98\.2% · Undecided 1\.8% · Unnamed 0\.1%$/)).toBeInTheDocument()
     expect(screen.getByText(/^Last match pass .*: 12 devices, 2,140 software lines, 47,940 pairs\.$/)).toBeInTheDocument()
     expect(screen.getByText('Software lines by identity: stated by the source 1,795, product catalogue 61, own name 23, not identified 261.')).toBeInTheDocument()
   })
@@ -38,7 +38,7 @@ describe('Settings → Diagnostics', () => {
   it('orders decided rows before undecided ones and counts a share of nothing as 0', () => {
     const rows = coverageRows({ at: null, devices: 0, lines: 0, pairs: 3, decided: [{ by: 'nvd', affected: 1, not_affected: 1 }], possible: [{ cause: 'other_dropped', count: 1 }], identity: [] })
     expect(rows.map((r) => [r.outcome, r.name, r.pairs])).toEqual([['decided', 'nvd', 2], ['undecided', 'other_dropped', 1]])
-    expect(share(1, 0)).toBe('0.0 %')
-    expect(share(1, 3)).toBe('33.3 %')
+    expect(share(1, 0)).toBe('0%')
+    expect(share(1, 3)).toBe('33.3%')
   })
 })

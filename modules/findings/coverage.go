@@ -249,7 +249,7 @@ func pairStates(dm *devMatch, rows deviceRows, checks map[string]Check) (map[str
 		}
 		for _, i := range cand {
 			s := dm.sws[i]
-			if reached[i] || s.Guess || !keyedBy(dm.keys[i], ek) && !(dm.named[i][vi] && recordNames(dm.infos[i], v)) {
+			if reached[i] || s.Guess || !keyedBy(dm.keys[i], ek) && (!dm.named[i][vi] || !recordNames(dm.infos[i], v)) {
 				continue
 			}
 			line, class := storedLine(s.ID), CoverageOtherRecordUnread

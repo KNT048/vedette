@@ -65,8 +65,9 @@ type ScanTarget struct {
 	// scanner seam reads it here, and only here.
 	Mode ScanMode
 	// SkipPorts are the TCP ports this scan leaves out on every address (the target's deep-scan settings): no engine is sent to
-	// them and nothing is concluded about them. SkipPaths are URL path prefixes the web scans leave out (ZAP; nuclei by the first
-	// request of a template, as far as it can tell). Gentle is the slower speed. None of them is a permission; they only narrow.
+	// them and nothing is concluded about them. SkipPaths are URL path prefixes the web scans leave out (ZAP; nuclei runs a template
+	// only when every request it can send is known and outside them, the index listing each request). Gentle is the slower speed.
+	// None of them is a permission; they only narrow.
 	SkipPorts []int
 	SkipPaths []string
 	Gentle    bool

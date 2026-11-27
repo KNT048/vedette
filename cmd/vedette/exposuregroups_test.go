@@ -137,38 +137,153 @@ func TestExposureGroups_NucleiSendsNoTemplateOfAGroupThatIsOff(t *testing.T) {
 	}
 }
 
-// The paths to skip, by the first request of a template: under a prefix it is left out; a path built while it runs cannot be told
-// and runs; a template outside http/ sends no web path.
+// The paths to skip against every request of a template: one under a prefix leaves it out; one whose path is built while it runs
+// could be under one and leaves it out too; only a template whose requests are all known and outside runs. An index from before
+// the list of requests has only the first line: a template there runs only with no paths to skip. Outside http/ no web path.
 func TestExposureGroups_TemplatePathAgainstThePathsToSkip(t *testing.T) {
 	t.Parallel()
-	tp := func(path, req string) pack.Template { return pack.Template{ID: "x", Path: path, Request: req} }
-	skip := []string{"/admin", "/wp-admin/admin-ajax.php"}
+	tp := func(path string, reqs ...string) pack.Template {
+		return pack.Template{ID: "x", Path: path, Request: reqs[0], Requests: reqs}
+	}
+	old := func(req string) pack.Template { return pack.Template{ID: "x", Path: "http/x.yaml", Request: req} }
+	skip := []string{"/admin", "/wp-admin/admin-ajax.php", "/users/sign_up"}
 	for _, c := range []struct {
 		t    pack.Template
 		want tplPathVerdict
 	}{
 		{tp("http/x.yaml", "GET {{BaseURL}}/admin/delete?id=1"), tplPathSkipped},
 		{tp("http/x.yaml", "POST {{RootURL}}/admin"), tplPathSkipped},
-		{tp("http/x.yaml", "GET /admin/users HTTP/1.1"), tplPathSkipped},
+		{tp("http/x.yaml", "GET /admin/users"), tplPathSkipped},
+		{tp("http/x.yaml", "GET {{BaseURL}}/users/sign_in", "GET {{BaseURL}}/users/sign_up"), tplPathSkipped},
+		{tp("http/x.yaml", "GET /wp-content/plugins/x/readme.txt", "GET /wp-admin/admin-ajax.php?action=x"), tplPathSkipped},
+		{tp("http/x.yaml", "GET {{BaseURL}}/{{randstr}}", "GET {{BaseURL}}/admin"), tplPathSkipped},
 		{tp("http/x.yaml", "GET {{BaseURL}}/login"), tplPathRuns},
 		{tp("http/x.yaml", "GET {{BaseURL}}"), tplPathRuns},
-		{tp("http/x.yaml", "GET {{BaseURL}}/wp-admin/{{file}}"), tplPathUnknown},
+		{tp("http/x.yaml", "GET {{BaseURL}}/users/sign_in", "GET {{BaseURL}}/login", "HEAD /status"), tplPathRuns},
+		{tp("http/x.yaml", "GET {{BaseURL}}/lui/{{...}}"), tplPathUnknown}, // the cut end of a long line may hold "../"
+		{tp("http/x.yaml", "GET {{BaseURL}}/login", "GET {{BaseURL}}/wp-admin/{{file}}"), tplPathUnknown},
 		{tp("http/x.yaml", "GET {{BaseURL}}/ad{{x}}"), tplPathUnknown},
 		{tp("http/x.yaml", "GET {{BaseURL}}{{paths}}"), tplPathUnknown},
 		{tp("http/x.yaml", "GET {{Host}}:{{Port}}/admin"), tplPathUnknown},
+		{tp("http/x.yaml", "GET {{BaseURL}}/login", pack.RequestUnknown), tplPathUnknown},
 		{tp("http/x.yaml", ""), tplPathUnknown},
 		{tp("network/x.yaml", "GET {{BaseURL}}/admin"), tplPathRuns},
+		{old("GET {{BaseURL}}/admin"), tplPathSkipped},
+		{old("GET {{BaseURL}}/users/sign_in"), tplPathUnknown},
 	} {
 		if got := templatePathOf(c.t, skip); got != c.want {
-			t.Errorf("%q: %v, want %v", c.t.Request, got, c.want)
+			t.Errorf("%q: %v, want %v", c.t.Requests, got, c.want)
 		}
 	}
-	if got := templatePathOf(tp("http/x.yaml", "GET {{BaseURL}}/admin"), nil); got != tplPathRuns {
-		t.Errorf("no paths to skip: %v", got)
+	for _, x := range []pack.Template{tp("http/x.yaml", "GET {{BaseURL}}/admin", pack.RequestUnknown), old("GET {{BaseURL}}{{paths}}")} {
+		if got := templatePathOf(x, nil); got != tplPathRuns {
+			t.Errorf("no paths to skip: %q %v", x.Request, got)
+		}
 	}
 }
 
-// nuclei with paths to skip: the templates under them are not sent, and the note names the ones it could not judge.
+// A request path is judged the way the web server reads it, not only as written: the prefix matches in any letter case (as the
+// ZAP exclude of the same setting does), and percent-encoding (also double), backslashes, path parameters (";") and dot segments
+// are resolved first, so a traversal into a skipped path is caught. A value put in while the template runs may itself hold "/"
+// or "..": only a few built-in values that cannot (the target's host and port, random strings) leave a path judged; any other
+// expression in the path, the cut end of a long line included, makes it unknown.
+func TestExposureGroups_TemplatePathAsTheServerReadsIt(t *testing.T) {
+	t.Parallel()
+	tp := func(reqs ...string) pack.Template {
+		return pack.Template{ID: "x", Path: "http/x.yaml", Request: reqs[0], Requests: reqs}
+	}
+	skip := []string{"/Admin", "/vpns", "/users/sign_up", "/api/v3/announcements", "/my%20app/"}
+	for _, c := range []struct {
+		t    pack.Template
+		want tplPathVerdict
+	}{
+		{tp("GET {{BaseURL}}/admin/delete"), tplPathSkipped},
+		{tp("GET /ADMIN"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/vpn/../vpns/cfg/smb.conf"), tplPathSkipped},
+		{tp("GET /static/..;/admin/x"), tplPathSkipped},
+		{tp("GET /%61dmin/"), tplPathSkipped},
+		{tp("GET /x/..%2fadmin"), tplPathSkipped},
+		{tp("GET /x/%252e%252e/admin"), tplPathSkipped},
+		{tp("GET /x/%%32%65%%32%65/admin"), tplPathSkipped},
+		{tp(`GET /x\..\admin`), tplPathSkipped},
+		{tp("GET /x/.%09./admin"), tplPathSkipped},
+		{tp("GET /users//sign_up"), tplPathSkipped},
+		{tp("GET /my app/x"), tplPathSkipped},
+		{tp("GET /zzz/{{Host}}/../../admin"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/api/v3/{{randstr}}/../announcements"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/session/{{token}}/node"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/x/slack-image{{repeat('%2F..', 3)}}%2Fadmin"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/lui/{{...}}"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/x/{{base64('?t=1')}}"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/x/{{rand_base(5, '/.')}}"), tplPathUnknown},
+		{tp("GET /x/.{{SD}}./admin"), tplPathSkipped},
+		{tp("GET {{BaseURL}}/x/{{unclosed"), tplPathUnknown},
+		{tp("GET {{BaseURL}}/keys/{{Host}}.pem"), tplPathRuns},
+		{tp("GET {{BaseURL}}/wp-content/{{randstr}}.php", "GET /cert/{{RDN}}_key.txt"), tplPathRuns},
+		{tp("GET {{BaseURL}}/x/{{rand_base(8)}}"), tplPathRuns},
+		{tp("GET /index.php?id={{token}}&next=/admin"), tplPathRuns},
+		{tp("GET /index.php?file=../admin"), tplPathRuns},
+		{tp("GET /vpn/x"), tplPathRuns},
+		{tp("GET /administrator"), tplPathSkipped},
+	} {
+		if got := templatePathOf(c.t, skip); got != c.want {
+			t.Errorf("%q: %v, want %v", c.t.Requests, got, c.want)
+		}
+	}
+}
+
+// Web servers and proxies differ in how much of a path they decode before resolving dot segments: some resolve dot segments with
+// "%2F" or "%2e" kept (or decode once only), some keep "\" or a tab as a plain character, some keep ";" parameters. A path is under
+// a skipped prefix when any of those readings puts it there, so a reading that decodes more cannot hide a reading that decodes less.
+func TestExposureGroups_TemplatePathUnderEveryReading(t *testing.T) {
+	t.Parallel()
+	tp := func(reqs ...string) pack.Template {
+		return pack.Template{ID: "x", Path: "http/x.yaml", Request: reqs[0], Requests: reqs}
+	}
+	skip := []string{"/admin", "/app;v=1/"}
+	for _, c := range []struct {
+		t    pack.Template
+		want tplPathVerdict
+	}{
+		{tp("GET /q/../admin%2f.."), tplPathSkipped},                        // dot segments resolved, "%2F" kept
+		{tp("GET /q/../admin/%2e%2e"), tplPathSkipped},                      // dot segments resolved, "%2e" kept
+		{tp("GET /q/%2e%2e/admin/%252e%252e/%252e%252e/y"), tplPathSkipped}, // decoded once, then resolved
+		{tp(`GET /q/../admin\..`), tplPathSkipped},                          // "\" kept as a plain character
+		{tp("GET /q/../admin/.%09."), tplPathSkipped},                       // a tab kept as a plain character
+		{tp("GET /q;v=2/../app;v=1/x"), tplPathSkipped},                     // ";" parameters kept
+		{tp("GET {{BaseURL}}/q/../admin%2f../{{randstr}}"), tplPathSkipped}, // the same with a value put in
+		{tp("GET /q/..%2{{SD}}admin"), tplPathUnknown},                      // a value may end a percent escape ("%2" + "f")
+		{tp("GET /static/x/%2e%2e/y"), tplPathRuns},                         // no reading reaches a prefix
+	} {
+		if got := templatePathOf(c.t, skip); got != c.want {
+			t.Errorf("%q: %v, want %v", c.t.Requests, got, c.want)
+		}
+	}
+}
+
+// The line of the templates the paths left out of a port says how many, and why.
+func TestExposureGroups_PathsLine(t *testing.T) {
+	t.Parallel()
+	skip := []string{"/admin", "/wp-"}
+	if l := pathsLine(nil, 443, skip); l != "" {
+		t.Fatalf("nothing left out: %q", l)
+	}
+	for _, c := range []struct {
+		left map[string]tplPathVerdict
+		want string
+	}{
+		{map[string]tplPathVerdict{"a": tplPathSkipped, "b": tplPathSkipped}, "nuclei left out 2 templates on port 443 for this target's web paths to skip (/admin, /wp-): each sends a request under one of them."},
+		{map[string]tplPathVerdict{"a": tplPathUnknown}, "nuclei left out 1 template on port 443 for this target's web paths to skip (/admin, /wp-): each sends a request whose path is only built while it runs, so it could be under one."},
+		{map[string]tplPathVerdict{"a": tplPathSkipped, "b": tplPathUnknown, "c": tplPathUnknown}, "nuclei left out 3 templates on port 443 for this target's web paths to skip (/admin, /wp-): 1 sends a request under one of them, 2 send a request whose path is only built while it runs, so it could be under one."},
+	} {
+		if got := pathsLine(c.left, 443, skip); got != c.want {
+			t.Errorf("%v:\n got %q\nwant %q", c.left, got, c.want)
+		}
+	}
+}
+
+// nuclei with paths to skip: no template with a request under them, or one that could be, is sent, and a line says how many were
+// left out.
 func TestExposureGroups_NucleiLeavesOutTheTemplatesOfASkippedPath(t *testing.T) {
 	t.Parallel()
 	ix, err := nucleipack.Index()
@@ -194,12 +309,12 @@ func TestExposureGroups_NucleiLeavesOutTheTemplatesOfASkippedPath(t *testing.T) 
 	for _, r := range f.reqs {
 		for _, id := range r.Templates {
 			n++
-			if tp, _ := ix.Get(id); templatePathOf(tp, st.SkipPaths) == tplPathSkipped {
-				t.Fatalf("%s was sent: %q", id, tp.Request)
+			if tp, _ := ix.Get(id); templatePathOf(tp, st.SkipPaths) != tplPathRuns {
+				t.Fatalf("%s was sent: %q", id, tp.Requests)
 			}
 		}
 	}
-	if n == 0 || !slices.ContainsFunc(got.NotChecked, func(l string) bool { return strings.Contains(l, "could not filter") && strings.Contains(l, "/wp-") }) {
+	if n == 0 || !slices.ContainsFunc(got.NotChecked, func(l string) bool { return strings.Contains(l, "left out") && strings.Contains(l, "/wp-") }) {
 		t.Fatalf("%d sent, lines %q", n, got.NotChecked)
 	}
 }

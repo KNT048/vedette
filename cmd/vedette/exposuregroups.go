@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/knt048/vedette/modules/exposure"
@@ -66,22 +68,44 @@ func groupAllows(m exposure.ScanMode, tp pack.Template) bool {
 
 // tplFilter is what may leave for one port of a deep scan: the template's set at the mode's depth (RunsAt), its group (groupAllows)
 // and the web paths to skip. The planners choose only such templates, so a port's room is never spent on one the send would drop.
+// left, when not nil, collects the templates that only the paths kept out, with their verdict (for pathsLine).
 type tplFilter struct {
 	m     exposure.ScanMode
 	paths []string
+	left  map[string]tplPathVerdict
 }
 
 func (f tplFilter) runs(tp pack.Template) bool {
-	return tp.RunsAt(true, f.m.Disruptive) && groupAllows(f.m, tp) && templatePathOf(tp, f.paths) != tplPathSkipped
+	if !tp.RunsAt(true, f.m.Disruptive) || !groupAllows(f.m, tp) {
+		return false
+	}
+	v := templatePathOf(tp, f.paths)
+	if v != tplPathRuns && f.left != nil {
+		f.left[tp.ID] = v
+	}
+	return v == tplPathRuns
 }
 
-// requestRE is the first request line of a template as the index keeps it: the method, then the URL as written.
-var requestRE = regexp.MustCompile(`^[A-Z]+ (\S*)`)
+// requestRE is a request line as the index keeps it: the method, then the URL as written, to the end of the line (a path entry
+// may hold a space).
+var requestRE = regexp.MustCompile(`^[A-Z]+ (\S.*)$`)
 
-// tplPathVerdict says whether tp's first request goes under one of skip (a URL path prefix): skipped (it does), judged (it does not),
-// or unknown when the path is built while the template runs ({{BaseURL}}{{paths}}, {{path}}, a raw request to {{Host}}:{{Port}}),
-// so it cannot be told. A template outside http/ sends no web path. Only the first request is in the index: a template's later
-// requests are not seen (best effort, as the settings page says).
+// pathExprRE are the expressions a request path may hold and still be judged: values nuclei puts in that hold no "/", "\", "%",
+// ";" or dot segment of their own (the target's host, port and domain parts, random strings and numbers). Any other expression
+// in a path (an extracted value, a helper function, a variable with no value in the pack, the cut end of a long line) may hold
+// "../" or an encoded one and reach any path: the request is unknown.
+var pathExprRE = regexp.MustCompile(`^(Host|Hostname|Port|FQDN|RDN|DN|TLD|SD|randstr(_[A-Za-z0-9_]+)?|(rand_base|rand_int|rand_text_alpha|rand_text_alphanumeric|rand_text_numeric)\(\s*[0-9]+(\s*,\s*[0-9]+)?\s*\))$`)
+
+// tplPathVerdict says whether a template may run on a target with web paths to skip (URL path prefixes, never patterns): it runs
+// only when every request it can send is known and outside every prefix. A request path is held against a prefix as written and
+// as each web server may resolve it (pathForms: percent-encoding, "\", ";" parameters, repeated slashes and dot segments), in any
+// letter case as the ZAP exclude of the same setting matches, so "/res/../admin/x" or "/Admin/x" is under "/admin". Skipped: a request goes
+// under one. Unknown: a request's path is built while the template runs ({{BaseURL}}{{paths}} with no value in the pack, an
+// extracted value, a helper function, a raw request to {{Host}}:{{Port}}, pack.RequestUnknown), so it could go under one; it is
+// left out too (fail closed). Only the values of pathExprRE leave a path judged. The index lists every request of an http
+// template (pack.Template.Requests); an index built before that list has only the first request line, so a template there is
+// unknown unless that line is already under a prefix. A template outside http/ sends no web path. nuclei runs with -dr (no
+// redirect followed), and the builder marks the one exception, an unsafe raw request with redirects: true, as unknown.
 type tplPathVerdict int
 
 const (
@@ -94,7 +118,28 @@ func templatePathOf(tp pack.Template, skip []string) tplPathVerdict {
 	if len(skip) == 0 || !strings.HasPrefix(tp.Path, "http/") {
 		return tplPathRuns
 	}
-	m := requestRE.FindStringSubmatch(tp.Request)
+	if len(tp.Requests) == 0 { // an older index: the later requests are not known
+		if requestPathOf(tp.Request, skip) == tplPathSkipped {
+			return tplPathSkipped
+		}
+		return tplPathUnknown
+	}
+	verdict := tplPathRuns
+	for _, r := range tp.Requests {
+		switch requestPathOf(r, skip) {
+		case tplPathSkipped:
+			return tplPathSkipped
+		case tplPathUnknown:
+			verdict = tplPathUnknown
+		}
+	}
+	return verdict
+}
+
+// requestPathOf is the verdict of one request line against skip. The path (up to the query) is judged as written and as the web
+// server reads it (pathForms), and a prefix matches in any letter case, as the ZAP exclude of the same setting does.
+func requestPathOf(line string, skip []string) tplPathVerdict {
+	m := requestRE.FindStringSubmatch(line)
 	if m == nil {
 		return tplPathUnknown
 	}
@@ -111,34 +156,181 @@ func templatePathOf(tp pack.Template, skip []string) tplPathVerdict {
 	if !strings.HasPrefix(u, "/") {
 		return tplPathUnknown
 	}
-	literal, variable := u, false
-	if i := strings.Index(u, "{{"); i >= 0 {
-		literal, variable = u[:i], true
+	parts, exprs, ok := pathParts(u)
+	if !ok {
+		return tplPathUnknown
 	}
-	unknown := false
-	for _, p := range skip {
-		switch {
-		case strings.HasPrefix(literal, p):
+	// a value may be anything when it is not one of pathExprRE or ends a percent escape opened before it
+	if slices.ContainsFunc(exprs, func(e string) bool { return !pathExprRE.MatchString(e) }) || slices.ContainsFunc(parts[:len(exprs)], escapeOpenRE.MatchString) {
+		if underAny(parts[0], skip) { // what is known before the first value that could be anything
 			return tplPathSkipped
-		case variable && strings.HasPrefix(p, literal): // the variable part may run into the prefix
-			unknown = true
+		}
+		return tplPathUnknown
+	}
+	for _, v := range []string{"", "x"} { // every value is one of pathExprRE: the path as sent, each value as "" and as a letter
+		if underAny(strings.Join(parts, v), skip) {
+			return tplPathSkipped
 		}
 	}
-	if unknown {
-		return tplPathUnknown
+	for k := range exprs { // the text before a value: when a prefix starts with it, the value may run into the prefix
+		bfs := pathForms(strings.Join(parts[:k+1], "x"), true)
+		for _, p := range skip {
+			for _, pf := range pathForms(p, false) {
+				for _, bf := range bfs {
+					if strings.HasPrefix(pf, bf) {
+						return tplPathUnknown
+					}
+				}
+			}
+		}
 	}
 	return tplPathRuns
 }
 
-// notPathUnknown is the line of the templates whose path could not be told against the web paths to skip: they ran.
-const notPathUnknown = "nuclei could not filter %d templates by path on port %d: their first request's path is built while they run, so they ran although this target has web paths to skip (%s)."
+// pathParts splits the path of u (up to the first "?" outside an expression) into its literal parts and the expressions between
+// them (len(parts) == len(exprs)+1); ok false when an expression is not closed.
+func pathParts(u string) (parts, exprs []string, ok bool) {
+	var b strings.Builder
+	for i := 0; i < len(u); {
+		switch {
+		case strings.HasPrefix(u[i:], "{{"):
+			j := strings.Index(u[i+2:], "}}")
+			if j < 0 {
+				return nil, nil, false
+			}
+			parts, exprs = append(parts, b.String()), append(exprs, strings.TrimSpace(u[i+2:i+2+j]))
+			b.Reset()
+			i += j + 4
+		case u[i] == '?':
+			return append(parts, b.String()), exprs, true
+		default:
+			b.WriteByte(u[i])
+			i++
+		}
+	}
+	return append(parts, b.String()), exprs, true
+}
 
-// pathsLine is notPathUnknown for port, "" when n is 0.
-func pathsLine(n, port int, skip []string) string {
-	if n == 0 {
+// underAny says whether the path p goes under one of skip, as written or as the server reads it, in any letter case.
+func underAny(p string, skip []string) bool {
+	pfs := pathForms(p, true)
+	for _, s := range skip {
+		for _, sf := range pathForms(s, false) {
+			for _, pf := range pfs {
+				if strings.HasPrefix(pf, sf) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// pathForms are p as written and as each reading of resolvePath gives it, in lower case, without repeats. Servers and proxies
+// differ in how far they decode a path before they resolve its dot segments (not at all, keeping "%2F" and "%2e"; once; fully),
+// in whether "\" is a "/" and a tab or newline is dropped, and in whether ";" parameters are dropped (only with params), so each
+// combination is a form: a reading that decodes more never hides one that decodes less.
+func pathForms(p string, params bool) []string {
+	forms := []string{strings.ToLower(p)}
+	add := func(f string) {
+		if f = strings.ToLower(f); !slices.Contains(forms, f) {
+			forms = append(forms, f)
+		}
+	}
+	for round := 0; ; round++ { // decoded 0 to 3 times (double encoding and one more); a "%" that starts no escape is kept
+		for _, slash := range []bool{false, true} {
+			for _, ctl := range []bool{false, true} {
+				add(resolvePath(p, slash, ctl, false))
+				if params {
+					add(resolvePath(p, slash, ctl, true))
+				}
+			}
+		}
+		d := unescapeLoose(p)
+		if round == 3 || d == p {
+			return forms
+		}
+		p = d
+	}
+}
+
+// resolvePath is the path p with its repeated slashes and dot segments resolved, as a web server does; with slash "\" read as
+// "/", with ctl tabs and newlines dropped (as a URL parser does: ".%09." is ".."), with params each segment's path parameters
+// (";…", as Tomcat reads "..;") dropped. A trailing "/" is kept.
+func resolvePath(p string, slash, ctl, params bool) string {
+	if slash {
+		p = strings.ReplaceAll(p, `\`, "/")
+	}
+	if ctl {
+		p = strings.NewReplacer("\t", "", "\n", "", "\r", "").Replace(p)
+	}
+	if params {
+		segs := strings.Split(p, "/")
+		for i, g := range segs {
+			if j := strings.IndexByte(g, ';'); j >= 0 {
+				segs[i] = g[:j]
+			}
+		}
+		p = strings.Join(segs, "/")
+	}
+	dir := strings.HasSuffix(p, "/") || strings.HasSuffix(p, "/.") || strings.HasSuffix(p, "/..")
+	p = path.Clean("/" + p)
+	if dir && p != "/" {
+		p += "/"
+	}
+	return p
+}
+
+// escapeOpenRE is a literal part that ends inside a percent escape ("%" or "%" and one hex digit): the value after it may end the
+// escape ("%2" and "f…" is "/").
+var escapeOpenRE = regexp.MustCompile(`%[0-9A-Fa-f]?$`)
+
+// unescapeLoose decodes every %XX of s and keeps any other "%".
+func unescapeLoose(s string) string {
+	if !strings.Contains(s, "%") {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]) {
+			h, _ := strconv.ParseUint(s[i+1:i+3], 16, 8)
+			b.WriteByte(byte(h))
+			i += 2
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
+}
+
+// pathsLine is the line of the templates left out of port for the web paths to skip, by verdict; "" when there is none. Every one
+// of them is left out: none is sent.
+func pathsLine(left map[string]tplPathVerdict, port int, skip []string) string {
+	skipped, unknown := 0, 0
+	for _, v := range left {
+		switch v {
+		case tplPathSkipped:
+			skipped++
+		case tplPathUnknown:
+			unknown++
+		}
+	}
+	if skipped+unknown == 0 {
 		return ""
 	}
-	return fmt.Sprintf(notPathUnknown, n, port, strings.Join(skip, ", "))
+	why := "each sends a request under one of them"
+	switch {
+	case skipped == 0:
+		why = "each sends a request whose path is only built while it runs, so it could be under one"
+	case unknown > 0:
+		why = fmt.Sprintf("%d %s a request under one of them, %d %s a request whose path is only built while it runs, so it could be under one",
+			skipped, plural(skipped, "sends", "send"), unknown, plural(unknown, "sends", "send"))
+	}
+	return fmt.Sprintf("nuclei left out %s on port %d for this target's web paths to skip (%s): %s.", count(skipped+unknown, "template", "templates"), port, strings.Join(skip, ", "), why)
 }
 
 // groupsOffLine is the line of the disruptive groups this target's settings turned off for nuclei, "" when none.

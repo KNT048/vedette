@@ -243,8 +243,20 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   paths to skip and the speed are read once at the check step and apply from the next scan. Nothing is stopped. A domain's address that is also an IP target of the box takes both targets' settings
   (`deepGate`, `withSettings`; the active web scan of its pages too). Each engine core feeds honours them: nuclei leaves out the
   templates of a group that is off (classified in core, `cmd/vedette` `templateGroup`: a check that can exhaust or crash a service is
-  in the denial-of-service group whatever its tags) and, by the first request of each template, those under a path to skip (one it
-  cannot judge runs, and the step says how many); nmap's full sweep runs the script groups the target's settings allow
+  in the denial-of-service group whatever its tags) and every template that can send a request under a path to skip: it runs only
+  when every request it can send is known and outside every prefix (`pack.Template.Requests` lists them: every `path:` entry and
+  raw request line, inline payload and plain variable values put in), so a later request under a prefix, a path built while it runs
+  (an extracted value, a helper function, a variable with no value in the pack, the cut end of a long line; only the target's host,
+  port and domain parts and random strings or numbers keep a path judged, as they cannot hold "/" or "..") or an index without the
+  list leaves it out. A path is held against a prefix as written and as each web server may resolve it (dot segments and repeated
+  slashes resolved with the path not decoded, decoded once or fully, `\` and tabs kept or read, `;` parameters kept or dropped), in
+  any letter case like the ZAP exclude, so `/res/../admin/x`, `/q/../admin%2f..` and `/Admin/x` are under `/admin`; a value put in
+  right after an open percent escape (`%2{{SD}}`) makes the path unknown. The step says how many were left out per port
+  and why (`cmd/vedette` `templatePathOf`, `pathsLine`). Redirects: nuclei runs with `-dr`, which overrides a
+  template's `redirects: true` / `host-redirects: true` for its http client, so no redirect reaches a skipped path that way; the one
+  exception in nuclei 3.11.1 is an `unsafe: true` raw request with `redirects: true` (its raw client follows them), which the pack
+  builder lists as unknown, so such a template is left out too (none in pack 2026.11.5). A server can still answer a request outside
+  the prefixes with a page that names a skipped path: nuclei does not follow it; nmap's full sweep runs the script groups the target's settings allow
   (`ScanTarget.Groups`; scheduled scans too) and its disruptive scripts those of the groups the run allows, narrowed again right
   before the job (`cmd/vedette` `ownGate.GroupsNow`; sensor-active INV-19a), and the ports to skip go to nmap as `--exclude-ports`
   or are left out of its port lists; ZAP's active pass is skipped with `web_active` off, its disruptive rules run with `dos` or

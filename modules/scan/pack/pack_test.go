@@ -78,6 +78,13 @@ func TestParse_Refuses(t *testing.T) {
 		"over the size cap":   `{"version":"` + strings.Repeat(" ", MaxSize) + `"}`,
 		"tags not an array":   entry(func(e map[string]any) { e["tags"] = "kev" }),
 		"template not object": `{"version":"2026.11.1","sha256":"` + sha + `","templates":["x"]}`,
+		"requests over the cap": entry(func(e map[string]any) {
+			e["requests"] = slices.Repeat([]string{"GET /"}, MaxRequests+1)
+		}),
+		"requests outside http": entry(func(e map[string]any) { e["path"], e["requests"] = "network/cves/x.yaml", []string{"GET /"} }),
+		"requests newline":      entry(func(e map[string]any) { e["requests"] = []string{"GET /", "GET /\r\nHost: x"} }),
+		"requests empty line":   entry(func(e map[string]any) { e["requests"] = []string{""} }),
+		"requests too long":     entry(func(e map[string]any) { e["requests"] = []string{"GET /" + strings.Repeat("a", 200)} }),
 	}
 	for name, in := range cases {
 		if ix, err := Parse([]byte(in)); err == nil {
@@ -86,6 +93,12 @@ func TestParse_Refuses(t *testing.T) {
 	}
 	if _, err := Parse([]byte(entry(func(map[string]any) {}))); err != nil {
 		t.Fatalf("the base entry is refused: %v", err)
+	}
+	ix, err := Parse([]byte(entry(func(e map[string]any) {
+		e["requests"] = append(slices.Repeat([]string{"GET /"}, MaxRequests-1), RequestUnknown)
+	})))
+	if err != nil || len(ix.Templates[0].Requests) != MaxRequests {
+		t.Fatalf("an entry with a full list of requests: %v", err)
 	}
 }
 

@@ -32603,7 +32603,7 @@
                                 "items": {
                                   "type": "string"
                                 },
-                                "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                                "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                               },
                               "updated_at": {
                                 "anyOf": [
@@ -33613,7 +33613,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                         },
                         "updated_at": {
                           "anyOf": [
@@ -34498,7 +34498,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                         },
                         "updated_at": {
                           "anyOf": [
@@ -35365,7 +35365,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                         },
                         "updated_at": {
                           "anyOf": [
@@ -35870,7 +35870,7 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                    "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                   }
                 },
                 "required": [
@@ -36375,7 +36375,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                         },
                         "updated_at": {
                           "anyOf": [
@@ -38303,7 +38303,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                         },
                         "updated_at": {
                           "anyOf": [
@@ -39161,7 +39161,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                          "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                         },
                         "updated_at": {
                           "anyOf": [
@@ -40007,7 +40007,7 @@
                               "items": {
                                 "type": "string"
                               },
-                              "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei by the first request of each template; nmap and OpenVAS keep off a path only by skipping its port"
+                              "description": "URL path prefixes the web scans leave out, matched as written (not a pattern): ZAP, and nuclei, which runs a template only when every request it can send is known and outside them; nmap and OpenVAS keep off a path only by skipping its port"
                             },
                             "updated_at": {
                               "anyOf": [

@@ -276,8 +276,8 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 
 func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	if d, ok := distroVerdict(in, v); ok { // The distribution's word on its own package
-		if d.kind != distroNeeded {
-			return nil // fixed here or not affected: nothing to install
+		if d.kind != distroNeeded || d.fixed == "" {
+			return nil // fixed here or not affected: nothing to install; affected with no fixed package yet: no release to name (FixOf: none_yet)
 		}
 		return &FixedIn{Kind: "distro", Version: clean(in.pkgVer), Distro: d.name, DistroFixed: clean(d.fixed), DistroRelease: d.release,
 			DistroPro: d.pro, Branches: []FixedBranch{}, Source: DistroSource(d.name)}

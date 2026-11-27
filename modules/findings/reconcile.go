@@ -123,7 +123,10 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		}
 	}
 	for _, f := range existing {
-		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected {
+		// open means detected: an open finding the match no longer detects (one reopened before Transition closed such a reopen) closes
+		// now, also when the pass no longer reads its CVE (it left the catalogue)
+		stale := f.State == StateOpen && !f.Detected
+		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] && !stale || !f.Detected && !stale {
 			continue
 		}
 		via, from, to, by, corrected := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
@@ -192,7 +195,7 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	switch {
 	case x.Basis == BasisScan:
 		d.Basis, d.Verified, d.RangeOrigin = DetectScan, VerifiedScan, RangeScan
-	case pkg != "": // the match compared a distribution's package release, whoever read it
+	case pkg != "" && !x.upstream: // the match compared a distribution's package release, whoever read it (not NVD's upstream ranges)
 		d.Basis, d.RangeOrigin, d.MatchedVersion = DetectPackage, RangeDistro, pkg
 	case src == "manual":
 		d.Basis = DetectStatement
@@ -256,11 +259,14 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 		}
 		return ViaDataCorrected, "", "", "", false
 	}
-	cur := l.reading.Version
-	if l.reading.Pkg != "" { // a line with a package release is matched on it (detectionOf, scanLine): whatever the basis
-		cur = l.reading.Pkg
+	cur, pkg := l.reading.Version, false
+	// a line with a package release is matched on it (detectionOf, scanLine): whatever the basis, except the device's version read
+	// against NVD's upstream ranges while the distribution has no word (awaitingDistro), which stored the upstream version: comparing
+	// that with the package release would call "9.6p1" to "1:9.6p1-3ubuntu13.4" an update the device never made
+	if l.reading.Pkg != "" && f.Basis != DetectDeviceVersion {
+		cur, pkg = l.reading.Pkg, true
 	}
-	if moved(f.MatchedVersion, cur) {
+	if moved(f.MatchedVersion, cur, pkg) {
 		if l.sw.Source == "manual" && l.sw.ReportedSource != "" {
 			return ViaDataCorrected, "", "", "", true // a person corrected what a source reads
 		}
@@ -297,10 +303,22 @@ func proofReason(via Via, p Match) string {
 }
 
 // moved reports whether cur is a newer release than was: both known, ordered, and not the same release written more or less
-// precisely ("10.2" and "10.2p1").
-func moved(was, cur string) bool {
+// precisely ("10.2" and "10.2p1"). On a line with a package release (pkg) two releases of one shape (both with a revision, or both
+// without) are ordered by the package scheme alone: "1ubuntu2" -> "1ubuntu2.1", "+esm3" or "2.41-5" -> "2.41-5+deb13u1" is an
+// update, never "the same release written more precisely".
+func moved(was, cur string, pkg bool) bool {
 	was, cur = strings.TrimSpace(was), strings.TrimSpace(cur)
-	if was == "" || cur == "" || was == cur || sameRelease(was, cur) {
+	if was == "" || cur == "" || was == cur {
+		return false
+	}
+	if pkg && strings.Contains(was, "-") == strings.Contains(cur, "-") {
+		for _, cmp := range []func(a, b string) (int, bool){debCompare, apkCompare} {
+			if o, ok := cmp(cur, was); ok {
+				return o > 0
+			}
+		}
+	}
+	if sameRelease(was, cur) {
 		return false
 	}
 	for _, cmp := range []func(a, b string) (int, bool){debCompare, apkCompare, CompareVersions} {

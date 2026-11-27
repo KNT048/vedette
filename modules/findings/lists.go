@@ -207,7 +207,7 @@ func (s *Service) lineGroups(ctx context.Context, f ListFilter) ([]lineGroup, er
 	if status != "" {
 		sel = "(" + status + ")"
 	}
-	q := `SELECT asset_id, ifnull(software_id, ''), fix_kind, ifnull(fix_version, ''), ifnull(fix_ref, ''), fix_key, count(*),
+	q := `SELECT asset_id, ifnull(software_id, ''), fix_kind, ifnull(fix_version, ''), ifnull(fix_ref, ''), fix_channel, fix_key, count(*),
 		sum(CASE WHEN ` + sel + ` THEN 1 ELSE 0 END), ifnull(min(CASE WHEN ` + sel + ` THEN urgency END), 0)
 		FROM fnd_finding WHERE ` + rows + ` GROUP BY asset_id, ifnull(software_id, ''), fix_key ORDER BY asset_id, 2, fix_key`
 	all := append(append(append([]any{}, sargs...), sargs...), args...)
@@ -218,12 +218,15 @@ func (s *Service) lineGroups(ctx context.Context, f ListFilter) ([]lineGroup, er
 	var out []lineGroup
 	for r.Next() {
 		var g lineGroup
-		var kind string
-		if err := r.Scan(&g.Asset, &g.Software, &kind, &g.Fix.Version, &g.Fix.Ref, &g.Key, &g.All, &g.N, &g.Urgency); err != nil {
+		var kind, channel string
+		if err := r.Scan(&g.Asset, &g.Software, &kind, &g.Fix.Version, &g.Fix.Ref, &channel, &g.Key, &g.All, &g.N, &g.Urgency); err != nil {
 			_ = r.Close()
 			return nil, fmt.Errorf("findings: grouping open findings: %w", err)
 		}
 		g.Fix.Kind = FixKind(kind)
+		if FixChannel(channel) != ChannelPublic {
+			g.Fix.Channel = FixChannel(channel)
+		}
 		g.Product = productPart(Finding{FixKey: g.Key, Fix: g.Fix})
 		out = append(out, g)
 	}
@@ -246,6 +249,7 @@ func combine(gs []lineGroup, j *releaseJudge) {
 	type bucket struct {
 		asset, software, product string
 		kind                     FixKind
+		channel                  FixChannel // a fix only a subscription carries never combines with a public one
 	}
 	idx := map[bucket][]int{}
 	for i := range gs {
@@ -253,7 +257,7 @@ func combine(gs []lineGroup, j *releaseJudge) {
 		if gs[i].Fix.Version == "" {
 			continue
 		}
-		b := bucket{gs[i].Asset, gs[i].Software, gs[i].Product, gs[i].Fix.Kind}
+		b := bucket{gs[i].Asset, gs[i].Software, gs[i].Product, gs[i].Fix.Kind, gs[i].Fix.Chan()}
 		idx[b] = append(idx[b], i)
 	}
 	for b, is := range idx {

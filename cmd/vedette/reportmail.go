@@ -84,7 +84,18 @@ func reportSeverity(c *reports.CveSeverity) string {
 
 // reportFix is the fix line of the report page and the finding page (web findings fixLine, useFixTitle), from being the listed
 // finding's own version ("" when the line names no device's version).
+// A fix only a subscription carries says so, as the page does: never the bare "Install … or later".
 func reportFix(f reports.Fix, from string) string {
+	switch {
+	case f.Channel == "ubuntu_pro" && f.Kind == "distro_update" && reportText(f.Version) != "":
+		return "Install the " + f.Product + " package " + reportText(f.Version) + " from Ubuntu Pro (ESM): only Ubuntu Pro has this fix"
+	case f.Channel == "esu" && f.Kind == "os_update":
+		return reportFixWords(f, from) + reports.ChannelNote(f.Channel)
+	}
+	return reportFixWords(f, from)
+}
+
+func reportFixWords(f reports.Fix, from string) string {
 	to, ref := reportText(f.Version), reportText(f.Ref)
 	switch f.Kind {
 	case "update":

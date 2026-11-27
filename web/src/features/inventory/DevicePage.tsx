@@ -353,9 +353,17 @@ const SoftwareList = memo(function SoftwareList({ d, info, listActions }: { d: D
     // INV-50: the one notice, only when another source reads another release (`differs`); the same release is quiet evidence below
     const differing = sw.differs ? sw.also_seen.find((o) => !o.same_release && o.source !== 'manual') : undefined
     const v = differing?.version ?? ''
+    // a package a source read from the device's package database is matched on its full package release: that is the version shown,
+    // the upstream version under it (a person's own entry says its release in EnteredNote)
+    const pkg = sw.source !== 'manual' ? sw.pkg_version : null
     return (
       <div className="grid gap-1">
-        <span>{sw.version || <span className="text-muted">{t(sw.basis === 'guess' ? 'software.guessNoVersion' : 'software.noVersion')}</span>}</span>
+        {pkg ? (
+          <span className="grid gap-0.5" data-testid="software-package-release">
+            <span className="[overflow-wrap:anywhere]">{pkg}</span>
+            {sw.version && sw.version !== pkg ? <span className="text-caption text-muted">{t('software.upstreamVersion', { version: sw.version })}</span> : null}
+          </span>
+        ) : <span>{sw.version || <span className="text-muted">{t(sw.basis === 'guess' ? 'software.guessNoVersion' : 'software.noVersion')}</span>}</span>}
         <EnteredNote assetId={d.asset.id} sw={sw} />
         {differing ? (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn" data-testid="software-differs">

@@ -14,14 +14,18 @@ export const deviceStatusLink = (device: string, status: NonNullable<DeviceStatu
  *  across devices: "Update OpenSSH to 10.6". */
 export function useFixTitle() {
   const { t } = useTranslation('findings')
-  return (fix: Fix, software?: SoftwareRef | null) => {
+  return (fix: Omit<Fix, 'channel'> & { channel?: Fix['channel'] }, software?: SoftwareRef | null) => {
     const from = software?.version ?? null
     const to = fix.version
     // a fix that names no release says what to do without an empty slot ("Install the Linux kernel package  or later")
     switch (fix.kind) {
       case 'update': return !to ? t('fixLine.updateAny', { product: fix.product }) : from ? t('fixLine.updateFrom', { product: fix.product, from, to }) : t('fixLine.update', { product: fix.product, to })
-      case 'distro_update': return to ? t('fixLine.distro', { product: fix.product, to }) : t('fixLine.distroAny', { product: fix.product })
-      case 'os_update': return fix.ref ? t('fixLine.osRef', { product: fix.product, ref: fix.ref }) : to ? t('fixLine.osBuild', { product: fix.product, to }) : t('fixLine.osAny', { product: fix.product })
+      // a fix only Ubuntu Pro (ESM) or Windows ESU carries says so: never the bare "Install … or later"
+      case 'distro_update': return !to ? t('fixLine.distroAny', { product: fix.product }) : fix.channel === 'ubuntu_pro' ? t('fixLine.distroPro', { product: fix.product, to }) : t('fixLine.distro', { product: fix.product, to })
+      case 'os_update': {
+        const line = fix.ref ? t('fixLine.osRef', { product: fix.product, ref: fix.ref }) : to ? t('fixLine.osBuild', { product: fix.product, to }) : t('fixLine.osAny', { product: fix.product })
+        return fix.channel === 'esu' ? t('fixLine.esu', { line }) : line
+      }
       case 'feature_update': return to ? t('fixLine.feature', { product: fix.product, to }) : t('fixLine.featureAny', { product: fix.product })
       case 'restart': return to ? t('fixLine.restart', { product: fix.product, to }) : t('fixLine.restartAny', { product: fix.product })
       case 'none_yet': return t('fixLine.noneYet', { product: fix.product })

@@ -325,6 +325,7 @@ type fixJS struct {
 	Product string  `json:"product"`
 	Version *string `json:"version"`
 	Ref     *string `json:"ref"`
+	Channel string  `json:"channel"` // FixChannel: where the fix is published (public, ubuntu_pro, esu)
 	URL     *string `json:"url"`
 }
 
@@ -337,7 +338,7 @@ func fixOf(key string, fx Fix, product string) fixJS {
 	if !slices.Contains(knownFixKinds, k) {
 		k = FixUnknown
 	}
-	out := fixJS{Key: clipBytes(key, 400), Kind: string(k), Product: product}
+	out := fixJS{Key: clipBytes(key, 400), Kind: string(k), Product: product, Channel: string(fx.Chan())}
 	if fx.Version != "" {
 		v := fx.Version
 		out.Version = &v
@@ -363,6 +364,9 @@ func productName(f Finding, l *Line) string {
 // productPart is the product key at the head of a finding's fix key (FixKey: '<product key>|<kind>|<version>').
 func productPart(f Finding) string {
 	tail := "|" + string(f.Fix.Kind) + "|" + f.Fix.Version
+	if c := f.Fix.Chan(); c != ChannelPublic {
+		tail += "|" + string(c)
+	}
 	if f.Fix.Kind != "" && strings.HasSuffix(f.FixKey, tail) {
 		return strings.TrimSuffix(f.FixKey, tail)
 	}

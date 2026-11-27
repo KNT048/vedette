@@ -167,9 +167,12 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 	if err != nil {
 		return nil, err
 	}
-	kernel := "" // the box's running kernel: the Kernel row takes its image; unknown keeps the lowest installed one
-	if info, err := b.c.Info(ctx); err == nil {
-		kernel = info.OS.Kernel
+	kernel, ok := runningKernel(b.c.Info(ctx))
+	if !ok { // the host did not answer which kernel runs (busy, restarting): keep the last good list, read again next run
+		if b.log != nil {
+			b.log.InfoContext(ctx, "inventory: the box did not say which kernel it runs; its package list is kept and read again at the next run")
+		}
+		return nil, nil
 	}
 	pkgs := make([]agentintake.DebPackage, len(st.Packages))
 	for i, p := range st.Packages {
@@ -188,6 +191,17 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 			PkgVersion: s.PkgVersion, PkgSource: s.PkgSource}
 	}
 	return out, nil
+}
+
+// runningKernel is the box's running kernel from vedette-host's info: the Kernel row takes its image (agentintake.MapDebPackages). ok is
+// false when the host did not answer: without the running kernel every installed image would read as the Kernel row and the lowest
+// would win, moving the Kernel line back to an older kernel for one read (and reopening every finding the newer one fixed). A host
+// that answers without a kernel ("") keeps the old reading: the lowest installed image.
+func runningKernel(info hostapi.Info, err error) (string, bool) {
+	if err != nil {
+		return "", false
+	}
+	return info.OS.Kernel, true
 }
 
 // boxPorts is inventory's BoxPorts (INV-3): vedette-host's GET /v1/state/ports, the ports the box listens on at an address other

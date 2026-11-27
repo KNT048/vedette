@@ -69,7 +69,7 @@ describe('step 1 names the fix every list names, and what the plan names', () =>
     const f = await api.get<FindingDetail>('/findings/f-2')
     const view = await api.get<View>(`/findings/${records.get()[0]!.id}/view`)
     const kinds = ['update', 'distro_update', 'os_update', 'feature_update', 'restart'] as const
-    const missing = kinds.filter((kind) => !storedFixText(t, f, { ...view, fix: { key: `k|${kind}`, kind, product: 'Kernel', version: '7.0.0-44.44', ref: null, url: null } }))
+    const missing = kinds.filter((kind) => !storedFixText(t, f, { ...view, fix: { key: `k|${kind}`, kind, product: 'Kernel', version: '7.0.0-44.44', ref: null, channel: 'public', url: null } }))
     console.info(`step 1: ${missing.length} of ${kinds.length} fix kinds without a sentence`, missing)
     expect(missing).toEqual([])
   })
@@ -77,7 +77,7 @@ describe('step 1 names the fix every list names, and what the plan names', () =>
   it('the fixed kernel is installed: step 1 is the restart, no workaround is needed, and the checklist starts with the restart', async () => {
     const f = await esxi({ kev: null, known_version: { software: 'Kernel', version: '7.0.0', source: 'agent', seen_at: '2026-11-20T08:00:00Z' } })
     const view = await api.get<View>(`/findings/${records.get()[0]!.id}/view`)
-    server.use(http.get('*/api/v1/findings/f-2/view', () => HttpResponse.json({ ...view, fix: { key: 'linux|kernel|restart|7.0.0-44.44', kind: 'restart', product: 'Kernel', version: '7.0.0-44.44', ref: null, url: null } })))
+    server.use(http.get('*/api/v1/findings/f-2/view', () => HttpResponse.json({ ...view, fix: { key: 'linux|kernel|restart|7.0.0-44.44', kind: 'restart', product: 'Kernel', version: '7.0.0-44.44', ref: null, channel: 'public', url: null } })))
     renderApp('/findings/f-2')
     const s = await todo()
     const device = f.asset!.name

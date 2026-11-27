@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -294,9 +295,12 @@ type KnownVersion struct {
 	SeenAt *time.Time `json:"seen_at"`
 }
 
-// knownVersion is the KnownVersion of row s of device a; nil when the row has no version or its source is not known.
+// knownVersion is the KnownVersion of row s of device a; nil when the row has no version or its source is not known. A row with a
+// package release (a distribution's package: an agent's package row, the Kernel line, a release a person gave) says that release, the
+// one the match compares ("25.1.1+dfsg-1ubuntu2", not the upstream "25.1.1+dfsg"), so the page and the fix name the same numbers.
 func knownVersion(a Asset, s Software) *KnownVersion {
-	if !versionGiven(s.Version) {
+	pkg := clean(s.PkgVersion)
+	if !versionGiven(s.Version) && pkg == "" {
 		return nil
 	}
 	src := ""
@@ -319,7 +323,7 @@ func knownVersion(a Asset, s Software) *KnownVersion {
 	if src == VersionByManual {
 		name = clean(s.Display) // the "I updated <software>" button names the row as inventory does (review r1 L4)
 	}
-	k := &KnownVersion{Software: name, Version: clean(s.Version), Source: src}
+	k := &KnownVersion{Software: name, Version: cmp.Or(pkg, clean(s.Version)), Source: src}
 	if !s.SeenAt.IsZero() {
 		at := s.SeenAt.UTC()
 		k.SeenAt = &at

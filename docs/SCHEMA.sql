@@ -563,7 +563,7 @@ CREATE TABLE "feeds_distro_fix" (
     cve           TEXT    NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     status        TEXT    NOT NULL CHECK (status IN ('fixed', 'not_affected', 'open')),
     fixed_version TEXT    CHECK ((status = 'fixed') = (fixed_version IS NOT NULL) AND (fixed_version IS NULL OR length(fixed_version) BETWEEN 1 AND 100)),
-    pro           INTEGER NOT NULL DEFAULT 0 CHECK (pro IN (0, 1)),
+    pro           INTEGER NOT NULL DEFAULT 0 CHECK (pro IN (0, 1)), reason TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (source_id, distro, release, package, cve)
 );
 
@@ -1109,7 +1109,7 @@ CREATE TABLE fnd_finding (
     urgency_at     TEXT    NOT NULL CHECK (urgency_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    updated_at     TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    updated_at     TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), fix_channel TEXT NOT NULL DEFAULT 'public',
     CHECK ((state = 'open') = (resolution IS NULL)),
     CHECK ((state = 'open') = (via IS NULL)),
     CHECK ((state = 'open') = (resolved_by IS NULL)),

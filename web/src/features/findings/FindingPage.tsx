@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ScanSearch } from 'lucide-react'
+import { ExternalLink, ScanSearch } from 'lucide-react'
 import { PageHeader, Section, KeyValue, Notice } from '@/components/common/PageHeader'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
@@ -19,7 +19,7 @@ import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatus, legacySeverity } from './legacyStatus'
 import { overdue } from './accept'
 import { useFinding, useReopen, useView } from './api'
-import { AiCheckedBadge } from './Possible'
+import { AiCheckedBadge, AiReadReject } from './Possible'
 import { useFindingAgentGone } from './agentNow'
 import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
@@ -29,7 +29,7 @@ import { FixGuide, FixLineOf } from './WhatToDo'
 import { useCve } from '@/features/feeds/api'
 import { GeneralChecks } from './Hardening'
 import { FindingStatusLines, ReopenedLine, SeverityBadge } from '@/components/common/status'
-import type { FindingDetail } from './types'
+import type { FindingDetail, PossibleCheck } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
 import { HandleDialog } from './HandleDialog'
@@ -43,7 +43,24 @@ function evidenceSource(f: FindingDetail): string {
   return f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : f.kev ? 'kev' : 'catalogue'
 }
 
-function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
+/** The source of a finding the AI's reading of the vendor's statement opened: the page it read (its host, linked), never NVD's data. */
+function AiReadSource({ check, at }: { check: PossibleCheck; at?: string }) {
+  const { t } = useTranslation('findings')
+  const page = check.sources.find((p) => p.cited) ?? check.sources[0]
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 text-caption text-muted" data-testid="ai-read-source">
+      <span>{t(check.reading?.host ? 'evidence.aiReadSource' : 'evidence.aiReadRecord')}</span>
+      {check.reading?.host && page ? (
+        <a href={page.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">
+          {check.reading.host}<ExternalLink className="size-3" aria-hidden />
+        </a>
+      ) : null}
+      {at ? <span>{fmtDateTime(at)}</span> : null}
+    </span>
+  )
+}
+
+function Evidence({ f, confirm, aiCheck }: { f: FindingDetail; confirm?: ReactNode; aiCheck?: PossibleCheck | null }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
   const scanOn = useModuleEnabled('scan') === true
   const { t } = useTranslation('findings')
@@ -65,7 +82,7 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
               { label: t('evidence.basis'), value: t(basisLabel(f)) },
               { label: t('evidence.confidence'), value: fmtPercent(f.confidence, 0) },
               { label: t('evidence.template'), value: ev.template ?? <span className="text-muted">{f.kev?.has_template ? t('evidence.noTemplateRun') : t('evidence.noTemplate')}</span> },
-              { label: t('evidence.source'), value: <SourceBadge source={evidenceSource(f)} confidence={f.confidence} at={ev.checked_at} /> },
+              { label: t('evidence.source'), value: aiCheck?.reading ? <AiReadSource check={aiCheck} at={ev.checked_at} /> : <SourceBadge source={evidenceSource(f)} confidence={f.confidence} at={ev.checked_at} /> },
             ]} />
             {ev.request ? <CodeBlock code={ev.request} label={t('evidence.request')} /> : null}
             {ev.response ? <CodeBlock code={ev.response} label={t('evidence.response')} /> : null}
@@ -212,7 +229,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const open_ = isOpen(f.status)
   const body = (
     <>
-      <Evidence f={f} confirm={<ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} />} />
+      <Evidence f={f} aiCheck={view.data?.ai_check} confirm={<ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} />} />
       <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} info={t('rec.descriptionInfo')} stories={['S-MIT-1']}>
         {f.pack ? <RequireModule module="mitigation"><PackView finding={f} fix={<FixLineOf f={f} />} /></RequireModule> : <FixGuide f={f} />}
       </Section>
@@ -247,6 +264,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
           <>
             <SampleDataNote />
             <IUpdatedFinding f={f} />
+            {view.data?.ai_check ? <AiReadReject check={view.data.ai_check} /> : null}
             {canConfirm(f) && !f.asset ? <ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} /> : null}
             {canUndo(f) ? <UndoButton f={f} /> : null}
             {open_ ? <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button> : null}

@@ -64,7 +64,7 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 		{name: "a PPA build of the package", device: "u-1", sw: "s-apache",
 			vuln: nvd("CVE-2026-60007", apache, "2.4.66", row("ubuntu", "26.04", "apache2", "fixed", "2.4.62-1ubuntu1.1")), cause: DistroOtherBuild},
 		{name: "the distribution has no row of the CVE", device: "u-1", sw: "s-ssl", vuln: nvd("CVE-2026-60008", ssl, "3.6"), cause: DistroNotListed},
-		{name: "a package row with no release", device: "u-1", sw: "s-ssh", vuln: nvd("CVE-2026-60009", ssh, "10.6"), cause: UndecidedPackage},
+		{name: "a package row with no release", device: "u-1", sw: "s-ssh", vuln: nvd("CVE-2026-60009", ssh, "10.6"), cause: CauseVersionNeeded},
 		{name: "Alpine's fixed release of the device's branch decides", device: "a-2", sw: "s-assl",
 			vuln: nvd("CVE-2026-60010", ssl, "3.6", row("alpine", "3.23", "openssl", "fixed", "3.5.9-r2")), by: RangeDistro, affect: true},
 		{name: "Alpine names no fix: the upstream ranges decide", device: "a-2", sw: "s-assl", vuln: nvd("CVE-2026-60011", ssl, "3.5.10"), by: RangeNVD, affect: true},
@@ -91,11 +91,11 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		checks, err := checksFor(t.Context(), e.db.Reader(), rows.questions)
+		in, err := e.svc.causeInputsOf(t.Context(), rows.questions, cveSet(vulns))
 		if err != nil {
 			t.Fatal(err)
 		}
-		st, _ := pairStates(newDevMatch(a, vulns, now), rows, checks)
+		st, _ := pairStates(newDevMatch(a, vulns, now), rows, in)
 		for k, v := range st {
 			states[a.ID+"/"+k] = v
 		}

@@ -106,6 +106,7 @@ function ProfilesTab({ cfg }: { cfg: AiConfigView }) {
       <QueryState query={profiles}>{(p) => <ProfilesSection profiles={p.items} assign={assign.data} />}</QueryState>
       <QueryState query={assign}>{(a) => <AssignSection profiles={profiles.data?.items ?? []} assign={a} />}</QueryState>
       <TierForm key={`${cfg.tier}|${cfg.monthly_budget}|${cfg.redact_pii}`} cfg={cfg} />
+      <AutoReadForm key={`${cfg.auto_read}|${cfg.daily_reads}`} cfg={cfg} />
       <RetentionForm />
     </>
   )
@@ -608,6 +609,48 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
           </div>
         </div>
         {save.error && !serverCap ? <div className="mt-3"><ActionError error={save.error} /></div> : null}
+        <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={reason}>{t('common:save')}</Button></div>
+      </Section>
+    </form>
+  )
+}
+
+/** S-MIT-1: the AI reads the vendor advisories of possible findings by itself after each match pass (public data only), up to a number
+ *  of calls a day; off, only a person's "Check with AI" reads them. */
+function AutoReadForm({ cfg }: { cfg: AiConfigView }) {
+  const { t } = useTranslation('ai')
+  const admin = useCan('admin')
+  const save = useSaveConfig()
+  const [on, setOn] = useState(cfg.auto_read)
+  const [daily, setDaily] = useState(String(cfg.daily_reads))
+  const [err, setErr] = useState('')
+  const reason = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const n = Number(daily)
+    if (!Number.isInteger(n) || n < 1 || n > 5000) { setErr(t('settings.autoRead.err')); return }
+    setErr('')
+    save.mutate({ tier: cfg.tier, monthly_budget: cfg.monthly_budget, redact_pii: cfg.redact_pii, auto_read: on, daily_reads: n },
+      { onSuccess: () => toast.success(t('settings.saved')) })
+  }
+  return (
+    <form onSubmit={submit} noValidate aria-label={t('settings.autoRead.title')}>
+      <Section title={t('settings.autoRead.title')} description={t('settings.autoRead.intro')} info={<p>{t('settings.autoRead.info')}</p>} stories={['S-MIT-1']}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex items-start gap-3">
+            <Switch id="ai-auto-read" checked={on} onCheckedChange={setOn} disabled={!admin} />
+            <div className="grid gap-0.5">
+              <Label htmlFor="ai-auto-read">{t('settings.autoRead.switch')}</Label>
+              <p className="text-meta text-muted">{t('settings.autoRead.switchHint')}</p>
+            </div>
+          </div>
+          <Field label={t('settings.autoRead.daily')} htmlFor="ai-daily-reads" hint={t('settings.autoRead.dailyHint')} error={err || undefined}>
+            <Input id="ai-daily-reads" type="number" min={1} max={5000} step={1} value={daily} onChange={(e) => { setDaily(e.target.value); setErr('') }}
+              disabled={!admin || !on} aria-invalid={err ? true : undefined} aria-describedby={err ? 'ai-daily-reads-error' : 'ai-daily-reads-hint'} />
+            <p className="text-meta">{t('settings.autoRead.today', { used: fmtNumber(cfg.reads_today), daily: fmtNumber(cfg.daily_reads) })}</p>
+          </Field>
+        </div>
+        {save.error ? <div className="mt-3"><ActionError error={save.error} /></div> : null}
         <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={reason}>{t('common:save')}</Button></div>
       </Section>
     </form>

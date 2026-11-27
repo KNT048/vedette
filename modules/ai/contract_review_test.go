@@ -312,7 +312,7 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		}
 		h.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":5000,"redact_pii":true}`, 409, "ai_unavailable")
 		h.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{}), 409, "ai_unavailable")
-		if svc.Config().JobsReady["explain-finding"] {
+		if svc.Config(t.Context()).JobsReady["explain-finding"] {
 			t.Fatal("a degraded service must not run jobs")
 		}
 	})
@@ -329,7 +329,7 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("the box must start: %v", err)
 		}
-		if deg(svc) != "" || svc.Config().JobsReady["explain-finding"] {
+		if deg(svc) != "" || svc.Config(t.Context()).JobsReady["explain-finding"] {
 			t.Fatalf("degraded %q, or a job is ready on a lost key", deg(svc))
 		}
 	})
@@ -344,7 +344,7 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("the box must start: %v", err)
 		}
-		if deg(svc) == "" || svc.Config().JobsReady["explain-finding"] {
+		if deg(svc) == "" || svc.Config(t.Context()).JobsReady["explain-finding"] {
 			t.Fatal("not degraded")
 		}
 	})

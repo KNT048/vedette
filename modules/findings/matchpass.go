@@ -117,6 +117,15 @@ type matchSet struct {
 	// hashes are the entries' hashes for the match stamps (entryHash), computed when first asked; hashed[i]: 1 done, 2 not hashable.
 	hashes [][32]byte
 	hashed []uint8
+	// cves is the set's CVEs (what possibleItems reads as the exploited list), computed when first asked (cveSetOnce).
+	cvesOnce sync.Once
+	cves     map[string]bool
+}
+
+// cveSetOnce is the set's CVEs, computed once per pass.
+func (m *matchSet) cveSetOnce() map[string]bool {
+	m.cvesOnce.Do(func() { m.cves = cveSet(m.vulns) })
+	return m.cves
 }
 
 // entryHash is a hash of every field of entry i (matchStamp); ok is false when it cannot be encoded.

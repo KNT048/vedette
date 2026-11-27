@@ -64,7 +64,7 @@ func TestRestoreWithoutTheKeyProfileIsListedFixedOrDeleted(t *testing.T) {
 			t.Fatalf("profile with a lost key = %v", p)
 		}
 	}
-	if h.svc.Config().Configured || h.svc.Config().JobsReady["explain-finding"] {
+	if h.svc.Config(t.Context()).Configured || h.svc.Config(t.Context()).JobsReady["explain-finding"] {
 		t.Fatal("a profile with a lost key counts as usable")
 	}
 

@@ -73,7 +73,18 @@ func (c possibleChecker) Propose(ctx context.Context, actor string, req findings
 	}
 	out := findings.ProposeAnswer{Model: ans.Model, Profile: ans.Profile, ActivityID: ans.ActivityID}
 	for _, v := range ans.Verdicts {
-		out.Verdicts = append(out.Verdicts, findings.ProposeVerdict{Index: v.Index, Verdict: v.Verdict, Reason: v.Reason, Quote: v.Quote, Source: v.Source})
+		out.Verdicts = append(out.Verdicts, findings.ProposeVerdict{Index: v.Index, Status: v.Status, Introduced: v.Introduced, FixedIn: v.FixedIn,
+			LastAffected: v.LastAffected, Line: v.Line, Reason: v.Reason, Quote: v.Quote, Source: v.Source})
 	}
 	return out, nil
+}
+
+// Budget is how the automatic reading stands in the AI settings: on or off, and whether today's reads or this month's budget for
+// background jobs hold it.
+func (c possibleChecker) Budget(ctx context.Context) findings.ReadBudget {
+	if c.ai == nil {
+		return findings.ReadBudget{}
+	}
+	st := c.ai.AutoReadState(ctx)
+	return findings.ReadBudget{Auto: st.Auto, Reached: st.Left <= 0 || st.Paused}
 }

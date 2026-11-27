@@ -155,6 +155,8 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		"ai_activity.tokens_in": true, "ai_activity.tokens_out": true, "ai_result.tokens_in": true, "ai_result.tokens_out": true,
 		// The digest of the version and the CVE record's stamp a check of a possible CVE was made for: public facts, not a secret.
 		"fnd_possible_check.evidence_hash": true,
+		// The digests of the CVE record's stamp and of a public page's text an AI reading of a vendor's statement was made from.
+		"fnd_line_statement.record_hash": true, "fnd_line_statement.page_hash": true,
 	}
 	for tbl, cols := range schema {
 		if !known[tbl] {

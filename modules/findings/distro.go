@@ -563,9 +563,10 @@ const (
 	DistroNoData = "distro_no_data"
 )
 
-// DistroSilences lists every cause of distroSilence (with UndecidedPackage: an agent's package row without its release or source).
+// DistroSilences lists every cause of distroSilence: the causes of a pair no question asks about, beside PossibleCauses (the causes of
+// a question); an agent's package row without its release or source takes PossibleCause's CauseVersionNeeded.
 var DistroSilences = []string{DistroOutsideWindow, DistroNoFixYet, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNotListed,
-	DistroNoData, UndecidedPackage}
+	DistroNoData, CauseVersionNeeded}
 
 // catalogueDays is the catalogue's window of CVEs on no exploited list (feeds' recentDays): the distribution feeds keep their rows of
 // those CVEs and of the exploited ones only.
@@ -582,7 +583,7 @@ func distroSilence(in swInfo, v Vuln, now time.Time) string {
 	case d == nil:
 		return DistroNoData
 	case in.pkgVer == "" || in.pkgSrc == "":
-		return UndecidedPackage
+		return CauseVersionNeeded
 	}
 	if _, ok := distroVerdict(in, v); ok || upstreamJudges(in, v) {
 		return ""

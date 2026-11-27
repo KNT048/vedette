@@ -1436,16 +1436,24 @@ func (s *AiGetAiAssignmentsSuggestionOKJobsItem) SetPrimary(val NilString) {
 }
 
 type AiGetAiConfigOK struct {
+	// After each match pass the AI reads the vendor advisories of possible findings by itself (exploited
+	// first, then CVSS), sending only public data; off: only a person's "Check with AI" reads them.
+	AutoRead bool `json:"auto_read"`
 	// At least one usable profile exists.
 	Configured bool `json:"configured"`
+	// The automatic reading's AI calls a day (default 300); it also stops with scheduled jobs at 80 % of
+	// the monthly budget.
+	DailyReads int `json:"daily_reads"`
 	// Which jobs have a usable, permitted profile.
 	JobsReady AiGetAiConfigOKJobsReady `json:"jobs_ready"`
 	// Tokens used this calendar month by all profiles.
 	MonthUsed int `json:"month_used"`
 	// Shared monthly token budget, summed across all profiles: warning at 80 %, every AI job stops at 100
 	// % until it renews or is raised.
-	MonthlyBudget int  `json:"monthly_budget"`
-	RedactPii     bool `json:"redact_pii"`
+	MonthlyBudget int `json:"monthly_budget"`
+	// The automatic reading's AI calls so far today (box time zone).
+	ReadsToday int  `json:"reads_today"`
+	RedactPii  bool `json:"redact_pii"`
 	// Local date (YYYY-MM-DD) the monthly budgets start again.
 	RenewsOn string              `json:"renews_on"`
 	Tier     AiGetAiConfigOKTier `json:"tier"`
@@ -1453,9 +1461,19 @@ type AiGetAiConfigOK struct {
 	TierEstimates AiGetAiConfigOKTierEstimates `json:"tier_estimates"`
 }
 
+// GetAutoRead returns the value of AutoRead.
+func (s *AiGetAiConfigOK) GetAutoRead() bool {
+	return s.AutoRead
+}
+
 // GetConfigured returns the value of Configured.
 func (s *AiGetAiConfigOK) GetConfigured() bool {
 	return s.Configured
+}
+
+// GetDailyReads returns the value of DailyReads.
+func (s *AiGetAiConfigOK) GetDailyReads() int {
+	return s.DailyReads
 }
 
 // GetJobsReady returns the value of JobsReady.
@@ -1471,6 +1489,11 @@ func (s *AiGetAiConfigOK) GetMonthUsed() int {
 // GetMonthlyBudget returns the value of MonthlyBudget.
 func (s *AiGetAiConfigOK) GetMonthlyBudget() int {
 	return s.MonthlyBudget
+}
+
+// GetReadsToday returns the value of ReadsToday.
+func (s *AiGetAiConfigOK) GetReadsToday() int {
+	return s.ReadsToday
 }
 
 // GetRedactPii returns the value of RedactPii.
@@ -1493,9 +1516,19 @@ func (s *AiGetAiConfigOK) GetTierEstimates() AiGetAiConfigOKTierEstimates {
 	return s.TierEstimates
 }
 
+// SetAutoRead sets the value of AutoRead.
+func (s *AiGetAiConfigOK) SetAutoRead(val bool) {
+	s.AutoRead = val
+}
+
 // SetConfigured sets the value of Configured.
 func (s *AiGetAiConfigOK) SetConfigured(val bool) {
 	s.Configured = val
+}
+
+// SetDailyReads sets the value of DailyReads.
+func (s *AiGetAiConfigOK) SetDailyReads(val int) {
+	s.DailyReads = val
 }
 
 // SetJobsReady sets the value of JobsReady.
@@ -1511,6 +1544,11 @@ func (s *AiGetAiConfigOK) SetMonthUsed(val int) {
 // SetMonthlyBudget sets the value of MonthlyBudget.
 func (s *AiGetAiConfigOK) SetMonthlyBudget(val int) {
 	s.MonthlyBudget = val
+}
+
+// SetReadsToday sets the value of ReadsToday.
+func (s *AiGetAiConfigOK) SetReadsToday(val int) {
+	s.ReadsToday = val
 }
 
 // SetRedactPii sets the value of RedactPii.
@@ -9602,16 +9640,24 @@ func (s *AiPutAiAssignmentsReqJobsItem) SetPrimary(val NilString) {
 }
 
 type AiPutAiConfigOK struct {
+	// After each match pass the AI reads the vendor advisories of possible findings by itself (exploited
+	// first, then CVSS), sending only public data; off: only a person's "Check with AI" reads them.
+	AutoRead bool `json:"auto_read"`
 	// At least one usable profile exists.
 	Configured bool `json:"configured"`
+	// The automatic reading's AI calls a day (default 300); it also stops with scheduled jobs at 80 % of
+	// the monthly budget.
+	DailyReads int `json:"daily_reads"`
 	// Which jobs have a usable, permitted profile.
 	JobsReady AiPutAiConfigOKJobsReady `json:"jobs_ready"`
 	// Tokens used this calendar month by all profiles.
 	MonthUsed int `json:"month_used"`
 	// Shared monthly token budget, summed across all profiles: warning at 80 %, every AI job stops at 100
 	// % until it renews or is raised.
-	MonthlyBudget int  `json:"monthly_budget"`
-	RedactPii     bool `json:"redact_pii"`
+	MonthlyBudget int `json:"monthly_budget"`
+	// The automatic reading's AI calls so far today (box time zone).
+	ReadsToday int  `json:"reads_today"`
+	RedactPii  bool `json:"redact_pii"`
 	// Local date (YYYY-MM-DD) the monthly budgets start again.
 	RenewsOn string              `json:"renews_on"`
 	Tier     AiPutAiConfigOKTier `json:"tier"`
@@ -9619,9 +9665,19 @@ type AiPutAiConfigOK struct {
 	TierEstimates AiPutAiConfigOKTierEstimates `json:"tier_estimates"`
 }
 
+// GetAutoRead returns the value of AutoRead.
+func (s *AiPutAiConfigOK) GetAutoRead() bool {
+	return s.AutoRead
+}
+
 // GetConfigured returns the value of Configured.
 func (s *AiPutAiConfigOK) GetConfigured() bool {
 	return s.Configured
+}
+
+// GetDailyReads returns the value of DailyReads.
+func (s *AiPutAiConfigOK) GetDailyReads() int {
+	return s.DailyReads
 }
 
 // GetJobsReady returns the value of JobsReady.
@@ -9637,6 +9693,11 @@ func (s *AiPutAiConfigOK) GetMonthUsed() int {
 // GetMonthlyBudget returns the value of MonthlyBudget.
 func (s *AiPutAiConfigOK) GetMonthlyBudget() int {
 	return s.MonthlyBudget
+}
+
+// GetReadsToday returns the value of ReadsToday.
+func (s *AiPutAiConfigOK) GetReadsToday() int {
+	return s.ReadsToday
 }
 
 // GetRedactPii returns the value of RedactPii.
@@ -9659,9 +9720,19 @@ func (s *AiPutAiConfigOK) GetTierEstimates() AiPutAiConfigOKTierEstimates {
 	return s.TierEstimates
 }
 
+// SetAutoRead sets the value of AutoRead.
+func (s *AiPutAiConfigOK) SetAutoRead(val bool) {
+	s.AutoRead = val
+}
+
 // SetConfigured sets the value of Configured.
 func (s *AiPutAiConfigOK) SetConfigured(val bool) {
 	s.Configured = val
+}
+
+// SetDailyReads sets the value of DailyReads.
+func (s *AiPutAiConfigOK) SetDailyReads(val int) {
+	s.DailyReads = val
 }
 
 // SetJobsReady sets the value of JobsReady.
@@ -9677,6 +9748,11 @@ func (s *AiPutAiConfigOK) SetMonthUsed(val int) {
 // SetMonthlyBudget sets the value of MonthlyBudget.
 func (s *AiPutAiConfigOK) SetMonthlyBudget(val int) {
 	s.MonthlyBudget = val
+}
+
+// SetReadsToday sets the value of ReadsToday.
+func (s *AiPutAiConfigOK) SetReadsToday(val int) {
+	s.ReadsToday = val
 }
 
 // SetRedactPii sets the value of RedactPii.
@@ -9772,9 +9848,23 @@ func (s *AiPutAiConfigOKTierEstimates) init() AiPutAiConfigOKTierEstimates {
 }
 
 type AiPutAiConfigReq struct {
+	// Absent: unchanged.
+	AutoRead OptBool `json:"auto_read"`
+	// Absent: unchanged.
+	DailyReads    OptInt               `json:"daily_reads"`
 	MonthlyBudget int                  `json:"monthly_budget"`
 	RedactPii     bool                 `json:"redact_pii"`
 	Tier          AiPutAiConfigReqTier `json:"tier"`
+}
+
+// GetAutoRead returns the value of AutoRead.
+func (s *AiPutAiConfigReq) GetAutoRead() OptBool {
+	return s.AutoRead
+}
+
+// GetDailyReads returns the value of DailyReads.
+func (s *AiPutAiConfigReq) GetDailyReads() OptInt {
+	return s.DailyReads
 }
 
 // GetMonthlyBudget returns the value of MonthlyBudget.
@@ -9790,6 +9880,16 @@ func (s *AiPutAiConfigReq) GetRedactPii() bool {
 // GetTier returns the value of Tier.
 func (s *AiPutAiConfigReq) GetTier() AiPutAiConfigReqTier {
 	return s.Tier
+}
+
+// SetAutoRead sets the value of AutoRead.
+func (s *AiPutAiConfigReq) SetAutoRead(val OptBool) {
+	s.AutoRead = val
+}
+
+// SetDailyReads sets the value of DailyReads.
+func (s *AiPutAiConfigReq) SetDailyReads(val OptInt) {
+	s.DailyReads = val
 }
 
 // SetMonthlyBudget sets the value of MonthlyBudget.
@@ -94372,9 +94472,12 @@ type FindingsGetFindingsAnsweredOKItemsItemCheck struct {
 	// Ai only: the model.
 	Model NilString `json:"model"`
 	// The sentence the verdict rests on, as the page writes it; "" when none.
-	Quote  string `json:"quote"`
-	Reason string `json:"reason"`
-	// A person rejected this AI proposal: the CVE is possible again.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsGetFindingsAnsweredOKItemsItemCheckReading `json:"reading"`
+	Reason  string                                                `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
 	Rejected bool                                                     `json:"rejected"`
 	Sources  []FindingsGetFindingsAnsweredOKItemsItemCheckSourcesItem `json:"sources"`
 	Verdict  FindingsGetFindingsAnsweredOKItemsItemCheckVerdict       `json:"verdict"`
@@ -94413,6 +94516,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheck) GetModel() NilString {
 // GetQuote returns the value of Quote.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheck) GetQuote() string {
 	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheck) GetReading() NilFindingsGetFindingsAnsweredOKItemsItemCheckReading {
+	return s.Reading
 }
 
 // GetReason returns the value of Reason.
@@ -94468,6 +94576,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheck) SetModel(val NilString) {
 // SetQuote sets the value of Quote.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheck) SetQuote(val string) {
 	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheck) SetReading(val NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) {
+	s.Reading = val
 }
 
 // SetReason sets the value of Reason.
@@ -94575,6 +94688,180 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckDecidedBy) UnmarshalText(dat
 		return nil
 	case FindingsGetFindingsAnsweredOKItemsItemCheckDecidedByAi:
 		*s = FindingsGetFindingsAnsweredOKItemsItemCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsGetFindingsAnsweredOKItemsItemCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetStatus() FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetStatus(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusAffected    FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus = "affected"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusFixed       FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus = "fixed"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusNotAffected FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus = "not_affected"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusUnsure      FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus values.
+func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus) AllValues() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus {
+	return []FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus{
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusAffected,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusFixed,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusNotAffected,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatus(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusAffected:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusAffected
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusFixed:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusFixed
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusNotAffected:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusNotAffected
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusUnsure:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingStatusUnsure
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -95791,18 +96078,24 @@ func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) UnmarshalText(data []b
 }
 
 type FindingsGetFindingsCoverageOKPossibleItem struct {
-	// An undecided reason (Undecided.reason), ai_proposal (an AI proposal waits for a person), other (a
-	// question with no known reason), why a distribution's package its distribution's data has no word on
-	// stays undecided (outside_window: older than the 12 months tracked and on no exploited list;
-	// distro_no_fix_yet: the distribution lists it affected with no fix and it is on no exploited list;
-	// distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or
-	// releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the
-	// CVE; distro_no_data: no data of that distribution), or an unnamed class: pairs the matcher reached
-	// and neither decided nor asked about, so nobody is told why (other_distro_silent: a distribution's
-	// package its data has no word on; other_record_unread: the rows name the product and give nothing the
-	// matcher compares; other_dropped: matched on the name alone or an old entry, not listed).
+	// The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading,
+	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a
+	// distribution's package its distribution's data has no word on stays undecided with no question
+	// (outside_window: older than the 12 months tracked and on no exploited list; distro_no_fix_yet: the
+	// distribution lists it affected with no fix and it is on no exploited list; distro_other_packages,
+	// distro_other_releases: the distribution lists the CVE for other packages or releases only;
+	// distro_other_build: its row is about another build; distro_not_listed: no row of the CVE;
+	// distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or
+	// an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told
+	// why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the
+	// rows name the product and give nothing the matcher compares; other_dropped: matched on the name
+	// alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason
+	// (Undecided.reason), ai_proposal or other here.
 	Cause string `json:"cause"`
 	Count int    `json:"count"`
+	// The same pairs by the matcher's own reason, the most first; empty for an unnamed class and for a
+	// pass counted before details were kept.
+	Details []FindingsGetFindingsCoverageOKPossibleItemDetailsItem `json:"details"`
 }
 
 // GetCause returns the value of Cause.
@@ -95815,6 +96108,11 @@ func (s *FindingsGetFindingsCoverageOKPossibleItem) GetCount() int {
 	return s.Count
 }
 
+// GetDetails returns the value of Details.
+func (s *FindingsGetFindingsCoverageOKPossibleItem) GetDetails() []FindingsGetFindingsCoverageOKPossibleItemDetailsItem {
+	return s.Details
+}
+
 // SetCause sets the value of Cause.
 func (s *FindingsGetFindingsCoverageOKPossibleItem) SetCause(val string) {
 	s.Cause = val
@@ -95823,6 +96121,38 @@ func (s *FindingsGetFindingsCoverageOKPossibleItem) SetCause(val string) {
 // SetCount sets the value of Count.
 func (s *FindingsGetFindingsCoverageOKPossibleItem) SetCount(val int) {
 	s.Count = val
+}
+
+// SetDetails sets the value of Details.
+func (s *FindingsGetFindingsCoverageOKPossibleItem) SetDetails(val []FindingsGetFindingsCoverageOKPossibleItemDetailsItem) {
+	s.Details = val
+}
+
+type FindingsGetFindingsCoverageOKPossibleItemDetailsItem struct {
+	Count int `json:"count"`
+	// The matcher's own reason: an undecided reason (Undecided.reason, such as version_scheme_mismatch or
+	// exact_releases_only), else the question's kind.
+	Detail string `json:"detail"`
+}
+
+// GetCount returns the value of Count.
+func (s *FindingsGetFindingsCoverageOKPossibleItemDetailsItem) GetCount() int {
+	return s.Count
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsCoverageOKPossibleItemDetailsItem) GetDetail() string {
+	return s.Detail
+}
+
+// SetCount sets the value of Count.
+func (s *FindingsGetFindingsCoverageOKPossibleItemDetailsItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsCoverageOKPossibleItemDetailsItem) SetDetail(val string) {
+	s.Detail = val
 }
 
 // True: only ignored devices (the Ignored devices tab); default false: none of them.
@@ -105486,9 +105816,10 @@ func (s *FindingsGetFindingsIDOKStatus) UnmarshalText(data []byte) error {
 // A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices
 // and the AI read the same fields.
 type FindingsGetFindingsIDViewOK struct {
-	// A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its
-	// quote, the model; its confirmation level still comes from how the version is known). null for any
-	// other finding.
+	// A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement
+	// opened (range origin ai_read, reading set: labelled "Read by AI from ", rejected in one click): the
+	// AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes
+	// from how the version is known). null for any other finding.
 	AiCheck NilFindingsGetFindingsIDViewOKAiCheck `json:"ai_check"`
 	Cve     string                                `json:"cve"`
 	Device  FindingsGetFindingsIDViewOKDevice     `json:"device"`
@@ -105698,9 +106029,12 @@ type FindingsGetFindingsIDViewOKAiCheck struct {
 	// Ai only: the model.
 	Model NilString `json:"model"`
 	// The sentence the verdict rests on, as the page writes it; "" when none.
-	Quote  string `json:"quote"`
-	Reason string `json:"reason"`
-	// A person rejected this AI proposal: the CVE is possible again.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsGetFindingsIDViewOKAiCheckReading `json:"reading"`
+	Reason  string                                       `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
 	Rejected bool                                            `json:"rejected"`
 	Sources  []FindingsGetFindingsIDViewOKAiCheckSourcesItem `json:"sources"`
 	Verdict  FindingsGetFindingsIDViewOKAiCheckVerdict       `json:"verdict"`
@@ -105739,6 +106073,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheck) GetModel() NilString {
 // GetQuote returns the value of Quote.
 func (s *FindingsGetFindingsIDViewOKAiCheck) GetQuote() string {
 	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsGetFindingsIDViewOKAiCheck) GetReading() NilFindingsGetFindingsIDViewOKAiCheckReading {
+	return s.Reading
 }
 
 // GetReason returns the value of Reason.
@@ -105794,6 +106133,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheck) SetModel(val NilString) {
 // SetQuote sets the value of Quote.
 func (s *FindingsGetFindingsIDViewOKAiCheck) SetQuote(val string) {
 	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsGetFindingsIDViewOKAiCheck) SetReading(val NilFindingsGetFindingsIDViewOKAiCheckReading) {
+	s.Reading = val
 }
 
 // SetReason sets the value of Reason.
@@ -105901,6 +106245,180 @@ func (s *FindingsGetFindingsIDViewOKAiCheckDecidedBy) UnmarshalText(data []byte)
 		return nil
 	case FindingsGetFindingsIDViewOKAiCheckDecidedByAi:
 		*s = FindingsGetFindingsIDViewOKAiCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsGetFindingsIDViewOKAiCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsGetFindingsIDViewOKAiCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetStatus() FindingsGetFindingsIDViewOKAiCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetStatus(val FindingsGetFindingsIDViewOKAiCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsGetFindingsIDViewOKAiCheckReadingStatus string
+
+const (
+	FindingsGetFindingsIDViewOKAiCheckReadingStatusAffected    FindingsGetFindingsIDViewOKAiCheckReadingStatus = "affected"
+	FindingsGetFindingsIDViewOKAiCheckReadingStatusFixed       FindingsGetFindingsIDViewOKAiCheckReadingStatus = "fixed"
+	FindingsGetFindingsIDViewOKAiCheckReadingStatusNotAffected FindingsGetFindingsIDViewOKAiCheckReadingStatus = "not_affected"
+	FindingsGetFindingsIDViewOKAiCheckReadingStatusUnsure      FindingsGetFindingsIDViewOKAiCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKAiCheckReadingStatus values.
+func (FindingsGetFindingsIDViewOKAiCheckReadingStatus) AllValues() []FindingsGetFindingsIDViewOKAiCheckReadingStatus {
+	return []FindingsGetFindingsIDViewOKAiCheckReadingStatus{
+		FindingsGetFindingsIDViewOKAiCheckReadingStatusAffected,
+		FindingsGetFindingsIDViewOKAiCheckReadingStatusFixed,
+		FindingsGetFindingsIDViewOKAiCheckReadingStatusNotAffected,
+		FindingsGetFindingsIDViewOKAiCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKAiCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKAiCheckReadingStatus(data) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusAffected:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingStatusAffected
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusFixed:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingStatusFixed
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusNotAffected:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingStatusNotAffected
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingStatusUnsure:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingStatusUnsure
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -118200,6 +118718,8 @@ func (s *FindingsGetFindingsOverviewOKOpenByStatus) SetUpdateRecommended(val int
 // Possible CVEs (Vedette cannot decide them), counted apart from the open findings: "158 open findings
 // · 16 possible".
 type FindingsGetFindingsOverviewOKPossible struct {
+	// The possible CVEs by cause; every cause of the list is present.
+	Causes FindingsGetFindingsOverviewOKPossibleCauses `json:"causes"`
 	// Possible CVEs, proposals included (each (device, line, CVE) once).
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
@@ -118208,6 +118728,11 @@ type FindingsGetFindingsOverviewOKPossible struct {
 	Settled int `json:"settled"`
 	// Possible CVEs a check can still look at: what the "Check possible with AI" button counts.
 	Unchecked int `json:"unchecked"`
+}
+
+// GetCauses returns the value of Causes.
+func (s *FindingsGetFindingsOverviewOKPossible) GetCauses() FindingsGetFindingsOverviewOKPossibleCauses {
+	return s.Causes
 }
 
 // GetPossible returns the value of Possible.
@@ -118230,6 +118755,11 @@ func (s *FindingsGetFindingsOverviewOKPossible) GetUnchecked() int {
 	return s.Unchecked
 }
 
+// SetCauses sets the value of Causes.
+func (s *FindingsGetFindingsOverviewOKPossible) SetCauses(val FindingsGetFindingsOverviewOKPossibleCauses) {
+	s.Causes = val
+}
+
 // SetPossible sets the value of Possible.
 func (s *FindingsGetFindingsOverviewOKPossible) SetPossible(val int) {
 	s.Possible = val
@@ -118248,6 +118778,109 @@ func (s *FindingsGetFindingsOverviewOKPossible) SetSettled(val int) {
 // SetUnchecked sets the value of Unchecked.
 func (s *FindingsGetFindingsOverviewOKPossible) SetUnchecked(val int) {
 	s.Unchecked = val
+}
+
+// The possible CVEs by cause; every cause of the list is present.
+type FindingsGetFindingsOverviewOKPossibleCauses struct {
+	AiBudget         int `json:"ai_budget"`
+	AiUnsure         int `json:"ai_unsure"`
+	IdentityUnproven int `json:"identity_unproven"`
+	NeedsPerson      int `json:"needs_person"`
+	NeedsReading     int `json:"needs_reading"`
+	PageUnreadable   int `json:"page_unreadable"`
+	PendingNvd       int `json:"pending_nvd"`
+	VendorSilent     int `json:"vendor_silent"`
+	VersionNeeded    int `json:"version_needed"`
+}
+
+// GetAiBudget returns the value of AiBudget.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetAiBudget() int {
+	return s.AiBudget
+}
+
+// GetAiUnsure returns the value of AiUnsure.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetAiUnsure() int {
+	return s.AiUnsure
+}
+
+// GetIdentityUnproven returns the value of IdentityUnproven.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetIdentityUnproven() int {
+	return s.IdentityUnproven
+}
+
+// GetNeedsPerson returns the value of NeedsPerson.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetNeedsPerson() int {
+	return s.NeedsPerson
+}
+
+// GetNeedsReading returns the value of NeedsReading.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetNeedsReading() int {
+	return s.NeedsReading
+}
+
+// GetPageUnreadable returns the value of PageUnreadable.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetPageUnreadable() int {
+	return s.PageUnreadable
+}
+
+// GetPendingNvd returns the value of PendingNvd.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetPendingNvd() int {
+	return s.PendingNvd
+}
+
+// GetVendorSilent returns the value of VendorSilent.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetVendorSilent() int {
+	return s.VendorSilent
+}
+
+// GetVersionNeeded returns the value of VersionNeeded.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetVersionNeeded() int {
+	return s.VersionNeeded
+}
+
+// SetAiBudget sets the value of AiBudget.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetAiBudget(val int) {
+	s.AiBudget = val
+}
+
+// SetAiUnsure sets the value of AiUnsure.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetAiUnsure(val int) {
+	s.AiUnsure = val
+}
+
+// SetIdentityUnproven sets the value of IdentityUnproven.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetIdentityUnproven(val int) {
+	s.IdentityUnproven = val
+}
+
+// SetNeedsPerson sets the value of NeedsPerson.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetNeedsPerson(val int) {
+	s.NeedsPerson = val
+}
+
+// SetNeedsReading sets the value of NeedsReading.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetNeedsReading(val int) {
+	s.NeedsReading = val
+}
+
+// SetPageUnreadable sets the value of PageUnreadable.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetPageUnreadable(val int) {
+	s.PageUnreadable = val
+}
+
+// SetPendingNvd sets the value of PendingNvd.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetPendingNvd(val int) {
+	s.PendingNvd = val
+}
+
+// SetVendorSilent sets the value of VendorSilent.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetVendorSilent(val int) {
+	s.VendorSilent = val
+}
+
+// SetVersionNeeded sets the value of VersionNeeded.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetVersionNeeded(val int) {
+	s.VersionNeeded = val
 }
 
 type FindingsGetFindingsPossibleAuditOK struct {
@@ -118490,7 +119123,9 @@ type FindingsGetFindingsPossibleCheckOKRun struct {
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// AI proposals made.
-	Proposals int       `json:"proposals"`
+	Proposals int `json:"proposals"`
+	// AI readings of a vendor's statement stored, one per release line.
+	Readings  int       `json:"readings"`
 	Running   bool      `json:"running"`
 	StartedAt time.Time `json:"started_at"`
 	// Why the check stopped before the end (the AI unavailable, the budget reached).
@@ -118527,6 +119162,11 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) GetFinishedAt() NilDateTime {
 // GetProposals returns the value of Proposals.
 func (s *FindingsGetFindingsPossibleCheckOKRun) GetProposals() int {
 	return s.Proposals
+}
+
+// GetReadings returns the value of Readings.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetReadings() int {
+	return s.Readings
 }
 
 // GetRunning returns the value of Running.
@@ -118582,6 +119222,11 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) SetFinishedAt(val NilDateTime) {
 // SetProposals sets the value of Proposals.
 func (s *FindingsGetFindingsPossibleCheckOKRun) SetProposals(val int) {
 	s.Proposals = val
+}
+
+// SetReadings sets the value of Readings.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetReadings(val int) {
+	s.Readings = val
 }
 
 // SetRunning sets the value of Running.
@@ -118650,6 +119295,8 @@ func (s *FindingsGetFindingsPossibleOK) SetTotal(val int) {
 
 // Of the device, or of every device; not narrowed by the search or the state.
 type FindingsGetFindingsPossibleOKCounts struct {
+	// The possible CVEs by cause; every cause of the list is present.
+	Causes FindingsGetFindingsPossibleOKCountsCauses `json:"causes"`
 	// Possible CVEs, proposals included (each (device, line, CVE) once).
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
@@ -118658,6 +119305,11 @@ type FindingsGetFindingsPossibleOKCounts struct {
 	Settled int `json:"settled"`
 	// Possible CVEs a check can still look at: what the "Check possible with AI" button counts.
 	Unchecked int `json:"unchecked"`
+}
+
+// GetCauses returns the value of Causes.
+func (s *FindingsGetFindingsPossibleOKCounts) GetCauses() FindingsGetFindingsPossibleOKCountsCauses {
+	return s.Causes
 }
 
 // GetPossible returns the value of Possible.
@@ -118680,6 +119332,11 @@ func (s *FindingsGetFindingsPossibleOKCounts) GetUnchecked() int {
 	return s.Unchecked
 }
 
+// SetCauses sets the value of Causes.
+func (s *FindingsGetFindingsPossibleOKCounts) SetCauses(val FindingsGetFindingsPossibleOKCountsCauses) {
+	s.Causes = val
+}
+
 // SetPossible sets the value of Possible.
 func (s *FindingsGetFindingsPossibleOKCounts) SetPossible(val int) {
 	s.Possible = val
@@ -118700,11 +119357,116 @@ func (s *FindingsGetFindingsPossibleOKCounts) SetUnchecked(val int) {
 	s.Unchecked = val
 }
 
+// The possible CVEs by cause; every cause of the list is present.
+type FindingsGetFindingsPossibleOKCountsCauses struct {
+	AiBudget         int `json:"ai_budget"`
+	AiUnsure         int `json:"ai_unsure"`
+	IdentityUnproven int `json:"identity_unproven"`
+	NeedsPerson      int `json:"needs_person"`
+	NeedsReading     int `json:"needs_reading"`
+	PageUnreadable   int `json:"page_unreadable"`
+	PendingNvd       int `json:"pending_nvd"`
+	VendorSilent     int `json:"vendor_silent"`
+	VersionNeeded    int `json:"version_needed"`
+}
+
+// GetAiBudget returns the value of AiBudget.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetAiBudget() int {
+	return s.AiBudget
+}
+
+// GetAiUnsure returns the value of AiUnsure.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetAiUnsure() int {
+	return s.AiUnsure
+}
+
+// GetIdentityUnproven returns the value of IdentityUnproven.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetIdentityUnproven() int {
+	return s.IdentityUnproven
+}
+
+// GetNeedsPerson returns the value of NeedsPerson.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetNeedsPerson() int {
+	return s.NeedsPerson
+}
+
+// GetNeedsReading returns the value of NeedsReading.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetNeedsReading() int {
+	return s.NeedsReading
+}
+
+// GetPageUnreadable returns the value of PageUnreadable.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetPageUnreadable() int {
+	return s.PageUnreadable
+}
+
+// GetPendingNvd returns the value of PendingNvd.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetPendingNvd() int {
+	return s.PendingNvd
+}
+
+// GetVendorSilent returns the value of VendorSilent.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetVendorSilent() int {
+	return s.VendorSilent
+}
+
+// GetVersionNeeded returns the value of VersionNeeded.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetVersionNeeded() int {
+	return s.VersionNeeded
+}
+
+// SetAiBudget sets the value of AiBudget.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetAiBudget(val int) {
+	s.AiBudget = val
+}
+
+// SetAiUnsure sets the value of AiUnsure.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetAiUnsure(val int) {
+	s.AiUnsure = val
+}
+
+// SetIdentityUnproven sets the value of IdentityUnproven.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetIdentityUnproven(val int) {
+	s.IdentityUnproven = val
+}
+
+// SetNeedsPerson sets the value of NeedsPerson.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetNeedsPerson(val int) {
+	s.NeedsPerson = val
+}
+
+// SetNeedsReading sets the value of NeedsReading.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetNeedsReading(val int) {
+	s.NeedsReading = val
+}
+
+// SetPageUnreadable sets the value of PageUnreadable.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetPageUnreadable(val int) {
+	s.PageUnreadable = val
+}
+
+// SetPendingNvd sets the value of PendingNvd.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetPendingNvd(val int) {
+	s.PendingNvd = val
+}
+
+// SetVendorSilent sets the value of VendorSilent.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetVendorSilent(val int) {
+	s.VendorSilent = val
+}
+
+// SetVersionNeeded sets the value of VersionNeeded.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetVersionNeeded(val int) {
+	s.VersionNeeded = val
+}
+
 // One possible CVE of one software line of one device.
 type FindingsGetFindingsPossibleOKItemsItem struct {
 	// Proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not
 	// affected (one by one).
-	Bulk  bool                                           `json:"bulk"`
+	Bulk bool `json:"bulk"`
+	// Why it is still possible; null for a settled row.
+	Cause NilFindingsGetFindingsPossibleOKItemsItemCause `json:"cause"`
 	Check NilFindingsGetFindingsPossibleOKItemsItemCheck `json:"check"`
 	// A check of its advisories can still run for it.
 	Checkable bool                                         `json:"checkable"`
@@ -118739,6 +119501,11 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 // GetBulk returns the value of Bulk.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetBulk() bool {
 	return s.Bulk
+}
+
+// GetCause returns the value of Cause.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetCause() NilFindingsGetFindingsPossibleOKItemsItemCause {
+	return s.Cause
 }
 
 // GetCheck returns the value of Check.
@@ -118811,6 +119578,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetBulk(val bool) {
 	s.Bulk = val
 }
 
+// SetCause sets the value of Cause.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetCause(val NilFindingsGetFindingsPossibleOKItemsItemCause) {
+	s.Cause = val
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetCheck(val NilFindingsGetFindingsPossibleOKItemsItemCheck) {
 	s.Check = val
@@ -118876,6 +119648,104 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetUndecided(val FindingsGetFin
 	s.Undecided = val
 }
 
+// Why the CVE is still possible and what would decide it: vendor_silent (no vendor page states more
+// than the record), page_unreadable (the pages could not be read), needs_reading (the vendor's
+// advisory must be read: no AI set up, or the reading is still to come), ai_unsure (the AI could not
+// tell, or its quote was not in the page), ai_budget (the AI's reading waits for the budget),
+// identity_unproven (the software is not tied to a product the records name), version_needed (the
+// version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the
+// affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a
+// rejected reading).
+type FindingsGetFindingsPossibleOKItemsItemCause string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCauseVendorSilent     FindingsGetFindingsPossibleOKItemsItemCause = "vendor_silent"
+	FindingsGetFindingsPossibleOKItemsItemCausePageUnreadable   FindingsGetFindingsPossibleOKItemsItemCause = "page_unreadable"
+	FindingsGetFindingsPossibleOKItemsItemCauseNeedsReading     FindingsGetFindingsPossibleOKItemsItemCause = "needs_reading"
+	FindingsGetFindingsPossibleOKItemsItemCauseAiUnsure         FindingsGetFindingsPossibleOKItemsItemCause = "ai_unsure"
+	FindingsGetFindingsPossibleOKItemsItemCauseAiBudget         FindingsGetFindingsPossibleOKItemsItemCause = "ai_budget"
+	FindingsGetFindingsPossibleOKItemsItemCauseIdentityUnproven FindingsGetFindingsPossibleOKItemsItemCause = "identity_unproven"
+	FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded    FindingsGetFindingsPossibleOKItemsItemCause = "version_needed"
+	FindingsGetFindingsPossibleOKItemsItemCausePendingNvd       FindingsGetFindingsPossibleOKItemsItemCause = "pending_nvd"
+	FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson      FindingsGetFindingsPossibleOKItemsItemCause = "needs_person"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCause values.
+func (FindingsGetFindingsPossibleOKItemsItemCause) AllValues() []FindingsGetFindingsPossibleOKItemsItemCause {
+	return []FindingsGetFindingsPossibleOKItemsItemCause{
+		FindingsGetFindingsPossibleOKItemsItemCauseVendorSilent,
+		FindingsGetFindingsPossibleOKItemsItemCausePageUnreadable,
+		FindingsGetFindingsPossibleOKItemsItemCauseNeedsReading,
+		FindingsGetFindingsPossibleOKItemsItemCauseAiUnsure,
+		FindingsGetFindingsPossibleOKItemsItemCauseAiBudget,
+		FindingsGetFindingsPossibleOKItemsItemCauseIdentityUnproven,
+		FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded,
+		FindingsGetFindingsPossibleOKItemsItemCausePendingNvd,
+		FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCause) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCauseVendorSilent:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCausePageUnreadable:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsReading:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseAiUnsure:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseAiBudget:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseIdentityUnproven:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCausePendingNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCause) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCause(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCauseVendorSilent:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseVendorSilent
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCausePageUnreadable:
+		*s = FindingsGetFindingsPossibleOKItemsItemCausePageUnreadable
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsReading:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseNeedsReading
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseAiUnsure:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseAiUnsure
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseAiBudget:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseAiBudget
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseIdentityUnproven:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseIdentityUnproven
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCausePendingNvd:
+		*s = FindingsGetFindingsPossibleOKItemsItemCausePendingNvd
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // A check of a possible CVE's advisories.
 type FindingsGetFindingsPossibleOKItemsItemCheck struct {
 	CheckedAt time.Time `json:"checked_at"`
@@ -118892,9 +119762,12 @@ type FindingsGetFindingsPossibleOKItemsItemCheck struct {
 	// Ai only: the model.
 	Model NilString `json:"model"`
 	// The sentence the verdict rests on, as the page writes it; "" when none.
-	Quote  string `json:"quote"`
-	Reason string `json:"reason"`
-	// A person rejected this AI proposal: the CVE is possible again.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsGetFindingsPossibleOKItemsItemCheckReading `json:"reading"`
+	Reason  string                                                `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
 	Rejected bool                                                     `json:"rejected"`
 	Sources  []FindingsGetFindingsPossibleOKItemsItemCheckSourcesItem `json:"sources"`
 	Verdict  FindingsGetFindingsPossibleOKItemsItemCheckVerdict       `json:"verdict"`
@@ -118933,6 +119806,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetModel() NilString {
 // GetQuote returns the value of Quote.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetQuote() string {
 	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) GetReading() NilFindingsGetFindingsPossibleOKItemsItemCheckReading {
+	return s.Reading
 }
 
 // GetReason returns the value of Reason.
@@ -118988,6 +119866,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetModel(val NilString) {
 // SetQuote sets the value of Quote.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetQuote(val string) {
 	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheck) SetReading(val NilFindingsGetFindingsPossibleOKItemsItemCheckReading) {
+	s.Reading = val
 }
 
 // SetReason sets the value of Reason.
@@ -119095,6 +119978,180 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckDecidedBy) UnmarshalText(dat
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi:
 		*s = FindingsGetFindingsPossibleOKItemsItemCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsGetFindingsPossibleOKItemsItemCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetStatus() FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetStatus(val FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusAffected    FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus = "affected"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusFixed       FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus = "fixed"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusNotAffected FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus = "not_affected"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusUnsure      FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus{
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusAffected,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusFixed,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusNotAffected,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingStatus(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusAffected:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusAffected
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusFixed:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusFixed
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusNotAffected:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusNotAffected
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusUnsure:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingStatusUnsure
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -129422,9 +130479,10 @@ func (s *FindingsPostFindingsIDAppliedReqItem) UnmarshalText(data []byte) error 
 // A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices
 // and the AI read the same fields.
 type FindingsPostFindingsIDReopenOK struct {
-	// A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its
-	// quote, the model; its confirmation level still comes from how the version is known). null for any
-	// other finding.
+	// A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement
+	// opened (range origin ai_read, reading set: labelled "Read by AI from ", rejected in one click): the
+	// AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes
+	// from how the version is known). null for any other finding.
 	AiCheck NilFindingsPostFindingsIDReopenOKAiCheck `json:"ai_check"`
 	Cve     string                                   `json:"cve"`
 	Device  FindingsPostFindingsIDReopenOKDevice     `json:"device"`
@@ -129634,9 +130692,12 @@ type FindingsPostFindingsIDReopenOKAiCheck struct {
 	// Ai only: the model.
 	Model NilString `json:"model"`
 	// The sentence the verdict rests on, as the page writes it; "" when none.
-	Quote  string `json:"quote"`
-	Reason string `json:"reason"`
-	// A person rejected this AI proposal: the CVE is possible again.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsPostFindingsIDReopenOKAiCheckReading `json:"reading"`
+	Reason  string                                          `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
 	Rejected bool                                               `json:"rejected"`
 	Sources  []FindingsPostFindingsIDReopenOKAiCheckSourcesItem `json:"sources"`
 	Verdict  FindingsPostFindingsIDReopenOKAiCheckVerdict       `json:"verdict"`
@@ -129675,6 +130736,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheck) GetModel() NilString {
 // GetQuote returns the value of Quote.
 func (s *FindingsPostFindingsIDReopenOKAiCheck) GetQuote() string {
 	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsPostFindingsIDReopenOKAiCheck) GetReading() NilFindingsPostFindingsIDReopenOKAiCheckReading {
+	return s.Reading
 }
 
 // GetReason returns the value of Reason.
@@ -129730,6 +130796,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheck) SetModel(val NilString) {
 // SetQuote sets the value of Quote.
 func (s *FindingsPostFindingsIDReopenOKAiCheck) SetQuote(val string) {
 	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsPostFindingsIDReopenOKAiCheck) SetReading(val NilFindingsPostFindingsIDReopenOKAiCheckReading) {
+	s.Reading = val
 }
 
 // SetReason sets the value of Reason.
@@ -129837,6 +130908,180 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckDecidedBy) UnmarshalText(data []by
 		return nil
 	case FindingsPostFindingsIDReopenOKAiCheckDecidedByAi:
 		*s = FindingsPostFindingsIDReopenOKAiCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsPostFindingsIDReopenOKAiCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsPostFindingsIDReopenOKAiCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetStatus() FindingsPostFindingsIDReopenOKAiCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetStatus(val FindingsPostFindingsIDReopenOKAiCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsPostFindingsIDReopenOKAiCheckReadingStatus string
+
+const (
+	FindingsPostFindingsIDReopenOKAiCheckReadingStatusAffected    FindingsPostFindingsIDReopenOKAiCheckReadingStatus = "affected"
+	FindingsPostFindingsIDReopenOKAiCheckReadingStatusFixed       FindingsPostFindingsIDReopenOKAiCheckReadingStatus = "fixed"
+	FindingsPostFindingsIDReopenOKAiCheckReadingStatusNotAffected FindingsPostFindingsIDReopenOKAiCheckReadingStatus = "not_affected"
+	FindingsPostFindingsIDReopenOKAiCheckReadingStatusUnsure      FindingsPostFindingsIDReopenOKAiCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKAiCheckReadingStatus values.
+func (FindingsPostFindingsIDReopenOKAiCheckReadingStatus) AllValues() []FindingsPostFindingsIDReopenOKAiCheckReadingStatus {
+	return []FindingsPostFindingsIDReopenOKAiCheckReadingStatus{
+		FindingsPostFindingsIDReopenOKAiCheckReadingStatusAffected,
+		FindingsPostFindingsIDReopenOKAiCheckReadingStatusFixed,
+		FindingsPostFindingsIDReopenOKAiCheckReadingStatusNotAffected,
+		FindingsPostFindingsIDReopenOKAiCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKAiCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKAiCheckReadingStatus(data) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusAffected:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingStatusAffected
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusFixed:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingStatusFixed
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusNotAffected:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingStatusNotAffected
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingStatusUnsure:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingStatusUnsure
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -132476,9 +133721,10 @@ func (s *FindingsPostFindingsIDReopenReq) SetNote(val string) {
 // A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices
 // and the AI read the same fields.
 type FindingsPostFindingsIDUnverifyOK struct {
-	// A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its
-	// quote, the model; its confirmation level still comes from how the version is known). null for any
-	// other finding.
+	// A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement
+	// opened (range origin ai_read, reading set: labelled "Read by AI from ", rejected in one click): the
+	// AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes
+	// from how the version is known). null for any other finding.
 	AiCheck NilFindingsPostFindingsIDUnverifyOKAiCheck `json:"ai_check"`
 	Cve     string                                     `json:"cve"`
 	Device  FindingsPostFindingsIDUnverifyOKDevice     `json:"device"`
@@ -132688,9 +133934,12 @@ type FindingsPostFindingsIDUnverifyOKAiCheck struct {
 	// Ai only: the model.
 	Model NilString `json:"model"`
 	// The sentence the verdict rests on, as the page writes it; "" when none.
-	Quote  string `json:"quote"`
-	Reason string `json:"reason"`
-	// A person rejected this AI proposal: the CVE is possible again.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsPostFindingsIDUnverifyOKAiCheckReading `json:"reading"`
+	Reason  string                                            `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
 	Rejected bool                                                 `json:"rejected"`
 	Sources  []FindingsPostFindingsIDUnverifyOKAiCheckSourcesItem `json:"sources"`
 	Verdict  FindingsPostFindingsIDUnverifyOKAiCheckVerdict       `json:"verdict"`
@@ -132729,6 +133978,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheck) GetModel() NilString {
 // GetQuote returns the value of Quote.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheck) GetQuote() string {
 	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheck) GetReading() NilFindingsPostFindingsIDUnverifyOKAiCheckReading {
+	return s.Reading
 }
 
 // GetReason returns the value of Reason.
@@ -132784,6 +134038,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheck) SetModel(val NilString) {
 // SetQuote sets the value of Quote.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheck) SetQuote(val string) {
 	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheck) SetReading(val NilFindingsPostFindingsIDUnverifyOKAiCheckReading) {
+	s.Reading = val
 }
 
 // SetReason sets the value of Reason.
@@ -132891,6 +134150,180 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckDecidedBy) UnmarshalText(data []
 		return nil
 	case FindingsPostFindingsIDUnverifyOKAiCheckDecidedByAi:
 		*s = FindingsPostFindingsIDUnverifyOKAiCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsPostFindingsIDUnverifyOKAiCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetStatus() FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetStatus(val FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus string
+
+const (
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusAffected    FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus = "affected"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusFixed       FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus = "fixed"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusNotAffected FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus = "not_affected"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusUnsure      FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus values.
+func (FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus) AllValues() []FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus {
+	return []FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus{
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusAffected,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusFixed,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusNotAffected,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingStatus(data) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusAffected:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusAffected
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusFixed:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusFixed
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusNotAffected:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusNotAffected
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusUnsure:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingStatusUnsure
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -135516,9 +136949,10 @@ func (s *FindingsPostFindingsIDUnverifyOKVerificationVerified) UnmarshalText(dat
 // A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices
 // and the AI read the same fields.
 type FindingsPostFindingsIDVerifyOK struct {
-	// A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its
-	// quote, the model; its confirmation level still comes from how the version is known). null for any
-	// other finding.
+	// A finding a person confirmed from an AI proposal, or one the AI's reading of the vendor's statement
+	// opened (range origin ai_read, reading set: labelled "Read by AI from ", rejected in one click): the
+	// AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes
+	// from how the version is known). null for any other finding.
 	AiCheck NilFindingsPostFindingsIDVerifyOKAiCheck `json:"ai_check"`
 	Cve     string                                   `json:"cve"`
 	Device  FindingsPostFindingsIDVerifyOKDevice     `json:"device"`
@@ -135728,9 +137162,12 @@ type FindingsPostFindingsIDVerifyOKAiCheck struct {
 	// Ai only: the model.
 	Model NilString `json:"model"`
 	// The sentence the verdict rests on, as the page writes it; "" when none.
-	Quote  string `json:"quote"`
-	Reason string `json:"reason"`
-	// A person rejected this AI proposal: the CVE is possible again.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsPostFindingsIDVerifyOKAiCheckReading `json:"reading"`
+	Reason  string                                          `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
 	Rejected bool                                               `json:"rejected"`
 	Sources  []FindingsPostFindingsIDVerifyOKAiCheckSourcesItem `json:"sources"`
 	Verdict  FindingsPostFindingsIDVerifyOKAiCheckVerdict       `json:"verdict"`
@@ -135769,6 +137206,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheck) GetModel() NilString {
 // GetQuote returns the value of Quote.
 func (s *FindingsPostFindingsIDVerifyOKAiCheck) GetQuote() string {
 	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsPostFindingsIDVerifyOKAiCheck) GetReading() NilFindingsPostFindingsIDVerifyOKAiCheckReading {
+	return s.Reading
 }
 
 // GetReason returns the value of Reason.
@@ -135824,6 +137266,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheck) SetModel(val NilString) {
 // SetQuote sets the value of Quote.
 func (s *FindingsPostFindingsIDVerifyOKAiCheck) SetQuote(val string) {
 	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsPostFindingsIDVerifyOKAiCheck) SetReading(val NilFindingsPostFindingsIDVerifyOKAiCheckReading) {
+	s.Reading = val
 }
 
 // SetReason sets the value of Reason.
@@ -135931,6 +137378,180 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckDecidedBy) UnmarshalText(data []by
 		return nil
 	case FindingsPostFindingsIDVerifyOKAiCheckDecidedByAi:
 		*s = FindingsPostFindingsIDVerifyOKAiCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsPostFindingsIDVerifyOKAiCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsPostFindingsIDVerifyOKAiCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetStatus() FindingsPostFindingsIDVerifyOKAiCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetStatus(val FindingsPostFindingsIDVerifyOKAiCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsPostFindingsIDVerifyOKAiCheckReadingStatus string
+
+const (
+	FindingsPostFindingsIDVerifyOKAiCheckReadingStatusAffected    FindingsPostFindingsIDVerifyOKAiCheckReadingStatus = "affected"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingStatusFixed       FindingsPostFindingsIDVerifyOKAiCheckReadingStatus = "fixed"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingStatusNotAffected FindingsPostFindingsIDVerifyOKAiCheckReadingStatus = "not_affected"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingStatusUnsure      FindingsPostFindingsIDVerifyOKAiCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKAiCheckReadingStatus values.
+func (FindingsPostFindingsIDVerifyOKAiCheckReadingStatus) AllValues() []FindingsPostFindingsIDVerifyOKAiCheckReadingStatus {
+	return []FindingsPostFindingsIDVerifyOKAiCheckReadingStatus{
+		FindingsPostFindingsIDVerifyOKAiCheckReadingStatusAffected,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingStatusFixed,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingStatusNotAffected,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKAiCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKAiCheckReadingStatus(data) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusAffected:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingStatusAffected
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusFixed:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingStatusFixed
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusNotAffected:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingStatusNotAffected
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingStatusUnsure:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingStatusUnsure
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -138577,7 +140198,9 @@ type FindingsPostFindingsPossibleCheckOK struct {
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
 	// AI proposals made.
-	Proposals int       `json:"proposals"`
+	Proposals int `json:"proposals"`
+	// AI readings of a vendor's statement stored, one per release line.
+	Readings  int       `json:"readings"`
 	Running   bool      `json:"running"`
 	StartedAt time.Time `json:"started_at"`
 	// Why the check stopped before the end (the AI unavailable, the budget reached).
@@ -138614,6 +140237,11 @@ func (s *FindingsPostFindingsPossibleCheckOK) GetFinishedAt() NilDateTime {
 // GetProposals returns the value of Proposals.
 func (s *FindingsPostFindingsPossibleCheckOK) GetProposals() int {
 	return s.Proposals
+}
+
+// GetReadings returns the value of Readings.
+func (s *FindingsPostFindingsPossibleCheckOK) GetReadings() int {
+	return s.Readings
 }
 
 // GetRunning returns the value of Running.
@@ -138669,6 +140297,11 @@ func (s *FindingsPostFindingsPossibleCheckOK) SetFinishedAt(val NilDateTime) {
 // SetProposals sets the value of Proposals.
 func (s *FindingsPostFindingsPossibleCheckOK) SetProposals(val int) {
 	s.Proposals = val
+}
+
+// SetReadings sets the value of Readings.
+func (s *FindingsPostFindingsPossibleCheckOK) SetReadings(val int) {
+	s.Readings = val
 }
 
 // SetRunning sets the value of Running.
@@ -193353,6 +194986,51 @@ func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckConfidence) Or(d FindingsG
 	return d
 }
 
+// NewNilFindingsGetFindingsAnsweredOKItemsItemCheckReading returns new NilFindingsGetFindingsAnsweredOKItemsItemCheckReading with value set to v.
+func NewNilFindingsGetFindingsAnsweredOKItemsItemCheckReading(v FindingsGetFindingsAnsweredOKItemsItemCheckReading) NilFindingsGetFindingsAnsweredOKItemsItemCheckReading {
+	return NilFindingsGetFindingsAnsweredOKItemsItemCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsAnsweredOKItemsItemCheckReading is nullable FindingsGetFindingsAnsweredOKItemsItemCheckReading.
+type NilFindingsGetFindingsAnsweredOKItemsItemCheckReading struct {
+	Value FindingsGetFindingsAnsweredOKItemsItemCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) SetTo(v FindingsGetFindingsAnsweredOKItemsItemCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsAnsweredOKItemsItemCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) Get() (v FindingsGetFindingsAnsweredOKItemsItemCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) Or(d FindingsGetFindingsAnsweredOKItemsItemCheckReading) FindingsGetFindingsAnsweredOKItemsItemCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsAnsweredOKItemsItemSoftware returns new NilFindingsGetFindingsAnsweredOKItemsItemSoftware with value set to v.
 func NewNilFindingsGetFindingsAnsweredOKItemsItemSoftware(v FindingsGetFindingsAnsweredOKItemsItemSoftware) NilFindingsGetFindingsAnsweredOKItemsItemSoftware {
 	return NilFindingsGetFindingsAnsweredOKItemsItemSoftware{
@@ -194294,6 +195972,51 @@ func (o NilFindingsGetFindingsIDViewOKAiCheckConfidence) Get() (v FindingsGetFin
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsIDViewOKAiCheckConfidence) Or(d FindingsGetFindingsIDViewOKAiCheckConfidence) FindingsGetFindingsIDViewOKAiCheckConfidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsIDViewOKAiCheckReading returns new NilFindingsGetFindingsIDViewOKAiCheckReading with value set to v.
+func NewNilFindingsGetFindingsIDViewOKAiCheckReading(v FindingsGetFindingsIDViewOKAiCheckReading) NilFindingsGetFindingsIDViewOKAiCheckReading {
+	return NilFindingsGetFindingsIDViewOKAiCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDViewOKAiCheckReading is nullable FindingsGetFindingsIDViewOKAiCheckReading.
+type NilFindingsGetFindingsIDViewOKAiCheckReading struct {
+	Value FindingsGetFindingsIDViewOKAiCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDViewOKAiCheckReading) SetTo(v FindingsGetFindingsIDViewOKAiCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDViewOKAiCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDViewOKAiCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDViewOKAiCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDViewOKAiCheckReading) Get() (v FindingsGetFindingsIDViewOKAiCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDViewOKAiCheckReading) Or(d FindingsGetFindingsIDViewOKAiCheckReading) FindingsGetFindingsIDViewOKAiCheckReading {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -195337,6 +197060,51 @@ func (o NilFindingsGetFindingsPossibleCheckOKRun) Or(d FindingsGetFindingsPossib
 	return d
 }
 
+// NewNilFindingsGetFindingsPossibleOKItemsItemCause returns new NilFindingsGetFindingsPossibleOKItemsItemCause with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemCause(v FindingsGetFindingsPossibleOKItemsItemCause) NilFindingsGetFindingsPossibleOKItemsItemCause {
+	return NilFindingsGetFindingsPossibleOKItemsItemCause{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemCause is nullable FindingsGetFindingsPossibleOKItemsItemCause.
+type NilFindingsGetFindingsPossibleOKItemsItemCause struct {
+	Value FindingsGetFindingsPossibleOKItemsItemCause
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCause) SetTo(v FindingsGetFindingsPossibleOKItemsItemCause) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCause) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCause) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemCause
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCause) Get() (v FindingsGetFindingsPossibleOKItemsItemCause, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCause) Or(d FindingsGetFindingsPossibleOKItemsItemCause) FindingsGetFindingsPossibleOKItemsItemCause {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsPossibleOKItemsItemCheck returns new NilFindingsGetFindingsPossibleOKItemsItemCheck with value set to v.
 func NewNilFindingsGetFindingsPossibleOKItemsItemCheck(v FindingsGetFindingsPossibleOKItemsItemCheck) NilFindingsGetFindingsPossibleOKItemsItemCheck {
 	return NilFindingsGetFindingsPossibleOKItemsItemCheck{
@@ -195421,6 +197189,51 @@ func (o NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) Get() (v Findi
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsPossibleOKItemsItemCheckConfidence) Or(d FindingsGetFindingsPossibleOKItemsItemCheckConfidence) FindingsGetFindingsPossibleOKItemsItemCheckConfidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemCheckReading returns new NilFindingsGetFindingsPossibleOKItemsItemCheckReading with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemCheckReading(v FindingsGetFindingsPossibleOKItemsItemCheckReading) NilFindingsGetFindingsPossibleOKItemsItemCheckReading {
+	return NilFindingsGetFindingsPossibleOKItemsItemCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemCheckReading is nullable FindingsGetFindingsPossibleOKItemsItemCheckReading.
+type NilFindingsGetFindingsPossibleOKItemsItemCheckReading struct {
+	Value FindingsGetFindingsPossibleOKItemsItemCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheckReading) SetTo(v FindingsGetFindingsPossibleOKItemsItemCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReading) Get() (v FindingsGetFindingsPossibleOKItemsItemCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReading) Or(d FindingsGetFindingsPossibleOKItemsItemCheckReading) FindingsGetFindingsPossibleOKItemsItemCheckReading {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -196687,6 +198500,51 @@ func (o NilFindingsPostFindingsIDReopenOKAiCheckConfidence) Or(d FindingsPostFin
 	return d
 }
 
+// NewNilFindingsPostFindingsIDReopenOKAiCheckReading returns new NilFindingsPostFindingsIDReopenOKAiCheckReading with value set to v.
+func NewNilFindingsPostFindingsIDReopenOKAiCheckReading(v FindingsPostFindingsIDReopenOKAiCheckReading) NilFindingsPostFindingsIDReopenOKAiCheckReading {
+	return NilFindingsPostFindingsIDReopenOKAiCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDReopenOKAiCheckReading is nullable FindingsPostFindingsIDReopenOKAiCheckReading.
+type NilFindingsPostFindingsIDReopenOKAiCheckReading struct {
+	Value FindingsPostFindingsIDReopenOKAiCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDReopenOKAiCheckReading) SetTo(v FindingsPostFindingsIDReopenOKAiCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDReopenOKAiCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDReopenOKAiCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDReopenOKAiCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDReopenOKAiCheckReading) Get() (v FindingsPostFindingsIDReopenOKAiCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDReopenOKAiCheckReading) Or(d FindingsPostFindingsIDReopenOKAiCheckReading) FindingsPostFindingsIDReopenOKAiCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDReopenOKEventsItemResolution returns new NilFindingsPostFindingsIDReopenOKEventsItemResolution with value set to v.
 func NewNilFindingsPostFindingsIDReopenOKEventsItemResolution(v FindingsPostFindingsIDReopenOKEventsItemResolution) NilFindingsPostFindingsIDReopenOKEventsItemResolution {
 	return NilFindingsPostFindingsIDReopenOKEventsItemResolution{
@@ -197092,6 +198950,51 @@ func (o NilFindingsPostFindingsIDUnverifyOKAiCheckConfidence) Or(d FindingsPostF
 	return d
 }
 
+// NewNilFindingsPostFindingsIDUnverifyOKAiCheckReading returns new NilFindingsPostFindingsIDUnverifyOKAiCheckReading with value set to v.
+func NewNilFindingsPostFindingsIDUnverifyOKAiCheckReading(v FindingsPostFindingsIDUnverifyOKAiCheckReading) NilFindingsPostFindingsIDUnverifyOKAiCheckReading {
+	return NilFindingsPostFindingsIDUnverifyOKAiCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnverifyOKAiCheckReading is nullable FindingsPostFindingsIDUnverifyOKAiCheckReading.
+type NilFindingsPostFindingsIDUnverifyOKAiCheckReading struct {
+	Value FindingsPostFindingsIDUnverifyOKAiCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnverifyOKAiCheckReading) SetTo(v FindingsPostFindingsIDUnverifyOKAiCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnverifyOKAiCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnverifyOKAiCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReading) Get() (v FindingsPostFindingsIDUnverifyOKAiCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReading) Or(d FindingsPostFindingsIDUnverifyOKAiCheckReading) FindingsPostFindingsIDUnverifyOKAiCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDUnverifyOKEventsItemResolution returns new NilFindingsPostFindingsIDUnverifyOKEventsItemResolution with value set to v.
 func NewNilFindingsPostFindingsIDUnverifyOKEventsItemResolution(v FindingsPostFindingsIDUnverifyOKEventsItemResolution) NilFindingsPostFindingsIDUnverifyOKEventsItemResolution {
 	return NilFindingsPostFindingsIDUnverifyOKEventsItemResolution{
@@ -197491,6 +199394,51 @@ func (o NilFindingsPostFindingsIDVerifyOKAiCheckConfidence) Get() (v FindingsPos
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDVerifyOKAiCheckConfidence) Or(d FindingsPostFindingsIDVerifyOKAiCheckConfidence) FindingsPostFindingsIDVerifyOKAiCheckConfidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDVerifyOKAiCheckReading returns new NilFindingsPostFindingsIDVerifyOKAiCheckReading with value set to v.
+func NewNilFindingsPostFindingsIDVerifyOKAiCheckReading(v FindingsPostFindingsIDVerifyOKAiCheckReading) NilFindingsPostFindingsIDVerifyOKAiCheckReading {
+	return NilFindingsPostFindingsIDVerifyOKAiCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDVerifyOKAiCheckReading is nullable FindingsPostFindingsIDVerifyOKAiCheckReading.
+type NilFindingsPostFindingsIDVerifyOKAiCheckReading struct {
+	Value FindingsPostFindingsIDVerifyOKAiCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDVerifyOKAiCheckReading) SetTo(v FindingsPostFindingsIDVerifyOKAiCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDVerifyOKAiCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDVerifyOKAiCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDVerifyOKAiCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDVerifyOKAiCheckReading) Get() (v FindingsPostFindingsIDVerifyOKAiCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDVerifyOKAiCheckReading) Or(d FindingsPostFindingsIDVerifyOKAiCheckReading) FindingsPostFindingsIDVerifyOKAiCheckReading {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -241,7 +241,8 @@ type Handler interface {
 	AiPutAiAssignments(ctx context.Context, req *AiPutAiAssignmentsReq) (*AiPutAiAssignmentsOK, error)
 	// AiPutAiConfig implements ai_put_ai_config operation.
 	//
-	// Save token tier, shared monthly budget and PII redaction.
+	// Save token tier, shared monthly budget, PII redaction and the automatic reading of vendor advisories
+	// (on or off, calls a day).
 	//
 	// PUT /ai/config
 	AiPutAiConfig(ctx context.Context, req *AiPutAiConfigReq) (*AiPutAiConfigOK, error)
@@ -1563,8 +1564,10 @@ type Handler interface {
 	FindingsPostFindingsPossibleCheck(ctx context.Context, req *FindingsPostFindingsPossibleCheckReq) (*FindingsPostFindingsPossibleCheckOK, error)
 	// FindingsPostFindingsPossibleChecksKeyReject implements findings_post_findings_possible_checks_key_reject operation.
 	//
-	// Reject an AI proposal: the check stays stored (not asked again for the same evidence) and the CVE is
-	// possible again on every device that shares it. Audit findings.proposal_rejected.
+	// Reject an AI proposal, or the AI's reading of a vendor's statement (the key of a check or of a
+	// reading): it stays stored (the same evidence or page is never applied again) and the CVE is possible
+	// again on every device that shares it; a finding the reading opened closes at once (every device on
+	// the line is matched again). Audit findings.proposal_rejected or findings.ai_reading_rejected.
 	//
 	// POST /findings/possible/checks/{key}/reject
 	FindingsPostFindingsPossibleChecksKeyReject(ctx context.Context, params FindingsPostFindingsPossibleChecksKeyRejectParams) (*FindingsPostFindingsPossibleChecksKeyRejectOK, error)

@@ -60,6 +60,7 @@ type statements struct {
 	scheme             *versionscheme.Scheme
 	unaffected, models []versionscheme.Span
 	origin             string
+	unread             bool // an affected row of the product did not read in its scheme (SchemedRange.Unread)
 }
 
 // vendorRows is schemedSpans with the vendor's statements of the same product (statements).
@@ -79,7 +80,14 @@ func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, 
 	var st statements
 	origin := ""
 	for _, r := range v.Schemed {
-		if r.Product != p.Key || r.Scheme == nil || r.Scheme.Name != p.Scheme || fipsWithoutTheWord(r) {
+		if r.Product != p.Key || r.Scheme == nil || r.Scheme.Name != p.Scheme {
+			continue
+		}
+		if r.Unread {
+			st.unread = true
+			continue
+		}
+		if fipsWithoutTheWord(r) {
 			continue
 		}
 		if r.Unaffected || r.ModelOnly {
@@ -194,7 +202,7 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or inside a
 		// model-limited range: only the vendor's statements below may still say "not affected"
 	}
-	if scheme != nil && !namesLine(spans, installed) && !inside(installed, st.models) {
+	if scheme != nil && !st.unread && !namesLine(spans, installed) && !inside(installed, st.models) {
 		if first, ok := olderThanEveryStart(installed, spans); ok && !nvdCovers(in, v) {
 			out.verdict, out.before = versionscheme.Verdict{State: versionscheme.NotAffected}, first
 			return out, true
@@ -240,6 +248,11 @@ func olderThanEveryStart(installed versionscheme.Version, spans []versionscheme.
 	for _, sp := range spans {
 		if sp.Start == nil {
 			return nil, false
+		}
+		if sp.End != nil && sp.EndIncl {
+			if c, ok := versionscheme.Compare(*sp.Start, *sp.End); ok && c == 0 {
+				return nil, false // one release ("8u503": Oracle's newest affected update of a train), not where the flaw came in
+			}
 		}
 		c, ok := versionscheme.Compare(installed, *sp.Start)
 		if !ok || c >= 0 {

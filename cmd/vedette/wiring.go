@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/core/versionscheme"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
@@ -654,6 +655,14 @@ func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) e
 		s, sp, _, ok := feeds.RangeScheme(r)
 		if !ok { // a range the vendor states unaffected, or one limited to some models: only ever "not affected"
 			if s, sp, unaffected, ok = feeds.StatementScheme(r); !ok {
+				// a vendor's affected row of a product with a scheme that does not read in it (Juniper's "22.2" lessThan "22.2*"):
+				// kept as unread, so the rows that do read are not taken as the vendor's whole word
+				if p, found := productid.ByRangeName(r.Part, r.Vendor, r.Product); found && p.Scheme != "" && r.Origin != feeds.OriginNVD && !r.Unaffected() {
+					if ps, found := versionscheme.Lookup(p.Scheme); found {
+						i := at[r.CVE]
+						vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: ps, Origin: r.Origin, Unread: true})
+					}
+				}
 				continue
 			}
 			modelOnly = !unaffected

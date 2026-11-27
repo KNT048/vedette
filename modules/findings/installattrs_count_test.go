@@ -168,6 +168,10 @@ func TestQueue_Count_InstallAttributes(t *testing.T) {
 	wantItems := map[string]int{
 		"DESKTOP-01 not_comparable (architecture) / Notepad++: pinned to x64":        1,
 		"DESKTOP-02 not_comparable (edition) / Thunderbird: plain, and ESR from 140": 1,
+		// 115.9.0 is an ESR build of a line older than every ESR line listed (140, 153): their silence is no proof, it stays asked
+		// whether that line is affected (the edition is known)
+		"DESKTOP-01 not_comparable (unlisted_line) / Thunderbird: plain and two ESR branches": 1,
+		"DESKTOP-01 not_comparable (unlisted_line) / Thunderbird: plain, and ESR from 140":    1,
 	}
 	if !maps.Equal(items, wantItems) {
 		t.Errorf("queue %v, want %v", items, wantItems)
@@ -181,11 +185,7 @@ func TestQueue_Count_InstallAttributes(t *testing.T) {
 		"device / Node.js: LTS edition":                   1,
 		"device / VS Code: no target software":            1,
 		"device / FortiClient: Windows build":             1,
-		// 153.0.1 is inside the plain range and the 153 ESR range: either edition. 115.9.0 is an ESR build of a line older than every
-		// ESR line listed (140, 153): as the normal release it is inside the plain range, and as ESR line 115 it carries the code of
-		// release 115.0, inside the plain range too (everyReading)
-		"no / Thunderbird: plain and two ESR branches": 2,
-		"no / Thunderbird: plain, and ESR from 140":    1,
+		"no / Thunderbird: plain and two ESR branches":    1, // 153.0.1 is inside the plain range and the 153 ESR range: either edition
 	}
 	if !maps.Equal(findings, wantFindings) {
 		t.Errorf("findings %v, want %v", findings, wantFindings)

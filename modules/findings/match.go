@@ -1518,10 +1518,6 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if lined.decides() {
 			m.Evidence.Summary = lineAffectedNote(a, s, v, lined)
 		}
-		if agreed != "" {
-			m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists %s for builds Vedette cannot tell this one from; %s"+suspectedClause, name, sw, v.rangesBy(true), v.CVE, agreed)
-			m.agreed = agreed
-		}
 		if pinned != "" {
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s)"+suspectedClause, name, sw, v.CVE, pinned, clean(within.String()))
 		}
@@ -1530,7 +1526,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		}
 		// The device's own agent reports what is installed; a detection, not a guess. Not when NVD gives no end to the range
 		// (every version: no fix to name). A platform condition still open is no match at all (outQuestion).
-		if s.Source == "agent" && pinned == "" && agreed == "" && (within.EndExcl != "" || within.EndIncl != "") {
+		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 			if schemed {

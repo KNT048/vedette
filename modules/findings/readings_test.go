@@ -24,7 +24,10 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 		return decided
 	}
 
-	// A product whose rows state only fixed releases, per build (channel) the rows pin and the box cannot tell for the line.
+	// A product whose rows state only fixed releases, per build (channel) the rows pin and the box cannot tell for the line. Unscoped
+	// fixes (from the first version on) below which the version lies are affected under every reading, and the rows already decide that
+	// (decide, pinnedInside); a fix scoped to a release line says the line got a fix, not that older lines carried the flaw, so the
+	// readings disagree and the CVE stays possible.
 	t.Run("fixed releases only", func(t *testing.T) {
 		t.Parallel()
 		const mailer = "cpe:2.3:a:example:mailer:*:*:*:*:"
@@ -36,8 +39,12 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 			aff       []Affected
 			want      string
 		}{
-			{"lower than the fix of every channel", "30.5.0", []Affected{row("-", "", "52.0"), row("extended", "45.0", "45.9.0")}, found},
-			{"lower than every fix, three lines", "30.5.0", []Affected{row("-", "", "57.0"), row("extended", "45.0", "45.17.0"), row("extended", "53.0", "53.4.0")}, found},
+			{"lower than the unscoped fix of every channel", "30.5.0", []Affected{row("-", "", "52.0"), row("extended", "", "45.9.0")}, found},
+			{"one unscoped fix, no channel", "115.9", []Affected{{CPE: "cpe:2.3:a:example:mailer:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "152"}}}, found},
+			// "unaffected 140.12 through 140.*" and "unaffected 152 and later": the line's fix says the line got one, not that older lines
+			// carried the flaw (it may have come in at 140.0), so the readings disagree
+			{"a fix scoped to a later line", "115.9", []Affected{row("-", "", "152"), row("extended", "140.0", "140.12")}, asked},
+			{"lower than every fix, three lines", "30.5.0", []Affected{row("-", "", "57.0"), row("extended", "45.0", "45.17.0"), row("extended", "53.0", "53.4.0")}, asked},
 			{"past the fix of one channel", "46.0.1", []Affected{row("-", "", "52.0"), row("extended", "45.0", "45.9.0")}, asked},
 			{"a row with a lower bound of its own", "30.5.0", []Affected{row("-", "", "52.0"), row("extended", "45.2.0", "45.9.0")}, asked},
 			{"the plain row starts inside the line", "30.5.0", []Affected{row("-", "30.2", "52.0"), row("extended", "45.0", "45.9.0")}, asked},
@@ -55,9 +62,6 @@ func TestEveryReading_DecidesOnlyWhenAllAgree(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Errorf("%s (%s): %s, want %s (new %+v, unchecked %+v)", tc.name, tc.ver, got, tc.want, res.New, res.Unchecked)
-			}
-			if got == found && !strings.Contains(res.New[0].Evidence.Summary, "decided under every reading") {
-				t.Errorf("%s: the evidence does not name the readings: %q", tc.name, res.New[0].Evidence.Summary)
 			}
 		}
 	})

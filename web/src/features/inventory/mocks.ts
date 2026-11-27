@@ -1026,7 +1026,7 @@ export const handlers = [
     // INV-46: the newest manual observation or manual software row; a device added by hand with neither: when it was added
     const manualAt = [...observations.filter((o) => o.source === 'manual').map((o) => o.seen_at), ...a.software.filter((s) => s.source === 'manual' && s.set_at).map((s) => s.set_at!)]
       .reduce<string | null>((m, t) => (!m || t > m ? t : m), null) ?? (a.origin === 'manual' ? a.first_seen : null)
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id), addresses: addressesOf(a), agent: hasAgentNode(a) } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, manual_at: manualAt, detected_differs: differsOf(a), kinds: KINDS, possible_same: possibleSameAs(a.id), addresses: addressesOf(a), agent: hasAgentNode(a) && isOn('agent-intake') } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {
@@ -1243,7 +1243,7 @@ export const handlers = [
     const agent = new URL(request.url).searchParams.get('agent')
     if (agent !== null && agent !== 'keep' && agent !== 'stop') return fail(400, 'invalid', 'agent is keep or stop.')
     if (agent === 'stop') { const admin = guard('admin'); if (admin) return admin }
-    const node = hasAgentNode(a)
+    const node = hasAgentNode(a) && isOn('agent-intake') // with the Agents module off there is no choice: kept out as a device with none
     const stop = node && agent === 'stop'
     if (stop) removedNodes.update((l) => [...l, a.id])
     // The removal stays, as the backend keeps it (INV-59): a burned-in MAC, or the address of a device with no MAC. "Remove only" of a

@@ -85,7 +85,7 @@ func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	if all, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{}); err != nil || !slices.Contains(ids(all), id) {
 		t.Fatalf("All = %v, %v", ids(all), err)
 	}
-	if total, pending, err := e.svc.DeviceCounts(e.ctx()); err != nil || total != 1 || pending != 0 {
+	if total, pending, err := e.svc.DeviceCounts(e.ctx()); err != nil || total != 0 || pending != 0 { // neither added nor to review
 		t.Fatalf("DeviceCounts = %d, %d, %v", total, pending, err)
 	}
 	if review, err := e.svc.ToReviewIDs(e.ctx()); err != nil || len(review) != 0 {

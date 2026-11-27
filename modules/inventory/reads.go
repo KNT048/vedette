@@ -244,10 +244,11 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, with
 	return out, nil
 }
 
-// DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/overview): one aggregate over inv_asset. Ignored devices are in neither.
+// DeviceCounts is the counts of the Devices list and of To review without the lists (Home's device tile, findings
+// GET /findings/overview): one aggregate over inv_asset by the state rule (stateSQL). total is the added devices, the ones the Devices
+// list holds and the tile links to; pending the To review count. Ignored and seen-briefly devices are in neither.
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
-	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(`+toReviewSQL+`), 0) FROM inv_asset a WHERE a.ignored_at IS NULL`).Scan(&total, &pending)
+	err = s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(`+stateSQL+` = 'added'), 0), ifnull(sum(`+toReviewSQL+`), 0) FROM inv_asset a WHERE a.ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {
 		return 0, 0, fmt.Errorf("inventory: count devices: %w", err)
 	}
@@ -460,7 +461,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		return Detail{}, err
 	}
 	return Detail{
-		Agent:           agent,
+		Agent:           agent && s.agentsOn(),
 		Addresses:       addrs,
 		DetectedDiffers: differs,
 		ManualAt:        manualAt,

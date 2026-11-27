@@ -8,8 +8,8 @@ import (
 	"github.com/knt048/vedette/core/observe"
 )
 
-// DeviceCounts (Home's device tile through findings GET /findings/overview) is the "All" and "To review" counts of the device list,
-// without the list.
+// DeviceCounts (Home's device tile through findings GET /findings/overview) is the counts of the Devices list (the added devices, where
+// the tile links) and of To review, without the lists.
 func TestDeviceCountsAreTheListCounts(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -29,7 +29,7 @@ func TestDeviceCountsAreTheListCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	total, pending, err := e.svc.DeviceCounts(e.ctx())
-	if err != nil || total != l.Counts.All || pending != l.Counts.Pending || total != 2 || pending != 1 {
+	if err != nil || pending != l.Counts.Pending || total != 1 || pending != 1 {
 		t.Fatalf("DeviceCounts = %d, %d, %v; list counts %+v", total, pending, err, l.Counts)
 	}
 	// ToReviewIDs (findings' grouped card of the devices not added yet) is the devices of To review

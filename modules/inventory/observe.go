@@ -74,8 +74,13 @@ type cleanObs struct {
 	// device: the id of the device an SNMP read of its own read address is about (AssetHint.Device): it goes there or nowhere.
 	device string
 	list   bool // a list (software, services: deviceFor), not an observation: at a stale address it makes no device
+	// keyless: a list of an agent with no key and no card (Wazuh, by address): admit checks it at a removed device's last address
+	keyless bool
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
+	// claims are the cards this hint names in the batch: its MAC and the values of the batch's mac observations with the same hint
+	// (Wazuh and an agent by address report their card as a value). The removal check reads them (admit).
+	claims []string
 	// own: an agent's report by address only at a hand-added address another MAC was seen at (handClaims): a device of its own, never
 	// the hand-added one. card is the card it claims there, which may reach only the newcomer a sensor saw (ownDevice), never a lookup key.
 	own    bool
@@ -271,10 +276,24 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			reported[c.agent] = append(reported[c.agent], c.value)
 		}
 	}
+	claimed := map[string][]string{} // hint → the cards it names in this batch
+	for _, c := range clean {
+		k := c.hintKey()
+		cards := []string{c.mac}
+		if c.field == string(observe.MAC) {
+			cards = append(cards, c.value)
+		}
+		for _, m := range cards {
+			if m != "" && !slices.Contains(claimed[k], m) {
+				claimed[k] = append(claimed[k], m)
+			}
+		}
+	}
 	for i := range clean {
 		if clean[i].agent != "" {
 			clean[i].agentMACs = reported[clean[i].agent]
 		}
+		clean[i].claims = claimed[clean[i].hintKey()]
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		if err := handClaims(ctx, tx, clean); err != nil {
@@ -553,6 +572,11 @@ func (s *Service) typeFromAgentOS(ctx context.Context, tx *sql.Tx, id string) (i
 	return 0, err
 }
 
+// hintKey is the hint of c as one key: the observations of one report share it.
+func (c cleanObs) hintKey() string {
+	return c.ip.String() + "|" + c.mac + "|" + c.agent + "|" + c.device + "|" + c.from.String()
+}
+
 // target names the device a hint points to, for the audit row.
 func (c cleanObs) target() string {
 	if c.mac != "" {
@@ -587,6 +611,9 @@ const ipTrust = 72 * time.Hour
 // the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC is about the device it
 // joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (id string, created bool, err error) {
+	if ok, err := s.admit(ctx, tx, c, false); !ok || err != nil { // a card a removal keeps out: the sighting reaches nothing (INV-59)
+		return "", false, err
+	}
 	if c.device != "" { // that device or nothing; never by address, never a new one, never the box
 		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE id = ? AND is_box = 0`, c.device).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -709,7 +736,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
 		}
 	}
-	if out, err := s.keptOut(ctx, tx, c, c.mac); out || err != nil {
+	if ok, err := s.admit(ctx, tx, c, true); !ok || err != nil {
 		return "", false, err
 	}
 	now := c.seenAt
@@ -824,7 +851,7 @@ func (s *Service) ownDevice(ctx context.Context, tx *sql.Tx, c cleanObs) (string
 		s.staleLog(ctx, c.ip.String(), c, "", staleHandNoKey)
 		return "", false, nil
 	}
-	if out, err := s.keptOut(ctx, tx, c, c.card); out || err != nil {
+	if ok, err := s.admit(ctx, tx, c, true); !ok || err != nil {
 		return "", false, err
 	}
 	id = store.NewID("a")

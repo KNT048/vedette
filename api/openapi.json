@@ -68932,7 +68932,7 @@
                     },
                     "agent": {
                       "type": "boolean",
-                      "description": "An osquery agent is bound to the device: removing it asks whether to stop the agent too (DELETE ?agent=)"
+                      "description": "An osquery agent is bound to the device and the Agents module is on: removing it asks whether to stop the agent too (DELETE ?agent=); with the module off it is false and a removal keeps the device out as one with no agent"
                     },
                     "addresses": {
                       "type": "array",
@@ -71761,7 +71761,7 @@
     "/inventory/removed/{id}": {
       "delete": {
         "operationId": "inventory_delete_inventory_removed_id",
-        "summary": "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit inventory.removal_forget",
+        "summary": "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at the address of a removal kept by its address does the same. 404 not_found. Audit inventory.removal_forget",
         "tags": [
           "inventory"
         ],

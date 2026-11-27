@@ -245,7 +245,7 @@
     "body": "This removes it from Vedette's list only, not the real device.",
     "comesBack": "Discovery keeps it out from now on: it is listed under Removed in To review, where you can let it come back.",
     "comesBackPrivate": "It uses a private Wi-Fi address, which changes, so Vedette cannot recognise it: it shows up again as a new device the next time it is seen.",
-    "bodyInfo": "Vedette keeps what identified the device (its network card, or its address when it has no fixed card), so the scan and the network listener do not add it again. Adding a device by hand at its address, or installing an agent on it, brings it back. Ignore keeps a device in the list as known and not watched instead.",
+    "bodyInfo": "Vedette keeps what identified the device (its network card, or its address when it has no card), so no scan, network listener or Wazuh report adds it again. Installing an osquery agent on it brings it back; for a device known only by its address, so does adding a device by hand at that address. Ignore keeps a device in the list as known and not watched instead.",
     "agentTitle": "Its osquery agent still reports",
     "agentStop": "Remove and stop its agent",
     "agentStopBody": "The agent's record goes, so its next report is refused and the device stays out. Its token is revoked too when it was made for this device alone; a token other machines use stays, and this machine cannot enrol with it again. To bring it back, run the install command on it again with a new token.",

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/netip"
+	"slices"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/lifecycle"
@@ -13,12 +13,12 @@ import (
 )
 
 // A device a person removed stays removed (INV-59). Its row goes with everything known about it (DeleteDevice), and what identified it
-// stays in inv_removed_id, so the sensors do not make it again: a burned-in or stable MAC, its addresses when it had no such MAC, and,
+// stays in inv_removed_id, so the sensors do not make it again: a burned-in or stable MAC, its addresses when it had no MAC at all, and,
 // when the person stopped its agent and the agent's token is shared by other machines, the machine's enrolment on that token
 // (agent-intake refuses it: RemovedAgent). This is the inventory's tombstone; the device's row is never kept as a hidden one, so no
-// reader can show it by mistake. Only the two places that create a found device read it (resolve, ownDevice), and agent-intake at
-// enrolment. A person undoes it by forgetting the removal (Removed list) or by adding a device by hand at its address; an agent a
-// person installs on the machine brings it back too (an osquery report creates the device and forgets the removal).
+// reader can show it by mistake. One admission check (admit) reads it wherever a sighting reaches a device or would make one. A
+// person undoes a removal by forgetting it (Removed list) or, for one kept by its address, by adding a device by hand there; an
+// osquery agent a person installs on the machine brings it back too (its report forgets the removal of its cards).
 
 // Agent choices of a removal (DELETE /inventory/devices/{id}?agent=).
 const (
@@ -128,34 +128,13 @@ func dropEmptyRemovals(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-// removedHit reports whether sighting c is of a device a person removed: its MAC was kept, or it has no MAC and its address was kept.
-// Called only where a found device would be made (resolve, ownDevice), so it never touches a device that exists. mac is the card to
-// test ("" for none).
-func removedHit(ctx context.Context, tx *sql.Tx, mac string, ip netip.Addr) (bool, error) {
-	if mac == "" && !ip.IsValid() {
-		return false, nil
+// forgetRemoved forgets the removals that kept identifier (kind, value), inside tx: a person added a device by hand at a kept address,
+// or a machine's own osquery agent reports a kept card. It returns how many went.
+func forgetRemoved(ctx context.Context, tx *sql.Tx, kind, value string) (int64, error) {
+	if value == "" {
+		return 0, nil
 	}
-	kind, value := "mac", mac
-	if mac == "" {
-		kind, value = "ip", ip.String()
-	}
-	var hit bool
-	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_removed_id WHERE kind = ? AND value = ?)`, kind, value).Scan(&hit); err != nil {
-		return false, fmt.Errorf("inventory: read the removed devices: %w", err)
-	}
-	return hit, nil
-}
-
-// forgetRemovedAt forgets the removals that kept mac or ip, inside tx: the machine's own agent made its device again, or (shown true) a
-// person added a device by hand at ip, which also forgets a removal whose device was shown at that address. It returns how many went.
-func forgetRemovedAt(ctx context.Context, tx *sql.Tx, mac string, ip netip.Addr, shown bool) (int64, error) {
-	var ipText string
-	if ip.IsValid() {
-		ipText = ip.String()
-	}
-	res, err := tx.ExecContext(ctx, `DELETE FROM inv_removed WHERE id IN (
-		SELECT removed_id FROM inv_removed_id WHERE (kind = 'mac' AND value = ?1 AND ?1 <> '') OR (kind = 'ip' AND value = ?2 AND ?2 <> '')
-		UNION SELECT id FROM inv_removed WHERE ?3 AND ip = ?2 AND ?2 <> '')`, mac, ipText, shown)
+	res, err := tx.ExecContext(ctx, `DELETE FROM inv_removed WHERE id IN (SELECT removed_id FROM inv_removed_id WHERE kind = ? AND value = ?)`, kind, value)
 	if err != nil {
 		return 0, fmt.Errorf("inventory: forget a removal: %w", err)
 	}
@@ -212,27 +191,73 @@ func (s *Service) RemovedAgent(ctx context.Context, key string) (bool, error) {
 	return hit, nil
 }
 
-// keptOut is the removal check where a found device would be made for sighting c with card mac ("" for none): a sighting a removal
-// kept out makes nothing (logged at most hourly). An osquery agent's report is a machine a person installed the agent on: it is never
-// kept out, and it forgets the removals of its card and address, since the device is back by a person's doing (an agent whose token is
-// shared and was stopped cannot enrol again: RemovedAgent).
-func (s *Service) keptOut(ctx context.Context, tx *sql.Tx, c cleanObs, mac string) (bool, error) {
+// admit is the one admission check of the removals (INV-59): whether sighting c may reach a device, make one, or give one an identifier.
+// resolve calls it first, for every sighting (sensors, Wazuh, SNMP, the lists of software and services), and again where a found device
+// would be made (creating: resolve's insert, ownDevice). A sighting that names a card a removal kept (its hint's MAC, or a mac value the
+// same report states: Wazuh and an agent by address send their card as a value) is dropped whole, so it neither makes a device nor binds
+// the card to one, wherever it would go. A sighting with no card makes no device at an address a removal kept. An osquery agent's report
+// (a node a person enrolled; a stopped one cannot enrol again: RemovedAgent) is a person's act: it is admitted and forgets the removals
+// of its cards, audited. A list of an agent with no key and no card (Wazuh's software and services, by address) makes no device at the
+// address a removed device was last shown at: the same report's observations come first, and there they were kept out. Dropped sightings are logged at most hourly.
+func (s *Service) admit(ctx context.Context, tx *sql.Tx, c cleanObs, creating bool) (bool, error) {
+	cards := slices.Clone(c.claims)
+	for _, m := range []string{c.mac, c.card} {
+		if m != "" && !slices.Contains(cards, m) {
+			cards = append(cards, m)
+		}
+	}
 	if c.agent != "" {
-		for _, m := range append([]string{mac}, c.agentMACs...) { // the cards it reports in this batch are its own
-			if _, err := forgetRemovedAt(ctx, tx, m, c.ip, false); err != nil {
+		for _, m := range append(cards, c.agentMACs...) {
+			n, err := forgetRemoved(ctx, tx, "mac", m)
+			if err != nil {
 				return false, err
 			}
+			if n > 0 {
+				if err := s.auditTx(ctx, tx, systemActor, "inventory.removal_forget", m, "its osquery agent reports again"); err != nil {
+					return false, err
+				}
+			}
 		}
-		return false, nil
+		return true, nil
 	}
-	hit, err := removedHit(ctx, tx, mac, c.ip)
-	if err != nil || !hit {
-		return false, err
+	kept := func(kind, value string) (bool, error) {
+		var hit bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_removed_id WHERE kind = ? AND value = ?)`, kind, value).Scan(&hit); err != nil {
+			return false, fmt.Errorf("inventory: read the removed devices: %w", err)
+		}
+		return hit, nil
 	}
-	key := mac
-	if key == "" {
-		key = c.ip.String()
+	for _, m := range cards {
+		if hit, err := kept("mac", m); err != nil || hit {
+			if hit {
+				s.staleLog(ctx, m, c, "", staleRemoved)
+			}
+			return !hit, err
+		}
 	}
-	s.staleLog(ctx, key, c, "", staleRemoved)
+	if creating && c.keyless && c.ip.IsValid() {
+		// a list by address only with no card to check (Wazuh): at the address a removed device was last shown at, the same report's
+		// observations were kept out (a machine of its own there would have its device, which the list finds), so it makes none
+		var at bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_removed WHERE ip = ?)`, c.ip.String()).Scan(&at); err != nil {
+			return false, fmt.Errorf("inventory: read the removed devices: %w", err)
+		}
+		if at {
+			s.staleLog(ctx, c.ip.String(), c, "", staleRemoved)
+			return false, nil
+		}
+	}
+	if creating && len(cards) == 0 && c.ip.IsValid() {
+		if hit, err := kept("ip", c.ip.String()); err != nil || hit {
+			if hit {
+				s.staleLog(ctx, c.ip.String(), c, "", staleRemoved)
+			}
+			return !hit, err
+		}
+	}
 	return true, nil
 }
+
+// agentsOn reports whether the Agents module is on (no gate: on). With it off nothing reports for a device's agent, so a removal
+// offers no agent choice and keeps the device out like one without an agent (INV-59).
+func (s *Service) agentsOn() bool { return s.modules == nil || s.modules.Enabled("agent-intake") }

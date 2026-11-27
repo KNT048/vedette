@@ -141,21 +141,31 @@ detail is in its doc comment.
   report does, INV-25); `inventory.asset.discovered` is always emitted. One rule gives every device its state (`DeviceState`,
   `stateSQL` in `quiet.go`): ignored, added (approved), seen (INV-49) or review. The Devices list (`approved=true`), To review and
   its Seen briefly group (`approved=false`), the row and page text (`Device.state`), the counts and `ToReviewIDs` all read it,
-  as endpoint tools keep discovered devices apart from the ones people manage. `TestContract_DeviceLifecycleMatrix`.
+  as endpoint tools keep discovered devices apart from the ones people manage. `DeviceCounts` (Home's devices tile) counts the
+  added devices the Devices list holds, and To review. `TestContract_DeviceLifecycleMatrix`.
 - **INV-49** A device with only private Wi-Fi addresses that shows nothing to look at (state seen) is in To review's collapsed Seen
   briefly group, outside the To review count and with no new-device notice; once it shows a reason, its review is sticky
   (`review_earned_at`).
 - **INV-59** A device a person removed stays removed (`DeleteDevice`, `removed.go`): its row goes with everything known about it,
   and what identified it stays (`inv_removed`, `inv_removed_id`): its MACs that are no private (rotating) one; for a device with no MAC
-  at all, its addresses, which stop only a sighting with no MAC (another machine given the address is a new device). Only the two
-  places that create a found device read it (`resolve`, `ownDevice`: such a sighting makes nothing, logged hourly) and agent-intake at
-  enrolment (`RemovedAgent`). An osquery agent's report is never kept out and forgets the removal of its cards. A person undoes a
-  removal by forgetting it (`GET /inventory/removed`, `DELETE /inventory/removed/{id}`, audit `inventory.removal_forget`) or by
-  adding a device by hand at its address; it does not expire. With an agent bound to the device the person chooses (`?agent=`):
-  `stop` (admin) hands the agent to agent-intake inside the delete (`lifecycle.Delete.StopAgent`, its INV-27) and keeps the
-  machine's enrolment on a shared token; `keep` leaves the agent running and keeps nothing, since its next report adds the device
-  back. The audit row `inventory.delete` names the choice. `TestContract_INV59_ARemovalKeepsTheDeviceOut`,
-  `TestMigrationRemovedKeepsTheStoredDevices`, agent-intake `TestContract_RemovingADeviceWithAnAgent`.
+  at all, its addresses. One admission check (`admit`) decides every way a sighting reaches a device: `resolve` calls it first for
+  every observation and list (passive, scans, SNMP, Wazuh, software and services lists), and again where a found device would be made
+  (`resolve`'s insert, `ownDevice`). A sighting that names a kept card (its hint's MAC, or a mac value the same report states, as
+  Wazuh and an agent by address send it) reaches nothing, so it neither makes a device nor binds the card to one; one with no card
+  makes no device at a kept address (another machine given the address is a new device); a keyless agent list by address (Wazuh)
+  makes no device at the address a removed device was last shown at. An osquery agent's report is a person's act: admitted, and it
+  forgets the removals of its cards (audit `inventory.removal_forget`); a stopped agent on a shared token cannot enrol again
+  (`RemovedAgent`, agent-intake INV-27). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
+  only move identifiers between devices that exist, and an SNMP read with a device hint carries no MAC, so neither can bring one
+  back. A person undoes a removal by forgetting it (`GET /inventory/removed`, `DELETE /inventory/removed/{id}`) or by adding a device by
+  hand at a kept address, which forgets only removals kept by that address (a removed card stays out though the address is reused).
+  It does not expire. With an agent bound to the device and the Agents module on, the person chooses (`?agent=`): `stop` (admin)
+  hands the agent to agent-intake inside the delete (`lifecycle.Delete.StopAgent`) and keeps the machine's enrolment on a shared
+  token; `keep` leaves the agent running and keeps nothing, since its next report adds the device back. With the module off there is
+  no choice (`Detail.agent` false) and the device is kept out as one with no agent. The audit row `inventory.delete` names the choice.
+  `TestContract_INV59_ARemovalKeepsTheDeviceOut`, `TestContract_INV59_EveryWayBackIsChecked`,
+  `TestContract_INV59_AnAgentOfAModuleThatIsOffIsNoChoice`, `TestMigrationRemovedKeepsTheStoredDevices`, agent-intake
+  `TestContract_RemovingADeviceWithAnAgent`.
 - **INV-25** An osquery machine's first report approves the device it enrolled for (`ApproveEnrolled`, called by agent-intake).
 - **INV-26** `approved_at` is set by a person's approval or an agent's first report. One naming rule gives every device its shown
   name (`DisplayName`): a maker that only a network scan or the passive sensor reports is the network card's (MAC prefix), so

@@ -32734,8 +32734,8 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 // handleInventoryDeleteInventoryRemovedIDRequest handles inventory_delete_inventory_removed_id operation.
 //
 // Forget a removal: the device comes back under To review the next time a sensor sees it, and its
-// agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit
-// inventory.removal_forget.
+// agent may enrol again. Adding a device by hand at the address of a removal kept by its address does
+// the same. 404 not_found. Audit inventory.removal_forget.
 //
 // DELETE /inventory/removed/{id}
 func (s *Server) handleInventoryDeleteInventoryRemovedIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32814,7 +32814,7 @@ func (s *Server) handleInventoryDeleteInventoryRemovedIDRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventoryRemovedIDOperation,
-			OperationSummary: "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit inventory.removal_forget",
+			OperationSummary: "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at the address of a removal kept by its address does the same. 404 not_found. Audit inventory.removal_forget",
 			OperationID:      "inventory_delete_inventory_removed_id",
 			Body:             nil,
 			RawBody:          rawBody,

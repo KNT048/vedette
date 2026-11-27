@@ -47,8 +47,8 @@ describe('private (randomised) MAC addresses', () => {
     renderApp('/devices?tab=review', { role: 'admin' })
     const seen = await screen.findByTestId('seen-briefly', undefined, T)
     expect(seen).not.toHaveAttribute('open')
-    expect(seen).toHaveTextContent('Seen briefly: 1 device')
-    await userEvent.click(within(seen).getByText('Seen briefly: 1 device'))
+    expect(seen).toHaveTextContent(/^Seen briefly: \d+ devices/) // the sample data's guest phones and laptop too
+    await userEvent.click(within(seen).getByText(/^Seen briefly: \d+ devices$/))
     expect(within(seen).getByRole('link', { name: /Johns-iPhone/ })).toBeInTheDocument()
     expect(screen.queryByText(/It is not in To review/)).toBeNull()
   })

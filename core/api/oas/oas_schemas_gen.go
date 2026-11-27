@@ -150245,8 +150245,9 @@ type InventoryGetInventoryDevicesIDOK struct {
 	// Every address of the device, the main one first, then the others, the one seen last first: the
 	// device is found by any of them. Split off = POST /inventory/devices/{id}/split.
 	Addresses []InventoryGetInventoryDevicesIDOKAddressesItem `json:"addresses"`
-	// An osquery agent is bound to the device: removing it asks whether to stop the agent too (DELETE
-	// ?agent=).
+	// An osquery agent is bound to the device and the Agents module is on: removing it asks whether to
+	// stop the agent too (DELETE ?agent=); with the module off it is false and a removal keeps the device
+	// out as one with no agent.
 	Agent bool                                  `json:"agent"`
 	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
 	// INV-47: fields where a trusted source reads another value than the one a person entered, which still

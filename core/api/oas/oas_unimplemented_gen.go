@@ -2458,8 +2458,8 @@ func (UnimplementedHandler) InventoryDeleteInventoryDevicesIDSoftwareSid(ctx con
 // InventoryDeleteInventoryRemovedID implements inventory_delete_inventory_removed_id operation.
 //
 // Forget a removal: the device comes back under To review the next time a sensor sees it, and its
-// agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit
-// inventory.removal_forget.
+// agent may enrol again. Adding a device by hand at the address of a removal kept by its address does
+// the same. 404 not_found. Audit inventory.removal_forget.
 //
 // DELETE /inventory/removed/{id}
 func (UnimplementedHandler) InventoryDeleteInventoryRemovedID(ctx context.Context, params InventoryDeleteInventoryRemovedIDParams) error {

@@ -17,8 +17,11 @@ export function useHome(enabled: boolean) {
   return useQuery({ queryKey: KEY, queryFn: () => api.get<Overview>('/findings/overview'), enabled, staleTime: 60_000, retry: false })
 }
 
+/** Devices the box knows besides those it keeps quiet: the added ones (the Devices list) and those waiting in To review. */
+export const knownDevices = (o: Overview) => o.devices.total + o.devices.not_added
+
 /** A box with no device but itself and nothing open: Home shows the first-run path instead of tiles of zeros. */
-export const isFirstRun = (o: Overview) => o.devices.total <= 1 && o.open.findings === 0
+export const isFirstRun = (o: Overview) => knownDevices(o) <= 1 && o.open.findings === 0
 
 /** Devices with an open finding: each is counted once, under its most urgent status, the Vedette box included (it carries no badge,
  *  but "3 open findings on 0 devices" next to its three findings was wrong). */

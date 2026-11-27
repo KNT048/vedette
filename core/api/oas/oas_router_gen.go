@@ -19369,7 +19369,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "DELETE":
 									r.name = InventoryDeleteInventoryRemovedIDOperation
-									r.summary = "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at its address does the same. 404 not_found. Audit inventory.removal_forget"
+									r.summary = "Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at the address of a removal kept by its address does the same. 404 not_found. Audit inventory.removal_forget"
 									r.operationID = "inventory_delete_inventory_removed_id"
 									r.operationGroup = ""
 									r.pathPattern = "/inventory/removed/{id}"

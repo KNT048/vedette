@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/netip"
 	"slices"
 	"strings"
 
@@ -125,9 +124,8 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, actor
 		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3, ?4)`, id, nullStr(a.ip), now, nullStr(a.userName)); err != nil {
 		return "", fmt.Errorf("inventory: create device: %w", err)
 	}
-	if a.ip != "" { // a person adds the machine at an address a removal kept: the removal is undone (INV-59)
-		ip, _ := netip.ParseAddr(a.ip)
-		if n, err := forgetRemovedAt(ctx, tx, "", ip, true); err != nil {
+	if a.ip != "" { // a person adds a machine at an address a removal kept: that removal is undone; a removed card stays out (INV-59)
+		if n, err := forgetRemoved(ctx, tx, "ip", a.ip); err != nil {
 			return "", err
 		} else if n > 0 {
 			if err := s.auditTx(ctx, tx, actor, "inventory.removal_forget", a.ip, "added by hand at the address of a removed device"); err != nil {
@@ -704,6 +702,9 @@ func (s *Service) DeleteDevice(ctx context.Context, actor, id, agent string) err
 		d := lifecycle.Delete{Device: id, Name: name}
 		if actor != systemActor {
 			d.Actor = actor
+		}
+		if !s.agentsOn() { // nothing reports for its agent: no choice, kept out as a device with none (its agent brings it back later)
+			agentKey.Valid = false
 		}
 		if agentKey.Valid && agent == AgentStop {
 			d.StopAgent = &lifecycle.AgentStop{Key: agentKey.String}

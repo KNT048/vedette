@@ -500,7 +500,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await user.click(screen.getAllByRole('button', { name: /^Add .+ to your devices$/ })[0]!)
     // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
     const toast = (await screen.findByText(/^Added .+ to your devices\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
-    expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
+    expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(pending.length - 1) // the other one, and the Seen briefly ones
     expect(await screen.findByText(/1 new device not added yet/, undefined, T)).toBeInTheDocument()
     // The toast says where to find it again and opens the device
     expect(within(toast).getByText('Find it later in Devices.')).toBeInTheDocument()

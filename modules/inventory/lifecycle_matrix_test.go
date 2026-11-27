@@ -140,9 +140,12 @@ func TestContract_DeviceLifecycleMatrix(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, pending, err := e.svc.DeviceCounts(e.ctx())
+			total, pending, err := e.svc.DeviceCounts(e.ctx())
 			if err != nil {
 				t.Fatal(err)
+			}
+			if total != len(devices) { // Home's "devices watched" tile links to the Devices list: the same count
+				t.Errorf("DeviceCounts total %d, the Devices list holds %d", total, len(devices))
 			}
 			if id == "" {
 				if n := e.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`); n != 0 || len(devices)+len(review)+len(seen)+len(queue) != 0 {
@@ -248,8 +251,10 @@ func TestContract_INV59_ARemovalKeepsTheDeviceOut(t *testing.T) {
 			t.Fatalf("removed = %+v", removed(e))
 		}
 		e.addDevice(inventory.AddInput{Vendor: "Contoso", Product: "Gizmo 2", Version: "2", IP: ip})
-		if l := removed(e); len(l) != 0 {
-			t.Fatalf("adding a device by hand at the address leaves removals: %+v", l)
+		// the person entered the address: the removal kept by that address goes; the laptop's card was not entered, so its removal
+		// stays although the laptop was last seen at that address (DHCP reuses addresses)
+		if l := removed(e); len(l) != 1 || l[0].Name != "laptop" {
+			t.Fatalf("after adding a device by hand at the address: removals %+v, want only the laptop's", l)
 		}
 	})
 
@@ -273,4 +278,99 @@ func TestContract_INV59_ARemovalKeepsTheDeviceOut(t *testing.T) {
 			t.Fatalf("the agent a person installed did not bring the device back: removed %+v", removed(e))
 		}
 	})
+}
+
+// Every way a removed device's card could come back goes through the one admission check (INV-59, admit): whether it would make a
+// device or give an existing one the card. Each row removes a device known by a burned-in card, then brings the card back one way; no
+// device may hold it after, the sweep counts it as known (no new-device budget spent), and the removal stays listed. A person's own
+// act is the exception the rule names: an osquery agent a person installed brings it back. An SNMP read names its device and carries no
+// card (Record refuses a MAC with a device hint), so it cannot give a device a removed card. Merge and split move identifiers between
+// devices that exist, and a card has one home, so neither can bring a removed one back.
+func TestContract_INV59_EveryWayBackIsChecked(t *testing.T) {
+	t.Parallel()
+	const ip, ip2 = "10.0.10.51", "10.0.10.52"
+	const card = "3c:22:fb:00:00:51"
+	addr, addr2 := netip.MustParseAddr(ip), netip.MustParseAddr(ip2)
+	for _, tc := range []struct {
+		name string
+		back func(e *env)
+	}{
+		{"an address-only sighting, then the card at that address", func(e *env) {
+			e.record(byAddress(ip, "printer.corp.example")...)
+			e.record(dhcp(card, ip, "printer")...)
+		}},
+		{"a Wazuh-shaped report: an address hint, the card as a value", func(e *env) {
+			h := observe.AssetHint{IP: addr}
+			e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "pc-01", Source: observe.Agent, Confidence: 0.9},
+				observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
+		}},
+		{"a Wazuh-shaped report, then its software list by address", func(e *env) {
+			h := observe.AssetHint{IP: addr}
+			e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "pc-01", Source: observe.Agent, Confidence: 0.9},
+				observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
+			e.ok(e.svc.ReplaceSoftware(e.ctx(), h, observe.Wazuh, nil,
+				[]observe.Software{{Display: "7-Zip 24.08", Vendor: "7-zip", Product: "7-zip", Version: "24.08", Confidence: 0.9}}))
+			if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = ?`, ip); n != 0 {
+				e.t.Fatalf("the removed machine's software list made a device at its address (%d)", n)
+			}
+		}},
+		{"a Wazuh-shaped report at the address of another device", func(e *env) {
+			e.record(dhcp("3c:22:fb:00:00:52", ip2, "other")...)
+			h := observe.AssetHint{IP: addr2}
+			e.record(observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
+		}},
+		{"a scan's open services with the card", func(e *env) {
+			e.ok(e.svc.AddServices(e.ctx(), observe.AssetHint{IP: addr, MAC: card}, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.9}}))
+		}},
+		{"a scan's software list with the card", func(e *env) {
+			e.ok(e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: addr, MAC: card}, observe.Nmap, nil,
+				[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "openbsd", Product: "openssh", Version: "9.6", Confidence: 0.6}}))
+		}},
+		{"a device added by hand at its old address", func(e *env) {
+			e.addDevice(inventory.AddInput{Vendor: "Contoso", Product: "Gizmo 2", Version: "2", IP: ip})
+			e.record(dhcp(card, ip, "printer")...)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			e.record(dhcp(card, ip, "printer")...)
+			e.ok(e.svc.DeleteDevice(e.ctx(), "it@acme.example", e.idByMAC(card), ""))
+			e.tick(time.Minute)
+			tc.back(e)
+			if n := e.count(`SELECT (SELECT count(*) FROM inv_asset WHERE mac = ?1) + (SELECT count(*) FROM inv_asset_address WHERE mac = ?1)
+				+ (SELECT count(*) FROM inv_observation WHERE field = 'mac' AND value = ?1)`, card); n != 0 {
+				t.Fatalf("the removed card is back (%d rows hold it)", n)
+			}
+			if l, err := e.svc.RemovedDevices(e.ctx()); err != nil || len(l) != 1 {
+				t.Fatalf("removed = %+v, %v: the removal must stay listed", l, err)
+			}
+			known, err := e.svc.KnownMACs(e.ctx())
+			if err != nil || !slices.Contains(known, card) {
+				t.Fatalf("KnownMACs = %v, %v: the sweep would count the removed card as a new device", known, err)
+			}
+		})
+	}
+}
+
+// With the Agents module off nothing reports for a device's agent, so the device page offers no agent choice (Detail.agent false) and
+// a removal keeps the device out like one without an agent; once the module is on again, the agent's own report brings it back.
+func TestContract_INV59_AnAgentOfAModuleThatIsOffIsNoChoice(t *testing.T) {
+	t.Parallel()
+	g := &gate{on: map[string]bool{"agent-intake": true}}
+	e := newEnv(t, func(c *inventory.Config) { c.Modules = g })
+	e.record(osq("10.0.10.61")...)
+	id := e.idByMAC(burnt1)
+	if !e.detail(id).Agent {
+		t.Fatal("with the module on, the device's agent is a choice")
+	}
+	g.set("agent-intake", false)
+	if e.detail(id).Agent {
+		t.Fatal("with the module off, the device page offers an agent choice")
+	}
+	e.ok(e.svc.DeleteDevice(e.ctx(), "it@acme.example", id, ""))
+	l, err := e.svc.RemovedDevices(e.ctx())
+	if err != nil || len(l) != 1 || l[0].Agent != "none" {
+		t.Fatalf("removed = %+v, %v: the device is kept out as one with no agent", l, err)
+	}
 }

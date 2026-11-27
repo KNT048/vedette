@@ -118,7 +118,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
   covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
   `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
-  `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). A distribution's fix for a package the device runs is compared before
+  `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). Where the vendor's affected ranges start also decides "not affected" (Junos OS only: the one scheme whose
+  first release of a branch is read, `branchStart`; the proof says "NVD lists" when NVD's rows are the ones read):
+  when every one of them has a start and the version is older than the first, and that first start is a release inside its branch
+  (Juniper's "23.2 versions from 23.2R2-S1 before 23.2R2-S5"), the flaw came in with it and the older release is not affected
+  (`olderThanEveryStart`; the proof and closing note say "older than the first affected release the vendor lists (23.2R2-S1)"). A range
+  with no start ("all versions before 23.2R2-S7") reaches every older release; ranges that all start at a branch's start or first
+  release ("24.2 before 24.2R2-S3") say nothing about an older branch, which stays a question (`older_line`); an NVD row covering the
+  version still wins (`nvdCovers`). Nor when one of the product's affected rows did not read in the scheme (Juniper's "22.2" lessThan
+  "22.2*", kept as `SchemedRange.Unread`), or a row is one exact release (Oracle's "8u503", the newest affected update of a train):
+  the starts are then not the vendor's whole word on where the flaw came in. `TestVendorRangeStartMatrix`,
+  `TestVendorRangeStartNeedsEveryRowRead` (cmd/vedette). A distribution's fix for a package the device runs is compared before
   NVD's product ranges.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings

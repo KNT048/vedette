@@ -213,6 +213,9 @@ type SchemedRange struct {
 	// Unaffected is a range the vendor states NOT affected ("0 before 24.4R1") for every device (feeds unaffectedRows); ModelOnly an
 	// affected range that holds only on some models (Juniper's EX4000). Both only ever support "not affected" (schemeJudge), never "affected".
 	Unaffected, ModelOnly bool
+	// Unread is a vendor's affected row of the product that does not read in its scheme (Juniper's "22.2" lessThan "22.2*"): no
+	// span, never judged; it only says the rows that read are not the vendor's whole word (olderThanEveryStart does not apply).
+	Unread bool
 }
 
 // rangeOrigin is the origin of the ranges the matcher compares for v (fnd_finding.range_origin).
@@ -1256,6 +1259,9 @@ func entryVendors(v Vuln) []string {
 		}
 	}
 	for _, r := range v.Schemed {
+		if r.Unread {
+			continue
+		}
 		vn, _, _ := strings.Cut(r.Product, "|")
 		if vn = productid.Norm(vn); vn != "" {
 			out = append(out, vn)

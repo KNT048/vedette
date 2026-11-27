@@ -499,7 +499,7 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel, base []gm
 	for _, want := range levelFamilies(base, lv) {
 		i := slices.IndexFunc(got.Configs[0].Families, func(x gmpFamily) bool { return strings.TrimSpace(x.Name) == strings.TrimSpace(want.Name) })
 		if i < 0 || !got.Configs[0].Families[i].on() ||
-			(want.partial() && !(strings.TrimSpace(want.Name) == gmpWebFamily && len(lv.webOff) > 0) && strings.TrimSpace(got.Configs[0].Families[i].NVTCount) != strings.TrimSpace(want.NVTCount)) {
+			(want.partial() && (strings.TrimSpace(want.Name) != gmpWebFamily || len(lv.webOff) == 0) && strings.TrimSpace(got.Configs[0].Families[i].NVTCount) != strings.TrimSpace(want.NVTCount)) {
 			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + strings.TrimSpace(want.Name) + "\" as \"Full and fast\" selects it in Vedette's scan config " + lv.name + ", so nothing was started."}
 		}
 	}

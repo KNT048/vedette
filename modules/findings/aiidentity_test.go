@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -520,6 +521,28 @@ func TestAIIdentity_AFailedBatchWaitsADayAndThePassGoesOn(t *testing.T) {
 	runIdentify(t, e)
 	if len(fi.sent) != 3 || len(fi.sent[2].Items) != 5 {
 		t.Errorf("%d calls: the failed names are asked again the next day", len(fi.sent))
+	}
+}
+
+// Calls that fail in a row with no answer between mean the AI answers nothing at all: the identification stops after aiFailStreak of
+// them, as the reading of advisories does, instead of spending a read on every batch that is left.
+func TestAIIdentity_FailingInARowStopsThePass(t *testing.T) {
+	t.Parallel()
+	e, _, fi := identityWorld(t)
+	a := e.inv.match["pc-01"]
+	for i := range 4 * identityBatch {
+		n := fmt.Sprintf("Widget Studio Part%02d", i)
+		a.Software = append(a.Software, Software{ID: fmt.Sprintf("sw-pc-01-widget-p%02d", i), Display: n, Vendor: "Acme Software, Inc.", Product: n,
+			Version: "1.0.1", Source: "agent"})
+	}
+	e.inv.match["pc-01"] = a
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	fi.failing = 100
+	runIdentify(t, e)
+	if len(fi.sent) != aiFailStreak {
+		t.Fatalf("%d calls, want the pass stopped after %d failures in a row", len(fi.sent), aiFailStreak)
 	}
 }
 

@@ -67,10 +67,13 @@ func (e *CheckStop) Error() string { return e.Reason }
 
 // ItemRefused is a Propose error about the items of that one call only (a hook stopped its text, the answer was not usable): the check
 // goes on with the next item, and the automatic reading leaves these items until RetryAfter has passed, so one item that cannot be read
-// is never first again at every run. Reason is the sentence a person reads.
+// is never first again at every run. Reason is the sentence a person reads. Systemic is set when the provider's answer was not usable
+// (outside the schema, cut off): that may be the model rather than the item, so such calls count toward aiFailStreak too; a hook's
+// refusal is about the item's own text and does not.
 type ItemRefused struct {
 	Reason     string
 	RetryAfter time.Duration
+	Systemic   bool
 }
 
 func (e *ItemRefused) Error() string { return e.Reason }

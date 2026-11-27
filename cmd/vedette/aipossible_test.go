@@ -53,7 +53,7 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 	}
 	rp := &readProvider{}
 	svc, err := ai.New(ctx, ai.Config{DB: db, Secrets: sec, Audit: audit.New(time.Now), Log: slog.New(slog.DiscardHandler),
-		Factory: func(ai.Profile) (provider.Provider, error) { return rp, nil }})
+		Factory: func(ai.Profile) (provider.Provider, error) { return rp, nil }, Sleep: func(context.Context, time.Duration) error { return nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,6 +94,15 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 	if _, err := c.Propose(ctx, findings.SystemUser, req); !errors.As(err, &stop) {
 		t.Fatalf("the reading switched off: %#v, want the check stopped", err)
 	}
+	// the run's own time is up (its context ended while it waited for its pace): the run stops, the item is not held as failed
+	if _, err := svc.SetConfig(ctx, "test", ai.Settings{Tier: ai.TierMed, MonthlyBudget: 6000000, RedactPII: true}); err != nil {
+		t.Fatal(err)
+	}
+	done, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := c.Propose(done, findings.SystemUser, req); !errors.As(err, &stop) {
+		t.Fatalf("a call after the run's time was up: %#v, want the check stopped", err)
+	}
 }
 
 // How each error of a call of a background run (the reading of advisories, the identification of software) is sorted: refusals of the
@@ -101,14 +110,16 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 // for a later run.
 func TestAICallError_SortsRefusalsStopsAndFailures(t *testing.T) {
 	t.Parallel()
-	refused, stop, other := "refused", "stop", "other"
+	refused, systemic, stop, other := "refused", "refused, counted in the streak", "stop", "other"
 	for _, tc := range []struct {
 		err  error
 		want string
 	}{
 		{apierr.New(http.StatusConflict, "blocked_by_hook", "a hook stopped it"), refused},
-		{apierr.New(http.StatusBadGateway, "ai_bad_format", "bad format"), refused},
-		{apierr.New(http.StatusBadGateway, "ai_cut_off", "cut off"), refused},
+		// the hooks could not finish in time: they decided nothing, so the call is a failure (an hour, counted in the streak)
+		{apierr.New(http.StatusConflict, "blocked_by_hook", "could not be checked in time").With("retry_after", 60), other},
+		{apierr.New(http.StatusBadGateway, "ai_bad_format", "bad format"), systemic},
+		{apierr.New(http.StatusBadGateway, "ai_cut_off", "cut off"), systemic},
 		{apierr.New(http.StatusConflict, "ai_unavailable", "no profile"), stop},
 		{apierr.New(http.StatusTooManyRequests, "budget_reached", "used up"), stop},
 		{apierr.New(http.StatusTooManyRequests, "rate_limited", "fuse"), stop},
@@ -122,6 +133,8 @@ func TestAICallError_SortsRefusalsStopsAndFailures(t *testing.T) {
 		var s *findings.CheckStop
 		kind := other
 		switch {
+		case errors.As(got, &r) && r.Systemic:
+			kind = systemic
 		case errors.As(got, &r):
 			kind = refused
 		case errors.As(got, &s):

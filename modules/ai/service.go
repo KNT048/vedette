@@ -91,6 +91,9 @@ type Config struct {
 	Log     *slog.Logger
 
 	Clock func() time.Time // nil = time.Now
+	// Sleep waits d on Clock, or until ctx ends (its error then): how the automatic reading keeps its pace. nil = a timer; a test with
+	// its own clock moves it instead.
+	Sleep func(ctx context.Context, d time.Duration) error
 	// Zone returns the IANA name of the box time zone (core_org.timezone). The meter reads it once when the service starts: a
 	// change of zone applies after a restart. nil or empty or unknown = DefaultTimeZone.
 	Zone func(context.Context) string

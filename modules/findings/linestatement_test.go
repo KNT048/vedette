@@ -618,6 +618,40 @@ func TestPossibleCheck_TheAIFailingInARowStopsTheRun(t *testing.T) {
 	}
 }
 
+// An answer the box cannot use (outside the schema, cut off) is held per item like a hook's refusal, but several in a row mean the
+// provider cannot do the reading at all: aiFailStreak of them stop the run, so a model that cannot answer in the schema does not spend
+// every read left of the day in one run. A hook's refusal is about the item's text and never stops it.
+func TestPossibleCheck_UnusableAnswersInARowStopTheRun(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name     string
+		systemic bool
+		calls    int
+	}{{"unusable answers", true, aiFailStreak}, {"hook refusals", false, 5}} {
+		t.Run(c.name, func(t *testing.T) {
+			e, fc := possibleWorld(t)
+			var units []checkUnit
+			fc.refuse = map[string]error{}
+			for i := range 5 {
+				cve := fmt.Sprintf("CVE-2026-9120%d", i)
+				fc.pages[cve] = []FetchedPage{{URL: dsmPageURL + "#" + cve, Status: "ok", Text: cve + " concerns Synology DiskStation Manager (DSM) 7.2."}}
+				fc.refuse[cve] = &ItemRefused{Reason: "The AI answered, but not in the format Vedette needs.", RetryAfter: 24 * time.Hour, Systemic: c.systemic}
+				units = append(units, checkUnit{key: "k-" + cve, cve: cve, id: CheckID{Product: "synology|diskstation_manager", Line: "7.2.1", Version: "7.2.1-69057-5", Record: "r"},
+					devs: []string{"nas-01"}})
+			}
+			e.svc.check.run = &CheckRun{Running: true}
+			e.svc.runPossibleCheck(t.Context(), units, SystemUser)
+			run := *e.svc.check.run
+			if len(fc.sent) != c.calls || (run.Stopped != nil) != c.systemic {
+				t.Fatalf("run %+v after %d calls: want %d calls, stopped %v", run, len(fc.sent), c.calls, c.systemic)
+			}
+			if h, ok := e.svc.check.held["k-CVE-2026-91200"]; !ok || h.until.Before(e.svc.now().Add(24*time.Hour)) {
+				t.Errorf("the refused item is not held for a day: %+v", h)
+			}
+		})
+	}
+}
+
 // The streak counts calls, not CVEs: a CVE with more release lines than one call carries (possibleCheckItems a call) makes several calls,
 // and when the AI answers none of them the run stops after aiFailStreak calls, not after every call of that CVE.
 func TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE(t *testing.T) {

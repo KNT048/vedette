@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/modules/exposure"
@@ -65,6 +66,8 @@ const (
 	// The disruptive scripts: the terms no longer allow them right before the job, or the step was asked for another address.
 	servicesNotDisruptive = "the testing terms of %s no longer allow the disruptive checks (or this scan may not run them), so they were not sent."
 	servicesDisruptiveOwn = "the disruptive scripts run only on the box's own public IP."
+	// servicesNoPorts: every port the step was given is one the target's settings skip.
+	servicesNoPorts = "every open port is one this target's settings skip, so nothing was sent."
 )
 
 // ownGate is the core half of the fence as sensor-active asks it: exposure's gate with the proof it rests on (sensoractive.OwnProver),
@@ -103,7 +106,7 @@ func shapeOf(m exposure.ScanMode) nmapargv.Kind {
 	switch {
 	case !m.Full:
 		return nmapargv.External
-	case m.Disruptive:
+	case m.AllDisruptive(): // one list of every disruptive group: only while the target's settings keep all of them on
 		return nmapargv.ExternalDisruptive
 	}
 	return nmapargv.ExternalFull
@@ -153,7 +156,7 @@ func (a exposureServiceScan) ScanDisruptive(ctx context.Context, t exposure.Scan
 	if a.on != nil && !a.on() {
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOff}
 	}
-	if t.Typed || t.Domain != nil || !t.Mode.Disruptive {
+	if t.Typed || t.Domain != nil || !t.Mode.AllDisruptive() {
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesDisruptiveOwn}
 	}
 	if a.scanDisruptive == nil {
@@ -161,6 +164,10 @@ func (a exposureServiceScan) ScanDisruptive(ctx context.Context, t exposure.Scan
 	}
 	ctx, cancel := context.WithTimeout(ctx, exposure.DisruptiveTimeout)
 	defer cancel()
+	ports = slices.DeleteFunc(slices.Clone(ports), t.Skips) // never a port the target's settings skip
+	if len(ports) == 0 {
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesNoPorts}
+	}
 	got, err := a.scanDisruptive(ctx, ip, ports, ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow})
 	switch {
 	case err == nil:

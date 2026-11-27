@@ -118,6 +118,7 @@ type observer struct {
 	recheck  map[string]map[int]string
 	cuts     map[string]string // address: why a probe step meant for it failed (service identification of a default scan)
 	leftOut  map[string][]int  // address: the ports found open there that the network answers (left out of the results)
+	skipped  map[string][]int  // address: the ports a second target's settings skip there (a domain's address that is an IP target too)
 }
 
 type observerKey struct{}
@@ -125,7 +126,7 @@ type observerKey struct{}
 func (s *Service) newObserver(x *corerun.Exec) *observer {
 	return &observer{check: s.cfg.Path, x: x, log: s.cfg.Log, calib: map[int]string{}, distinct: map[string]bool{}, same: map[string]bool{}, said: map[int]bool{},
 		resets: map[string]bool{}, sweeps: map[string]sweepFacts{}, alive: map[string]map[int]bool{}, lost: map[string][]int{},
-		recheck: map[string]map[int]string{}, cuts: map[string]string{}, leftOut: map[string][]int{}}
+		recheck: map[string]map[int]string{}, cuts: map[string]string{}, leftOut: map[string][]int{}, skipped: map[string][]int{}}
 }
 
 // withObserver is ctx for the work of one run, with its own probe log.
@@ -139,6 +140,28 @@ func (s *Service) observerOf(ctx context.Context) *observer {
 		return o
 	}
 	return s.newObserver(nil)
+}
+
+// noteSkipped records the ports a step's settings skip on ip, beyond the run's own: they are not observed there either.
+func (o *observer) noteSkipped(ip string, ports []int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	k := ipKey(ip)
+	for _, p := range ports {
+		if !slices.Contains(o.skipped[k], p) {
+			o.skipped[k] = append(o.skipped[k], p)
+		}
+	}
+}
+
+// skips says port of ip is one the run or a step of it skips.
+func (o *observer) skips(st ScanTarget, ip string, port int) bool {
+	if st.Skips(port) {
+		return true
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return slices.Contains(o.skipped[ipKey(ip)], port)
 }
 
 // noteResets records that the runner or the sweep got a reset somewhere on each of addrs.
@@ -717,6 +740,15 @@ func (s *Service) observation(ctx context.Context, st ScanTarget, c Content, cov
 				o.names[k] = append(o.names[k], h.Name)
 			}
 		}
+	}
+	for ip, a := range o.addrs { // a port the settings skip is not observed: no verdict, its row stays as it was
+		skip := func(p int) bool { return ob.skips(st, ip, p) }
+		a.storedOpen = slices.DeleteFunc(a.storedOpen, skip)
+		a.leftOut = slices.DeleteFunc(a.leftOut, skip)
+		a.lost = slices.DeleteFunc(a.lost, skip)
+		maps.DeleteFunc(a.open, func(p int, _ bool) bool { return skip(p) })
+		maps.DeleteFunc(a.alive, func(p int, _ bool) bool { return skip(p) })
+		maps.DeleteFunc(a.recheck, func(p int, _ string) bool { return skip(p) })
 	}
 	var scoped []int
 	for ip, a := range o.addrs {

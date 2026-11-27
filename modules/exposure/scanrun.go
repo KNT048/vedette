@@ -516,17 +516,25 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
-	mode := s.runMode(ctx, user, fresh) // never the disruptive checks in a scan the box runs by itself, or behind carrier-grade NAT
+	if fresh.Deep.Problem != nil { // never a scan without the person's exclusions: the settings must be saved again first
+		err := errSettingsUnreadable(fresh)
+		s.auditFailedScan(ctx, user, t, err)
+		return corerun.Result{}, err
+	}
+	t.Deep = fresh.Deep                 // the settings as they are now, like the terms
+	mode := s.runMode(ctx, user, fresh) // never the disruptive checks in a scan the box runs by itself, or behind carrier-grade NAT; then the settings narrow
 	s.runMu.Lock()
 	ex.mode = mode
 	s.runMu.Unlock()
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE exp_scan SET mode = ? WHERE run_id = ?`, modeWord(ex.mode), x.ID())
-		return err
+		if _, err := tx.ExecContext(ctx, `UPDATE exp_scan SET mode = ? WHERE run_id = ?`, modeWord(ex.mode), x.ID()); err != nil {
+			return err
+		}
+		return updateSummary(ctx, tx, x.ID(), func(sum *scanSummary) { sum.Settings = new(summaryOf(ex.mode, fresh.Deep)) })
 	}); err != nil {
 		return corerun.Result{}, fmt.Errorf("recording the mode of the scan: %w", err)
 	}
-	rs.end(ctx, stepKeyCheck, corerun.Done, modeNote(t, ex.mode))
+	rs.end(ctx, stepKeyCheck, corerun.Done, modeNote(t, ex.mode)+settingsNote(ex.mode, fresh.Deep))
 	head, tail := scanPlan(t.Kind, ex.mode)
 	rs.plan(ctx, head, tail, t.Kind != KindDomain) // a domain's addresses come before the rest
 	content, deep, err := s.engines(ctx, t, user, ex.mode, steps)
@@ -622,7 +630,7 @@ func notRunWhy(not []NotCheckedRow) string {
 
 // liveTarget is what the liveness checks need of t: its kind, its address, whether it was typed in, and who started the scan.
 func liveTarget(t Target, user string) ScanTarget {
-	return ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Typed: t.Typed}
+	return ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Typed: t.Typed, SkipPorts: t.Deep.SkipPorts}
 }
 
 // openVASAlive is the liveness check before OpenVAS: whether it still runs, on the ports of an IP that still answer, or on the
@@ -655,6 +663,7 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 	rs.start(ctx, stepKeySurface)
 	content, err := s.scanRunner().Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // The deep state of a run is exposure's own, never the runner's
+	content = dropSkipped(st, content)       // the ports this target's settings skip are not observed (no verdict, no engine)
 	if err == nil {
 		content = s.dropPathPorts(ctx, content) // INV-44: a port the box's own network answers for any address is not the target's
 	}
@@ -699,7 +708,8 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 
 // scanTarget is what the runner and the engines are told about t.
 func (s *Service) scanTarget(ctx context.Context, t Target, user string, mode ScanMode) ScanTarget {
-	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: mode, Typed: t.Typed}
+	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: mode, Typed: t.Typed,
+		SkipPorts: t.Deep.SkipPorts, SkipPaths: t.Deep.SkipPaths, Gentle: t.Deep.Gentle()}
 	if at, err := s.executorProof(ctx, t); err != nil { // fail closed: the executors check the address themselves
 		s.cfg.Log.ErrorContext(ctx, "exposure: reading the proof the executors get failed", "target", t.Value, "error", err)
 	} else {

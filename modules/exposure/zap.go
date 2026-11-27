@@ -555,6 +555,9 @@ func webPages(st ScanTarget, c Content) (pages, skipped []WebPage) {
 		}
 	}
 	for _, w := range web {
+		if st.Skips(w.port) { // a port this target's settings skip gets no page
+			continue
+		}
 		if st.Kind == KindIP {
 			add(WebPage{URL: pageURL(w.tls, w.ip.String(), w.port), Host: w.ip.String(), IP: w.ip, Port: w.port}, w)
 			continue
@@ -622,6 +625,24 @@ func pageURL(tls bool, host string, port int) string {
 	return fmt.Sprintf("%s://%s:%d/", scheme, host, port)
 }
 
+// PathExcluder is implemented by a WebScanner whose ZAP runs leave out the URL path prefixes of ScanTarget.SkipPaths (its spider and
+// its rules never request them). Without it, a scan with paths to skip sends ZAP nothing: its spider follows links wherever they go.
+type PathExcluder interface {
+	ExcludesPaths() bool
+}
+
+// notWebPaths is the line of a ZAP step left out because this box's ZAP cannot leave out the target's web paths to skip.
+const notWebPaths = notSettings + " This target has web paths to skip, and this box's web scan cannot leave them out yet, so it did not run (it follows links wherever they go)."
+
+// webKeepsPaths says the web scans may run on st: it has no web path to skip, or the web scanner leaves them out.
+func (s *Service) webKeepsPaths(st ScanTarget) bool {
+	if len(st.SkipPaths) == 0 {
+		return true
+	}
+	pe, ok := s.cfg.Web.(PathExcluder)
+	return ok && pe.ExcludesPaths()
+}
+
 // webPassive is the web step of a scan (INV-24), after service identification and before the snapshot is stored: ZAP's baseline on
 // each page webPages lists, one after the other, each page in the probe log first. Without a WebScanner the scan records
 // notSetUpWeb. Like identify it ends the scan only when the run is stopped: a page that failed, was unavailable or whose report could
@@ -630,6 +651,10 @@ func pageURL(tls bool, host string, port int) string {
 func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Content, error) {
 	if s.cfg.Web == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notSetUpWeb})
+		return c, nil
+	}
+	if !s.webKeepsPaths(st) { // its spider would follow links into the paths to skip
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: "Passive web scan (ZAP): " + notWebPaths})
 		return c, nil
 	}
 	pages, skipped := webPages(st, c)

@@ -65,18 +65,20 @@ const (
 	notDeepPrivate = "Private addresses (%s): listed, never contacted."
 	notDeepNone    = "Deep scan of the names' addresses: no name under this domain resolves to a public IPv4 address."
 
-	deepNotPublic  = "it is not a public IPv4 address, so nothing was sent."
-	deepTerms      = "the testing terms of this domain are no longer accepted (withdrawn, or new terms to accept), so nothing was sent."
-	deepGone       = "this domain can no longer be scanned (its ownership proof was withdrawn or has not been found for 90 days, or it was removed, switched off or needs the scan confirmed again), so nothing was sent."
-	deepNotBox     = "this address is no longer this box's own verified IP, so nothing was sent."
-	deepUnchecked  = "the box could not check this domain's ownership, its testing terms or this box's own address right now, so nothing was sent."
-	deepNoFence    = "this box needs the Vedette host's domain fence (update the box), so nothing was sent."
-	deepNoLookup   = "the box cannot look up names to check that one still resolves to this address, so nothing was sent."
-	deepMoved      = "no name under this domain resolves to this address any more (looked up right before the step), so nothing was sent."
-	deepNoAnswer   = "the DNS resolver did not answer the check that a name still resolves to this address, so nothing was sent."
-	deepFenceDown  = "the Vedette host did not give this domain's fence token, so nothing was sent."
-	deepNoNmap     = "service identification did not finish, so its ports are not known this run: it goes back in line."
-	notDeepOutside = "%s: reached only through a name that points (CNAME) outside this domain, so the disruptive checks were not run there."
+	deepNotPublic = "it is not a public IPv4 address, so nothing was sent."
+	deepTerms     = "the testing terms of this domain are no longer accepted (withdrawn, or new terms to accept), so nothing was sent."
+	deepGone      = "this domain can no longer be scanned (its ownership proof was withdrawn or has not been found for 90 days, or it was removed, switched off or needs the scan confirmed again), so nothing was sent."
+	deepNotBox    = "this address is no longer this box's own verified IP, so nothing was sent."
+	deepUnchecked = "the box could not check this domain's ownership, its testing terms or this box's own address right now, so nothing was sent."
+	// deepSettingsUnread: the address is an IP target too, whose stored deep-scan settings cannot be read.
+	deepSettingsUnread = "this address is also an IP target of this box, and its stored deep-scan settings cannot be read, so nothing was sent. Save that target's settings again."
+	deepNoFence        = "this box needs the Vedette host's domain fence (update the box), so nothing was sent."
+	deepNoLookup       = "the box cannot look up names to check that one still resolves to this address, so nothing was sent."
+	deepMoved          = "no name under this domain resolves to this address any more (looked up right before the step), so nothing was sent."
+	deepNoAnswer       = "the DNS resolver did not answer the check that a name still resolves to this address, so nothing was sent."
+	deepFenceDown      = "the Vedette host did not give this domain's fence token, so nothing was sent."
+	deepNoNmap         = "service identification did not finish, so its ports are not known this run: it goes back in line."
+	notDeepOutside     = "%s: reached only through a name that points (CNAME) outside this domain, so the disruptive checks were not run there."
 	// notDeepNotOwn follows an address of a domain that is not a proven address of this box (hosting, a CDN, a typed IP): the
 	// disruptive checks go only to the box's own public IPs inside their proof.
 	notDeepNotOwn  = "not a proven address of this box, so the deep scan ran there without the disruptive checks."
@@ -147,12 +149,12 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 	case reason != "":
 		return st, deepGone, nil
 	}
-	m := t.mode()
+	m := narrow(t.mode(), t.Deep) // the terms and the deep-scan settings as they are now
 	if !m.Full {
 		return st, deepTerms, nil
 	}
 	out := st
-	out.Mode, out.Domain = ScanMode{Full: true, Disruptive: m.Disruptive && st.Mode.Disruptive}, nil
+	out.Mode, out.Domain = m.And(st.Mode), nil
 	box, err := s.ScannableIP(ctx, st.User, ip)
 	switch {
 	case ctx.Err() != nil:
@@ -161,6 +163,15 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		s.cfg.Log.ErrorContext(ctx, "exposure: checking whether a domain's address is the box's own failed", "target", st.Value, "ip", ip, "error", err)
 		return st, deepUnchecked, nil
 	case box:
+		if it, found, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String()); err != nil { // the address is an IP target too: both targets' settings
+			s.cfg.Log.ErrorContext(ctx, "exposure: reading the settings of a domain's address that is an IP target failed", "target", st.Value, "ip", ip, "error", err)
+			return st, deepUnchecked, nil
+		} else if found {
+			if it.Deep.Problem != nil { // never a scan without that target's exclusions
+				return st, deepSettingsUnread, nil
+			}
+			out = withSettings(out, it.Deep)
+		}
 		if tt, typed := s.typedAddr(ctx, ip); typed { // a typed IP of the box's list, not the box's own egress: its own proof goes to the executors
 			tm := tt.mode() // a separate asset with its own consent: the stricter of the two targets' terms
 			if !tm.Full {
@@ -262,8 +273,18 @@ const (
 // dropDisruptive takes the disruptive checks out of a step that the run allowed them on, saying why.
 func dropDisruptive(st ScanTarget, why string) ScanTarget {
 	if st.Mode.Disruptive {
-		st.Mode.Disruptive, st.dropped = false, why
+		st.Mode, st.dropped = st.Mode.withoutDisruptive(), why
 	}
+	return st
+}
+
+// withSettings narrows a step by the deep-scan settings of a second target that holds its address (the box's IP target reached
+// through a domain's name): its groups are cleared too, and its exclusions and speed add to the step's.
+func withSettings(st ScanTarget, d DeepSettings) ScanTarget {
+	st.Mode = narrow(st.Mode, d)
+	both := intersect(DeepSettings{DoS: true, Logins: true, WebActive: true, DataChange: true, OpenVAS: true, SkipPorts: st.SkipPorts, SkipPaths: st.SkipPaths,
+		Speed: map[bool]string{true: SpeedGentle, false: SpeedNormal}[st.Gentle]}, d)
+	st.SkipPorts, st.SkipPaths, st.Gentle = both.SkipPorts, both.SkipPaths, both.Gentle()
 	return st
 }
 
@@ -543,7 +564,7 @@ func noAddressStep(ctx context.Context, why string) {
 // never gets the disruptive checks, whatever the terms: the owner of that other name chooses the address.
 func deepMode(st ScanTarget, a deepAddr) ScanTarget {
 	if !a.inZone {
-		st.Mode.Disruptive = false
+		st.Mode = st.Mode.withoutDisruptive()
 	}
 	return st
 }
@@ -561,6 +582,11 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	if line != "" {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(label+": not scanned at depth: "+line, maxLineText)})
 		return DeepRefused, nil
+	}
+	if extra := slices.DeleteFunc(slices.Clone(stD.SkipPorts), st.Skips); len(extra) > 0 { // the address's IP target skips more
+		s.observerOf(ctx).noteSkipped(a.ip.String(), extra)
+		c.Ports = slices.DeleteFunc(c.Ports, func(p PortRow) bool { return ipKey(p.IP) == a.ip.String() && stD.Skips(p.Port) })
+		c.AdminPanels = slices.DeleteFunc(c.AdminPanels, func(p AdminRow) bool { return ipKey(p.IP) == a.ip.String() && stD.Skips(p.Port) })
 	}
 	sub := Content{}
 	for _, p := range c.Ports {

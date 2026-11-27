@@ -26,11 +26,12 @@ const targetColumns = `t.id, t.kind, t.value, coalesce(t.method, t.proof_method,
 	t.verified_at, t.last_check, t.created_at, t.origin, t.parent_id, t.scope_mode, t.enabled,
 	c.by_name, c.at, c.version, c.text, c.user_id, c.method,
 	r.version, r.by_name, r.at, r.text, r.user_id, r.method, coalesce(r.disruptive, 0),
-	(SELECT max(started_at) FROM core_run WHERE module = 'exposure' AND subject_kind = 'target' AND subject_id = t.id)`
+	(SELECT max(started_at) FROM core_run WHERE module = 'exposure' AND subject_kind = 'target' AND subject_id = t.id),
+	` + deepColumns
 
 // targetFrom is the FROM of targetColumns.
 const targetFrom = ` FROM exp_target t LEFT JOIN exp_consent c ON c.target_id = t.id AND c.kind = 'commitment'
-	LEFT JOIN exp_consent r ON r.target_id = t.id AND r.kind = 'terms'`
+	LEFT JOIN exp_consent r ON r.target_id = t.id AND r.kind = 'terms' LEFT JOIN exp_deep_setting d ON d.target_id = t.id`
 
 func parseTS(s string) (time.Time, error) {
 	t, err := time.Parse("2006-01-02T15:04:05.000Z", s)
@@ -71,11 +72,13 @@ func scanTarget(s scanner) (Target, error) {
 		by, byAt, noticeVer, noticeText, uid, method sql.NullString
 		tVer, tBy, tAt, tText, tUID, tMethod         sql.NullString
 		enabled, tDisruptive                         int
+		deep                                         deepRow
 	)
-	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &created, &origin, &parent, &scope, &enabled,
-		&by, &byAt, &noticeVer, &noticeText, &uid, &method, &tVer, &tBy, &tAt, &tText, &tUID, &tMethod, &tDisruptive, &scanned); err != nil {
+	if err := s.Scan(append([]any{&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &created, &origin, &parent, &scope, &enabled,
+		&by, &byAt, &noticeVer, &noticeText, &uid, &method, &tVer, &tBy, &tAt, &tText, &tUID, &tMethod, &tDisruptive, &scanned}, deep.dest()...)...); err != nil {
 		return Target{}, err
 	}
+	t.Deep = deep.settings()
 	t.Kind, t.Origin, t.Enabled = Kind(kind), Origin(origin), enabled == 1
 	t.Typed = t.Kind == KindIP && t.Origin == OriginPerson
 	t.ParentID, t.ScopeMode = parent.String, ScopeMode(scope.String)

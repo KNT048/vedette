@@ -52,11 +52,12 @@ type fullPort struct {
 	service, product, cpe string
 }
 
-// fullPorts merges exposure's jobs of depth full by port (a port with more than 32 CVEs has several), in their order.
-func fullPorts(ip netip.Addr, jobs []exposure.TemplateJob) []fullPort {
+// fullPorts merges exposure's jobs of depth full by port (a port with more than 32 CVEs has several), in their order; a port the
+// target's settings skip gets none.
+func fullPorts(ip netip.Addr, jobs []exposure.TemplateJob, skip []int) []fullPort {
 	var out []fullPort
 	for _, j := range jobs {
-		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != exposure.DepthFull {
+		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != exposure.DepthFull || slices.Contains(skip, j.Port) {
 			continue
 		}
 		i := slices.IndexFunc(out, func(p fullPort) bool { return p.port == j.Port })
@@ -75,7 +76,10 @@ var errNotFull = &exposure.Unavailable{Reason: templatesNotFull}
 func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	var out exposure.TemplateScan
 	products := pack.ProductTags(ix.Templates)
-	ports := fullPorts(ip, jobs)
+	ports := fullPorts(ip, jobs, t.SkipPorts)
+	if l := groupsOffLine(t.Mode); l != "" && len(ports) > 0 {
+		out.NotChecked = append(out.NotChecked, l)
+	}
 	bounds := make([]int64, len(ports))
 	meter := &fullMeter{}
 	for i, p := range ports {
@@ -191,6 +195,7 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 	sent := map[string]bool{}
 	var silent []string // review r1 M1: handed to nuclei, no line printed: not run
 	handed := 0
+	unknown := map[string]bool{}                                      // templates whose path could not be told against the web paths to skip (they ran)
 	run := func(tmpls []pack.Template) (map[string][]string, error) { // template id -> matcher names of its matching lines
 		found := map[string][]string{}
 		for c := range slices.Chunk(tmpls, nucleiargv.MaxFullTemplates) {
@@ -198,7 +203,14 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 			if err != nil {
 				return nil, err
 			}
-			c = slices.DeleteFunc(slices.Clone(c), func(tp pack.Template) bool { return sent[tp.ID] || !tp.RunsAt(true, m.Disruptive) })
+			c = slices.DeleteFunc(slices.Clone(c), func(tp pack.Template) bool {
+				return sent[tp.ID] || !tp.RunsAt(true, m.Disruptive) || !groupAllows(m, tp) || templatePathOf(tp, t.SkipPaths) == tplPathSkipped
+			})
+			for _, tp := range c {
+				if templatePathOf(tp, t.SkipPaths) == tplPathUnknown {
+					unknown[tp.ID] = true
+				}
+			}
 			if len(c) == 0 {
 				continue
 			}
@@ -251,6 +263,9 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 	if len(silent) > 0 {
 		out.NotChecked = append(out.NotChecked, fmt.Sprintf(notRunFull, p.port, len(silent), handed))
 	}
+	if l := pathsLine(len(unknown), p.port, t.SkipPaths); l != "" {
+		out.NotChecked = append(out.NotChecked, l)
+	}
 	return err
 }
 
@@ -268,8 +283,7 @@ func (a exposureTemplateScan) modeNow(ctx context.Context, t exposure.ScanTarget
 	case !m.Full:
 		return exposure.ScanMode{}, errNotFull
 	}
-	m.Disruptive = m.Disruptive && t.Mode.Disruptive // never more than the run started with
-	return m, nil
+	return m.And(t.Mode), nil // never more than the run started with, group by group
 }
 
 func filterTemplates(ix *pack.Index, keep func(pack.Template) bool) []pack.Template {

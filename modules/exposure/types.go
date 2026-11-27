@@ -139,6 +139,8 @@ type Target struct {
 	ParentID  string
 	ScopeMode ScopeMode
 	Enabled   bool
+	// Deep is the target's deep-scan settings (exp_deep_setting; the defaults without a row).
+	Deep DeepSettings
 	// proofDomain and proofToken are, after the scan gate, the domain target whose token proved this one now (itself, a parent target
 	// of the box, or a target of the box that sits under the name where its record was found) and that token: the domain and token the
 	// executors' fence checks. proofAt is the name the record sits on when it is not proofDomain itself (the zone apex, or a parent

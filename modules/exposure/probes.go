@@ -105,6 +105,7 @@ func (s *Service) calibrateStart(ctx context.Context, t Target) {
 			ports = append(ports, x.Port)
 		}
 	}
+	ports = slices.DeleteFunc(ports, func(p int) bool { return slices.Contains(t.Deep.SkipPorts, p) })
 	o.calibrate(ctx, ports)
 }
 
@@ -282,7 +283,7 @@ func (s *Service) checkAlive(ctx context.Context, st ScanTarget, c *Content, bef
 		if err != nil {
 			continue
 		}
-		ask := slices.DeleteFunc(slices.Clone(open[ip]), func(p int) bool { return o.lostPort(ip, p) })
+		ask := slices.DeleteFunc(slices.Clone(open[ip]), func(p int) bool { return o.lostPort(ip, p) || st.Skips(p) })
 		if len(ask) == 0 {
 			continue
 		}
@@ -430,7 +431,8 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c Content, scope 
 	for _, x := range prev {
 		k := ipKey(x.IP)
 		allowed, asked := scope[k]
-		if !asked || (allowed != nil && !slices.Contains(allowed, x.Port)) || len(lost[k]) > 0 || slices.Contains(seen[k], x.Port) || slices.Contains(missed[k], x.Port) {
+		if !asked || (allowed != nil && !slices.Contains(allowed, x.Port)) || len(lost[k]) > 0 || slices.Contains(seen[k], x.Port) || slices.Contains(missed[k], x.Port) ||
+			slices.Contains(t.Deep.SkipPorts, x.Port) { // a port this target's settings skip is never connected to
 			continue
 		}
 		missed[k] = append(missed[k], x.Port)

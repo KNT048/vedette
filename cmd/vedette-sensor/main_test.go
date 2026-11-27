@@ -227,7 +227,9 @@ func TestBinaryDependencies(t *testing.T) {
 	// one receive-side option that package syscall lacks; the worker reads SNMP agents with gosnmp (BSD-2: SNMPv3 USM is
 	// key localization, HMAC and AES-CFB, not worth writing again). Both are pinned in go.mod and import the standard library only.
 	// golang.org/x/net/publicsuffix: the embedded Public Suffix List of proofat; it imports the standard library only.
-	thirdParty := []string{"golang.org/x/sys/unix", "github.com/gosnmp/gosnmp", "golang.org/x/net/publicsuffix"}
+	// golang.org/x/net/dns/dnsmessage: the domain fence asks a zone's own name servers with it (the parser the standard library
+	// vendors as its own); it imports the standard library only.
+	thirdParty := []string{"golang.org/x/sys/unix", "github.com/gosnmp/gosnmp", "golang.org/x/net/publicsuffix", "golang.org/x/net/dns/dnsmessage"}
 	for _, goos := range []string{runtime.GOOS, "linux"} {
 		t.Run(goos, func(t *testing.T) {
 			t.Parallel()

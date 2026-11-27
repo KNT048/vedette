@@ -144,6 +144,9 @@ type Deps struct {
 	// FenceCNAME is the CNAME lookup of the domain fence (default: the system resolver).
 	FenceKey   []byte
 	FenceCNAME func(ctx context.Context, name string) (string, error)
+	// FenceAuth asks the zone's own name servers for a name's TXT records, when the resolver's answer proves nothing (default: the
+	// real servers when ZapTXT is the system resolver's, none otherwise).
+	FenceAuth func(ctx context.Context, name string) (domainfence.AuthAnswer, error)
 	// FenceFetcher gets the proof file of a typed IP and FenceAddr is the fence's reverse DNS lookup (default: the real ones).
 	FenceFetcher domainfence.FileFetcher
 	FenceAddr    func(ctx context.Context, addr string) ([]string, error)

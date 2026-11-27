@@ -63,9 +63,10 @@ const (
 	notActiveCut       = "Active web scan (ZAP) reached its limit of 12 minutes on this page: the alerts it found until then are kept, and some rules did not run."
 	notActiveRunLimit  = "Active web scan (ZAP): %s not attacked: the active pass of one scan takes at most 60 minutes. Scan again to check %s."
 	notActiveDisrupt   = "Active web scan (ZAP) ran without its disruptive rules (denial of service, checks that may change data) on %s: they run only on this box's own public IP, in a scan a person starts."
-	// notActiveSettings is the line of the pages whose disruptive rules this target's settings removed: ZAP's disruptive rules hold
-	// denial-of-service and data-changing rules together, so they run only while both groups are on.
-	notActiveSettings = "Active web scan (ZAP) ran without its disruptive rules on %s. " + notSettings + " Its disruptive rules run only while the denial-of-service checks and the exploit checks that may change data are both on."
+	// notActiveSettings is the line of the pages whose disruptive rules this target's settings removed: ZAP's disruptive rules are
+	// denial-of-service rules and rules that may change data (the host runs the class of each group allowed), so with both groups off
+	// none runs.
+	notActiveSettings = "Active web scan (ZAP) ran without its disruptive rules on %s. " + notSettings + " Its disruptive rules are denial-of-service checks and exploit checks that may change data, and both are off."
 	// notActiveOff is the line of an active web scan this target's settings turned off.
 	notActiveOff = "Active web scan (ZAP): " + notSettings
 	// notActiveHostRefused is a page the step asked the disruptive rules for and the host ran without them: its own check of the
@@ -285,6 +286,9 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 					rows[i].Disruptive = rough && (len(res.DisruptiveRules) == 0 || slices.Contains(res.DisruptiveRules, rows[i].PluginID))
 				}
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)
+				for _, r := range res.SkippedRules { // a rule the settings left out of the page did not look at it again
+					c.WebSkippedRules = append(c.WebSkippedRules, r+"@"+siteOf(page.URL))
+				}
 				if !res.CutShort { // a page cut short did not run every rule: an active alert it no longer reports is not "gone"
 					c.WebActivePages = append(c.WebActivePages, page.URL)
 					if rough {

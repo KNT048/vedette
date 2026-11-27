@@ -229,3 +229,38 @@ func ExternalBatchesSkipping(open, skip []int) ([][]int, error) {
 	}
 	return externalBatches(open, func(p int) bool { return !slices.Contains(skip, p) })
 }
+
+// groupNames are the groups as the sensor link names them.
+var groupNames = []struct {
+	g    Groups
+	name string
+}{{GroupDoS, "dos"}, {GroupLogins, "logins"}, {GroupChange, "change"}}
+
+// Names are the groups of g as the sensor link names them, in a fixed order; never nil (no group is an empty list).
+func (g Groups) Names() []string {
+	out := []string{}
+	for _, n := range groupNames {
+		if g&n.g != 0 {
+			out = append(out, n.name)
+		}
+	}
+	return out
+}
+
+// GroupsOf reads groups named as Names writes them; an unknown or repeated name is an error.
+func GroupsOf(names []string) (Groups, error) {
+	var g Groups
+	for _, s := range names {
+		var one Groups
+		for _, n := range groupNames {
+			if n.name == s {
+				one = n.g
+			}
+		}
+		if one == 0 || g&one != 0 {
+			return 0, fmt.Errorf("nmapargv: group %.20q is unknown or repeated", s)
+		}
+		g |= one
+	}
+	return g, nil
+}

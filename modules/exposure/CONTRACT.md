@@ -236,10 +236,15 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   (`deepGate`, `withSettings`; the active web scan of its pages too). Each engine core feeds honours them: nuclei leaves out the
   templates of a group that is off (classified in core, `cmd/vedette` `templateGroup`: a check that can exhaust or crash a service is
   in the denial-of-service group whatever its tags) and, by the first request of each template, those under a path to skip (one it
-  cannot judge runs, and the step says how many); nmap's disruptive scripts run only with all three disruptive groups on (one list
-  until nmapargv splits it); ZAP's active pass is skipped with `web_active` off, and its disruptive rules need `dos` and
-  `data_change` (the host cannot split them yet); with paths to skip ZAP runs only through a scanner that leaves them out
-  (`PathExcluder`), else not at all; OpenVAS is skipped with `openvas` off, and its scan config follows the mask of the disruptive
+  cannot judge runs, and the step says how many); nmap's full sweep runs the script groups the target's settings allow
+  (`ScanTarget.Groups`; scheduled scans too) and its disruptive scripts those of the groups the run allows, narrowed again right
+  before the job (`cmd/vedette` `ownGate.GroupsNow`; sensor-active INV-19a), and the ports to skip go to nmap as `--exclude-ports`
+  or are left out of its port lists; ZAP's active pass is skipped with `web_active` off, its disruptive rules run with `dos` or
+  `data_change` and the host leaves out the class that is off (`no_dos`, `no_change`), the web paths to skip are excluded by the
+  host in both passes (host INV-31d; a web scanner that cannot leave them out, `PathExcluder`, gets no ZAP run), an issue of a rule
+  the settings left out of a page is never closed by that page (`WebSkippedRules`), and gentle runs ZAP on one thread with 500 ms
+  between requests; the surface runner never dials a port to skip and connects more slowly when gentle; nuclei's full jobs run at
+  its gentle rate when gentle (the step's bound stretches by `GentleTemplateScale`, within its cap); OpenVAS is skipped with `openvas` off, and its scan config follows the mask of the disruptive
   groups (`levelFor`: the Brute force and Default Accounts families and their two checkboxes with `logins`, the Denial of Service
   family with `dos`, each family read back by itself; `safe_checks` off only when `dos` and `data_change` are both allowed, since it
   gates both: with one of them off the run says both are narrowed for OpenVAS); the gentle speed runs its task with `max_checks` 2 and

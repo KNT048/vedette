@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
 	"github.com/knt048/vedette/modules/scan/surface"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -22,14 +23,14 @@ import (
 
 func TestExposureSettings_TheNmapJobsCarryTheSettings(t *testing.T) {
 	t.Parallel()
-	var got []sensoractive.Settings
+	var got []sensoractive.DeepSettings
 	var kinds []nmapargv.Kind
 	sc := exposureServiceScan{
-		scan: func(_ context.Context, _ netip.Addr, k nmapargv.Kind, set sensoractive.Settings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
+		scan: func(_ context.Context, _ netip.Addr, k nmapargv.Kind, set sensoractive.DeepSettings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
 			kinds, got = append(kinds, k), append(got, set)
 			return sensoractive.External{}, nil
 		},
-		scanDisruptive: func(_ context.Context, _ netip.Addr, _ []int, set sensoractive.Settings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
+		scanDisruptive: func(_ context.Context, _ netip.Addr, _ []int, set sensoractive.DeepSettings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
 			kinds, got = append(kinds, nmapargv.ExternalDisruptive), append(got, set)
 			return sensoractive.External{}, nil
 		},
@@ -49,7 +50,7 @@ func TestExposureSettings_TheNmapJobsCarryTheSettings(t *testing.T) {
 	if _, err := sc.ScanDisruptive(t.Context(), exposure.ScanTarget{ID: "t1", Mode: logins, SkipPorts: []int{443}, Gentle: true}, ownPublicIP, []int{22, 443}); err != nil {
 		t.Fatal(err)
 	}
-	want := []sensoractive.Settings{
+	want := []sensoractive.DeepSettings{
 		{Groups: nmapargv.GroupLogins | nmapargv.GroupChange, SkipPorts: []int{8080}, Gentle: true},
 		{Groups: nmapargv.AllGroups, SkipPorts: []int{22}},
 		{Groups: nmapargv.GroupLogins, SkipPorts: []int{443}, Gentle: true},
@@ -165,7 +166,10 @@ func TestExposureSettings_GentleNucleiJobs(t *testing.T) {
 		if len(f.reqs) == 0 {
 			t.Fatal("no nuclei job")
 		}
-		want := map[bool]int{false: 20, true: 4}[gentle]
+		if exposure.GentleTemplateScale != nucleiargv.TimeScale(nucleiargv.GentleFullRate) {
+			t.Fatal("exposure's gentle bound of the template step does not follow the gentle rate")
+		}
+		want := map[bool]int{false: nucleiargv.FullRate, true: nucleiargv.GentleFullRate}[gentle]
 		for _, r := range f.reqs {
 			if r.Rate != want {
 				t.Fatalf("gentle %v: rate %d", gentle, r.Rate)

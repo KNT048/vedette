@@ -61,6 +61,20 @@ func DefaultDeepSettings() DeepSettings {
 	return DeepSettings{Logins: true, WebActive: true, DataChange: true, OpenVAS: true, Speed: SpeedNormal, SkipPorts: []int{}, SkipPaths: []string{}}
 }
 
+// Groups are the groups d allows.
+func (d DeepSettings) Groups() Groups {
+	var g Groups
+	for _, x := range []struct {
+		on bool
+		g  Groups
+	}{{d.DoS, GroupDoS}, {d.Logins, GroupLogins}, {d.DataChange, GroupChange}, {d.WebActive, GroupWebActive}, {d.OpenVAS, GroupOpenVAS}} {
+		if x.on {
+			g |= x.g
+		}
+	}
+	return g
+}
+
 // Gentle says the scan runs at the gentle speed.
 func (d DeepSettings) Gentle() bool { return d.Speed != SpeedNormal }
 

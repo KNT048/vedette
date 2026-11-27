@@ -35,11 +35,11 @@ func TestDomainServicesGoOutAsADomainIPJob(t *testing.T) {
 	var got sensoractive.DomainIP
 	var kind nmapargv.Kind
 	a := exposureServiceScan{
-		scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.OwnEgress) (sensoractive.External, error) {
+		scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.OwnEgress) (sensoractive.External, error) {
 			t.Fatal("a domain step went through the box's own-IP scan")
 			return sensoractive.External{}, nil
 		},
-		scanDomain: func(_ context.Context, _ netip.Addr, k nmapargv.Kind, _ sensoractive.Settings, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error) {
+		scanDomain: func(_ context.Context, _ netip.Addr, k nmapargv.Kind, _ sensoractive.DeepSettings, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error) {
 			got, kind = d, k
 			if gate == nil {
 				t.Error("no DeepGate: the terms would not be read right before the job")
@@ -71,7 +71,7 @@ func TestDomainRefusalsBecomeLines(t *testing.T) {
 		domainfence.Unchecked:    "DNS did not answer",
 		domainfence.CNAMEOutside: "points (CNAME) outside the domain",
 	} {
-		a := exposureServiceScan{scanDomain: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.DomainIP, sensoractive.DeepGate) (sensoractive.External, error) {
+		a := exposureServiceScan{scanDomain: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.DomainIP, sensoractive.DeepGate) (sensoractive.External, error) {
 			return sensoractive.External{}, &sensoractive.DomainRefusedError{Reason: reason}
 		}}
 		_, err := a.ScanServices(t.Context(), domainTarget(true), ownPublicIP)
@@ -80,7 +80,7 @@ func TestDomainRefusalsBecomeLines(t *testing.T) {
 			t.Errorf("%s: %v", reason, err)
 		}
 	}
-	a := exposureServiceScan{scanDomain: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.DomainIP, sensoractive.DeepGate) (sensoractive.External, error) {
+	a := exposureServiceScan{scanDomain: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.DomainIP, sensoractive.DeepGate) (sensoractive.External, error) {
 		return sensoractive.External{}, sensoractive.ErrDomainUnsupported
 	}}
 	_, err := a.ScanServices(t.Context(), domainTarget(true), ownPublicIP)
@@ -198,7 +198,7 @@ func TestDomainTemplateRowKeepsTheRequest(t *testing.T) {
 func TestServiceScanSaysTheAddressRefused(t *testing.T) {
 	t.Parallel()
 	a := exposureServiceScan{
-		scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.Settings, sensoractive.OwnEgress) (sensoractive.External, error) {
+		scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.DeepSettings, sensoractive.OwnEgress) (sensoractive.External, error) {
 			return sensoractive.External{Ports: 65535, Refused: true}, nil
 		},
 	}

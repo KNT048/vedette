@@ -42,11 +42,11 @@ func scriptValue(argv []string) map[string]bool {
 func TestSettings_TheFullSweepTheWorkerRunsIsNarrowed(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
-		set  sa.Settings
+		set  sa.DeepSettings
 		rate int
 	}{
-		"denial of service off, a port skipped": {sa.Settings{Groups: nmapargv.GroupLogins | nmapargv.GroupChange, SkipPorts: []int{8080}}, nmapargv.FullRate},
-		"data change off, gentle":               {sa.Settings{Groups: nmapargv.GroupDoS | nmapargv.GroupLogins, Gentle: true}, nmapargv.GentleRate},
+		"denial of service off, a port skipped": {sa.DeepSettings{Groups: nmapargv.GroupLogins | nmapargv.GroupChange, SkipPorts: []int{8080}}, nmapargv.FullRate},
+		"data change off, gentle":               {sa.DeepSettings{Groups: nmapargv.GroupDoS | nmapargv.GroupLogins, Gentle: true}, nmapargv.GentleRate},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -79,16 +79,16 @@ func TestSettings_TheFullSweepTheWorkerRunsIsNarrowed(t *testing.T) {
 
 func TestSettings_TheDisruptiveScriptsAreThoseOfTheGroupsAllowedNow(t *testing.T) {
 	t.Parallel()
-	ports := []int{21, 22, 443}
+	ports := []int{21, 22, 443, 49152} // the open ports of testdata/external_full.xml
 	for name, c := range map[string]struct {
-		set    sa.Settings
+		set    sa.DeepSettings
 		now    nmapargv.Groups
 		want   nmapargv.Groups
 		refuse bool
 	}{
-		"password guessing alone":            {sa.Settings{Groups: nmapargv.GroupLogins}, nmapargv.AllGroups, nmapargv.GroupLogins, false},
-		"a group turned off since the start": {sa.Settings{Groups: nmapargv.GroupLogins | nmapargv.GroupChange}, nmapargv.GroupChange | nmapargv.GroupDoS, nmapargv.GroupChange, false},
-		"every group turned off since":       {sa.Settings{Groups: nmapargv.GroupLogins}, 0, 0, true},
+		"password guessing alone":            {sa.DeepSettings{Groups: nmapargv.GroupLogins}, nmapargv.AllGroups, nmapargv.GroupLogins, false},
+		"a group turned off since the start": {sa.DeepSettings{Groups: nmapargv.GroupLogins | nmapargv.GroupChange}, nmapargv.GroupChange | nmapargv.GroupDoS, nmapargv.GroupChange, false},
+		"every group turned off since":       {sa.DeepSettings{Groups: nmapargv.GroupLogins}, 0, 0, true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -110,13 +110,11 @@ func TestSettings_TheDisruptiveScriptsAreThoseOfTheGroupsAllowedNow(t *testing.T
 			}
 		})
 	}
-	// a port to skip never goes, whatever the caller handed over
+	// a port to skip never goes, whatever the caller handed over (the fake nmap answers for it anyway: that answer is not believed)
 	e := externalEnvWith(t, boxIP, "external_full.xml")
 	own := &groupFence{deepFence: deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: nmapargv.ExternalDisruptive}, groups: nmapargv.AllGroups}
-	if _, err := e.svc.ScanDisruptiveWith(e.ctx(), boxIP, ports, sa.Settings{Groups: nmapargv.AllGroups, SkipPorts: []int{22}}, own); err != nil {
-		t.Fatal(err)
-	}
-	if calls := e.nm.calls(t); len(calls) != 1 || calls[0][slices.Index(calls[0], "-p")+1] != "21,443" {
+	_, _ = e.svc.ScanDisruptiveWith(e.ctx(), boxIP, ports, sa.DeepSettings{Groups: nmapargv.AllGroups, SkipPorts: []int{22}}, own)
+	if calls := e.nm.calls(t); len(calls) != 1 || calls[0][slices.Index(calls[0], "-p")+1] != "21,443,49152" {
 		t.Fatalf("nmap argv = %q", calls)
 	}
 }
@@ -124,21 +122,20 @@ func TestSettings_TheDisruptiveScriptsAreThoseOfTheGroupsAllowedNow(t *testing.T
 func TestSettings_TheExternalScanNeverNamesASkippedPort(t *testing.T) {
 	t.Parallel()
 	e := externalEnv(t, boxIP)
-	skip := []int{22, 8443}
-	if _, err := e.svc.ScanExternalWith(e.ctx(), boxIP, nmapargv.External, sa.Settings{Groups: nmapargv.AllGroups, SkipPorts: skip}, &ownFence{ok: []netip.Addr{boxIP}}); err != nil {
-		t.Fatal(err)
-	}
+	skip := []int{3389, 8080} // ports of the fixed list that the fixtures do not answer on
+	// the fake nmap prints the same answer for every batch, so some batches are not believed: only what was sent matters here
+	_, _ = e.svc.ScanExternalWith(e.ctx(), boxIP, nmapargv.External, sa.DeepSettings{Groups: nmapargv.AllGroups, SkipPorts: skip}, &ownFence{ok: []netip.Addr{boxIP}})
 	calls := e.nm.calls(t)
 	if len(calls) < 2 {
 		t.Fatalf("calls %q", calls)
 	}
-	if i := slices.Index(calls[0], "--exclude-ports"); i < 0 || calls[0][i+1] != "22,8443" {
+	if i := slices.Index(calls[0], "--exclude-ports"); i < 0 || calls[0][i+1] != "3389,8080" {
 		t.Fatalf("discovery argv %q", calls[0])
 	}
 	for _, c := range calls[1:] {
 		i := slices.Index(c, "-p")
 		for _, p := range strings.Split(c[i+1], ",") {
-			if p == "22" || p == "8443" {
+			if p == "3389" || p == "8080" {
 				t.Fatalf("a batch names a skipped port: %q", c)
 			}
 		}

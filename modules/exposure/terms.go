@@ -131,13 +131,9 @@ func (m ScanMode) And(b ScanMode) ScanMode {
 		Change: m.Change && b.Change, WebActive: m.WebActive && b.WebActive, OpenVAS: m.OpenVAS && b.OpenVAS, Off: m.Off | b.Off}.norm()
 }
 
-// AllDisruptive says every disruptive group may run: the engines that cannot run one group without the others (nmap's disruptive
-// scripts) run only then.
-func (m ScanMode) AllDisruptive() bool { m = m.norm(); return m.DoS && m.Logins && m.Change }
-
-// WebDisruptive says the active web scan may run its disruptive rules: they hold denial-of-service and data-changing rules, which
-// the host cannot split yet, so both groups must be allowed.
-func (m ScanMode) WebDisruptive() bool { m = m.norm(); return m.WebActive && m.DoS && m.Change }
+// WebDisruptive says the active web scan may run disruptive rules: the host splits them into denial-of-service rules and rules that
+// may change data, and runs those of the groups allowed (the other class goes to the host turned off); ZAP has no password guessing.
+func (m ScanMode) WebDisruptive() bool { m = m.norm(); return m.WebActive && (m.DoS || m.Change) }
 
 // ModeNow is the scan mode of target id right before a deep job leaves core (for the scanner
 // adapters in cmd/vedette): exposure's gate again with actor, then the terms as stored now. A target the gate

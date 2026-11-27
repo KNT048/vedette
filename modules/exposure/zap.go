@@ -113,6 +113,9 @@ type WebScan struct {
 	// (its own checks: no grant of a person's press that holds, or the box's gateway behind carrier-grade NAT or unreadable): the
 	// plain reason. The page then counts as a page of a pass without them.
 	DisruptiveRefused string
+	// SkippedRules (active scan only) are the ZAP plugin ids the host left out of this page, or ran with weaker payloads, because of
+	// the target's deep-scan settings: an alert of one of them is not "gone" from this page.
+	SkippedRules []string
 }
 
 // Limits of the passive web scan (INV-24).

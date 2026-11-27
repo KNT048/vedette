@@ -1021,6 +1021,10 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 	for _, u := range c.WebDisruptivePages {
 		disruptivePages[siteOf(u)] = true
 	}
+	skippedRules := map[string]bool{}
+	for _, k := range c.WebSkippedRules {
+		skippedRules[k] = true
+	}
 	open, compared := map[string]bool{}, map[string]bool{}
 	for _, p := range c.Ports {
 		open[portKey(p.IP, p.Port)] = true
@@ -1048,9 +1052,9 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 			return x.ip != "" && tplRan[portKey(x.ip, x.port)+"|"+x.key]
 		},
 		EngineZAP: func(x issueWhere) bool { // an alert of the active rules goes only when the active scan looked at its page again
-			_, site, ok := strings.Cut(x.key, "@")
-			if x.pass == passActive { // and one of a disruptive rule only when that scan ran the disruptive rules
-				return ok && activePages[siteOf(site)] && (!x.disruptive || disruptivePages[siteOf(site)])
+			plugin, site, ok := strings.Cut(x.key, "@")
+			if x.pass == passActive { // and one of a disruptive rule only when that scan ran the disruptive rules, and never one of a rule the settings left out
+				return ok && activePages[siteOf(site)] && (!x.disruptive || disruptivePages[siteOf(site)]) && !skippedRules[plugin+"@"+siteOf(site)]
 			}
 			return ok && pages[siteOf(site)]
 		},

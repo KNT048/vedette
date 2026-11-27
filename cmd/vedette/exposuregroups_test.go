@@ -229,7 +229,7 @@ func TestExposureGroups_NmapDisruptiveRunsTheGroupsAllowed(t *testing.T) {
 	}
 	var sent [][]int
 	var groups []nmapargv.Groups
-	sc := exposureServiceScan{scanDisruptive: func(_ context.Context, _ netip.Addr, p []int, set sensoractive.Settings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
+	sc := exposureServiceScan{scanDisruptive: func(_ context.Context, _ netip.Addr, p []int, set sensoractive.DeepSettings, _ sensoractive.OwnEgress) (sensoractive.External, error) {
 		sent, groups = append(sent, p), append(groups, set.Groups)
 		return sensoractive.External{}, nil
 	}}

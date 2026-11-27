@@ -342,6 +342,9 @@ type Content struct {
 	// WebDisruptivePages are those of WebActivePages whose active scan ran the disruptive rules: an alert of a disruptive rule is
 	// "gone" only from one of these (a pass without them did not run its rule).
 	WebDisruptivePages []string `json:"-"`
+	// WebSkippedRules are "<plugin id>@<site>" of the rules the active scan left out of a page this run because of the target's
+	// settings (WebScan.SkippedRules): an alert of that rule on that page is not "gone".
+	WebSkippedRules []string `json:"-"`
 	// webOK are the pages the passive web scan of this run read (a report with the page in it): the active pass takes these.
 	webOK []WebPage
 	// TemplatesRan are the "ip:port|template" of the templates that ran to the end this run and found nothing (TemplatesCovered);

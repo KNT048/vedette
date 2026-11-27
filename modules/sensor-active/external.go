@@ -56,6 +56,9 @@ var (
 	// ErrFullUnsupported: the worker's latest heartbeat does not say it runs the full shapes (an older worker, while an
 	// update runs). Nothing was sent.
 	ErrFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nmap scan")
+	// ErrNarrowUnsupported: the worker's latest heartbeat does not say it runs a target's deep-scan settings (nmap.narrow): a line
+	// narrowed by them, or at the gentle rate, is not sent (never the wider line instead).
+	ErrNarrowUnsupported = errors.New("sensoractive: the scan container's worker is older and does not run a target's deep-scan settings")
 	// ErrPortsUnsupported: the worker is older and takes no port list, so the -sV follow-up of the weekly scan of every
 	// port is not sent (its open ports are recorded without versions).
 	ErrPortsUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no port_versions job")
@@ -218,10 +221,58 @@ func left(ctx context.Context, def time.Duration) time.Duration {
 // than the need left → ErrNoTime; the probe row; then the job. A nil own refuses (fail closed). The stop of the module (Stop) or
 // of ctx ends it with ErrStopped.
 func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress) (External, error) {
+	return s.ScanExternalWith(ctx, ip, kind, WideSettings(), own)
+}
+
+// DeepSettings are a target's deep-scan settings for one external run (exposure's): they only narrow it. Groups are the groups of
+// checks the run's full shape may run (nmapargv.Groups; none is none, never "every"); SkipPorts the TCP ports it never sends to;
+// Gentle the slower rate of the full shapes (nmapargv.GentleRate). A narrowed or gentle line goes only to a worker that says it runs
+// them (ErrNarrowUnsupported otherwise, nothing sent).
+type DeepSettings struct {
+	Groups    nmapargv.Groups
+	SkipPorts []int
+	Gentle    bool
+}
+
+// WideSettings narrow nothing: the lines of before.
+func WideSettings() DeepSettings { return DeepSettings{Groups: nmapargv.AllGroups} }
+
+// rate is the rate of an external run of kind under st.
+func (st DeepSettings) rate(kind nmapargv.Kind) int {
+	if kind.IsFull() && st.Gentle {
+		return nmapargv.GentleRate
+	}
+	return nmapargv.ExternalRateOf(kind)
+}
+
+// narrow is the nmapargv narrowing of a run of kind under st: the groups of the full shapes, the ports to skip of the sweeps (the
+// disruptive shape and the -sV batches name their own ports, without the skipped ones).
+func (st DeepSettings) narrow(kind nmapargv.Kind) nmapargv.Narrow {
+	switch kind {
+	case nmapargv.ExternalFull:
+		return nmapargv.Narrow{Groups: st.Groups, SkipPorts: st.SkipPorts}
+	case nmapargv.ExternalDisruptive:
+		return nmapargv.Narrow{Groups: st.Groups}
+	}
+	return nmapargv.Narrow{Groups: nmapargv.AllGroups, SkipPorts: st.SkipPorts}
+}
+
+// skips says the run leaves port p alone.
+func (st DeepSettings) skips(p int) bool { return slices.Contains(st.SkipPorts, p) }
+
+// GroupGate is implemented by a DeepGate that also says which disruptive groups the target allows now: right before the disruptive
+// scripts leave, the run's groups are narrowed to them (a group turned off mid-run takes effect there; one turned on never widens
+// the run). None left → ErrNotDisruptive, nothing sent.
+type GroupGate interface {
+	GroupsNow(ctx context.Context) (nmapargv.Groups, error)
+}
+
+// ScanExternalWith is ScanExternal narrowed by a target's deep-scan settings.
+func (s *Service) ScanExternalWith(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, st DeepSettings, own OwnEgress) (External, error) {
 	if kind == nmapargv.ExternalDisruptive {
 		return External{}, errors.New("sensoractive: the disruptive scripts run on the open ports of a full run (ScanDisruptive)")
 	}
-	return s.scanExternal(ctx, ip, kind, nil, own, nil)
+	return s.scanExternal(ctx, ip, kind, nil, st, own, nil)
 }
 
 // ScanDisruptive is the last step of a deep scan of ip, the box's own verified public IP, whose run allows the disruptive checks:
@@ -230,7 +281,14 @@ func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 // still allow the disruptive checks, else ErrNotDisruptive and nothing is sent), the probe row, the worker's own fence. Its result
 // holds the script results and the services -sV read on those ports (Probed: ports).
 func (s *Service) ScanDisruptive(ctx context.Context, ip netip.Addr, ports []int, own OwnEgress) (External, error) {
-	return s.scanExternal(ctx, ip, nmapargv.ExternalDisruptive, ports, own, nil)
+	return s.ScanDisruptiveWith(ctx, ip, ports, WideSettings(), own)
+}
+
+// ScanDisruptiveWith is ScanDisruptive with a target's deep-scan settings: the scripts of the groups st allows (narrowed again by
+// own's GroupGate right before the job), never on a port st skips, at the gentle rate when st says so.
+func (s *Service) ScanDisruptiveWith(ctx context.Context, ip netip.Addr, ports []int, st DeepSettings, own OwnEgress) (External, error) {
+	ports = slices.DeleteFunc(slices.Clone(ports), st.skips)
+	return s.scanExternal(ctx, ip, nmapargv.ExternalDisruptive, ports, st, own, nil)
 }
 
 // DomainIP is a domain_ip run of ScanDomainIP: the fence fields the worker checks and the CNAME chain core saw for the name
@@ -252,6 +310,11 @@ type DomainProber interface {
 // nmap runs. The probe row names the domain, the name and its CNAME chain. A worker that does not say domain_ip gets nothing
 // (ErrDomainUnsupported); a refusal of the worker's fence is a *DomainRefusedError.
 func (s *Service) ScanDomainIP(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, d DomainIP, gate DeepGate) (External, error) {
+	return s.ScanDomainIPWith(ctx, ip, kind, WideSettings(), d, gate)
+}
+
+// ScanDomainIPWith is ScanDomainIP narrowed by a target's deep-scan settings.
+func (s *Service) ScanDomainIPWith(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, st DeepSettings, d DomainIP, gate DeepGate) (External, error) {
 	if !kind.IsFull() {
 		return External{}, fmt.Errorf("sensoractive: a domain_ip run is a full shape, not %s", kind.Name())
 	}
@@ -261,7 +324,7 @@ func (s *Service) ScanDomainIP(ctx context.Context, ip netip.Addr, kind nmapargv
 	if kind == nmapargv.ExternalDisruptive {
 		return External{}, fmt.Errorf("sensoractive: a domain_ip run is %s, never the disruptive scripts", nmapargv.ExternalFull.Name())
 	}
-	return s.scanExternal(ctx, ip, kind, nil, domainGate{gate}, &d)
+	return s.scanExternal(ctx, ip, kind, nil, st, domainGate{gate}, &d)
 }
 
 // domainGate is the OwnEgress of a domain_ip run: never asked (probeExternal skips it), its DeepGate is the caller's.
@@ -269,12 +332,12 @@ type domainGate struct{ DeepGate }
 
 func (domainGate) OwnEgress(context.Context, netip.Addr) (bool, error) { return false, nil }
 
-func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, own OwnEgress, dom *DomainIP) (External, error) {
+func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, st DeepSettings, own OwnEgress, dom *DomainIP) (External, error) {
 	if !kind.IsExternal() {
 		return External{}, fmt.Errorf("sensoractive: %s is not an external shape", kind.Name())
 	}
 	targets := []netip.Addr{ip}
-	if _, err := nmapargv.BuildFor(kind, nmapargv.ExternalRateOf(kind), ports, targets); err != nil {
+	if _, err := nmapargv.BuildNarrow(kind, st.rate(kind), ports, st.narrow(kind), targets); err != nil {
 		return External{}, fmt.Errorf("sensoractive: %w", err)
 	}
 	if own == nil {
@@ -296,7 +359,7 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	err := s.doWork(ctx, run.Spec{Kind: RunService, Title: title, Trigger: run.Event,
 		TriggerNote: "an exposure scan", Subject: &run.Subject{Kind: "address", ID: ip.String(), Label: ip.String()}},
 		func(ctx context.Context) error {
-			res, err := s.serviceScan(ctx, ip, kind, ports, own, dom)
+			res, err := s.serviceScan(ctx, ip, kind, ports, st, own, dom)
 			got <- res
 			return err
 		}, func(ctx context.Context, err error) run.Result {
@@ -323,7 +386,7 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 }
 
 // serviceScan is the work of a service_scan run: nmap on the public address, under the run lock.
-func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, own OwnEgress, dom *DomainIP) (External, error) {
+func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, st DeepSettings, own OwnEgress, dom *DomainIP) (External, error) {
 	stops := s.stops.Load()
 	s.lockRun(ctx)
 	defer s.runMu.Unlock()
@@ -333,7 +396,7 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 	targets := []netip.Addr{ip}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRateOf(kind), kind: kind, external: true, runID: runIDOf(ctx)})
+	s.setCur(&running{cancel: cancel, targets: targets, rate: st.rate(kind), kind: kind, external: true, runID: runIDOf(ctx)})
 	defer s.setCur(nil)
 	if err := s.available(jctx); err != nil {
 		return External{}, err
@@ -342,7 +405,7 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 	if err != nil {
 		return External{}, err
 	}
-	res, err := s.probeExternal(jctx, id, ip, kind, ports, own, dom)
+	res, err := s.probeExternal(jctx, id, ip, kind, ports, st, own, dom)
 	switch {
 	case err == nil:
 		s.finishJob(ctx, id, StatusDone, 1, 0, "")
@@ -354,7 +417,7 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 	return res, err
 }
 
-func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, ports []int, own OwnEgress, dom *DomainIP) (External, error) {
+func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, ports []int, st DeepSettings, own OwnEgress, dom *DomainIP) (External, error) {
 	var note probeNote
 	var proof time.Time
 	if dom == nil {
@@ -374,17 +437,23 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 			return External{}, err
 		}
 	}
+	if kind == nmapargv.ExternalDisruptive {
+		var err error
+		if st.Groups, err = s.groupsNow(ctx, ip, st.Groups, own); err != nil {
+			return External{}, err
+		}
+	}
 	need, run := boundsOf(kind)
 	if left(ctx, run) < need {
 		return External{}, ErrNoTime
 	}
 	if kind == nmapargv.External {
-		return s.probeDefault(ctx, jobID, ip, own, proof)
+		return s.probeDefault(ctx, jobID, ip, st, own, proof)
 	}
 	var ext External
-	err := s.externalJob(ctx, jobID, ip, kind, batchSpec{ports: ports}, note, dom, proof, run, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, kind, st, batchSpec{ports: ports}, note, dom, proof, run, func(hosts []host) (string, error) {
 		var err error
-		if ext, err = externalOf(hosts, ip, kind, ports); err != nil {
+		if ext, err = externalOf(hosts, ip, kind, ports, st.narrow(kind).SkipPorts); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("ok: %d open ports, %d script results", len(ext.Services), len(ext.Scripts)), nil
@@ -414,7 +483,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 // A refusal of either fence or a stop ends the run as before: nothing more is sent and nothing is kept. A worker lost in the
 // middle keeps the finished batches. A run in which no batch finished says why: ErrHostTimedOut, the batch's error, or ErrNoTime
 // when none started.
-func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr, own OwnEgress, proof time.Time) (External, error) {
+func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr, st DeepSettings, own OwnEgress, proof time.Time) (External, error) {
 	if _, ok := ctx.Deadline(); !ok { // the step's bound when the caller gave none (exposure gives ServicesTimeout)
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, externalRun)
@@ -424,9 +493,9 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 	var scanned, open []int
 	var found []portInfo // the discovery's open ports, as nmap's port table named them
 	everywhere, refused := false, false
-	err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, nmapargv.External, st, batchSpec{}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
 		var err error
-		scanned, open, err = discoveryOf(hosts, ip)
+		scanned, open, err = discoveryOfSkipping(hosts, ip, st.SkipPorts)
 		if errors.Is(err, ErrAnswersEverywhere) {
 			everywhere = true
 			return fmt.Sprintf("ok: more than %d ports open, the address answers on almost every port; -sV reads the fixed list next", commonports.MaxBelievableOpen), nil
@@ -448,7 +517,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 	if cut || everywhere {
 		scanned, open, found = nil, nil, nil
 	}
-	batches, err := planBatches(open, scanned, last, everywhere)
+	batches, err := planBatchesSkipping(open, scanned, last, everywhere, st.SkipPorts)
 	if err != nil { // never reached: discoveryOf and planBatches bound the ports
 		return External{}, fmt.Errorf("sensoractive: %w", err)
 	}
@@ -465,7 +534,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 		},
 		run: func(ctx context.Context, b []int, h time.Duration, label string) ([]ExternalService, error) {
 			var got []ExternalService
-			err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{ports: b, host: h, label: label}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
+			err := s.externalJob(ctx, jobID, ip, nmapargv.External, st, batchSpec{ports: b, host: h, label: label}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
 				x, err := versionsOf(hosts, ip, b, false)
 				if err != nil {
 					return "", err
@@ -675,11 +744,16 @@ type lastBatch struct {
 // Every batch is read at least once every ceil(n/k) runs when k batches fit a run, and a batch that always fails cannot block the
 // others: it queues behind the ones not started.
 func planBatches(open, scanned []int, last []lastBatch, everywhere bool) ([][]int, error) {
+	return planBatchesSkipping(open, scanned, last, everywhere, nil)
+}
+
+// planBatchesSkipping is planBatches without the ports a target's settings skip, in every batch (the fixed lists' too).
+func planBatchesSkipping(open, scanned []int, last []lastBatch, everywhere bool, skip []int) ([][]int, error) {
 	var extra []int
 	if !everywhere {
 		seen := map[int]bool{}
 		add := func(p int) {
-			if !slices.Contains(nmapargv.ExtraPortNumbers, p) && !seen[p] && len(extra) < commonports.MaxBelievableOpen {
+			if !slices.Contains(nmapargv.ExtraPortNumbers, p) && !slices.Contains(skip, p) && !seen[p] && len(extra) < commonports.MaxBelievableOpen {
 				seen[p] = true
 				extra = append(extra, p)
 			}
@@ -698,7 +772,7 @@ func planBatches(open, scanned []int, last []lastBatch, everywhere bool) ([][]in
 			}
 		}
 	}
-	batches, err := nmapargv.ExternalBatches(extra)
+	batches, err := nmapargv.ExternalBatchesSkipping(extra, skip)
 	if err != nil {
 		return nil, err
 	}
@@ -837,16 +911,16 @@ type batchSpec struct {
 
 // externalJob runs one nmap job of an external shape (b: an -sV batch of the External shape, zero otherwise) with its probe row,
 // bounded by what is left of run: read turns the hosts of its XML into the row's "ok" text, or an error the row names.
-func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, b batchSpec, note probeNote, dom *DomainIP, proof time.Time,
+func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, st DeepSettings, b batchSpec, note probeNote, dom *DomainIP, proof time.Time,
 	run time.Duration, read func([]host) (string, error)) error {
 	targets := []netip.Addr{ip}
-	rate := nmapargv.ExternalRateOf(kind)
-	args, err := nmapargv.Build(kind, rate, targets)
-	flags, ferr := nmapargv.Flags(kind, rate)
+	rate, n := st.rate(kind), st.narrow(kind)
+	args, err := nmapargv.BuildNarrow(kind, rate, nil, n, targets)
+	flags, ferr := nmapargv.FlagsNarrow(kind, rate, nil, n)
 	switch {
-	case kind == nmapargv.ExternalDisruptive: // the disruptive scripts on the full run's open ports
-		args, err = nmapargv.BuildFor(kind, rate, b.ports, targets)
-		flags, ferr = nmapargv.FlagsFor(kind, rate, b.ports)
+	case kind == nmapargv.ExternalDisruptive: // the disruptive scripts of the groups allowed on the full run's open ports
+		args, err = nmapargv.BuildNarrow(kind, rate, b.ports, n, targets)
+		flags, ferr = nmapargv.FlagsNarrow(kind, rate, b.ports, n)
 	case b.ports != nil:
 		args, err = nmapargv.BuildBatch(rate, b.ports, b.host, targets)
 		flags, ferr = nmapargv.BatchFlags(rate, b.ports, b.host)
@@ -961,10 +1035,20 @@ var errOlderShape = fmt.Errorf("%w: the worker ran the earlier fixed-list line",
 // exactly nmapargv.ExternalTopPorts ports, as --top-ports asked: anything else is not the run that was asked for) and the open ones
 // among them, ascending. More than commonports.MaxBelievableOpen open is ErrAnswersEverywhere: the -sV batches then read the fixed list alone.
 func discoveryOf(hosts []host, ip netip.Addr) (scanned, open []int, err error) {
+	return discoveryOfSkipping(hosts, ip, nil)
+}
+
+// discoveryOfSkipping is discoveryOf of a discovery that named skip in --exclude-ports: nmap probes nmap's top ports without them,
+// so the run probed ExternalTopPorts less those of skip among them (at most len(skip) fewer), and never one of skip (an answer from a
+// skipped port is not believed: the run did not do what was asked).
+func discoveryOfSkipping(hosts []host, ip netip.Addr, skip []int) (scanned, open []int, err error) {
 	if len(hosts) == 1 {
 		scanned = expandRanges(hosts[0].scanned, 65535)
 	}
-	if len(scanned) != nmapargv.ExternalTopPorts && (len(hosts) != 1 || !hosts[0].timedOut) {
+	if len(skip) > 0 {
+		scanned = slices.DeleteFunc(scanned, func(p int) bool { return slices.Contains(skip, p) })
+	}
+	if (len(scanned) > nmapargv.ExternalTopPorts || len(scanned) < nmapargv.ExternalTopPorts-len(skip)) && (len(hosts) != 1 || !hosts[0].timedOut) {
 		if slices.Equal(scanned, commonports.Numbers()) {
 			return nil, nil, errOlderShape
 		}
@@ -1046,11 +1130,12 @@ func externalServicesOf(h host) []ExternalService {
 // externalOf reads the result of a full run (every TCP port, -p-; the disruptive scripts' run: ports only): the services of its open
 // ports (more than commonports.MaxBelievableOpen is ErrAnswersEverywhere) and its script results (of an open port, or of the host).
 // The External shape's two runs are read by discoveryOf and versionsOf.
-func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports []int) (External, error) {
+// skip are the ports a full run named in --exclude-ports: an answer from one of them is not believed.
+func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports, skip []int) (External, error) {
 	if !kind.IsFull() {
 		return External{}, fmt.Errorf("sensoractive: %s is not a full shape", kind.Name())
 	}
-	asked := func(p int) bool { return p >= 1 && p <= 65535 }
+	asked := func(p int) bool { return p >= 1 && p <= 65535 && !slices.Contains(skip, p) }
 	if kind == nmapargv.ExternalDisruptive {
 		asked = func(p int) bool { return slices.Contains(ports, p) }
 	}
@@ -1058,7 +1143,7 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports []int) (E
 	if err != nil {
 		return External{}, err
 	}
-	ext := External{Services: externalServicesOf(h), Ports: 65535, Scripts: []ExternalScript{}, Refused: h.closed > 0}
+	ext := External{Services: externalServicesOf(h), Ports: 65535 - len(skip), Scripts: []ExternalScript{}, Refused: h.closed > 0}
 	if kind == nmapargv.ExternalDisruptive {
 		ext.Ports, ext.Probed = len(ports), slices.Clone(ports)
 	}
@@ -1103,6 +1188,27 @@ func (s *Service) deepNow(ctx context.Context, ip netip.Addr, asked nmapargv.Kin
 		return 0, ErrNotDisruptive
 	}
 	return asked, nil // never more than asked
+}
+
+// groupsNow narrows the disruptive groups of a run to those own's GroupGate allows now (a gate without it keeps the run's own);
+// none left → ErrNotDisruptive, nothing sent.
+func (s *Service) groupsNow(ctx context.Context, ip netip.Addr, run nmapargv.Groups, own OwnEgress) (nmapargv.Groups, error) {
+	g := run
+	if gg, ok := own.(GroupGate); ok {
+		now, err := gg.GroupsNow(ctx)
+		switch {
+		case ctx.Err() != nil:
+			return 0, ErrStopped
+		case err != nil:
+			return 0, fmt.Errorf("sensoractive: checking the deep-scan settings of %s: %w", ip, err)
+		}
+		g &= now
+	}
+	if g&nmapargv.AllGroups == 0 {
+		s.log.InfoContext(ctx, "sensoractive: the target's settings allow no disruptive group now; the disruptive scripts were not sent", "ip", ip.String())
+		return 0, ErrNotDisruptive
+	}
+	return g, nil
 }
 
 // maxProbeResult is sa_probe.result's CHECK (length(result) <= 200, migration 0006).

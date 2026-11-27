@@ -309,10 +309,11 @@ func (d *Dispatcher) ProbeDomain(ctx context.Context, argv []string, scope senso
 }
 
 func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink.DomainScope, provenAt time.Time) (Output, error) {
-	kind, rate, ports, targets, err := nmapargv.ParseFor(argv)
+	kind, rate, ports, narrow, targets, err := nmapargv.ParseNarrow(argv)
 	if err != nil {
 		return Output{}, fmt.Errorf("sensoractive: %w", err)
 	}
+	narrowed := narrow.Groups != nmapargv.AllGroups || len(narrow.SkipPorts) > 0 || kind.IsFull() && rate == nmapargv.GentleRate
 	if !provenAt.IsZero() && (!kind.IsExternal() || len(targets) != 1) { // a proof is of the box's own IP: the one target of an external shape
 		return Output{}, fmt.Errorf("sensoractive: an ownership proof goes with an external shape on one address, not %s on %d", kind.Name(), len(targets))
 	}
@@ -325,6 +326,14 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 		d.mu.Unlock()
 		if !ok {
 			return Output{}, ErrFullUnsupported
+		}
+	}
+	if narrowed { // Only a worker whose heartbeat says it runs a target's deep-scan settings gets them (pollLocked again at hand-over)
+		d.mu.Lock()
+		ok := d.nmap.Narrow
+		d.mu.Unlock()
+		if !ok {
+			return Output{}, ErrNarrowUnsupported
 		}
 	}
 	if kind == nmapargv.PortVersions { // Only a worker whose heartbeat says it takes a job's ports gets one
@@ -350,6 +359,9 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 		HostTimeoutS: int(nmapargv.HostTimeoutOf(argv) / time.Second)}}
 	if scope != nil {
 		j.spec.Scope, j.spec.Domain = sensorlink.ScopeDomainIP, scope
+	}
+	if narrow.Groups != nmapargv.AllGroups || len(narrow.SkipPorts) > 0 {
+		j.spec.Narrow = &sensorlink.NmapNarrow{Groups: narrow.Groups.Names(), SkipPorts: narrow.SkipPorts}
 	}
 	if !provenAt.IsZero() {
 		at := provenAt.UTC()
@@ -618,6 +630,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k.IsFull() && !d.nmap.Full {
 			continue // the latest heartbeat says this worker runs no full shape (an older worker, or a downgrade since Probe checked): wait
+		}
+		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && !d.nmap.Narrow && (s.pending.spec.Narrow != nil || k.IsFull() && s.pending.spec.Rate == nmapargv.GentleRate) {
+			continue // the same for a target's deep-scan settings (nmap.narrow): wait, never the wider line
 		}
 		j := s.pending
 		if !d.ownProof { // the latest heartbeat says this worker takes no proof (an older worker): the job in the shape it knows

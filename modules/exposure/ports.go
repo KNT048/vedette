@@ -70,6 +70,10 @@ type ScanTarget struct {
 	SkipPorts []int
 	SkipPaths []string
 	Gentle    bool
+	// Groups are the groups the target's settings allow, apart from what the run's rules allow (Mode): nmap's full sweep runs the
+	// scripts of these groups' (scheduled scans too, which never run the disruptive checks themselves); the disruptive checks follow
+	// Mode. Zero is none (narrowest).
+	Groups Groups
 	// Typed: the target is a public IP a person typed in (INV-35); its proof is looked for again before the steps that reach the address.
 	Typed bool
 	// TypedWhy is, for a typed IP whose deep steps cannot run, the line that says why (no testing terms, no fence, the proof not found): the

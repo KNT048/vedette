@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -29,6 +30,26 @@ import (
 type exposureWebScan struct {
 	host  zapHost                                                    // nil: no vedette-host on this install
 	token func(ctx context.Context, targetID string) (string, error) // the TXT token of a domain target
+}
+
+// ExcludesPaths says the host's ZAP leaves a target's web paths to skip out of both passes (exposure.PathExcluder): the host builds
+// the excludes of its plan from api.ZapSettings.SkipPaths, and an older host refuses the field (the page fails, nothing is sent).
+func (exposureWebScan) ExcludesPaths() bool { return true }
+
+// zapSettingsOf is what the host is told of t's deep-scan settings for one page (nil when they narrow nothing): the web paths to
+// skip; for the active pass with the disruptive rules, the class the run does not allow (no_dos, no_change), and gentle.
+func zapSettingsOf(t exposure.ScanTarget, active, disruptive bool) *api.ZapSettings {
+	st := api.ZapSettings{SkipPaths: slices.Clone(t.SkipPaths)}
+	if active {
+		st.Gentle = t.Gentle
+		if disruptive {
+			st.NoDoS, st.NoChange = !t.Mode.DoS, !t.Mode.Change
+		}
+	}
+	if len(st.SkipPaths) == 0 && !st.Gentle && !st.NoDoS && !st.NoChange {
+		return nil
+	}
+	return &st
 }
 
 // zapHost is what the scan needs of the host client (*hostclient.Client).
@@ -221,8 +242,10 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		if aa.Disruptive {
 			aa.Grant = t.Grant
 		}
+		aa.Settings = zapSettingsOf(t, true, aa.Disruptive)
 		run, err = w.host.ZapActive(ctx, aa, id, actor)
 	} else {
+		args.Settings = zapSettingsOf(t, false, false)
 		run, err = w.host.ZapBaseline(ctx, args, id, actor)
 	}
 	if err != nil {
@@ -232,7 +255,8 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			w.stop(ctx, id, actor)
 			return exposure.WebScan{}, ctx.Err()
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
-			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "" || active && t.Grant != "")): // an older host refuses a proof it does not know
+			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "" || active && t.Grant != "" ||
+				zapSettingsOf(t, active, true) != nil)): // an older host refuses a proof, or settings, it does not know
 
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
 		}
@@ -256,7 +280,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	}
 	var reportID, refused string
 	cut := false
-	var disruptiveRules []string
+	var disruptiveRules, skippedRules []string
 	if active {
 		res, err := hostclient.ResultOf[api.ZapActiveResult](run)
 		if err != nil {
@@ -271,6 +295,9 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		}
 		for _, r := range res.DisruptiveRules {
 			disruptiveRules = append(disruptiveRules, strconv.Itoa(r))
+		}
+		for _, r := range res.SkippedRules {
+			skippedRules = append(skippedRules, strconv.Itoa(r))
 		}
 	} else {
 		res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
@@ -289,7 +316,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	if err != nil {
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
-	return exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules, DisruptiveRefused: refused}, nil
+	return exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules, DisruptiveRefused: refused, SkippedRules: skippedRules}, nil
 }
 
 // stop stops the ZAP run of request runID on the host when exposure gave up on it (the scan was stopped, or the page's time ran

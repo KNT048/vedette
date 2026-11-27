@@ -209,6 +209,9 @@ type HeartbeatNmap struct {
 	// Ports (protocol 5) says the worker runs the port_versions shape, whose job carries its ports. An older worker leaves it
 	// out: core then never sends it one (the weekly scan of every port then records the open ports without their versions).
 	Ports bool `json:"ports,omitempty"`
+	// Narrow (protocol 5) says the worker runs a target's deep-scan settings: Job.Narrow and the gentle rate of the full shapes. An
+	// older worker leaves it out: core then never sends it a narrowed or gentle line (nothing is sent; never the wider line).
+	Narrow bool `json:"narrow,omitempty"`
 }
 
 // HeartbeatNuclei says whether the worker can run nuclei: Present is "the pinned binary runs -version"; Pack is
@@ -277,9 +280,20 @@ type Job struct {
 	// sighting of its one target as the box's own public IP, from which the address stays proven for egressip.ProofValid. Core
 	// sends it only to a worker whose heartbeat says own_proof; nil on every other job, which keeps the shape an older worker knows.
 	ProvenAt *time.Time
+	// Narrow (protocol 5) is a target's deep-scan settings on an nmap job of an external shape: the groups its full shape may run and
+	// the ports it skips (nmapargv.Narrow); the worker builds the line with nmapargv.BuildNarrow. nil is every group and no port
+	// skipped, the line of before; core sends it only to a worker whose heartbeat says nmap.narrow.
+	Narrow *NmapNarrow
 
 	Nuclei *NucleiJob // nuclei, nil for the others
 	SNMP   *SNMPJob   // snmp, nil for the others
+}
+
+// NmapNarrow is the deep-scan settings of an nmap job: Groups are the groups allowed ("dos", "logins", "change"; an empty list
+// is none), SkipPorts the ports skipped (ascending, at most 64). The worker's grammar checks both again.
+type NmapNarrow struct {
+	Groups    []string `json:"groups"`
+	SkipPorts []int    `json:"skip_ports,omitempty"`
 }
 
 // SNMPJob is a round of SNMP reads (protocol 5): for each target, in order, the worker sends the target's own
@@ -490,6 +504,7 @@ type nmapWire struct {
 	Ports    []int        `json:"ports,omitempty"`
 	HostS    int          `json:"host_timeout_s,omitempty"`
 	ProvenAt *time.Time   `json:"proven_at,omitempty"`
+	Narrow   *NmapNarrow  `json:"narrow,omitempty"`
 }
 
 type nucleiWire struct {
@@ -510,7 +525,7 @@ type snmpWire struct {
 func (j Job) MarshalJSON() ([]byte, error) {
 	switch j.Kind {
 	case "", KindNmap:
-		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports, HostS: j.HostTimeoutS, ProvenAt: j.ProvenAt})
+		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports, HostS: j.HostTimeoutS, ProvenAt: j.ProvenAt, Narrow: j.Narrow})
 	case KindNuclei:
 		if j.Nuclei == nil {
 			return nil, errors.New("sensorlink: a nuclei job without its fields")
@@ -549,7 +564,7 @@ func (j *Job) UnmarshalJSON(raw []byte) error {
 		if err := strict(&w); err != nil {
 			return err
 		}
-		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports, HostTimeoutS: w.HostS, ProvenAt: w.ProvenAt}
+		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports, HostTimeoutS: w.HostS, ProvenAt: w.ProvenAt, Narrow: w.Narrow}
 	case KindNuclei:
 		var w nucleiWire
 		if err := strict(&w); err != nil {

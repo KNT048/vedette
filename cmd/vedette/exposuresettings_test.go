@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
@@ -175,5 +179,53 @@ func TestExposureSettings_GentleNucleiJobs(t *testing.T) {
 				t.Fatalf("gentle %v: rate %d", gentle, r.Rate)
 			}
 		}
+	}
+}
+
+// Web paths to skip the host does not take (it refuses "/" alone, which would leave out the page itself, and more than
+// api.ZapMaxSkipPaths, which a domain's address can reach with the paths of its IP target): nothing is sent to the host, and the
+// reason is the settings, never "the host is older" (an update would not change it).
+func TestExposureSettings_PathsTheHostRefusesSendNothing(t *testing.T) {
+	t.Parallel()
+	many := make([]string, api.ZapMaxSkipPaths+1)
+	for i := range many {
+		many[i] = "/p" + strconv.Itoa(i)
+	}
+	for name, paths := range map[string][]string{"every path": {"/admin", "/"}, "too many paths": many} {
+		h := &fakeZapHost{run: zapRun(t, api.StatusFailed, api.CodeInvalidArgs, nil)}
+		w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
+		ipT := webIPTarget
+		ipT.SkipPaths = paths
+		_, err := w.Baseline(t.Context(), ipT, webIPPage)
+		var un *exposure.Unavailable
+		if !errors.As(err, &un) || un.Reason == webOldHost || !strings.Contains(un.Reason, "settings") {
+			t.Errorf("%s: passive %v", name, err)
+		}
+		ipT.Mode = exposure.ScanMode{Full: true, WebActive: true}
+		_, err = w.Active(t.Context(), ipT, webIPPage)
+		if !errors.As(err, &un) || un.Reason == webOldHost || !strings.Contains(un.Reason, "settings") {
+			t.Errorf("%s: active %v", name, err)
+		}
+		if h.got.URL != "" || len(h.active) != 0 {
+			t.Errorf("%s: the host was asked: baseline %q, %d active", name, h.got.URL, len(h.active))
+		}
+	}
+}
+
+// A host that refuses the args of a page sent without any settings (here an active page without the disruptive rules, of a target
+// whose settings keep the denial-of-service checks off) is not an older host refusing the settings: the page fails as itself.
+func TestExposureSettings_InvalidArgsWithoutSettingsIsNotAnOldHost(t *testing.T) {
+	t.Parallel()
+	h := &fakeZapHost{err: &hostclient.Error{Status: 400, Code: api.CodeInvalidArgs}}
+	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
+	ipT := webIPTarget
+	ipT.Mode = exposure.ScanMode{Full: true, Disruptive: true, Logins: true, Change: true, WebActive: true, Off: exposure.GroupDoS}
+	_, err := w.Active(t.Context(), ipT, webIPPage)
+	if len(h.active) != 1 || h.active[0].Settings != nil {
+		t.Fatalf("the page was not sent without settings: %+v", h.active)
+	}
+	var un *exposure.Unavailable
+	if err == nil || errors.As(err, &un) {
+		t.Fatalf("%v, want a failure of this page", err)
 	}
 }

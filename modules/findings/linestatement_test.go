@@ -617,3 +617,28 @@ func TestPossibleCheck_TheAIFailingInARowStopsTheRun(t *testing.T) {
 		t.Errorf("the failed item is not held with its reason and retry time: %+v", h)
 	}
 }
+
+// The streak counts calls, not CVEs: a CVE with more release lines than one call carries (possibleCheckItems a call) makes several calls,
+// and when the AI answers none of them the run stops after aiFailStreak calls, not after every call of that CVE.
+func TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE(t *testing.T) {
+	t.Parallel()
+	e, fc := possibleWorld(t)
+	const cve = "CVE-2026-91100"
+	fc.pages[cve] = []FetchedPage{{URL: dsmPageURL + "#" + cve, Status: "ok", Text: cve + " concerns Synology DiskStation Manager (DSM)."}}
+	fc.refuse = map[string]error{cve: errors.New("the AI provider returned an error (HTTP 500)")}
+	var units []checkUnit
+	for i := range (aiFailStreak + 2) * possibleCheckItems {
+		line := fmt.Sprintf("7.%d", i)
+		units = append(units, checkUnit{key: "k-" + line, cve: cve, id: CheckID{Product: "synology|diskstation_manager", Line: line, Version: line + ".1-69057-5", Record: "r"},
+			devs: []string{"nas-01"}})
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), units, SystemUser)
+	run := *e.svc.check.run
+	if run.Stopped == nil || !strings.Contains(*run.Stopped, "in a row") || len(fc.sent) != aiFailStreak {
+		t.Fatalf("run %+v after %d calls: want it stopped after %d failures in a row", run, len(fc.sent), aiFailStreak)
+	}
+	if run.Failed != len(units) {
+		t.Errorf("failed %d of %d units: every unit the stop left is not checked", run.Failed, len(units))
+	}
+}

@@ -458,7 +458,7 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 		}
 		group := units[i:j]
 		i = j
-		res := s.checkCVE(ctx, group, actor)
+		res := s.checkCVE(ctx, group, actor, &streak)
 		failed, checks, readings := res.failed, res.checks, res.readings
 		if len(checks) > 0 || len(readings) > 0 || len(res.seen) > 0 {
 			if err := s.storeChecks(ctx, checks, readings, res.seen); err != nil {
@@ -497,13 +497,6 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 		})
 		if res.stop != "" {
 			stopped = res.stop
-			break
-		}
-		if res.answered > 0 {
-			streak = 0
-		}
-		if streak += res.aiFailed; streak >= aiFailStreak {
-			stopped = fmt.Sprintf("The AI failed on %d calls in a row (%s); the reading goes on at the next run.", streak, res.lastFail)
 			break
 		}
 		if ctx.Err() != nil {
@@ -555,17 +548,13 @@ func mapsKeys[K comparable, V any](m map[K]V) func(func(K) bool) {
 
 // cveCheck is what the check of one CVE produced: checks of exact versions (the box's own reading, or undecided), the AI's readings of
 // release lines, the readings whose page was fetched again and found unchanged, how many units were not checked, and why the run
-// stops ("" when it goes on). answered and aiFailed count the AI calls that answered and those that failed for a reason Propose did not
-// name (lastFail, the last one's error); a refused call (ItemRefused) is neither: it says nothing about the AI.
+// stops ("" when it goes on).
 type cveCheck struct {
 	checks   []Check
 	readings []LineStatement
 	seen     []string
 	failed   int
 	stop     string
-
-	answered, aiFailed int
-	lastFail           string
 }
 
 // lineAsk is one release line of a CVE the AI is asked about, with the units (exact versions) on it.
@@ -575,8 +564,10 @@ type lineAsk struct {
 }
 
 // checkCVE checks the units of one CVE: the pages first, then the AI, once per release line, for what they leave. stop is set when the
-// run must stop (the AI unavailable, a budget reached): what was decided so far is returned.
-func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string) (res cveCheck) {
+// run must stop (the AI unavailable, a budget reached, aiFailStreak failed calls in a row): what was decided so far is returned. streak
+// is the run's count of AI calls in a row that failed for a reason Propose did not name, with no answer between: an answer sets it to 0,
+// a refused call (ItemRefused) leaves it, since it says nothing about the AI.
+func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string, streak *int) (res cveCheck) {
 	cve := group[0].cve
 	now := s.now()
 	rec, err := s.cfg.Checker.Record(ctx, cve)
@@ -694,15 +685,19 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 			if refused := (*ItemRefused)(nil); errors.As(err, &refused) {
 				wait = max(refused.RetryAfter, possibleRetry)
 			} else {
-				res.aiFailed++
-				res.lastFail = why
+				*streak++
 			}
 			s.hold(keys, now.Add(wait), why)
-			s.cfg.Log.InfoContext(ctx, "findings: an AI reading of a possible CVE was not made; the check goes on with the next item", "cve", cve,
+			s.cfg.Log.InfoContext(ctx, "findings: an AI reading of a possible CVE was not made", "cve", cve,
 				"items", len(keys), "retry_after", wait.String(), "reason", clipBytes(why, 300))
+			if *streak >= aiFailStreak { // the AI answers nothing at all: the run stops here, the items left wait for the next run
+				res.failed += n - len(keys)
+				res.stop = fmt.Sprintf("The AI failed on %d calls in a row (%s); the reading goes on at the next run.", *streak, why)
+				return res
+			}
 			continue
 		}
-		res.answered++
+		*streak = 0
 		s.hold(keys, time.Time{}, "")
 		byIndex := map[int]ProposeVerdict{}
 		for _, v := range ans.Verdicts {

@@ -248,9 +248,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   or the runaway fuse, the provider unreachable). A call refused for its own text or answer (`ItemRefused`: a hook, an answer outside the
   schema or cut off) is that call's items alone: the run goes on with the next item, and the automatic reading leaves those items until
   their retry time (a day), so one item that cannot be read is never first again at every run. Any other failed call does the same with
-  an hour's wait; `aiFailStreak` (3) such failures in a row, with no answer between, stop the run. A person's check reads held items at
+  an hour's wait; `aiFailStreak` (3) such calls in a row, with no answer between, stop the run, also within one CVE. A person's check reads held items at
   once; an answer clears the hold (kept in memory only). `TestAutoRead_RunsOnlyWhenSwitchedOn`, `TestAutoRead_ARefusedItemDoesNotStopTheNext`,
-  `TestPossibleCheck_TheAIFailingInARowStopsTheRun`.
+  `TestPossibleCheck_TheAIFailingInARowStopsTheRun`, `TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE`.
 - **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
   possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
   come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The

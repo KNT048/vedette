@@ -57,7 +57,7 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Local", Kind: "openai-compatible", APIStyle: provider.StyleOpenAI, BaseURL: "http://192.168.10.5:11434/v1",
+	p, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Local", Kind: "openai-compatible", APIStyle: provider.StyleOpenAI, BaseURL: "http://10.0.0.5:11434/v1",
 		Model: "m", Location: ai.LocationInternal, MonthlyBudget: 600000})
 	if err != nil {
 		t.Fatal(err)

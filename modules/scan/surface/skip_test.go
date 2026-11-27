@@ -74,20 +74,20 @@ func TestDomainScanNeverDialsASkippedPort(t *testing.T) {
 		if _, err := s.DomainWith(t.Context(), "acme.example", Every, may, Options{SkipPorts: []int{80}}); err != nil {
 			t.Fatal(err)
 		}
-		if d := n.dials("203.0.113.10:80"); d != 0 {
-			t.Fatalf("the skipped port was dialled %d times", d)
+		if slices.Contains(n.dialed, "203.0.113.10:80") {
+			t.Fatalf("the skipped port was dialled: %q", n.dialed)
 		}
-		if n.dials("203.0.113.10:443") == 0 {
+		if !slices.Contains(n.dialed, "203.0.113.10:443") {
 			t.Fatal("port 443 was not checked")
 		}
 	})
 }
 
-// Gentle dials at gentleDialRate, gentleDialParallel at a time, and reads gentlePageParallel pages at once: on the bubble's clock, a
-// gentle port scan of the list takes at least len(list)/gentleDialRate seconds.
+// Gentle dials at gentleDialRate, gentleDialParallel at a time: on the bubble's clock, a gentle port scan of the list takes at least
+// len(list)/gentleDialRate seconds. The pages stay as they are (one GET of / a web port), and the scan still fits scanTimeout.
 func TestGentleDialsSlower(t *testing.T) {
 	t.Parallel()
-	if gentleDialRate >= dialRate || gentleDialParallel >= dialParallel || gentlePageParallel >= pageParallel || gentleDialRate < 1 {
+	if gentleDialRate >= dialRate || gentleDialParallel >= dialParallel || gentleDialRate < 1 {
 		t.Fatal("gentle is not slower than normal")
 	}
 	synctest.Test(t, func(t *testing.T) {
@@ -99,7 +99,11 @@ func TestGentleDialsSlower(t *testing.T) {
 			t.Fatalf("a gentle port scan took %s, less than %s", took, least)
 		}
 	})
-	if pace(Options{}) != (pacing{dialRate, dialParallel, pageParallel}) || pace(Options{Gentle: true}) != (pacing{gentleDialRate, gentleDialParallel, gentlePageParallel}) {
+	if pace(Options{}) != (pacing{dialRate, dialParallel}) || pace(Options{Gentle: true}) != (pacing{gentleDialRate, gentleDialParallel}) {
 		t.Fatal("pace")
+	}
+	// the scan's worst case at the gentle rate: the port scan of 20 addresses, the rest as at the normal rate (the comment of scanTimeout)
+	if extra := time.Duration(20*len(commonPorts))*time.Second/gentleDialRate - time.Duration(20*len(commonPorts))*time.Second/dialRate; 271*time.Second+extra > scanTimeout {
+		t.Fatalf("a gentle scan's worst case is over scanTimeout by %s", 271*time.Second+extra-scanTimeout)
 	}
 }

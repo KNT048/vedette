@@ -30,7 +30,7 @@ func scriptOf(args []string) string {
 	return ""
 }
 
-var oneIP = []netip.Addr{netip.MustParseAddr("203.0.113.7")}
+var oneIP = []netip.Addr{netip.MustParseAddr("8.8.8.8")}
 
 // Every script of the two full lists is in exactly one group or in the always-on base, held against nmap 7.95's own categories:
 // the dos category and the crash checks are denial of service (whatever their category, a check that can crash or exhaust a service

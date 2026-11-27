@@ -61,7 +61,31 @@ const (
 	resolveParallel = 32
 	ctTimeout       = 45 * time.Second
 	scanTimeout     = 5 * time.Minute
+	// The gentle speed of a target's deep-scan settings: a third of dialRate, fewer connects at once. The port scan of 20 addresses
+	// then takes about 20 s instead of 7: the worst case above stays under scanTimeout. The pages are as they are (one GET of / a web
+	// port).
+	gentleDialRate     = 100
+	gentleDialParallel = 30
 )
+
+// Options are a target's deep-scan settings as the surface scan takes them: SkipPorts are never dialled (no connect, no page, no
+// handshake; the probe log says how many ports were left out), Gentle connects more slowly. The zero value is the scan of before.
+type Options struct {
+	SkipPorts []int
+	Gentle    bool
+}
+
+func (o Options) skips(port int) bool { return slices.Contains(o.SkipPorts, port) }
+
+// pacing is how fast the port scan connects.
+type pacing struct{ rate, parallel int }
+
+func pace(o Options) pacing {
+	if o.Gentle {
+		return pacing{gentleDialRate, gentleDialParallel}
+	}
+	return pacing{dialRate, dialParallel}
+}
 
 // ErrDNS means the box's resolver gave no clear answer for the domain itself (time-out, server failure, or the DNS phase ran out of
 // time before it): the scan stops, as for ErrCT, because a snapshot without the names would say they are gone.
@@ -228,6 +252,11 @@ var Every = Names{Find: true}
 // through them. ErrCT when the search gives no answer, ErrTooManyNames when the domain has more names to scan than one scan reads,
 // ErrTooLong past the time cap.
 func (s *Scanner) Domain(ctx context.Context, domain string, names Names, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
+	return s.DomainWith(ctx, domain, names, mayScanPorts, Options{})
+}
+
+// DomainWith is Domain with a target's deep-scan settings: a port they skip is neither port-scanned nor checked by name.
+func (s *Scanner) DomainWith(ctx context.Context, domain string, names Names, mayScanPorts func(context.Context, netip.Addr) bool, o Options) (Result, error) {
 	domain = strings.ToLower(domain)
 	if !nameRE.MatchString(domain) {
 		return Result{}, fmt.Errorf("surface: %q is not a domain name", domain)
@@ -299,7 +328,11 @@ func (s *Scanner) Domain(ctx context.Context, domain string, names Names, maySca
 		if i := slices.IndexFunc(a.addrs, s.public); i >= 0 { // the checks by name go to its first public address, the same every day
 			at := hostAddr{host: n, ip: a.addrs[i]}
 			contacted[n] = a.addrs[i]
-			jobs = append(jobs, fetchJob{hostAddr: at, port: portByNumber[80]}, fetchJob{hostAddr: at, port: portByNumber[443]})
+			for _, port := range []int{80, 443} {
+				if !o.skips(port) {
+					jobs = append(jobs, fetchJob{hostAddr: at, port: portByNumber[port]})
+				}
+			}
 		}
 		for _, ip := range a.addrs {
 			if s.public(ip) && !slices.Contains(public, ip) {
@@ -326,7 +359,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, names Names, maySca
 	for i := range res.Hosts {
 		res.Hosts[i].Addrs = s.classify(d.answers[res.Hosts[i].Name].addrs, box, contacted[res.Hosts[i].Name])
 	}
-	open, refused, err := s.scanPorts(ctx, ips)
+	open, refused, err := s.scanPorts(ctx, ips, o)
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -341,13 +374,18 @@ func (s *Scanner) Domain(ctx context.Context, domain string, names Names, maySca
 // IP scans the box's own public address (a verified IP target): every port of commonPorts, then the pages and certificates of
 // the open ones, with the IP as the host.
 func (s *Scanner) IP(ctx context.Context, ip netip.Addr) (Result, error) {
+	return s.IPWith(ctx, ip, Options{})
+}
+
+// IPWith is IP with a target's deep-scan settings: a port they skip is never dialled.
+func (s *Scanner) IPWith(ctx context.Context, ip netip.Addr, o Options) (Result, error) {
 	ip = ip.Unmap()
 	if !s.public(ip) {
 		return Result{}, fmt.Errorf("%w: %s", ErrNotPublic, ip)
 	}
 	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
 	defer cancel()
-	open, refused, err := s.scanPorts(ctx, []netip.Addr{ip})
+	open, refused, err := s.scanPorts(ctx, []netip.Addr{ip}, o)
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -443,14 +481,19 @@ func (s *Scanner) record(ctx context.Context, ps []Probe, done bool) error {
 	return nil
 }
 
-// scanPorts connects to every port of commonPorts on every address, at most dialRate new connections a second and dialParallel at
-// once, and returns the ports that accepted, in order. A connection is closed as soon as it opens: nothing is sent. One probe-log
-// line an address, written before and completed with the open ports after. refused are the addresses where a connect got a TCP
-// reset (ECONNREFUSED: a closed port answered), sorted.
-func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr) (open map[netip.Addr][]int, refused []netip.Addr, err error) {
+// scanPorts connects to every port of commonPorts that o does not skip on every address, at most dialRate new connections a second
+// and dialParallel at once (pace: fewer when gentle), and returns the ports that accepted, in order. A connection is closed as soon
+// as it opens: nothing is sent. One probe-log line an address, written before and completed with the open ports after. refused are
+// the addresses where a connect got a TCP reset (ECONNREFUSED: a closed port answered), sorted.
+func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr, o Options) (open map[netip.Addr][]int, refused []netip.Addr, err error) {
+	ports := slices.DeleteFunc(slices.Clone(commonPorts), func(p portSpec) bool { return o.skips(p.port) })
+	req := "TCP connect to " + strconv.Itoa(len(ports)) + " ports"
+	if n := len(commonPorts) - len(ports); n > 0 {
+		req += " (" + strconv.Itoa(n) + " skipped by the target's settings)"
+	}
 	probes := make([]Probe, len(ips))
 	for i, ip := range ips {
-		probes[i] = Probe{ID: probeID(), Addr: ip, Label: ip.String(), Kind: "tcp", Request: "TCP connect to " + strconv.Itoa(len(commonPorts)) + " ports"}
+		probes[i] = Probe{ID: probeID(), Addr: ip, Label: ip.String(), Kind: "tcp", Request: req}
 	}
 	if err := s.record(ctx, probes, false); err != nil {
 		return nil, nil, err
@@ -458,13 +501,14 @@ func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr) (open map[net
 	open = map[netip.Addr][]int{}
 	reset := map[netip.Addr]bool{}
 	var mu sync.Mutex
-	sem := make(chan struct{}, dialParallel)
-	tick := time.NewTicker(time.Second / dialRate)
+	pc := pace(o)
+	sem := make(chan struct{}, pc.parallel)
+	tick := time.NewTicker(time.Second / time.Duration(pc.rate))
 	defer tick.Stop()
 	var wg sync.WaitGroup
 loop:
 	for _, ip := range ips {
-		for _, spec := range commonPorts {
+		for _, spec := range ports {
 			select {
 			case <-ctx.Done():
 				break loop
@@ -500,7 +544,7 @@ loop:
 		}
 		probes[i].Answered = len(list) > 0
 		probes[i].Request += "; open: " + cmp.Or(strings.Join(list, ", "), "none")
-		s.log.InfoContext(ctx, "exposure_scan_ports", "ip", ip.String(), "tried", len(commonPorts), "open", open[ip])
+		s.log.InfoContext(ctx, "exposure_scan_ports", "ip", ip.String(), "tried", len(ports), "open", open[ip])
 	}
 	for _, ip := range ips {
 		if reset[ip] {

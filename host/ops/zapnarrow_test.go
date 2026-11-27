@@ -13,8 +13,8 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The deep-scan settings of a target, as zap.baseline and zap.active take them: rule classes turned off (no_dos, no_change), web
-// paths to skip (skip_paths) and the gentle speed. Each only narrows what the run does; the host builds every pattern itself from
+// The deep-scan settings of a target, as zap.baseline and zap.active take them (args.settings): rule classes turned off (no_dos,
+// no_change), web paths to skip (skip_paths) and the gentle speed. Each only narrows what the run does; the host builds every pattern itself from
 // validated prefixes, and the grant and gateway checks of the disruptive rules stay exactly as they are.
 
 // The rules of the split that request fixed file names (not a page the spider found): ZAP does not apply the context's excludes to
@@ -58,7 +58,7 @@ func (a *zapAuthz) activeWith(extra map[string]any) (narrowResult, string) {
 func TestZapArgs_SkipPaths(t *testing.T) {
 	t.Parallel()
 	page := func(paths ...string) api.ZapBaselineArgs {
-		return api.ZapBaselineArgs{URL: "https://" + zapTestIP + ":8443/", Host: zapTestIP, IP: zapTestIP, Port: 8443, Kind: api.ZapKindIP, SkipPaths: paths}
+		return api.ZapBaselineArgs{URL: "https://" + zapTestIP + ":8443/", Host: zapTestIP, IP: zapTestIP, Port: 8443, Kind: api.ZapKindIP, Settings: &api.ZapSettings{SkipPaths: paths}}
 	}
 	p, err := zapArgs(page("/admin", "/api/v1/delete", "/a-b_c.d~e%20f!&',;=:@"))
 	if err != nil || len(p.skip) != 3 {
@@ -86,7 +86,7 @@ func TestZapArgs_SkipPaths(t *testing.T) {
 	} {
 		_, err := zapArgs(page(paths...))
 		var ae *server.ArgsError
-		if !errors.As(err, &ae) || ae.Details[0].Field != "args.skip_paths" {
+		if !errors.As(err, &ae) || ae.Details[0].Field != "args.settings.skip_paths" {
 			t.Errorf("%s: %v", name, err)
 		}
 		if _, err := zapActiveArgs(api.ZapActiveArgs{ZapBaselineArgs: page(paths...)}); err == nil {
@@ -102,7 +102,7 @@ func TestZapArgs_SkipPaths(t *testing.T) {
 func TestZapActive_ClassesOffLeaveTheirRules(t *testing.T) {
 	t.Parallel()
 	a := newZapAuthz(t, routeLAN)
-	r, plan := a.activeWith(map[string]any{"no_dos": true})
+	r, plan := a.activeWith(map[string]any{"settings": map[string]any{"no_dos": true}})
 	rules := planRules(t, plan)
 	for _, id := range zapDoSRules {
 		if _, on := rules[id]; on {
@@ -121,7 +121,7 @@ func TestZapActive_ClassesOffLeaveTheirRules(t *testing.T) {
 		t.Fatalf("denial of service off changed the rest: SQLi %q, refused %q, cut %v", rules[zapSQLi], r.Refused, r.Cut)
 	}
 
-	r, plan = a.activeWith(map[string]any{"no_change": true})
+	r, plan = a.activeWith(map[string]any{"settings": map[string]any{"no_change": true}})
 	rules = planRules(t, plan)
 	for _, id := range zapChangeRules {
 		if _, on := rules[id]; on {
@@ -140,13 +140,13 @@ func TestZapActive_ClassesOffLeaveTheirRules(t *testing.T) {
 		t.Fatalf("data change off: SQLi %q, forms posted %v, skipped %v", rules[zapSQLi], strings.Contains(plan, "postForm: true"), r.Skipped)
 	}
 
-	_, plan = a.activeWith(map[string]any{"no_dos": true, "no_change": true})
+	_, plan = a.activeWith(map[string]any{"settings": map[string]any{"no_dos": true, "no_change": true}})
 	if plan != zapActivePlan(zapActivePage(t, api.ZapKindIP), false) {
 		t.Error("both classes off is not the plan without the disruptive rules")
 	}
 	// the settings narrow; they never stand in for the grant: without one the page runs without the disruptive rules, as before
 	run, err := a.call("zap.active", map[string]any{"url": "https://" + zapTestIP + ":8443/", "host": zapTestIP, "ip": zapTestIP, "port": 8443,
-		"kind": "ip", "disruptive": true, "no_dos": true}, zapPerson)
+		"kind": "ip", "disruptive": true, "settings": map[string]any{"no_dos": true}}, zapPerson)
 	var nr narrowResult
 	if err != nil || json.Unmarshal(run.Result, &nr) != nil || nr.Refused != api.ZapRefusedGrantMissing {
 		t.Fatalf("no grant with a class off: %+v %v", run, err)
@@ -164,7 +164,7 @@ func TestZapActive_ClassesOffLeaveTheirRules(t *testing.T) {
 func TestZapActive_SkipPathsAreExcluded(t *testing.T) {
 	t.Parallel()
 	a := newZapAuthz(t, routeLAN)
-	r, plan := a.activeWith(map[string]any{"skip_paths": []string{"/admin", "/robots.txt", "/a.b"}})
+	r, plan := a.activeWith(map[string]any{"settings": map[string]any{"skip_paths": []string{"/admin", "/robots.txt", "/a.b"}}})
 	ex := planExcludes(t, plan)
 	if len(ex) != 3 {
 		t.Fatalf("excludePaths %q", ex)
@@ -222,7 +222,7 @@ func TestZapBaseline_SkipPathsRunThePassivePlan(t *testing.T) {
 	if err != nil || run.Status != api.StatusSucceeded || !slices.Contains(argv, "zap-baseline.py") || slices.Contains(argv, "-autorun") {
 		t.Fatalf("no path to skip: %+v %v %q", run, err, argv)
 	}
-	page["skip_paths"] = []string{"/delete"}
+	page["settings"] = map[string]any{"skip_paths": []string{"/delete"}}
 	run, err = a.call("zap.baseline", page, zapPerson)
 	if err != nil || run.Status != api.StatusSucceeded {
 		t.Fatalf("paths to skip: %+v %v", run, err)
@@ -257,7 +257,7 @@ func TestZapBaseline_SkipPathsRunThePassivePlan(t *testing.T) {
 func TestZapActive_Gentle(t *testing.T) {
 	t.Parallel()
 	a := newZapAuthz(t, routeLAN)
-	_, plan := a.activeWith(map[string]any{"gentle": true})
+	_, plan := a.activeWith(map[string]any{"settings": map[string]any{"gentle": true}})
 	for _, want := range []string{"threadPerHost: 1", "delayInMs: 500", "threadCount: 1"} {
 		if !strings.Contains(plan, "      "+want+"\n") {
 			t.Errorf("gentle plan has no %q", want)

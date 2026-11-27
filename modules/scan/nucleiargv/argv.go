@@ -15,7 +15,8 @@
 //
 // An own_ip job has a depth: "" is the shape above (the KEV templates the pack marks own_ip); DepthFull is the deep scan of
 // a target whose testing terms were accepted (exposure FULL-1): the same one public IPv4 and the same worker fence, at FullRate with
-// FullConcurrency templates at a time, up to MaxFullTemplates templates a run, and -etags of FullForbiddenTags: dos only with
+// FullConcurrency templates at a time (gentle: GentleFullRate with GentleFullConcurrency), up to MaxFullTemplates templates a run,
+// and -etags of FullForbiddenTags: dos only with
 // Disruptive, the extra tick of the terms. A LAN job has no depth.
 //
 // No domain in any scope: a name could resolve to loopback or the metadata address.
@@ -95,6 +96,26 @@ const (
 	MaxFullTemplates = 200 // per run: 200 ids of at most 100 bytes keep the jobs reply under sensorlink's 64 KiB, and its lines under the limit of nucleiout.LinesPerTemplate
 )
 
+// The gentle speed of a deep scan (a target's deep-scan settings): a full job at GentleFullRate with GentleFullConcurrency templates in
+// flight, a fifth of the normal rate. The job's own rate says which: a worker that does not know the gentle shape refuses the rate
+// (fail closed). The template step's bounds stretch by TimeScale.
+const (
+	GentleFullRate        = 4
+	GentleFullConcurrency = 2
+)
+
+// TimeScale is how many times longer the templates of a full job take at rate than at FullRate: 1 at FullRate, FullRate /
+// GentleFullRate at the gentle rate, 0 for a rate that is no full rate.
+func TimeScale(rate int) int {
+	switch rate {
+	case FullRate:
+		return 1
+	case GentleFullRate:
+		return FullRate / GentleFullRate
+	}
+	return 0
+}
+
 // disruptiveTags are the tags of the disruptive checks: only a full job with the extra tick of the terms runs them.
 // brute-force and default-login try passwords, authenticated logs in with a user name and password of the template's own, dos may
 // stop the service.
@@ -158,20 +179,28 @@ var ownIPFlags = func() []string {
 //	          up to MaxFullTemplates templates on one page could otherwise print its body once per match, past MaxOutput; a full
 //	          result keeps the template id, name, severity and port, never the evidence
 //
-// fullDisruptiveFlags are those of a full job with the tick.
-var fullFlags, fullDisruptiveFlags = fullFlagsOf(false), fullFlagsOf(true)
+// fullDisruptiveFlags are those of a full job with the tick; the gentle ones have -c GentleFullConcurrency instead.
+var (
+	fullFlags, fullDisruptiveFlags             = fullFlagsOf(false, FullConcurrency), fullFlagsOf(true, FullConcurrency)
+	gentleFullFlags, gentleFullDisruptiveFlags = fullFlagsOf(false, GentleFullConcurrency), fullFlagsOf(true, GentleFullConcurrency)
+)
 
-func fullFlagsOf(disruptive bool) []string {
+func fullFlagsOf(disruptive bool, concurrency int) []string {
 	f := slices.Clone(fixedFlags)
 	f[slices.Index(f, "-etags")+1] = strings.Join(FullForbiddenTags(disruptive), ",")
-	f[slices.Index(f, "-c")+1] = strconv.Itoa(FullConcurrency)
+	f[slices.Index(f, "-c")+1] = strconv.Itoa(concurrency)
 	return append(f, "-or", "-ot")
 }
 
 // flagsOf is the fixed part of a job's line; nil for a scope or depth that does not exist, or a combination that may not be
-// (a depth outside own_ip, the tick without the depth).
-func flagsOf(scope, depth string, disruptive bool) []string {
+// (a depth outside own_ip, the tick without the depth). A full job at GentleFullRate has the gentle flags.
+func flagsOf(scope, depth string, disruptive bool, rate int) []string {
+	gentle := depth == DepthFull && rate == GentleFullRate
 	switch {
+	case gentle && scope == ScopeOwnIP && disruptive:
+		return gentleFullDisruptiveFlags
+	case gentle && scope == ScopeOwnIP:
+		return gentleFullFlags
 	case depth == "" && disruptive:
 		return nil
 	case depth == "" && (scope == "" || scope == ScopeLAN):
@@ -256,15 +285,18 @@ func (t Target) valid(scope string) bool {
 
 // Build builds the nuclei command line of a job: the fixed flags of its scope, -rl, -mhe, one -t per template file, then one
 // -u per target. It refuses a job outside the limits above; an own_ip job takes exactly one public target at OwnIPRate, a full one
-// at FullRate with up to MaxFullTemplates templates.
+// at FullRate (or GentleFullRate, with the gentle flags) with up to MaxFullTemplates templates.
 func Build(j Job) ([]string, error) {
-	flags := flagsOf(j.Scope, j.Depth, j.Disruptive)
+	flags := flagsOf(j.Scope, j.Depth, j.Disruptive, j.Rate)
 	if flags == nil {
 		return nil, fmt.Errorf("nucleiargv: scope %.20q with depth %.20q (disruptive %t) is not a shape of a job", j.Scope, j.Depth, j.Disruptive)
 	}
 	rate, most := OwnIPRate, MaxTemplates
 	if j.Depth == DepthFull {
 		rate, most = FullRate, MaxFullTemplates
+		if j.Rate == GentleFullRate {
+			rate = GentleFullRate
+		}
 	}
 	if j.Scope == ScopeOwnIP && (len(j.Targets) != 1 || j.Rate != rate) {
 		return nil, fmt.Errorf("nucleiargv: an own_ip run of depth %.20q takes exactly one target at %d requests a second, got %d at %d", j.Depth, rate, len(j.Targets), j.Rate)
@@ -333,6 +365,10 @@ func parse(args []string) (Job, error) {
 		j.Scope, j.Depth, n = ScopeOwnIP, DepthFull, len(fullFlags)
 	case prefix(fullDisruptiveFlags):
 		j.Scope, j.Depth, j.Disruptive, n = ScopeOwnIP, DepthFull, true, len(fullDisruptiveFlags)
+	case prefix(gentleFullFlags):
+		j.Scope, j.Depth, n = ScopeOwnIP, DepthFull, len(gentleFullFlags)
+	case prefix(gentleFullDisruptiveFlags):
+		j.Scope, j.Depth, j.Disruptive, n = ScopeOwnIP, DepthFull, true, len(gentleFullDisruptiveFlags)
 	default:
 		return Job{}, errors.New("nucleiargv: the fixed flags are not the allowed ones")
 	}

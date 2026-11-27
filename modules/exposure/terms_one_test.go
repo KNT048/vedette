@@ -114,7 +114,7 @@ func TestTermsOne_OneAcceptIsDeepAndDisruptive(t *testing.T) {
 	if acc := e.auditDetails("exposure.terms_accept"); len(acc) != 1 || !strings.HasPrefix(acc[0], "accepted (disruptive checks: yes, user u-admin") {
 		t.Fatalf("audit = %q", acc)
 	}
-	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (ScanMode{Full: true, Disruptive: true}) {
+	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (modeDefault) { // the default settings leave out DoS
 		t.Fatalf("a person's scan: %+v %v", m, err)
 	}
 	if _, err := acceptOnce(e, termsAdmin, id, TermsVersion); err != nil || len(e.auditDetails("exposure.terms_accept")) != 1 {
@@ -148,7 +148,7 @@ func TestTermsOne_OnlyAPersonsScanRunsTheDisruptiveChecks(t *testing.T) {
 	if _, err := acceptOnce(e, termsAdmin, id, TermsVersion); err != nil {
 		t.Fatal(err)
 	}
-	if m, err := e.svc.ModeNow(e.ctx(), SystemUser, id); err != nil || m != (ScanMode{Full: true}) {
+	if m, err := e.svc.ModeNow(e.ctx(), SystemUser, id); err != nil || m != (modeDeepOnly) {
 		t.Fatalf("the box's own scan: %+v %v", m, err)
 	}
 	r := &modeRunner{}
@@ -157,7 +157,7 @@ func TestTermsOne_OnlyAPersonsScanRunsTheDisruptiveChecks(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", id); err != nil {
 		t.Fatal(err)
 	}
-	if len(r.modes) != 1 || r.modes[0] != (ScanMode{Full: true, Disruptive: true}) {
+	if len(r.modes) != 1 || r.modes[0] != (modeDefault) {
 		t.Fatalf("Scan now: %+v", r.modes)
 	}
 }
@@ -258,10 +258,10 @@ func TestTermsOne_OldAcceptancesStayValid(t *testing.T) {
 	if !v.FullScan || v.Terms.Version != legacyTermsVersion || v.Terms.Text != oldText+"\nInclude disruptive checks" || !v.Terms.Disruptive {
 		t.Fatalf("old row with the tick = %+v (full %v)", v.Terms, v.FullScan)
 	}
-	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (ScanMode{Full: true, Disruptive: true}) {
+	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (modeDefault) {
 		t.Fatalf("old row with the tick, a person's scan: %+v %v", m, err)
 	}
-	if m, err := e.svc.ModeNow(e.ctx(), SystemUser, id); err != nil || m != (ScanMode{Full: true}) {
+	if m, err := e.svc.ModeNow(e.ctx(), SystemUser, id); err != nil || m != (modeDeepOnly) {
 		t.Fatalf("old row with the tick, the box's scan: %+v %v", m, err)
 	}
 
@@ -270,7 +270,7 @@ func TestTermsOne_OldAcceptancesStayValid(t *testing.T) {
 	if !v.FullScan || v.Terms.Version != legacyTermsVersion || v.Terms.Text != oldText || v.Terms.Disruptive {
 		t.Fatalf("old row without the tick = %+v (full %v)", v.Terms, v.FullScan)
 	}
-	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (ScanMode{Full: true}) {
+	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (modeDeepOnly) {
 		t.Fatalf("old row without the tick, a person's scan: %+v %v", m, err)
 	}
 	if n, err := e.svc.Node(e.ctx(), id); err != nil || !n.Deep || n.Terms == nil || n.Terms.Disruptive {
@@ -346,7 +346,7 @@ func TestTermsOne_CarrierGradeNATAtScanTimeDropsTheDisruptiveChecks(t *testing.T
 	e.acceptTerms(id, true)
 	gw := &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}}
 	e.svc.cfg.Gateway = gw
-	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (ScanMode{Full: true}) {
+	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", id); err != nil || m != (modeDeepOnly) {
 		t.Fatalf("mode behind carrier-grade NAT: %+v %v", m, err)
 	}
 	r := &modeRunner{}
@@ -365,7 +365,7 @@ func TestTermsOne_CarrierGradeNATAtScanTimeDropsTheDisruptiveChecks(t *testing.T
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", id); err != nil {
 		t.Fatal(err)
 	}
-	want := []ScanMode{{Full: true}, {Full: true}, {Full: true, Disruptive: true}}
+	want := []ScanMode{modeDeepOnly, modeDeepOnly, modeAll}
 	if fmt.Sprint(r.modes) != fmt.Sprint(want) {
 		t.Fatalf("modes = %+v, want %+v", r.modes, want)
 	}

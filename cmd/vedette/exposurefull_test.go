@@ -20,7 +20,7 @@ import (
 // committed pack. No process runs and no packet leaves.
 
 func fullTarget(disruptive bool) exposure.ScanTarget {
-	return exposure.ScanTarget{ID: "t-1", User: "u-admin", Mode: exposure.ScanMode{Full: true, Disruptive: disruptive}}
+	return exposure.ScanTarget{ID: "t-1", User: "u-admin", Mode: map[bool]exposure.ScanMode{true: modeAllGroups, false: {Full: true}}[disruptive]}
 }
 
 func fullJobOf(cves ...string) exposure.TemplateJob {
@@ -184,7 +184,7 @@ func TestExposureFullDisruptiveOnlyWhileTicked(t *testing.T) {
 	}
 	ticked := &templatesFake{gateOK: true, answer: answer}
 	a := ticked.scanner()
-	a.mode = (&modes{list: []exposure.ScanMode{{Full: true, Disruptive: true}}}).now
+	a.mode = (&modes{list: []exposure.ScanMode{modeAllGroups}}).now
 	if _, err := a.ScanTemplates(t.Context(), fullTarget(true), ownPublicIP, []exposure.TemplateJob{fullJobOf()}); err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestExposureFullDisruptiveOnlyWhileTicked(t *testing.T) {
 	}
 	dropped := &templatesFake{gateOK: true, answer: answer}
 	a = dropped.scanner()
-	a.mode = (&modes{list: []exposure.ScanMode{{Full: true, Disruptive: true}, {Full: true}}}).now
+	a.mode = (&modes{list: []exposure.ScanMode{modeAllGroups, {Full: true}}}).now
 	if _, err := a.ScanTemplates(t.Context(), fullTarget(true), ownPublicIP, []exposure.TemplateJob{fullJobOf()}); err != nil {
 		t.Fatal(err)
 	}

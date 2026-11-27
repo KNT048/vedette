@@ -315,12 +315,12 @@ func (e *env) acceptTerms(id string, disruptive bool) TargetView {
 	if e.svc.cfg.TwoStep == nil {
 		e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	}
-	v, err := e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, id, TermsVersion)
-	if err != nil {
+	if _, err := e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, id, TermsVersion); err != nil {
 		e.t.Fatal(err)
 	}
-	if disruptive {
-		return v
+	if disruptive { // every disruptive group: the rules of these tests, not the default settings (DoS off), are what they hold
+		e.allGroups(id)
+		return e.target(id)
 	}
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_consent SET version = ?, disruptive = 0 WHERE target_id = ? AND kind = 'terms'`, keptTermsVersions[0], id)

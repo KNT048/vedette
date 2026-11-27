@@ -197,6 +197,7 @@ var operationRolesSession = map[string][]string{
 	ExposurePutExposureBoxIPSettingsOperation:                []string{},
 	ExposurePutExposureGreenboneOperation:                    []string{},
 	ExposurePutExposureTargetsIDTermsOperation:               []string{},
+	ExposurePutExposureTreeIDDeepSettingsOperation:           []string{},
 	ExposurePutExposureTreeIDTermsOperation:                  []string{},
 	FeedsDeleteFeedsCustomIDOperation:                        []string{},
 	FeedsGetFeedsCveIDOperation:                              []string{},

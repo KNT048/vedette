@@ -626,7 +626,7 @@ func TestTypedIP_OpenVASLooksForTheProofAgainAndRefusesWhenItIsGone(t *testing.T
 	}
 	e.acceptTerms(v.ID, false)
 	e.enable()
-	st := ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "operator@acme.example", Mode: ScanMode{Full: true}, Typed: true}
+	st := ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "operator@acme.example", Mode: modeDeepOnly, Typed: true}
 	if run, line, err := e.svc.greenbonePlan(e.ctx(), st); err != nil || !run {
 		t.Fatalf("with the proof: %v %q %v", run, line, err)
 	}

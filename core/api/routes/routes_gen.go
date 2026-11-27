@@ -199,6 +199,7 @@ var Operations = map[string]Operation{
 	"exposure_put_exposure_box_ip_settings":                  {Method: "PUT", Path: "/exposure/box-ip/settings", MinRole: Admin, Tag: "exposure"},
 	"exposure_put_exposure_greenbone":                        {Method: "PUT", Path: "/exposure/greenbone", MinRole: Admin, Tag: "exposure"},
 	"exposure_put_exposure_targets_id_terms":                 {Method: "PUT", Path: "/exposure/targets/{id}/terms", MinRole: Admin, Tag: "exposure"},
+	"exposure_put_exposure_tree_id_deep_settings":            {Method: "PUT", Path: "/exposure/tree/{id}/deep-settings", MinRole: Admin, Tag: "exposure"},
 	"exposure_put_exposure_tree_id_terms":                    {Method: "PUT", Path: "/exposure/tree/{id}/terms", MinRole: Admin, Tag: "exposure"},
 	"feeds_delete_feeds_custom_id":                           {Method: "DELETE", Path: "/feeds/custom/{id}", MinRole: Admin, Tag: "feeds"},
 	"feeds_get_feeds_cve_id":                                 {Method: "GET", Path: "/feeds/cve/{id}", MinRole: Viewer, Tag: "feeds"},

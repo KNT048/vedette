@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
-	"github.com/knt048/vedette/modules/exposure"
 )
 
 // authorizingZapHost is a fake host that also answers zap.authorize.
@@ -56,7 +55,7 @@ func TestExposureWeb_APersonsPressGetsTheHostsGrantAndSendsIt(t *testing.T) {
 		t.Fatal("a host without zap.authorize gave a grant")
 	}
 	ipT := webIPTarget
-	ipT.Mode, ipT.Grant = exposure.ScanMode{Full: true, Disruptive: true}, grant
+	ipT.Mode, ipT.Grant = modeAllGroups, grant
 	if _, err := w.Active(t.Context(), ipT, webIPPage); err != nil || !h.active[0].Disruptive || h.active[0].Grant != grant {
 		t.Fatalf("a page with the disruptive rules: %+v %v", h.active, err)
 	}
@@ -70,7 +69,7 @@ func TestExposureWeb_APersonsPressGetsTheHostsGrantAndSendsIt(t *testing.T) {
 func TestExposureWeb_TheHostsRefusalOfTheDisruptiveRulesIsSaid(t *testing.T) {
 	t.Parallel()
 	ipT := webIPTarget
-	ipT.Mode, ipT.Grant = exposure.ScanMode{Full: true, Disruptive: true}, "0123456789abcdef0123456789abcdef"
+	ipT.Mode, ipT.Grant = modeAllGroups, "0123456789abcdef0123456789abcdef"
 	seen := map[string]bool{}
 	for _, code := range []string{api.ZapRefusedGrantMissing, api.ZapRefusedGrantUnknown, api.ZapRefusedGrantExpired, api.ZapRefusedGrantSpent,
 		api.ZapRefusedGrantMismatch, api.ZapRefusedGatewayShared, api.ZapRefusedGatewayUnreadable, "zap_something_new"} {
@@ -106,7 +105,7 @@ func TestExposureWeb_APersonOutsideTheActorAlphabetStillGetsAGrant(t *testing.T)
 			t.Fatal(err)
 		}
 		ipT := webIPTarget
-		ipT.User, ipT.Mode, ipT.Grant = user, exposure.ScanMode{Full: true, Disruptive: true}, grant
+		ipT.User, ipT.Mode, ipT.Grant = user, modeAllGroups, grant
 		if _, err := w.Active(t.Context(), ipT, webIPPage); err != nil {
 			t.Fatal(err)
 		}
@@ -131,7 +130,7 @@ func TestExposureWeb_NoGrantMeansThePageAsksForNoDisruptiveRules(t *testing.T) {
 	run.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: "0123456789abcdef0123456789abcdef", Size: 11})
 	h := &fakeZapHost{run: run, report: []byte(`{"site":[]}`)}
 	ipT := webIPTarget
-	ipT.Mode = exposure.ScanMode{Full: true, Disruptive: true}
+	ipT.Mode = modeAllGroups
 	got, err := (exposureWebScan{host: h}).Active(t.Context(), ipT, webIPPage)
 	if err != nil || len(h.active) != 1 || h.active[0].Disruptive || h.active[0].Grant != "" || got.DisruptiveRefused == "" {
 		t.Fatalf("a page without a grant: sent %+v, refused %q, %v", h.active, got.DisruptiveRefused, err)

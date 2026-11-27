@@ -160,6 +160,7 @@ func TestDisruptive_ADomainWhoseOwnAddressStoppedAnsweringSaysSo(t *testing.T) {
 	d := newDeepEnv(t)
 	d.svc.cfg.DomainFence = &fakeFence{}
 	d.acceptTerms(d.dom.ID, true)
+	d.allGroups(d.idOfIP(ipA)) // the box's IP target too: the address takes both targets' settings
 	svc := &domainDisruptive{deepSeams: d.seams}
 	d.svc.cfg.Services = svc
 	d.svc.cfg.Liveness = &fakeAlive{up: func(_ int, ip netip.Addr, _ int) bool { return ip.String() != ipA }}

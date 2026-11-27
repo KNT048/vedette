@@ -87,16 +87,57 @@ func (t *Terms) current() bool {
 }
 
 // ScanMode is what a scan of a target may do, read by every scanner seam from ScanTarget: Full once the target's testing
-// terms in force are accepted (else the basic scope), Disruptive when that acceptance includes the disruptive checks.
+// terms in force are accepted (else the basic scope), Disruptive when that acceptance includes the disruptive checks and the run's
+// rules allow them. The groups say which parts may run: DoS, Logins and Change are the disruptive groups (Disruptive is
+// DoS || Logins || Change), WebActive and OpenVAS parts of the deep scan; the target's deep-scan settings clear them (narrow), and
+// Off records the groups the settings cleared where the rules allowed them, for the run page. Every bit only removes: a mode built
+// without the groups allows none of them.
 type ScanMode struct {
 	Full       bool
 	Disruptive bool
+	DoS        bool
+	Logins     bool
+	Change     bool
+	WebActive  bool
+	OpenVAS    bool
+	Off        Groups
 }
 
 func (t Target) mode() ScanMode {
 	full := t.Terms.current()
-	return ScanMode{Full: full, Disruptive: full && t.Terms.Disruptive}
+	d := full && t.Terms.Disruptive
+	return ScanMode{Full: full, Disruptive: d, DoS: d, Logins: d, Change: d, WebActive: full, OpenVAS: full}
 }
+
+// norm keeps the bits consistent: no group without its level, and Disruptive only with a disruptive group.
+func (m ScanMode) norm() ScanMode {
+	m.Disruptive = m.Full && m.Disruptive && (m.DoS || m.Logins || m.Change)
+	if !m.Disruptive {
+		m.DoS, m.Logins, m.Change = false, false, false
+	}
+	m.WebActive, m.OpenVAS = m.WebActive && m.Full, m.OpenVAS && m.Full
+	return m
+}
+
+// withoutDisruptive is m without any disruptive group (a scheduled scan, an address that is not the box's own).
+func (m ScanMode) withoutDisruptive() ScanMode {
+	m.Disruptive, m.DoS, m.Logins, m.Change = false, false, false, false
+	return m
+}
+
+// And is what both modes allow, bit by bit: a re-read of the mode is never more than the run started with.
+func (m ScanMode) And(b ScanMode) ScanMode {
+	return ScanMode{Full: m.Full && b.Full, Disruptive: m.Disruptive && b.Disruptive, DoS: m.DoS && b.DoS, Logins: m.Logins && b.Logins,
+		Change: m.Change && b.Change, WebActive: m.WebActive && b.WebActive, OpenVAS: m.OpenVAS && b.OpenVAS, Off: m.Off | b.Off}.norm()
+}
+
+// AllDisruptive says every disruptive group may run: the engines that cannot run one group without the others (nmap's disruptive
+// scripts) run only then.
+func (m ScanMode) AllDisruptive() bool { m = m.norm(); return m.DoS && m.Logins && m.Change }
+
+// WebDisruptive says the active web scan may run its disruptive rules: they hold denial-of-service and data-changing rules, which
+// the host cannot split yet, so both groups must be allowed.
+func (m ScanMode) WebDisruptive() bool { m = m.norm(); return m.WebActive && m.DoS && m.Change }
 
 // ModeNow is the scan mode of target id right before a deep job leaves core (for the scanner
 // adapters in cmd/vedette): exposure's gate again with actor, then the terms as stored now. A target the gate
@@ -194,21 +235,23 @@ func (s *Service) sharedGateway(ctx context.Context) (netip.Addr, bool, error) {
 // box's gateway is in 100.64.0.0/10 or cannot be read: the address is then probably the provider's, shared with its other customers.
 // The acceptance is refused in that case (sharedAddress); this covers an acceptance stored before the gateway moved there. Fail
 // closed at scan time: the deep scan runs as accepted, without the disruptive checks.
+//
+// Last, the target's deep-scan settings narrow what is left (narrow): they only remove groups, so every rule above still holds.
 func (s *Service) runMode(ctx context.Context, actor string, t Target) ScanMode {
 	m := boxMode(actor, t.mode())
 	if !m.Disruptive || t.Kind != KindIP || t.Typed {
-		return m
+		return narrow(m, t.Deep)
 	}
 	g, shared, err := s.sharedGateway(ctx)
 	switch {
 	case err != nil:
 		s.cfg.Log.WarnContext(ctx, "exposure: the gateway could not be read, so this scan runs without the disruptive checks", "target", t.Value, "err", err)
-		m.Disruptive = false
+		m = m.withoutDisruptive()
 	case shared:
 		s.cfg.Log.WarnContext(ctx, "exposure: the gateway is in 100.64.0.0/10, so this scan runs without the disruptive checks", "target", t.Value, "gateway", g.String())
-		m.Disruptive = false
+		m = m.withoutDisruptive()
 	}
-	return m
+	return narrow(m, t.Deep)
 }
 
 func errTermsChanged() *APIError {
@@ -323,9 +366,9 @@ func auditClip(d string) string {
 	return clipText(d, auditDetailMax-utf8.RuneCountInString(termsClipNote)) + termsClipNote
 }
 
-// above says whether mode a may do more than mode b.
-func (a ScanMode) above(b ScanMode) bool {
-	return (a.Full && !b.Full) || (a.Disruptive && !b.Disruptive)
+// above says whether mode m may do more than mode b.
+func (m ScanMode) above(b ScanMode) bool {
+	return (m.Full && !b.Full) || (m.Disruptive && !b.Disruptive)
 }
 
 // stopRunAbove stops the scan of target id that runs now when its mode is above m: withdrawing the terms must reach a

@@ -217,6 +217,7 @@ var contractRoutes = map[string][]string{
 		"PUT /exposure/box-ip/settings",
 		"PUT /exposure/greenbone",
 		"PUT /exposure/targets/{id}/terms",
+		"PUT /exposure/tree/{id}/deep-settings",
 		"PUT /exposure/tree/{id}/terms",
 	},
 	"feeds": {

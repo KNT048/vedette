@@ -316,7 +316,7 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	}{
 		"terms not accepted":  {exposure.ScanMode{}, nmapargv.External, exposure.ServicesTimeout},
 		"deep":                {exposure.ScanMode{Full: true}, nmapargv.ExternalFull, exposure.FullServicesTimeout},
-		"deep and disruptive": {exposure.ScanMode{Full: true, Disruptive: true}, nmapargv.ExternalFull, exposure.FullServicesTimeout},
+		"deep and disruptive": {modeAllGroups, nmapargv.ExternalFull, exposure.FullServicesTimeout},
 	} {
 		var kind nmapargv.Kind
 		var given time.Duration
@@ -358,7 +358,7 @@ func TestExposureDisruptiveScriptsRunOnTheOpenPorts(t *testing.T) {
 		ports, given, fence = p, time.Until(d), own
 		return sensoractive.External{Ports: len(p), Probed: p, Scripts: []sensoractive.ExternalScript{{Port: 22, ID: "ssh-brute", Output: "Output not stored: it can hold credentials."}}}, nil
 	}}
-	st := exposure.ScanTarget{ID: "t1", User: "admin@acme.example", Mode: exposure.ScanMode{Full: true, Disruptive: true}}
+	st := exposure.ScanTarget{ID: "t1", User: "admin@acme.example", Mode: modeAllGroups}
 	got, err := sc.ScanDisruptive(t.Context(), st, ownPublicIP, []int{22, 443})
 	if err != nil || !slices.Equal(ports, []int{22, 443}) || len(got.Scripts) != 1 || got.Scripts[0].IP != ownPublicIP.String() {
 		t.Fatalf("got %+v %v, ports %v", got, err, ports)

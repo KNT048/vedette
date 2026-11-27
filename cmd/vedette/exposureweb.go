@@ -212,7 +212,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	if active {
 		// The disruptive rules only for the box's own IP: the host refuses them on any other page as well, and runs them only with the
 		// grant of the person's press (t.Grant) and its own read of the gateway.
-		aa := api.ZapActiveArgs{ZapBaselineArgs: args, Disruptive: t.Mode.Disruptive && args.Kind == api.ZapKindIP && args.Typed == nil}
+		aa := api.ZapActiveArgs{ZapBaselineArgs: args, Disruptive: t.Mode.WebDisruptive() && args.Kind == api.ZapKindIP && args.Typed == nil}
 		if aa.Disruptive && t.Grant == "" {
 			// No grant of the press: never asked for, so the host never sees the request of a core older than the grant (disruptive
 			// without grant), which it answers as a page that did not run every rule.

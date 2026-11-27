@@ -48,6 +48,10 @@ func PossibleCause(it PossibleItem, rs ReadState) string {
 		slices.Contains([]string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage}, reason),
 		reason == UndecidedAttribute && q.CheckKey == "": // an unlisted release line the reading can decide is the reading's (checkable)
 		return CauseVersionNeeded
+	case reason == UndecidedPlatformOnly:
+		// NVD names the operating system only as the environment of the affected software: not affected as a product, and only an
+		// exploited CVE makes a row of it at all, which a person closes
+		return CauseNeedsPerson
 	}
 	if c := it.Check; c != nil {
 		if c.RejectedBy != "" {

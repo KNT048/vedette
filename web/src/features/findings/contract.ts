@@ -526,7 +526,7 @@ export const FirstRunSummary = z.object({
 }).describe('The first-run summary of the newest load made in the last 7 days')
 export const Undecided = z.object({
   reason: z.enum(['no_version', 'platform_unknown', 'package_unknown', 'attribute_unknown', 'version_scheme_mismatch', 'nvd_pending', 'no_ranges', 'product_not_named',
-    'exact_releases_only', 'ranges_do_not_decide', 'ranges_start_at_branch_only', 'eol_line_unlisted', 'no_reference_page', 'fetch_failed', 'unparsed_vendor_text', 'ai_unsure'])
+    'named_as_platform_only', 'exact_releases_only', 'ranges_do_not_decide', 'ranges_start_at_branch_only', 'eol_line_unlisted', 'no_reference_page', 'fetch_failed', 'unparsed_vendor_text', 'ai_unsure'])
     .describe('Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it'),
   ranges: z.array(z.string()).optional().describe('The range rows that were read and did not decide it ("<cpe> [start, end)"), at most 20'),
   text: z.string().optional().describe('Up to 500 characters of advisory text the box could not read as ranges'),

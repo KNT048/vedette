@@ -473,6 +473,7 @@ const (
 	UndecidedNVDPending       = "nvd_pending"                 // NVD has not answered for the CVE yet
 	UndecidedNoRanges         = "no_ranges"                   // the CVE names the product with no affected versions at all
 	UndecidedNotNamed         = "product_not_named"           // the CVE's rows name other products than this line's
+	UndecidedPlatformOnly     = "named_as_platform_only"      // the CVE names this operating system only as the system the affected software runs on
 	UndecidedExactOnly        = "exact_releases_only"         // the rows list exact releases, none of them this one
 	UndecidedRangesDoNotCover = "ranges_do_not_decide"        // ranges are listed, none decides this version
 	UndecidedBranchOnly       = "ranges_start_at_branch_only" // the vendor's ranges start at later branches and say nothing about this one
@@ -485,7 +486,7 @@ const (
 
 // UndecidedReasons lists every reason.
 var UndecidedReasons = []string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute, UndecidedSchemeMismatch, UndecidedNVDPending,
-	UndecidedNoRanges, UndecidedNotNamed, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedNoReference, UndecidedFetchFailed,
+	UndecidedNoRanges, UndecidedNotNamed, UndecidedPlatformOnly, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedNoReference, UndecidedFetchFailed,
 	UndecidedUnparsedVendor, UndecidedAIUnsure}
 
 // The most range rows and advisory bytes an Undecided keeps.

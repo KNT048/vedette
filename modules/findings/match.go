@@ -159,6 +159,10 @@ type Affected struct {
 	// LineFix: a release a partial CVE record states fixed above this row's end, for the release line the row ends on (a lone
 	// "unaffected" version above every affected row: OSV's fixed); read only by pastRecordFix.
 	LineFix string
+	// Platforms are the operating systems ("vendor:product") of NVD's "running on" condition of the entry's configuration: the
+	// environment the affected product runs on (cpeMatch vulnerable false), never an affected product itself (platformOnly). nil for
+	// none and for the CVE record's rows.
+	Platforms []string
 	// parsed is CPE already parsed; nil: parse when read.
 	parsed *CPE
 }

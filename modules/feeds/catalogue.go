@@ -283,7 +283,7 @@ func sameNVDRanges(ctx context.Context, tx *sql.Tx, r NVDRecord) (bool, error) {
 		return false, nil
 	}
 	for i, h := range have {
-		if h.AffectedRow() != r.Affected[i] {
+		if !h.AffectedRow().sameSpan(r.Affected[i]) {
 			return false, nil
 		}
 	}
@@ -341,8 +341,12 @@ type Range struct {
 
 // AffectedRow is the range as the matcher's CPE entry.
 func (r Range) AffectedRow() AffectedRow {
-	return AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
+	row := AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
 		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, LineFix: r.LineFix()}
+	if r.Origin == OriginNVD && len(r.Platforms) > 0 { // a record row's platforms are the record's systems or models, not NVD's environment
+		row.Platforms = r.Platforms
+	}
+	return row
 }
 
 // LineFix is the fixed release a CVE record states above the row's end (a lone unaffected version above every affected row of the

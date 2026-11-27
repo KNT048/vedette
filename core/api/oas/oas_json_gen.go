@@ -213622,6 +213622,8 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) Decode(d *jx.Decode
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoRanges
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonProductNotNamed
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNamedAsPlatformOnly
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonExactReleasesOnly
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesDoNotDecide:
@@ -217057,6 +217059,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Decode(d *jx.Dec
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoRanges
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonProductNotNamed
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNamedAsPlatformOnly
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonExactReleasesOnly
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesDoNotDecide:

@@ -14,7 +14,7 @@ func (s *Service) mark(ctx context.Context, id, action, note, user string) (Reco
 		}
 		return s.Get(ctx, id)
 	}
-	if _, _, err := s.Handle(ctx, []string{id}, Resolution(action), note, time.Time{}, user); err != nil {
+	if _, _, err := s.HandleConfirmed(ctx, []string{id}, Resolution(action), note, time.Time{}, user); err != nil { // after a still_reported answer, if any
 		return Record{}, err
 	}
 	return s.Get(ctx, id)

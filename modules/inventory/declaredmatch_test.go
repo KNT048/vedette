@@ -92,7 +92,7 @@ func TestDeclared_NewerAgentReportEndsAnOlderEntry(t *testing.T) {
 	id := c.line("OpenSSL").ID
 	c.e.tick(time.Minute)
 	older := "3.5.1"
-	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &older}); err != nil {
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &older, Confirm: true}); err != nil {
 		t.Fatal(err)
 	}
 	if l := c.line("OpenSSL"); ver(l) != "3.5.1" || l.Source != "manual" {
@@ -103,7 +103,7 @@ func TestDeclared_NewerAgentReportEndsAnOlderEntry(t *testing.T) {
 		t.Fatalf("the newer release the agent reports after the entry is the line: %+v %v", l, c.history(id))
 	}
 	newer := "3.6.0"
-	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &newer}); err != nil {
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &newer, Confirm: true}); err != nil {
 		t.Fatal(err)
 	}
 	c.send(observe.Osquery, nil, ossl("3.5.5"))
@@ -175,7 +175,7 @@ func TestDeclared_ALineSettledUnderAnOlderRuleIsSettledAgain(t *testing.T) {
 	id := c.line("OpenSSL").ID
 	c.e.tick(time.Minute)
 	older := "3.5.1"
-	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &older}); err != nil {
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &older, Confirm: true}); err != nil {
 		t.Fatal(err)
 	}
 	// the agent's report under the earlier rule: its reading was seen again, the person's entry stayed the line

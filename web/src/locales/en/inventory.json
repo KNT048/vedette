@@ -528,7 +528,10 @@
     "pkgVersion": "Package release",
     "pkgVersionHint": "As the device's package manager shows it, for example 10.2_p1-r1. Empty removes it.",
     "editedPkg": "{{name}} is now package release {{release}}. Findings are matched again.",
-    "editedPkgNone": "The package release of {{name}} is removed. Findings are matched again."
+    "editedPkgNone": "The package release of {{name}} is removed. Findings are matched again.",
+    "versionVendorHint": "As the vendor writes it, for example 15.1R7.9.",
+    "nothingChanged": "{{name}} already has this version. Nothing changed.",
+    "saveAnyway": "Save anyway"
   },
   "notes": {
     "title": "Notes",

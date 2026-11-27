@@ -273,7 +273,8 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 		}
 		return recs
 	}
-	if recs := give("10.2_p1-r0"); len(recs) != 1 || recs[0].Status != findings.StatusSuspected || !strings.Contains(recs[0].Evidence.Summary, "Update openssh-server to 10.2_p1-r1 or later") {
+	// the release the person gave is below Alpine's fix: their word, so the finding is confirmed by them
+	if recs := give("10.2_p1-r0"); len(recs) != 1 || recs[0].Status != findings.StatusConfirmed || !strings.Contains(recs[0].Evidence.Summary, "Update openssh-server to 10.2_p1-r1 or later") {
 		t.Fatalf("below the 3.23 fix: %+v", recs)
 	}
 	// the person corrected the release a scan's banner gave no word on: Vedette corrected its match, no patch credit

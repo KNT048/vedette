@@ -54,6 +54,9 @@ type SoftwareLine struct {
 	Correction *SoftwareCorrection `json:"correction,omitempty"`
 	// CanCorrect: a person may give this line a version (PATCH, INV-52), whatever source it was read from. true on every line.
 	CanCorrect bool `json:"can_correct"`
+	// PackageLine: the line is a distribution package (packageLine), so a person gives its package release; false on firmware and on
+	// software with only the vendor's release, where a package release is refused (Edit, not_a_package).
+	PackageLine bool `json:"package_line"`
 
 	kev   []string // the match keys
 	live  bool     // a person's entry that is the line's value on a present line (declaredIdentity reads it)
@@ -179,8 +182,13 @@ func softwareLines(ctx context.Context, q querier, assetID string) ([]SoftwareLi
 	if err := errors.Join(rrows.Err(), rrows.Close()); err != nil {
 		return nil, fmt.Errorf("inventory: read software readings: %w", err)
 	}
+	var osName string
+	if err := q.QueryRowContext(ctx, `SELECT ifnull(os, '') FROM inv_asset WHERE id = ?`, assetID).Scan(&osName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("inventory: read device: %w", err)
+	}
 	for id, rs := range byLine {
 		readingsOn(&out[idx[id]], rs, marked[id])
+		out[idx[id]].PackageLine = packageLine(osName, rs)
 	}
 	return out, nil
 }

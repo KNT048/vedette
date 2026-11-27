@@ -9,23 +9,15 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/debver"
+	"github.com/knt048/vedette/core/pkgrel"
 	"github.com/knt048/vedette/core/productid"
 )
 
 // linuxDistro is the Linux distribution an OS name names, as a platform id ("alpine", "ubuntu", "debian", "rhel", "suse"), "" for
 // none (Windows, a network OS, an unknown OS).
-func linuxDistro(osName string) string {
-	for _, id := range platformsIn(osName) {
-		switch id {
-		case "alpine", "ubuntu", "debian", "rhel", "suse":
-			return id
-		}
-	}
-	return ""
-}
+func linuxDistro(osName string) string { return pkgrel.Distro(osName) }
 
 var (
-	debEpoch   = regexp.MustCompile(`^[0-9]+:`)
 	debPkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]+$`)
 )
 
@@ -69,13 +61,7 @@ func debSourceName(product string) string {
 
 // pkgReleaseText says a text is a distribution's package release: Alpine's apk ("10.2_p1-r1"), a release with a distribution's mark
 // ("2ubuntu3.8", "+deb12u3", ".el9"), or a Debian version with an epoch ("1:9.2p1-2"). A plain "7.2.13" or "v7.2.13" is not.
-func pkgReleaseText(p string) bool {
-	p = strings.TrimSpace(p)
-	if _, t := apkRelease(p); t != "" {
-		return true
-	}
-	return distroMarked(p) || debEpoch.MatchString(p) && debver.Valid(p)
-}
+func pkgReleaseText(p string) bool { return pkgrel.Release(p) }
 
 // Distribution backports. Ubuntu and Debian fix a package without changing its upstream version, so NVD's
 // upstream ranges cannot tell a patched OpenSSH 9.6p1 from a vulnerable one. For a row an agent read from the device's

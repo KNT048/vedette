@@ -544,7 +544,7 @@ export const endpoints = defineEndpoints([
     response: Overview },
   { method: 'get', path: '/findings/{id}/view', summary: 'One finding as every place shows it: status, urgency with reasons, severity, verification, handling, fix and history', stories: ['S-MIT-1', 'S-MIT-3'], role: 'viewer',
     params: idParams, response: View, example: { params: { id: 'fv-fw01-ssh-1' } } },
-  { method: 'post', path: '/findings/handle', summary: `Mark findings of one device as handled, with one note: by ids (at most ${MAX_HANDLE}) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing`, stories: ['S-MIT-1'], role: 'operator',
+  { method: 'post', path: '/findings/handle', summary: `Mark findings of one device as handled, with one note: by ids (at most ${MAX_HANDLE}) or every open finding of one fix on one device; findings that already have this handling are skipped; one history and audit row per finding, all or nothing. 409 still_reported: patched on a finding the device's latest reading still shows inside the affected versions (the message names the reading); nothing is written, and the same request with confirm keeps the mark`, stories: ['S-MIT-1'], role: 'operator',
     body: z.object({
       ids: z.array(findingId).min(1).max(MAX_HANDLE).optional().describe('These findings; all of one device (else 400 many_devices). Not with device and fix'),
       device: z.string().max(96).optional().describe('With fix: that device'),
@@ -552,6 +552,7 @@ export const endpoints = defineEndpoints([
       software: z.string().max(96).optional().describe('With device and fix: the software line of the block (FixBlock.software.id, FixDevice.software.id); absent: the block on no software line. Two lines of one product never share a handle'),
       resolution: Resolution, note: handleNote,
       until: z.iso.date().optional().describe('accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until)'),
+      confirm: z.boolean().optional().describe('true: keep "patched" although the latest reading still shows an affected version (after 409 still_reported); the finding opens again if the next reading still shows it'),
     }),
     response: z.object({ handled: z.number().int().min(0), skipped: z.number().int().min(0).describe('Already handled this way') }) },
   { method: 'post', path: '/findings/{id}/reopen', summary: 'Open a handled finding again (a person\'s handling was a mistake); history and audit', stories: ['S-MIT-1'], role: 'operator',

@@ -274,7 +274,8 @@ func TestModelAPI_HandleOneFixOnOneDevice(t *testing.T) {
 func TestModelAPI_NeedsYourInput(t *testing.T) {
 	e := modelEnv(t)
 	kinds, _ := queueIDs(t, e, "")
-	if got := strings.Join(kinds, ","); got != "device:a-new,f-f1,f-f2,f-f3,f-p1,sw:s-ssh-nas" {
+	// the printer nobody added is one item, its own card: its unconfirmed finding f-p1 is not listed a second time
+	if got := strings.Join(kinds, ","); got != "device:a-new,f-f1,f-f2,f-f3,sw:s-ssh-nas" {
 		t.Errorf("queue %v", kinds)
 	}
 	if code, _ := e.call("POST", "/findings/questions/q-1/answer", "operator", `{"answer":"affected","note":"vendor says so"}`); code != 403 {
@@ -357,12 +358,12 @@ func TestModelAPI_HandleOneLineOfTwoSharingAFixKey(t *testing.T) {
 func TestModelAPI_NeedsYourInputSearch(t *testing.T) {
 	e := modelEnv(t)
 	for _, c := range []struct{ q, want string }{
-		{"printer", "device:a-new,f-p1"},    // the device's name: its not-added item and its finding
-		{"192.0.2.77", "device:a-new,f-p1"}, // its address
-		{"cups", "device:a-new,f-p1"},       // the software's name (any case): the finding, and the device not added that has it
-		{"cve-2026-2001", "f-f2,f-f3"},      // the CVE id
-		{"nothing-here", ""},                // no match: an empty page, not the whole queue
-		{"lab-box", ""},                     // an ignored device stays out
+		{"printer", "device:a-new"},    // the device's name: its not-added item, the one item of that device
+		{"192.0.2.77", "device:a-new"}, // its address
+		{"cups", "device:a-new"},       // the software's name (any case): the device not added that has it
+		{"cve-2026-2001", "f-f2,f-f3"}, // the CVE id
+		{"nothing-here", ""},           // no match: an empty page, not the whole queue
+		{"lab-box", ""},                // an ignored device stays out
 	} {
 		ids, total := queueIDs(t, e, "?q="+url.QueryEscape(c.q))
 		_ = total
@@ -391,7 +392,7 @@ func TestModelAPI_NeedsYourInputSearchFindsADeviceNotAddedByItsFindings(t *testi
 	}
 	for _, c := range []struct{ q, want string }{
 		{"cve-2026-3002", "device:a-new"}, // the CVE of its update-recommended finding: only the device item has it
-		{"CUPS", "device:a-new,f-p1"},     // the software of its findings, any case
+		{"CUPS", "device:a-new"},          // the software of its findings, any case
 		{"cve-2026-1002", "f-f1"},         // another device's CVE does not find it
 	} {
 		ids, total := queueIDs(t, e, "?q="+url.QueryEscape(c.q))

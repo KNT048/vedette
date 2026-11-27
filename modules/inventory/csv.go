@@ -271,7 +271,7 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 				}
 				seenNames[key] = true
 			}
-			if _, err := s.createManual(ctx, tx, o, a, r.kind); err != nil {
+			if _, err := s.createManual(ctx, tx, o, actor, a, r.kind); err != nil {
 				return err
 			}
 			res.Created++

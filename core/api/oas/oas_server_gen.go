@@ -1485,7 +1485,9 @@ type Handler interface {
 	//
 	// Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
 	// one fix on one device; findings that already have this handling are skipped; one history and audit
-	// row per finding, all or nothing.
+	// row per finding, all or nothing. 409 still_reported: patched on a finding the device's latest
+	// reading still shows inside the affected versions (the message names the reading); nothing is
+	// written, and the same request with confirm keeps the mark.
 	//
 	// POST /findings/handle
 	FindingsPostFindingsHandle(ctx context.Context, req *FindingsPostFindingsHandleReq) (*FindingsPostFindingsHandleOK, error)
@@ -1831,8 +1833,12 @@ type Handler interface {
 	// INV-6c); a later edit of the version or product makes it an ordinary correction; DELETE clears it.
 	// Audit inventory.mark_not_installed. The device is matched again. 400 bad_edit (nothing to change;
 	// not_installed with another field; not_installed on a row a person added, which DELETE removes),
-	// bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409
-	// duplicate_software; 409 box_device (not_installed on the box's own software).
+	// bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product, not_a_package (a
+	// package release on a line that is no distribution package, SoftwareLine.package_line false, unless
+	// the text itself is a distribution's release). 409 duplicate_software; 409 box_device (not_installed
+	// on the box's own software); 409 contradicts_device (the version differs from the release the device
+	// itself states: its agent, its SNMP answer, the OS it states over LLDP; the message names it; send
+	// confirm to keep the version). An edit that changes nothing writes nothing: changed false.
 	//
 	// PATCH /inventory/devices/{id}/software/{sid}
 	InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *InventoryPatchInventoryDevicesIDSoftwareSidReq, params InventoryPatchInventoryDevicesIDSoftwareSidParams) (*InventoryPatchInventoryDevicesIDSoftwareSidOK, error)

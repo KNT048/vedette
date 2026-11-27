@@ -1,6 +1,7 @@
 // "I updated <software>" (S-MIT-1, item 14): tell Vedette the new version once; the re-match closes what it fixes.
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { useScanning } from '@/features/scanning/api'
@@ -155,24 +156,30 @@ export function TypedVersionDialog({ asset, software, fixed, open, onOpenChange 
   const prefill = () => (fixed && fixed !== software.version ? fixed : '')
   const [version, setVersion] = useState(() => (open ? prefill() : ''))
   const [error, setError] = useState<string | undefined>()
+  // the device itself states another release (409 contradicts_device): said once with that evidence, kept with "Save anyway"
+  const [conflict, setConflict] = useState<string | undefined>()
   const [done, setDone] = useState<{ version: string; out: Outcome } | null>(null)
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) { // a new opening starts from the prefill, with no error and no earlier result
     setWasOpen(open)
-    if (open) { setVersion(prefill()); setError(undefined); setDone(null) }
+    if (open) { setVersion(prefill()); setError(undefined); setConflict(undefined); setDone(null) }
   }
   const device = deviceName(asset, t('removedDevice'))
   const sw = software.display
   const id = `upd-${software.id}`
 
-  function submit() {
+  function submit(confirm = false) {
     const v = version.trim()
     if (!v) { setError(t('updated.required')); return }
     if (v === (software.version ?? '')) { setError(t('updated.same', { version: v })); return }
     setError(undefined)
-    set.mutate({ sid: software.id, version: v, cves: software.kev_cves }, {
+    setConflict(undefined)
+    set.mutate({ sid: software.id, version: v, cves: software.kev_cves, ...(confirm ? { confirm: true } : {}) }, {
       onSuccess: (out) => setDone({ version: v, out }),
-      onError: (e) => setError(e instanceof ApiError && ERRORS.includes(e.code) ? t(`updated.${e.code}`, { software: sw, version: v, device }) : errMsg(e)),
+      onError: (e) => {
+        if (e instanceof ApiError && e.code === 'contradicts_device') setConflict(e.message)
+        else setError(e instanceof ApiError && ERRORS.includes(e.code) ? t(`updated.${e.code}`, { software: sw, version: v, device }) : errMsg(e))
+      },
     })
   }
 
@@ -194,15 +201,19 @@ export function TypedVersionDialog({ asset, software, fixed, open, onOpenChange 
         ) : (
           <Field htmlFor={id} label={t('updated.version')} error={error}
             hint={software.version ? t('updated.current', { version: software.version }) : t('updated.noCurrent')}>
-            <Input id={id} value={version} maxLength={40} className="w-48" onChange={(e) => { setVersion(e.target.value); setError(undefined) }}
+            <Input id={id} value={version} maxLength={40} className="w-48" onChange={(e) => { setVersion(e.target.value); setError(undefined); setConflict(undefined) }}
               onKeyDown={(e) => { if (e.key === 'Enter') submit() }} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : `${id}-hint`} />
           </Field>
         )}
+        {!done && conflict ? (
+          <Notice tone="warn" role="alert" className="mb-0" title={conflict}
+            actions={<Button size="sm" busy={set.isPending} busyLabel={t('updated.checking')} onClick={() => submit(true)}>{t('updated.saveAnyway')}</Button>} />
+        ) : null}
         <DialogFooter>
           {!done ? (
             <>
               <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-              <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={submit}>{t('updated.submit')}</Button>
+              <Button variant="primary" busy={set.isPending} busyLabel={t('updated.checking')} onClick={() => submit()}>{t('updated.submit')}</Button>
             </>
           ) : <Button onClick={() => onOpenChange(false)}>{t('common:close')}</Button>}
         </DialogFooter>

@@ -19,7 +19,8 @@ the product reads findings from.
 Needs your input (`GET /findings/input`) is one card per added device (`device_needs`), collapsed by default: its entries are what runs
 there (`device_unchecked`), urgent findings not confirmed yet (`unconfirmed`) and its questions grouped by software line (`software_group`,
 one entry per line with the CVEs counted once, the line's `fnd_question` rows inside, the one whose action fixes the most first). A device
-nobody added keeps its own `device_not_added` card; `total` counts cards. A question stays one row per (line, CVE, kind), since Affected
+nobody added keeps its own `device_not_added` card and is that one item (its urgent findings and questions are not listed again
+under a second card: Add device first); `total` counts cards. A question stays one row per (line, CVE, kind), since Affected
 or Not affected is a per-CVE judgement; the version or edition a person enters lives on the software line, so one entry fixes every CVE of
 it at the next match. `POST /findings/questions/ignore` (a device, or one line of it) answers Not affected to every open question there
 in one transaction with one audit row (`findings.questions_ignored`); each answer is listed under Answered and can be asked again.
@@ -58,8 +59,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestHandled_LeavesOutVedettesMatchCorrections`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
   the proof's sentence is the closing note, so the handled line says the real reason; the proof is that of the finding's own CVE and
   software line, so of two lines of one product each closes with its own sentence. A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
-  A version match on a version a person typed or corrected is that person's word: it is confirmed by them when it is made (verified
-  `person`, the history names them and the version; `entryConfirms`), never queued for their confirmation, and its confirmation is no
+  A version match on a version a person typed or corrected is that person's word, and so is a match on the distribution package
+  release a person gave (basis `package`) when the distribution's data decides on it: it is confirmed by them when it is made (verified
+  `person`, the history names them and the version; `entryConfirms`, which needs the author inventory keeps for every entry), never queued for their confirmation, and its confirmation is no
   Undo's (409); resting on the ranges, it is judged again at every match like the device's own report (`proofHolds`: a range
   correction closes it as `data_corrected`). A person's own Confirm stays as on any other basis: it holds at every match and Undo takes
   it back, also on a finding that rests on an entered version; the two are told apart by the newest `confirmed` event (Vedette's for
@@ -177,7 +179,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   Update 491 against 8u441 and Java 11, 17 and 21): the list enumerates the affected releases. Only a line newer than or between the
   listed ones is left out: a line older than every listed one stays asked (end-of-life lines are often not evaluated: Junos 15.1R7.9,
   Java 7 Update 401), and so does an older update of a listed line (Oracle's "8u77 and earlier").
-  `TestUnchecked_OtherReleaseLinesAreNotListed`, `TestUnchecked_OlderLineThanEveryListedStaysAsked`. NVD's NA in an edition ("-") is the plain
+  `TestUnchecked_OtherReleaseLinesAreNotListed`, `TestUnchecked_OlderLineThanEveryListedStaysAsked`. A release the product's version
+  scheme reads as written (Junos "15.1R7.9", `schemeReads`) that NVD's rows do not decide is `no_range_data` listed (answered per CVE),
+  never `not_comparable`, whose only action is to type the version again. NVD's NA in an edition ("-") is the plain
   edition, one of the alternatives. The build attributes NVD pins after the version (sw_edition, target_sw, target_hw) are derived
   for a line from evidence the box holds, in one table (`installattrs.go`, `installRules`, `installOf`): the architecture its name states
   ("(64-bit)", "x64", "(x86)"), or a product that ships one only (SQL Server 2016 and later: x64), or a 32-bit system; the system family
@@ -284,7 +288,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   status or fix. Tests: `TestFindingPage_EvidenceFollowsTheStatus`, `TestFindingPage_FindingOnNoListKeepsItsSoftware`,
   `TestFindingPage_EveryHistoryActionHasALabel`.
 - **PRE-4 / POST-4** handle and reopen (operator), verify and unverify (admin): handle answers how many it handled and skipped and
-  is all or nothing.
+  is all or nothing. A person's claim is checked against the evidence: `patched` on a finding the latest match still detects on a
+  version reading (`stillReported`: device version, package, banner or an entered version inside the affected versions) is refused once
+  with that reading (409 `still_reported`, nothing written) and kept only with `confirm` (`HandleConfirmed`); it then opens again on a
+  newer reading that still shows the version (M-3). `TestVersionEntryMatrix` (cmd/vedette).
 
 ## Forbidden
 

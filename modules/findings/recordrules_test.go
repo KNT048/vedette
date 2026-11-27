@@ -116,32 +116,6 @@ func TestMatchAsset_ModelRowsOfOtherHardware(t *testing.T) {
 	}
 }
 
-// A device that states its own OS through its management interface (a hypervisor's API: the build is written) is the platform of the
-// rows a scan sees at its address: such firmware runs no container behind its own address. A fingerprint guess of the same OS, or an
-// agent that reports another OS, is no such statement: the platform is asked as before.
-func TestPlatform_SelfStatedOSIsThePlatformOfItsScanRows(t *testing.T) {
-	t.Parallel()
-	const stated = "VMware ESXi 8.0 Update 3 (build 24022510)"
-	for _, tc := range []struct {
-		name, os, agent string
-		out             bool
-	}{
-		{"the host states its OS", stated, "", true},
-		{"a fingerprint names the OS (no build)", "VMware ESXi 7.0", "", false},
-		{"an agent reports another OS", stated, "Alpine Linux v3.23", false},
-	} {
-		a := Asset{ID: "h", Name: "esx01", OS: tc.os, AgentOS: tc.agent, Software: []Software{sshRow("9.6", "protocol 2.0", "nmap")}}
-		res := MatchAsset(a, []Vuln{sshhole()}, nil, t0)
-		if got := len(res.OtherPlatform) == 1 && len(res.New) == 0; got != tc.out {
-			t.Errorf("%s: ruled out %v, want %v (%+v)", tc.name, got, tc.out, res)
-			continue
-		}
-		if tc.out && !strings.Contains(res.OtherPlatform[0].Evidence.Summary, stated) {
-			t.Errorf("%s: reason %q does not name the OS", tc.name, res.OtherPlatform[0].Evidence.Summary)
-		}
-	}
-}
-
 // A record that lists its affected releases one by one and states the fixed release above them (LineFix: "7.23.1" above 7.20.8) bounds
 // the line: a release past the fix on that line is not affected, also when only the record's rows name the product; a release between
 // the last affected one and the fix stays undecided, and so does a listed release on this path (an exact release a CVE on no list

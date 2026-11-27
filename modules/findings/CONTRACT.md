@@ -441,9 +441,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestDistroKernelOnceOnTheRunningKernel`, `TestCount_DistributionKernelFindings`, `TestMatchAsset_DebianKernelComparesOnlyInsideItsSeries`.
 - **INV-15** A Windows release line is judged by its build revision against Microsoft's fixed builds (`windows.go`).
 - **INV-16** CVEs in `content/catalog/platform-limits.json` affect only the platforms listed; platform evidence comes only from the
-  device's own reading (agent OS, its SNMP answer, or the OS it states itself through its management interface, core/observe's
-  self-statements such as a hypervisor's build, which counts for every row a scan sees at its address: `selfStatedOS`,
-  `TestPlatform_SelfStatedOSIsThePlatformOfItsScanRows`). No platform evidence is a `platform` question (INV-16c); the fixed versions per
+  device's own reading (agent OS, its SNMP answer). No platform evidence is a `platform` question (INV-16c); the fixed versions per
   release are built from the distribution's data, never copied by hand (INV-16d). A person's correction follows the corrected
   source's rules and earns no credit (INV-16a).
 - **INV-17** A version match on an agent line says, in its evidence, what the agent reported.

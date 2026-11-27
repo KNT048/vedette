@@ -1083,11 +1083,19 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 			cves[id] = true
 		}
 	}
-	low := 0
+	// A configuration fact is read at any QoD (gmpFacts): it is counted on its own, so "QoD 70 or more" stays true of the rest.
+	low, facts := 0, 0
 	for _, r := range rows {
-		if r.Severity < GreenboneLowBelow {
+		switch {
+		case isFactOID(r.OID):
+			facts++
+		case r.Severity < GreenboneLowBelow:
 			low++
 		}
+	}
+	factText := ""
+	if facts > 0 {
+		factText = " and " + plural(facts, "configuration fact")
 	}
 	out.rows, out.state = rows, GBRunDone
 	how, text, audit := "scanned", "", "done"
@@ -1101,8 +1109,9 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 		how, out.state, text, audit = "partly scanned", GBRunEnded, notGBEnded+res.reason, "ended by OpenVAS"
 	}
 	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
-		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
-		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows), "result"), GreenboneMinQoD, len(rows)-low, plural(low, "hardening note"), plural(len(cves), "CVE")), maxLineText)}}
+		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s)%s, %s named.",
+		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows)-facts, "result"), GreenboneMinQoD, len(rows)-facts-low, plural(low, "hardening note"), factText,
+		plural(len(cves), "CVE")), maxLineText)}}
 	if text != "" {
 		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
 	}

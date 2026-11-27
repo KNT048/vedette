@@ -323,7 +323,7 @@ func (s *Service) checkedDetections(ctx context.Context, tx *sql.Tx, a Asset, li
 			}
 		}
 		// the AI's reading of the vendor's statement for the line: affected opens the finding (a person can reject the reading)
-		if r, ok := readings[q.CheckKey]; ok && r.applied != nil && q.Detail.Check != nil && !(c.Settled() && !c.Stale) &&
+		if r, ok := readings[q.CheckKey]; ok && r.applied != nil && q.Detail.Check != nil && (!c.Settled() || c.Stale) &&
 			r.applied.verdictFor(*q.Detail.Check) == VerdictAffected {
 			if d, ok := lineDetection(a, lines, q.SoftwareID, v, RangeAIRead, Evidence{Summary: aiReadNote(q, *r.applied), CheckedAt: now}); ok {
 				d.Fix = r.applied.fix() // the fix the quote names, never one the AI only proposed

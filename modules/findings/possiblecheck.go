@@ -104,12 +104,12 @@ type ProposeRequest struct {
 
 // ProposeVerdict is the AI's answer for one item: the vendor's statement for the item's release line.
 type ProposeVerdict struct {
-	Index                            int
-	Status                           string // affected, fixed, not_affected or unsure
+	Index                             int
+	Status                            string // affected, fixed, not_affected or unsure
 	Introduced, FixedIn, LastAffected string // the bounds the AI read ("" when none)
-	Line                             string // the release line as the statement names it
-	Reason, Quote                    string
-	Source                           int // 1-based page index, 0 for the record
+	Line                              string // the release line as the statement names it
+	Reason, Quote                     string
+	Source                            int // 1-based page index, 0 for the record
 }
 
 // ProposeAnswer is the answer of one AI call.
@@ -580,7 +580,8 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string)
 	// unchanged (an unsure reading is asked again after statementRecheck; a rejected one never for the same page)
 	asks := lines[:0]
 	for _, l := range lines {
-		if st := l.last; st != nil && st.RecordHash == l.units[0].id.Record && !(st.RejectedBy == "" && st.Status == StatementUnsure && now.Sub(st.AskedAt) >= statementRecheck) {
+		unsureAgain := l.last != nil && l.last.RejectedBy == "" && l.last.Status == StatementUnsure && now.Sub(l.last.AskedAt) >= statementRecheck
+		if st := l.last; st != nil && st.RecordHash == l.units[0].id.Record && !unsureAgain {
 			if text, ok := pageText(st, okPages, rec.Description); ok && pageHash(text) == st.PageHash {
 				res.seen = append(res.seen, st.Key)
 				continue
@@ -972,7 +973,7 @@ func (s *Service) confirmOne(ctx context.Context, tx *sql.Tx, questionID, user s
 		return "", err
 	}
 	c, ok := cs[q.CheckKey]
-	if !(ok && c.Settled() && !c.Stale) && q.Detail.Check != nil { // the AI's reading of the line, as the lists show it
+	if (!ok || !c.Settled() || c.Stale) && q.Detail.Check != nil { // the AI's reading of the line, as the lists show it
 		rs, err := readingsFor(ctx, tx, []Question{q})
 		if err != nil {
 			return "", err

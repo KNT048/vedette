@@ -3,10 +3,12 @@ package findings
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // Release-line verdicts (M-13). A vendor that states per release line whether a CVE affects it (Node.js's security working group:
@@ -30,7 +32,8 @@ type LineCover struct {
 	Source, Product, Ref string
 	Name                 string // how the texts name the source ("The Node.js security team": line-sources.json)
 	StatedAt             time.Time
-	Absent               string // unaffected_if_supported, unknown
+	Absent               string   // unaffected_if_supported, unaffected_if_assessed, unknown
+	Builds               []string // the product's builds whose releases the source numbers ("Oracle"); empty: every build
 	Stale                bool
 }
 
@@ -42,6 +45,10 @@ type LineSupport struct {
 
 // AbsentUnaffectedIfSupported is the convention "a supported line the vendor does not list is not affected" (feeds line-sources.json).
 const AbsentUnaffectedIfSupported = "unaffected_if_supported"
+
+// AbsentUnaffectedIfAssessed is the convention "a line the vendor's document assessed and does not list is not affected": the source
+// states it as rows of its own (explicit false), one per line the document assessed (feeds line-sources.json).
+const AbsentUnaffectedIfAssessed = "unaffected_if_assessed"
 
 // RangeVendorLine is the range origin of a finding a vendor's release-line statement decided (fnd_finding.range_origin).
 const RangeVendorLine = "vendor_line"
@@ -79,9 +86,13 @@ func (r lineRead) within() VersionRange {
 }
 
 // lineJudge is the release-line verdict of entry v for software line s of device a. A distribution's package is never read here (the
-// distribution's data decides it), nor a version that says nothing. The NVD rule: an explicit "fixed" or "unaffected" holds unless an
-// NVD row that covers the version names the line itself (starts on it or lists one of its releases); a convention's "unaffected" holds
-// only when no NVD row covers the version. On a disagreement the affected side wins.
+// distribution's data decides it), nor a version that says nothing, nor one the product's version scheme does not read (after its
+// version_map): such a version could compare past a vendor's release by its notation alone. The NVD rule: an explicit "fixed" or
+// "unaffected" holds unless an NVD row that covers the version names the line itself (starts on it or lists one of its releases); a
+// convention's "unaffected" (a convention row of the source, or a line it does not list) holds only from a fresh source whose statement
+// is not older than the CVE, and only when no NVD row covers the version. A version past the vendor's affected releases of the line is
+// fixed only for the builds the source numbers (LineCover.Builds): another build numbers its releases its own way. On a disagreement the
+// affected side wins.
 func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 	if len(v.LineCovers) == 0 || !in.given || !versionKnown(in.ver) || in.pkgBuilt() || distroBuilt(in) && linuxDistro(cmpOr(a.OS, in.osName)) != "" {
 		return lineRead{}
@@ -104,6 +115,11 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 	if line == "" {
 		return lineRead{}
 	}
+	if sc, ok := versionscheme.Lookup(p.Scheme); ok && p.Scheme != "" {
+		if _, ok := sc.Parse(ver); !ok {
+			return lineRead{} // "1.8.491.10" is not a Java release: compared as written it would pass 1.8.0_491
+		}
+	}
 	out := lineRead{product: p, line: line, ver: ver}
 	listed := false
 	best := lineRead{}
@@ -117,26 +133,37 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 		if len(r.Platforms) > 0 { // listed for some platforms only: the device's platform is not read here, so it decides nothing
 			continue
 		}
-		got := lineNone
-		switch r.Status {
-		case "hidden":
+		got, conv := lineNone, false
+		switch {
+		case r.Status == "hidden":
 			got = lineHidden
-		case "unaffected":
+		case r.Status == "unaffected" && !r.Explicit: // the source's convention as a row: only fresh, and not older than the CVE
+			if !c.Stale && !v.Published.IsZero() && !c.StatedAt.Before(utcDay(v.Published)) {
+				got, conv = lineUnaffected, true
+			}
+		case r.Status == "unaffected":
 			got = lineUnaffected
 		default: // affected, fixed: the line's affected releases
 			switch (VersionRange{StartIncl: r.Introduced, EndIncl: r.LastAffected, EndExcl: r.Fixed}).Contains(ver) {
 			case Yes:
 				got = lineAffected
 			case No:
-				got = lineFixed
+				if len(c.Builds) == 0 || slices.Contains(c.Builds, p.Distribution) {
+					got = lineFixed
+				}
 			}
 		}
-		if got != lineNone && rank[got] > rank[best.verdict] {
+		if got != lineNone && (rank[got] > rank[best.verdict] || rank[got] == rank[best.verdict] && best.convention && !conv) {
 			best = out
-			best.verdict, best.row, best.cover = got, r, c
+			best.verdict, best.row, best.cover, best.convention = got, r, c, conv
 		}
 	}
 	switch {
+	case best.convention:
+		if nvdCovers(in, v) {
+			return lineRead{}
+		}
+		return best
 	case best.verdict == lineFixed || best.verdict == lineUnaffected:
 		if nvdNamesLine(in, v, p, line) {
 			return lineRead{}
@@ -247,6 +274,9 @@ func lineDecision(s Software, v Vuln, r lineRead) (Tri, VersionRange, string) {
 	who, product := lineWho(r), cmp.Or(clean(r.product.Display), clean(s.Display))
 	var why string
 	switch {
+	case r.convention && r.cover.Absent == AbsentUnaffectedIfAssessed:
+		why = fmt.Sprintf("%s's advisory assesses release line %s of %s and does not list it as affected by %s; %s lists the affected releases of every line its advisory assesses",
+			who, clean(r.line), product, v.CVE, who)
 	case r.convention:
 		why = fmt.Sprintf("%s lists %s for other release lines of %s only, and states that a line it supported then and does not list is not affected (%s %s was supported when %s was published)",
 			who, v.CVE, product, product, clean(r.line), v.CVE)

@@ -53,7 +53,12 @@ type LineSourceDef struct {
 	Products []string `json:"products"`
 	Listed   string   `json:"listed"`
 	Absent   string   `json:"absent"`
-	Ref      string   `json:"ref"`
+	// Builds are the distributions of the product whose releases the source numbers ("Oracle"): a release past the newest affected one
+	// of a line is fixed only for them. Empty: every build.
+	Builds []string `json:"builds"`
+	// CSAF says, per catalogue product id, how the source's CSAF documents name the product (listed last_affected).
+	CSAF map[string]CSAFSelector `json:"csaf"`
+	Ref  string                  `json:"ref"`
 }
 
 type lineSourcesFile struct {
@@ -92,8 +97,8 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 		return p.Key, nil
 	}
 	for _, s := range f.Sources {
-		if _, ok := BuiltinByID(s.Source); !ok || strings.TrimSpace(s.Name) == "" || len(s.Products) == 0 || s.Listed != ListedSemverRange ||
-			s.Absent != AbsentUnaffectedIfSupported && s.Absent != AbsentUnknown {
+		if _, ok := BuiltinByID(s.Source); !ok || strings.TrimSpace(s.Name) == "" || len(s.Products) == 0 || s.Listed != ListedSemverRange && s.Listed != ListedLastAffected ||
+			s.Absent != AbsentUnaffectedIfSupported && s.Absent != AbsentUnaffectedIfAssessed && s.Absent != AbsentUnknown {
 			return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: unknown feed, no product or unknown convention", s.Source)
 		}
 		for _, id := range s.Products {
@@ -101,7 +106,15 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 			if err != nil {
 				return lineCatalogue{}, err
 			}
+			if sel := s.CSAF[id]; s.Listed == ListedLastAffected && len(sel.CPE) == 0 && strings.TrimSpace(sel.Branch) == "" {
+				return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: product %q has no csaf entry", s.Source, id)
+			}
 			c.keys[s.Source] = append(c.keys[s.Source], k)
+		}
+		for id := range s.CSAF {
+			if !slices.Contains(s.Products, id) {
+				return lineCatalogue{}, fmt.Errorf("feeds: line-sources.json: source %q: csaf names %q, not one of its products", s.Source, id)
+			}
 		}
 		c.sources[s.Source] = s
 	}
@@ -124,6 +137,7 @@ func parseLineSources(b []byte) (lineCatalogue, error) {
 // lineStatement is one CVE a line source speaks about for one product, with its rows.
 type lineStatement struct {
 	CVE, Product, Ref string
+	StatedAt          string // the day of the vendor's document (YYYY-MM-DD); "" when the source gives none (then the day first read)
 	Rows              []lineRow
 }
 
@@ -392,6 +406,9 @@ func isDay(s string) bool {
 // buildLines pulls a line source (Node.js's index) or the support source (endoflife.date). The whole file every time (145 kB and
 // 3 MB, once a day): the stored rows keep only the catalogue's CVEs (INV-34), so a CVE that entered it since is read at the next pull.
 func (s *Service) buildLines(ctx context.Context, src sourceRow, p pullPlan, dec Decoder) (pullPlan, error) {
+	if dec == DecoderOracleCSAF {
+		return s.buildOracleLines(ctx, src, p)
+	}
 	cat, err := lineCat()
 	if err != nil {
 		return p, err
@@ -443,6 +460,9 @@ func applyLines(ctx context.Context, tx *sql.Tx, now time.Time, sourceID string,
 		day := now.UTC().Format(time.DateOnly)
 		if d, ok := days[st.Product+"|"+st.CVE]; ok {
 			day = d
+		}
+		if isDay(st.StatedAt) { // the vendor dates its statement
+			day = st.StatedAt
 		}
 		res, err := tx.ExecContext(ctx, `INSERT INTO feeds_line_cve (source_id, product, cve, stated_at, ref)
 SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM feeds_cve WHERE cve = ?)`, sourceID, st.Product, st.CVE, day, st.Ref, st.CVE)
@@ -553,6 +573,7 @@ type LineCover struct {
 	Name                      string // how texts name the source (line-sources.json)
 	StatedAt                  time.Time
 	Absent                    string
+	Builds                    []string // the product's builds whose releases the source numbers (line-sources.json); empty: every build
 	Stale                     bool
 }
 
@@ -604,7 +625,7 @@ ORDER BY cve, source_id, product`, string(list))
 			continue
 		}
 		c.StatedAt, _ = time.Parse(time.DateOnly, day)
-		c.Absent, c.Name, c.Stale = cat.sources[c.Source].Absent, cat.sources[c.Source].Name, stale[c.Source]
+		c.Absent, c.Name, c.Builds, c.Stale = cat.sources[c.Source].Absent, cat.sources[c.Source].Name, cat.sources[c.Source].Builds, stale[c.Source]
 		if c.Absent == "" {
 			c.Absent = AbsentUnknown
 		}

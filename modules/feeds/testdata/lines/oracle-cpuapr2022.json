@@ -1,0 +1,147 @@
+{
+ "document": {
+  "category": "Oracle Critical Patch Update Advisory",
+  "csaf_version": "2.0",
+  "distribution": {
+   "tlp": {
+    "label": "WHITE"
+   }
+  },
+  "publisher": {
+   "category": "vendor",
+   "name": "Oracle",
+   "namespace": "https://www.oracle.com"
+  },
+  "references": [
+   {
+    "url": "https://www.oracle.com/security-alerts/cpuapr2022.html"
+   },
+   {
+    "url": "https://www.oracle.com/docs/tech/security-alerts/cpuapr2022csaf.json",
+    "category": "self"
+   }
+  ],
+  "title": "CPUApr2022csaf",
+  "tracking": {
+   "id": "CPUApr2022csaf",
+   "initial_release_date": "2022-04-19T13:00:00-07:00",
+   "current_release_date": "2024-09-20T12:00:00-07:00",
+   "status": "draft",
+   "version": "8"
+  }
+ },
+ "product_tree": {
+  "branches": [
+   {
+    "category": "vendor",
+    "name": "Oracle",
+    "branches": [
+     {
+      "category": "product_family",
+      "name": "Oracle Java SE",
+      "branches": [
+       {
+        "category": "product_name",
+        "name": "Oracle Java SE",
+        "branches": [
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:20.3.5",
+          "product": {
+           "name": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:20.3.5",
+           "product_id": "P-13497V-Oracle GraalVM Enterprise Edition:20.3.5"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:21.3.1",
+          "product": {
+           "name": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:21.3.1",
+           "product_id": "P-13497V-Oracle GraalVM Enterprise Edition:21.3.1"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:22.0.0.2",
+          "product": {
+           "name": "Oracle Java SE Version Oracle GraalVM Enterprise Edition:22.0.0.2",
+           "product_id": "P-13497V-Oracle GraalVM Enterprise Edition:22.0.0.2"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle Java SE:11.0.14",
+          "product": {
+           "name": "Oracle Java SE Version Oracle Java SE:11.0.14",
+           "product_id": "P-856V-Oracle Java SE:11.0.14"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle Java SE:17.0.2",
+          "product": {
+           "name": "Oracle Java SE Version Oracle Java SE:17.0.2",
+           "product_id": "P-856V-Oracle Java SE:17.0.2"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle Java SE:18",
+          "product": {
+           "name": "Oracle Java SE Version Oracle Java SE:18",
+           "product_id": "P-856V-Oracle Java SE:18"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle Java SE:7u331",
+          "product": {
+           "name": "Oracle Java SE Version Oracle Java SE:7u331",
+           "product_id": "P-856V-Oracle Java SE:7u331"
+          }
+         },
+         {
+          "category": "product_version",
+          "name": "Oracle Java SE Version Oracle Java SE:8u321",
+          "product": {
+           "name": "Oracle Java SE Version Oracle Java SE:8u321",
+           "product_id": "P-856V-Oracle Java SE:8u321"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "vulnerabilities": [
+  {
+   "cve": "CVE-2022-21426",
+   "product_status": {
+    "known_affected": [
+     "P-856V-Oracle Java SE:7u331",
+     "P-856V-Oracle Java SE:8u321",
+     "P-856V-Oracle Java SE:11.0.14",
+     "P-856V-Oracle Java SE:17.0.2",
+     "P-856V-Oracle Java SE:18",
+     "P-13497V-Oracle GraalVM Enterprise Edition:20.3.5",
+     "P-13497V-Oracle GraalVM Enterprise Edition:21.3.1",
+     "P-13497V-Oracle GraalVM Enterprise Edition:22.0.0.2"
+    ]
+   }
+  },
+  {
+   "cve": "CVE-2022-21449",
+   "product_status": {
+    "known_affected": [
+     "P-856V-Oracle Java SE:17.0.2",
+     "P-856V-Oracle Java SE:18",
+     "P-13497V-Oracle GraalVM Enterprise Edition:21.3.1",
+     "P-13497V-Oracle GraalVM Enterprise Edition:22.0.0.2"
+    ]
+   }
+  }
+ ]
+}

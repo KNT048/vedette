@@ -160,9 +160,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   unaffected, is "not affected" unless an NVD row covering the version names the line itself (starts or ends on it, or lists one
   of its releases); a line the source does not list is "not affected" by the convention `unaffected_if_supported` only when the vendor supported
   the line on the day the CVE was published (line support), the source is fresh and its statement not older than the CVE, and no NVD row
-  covers the version. A line the vendor no longer assessed, a status that is not public yet, and a row limited to some platforms decide
-  nothing: the CVE record's own statement decides as before. A distribution's package is never read here. `TestLineJudge_EveryVerdict`,
-  `TestLineJudge_EvidenceFixAndOrigin`.
+  covers the version; a convention row of the source (`explicit` false: Oracle's "a line the document assessed and does not list") holds
+  under the same freshness, date and NVD conditions. A version past the vendor's affected releases of the line is fixed only for the builds
+  the source numbers (`LineCover.Builds`: Oracle's own Java, not Temurin's 8u492); for another build it decides nothing. A version the
+  product's version scheme does not read after its `version_map` decides nothing. A line the vendor no longer assessed, a status that is
+  not public yet, and a row limited to some platforms decide nothing: the CVE record's own statement decides as before. A distribution's
+  package is never read here. `TestLineJudge_EveryVerdict`, `TestLineJudge_EvidenceFixAndOrigin`, `TestLineJudge_OracleJava`,
+  `TestLineJudge_OracleTexts`.
 
 ## Possible findings and the check of their advisories
 

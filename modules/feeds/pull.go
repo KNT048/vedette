@@ -181,6 +181,7 @@ type pullPlan struct {
 
 	vendor    vendorRead // msrc, cisco-psirt, fortinet-psirt: the vendor's exploitation claims (applyVendorClaims)
 	hasVendor bool
+	lineMem   *oracleMemory   // oracle-cpu-csaf: what the box read of each document, kept once the statements are written
 	vendorMem *advisoryMemory // cisco-psirt, fortinet-psirt: what the box read of each advisory, kept once the claims are written
 }
 
@@ -323,7 +324,7 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildRecent(ctx, src, p)
 	case DecoderWinRel:
 		return s.buildWinRel(ctx, src, p)
-	case DecoderNodeLines, DecoderEOL:
+	case DecoderNodeLines, DecoderEOL, DecoderOracleCSAF:
 		return s.buildLines(ctx, src, p, dec)
 	case DecoderMetasploit, DecoderExploitDB, DecoderPoCGitHub:
 		return s.buildPublicExploit(ctx, src, p, dec)
@@ -690,6 +691,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if p.vendorMem != nil && p.out.OK && !stale {
 		s.keepAdvisories(src.ID, p.vendorMem)
+	}
+	if p.lineMem != nil && p.out.OK && !stale {
+		s.keepOracle(p.lineMem)
 	}
 	row, rerr := s.st.source(ctx, id)
 	if stale || rerr != nil {

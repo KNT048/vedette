@@ -138,6 +138,8 @@ type Service struct {
 
 	advMu sync.Mutex
 	adv   map[string]*advisoryMemory // per vendor feed: what the box read of each advisory (readAdvisories)
+	// oracle is what the box read of each document of Oracle's CSAF feed (buildOracleLines), under advMu.
+	oracle *oracleMemory
 
 	nvdGateMu   sync.Mutex
 	nvdNext     time.Time // the earliest time the next NVD request of a feed may start (nvdSlot, review r1 #5)

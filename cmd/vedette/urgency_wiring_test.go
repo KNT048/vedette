@@ -272,8 +272,10 @@ func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
 	if len(sums) != 1 || sums[0].Title != "Patch first: 4 urgent findings on 2 devices" || len(sums[0].FindingIDs) != 4 || len(sums[0].Lines) != 4 {
 		t.Fatalf("after a second device: %+v", sums)
 	}
-	for _, l := range sums[0].Lines { // each line says why and how Vedette knows, as the finding page does
-		if !strings.Contains(l, " — ") || !strings.Contains(l, "Not confirmed yet:") {
+	// each line says why and how Vedette knows, as the finding page does: the person who added the device gave its version, so the
+	// match on it is that person's word
+	for _, l := range sums[0].Lines {
+		if !strings.Contains(l, " — ") || !strings.Contains(l, "Confirmed by it@acme.example") {
 			t.Errorf("summary line %q", l)
 		}
 	}

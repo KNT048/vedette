@@ -615,6 +615,7 @@
       "inventory.use_detected": "Use a detected value instead of the one entered",
       "inventory.keep_entered": "Keep an entered value against a detected one",
       "inventory.correct_software": "Correct software a scan or agent reported",
+      "inventory.entry_cleaned": "Bring a software entry stored by an earlier release to the current rules",
       "inventory.software_correction_lapsed": "A newer version was read, so a corrected version no longer applies",
       "inventory.software_correction_kept": "A version was read that is not newer, so a corrected version stays",
       "inventory.os_correction_lapsed": "A newer OS version was read, so a corrected OS no longer applies",

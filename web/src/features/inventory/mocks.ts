@@ -1246,8 +1246,9 @@ export const handlers = [
     const node = hasAgentNode(a)
     const stop = node && agent === 'stop'
     if (stop) removedNodes.update((l) => [...l, a.id])
-    // The removal stays, as the backend keeps it (INV-59): only "remove only" of a device whose agent keeps reporting keeps nothing
-    if ((!node || stop) && (a.ip !== '—' || a.mac)) {
+    // The removal stays, as the backend keeps it (INV-59): a burned-in MAC, or the address of a device with no MAC. "Remove only" of a
+    // device whose agent keeps reporting keeps nothing, and neither does a private Wi-Fi address (it rotates)
+    if ((!node || stop) && (a.mac ? !isPrivateMac(a.mac) : a.ip !== '—')) {
       removedStore.update((l) => [{ id: newId('rm'), name: nameOf(a, a.kind), ip: a.ip !== '—' ? a.ip : null, agent: stop ? 'stopped' as const : 'none' as const, removed_by: 'admin@example.test', removed_at: nowIso(), identifiers: 1 }, ...l])
     }
     assetsStore.update((l) => l.filter((x) => x.id !== a.id))

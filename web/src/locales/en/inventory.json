@@ -244,7 +244,7 @@
     "title": "Remove {{name}} from the list?",
     "body": "This removes it from Vedette's list only, not the real device.",
     "comesBack": "Discovery keeps it out from now on: it is listed under Removed in To review, where you can let it come back.",
-    "comesBackPrivate": "It uses a private Wi-Fi address, which changes: under a new one it shows up again as a new device.",
+    "comesBackPrivate": "It uses a private Wi-Fi address, which changes, so Vedette cannot recognise it: it shows up again as a new device the next time it is seen.",
     "bodyInfo": "Vedette keeps what identified the device (its network card, or its address when it has no fixed card), so the scan and the network listener do not add it again. Adding a device by hand at its address, or installing an agent on it, brings it back. Ignore keeps a device in the list as known and not watched instead.",
     "agentTitle": "Its osquery agent still reports",
     "agentStop": "Remove and stop its agent",

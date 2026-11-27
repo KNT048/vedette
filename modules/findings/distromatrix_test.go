@@ -48,17 +48,20 @@ func mxVuln(cve string, fixes ...DistroFix) Vuln {
 
 // mxKernelKEV is an exploited kernel CVE whose NVD rows give upstream kernel ranges (6.19 up to before 7.0.10), with the
 // distribution's word in fixes (none: Ubuntu has published nothing yet).
-func mxKernelKEV(cve string, fixes ...DistroFix) Vuln {
-	return Vuln{CVE: cve, Vendor: "Linux", Product: "Kernel", Source: "cisa-kev", NVDAnswered: true, Distro: fixes, DistroOn: mxDistroOn,
+func mxKernelKEV(fixes ...DistroFix) Vuln {
+	return Vuln{CVE: mxCVEKEV, Vendor: "Linux", Product: "Kernel", Source: "cisa-kev", NVDAnswered: true, Distro: fixes, DistroOn: mxDistroOn,
 		Affected: []Affected{{CPE: "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "6.19", EndExcl: "7.0.10"}}}}
 }
+
+// mxCVEKEV is the exploited CVE of the matrix's exploited rows.
+const mxCVEKEV = "CVE-2026-91003"
 
 // mxDistroOn: the box's Ubuntu and Debian security feeds are on.
 var mxDistroOn = map[string]bool{"ubuntu": true, "debian": true}
 
 // mxChromeKEV is an exploited Chrome CVE whose NVD rows give an upstream range: a vendor's own .deb on Ubuntu is judged by it.
-func mxChromeKEV(cve string) Vuln {
-	return Vuln{CVE: cve, Vendor: "Google", Product: "Chromium V8", Source: "cisa-kev", NVDAnswered: true, DistroOn: mxDistroOn,
+func mxChromeKEV() Vuln {
+	return Vuln{CVE: mxCVEKEV, Vendor: "Google", Product: "Chromium V8", Source: "cisa-kev", NVDAnswered: true, DistroOn: mxDistroOn,
 		Affected: []Affected{{CPE: "cpe:2.3:a:google:chrome:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "132.0.6834.83"}}}}
 }
 
@@ -101,7 +104,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	const (
 		cvePkg    = "CVE-2026-91001"
 		cveKernel = "CVE-2026-91002"
-		cveKEV    = "CVE-2026-91003"
+		cveKEV    = mxCVEKEV
 	)
 	pipOld := mxDeb("python3-pip", "25.1.1+dfsg", "25.1.1+dfsg-1ubuntu2", "python-pip")
 	pipESM := mxDeb("python3-pip", "25.1.1+dfsg", "25.1.1+dfsg-1ubuntu2+esm3", "python-pip")
@@ -121,14 +124,14 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	utilDebian := []Vuln{mxVuln(cvePkg, DistroFix{Distro: "debian", Release: "13", Package: "util-linux", Status: "fixed", Fixed: "2.41-5+deb13u1"})}
 	sshPub := []Vuln{mxVuln(cvePkg, mxUbuntu("openssh", "1:9.6p1-3ubuntu13.5", false))}
 	kern := []Vuln{mxVuln(cveKernel, mxUbuntu("linux", "7.0.0-44.44", false))}
-	kevNoWord := []Vuln{mxKernelKEV(cveKEV)}
-	kevFixed := []Vuln{mxKernelKEV(cveKEV, mxUbuntu("linux", "7.0.0-22.22", false))}
-	kevOpen := []Vuln{mxKernelKEV(cveKEV, DistroFix{Distro: "ubuntu", Release: "26.04", Package: "linux", Status: "open"})}
-	kevFeedsOff := []Vuln{mxKernelKEV(cveKEV)}
+	kevNoWord := []Vuln{mxKernelKEV()}
+	kevFixed := []Vuln{mxKernelKEV(mxUbuntu("linux", "7.0.0-22.22", false))}
+	kevOpen := []Vuln{mxKernelKEV(DistroFix{Distro: "ubuntu", Release: "26.04", Package: "linux", Status: "open"})}
+	kevFeedsOff := []Vuln{mxKernelKEV()}
 	kevFeedsOff[0].DistroOn = nil
 	chrome := Software{ID: "s-chrome", Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: "131.0.6778.85", Source: "agent",
 		Packaged: true, PkgVersion: "131.0.6778.85-1", PkgSource: "google-chrome-stable", KevKeys: []string{"google|chromium v8"}}
-	chromeKEV := []Vuln{mxChromeKEV(cveKEV)}
+	chromeKEV := []Vuln{mxChromeKEV()}
 
 	k43, k44 := mxKernel("7.0.0-43.43"), mxKernel("7.0.0-44.44")
 	img44, img43 := mxImage("7.0.0-44", "7.0.0-44.44"), mxImage("7.0.0-43", "7.0.0-43.43")

@@ -28,19 +28,21 @@ func TestMigrationFixChannelKeepsTheStoredFindings(t *testing.T) {
 	}
 	findingstest.ParentRows(t, db)
 	const ts = "2026-11-26T08:51:00.000Z"
-	rows := []string{
-		`('f-pip', 'a-1', 'CVE-2025-66471', 's-pip', 1, 'package', 'device', 'distro', '25.1.1+dfsg-1ubuntu2', 'distro_update', '25.1.1+dfsg-1ubuntu2+esm3', NULL,
-			'canonical|pip|distro_update|25.1.1+dfsg-1ubuntu2+esm3', 'open', NULL, NULL, NULL, NULL, NULL, NULL, 2)`,
-		`('f-kernel', 'a-1', 'CVE-2026-91002', 's-kernel', 1, 'package', 'device', 'distro', '7.0.0-43.43', 'restart', '7.0.0-44.44', NULL,
-			'linux|kernel|restart|7.0.0-44.44', 'open', NULL, NULL, NULL, NULL, NULL, NULL, 5)`,
-		`('f-ssh', 'a-1', 'CVE-2026-91001', 's-ssh', 0, 'package', 'device', 'distro', '1:9.6p1-3ubuntu13.4', 'distro_update', '1:9.6p1-3ubuntu13.5', NULL,
-			'openbsd|openssh|distro_update|1:9.6p1-3ubuntu13.5', 'handled', 'patched', 'version_moved', 'system', '` + ts + `', '1:9.6p1-3ubuntu13.4', '1:9.6p1-3ubuntu13.5', 5)`,
+	rows := [][]any{
+		{"f-pip", "CVE-2025-66471", "s-pip", 1, "25.1.1+dfsg-1ubuntu2", "distro_update", "25.1.1+dfsg-1ubuntu2+esm3",
+			"canonical|pip|distro_update|25.1.1+dfsg-1ubuntu2+esm3", "open", nil, nil, nil, nil, nil, nil, 2},
+		{"f-kernel", "CVE-2026-91002", "s-kernel", 1, "7.0.0-43.43", "restart", "7.0.0-44.44",
+			"linux|kernel|restart|7.0.0-44.44", "open", nil, nil, nil, nil, nil, nil, 5},
+		{"f-ssh", "CVE-2026-91001", "s-ssh", 0, "1:9.6p1-3ubuntu13.4", "distro_update", "1:9.6p1-3ubuntu13.5",
+			"openbsd|openssh|distro_update|1:9.6p1-3ubuntu13.5", "handled", "patched", "version_moved", "system", ts, "1:9.6p1-3ubuntu13.4", "1:9.6p1-3ubuntu13.5", 5},
 	}
 	for _, r := range rows {
 		if err := db.Write(ctx, func(tx *sql.Tx) error {
 			_, err := tx.ExecContext(ctx, `INSERT INTO fnd_finding (id, asset_id, cve, software_id, detected, basis, verified, range_origin, matched_version,
 				fix_kind, fix_version, fix_ref, fix_key, state, resolution, via, resolved_by, resolved_at, from_version, to_version, urgency,
-				urgency_at, first_seen, last_seen, updated_at) VALUES `+r[:len(r)-1]+`, '`+ts+`', '`+ts+`', '`+ts+`', '`+ts+`')`)
+				urgency_at, first_seen, last_seen, updated_at)
+				VALUES (?1, 'a-1', ?2, ?3, ?4, 'package', 'device', 'distro', ?5, ?6, ?7, NULL, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17, ?17, ?17)`,
+				append(r, ts)...)
 			return err
 		}); err != nil {
 			t.Fatal(err)

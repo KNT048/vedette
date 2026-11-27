@@ -204,7 +204,7 @@ func TestTransition_InvariantsHoldForAnySequence(t *testing.T) {
 			if err := g.Validate(); err != nil {
 				t.Fatalf("after %+v from %+v: %v", tr, f, err)
 			}
-			if g.State == StateOpen && !g.Detected && !(f.State == StateOpen && !f.Detected) {
+			if g.State == StateOpen && !g.Detected && (f.State != StateOpen || f.Detected) {
 				t.Fatalf("open and not detected after %+v from %+v: open means detected", tr, f)
 			}
 			if g.State == StateHandled && (g.Via == "" || g.ResolvedBy == "" || g.ResolvedAt.IsZero()) {

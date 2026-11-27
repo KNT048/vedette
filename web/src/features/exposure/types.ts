@@ -62,6 +62,8 @@ export type Scan = z.infer<typeof C.Scan>
 export type Severity = z.infer<typeof C.Severity>
 export type NodeBlock = z.infer<typeof C.NodeBlock>
 export type DeepSettings = z.infer<typeof C.DeepSettings>
+/** What the settings are saved as: the whole object without the fields the box fills in. */
+export type DeepSettingsBody = Omit<DeepSettings, 'updated_at' | 'updated_by' | 'problem'>
 export type TargetNode = z.infer<typeof C.TargetNode>
 export type TargetTree = z.infer<typeof C.TargetTree>
 export type HostSource = z.infer<typeof C.HostSource>

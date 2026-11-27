@@ -21,7 +21,7 @@ var assetColumns = `a.id, a.ip, a.mac, a.hostname, a.user_name, a.kind, k.source
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at,
 	(SELECT f.value FROM inv_observation f WHERE f.asset_id = a.id AND f.field = 'os' AND f.source = 'passive' AND m.source = 'passive'
 		AND f.seen_at = m.seen_at ORDER BY f.id LIMIT 1),
-	` + quietExpr + `, o.evidence`
+	` + stateSQL + `, o.evidence`
 
 const assetFrom = ` FROM inv_asset a
 	LEFT JOIN inv_observation v ON v.id = a.vendor_obs_id
@@ -66,10 +66,10 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		var v, m, o, h, x obsCols
 		var osEvidence sql.NullString // where the stored OS came from when a declared row decided it (sourceDeclared)
 		var frameOS sql.NullString    // the passive OS seen with a passive model: the same LLDP frame (modelBasis)
-		var approved, fragile, suspicious, box, quiet bool
+		var approved, fragile, suspicious, box bool
 		if err := rows.Scan(&d.ID, &ip, &mac, &host, &userName, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen, &d.ScanSource, &d.SNMPSource, &ignoredAt,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
-			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen, &frameOS, &quiet, &osEvidence); err != nil {
+			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen, &frameOS, &d.State, &osEvidence); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
 		d.Site = "hq" // one site
@@ -88,7 +88,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		}
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
-		d.Quiet, d.PrivateMAC = quiet, mac.Valid && PrivateMAC(mac.String)
+		d.PrivateMAC = mac.Valid && PrivateMAC(mac.String)
 		d.IgnoredAt = ptr(ignoredAt)
 		d.ScanSource, d.SNMPSource = sourceState(d.ScanSource, d.Origin), snmpState(st, d.SNMPSource, d.Origin, ip.String)
 		if d.IgnoredAt != nil { // Both are off while it is ignored, as the policies apply them; the stored choice stays
@@ -244,10 +244,11 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources, with
 	return out, nil
 }
 
-// DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
-// GET /findings/overview): one aggregate over inv_asset. Ignored devices are in neither.
+// DeviceCounts is the counts of the Devices list and of To review without the lists (Home's device tile, findings
+// GET /findings/overview): one aggregate over inv_asset by the state rule (stateSQL). total is the added devices, the ones the Devices
+// list holds and the tile links to; pending the To review count. Ignored and seen-briefly devices are in neither.
 func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
-	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(`+toReviewSQL+`), 0) FROM inv_asset a WHERE a.ignored_at IS NULL`).Scan(&total, &pending)
+	err = s.db.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(`+stateSQL+` = 'added'), 0), ifnull(sum(`+toReviewSQL+`), 0) FROM inv_asset a WHERE a.ignored_at IS NULL`).Scan(&total, &pending)
 	if err != nil {
 		return 0, 0, fmt.Errorf("inventory: count devices: %w", err)
 	}
@@ -365,9 +366,10 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	var cur [6]sql.NullString
 	var kind string
 	var kindSrc sql.NullString
-	if err := db.QueryRowContext(ctx, `SELECT a.kind_obs_id, a.hostname_obs_id, a.mac_obs_id, a.vendor_obs_id, a.model_obs_id, a.os_obs_id, a.kind, k.source
+	var agent bool
+	if err := db.QueryRowContext(ctx, `SELECT a.kind_obs_id, a.hostname_obs_id, a.mac_obs_id, a.vendor_obs_id, a.model_obs_id, a.os_obs_id, a.kind, k.source, a.agent_key IS NOT NULL
 		FROM inv_asset a LEFT JOIN inv_observation k ON k.id = a.kind_obs_id WHERE a.id = ?`, id).
-		Scan(&cur[0], &cur[1], &cur[2], &cur[3], &cur[4], &cur[5], &kind, &kindSrc); err != nil {
+		Scan(&cur[0], &cur[1], &cur[2], &cur[3], &cur[4], &cur[5], &kind, &kindSrc, &agent); err != nil {
 		return Detail{}, fmt.Errorf("inventory: read device: %w", err)
 	}
 	mac := ""
@@ -458,7 +460,13 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
+	macs, ips, err := removedIdentifiers(ctx, db, id) // what a removal would keep (INV-59), for the remove dialog's words
+	if err != nil {
+		return Detail{}, err
+	}
 	return Detail{
+		RemovalKeeps:    len(macs)+len(ips) > 0,
+		Agent:           agent && s.agentsOn(),
 		Addresses:       addrs,
 		DetectedDiffers: differs,
 		ManualAt:        manualAt,

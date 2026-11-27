@@ -907,6 +907,28 @@ CREATE TABLE inv_merged_reading (
     FOREIGN KEY (asset_id, from_id) REFERENCES inv_merged_from (asset_id, from_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
+CREATE TABLE inv_removed (
+    id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    -- the device as Devices named it and its main address when it was removed, for the Removed list (the address is an identifier
+    -- only through an inv_removed_id row)
+    name       TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 256),
+    ip         TEXT CHECK (ip IS NULL OR length(ip) BETWEEN 7 AND 15),
+    -- what happened to its agent: none (it had none), stopped (the person chose to stop it: its node went, and its token when it
+    -- was made for this device alone)
+    agent      TEXT NOT NULL CHECK (agent IN ('none', 'stopped')),
+    removed_by TEXT NOT NULL CHECK (length(removed_by) BETWEEN 1 AND 256),
+    removed_at TEXT NOT NULL CHECK (removed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
+
+CREATE TABLE inv_removed_id (
+    removed_id TEXT NOT NULL REFERENCES inv_removed (id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL CHECK (kind IN ('mac', 'ip', 'agent')),
+    value      TEXT NOT NULL CHECK (length(value) BETWEEN 1 AND 1200),
+    PRIMARY KEY (kind, value)
+);
+
+CREATE INDEX inv_removed_id_removed ON inv_removed_id (removed_id);
+
 -- module agent-intake
 
 CREATE TABLE intake_agent_tokens (

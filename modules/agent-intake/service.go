@@ -50,8 +50,11 @@ type Config struct {
 	Software observe.SoftwareSink // the inventory: the software list of a device
 	Approver observe.Approver     // the inventory: the enrolment approves the device a node reports on
 	Services observe.ServiceSink  // the inventory: the open ports a machine's agent reports (INV-22); nil: they are not recorded
-	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
-	Conn     *conn.Service        // the HTTPS client and address policy for the Wazuh server
+	// Removed says whether an enrolment (EnrolKey) belongs to a device a person removed with its agent stopped (the inventory's
+	// RemovedAgent): that enrolment is refused (INV-28). nil: none is.
+	Removed func(ctx context.Context, key string) (bool, error)
+	Secrets *secrets.Store // the Wazuh password (purpose intake_wazuh.password)
+	Conn    *conn.Service  // the HTTPS client and address policy for the Wazuh server
 	// Schedules keeps the Wazuh pull's schedule in step with the connection form (core/schedule Service.SaveTx); nil: the form's interval is not stored.
 	Schedules interface {
 		SaveTx(ctx context.Context, tx *sql.Tx, key string, st coreschedule.Setting, by string) error
@@ -255,6 +258,16 @@ func (s *Service) Enroll(ctx context.Context, src netip.Addr, in enrollIn) (stri
 	}
 	if err != nil {
 		return "", err
+	}
+	if s.cfg.Removed != nil { // a machine whose device a person removed with its agent stopped (INV-28): refused, not counted as a guess
+		removed, err := s.cfg.Removed(ctx, EnrolKey(t.id, in.hostIdentifier))
+		if err != nil {
+			return "", err
+		}
+		if removed {
+			s.logReject(ctx, "enroll", src, "removed")
+			return "", errNodeInvalid
+		}
 	}
 	nodeKey, err := newNodeKey()
 	if err != nil {

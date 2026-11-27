@@ -146,6 +146,7 @@ func TestDevicesRunningNamesTheMatchingSoftware(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.60")}
+	sightedBy(t.Context(), t, e.svc, hint, observe.Osquery)
 	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{
 		{Display: "3cpio", Vendor: "3cpio", Product: "3cpio", Version: "0.5.1", Confidence: 0.95, Packaged: true},
 		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95, Packaged: true},

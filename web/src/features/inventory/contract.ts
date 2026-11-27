@@ -37,6 +37,8 @@ export const KindGuess = z.object({
   model: z.string().optional().describe('A model a certificate or page title states'),
   alternatives: z.array(AssetKind).optional().describe('Other types the same signals fit, offered next to the guess'),
 }).describe('What the identification rules say the device most likely is, only while kind is unknown; it changes no behaviour until a person sets the kind')
+/** Where a device stands: the one rule the Devices list, To review, the row text, the counts and the new-device notice read (inventory stateSQL). */
+export const DeviceState = z.enum(['added', 'review', 'seen', 'ignored']).describe('added: a person added or approved it, its agent\'s first report did, or it is the box: the Devices list. review: found by a sensor and not added: To review. seen: found, not added, and quiet (a private Wi-Fi address, no open service, seen for less than a day): the collapsed Seen briefly group of To review, outside its count and the new-device notice; it moves to review when it opens a service, stays past a day or gets a finding. ignored: a person ignored it')
 export const Asset = z.object({
   id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(),
   hostname: z.string().nullable().describe('The host name the network reports (scan, SNMP, agents, passive), or the name typed when the device was added manually; read-only'),
@@ -46,7 +48,7 @@ export const Asset = z.object({
   vendor: Observed.nullable(), model: Observed.nullable(), os: Observed.nullable(), software: z.array(Software), services: z.array(Service),
   first_seen: dt, last_seen: dt, approved: z.boolean(), fragile: z.boolean(), origin: z.enum(['discovered', 'manual']), notes: z.string().optional(),
   private_mac: z.boolean().describe('The MAC is a private (randomised) address the device picks for itself and changes (locally administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox)'),
-  quiet: z.boolean().describe('Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device'),
+  state: DeviceState,
 })
 
 /** One observation of one field. Never overwritten: a new value is added, and the "in use" value is chosen by manual > high confidence > newer (ARCHITECTURE §4). */
@@ -130,7 +132,7 @@ export const DeviceRow = Asset.omit({ software: true, services: true }).extend(S
 })
 /** #849: the filters of the Devices search; all optional, ANDed; each list ORs its values. counts stay over the whole inventory. */
 export const DevicesQuery = z.object({
-  approved: z.enum(['true', 'false']).optional().describe('true: the Devices list (approved, and quiet private-address devices); false: To review (not approved, not quiet)'),
+  approved: z.enum(['true', 'false']).optional().describe('true: the Devices list (state added); false: To review with its Seen briefly group (state review or seen)'),
   ignored: z.enum(['true', 'false']).optional().describe('true lists only the ignored devices; false or absent leaves them out'),
   type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (type=server finds a hypervisor). Unknown id: 400 bad_filter'),
   source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
@@ -235,8 +237,18 @@ export const DeviceDetail = z.object({
   manual_at: dt.nullable().describe('INV-46: when a person last entered or changed something on the device: a value typed when it was added or set later (type, OS), a software row added or edited, a correction or "not installed"; the time it was added for a device added by hand with nothing newer; null when no person entered anything. The Manual source shows it ("last changed 2 hours ago")'),
   kinds: z.array(AssetKind),
   possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address, or a device added by hand without an address runs the OS a found device runs at the same release; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)'),
+  removal_keeps: z.boolean().describe('Removing the device would keep it out of discovery: it has a fixed (burned-in or stable) card on one of its addresses, or no card at all and an address. false for a device known only by private Wi-Fi addresses, which comes back when it is seen again'),
+  agent: z.boolean().describe('An osquery agent is bound to the device and the Agents module is on: removing it asks whether to stop the agent too (DELETE ?agent=); with the module off it is false and a removal keeps the device out as one with no agent'),
   addresses: z.array(DeviceAddress).describe('Every address of the device, the main one first, then the others, the one seen last first: the device is found by any of them. Split off = POST /inventory/devices/{id}/split'),
 })
+/** GET /inventory/removed: the removals that keep devices out of discovery. */
+export const RemovedDevice = z.object({
+  id: z.string(), name: z.string().describe('The device as Devices named it when it was removed'), ip: z.string().nullable().describe('Its main address then'),
+  agent: z.enum(['none', 'stopped']).describe('stopped: the person stopped its osquery agent with it'),
+  removed_by: z.string(), removed_at: dt,
+  identifiers: z.number().int().describe('What keeps it out: its burned-in MACs, its addresses when it had none, an agent enrolment on a shared token'),
+})
+export const RemovedList = z.object({ items: z.array(RemovedDevice) })
 export const SamePairs = z.object({
   items: z.array(z.object({
     a: SameRef.describe('The approved device when one is, else the one seen first: the one a merge most likely keeps'), b: SameRef, why: PossibleSame.shape.why, reason: SameReason,
@@ -488,7 +500,9 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan, the SNMP reads or the agents\' data of one device on or off. On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. Agent off: every agent\'s data for the device is refused and what the agents read stops counting (their software readings and open ports go); on: taken again, and an osquery agent is asked to send its software now. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself. 409 device_ignored: turning a source on for an ignored device', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'get', path: '/inventory/devices/{id}/sources', summary: 'The device\'s sources as three rows (network scan, SNMP, agent): each with its state, colour, last time it read the device, switch and one button, decided on the server. 404 not_found', stories: ['S-INV-1', 'S-INV-4'], role: 'viewer', params: id, response: DeviceSourcesView, example: { params: { id: 'a-nas02' } } },
   { method: 'post', path: '/inventory/box/check', summary: 'The box\'s own agent reads the packages installed on the box and the ports it listens on now, as its hourly read does; answers the box\'s source rows. One audit row inventory.box_check. 409 not_appliance: a container-only install (no packages of its own). 502 box_read_failed: the read failed, what was read last stays', stories: ['S-INV-1', 'S-INV-4'], role: 'operator', response: DeviceSourcesView },
-  { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
+  { method: 'delete', path: '/inventory/devices/{id}', summary: 'Remove a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device). The removal stays: discovery does not add the device again by its burned-in MAC, or by its address when it has none (GET /inventory/removed). agent=stop (admin) also stops the osquery agent bound to it: its record goes, so its next call gets node_invalid, and its token goes too when it was made for this device and no other machine uses it; a token other machines share is never revoked, the machine is refused when it enrols again with it. agent=keep (default) leaves the agent running: it adds the device back on its next report, so nothing is kept. 403 forbidden: agent=stop by an operator. Audit inventory.delete names the choice', stories: ['S-INV-3'], role: 'operator', params: id, query: z.object({ agent: z.enum(['keep', 'stop']).optional() }), response: null },
+  { method: 'get', path: '/inventory/removed', summary: 'The devices a person removed that discovery keeps out, newest first', stories: ['S-INV-3'], role: 'viewer', response: RemovedList },
+  { method: 'delete', path: '/inventory/removed/{id}', summary: 'Forget a removal: the device comes back under To review the next time a sensor sees it, and its agent may enrol again. Adding a device by hand at the address of a removal kept by its address does the same. 404 not_found. Audit inventory.removal_forget', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
   { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },
   { method: 'get', path: '/inventory/devices/{id}/merge-preview', summary: 'What merging the devices `from` into this device would do, without changing anything: both sides (addresses, software, ports, findings, badge), what moves, the fields they state differently with the value the kept device gets, and the refusal the merge would answer. 400 invalid: no device, more than 8, one twice or this device itself. 404 not_found: any device', stories: ['S-INV-3'], role: 'admin', params: id, query: MergePreviewQuery, response: MergePreview, example: { params: { id: 'a-fw01' }, query: { from: 'a-nas02' } } },

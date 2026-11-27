@@ -25,7 +25,7 @@ import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
 import type { RunningJob } from '@/features/scanning/contract'
-import { KEY, SCANNING_KEY, affectedDevices, isFirstRun, useHome, useScanning } from './homeSummary'
+import { KEY, SCANNING_KEY, affectedDevices, isFirstRun, knownDevices, useHome, useScanning } from './homeSummary'
 import { FirstRunCard } from './FirstRunCard'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
@@ -183,7 +183,7 @@ function useSteps(s: Overview, onAdd: () => void, onRange: () => void): Step[] |
   const account = useAccount(admin)
   // The scope and the discovery engine (#850), for an administrator: once a range is set the step says when it is scanned and offers
   // "Scan the LAN now" in place, so setting a range in the afternoon does not leave Home looking unchanged until the night window.
-  const found = s.devices.total > 1
+  const found = knownDevices(s) > 1 // found counts the devices waiting in To review too: the step is finding them
   const scanning = useScanning(admin && !found)
   const scan = useMutation({
     mutationFn: () => api.post<z.infer<typeof RunningJob>>('/scanning/engines/nmap-discovery/run', {}),
@@ -197,7 +197,7 @@ function useSteps(s: Overview, onAdd: () => void, onRange: () => void): Step[] |
   const discovery = sc?.engines.find((e) => e.id === 'nmap-discovery')
   const sweeping = !!sc?.running.some((r) => r.engine === 'nmap-discovery')
   const add = (primary: boolean) => <Button size="sm" variant={primary ? 'primary' : 'secondary'} disabled={!op} title={needRole} onClick={onAdd}>{t('start.devices.add')}</Button>
-  let line = found ? t('start.devices.done', { count: s.devices.total }) : t('start.devices.line')
+  let line = found ? t('start.devices.done', { count: knownDevices(s) }) : t('start.devices.line')
   let action: ReactNode = <>{admin ? <Button size="sm" variant="primary" onClick={onRange}>{t('start.devices.range')}</Button> : null}{add(!admin)}</>
   if (ranges && discovery) {
     const more = <><Button size="sm" variant="secondary" onClick={onRange}>{t('start.devices.addRange')}</Button>{add(false)}</>

@@ -9,8 +9,8 @@ inventory service; everything else reads devices and software lines through inve
 
 | Route | Minimum role |
 |---|---|
-| `GET /inventory/devices`, `/inventory/devices/{id}`, `/inventory/devices/{id}/sources`, `/inventory/possible-same`, `/inventory/catalog`, `/inventory/export.csv`, `/inventory/import-template.csv` | viewer |
-| `POST /inventory/devices`, `POST /inventory/box/check` (the box reads its own packages now), `PATCH`/`DELETE /inventory/devices/{id}`, `POST /inventory/devices/{id}/approve`, `…/suspicious`, `…/ignore`, `…/software`, `…/differs/{field}/use`, `…/differs/{field}/keep`, `PATCH`/`DELETE /inventory/devices/{id}/software/{sid}`, `POST /inventory/import`, `PUT /inventory/notify-new` | operator |
+| `GET /inventory/devices`, `/inventory/devices/{id}`, `/inventory/devices/{id}/sources`, `/inventory/possible-same`, `/inventory/catalog`, `/inventory/export.csv`, `/inventory/import-template.csv`, `/inventory/removed` | viewer |
+| `POST /inventory/devices`, `POST /inventory/box/check` (the box reads its own packages now), `PATCH`/`DELETE /inventory/devices/{id}` (`?agent=stop` admin, INV-59), `DELETE /inventory/removed/{id}`, `POST /inventory/devices/{id}/approve`, `…/suspicious`, `…/ignore`, `…/software`, `…/differs/{field}/use`, `…/differs/{field}/keep`, `PATCH`/`DELETE /inventory/devices/{id}/software/{sid}`, `POST /inventory/import`, `PUT /inventory/notify-new` | operator |
 | `GET`/`PUT /inventory/settings`, `PUT /inventory/devices/{id}/sources`, `POST /inventory/devices/{id}/merge`, `GET /inventory/devices/{id}/merge-preview`, `POST /inventory/devices/{id}/split`, `POST /inventory/devices/{id}/keep-separate` | admin |
 
 The other `/inventory/*` routes belong to the modules that serve them: `/inventory/agents/*` (agent-intake), `/inventory/snmp/*`
@@ -137,9 +137,40 @@ detail is in its doc comment.
   MAC" or the alert unknown_ca, never a browser's refusal; kept in memory since the start, `refused` says since when and how
   often), or its osquery agent is quiet or never reported and was last seen before the CA in use began (`Config.TrustSince`).
   An agent that reports, a Wazuh agent and the box itself never say it; a person's off switch wins.
-- **INV-9** A device a sensor finds is not approved and is listed under To review; `inventory.asset.discovered` is always emitted.
-- **INV-49** A device with only private Wi-Fi addresses that shows nothing to look at is listed but not To review and sends no
-  new-device notice; once it shows a reason, its review is sticky (`review_earned_at`).
+- **INV-9** A device a sensor finds is not approved and is never in the Devices list until a person adds it (or its agent's first
+  report does, INV-25); `inventory.asset.discovered` is always emitted. One rule gives every device its state (`DeviceState`,
+  `stateSQL` in `quiet.go`): ignored, added (approved), seen (INV-49) or review. The Devices list (`approved=true`), To review and
+  its Seen briefly group (`approved=false`), the row and page text (`Device.state`), the counts and `ToReviewIDs` all read it,
+  as endpoint tools keep discovered devices apart from the ones people manage. `DeviceCounts` (Home's devices tile) counts the
+  added devices the Devices list holds, and To review. `TestContract_DeviceLifecycleMatrix`.
+- **INV-49** A device with only private Wi-Fi addresses that shows nothing to look at (state seen) is in To review's collapsed Seen
+  briefly group, outside the To review count and with no new-device notice; once it shows a reason, its review is sticky
+  (`review_earned_at`).
+- **INV-59** A device a person removed stays removed (`DeleteDevice`, `removed.go`): its row goes with everything known about it,
+  and what identified it stays (`inv_removed`, `inv_removed_id`): its MACs that are no private (rotating) one; for a device with no MAC
+  at all, its addresses. One admission check (`admit`) decides every way a sighting reaches a device: `resolve` calls it first for
+  every observation and list (passive, scans, SNMP, Wazuh, software and services lists), and again where a found device would be made
+  (`resolve`'s insert, `ownDevice`). A sighting that names a kept card (its hint's MAC, or a mac value the same report states, as
+  Wazuh and an agent by address send it) reaches nothing, so it neither makes a device nor binds the card to one; one with no card
+  makes no device at a kept address (another machine given the address is a new device), nor at the address a removed device was
+  last shown at (a device check that was running when it was removed). A list (software, services) with neither a card nor an agent
+  key never makes a device: it only attaches to the device its report's observations made (a list is what a device runs, not who it
+  is), so a Wazuh list from the removed machine's new DHCP address makes nothing. No device takes a kept card as its MAC from an
+  observation stored before the removal (`RecomputeAsset`). An osquery agent's report is a person's act: admitted, and it forgets the
+  removals of its cards and of the address where it makes the device, so the Removed list does not name it (audit
+  `inventory.removal_forget`). By design a re-enrolled agent (the person ran the install command again) brings a removed device back,
+  and so does any enrolled node that reports the card: a node is a credential a person handed out. A stopped agent on a shared token
+  cannot enrol again (`RemovedAgent`, agent-intake INV-28). A kept card is in `KnownMACs`, so a sweep spends no new-device budget on it. Merge and split
+  only move identifiers between devices that exist, and an SNMP read with a device hint carries no MAC, so neither can bring one
+  back. A person undoes a removal by forgetting it (`GET /inventory/removed`, `DELETE /inventory/removed/{id}`) or by adding a device by
+  hand at a kept address, which forgets only removals kept by that address (a removed card stays out though the address is reused).
+  It does not expire. With an agent bound to the device and the Agents module on, the person chooses (`?agent=`): `stop` (admin)
+  hands the agent to agent-intake inside the delete (`lifecycle.Delete.StopAgent`) and keeps the machine's enrolment on a shared
+  token; `keep` leaves the agent running and keeps nothing, since its next report adds the device back. With the module off there is
+  no choice (`Detail.agent` false) and the device is kept out as one with no agent. The audit row `inventory.delete` names the choice.
+  `TestContract_INV59_ARemovalKeepsTheDeviceOut`, `TestContract_INV59_EveryWayBackIsChecked`,
+  `TestContract_INV59_AnAgentOfAModuleThatIsOffIsNoChoice`, `TestMigrationRemovedKeepsTheStoredDevices`, agent-intake
+  `TestContract_RemovingADeviceWithAnAgent`.
 - **INV-25** An osquery machine's first report approves the device it enrolled for (`ApproveEnrolled`, called by agent-intake).
 - **INV-26** `approved_at` is set by a person's approval or an agent's first report. One naming rule gives every device its shown
   name (`DisplayName`): a maker that only a network scan or the passive sensor reports is the network card's (MAC prefix), so
@@ -152,7 +183,7 @@ detail is in its doc comment.
 - **INV-46** A device's manual-source time is when a person last entered something, never a report.
 - **INV-47** A value a person entered keeps winning; the device page says when a trusted source reads another (`detected_differs`),
   and the person can use it or keep theirs (`inv_detected_keep`).
-- **INV-11** Deleting a device deletes its findings (the count is shown first).
+- **INV-11** Deleting a device deletes its findings (the count is shown first); the removal stays (INV-59).
 - **INV-27** Device kinds come from `content/devicetypes/types.json`; each kind acts as one of the base kinds for fragility and
   scanning.
 - **INV-20** `TrustedKind` is true for a kind from a person or an agent, or from SNMP/nmap on an approved device.
@@ -185,7 +216,8 @@ detail is in its doc comment.
   resolves every touched line (INV-52). An OS guess is stored without a match key (POST-2d); an item with a CPE but no key takes the
   curated product of that CPE (POST-2c).
 - **PRE-2b / POST-2b** `ReplaceServices`, `AddServices`: a hint with a MAC or an IPv4; the device is found by MAC, then IP, or
-  created unapproved.
+  created unapproved; a list by address only with no agent key attaches to an existing device and creates none (INV-59), as for
+  `ReplaceSoftware`.
 - **PRE-3 / POST-3** `ScanPolicy`: whether discovery may scan a device, at what rate, and why (INV-5, 7, 8); never the box.
   `VulnScanPolicy` (PRE-3b): `explicit` only when a person picked exactly this device. POST-3c/3d: the careful and fragile flags.
 - **PRE-4 / POST-4** `PATCH /inventory/devices/{id}`: operator; a kind or fragile edit adds a manual observation; a name sets
@@ -222,7 +254,7 @@ and to the feeds events (re-match: `feeds.vuln.new_kev`, `feeds.vuln.updated`, `
   `content/catalog/kev-products.json` and matches nothing). Optional: agent-intake (`WazuhAgentAddresses`), honeypot (`DecoyIPs`), findings (`DeviceStatuses`).
 - **Used by** (adapters in `cmd/vedette`): findings (`MatchInput`, `SoftwareLines`, `DeviceRefs`, `AssetIDs`, `ToReviewIDs`), sensor-active
   (`ScanPolicy`, `AddressMap`, `KnownMACs`), scan (`VulnScanPolicy`, `Checks`), feeds (`AddManualDevice`,
-  `DevicesRunning`), agent-intake (`ApproveEnrolled`, `AgentDevice`), the selfcheck (`ReadIgnoredIDs`, `ReadDeviceIDs` on its read-only handle), response, ai and logs (`DevicesOfKind`), reports, ai,
+  `DevicesRunning`), agent-intake (`ApproveEnrolled`, `AgentDevice`, `RemovedAgent`), the selfcheck (`ReadIgnoredIDs`, `ReadDeviceIDs` on its read-only handle), response, ai and logs (`DevicesOfKind`), reports, ai,
   honeypot and the exposure gateway (`AllDevices`), notify and audit names (`DeviceRefs`), core setup (`SetupScope`), the reach
   audit (`Catalog.Curated`).
 

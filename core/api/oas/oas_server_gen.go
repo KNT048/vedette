@@ -1724,8 +1724,14 @@ type Handler interface {
 	InventoryDeleteInventoryAgentsWazuh(ctx context.Context) error
 	// InventoryDeleteInventoryDevicesID implements inventory_delete_inventory_devices_id operation.
 	//
-	// Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which
-	// is always the first device).
+	// Remove a device from the inventory, along with its findings (409 for the Vedette box itself, which
+	// is always the first device). The removal stays: discovery does not add the device again by its
+	// burned-in MAC, or by its address when it has none (GET /inventory/removed). agent=stop (admin) also
+	// stops the osquery agent bound to it: its record goes, so its next call gets node_invalid, and its
+	// token goes too when it was made for this device and no other machine uses it; a token other machines
+	// share is never revoked, the machine is refused when it enrols again with it. agent=keep (default)
+	// leaves the agent running: it adds the device back on its next report, so nothing is kept. 403
+	// forbidden: agent=stop by an operator. Audit inventory.delete names the choice.
 	//
 	// DELETE /inventory/devices/{id}
 	InventoryDeleteInventoryDevicesID(ctx context.Context, params InventoryDeleteInventoryDevicesIDParams) error
@@ -1736,6 +1742,14 @@ type Handler interface {
 	//
 	// DELETE /inventory/devices/{id}/software/{sid}
 	InventoryDeleteInventoryDevicesIDSoftwareSid(ctx context.Context, params InventoryDeleteInventoryDevicesIDSoftwareSidParams) error
+	// InventoryDeleteInventoryRemovedID implements inventory_delete_inventory_removed_id operation.
+	//
+	// Forget a removal: the device comes back under To review the next time a sensor sees it, and its
+	// agent may enrol again. Adding a device by hand at the address of a removal kept by its address does
+	// the same. 404 not_found. Audit inventory.removal_forget.
+	//
+	// DELETE /inventory/removed/{id}
+	InventoryDeleteInventoryRemovedID(ctx context.Context, params InventoryDeleteInventoryRemovedIDParams) error
 	// InventoryDeleteInventorySnmpDevicesID implements inventory_delete_inventory_snmp_devices_id operation.
 	//
 	// Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its
@@ -1839,6 +1853,12 @@ type Handler interface {
 	//
 	// GET /inventory/possible-same
 	InventoryGetInventoryPossibleSame(ctx context.Context) (*InventoryGetInventoryPossibleSameOK, error)
+	// InventoryGetInventoryRemoved implements inventory_get_inventory_removed operation.
+	//
+	// The devices a person removed that discovery keeps out, newest first.
+	//
+	// GET /inventory/removed
+	InventoryGetInventoryRemoved(ctx context.Context) (*InventoryGetInventoryRemovedOK, error)
 	// InventoryGetInventorySensors implements inventory_get_inventory_sensors operation.
 	//
 	// Sensors of this box only (multiple sites not supported yet).

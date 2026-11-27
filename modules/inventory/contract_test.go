@@ -284,7 +284,7 @@ func TestContract_INV3_TheBoxIsTheFirstDevice(t *testing.T) {
 		t.Fatalf("list = %+v, the box must come first", l.Items)
 	}
 	// FORBID-2
-	wantAPIError(t, e.svc.DeleteDevice(e.ctx(), "it@acme.example", id), 409, "box_device")
+	wantAPIError(t, e.svc.DeleteDevice(e.ctx(), "it@acme.example", id, ""), 409, "box_device")
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE is_box = 1`); n != 1 {
 		t.Fatal("the box was deleted")
 	}
@@ -493,7 +493,7 @@ func TestContract_INV11_DeleteRemovesTheDeviceAndAnnouncesIt(t *testing.T) {
 		t.Fatal("no children to delete")
 	}
 	e.ev.reset()
-	if err := e.svc.DeleteDevice(e.ctx(), "it@acme.example", id); err != nil {
+	if err := e.svc.DeleteDevice(e.ctx(), "it@acme.example", id, ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, q := range []string{`SELECT count(*) FROM inv_asset WHERE id = ?`, `SELECT count(*) FROM inv_observation WHERE asset_id = ?`, `SELECT count(*) FROM inv_software WHERE asset_id = ?`} {
@@ -512,7 +512,7 @@ func TestContract_INV11_DeleteRemovesTheDeviceAndAnnouncesIt(t *testing.T) {
 	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT detail FROM core_audit WHERE action = 'inventory.delete'`).Scan(&detail); err != nil || !contains(detail, "removed 3 findings") {
 		t.Fatalf("audit detail = %q, %v", detail, err)
 	}
-	wantAPIError(t, e.svc.DeleteDevice(e.ctx(), "it@acme.example", id), 404, "not_found")
+	wantAPIError(t, e.svc.DeleteDevice(e.ctx(), "it@acme.example", id, ""), 404, "not_found")
 }
 
 func TestMigrationsUsePrefix(t *testing.T) {

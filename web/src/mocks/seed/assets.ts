@@ -3,6 +3,7 @@
 import type { Asset, AssetKind, ObsSource, Service, Software } from '@/lib/types'
 
 const D = (days: number) => new Date(Date.now() - days * 864e5).toISOString()
+const H = (hours: number) => new Date(Date.now() - hours * 36e5).toISOString()
 const o = (value: string, source: ObsSource, confidence: number, days = 0) => ({ value, source, confidence, seen_at: D(days) })
 const sw = (id: string, display: string, vendor: string, product: string, version: string | null, kev: string[], source: ObsSource, confidence: number): Software => ({ id, display, vendor, product, version, kev, source, confidence })
 const svc = (port: number, name: string, source: ObsSource = 'nmap', confidence = 0.8, product?: string, version?: string): Service => ({ port, proto: 'tcp', name, product, version, source, confidence })
@@ -83,5 +84,10 @@ export function seedAssets(): Asset[] {
       software: [sw('s-unk02-fgt', 'FortiGate', 'Fortinet', 'FortiOS', 'latest', ['fortinet|fortios'], 'manual', 1)], first_seen: D(1), last_seen: D(0),
       guess: { kind: 'firewall', confidence: 0.35, evidence: 'Fortinet network card and port 22 (ssh): most likely a FortiGate firewall (Fortinet also makes FortiAP access points and FortiSwitch switches; a scan of its web page or certificate tells which).', alternatives: ['ap', 'switch'] } }),
     a({ id: 'a-unk01', ip: '192.168.10.157', kind: 'unknown', hostname: null, mac: 'da:a1:19:5c:77:01', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: D(0, ), last_seen: D(0), services: [svc(23, 'telnet')] }), // an open service is a reason to review a private address
+    // Phones and a guest laptop on the guest Wi-Fi with private addresses, no open service, seen for a few hours: To review's
+    // collapsed Seen briefly group (state seen), outside its count and the new-device notice
+    a({ id: 'a-seen01', ip: '10.20.0.31', kind: 'smartphone', hostname: 'Galaxy-S24', mac: '9e:41:0c:2a:51:31', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: H(5), last_seen: H(1) }),
+    a({ id: 'a-seen02', ip: '10.20.0.32', kind: 'smartphone', hostname: 'Pixel-8', mac: '5a:12:7b:90:3e:32', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: H(3), last_seen: H(0) }),
+    a({ id: 'a-seen03', ip: '10.20.0.33', kind: 'unknown', hostname: 'guest-laptop', mac: 'b6:d3:4f:08:77:33', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: H(8), last_seen: H(2) }),
   ]
 }

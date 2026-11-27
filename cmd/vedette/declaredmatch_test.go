@@ -223,6 +223,11 @@ func TestScannedESXi_CorrectionKeepsItsFindings(t *testing.T) {
 func scannedESXi(ctx context.Context, t *testing.T, s *stack) string {
 	t.Helper()
 	d := "VMware ESXi 8.0 Update 3 (build 24022510)"
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.67")}
+	// the scan's host first, as a device check records it: a list by address only attaches to a device, never makes one
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: "esxi-01", Source: observe.Nmap, Confidence: 0.6}}); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.d.Inventory.ReplaceSoftware(ctx, observe.AssetHint{IP: netip.MustParseAddr("192.0.2.67")}, observe.Nmap, nil, []observe.Software{{Display: d, Vendor: "vmware", Product: "esxi", Version: "8.0",
 		CPE: "cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", Confidence: 0.8}}); err != nil {
 		t.Fatal(err)

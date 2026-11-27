@@ -174,11 +174,8 @@ func (f DeviceFilter) where(sources map[string][]string, risks map[string]*Risk)
 		add("(a.ignored_at IS NOT NULL) = ?", *f.Ignored)
 	}
 	if f.Approved != nil {
-		if *f.Approved { // the Devices list: approved, and the quiet ones (INV-49); To review is everything else not approved
-			conds = append(conds, "NOT "+toReviewSQL)
-		} else {
-			conds = append(conds, toReviewSQL)
-		}
+		// the Devices list holds the added devices only; To review the others, with its Seen briefly group (stateSQL, INV-9)
+		add("a.approved = ?", *f.Approved)
 	}
 	if f.Fragile != nil {
 		add("a.fragile = ?", *f.Fragile)

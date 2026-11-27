@@ -26,7 +26,23 @@ func (e *env) quietEnv() *env {
 	return e
 }
 
-func (e *env) review() inventory.DeviceList { return e.list("", "false") }
+// review is To review as the page shows it above its Seen briefly group: the devices not added of state review.
+func (e *env) review() inventory.DeviceList {
+	l := e.list("", "false")
+	l.Items = slices.DeleteFunc(l.Items, func(d inventory.Device) bool { return d.State != inventory.DeviceReview })
+	return l
+}
+
+// seenBriefly is To review's collapsed Seen briefly group: the devices not added of state seen.
+func (e *env) seenBriefly() []string {
+	var out []string
+	for _, d := range e.list("", "false").Items {
+		if d.State == inventory.DeviceSeen {
+			out = append(out, d.ID)
+		}
+	}
+	return out
+}
 
 func (e *env) discoveredNotify() []bool {
 	var out []bool
@@ -50,7 +66,8 @@ func TestPrivateMAC(t *testing.T) {
 	}
 }
 
-// A quiet random-MAC device: no review item, no notice, but listed in the Devices list and marked private; the page says so.
+// A quiet random-MAC device: no review item, no notice, not in the Devices list (nobody added it) but in To review's Seen briefly
+// group, marked private; the page says so.
 func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
@@ -59,21 +76,24 @@ func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	if l := e.review(); len(l.Items) != 0 || l.Counts.Pending != 0 || l.Counts.All != 1 {
 		t.Fatalf("To review = %v, counts %+v; want none, all 1", ids(l), l.Counts)
 	}
-	if l := e.list("", "true"); !slices.Contains(ids(l), id) {
-		t.Fatalf("Devices list = %v: the quiet device must be listed", ids(l))
+	if l := e.list("", "true"); slices.Contains(ids(l), id) {
+		t.Fatalf("Devices list = %v: a device nobody added is never listed there", ids(l))
+	}
+	if seen := e.seenBriefly(); !slices.Equal(seen, []string{id}) {
+		t.Fatalf("Seen briefly = %v, want [%s]", seen, id)
 	}
 	if all, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{}); err != nil || !slices.Contains(ids(all), id) {
 		t.Fatalf("All = %v, %v", ids(all), err)
 	}
-	if total, pending, err := e.svc.DeviceCounts(e.ctx()); err != nil || total != 1 || pending != 0 {
+	if total, pending, err := e.svc.DeviceCounts(e.ctx()); err != nil || total != 0 || pending != 0 { // neither added nor to review
 		t.Fatalf("DeviceCounts = %d, %d, %v", total, pending, err)
 	}
 	if review, err := e.svc.ToReviewIDs(e.ctx()); err != nil || len(review) != 0 {
 		t.Fatalf("ToReviewIDs = %v, %v; want none", review, err)
 	}
 	d := e.detail(id)
-	if !d.Asset.PrivateMAC || !d.Asset.Quiet || d.Asset.Approved {
-		t.Fatalf("detail: private %v quiet %v approved %v", d.Asset.PrivateMAC, d.Asset.Quiet, d.Asset.Approved)
+	if !d.Asset.PrivateMAC || d.Asset.State != inventory.DeviceSeen || d.Asset.Approved {
+		t.Fatalf("detail: private %v state %v approved %v", d.Asset.PrivateMAC, d.Asset.State, d.Asset.Approved)
 	}
 	if got := e.discoveredNotify(); !slices.Equal(got, []bool{false}) {
 		t.Fatalf("discovered notify flags = %v, want [false]", got)
@@ -107,8 +127,8 @@ func TestContract_APrivateDeviceWithAServiceIsToReview(t *testing.T) {
 	if l := e.review(); !slices.Contains(ids(l), id) || l.Counts.Pending != 1 {
 		t.Fatalf("To review = %v, counts %+v", ids(l), l.Counts)
 	}
-	if d := e.detail(id); d.Asset.Quiet || !d.Asset.PrivateMAC {
-		t.Fatalf("detail: quiet %v private %v", d.Asset.Quiet, d.Asset.PrivateMAC)
+	if d := e.detail(id); d.Asset.State == inventory.DeviceSeen || !d.Asset.PrivateMAC {
+		t.Fatalf("detail: state %v private %v", d.Asset.State, d.Asset.PrivateMAC)
 	}
 	var notices int
 	for _, ev := range e.ev.named(inventory.EventAssetUpdated) {
@@ -173,8 +193,8 @@ func TestContract_OnlyARandomPrivateAddressIsQuiet(t *testing.T) {
 		t.Fatalf("discovered notify flags = %v, want all true", got)
 	}
 	for _, mac := range []string{qemuMAC, dockMAC, burnt1} {
-		if d := e.detail(e.idByMAC(mac)); d.Asset.Quiet || d.Asset.PrivateMAC {
-			t.Errorf("%s: quiet %v private %v", mac, d.Asset.Quiet, d.Asset.PrivateMAC)
+		if d := e.detail(e.idByMAC(mac)); d.Asset.State == inventory.DeviceSeen || d.Asset.PrivateMAC {
+			t.Errorf("%s: state %v private %v", mac, d.Asset.State, d.Asset.PrivateMAC)
 		}
 	}
 	e.addDevice(inventory.AddInput{Vendor: "Acme", Product: "Branch Printer", Name: "branch-printer"})
@@ -291,8 +311,8 @@ func TestContract_AFoldPastADayEarnsReview(t *testing.T) {
 	e.tick(26 * time.Hour)
 	e.record(dhcp(privMac2, "10.142.0.138", "office-ultrabook")...)
 	d := e.only()
-	if d.ID != id || d.Quiet {
-		t.Fatalf("after the fold: id %s quiet %v", d.ID, d.Quiet)
+	if d.ID != id || d.State == inventory.DeviceSeen {
+		t.Fatalf("after the fold: id %s state %v", d.ID, d.State)
 	}
 	if l := e.review(); !slices.Contains(ids(l), id) || l.Counts.Pending != 1 {
 		t.Fatalf("To review %v counts %+v", ids(l), l.Counts)

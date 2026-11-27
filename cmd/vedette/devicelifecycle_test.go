@@ -86,7 +86,7 @@ func TestFailedDeleteRollsBack(t *testing.T) {
 	fail := errors.New("a module could not delete its rows")
 	s.d.Lifecycle.Register(lifecycle.Participant{Name: "test: fails", DeviceDeleted: func(context.Context, *sql.Tx, lifecycle.Delete) error { return fail }})
 	before := s.dumpDB()
-	if err := s.d.Inventory.DeleteDevice(t.Context(), "person@example.com", from); !errors.Is(err, fail) {
+	if err := s.d.Inventory.DeleteDevice(t.Context(), "person@example.com", from, ""); !errors.Is(err, fail) {
 		t.Fatalf("delete with a failing part: %v", err)
 	}
 	if s.dumpDB() != before {
@@ -99,7 +99,7 @@ func TestDeleteUnlinksConnectionsAndAnswers(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	from, _, _ := s.twoRowsOfOneMachine(t)
-	if err := s.d.Inventory.DeleteDevice(t.Context(), "person@example.com", from); err != nil {
+	if err := s.d.Inventory.DeleteDevice(t.Context(), "person@example.com", from, ""); err != nil {
 		t.Fatal(err)
 	}
 	if n := s.count(`SELECT count(*) FROM core_connection WHERE id = 'cn-merge-1' AND asset_id IS NULL`); n != 1 {

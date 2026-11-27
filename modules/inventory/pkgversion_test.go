@@ -17,6 +17,7 @@ func TestPackagedRowKeepsFullVersionAndSource(t *testing.T) {
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.20.50")}
 	sync := func(src observe.Source, full string) {
 		t.Helper()
+		sightedBy(t.Context(), t, e.svc, hint, src)
 		err := e.svc.ReplaceSoftware(e.ctx(), hint, src, nil, []observe.Software{
 			{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.9, Packaged: true, PkgVersion: full, PkgSource: "openssh"},
 			{Display: "curl", Vendor: "curl", Product: "curl", Version: "8.5.0", Confidence: 0.9, Packaged: true, PkgVersion: "8.5.0-2ubuntu10; rm", PkgSource: "curl"},

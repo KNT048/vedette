@@ -18,6 +18,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
@@ -100,7 +101,8 @@ func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 	aud := audit.New(clk.Now)
 	logs := &bytes.Buffer{}
 	lg := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	inv, err := inventory.New(inventory.Config{DB: db, Audit: aud, Clock: clk.Now, Log: lg})
+	hooks := &lifecycle.Hooks{} // agent-intake's part of a device delete, as cmd/vedette registers it
+	inv, err := inventory.New(inventory.Config{DB: db, Audit: aud, Clock: clk.Now, Log: lg, Lifecycle: hooks})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +116,7 @@ func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 		t.Fatal(err)
 	}
 	mirror := t.TempDir()
-	cfg := agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Services: inv, Approver: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg,
+	cfg := agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Services: inv, Approver: inv, Removed: inv.RemovedAgent, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg,
 		TrustAnchor: func() ([]byte, error) { return []byte(testCA), nil }, HostAllowed: server.HostMatcher(boxHosts, nil), BoxURL: func() string { return boxURL }, MirrorDir: mirror}
 	sched, err := schedule.New(schedule.Config{DB: db, Clock: clk.Now})
 	if err != nil {
@@ -131,6 +133,7 @@ func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 	if err := sched.Register(svc.ScheduleOwner()); err != nil {
 		t.Fatal(err)
 	}
+	hooks.Register(lifecycle.Participant{Name: "agent-intake", DeviceMerged: svc.DeviceMerged, DeviceDeleted: svc.DeviceDeleted})
 	gate := servertest.NewGate()
 	h, err := server.New(server.Config{
 		API: intakeOnly{Fallback: server.Fallback{Log: lg}, IntakeHandlers: agentintake.NewIntakeHandlers(svc), WazuhHandlers: agentintake.NewWazuhHandlers(svc),

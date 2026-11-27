@@ -10,7 +10,6 @@
     "fragileHint": "Passive listening only, never actively scanned, so it does not hang.",
     "privateMac": "Private address",
     "privateMacHint": "Its MAC is a private (randomised) address the device picks for itself and changes, so it may show up again under a new one.",
-    "quietHint": "Private address, not added yet. It is not in To review: it has no open service and has not stayed long. It moves to To review if it opens a service or keeps coming back for more than a day.",
     "declared": "Declared software",
     "declaredHint": "A product you said you run, with no address or name. Nothing scans it; it is checked against exploited vulnerabilities by its product."
   },
@@ -206,6 +205,9 @@
     "title_one": "{{count}} new device not added yet",
     "title_other": "{{count}} new devices not added yet",
     "titleNone": "No new devices waiting",
+    "seenTitle_one": "Seen briefly: {{count}} device",
+    "seenTitle_other": "Seen briefly: {{count}} devices",
+    "seenBody": "Found on the network and not added. Each uses a private Wi-Fi address, has no open service and was seen for less than a day, as phones and guest laptops are. They are not counted above and send no new-device notice. One moves up into To review if it opens a service, keeps coming back for more than a day or gets a finding.",
     "description": "New devices wait here until you add them to your devices.",
     "choiceHint": "Add a device you know, or ignore one you do not need to watch. A device you ignore moves to the Ignored list, where you can add it later.",
     "approveAll": "Add all ({{count}})",
@@ -241,13 +243,32 @@
   "delete": {
     "title": "Remove {{name}} from the list?",
     "body": "This removes it from Vedette's list only, not the real device.",
-    "comesBack": "If the device is still on your network, it comes back under To review. To keep it out, choose Ignore instead.",
-    "bodyInfo": "Vedette sees it again the next time it talks on the network. Ignore keeps a device in the list as known and not watched, and it stays out of To review.",
+    "comesBack": "Discovery keeps it out from now on: it is listed under Removed in To review, where you can let it come back.",
+    "comesBackPrivate": "It uses a private Wi-Fi address, which changes, so Vedette cannot recognise it: it shows up again as a new device the next time it is seen.",
+    "bodyInfo": "Vedette keeps what identified the device (its network card, or its address when it has no card), so no scan, network listener or Wazuh report adds it again. Installing an osquery agent on it brings it back; for a device known only by its address, so does adding a device by hand at that address. Ignore keeps a device in the list as known and not watched instead.",
+    "agentTitle": "Its osquery agent still reports",
+    "agentStop": "Remove and stop its agent",
+    "agentStopBody": "The agent's record goes, so its next report is refused and the device stays out. Its token is revoked too when it was made for this device alone; a token other machines use stays, and this machine cannot enrol with it again. To bring it back, run the install command on it again with a new token.",
+    "agentKeep": "Remove only",
+    "agentKeepBody": "The agent keeps running and adds the device back on its next report, within minutes.",
+    "agentStopAdmin": "Stopping an agent needs an administrator.",
     "confirm": "Remove from list",
     "done": "Removed {{name}}.",
     "findings_one": "This device has {{count}} finding; removing the device removes it too.",
     "findings_other": "This device has {{count}} findings; removing the device removes them too.",
     "findingsInfo": "If the device shows up again it is assessed from scratch."
+  },
+  "removed": {
+    "title_one": "Removed: {{count}} device kept out",
+    "title_other": "Removed: {{count}} devices kept out",
+    "body": "Devices a person removed. Discovery does not add them again while they are here. Forget one to let it come back under To review the next time Vedette sees it.",
+    "meta": "Removed {{when}} by {{by}}",
+    "metaStopped": "Removed {{when}} by {{by}}, its agent stopped",
+    "col": "Device",
+    "forget": "Forget",
+    "forgetLabel": "Forget the removal of {{name}}",
+    "forgetHint": "Let it come back under To review the next time Vedette sees it",
+    "forgotten": "{{name}} can come back now."
   },
   "add": {
     "open": "Add a device",
@@ -412,7 +433,7 @@
     "body": "Add it to your devices if you recognise it.",
     "bodyInfo": "Until then it is still tracked but stays in the waiting list.",
     "quiet": "This device uses a private address and is not added yet",
-    "quietBody": "Phones and laptops change their private address, so this one is not in To review while it shows nothing to look at. It moves there if it opens a service or keeps coming back for more than a day. Add it to your devices if you recognise it."
+    "quietBody": "Phones and laptops change their private address, so this one waits under Seen briefly in To review while it shows nothing to look at. It moves up into To review if it opens a service or keeps coming back for more than a day. Add it to your devices if you recognise it."
   },
   "privateMac": {
     "note": "This device uses a private (randomised) MAC address.",

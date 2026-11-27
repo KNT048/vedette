@@ -530,11 +530,13 @@ func (s *Service) AddressInUse(ctx context.Context, ip string) (bool, error) {
 	return n > 0, nil
 }
 
-// KnownMACs returns the MAC of every device that has one, with no row cap: the sensor's new-device budget counts a device
-// absent from it as new, so a capped list would make old devices eat the budget of real new ones. Lower case, ordered; a read error is
+// KnownMACs returns the MAC of every device that has one, and every card a removal keeps out (INV-59: it makes no device), with no row
+// cap: the sensor's new-device budget counts a device absent from it as new, so a capped list would make old devices eat the budget of
+// real new ones. Lower case, ordered; a read error is
 // returned, never a short list.
 func (s *Service) KnownMACs(ctx context.Context) ([]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT mac FROM inv_asset WHERE mac IS NOT NULL UNION SELECT mac FROM inv_asset_address WHERE mac IS NOT NULL ORDER BY 1`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT mac FROM inv_asset WHERE mac IS NOT NULL UNION SELECT mac FROM inv_asset_address WHERE mac IS NOT NULL
+		UNION SELECT value FROM inv_removed_id WHERE kind = 'mac' ORDER BY 1`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read macs: %w", err)
 	}

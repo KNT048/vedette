@@ -10,8 +10,8 @@ import (
 
 // A phone or laptop that uses a private (randomised) Wi-Fi address shows up under a new MAC and a new lease again and again. Sameness
 // by host name (sameMachine) folds what it can; the rest would each raise a To review item and a new-device notice for a device that
-// shows nothing wrong. A **quiet** device is one of those: it stays in the inventory, searchable and listed with the approved
-// devices, and counts toward To review and the new-device notice only when it earns a look (INV-49).
+// shows nothing wrong. A **quiet** device is one of those: it stays in the inventory, searchable, in To review's collapsed Seen briefly
+// group (state seen), and counts toward To review and the new-device notice only when it earns a look (INV-49).
 
 // stablePrefixes are locally administered MAC prefixes that are set by hand or by a hypervisor and never rotate: QEMU/KVM and libvirt
 // guests (52:54:00), Docker's default bridge (02:42), VirtualBox host-only adapters (0a:00:27), Kubernetes CNI pod and bridge interfaces (0a:58, the CNI bridge plugin's derived MACs). A device with one is not a phone's
@@ -62,9 +62,24 @@ const quietSQL = `(CLASS AND a.review_earned_at IS NULL
 var quietClass = strings.NewReplacer("PRIV_A_MAC", privateSQL("a.mac"), "PRIV_Q_VALUE", privateSQL("q.value")).Replace(quietClassSQL)
 var quietExpr = strings.Replace(quietSQL, "CLASS", quietClass, 1)
 
-// toReviewSQL is the SQL test of a device in To review: not approved, and not quiet. Ignored devices are in no list or count of
-// theirs (the callers add that condition).
-var toReviewSQL = "(a.approved = 0 AND NOT " + quietExpr + ")"
+// DeviceState is where a device stands (INV-9): the one rule the Devices list, To review and its Seen briefly group, the row text, the
+// counts and the new-device notice read. A device a sensor found is never shown as added until a person adds it or its agent's first
+// report does (INV-25), as endpoint tools keep discovered devices apart from onboarded ones.
+type DeviceState string
+
+// The states, in the order stateSQL decides them.
+const (
+	DeviceIgnored DeviceState = "ignored" // a person ignored it (INV-38)
+	DeviceAdded   DeviceState = "added"   // approved: added by a person, approved by one, its agent's first report, or the box
+	DeviceSeen    DeviceState = "seen"    // not added and quiet (quietSQL, INV-49): To review's collapsed Seen briefly group
+	DeviceReview  DeviceState = "review"  // not added: To review
+)
+
+// stateSQL is DeviceState on inv_asset aliased a.
+var stateSQL = "(CASE WHEN a.ignored_at IS NOT NULL THEN 'ignored' WHEN a.approved = 1 THEN 'added' WHEN " + quietExpr + " THEN 'seen' ELSE 'review' END)"
+
+// toReviewSQL is the SQL test of a device in To review's count and notice: state review.
+var toReviewSQL = "(" + stateSQL + " = 'review')"
 
 // isQuiet reports whether device id is quiet now (quietSQL), inside tx.
 func isQuiet(ctx context.Context, tx *sql.Tx, id string) (bool, error) {

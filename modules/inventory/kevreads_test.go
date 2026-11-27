@@ -51,6 +51,7 @@ func TestKEVReads_DetailAndAgentReportReadTheListOnce(t *testing.T) {
 		t.Helper()
 		e.tick(time.Minute)
 		reads.Store(0)
+		sightedBy(ctx, t, e.svc, hint, observe.Osquery)
 		if err := e.svc.ReplaceSoftware(ctx, hint, observe.Osquery, nil, items); err != nil {
 			t.Fatal(err)
 		}

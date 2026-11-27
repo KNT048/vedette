@@ -54,12 +54,14 @@ func TestContract_DiscoveredWhileTheSourceIsLearning(t *testing.T) {
 	}
 	nmap := func(ip string) {
 		t.Helper()
+		sightedBy(t.Context(), t, e.svc, observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Nmap)
 		if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.8}}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	agent := func(ip string) {
 		t.Helper()
+		sightedBy(t.Context(), t, e.svc, observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Osquery)
 		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Osquery, nil, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.9}}); err != nil {
 			t.Fatal(err)
 		}
@@ -144,7 +146,7 @@ func TestContract_ApprovedNamesThePerson(t *testing.T) {
 	if got, want := approved[0].Data, (inventory.AssetEvent{AssetID: a, Actor: "an@acme.example"}); got != want {
 		t.Fatalf("asset.approved = %+v, want %+v", got, want)
 	}
-	if err := e.svc.DeleteDevice(e.ctx(), "an@acme.example", b); err != nil {
+	if err := e.svc.DeleteDevice(e.ctx(), "an@acme.example", b, ""); err != nil {
 		t.Fatal(err)
 	}
 	deleted := e.ev.named(inventory.EventAssetDeleted)
@@ -162,6 +164,7 @@ func TestContract_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.20.30")}
 	sync := func(packaged bool) {
 		t.Helper()
+		sightedBy(t.Context(), t, e.svc, hint, observe.Osquery)
 		err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{
 			{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.13", KevKeys: []string{"openssl|openssl"}, Confidence: 0.9, Packaged: packaged},
 			{Display: "Google Chrome", Vendor: "Google", Product: "Chrome", Version: "130.0", Confidence: 0.9},
@@ -172,6 +175,7 @@ func TestContract_MatchSoftwareSaysWhereItCameFrom(t *testing.T) {
 	}
 	sync(false)
 	sync(true) // the same rows again, now from dpkg: the origin follows the latest report
+	sightedBy(t.Context(), t, e.svc, hint, observe.Scan)
 	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Scan, nil, []observe.Software{{Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.20.1", Confidence: 0.7}}); err != nil {
 		t.Fatal(err)
 	}

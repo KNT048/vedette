@@ -76,6 +76,9 @@ type cleanObs struct {
 	list   bool // a list (software, services: deviceFor), not an observation: at a stale address it makes no device
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
+	// claims are the cards this hint names in the batch: its MAC and the values of the batch's mac observations with the same hint
+	// (Wazuh and an agent by address report their card as a value). The removal check reads them (admit).
+	claims []string
 	// own: an agent's report by address only at a hand-added address another MAC was seen at (handClaims): a device of its own, never
 	// the hand-added one. card is the card it claims there, which may reach only the newcomer a sensor saw (ownDevice), never a lookup key.
 	own    bool
@@ -271,10 +274,24 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			reported[c.agent] = append(reported[c.agent], c.value)
 		}
 	}
+	claimed := map[string][]string{} // hint → the cards it names in this batch
+	for _, c := range clean {
+		k := c.hintKey()
+		cards := []string{c.mac}
+		if c.field == string(observe.MAC) {
+			cards = append(cards, c.value)
+		}
+		for _, m := range cards {
+			if m != "" && !slices.Contains(claimed[k], m) {
+				claimed[k] = append(claimed[k], m)
+			}
+		}
+	}
 	for i := range clean {
 		if clean[i].agent != "" {
 			clean[i].agentMACs = reported[clean[i].agent]
 		}
+		clean[i].claims = claimed[clean[i].hintKey()]
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		if err := handClaims(ctx, tx, clean); err != nil {
@@ -553,6 +570,11 @@ func (s *Service) typeFromAgentOS(ctx context.Context, tx *sql.Tx, id string) (i
 	return 0, err
 }
 
+// hintKey is the hint of c as one key: the observations of one report share it.
+func (c cleanObs) hintKey() string {
+	return c.ip.String() + "|" + c.mac + "|" + c.agent + "|" + c.device + "|" + c.from.String()
+}
+
 // target names the device a hint points to, for the audit row.
 func (c cleanObs) target() string {
 	if c.mac != "" {
@@ -587,6 +609,9 @@ const ipTrust = 72 * time.Hour
 // the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC is about the device it
 // joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (id string, created bool, err error) {
+	if ok, err := s.admit(ctx, tx, c, false); !ok || err != nil { // a card a removal keeps out: the sighting reaches nothing (INV-59)
+		return "", false, err
+	}
 	if c.device != "" { // that device or nothing; never by address, never a new one, never the box
 		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE id = ? AND is_box = 0`, c.device).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -709,6 +734,9 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
 		}
 	}
+	if ok, err := s.admit(ctx, tx, c, true); !ok || err != nil {
+		return "", false, err
+	}
 	now := c.seenAt
 	id = store.NewID("a")
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, mac, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, ?, 'unknown', 'discovered', 0, 0, ?, ?)`, id, nullStr(c.mac), now, now); err != nil {
@@ -820,6 +848,9 @@ func (s *Service) ownDevice(ctx context.Context, tx *sql.Tx, c cleanObs) (string
 	if c.agent == "" && c.card == "" { // no key and no card (Wazuh with no network data): nothing would find it again; held, logged
 		s.staleLog(ctx, c.ip.String(), c, "", staleHandNoKey)
 		return "", false, nil
+	}
+	if ok, err := s.admit(ctx, tx, c, true); !ok || err != nil {
+		return "", false, err
 	}
 	id = store.NewID("a")
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, 'unknown', 'discovered', 0, 0, ?, ?)`,
@@ -935,6 +966,8 @@ const (
 	staleSwept     = "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)"
 	staleHandList  = "inventory: a list by address only is not given to the hand-added device at that address: another machine was seen there since it was added (on the device page: merge it when it is that machine; else delete the hand-added device, or keep it, and the machine's own lists by address only stay held)"
 	staleHandNoKey = "inventory: an agent report by address only, with no card and no key, is not given to the hand-added device at that address: another machine was seen there since it was added"
+	staleRemoved   = "inventory: a sighting of a device a person removed makes no device (Devices, To review, Removed: forget the removal to see it again)"
+	staleKeyless   = "inventory: a list by address only with no card and no key makes no device: it attaches only to the device its report's observations made"
 )
 
 // staleLog logs, at most once an hour per device and reason (one of the stale* messages), that a report by address only was not given
@@ -959,6 +992,10 @@ func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed
 			s.log.InfoContext(ctx, staleHandList, args...)
 		case staleHandNoKey:
 			s.log.InfoContext(ctx, staleHandNoKey, args...)
+		case staleRemoved:
+			s.log.InfoContext(ctx, staleRemoved, args...)
+		case staleKeyless:
+			s.log.InfoContext(ctx, staleKeyless, args...)
 		default:
 			s.log.InfoContext(ctx, staleSwept, args...)
 		}
@@ -1310,7 +1347,8 @@ func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID stri
 	}
 	best := winners(list)
 	dropContradictedOS(list, best) // nmap's OS guess never wins against the device's type (Android on a firewall)
-	// A MAC another device already owns cannot become this device's MAC: take the best one that is free.
+	// A MAC another device already owns, or one a removal keeps out (INV-59: a row that stored it as an observation while the removed
+	// device owned it does not take it now), cannot become this device's MAC: take the best one that is free.
 	if _, ok := best["mac"]; ok {
 		cands := slices.DeleteFunc(slices.Clone(list), func(o obs) bool { return o.field != "mac" })
 		slices.SortFunc(cands, func(a, b obs) int {
@@ -1326,7 +1364,8 @@ func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID stri
 		for _, c := range cands {
 			var other string
 			// a MAC of an address row is an interface of its own (INV-57), never a device's main MAC, this device's included
-			err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?1 AND id <> ?2 UNION ALL SELECT asset_id FROM inv_asset_address WHERE mac = ?1 LIMIT 1`,
+			err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?1 AND id <> ?2 UNION ALL SELECT asset_id FROM inv_asset_address WHERE mac = ?1
+				UNION ALL SELECT removed_id FROM inv_removed_id WHERE kind = 'mac' AND value = ?1 LIMIT 1`,
 				c.value, assetID).Scan(&other)
 			if errors.Is(err, sql.ErrNoRows) {
 				best["mac"] = c

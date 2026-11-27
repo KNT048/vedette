@@ -11,7 +11,7 @@ import { assetsStore, isOn } from '@/mocks/stores'
 import { SAMPLE_SEVERITY, seedFindingRecords, seedQuestions, type FindingRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import type { Asset } from '@/lib/types'
 import { displayName } from '@/features/inventory/nameOf'
-import { BOX_ID, isQuiet, metaStore } from '@/features/inventory/mocks'
+import { BOX_ID, isQuiet, metaStore, stateOf } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { dayAfter, untilOk } from './accept'
 import { checkOfQuestion, possibleCounts } from './possibleMocks'
@@ -287,7 +287,8 @@ export function overview(): Overview {
   const notifyOn = isOn('notify')
   return {
     open: { findings: open.length, by_status: statusCounts(open) },
-    devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus, affected },
+    // the state rule (inventory DeviceCounts): the added devices the Devices list holds, and the To review count
+    devices: { total: assets.filter((a) => stateOf(a) === 'added').length, not_added: assets.filter((a) => stateOf(a) === 'review').length, by_status: byStatus, affected },
     input: inputItems().filter((i) => i.kind !== 'devices_not_added').length,
     possible: possibleCounts(),
     first, trend, trend_start: dayOf(new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString()),

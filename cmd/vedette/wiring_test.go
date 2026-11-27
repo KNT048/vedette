@@ -293,7 +293,7 @@ func TestWiringModuleOffNoReaction(t *testing.T) {
 	// or off, and none is left pointing at a device that is gone
 	s.setModule("mitigation", false)
 	s.setModule("findings", false)
-	if err := s.d.Inventory.DeleteDevice(t.Context(), "it@acme.example", id); err != nil {
+	if err := s.d.Inventory.DeleteDevice(t.Context(), "it@acme.example", id, ""); err != nil {
 		t.Fatal(err)
 	}
 	if n := s.count(`SELECT count(*) FROM fnd_finding`); n != 0 {

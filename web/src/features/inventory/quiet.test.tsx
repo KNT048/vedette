@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { assetsStore, sessionStore } from '@/mocks/stores'
 import type { Asset } from '@/lib/types'
 import { ensureBox, isPrivateMac } from './mocks'
 
-// A phone with a private (randomised) Wi-Fi address that shows nothing to look at is listed, but is not a To review item.
+// A phone with a private (randomised) Wi-Fi address that shows nothing to look at is not in the Devices list (nobody added it) and is
+// not a To review item: it waits in To review's collapsed Seen briefly group.
 vi.setConfig({ testTimeout: 30_000 })
 
 const T = { timeout: 5000 }
@@ -30,15 +32,25 @@ describe('private (randomised) MAC addresses', () => {
     for (const stable of ['52:54:00:76:6e:02', '02:42:ac:11:00:02', '0a:00:27:00:00:05']) expect(isPrivateMac(stable)).toBe(false)
   })
 
-  it('To review keeps the virtual machine and the phone with a service; the quiet phone is listed with the devices', async () => {
+  it('the state rule: the quiet phone is in neither Devices nor the To review count, only in Seen briefly', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    const review = await (await fetch(`${BASE}/devices?approved=false`)).json() as { items: { id: string }[]; counts: { pending: number } }
-    expect(review.items.map((d) => d.id).filter((id) => id.startsWith('a-q')).sort()).toEqual(['a-q2', 'a-q3'])
-    const listed = await (await fetch(`${BASE}/devices?approved=true`)).json() as { items: { id: string; quiet: boolean; private_mac: boolean }[] }
-    const q1 = listed.items.find((d) => d.id === 'a-q1')
-    expect(q1).toMatchObject({ quiet: true, private_mac: true })
-    const all = await (await fetch(`${BASE}/devices`)).json() as { items: { id: string }[] }
-    expect(all.items.map((d) => d.id)).toContain('a-q1')
+    const review = await (await fetch(`${BASE}/devices?approved=false`)).json() as { items: { id: string; state: string }[]; counts: { pending: number } }
+    const ours = review.items.filter((d) => d.id.startsWith('a-q'))
+    expect(ours.filter((d) => d.state === 'review').map((d) => d.id).sort()).toEqual(['a-q2', 'a-q3'])
+    expect(ours.filter((d) => d.state === 'seen').map((d) => d.id)).toEqual(['a-q1'])
+    const listed = await (await fetch(`${BASE}/devices?approved=true`)).json() as { items: { id: string; state: string }[] }
+    expect(listed.items.map((d) => d.id)).not.toContain('a-q1')
+    expect(listed.items.every((d) => d.state === 'added')).toBe(true)
+  })
+
+  it('the Devices page: To review lists the two, and Seen briefly holds the phone, closed', async () => {
+    renderApp('/devices?tab=review', { role: 'admin' })
+    const seen = await screen.findByTestId('seen-briefly', undefined, T)
+    expect(seen).not.toHaveAttribute('open')
+    expect(seen).toHaveTextContent(/^Seen briefly: \d+ devices/) // the sample data's guest phones and laptop too
+    await userEvent.click(within(seen).getByText(/^Seen briefly: \d+ devices$/))
+    expect(within(seen).getByRole('link', { name: /Johns-iPhone/ })).toBeInTheDocument()
+    expect(screen.queryByText(/It is not in To review/)).toBeNull()
   })
 
   it('the device page says plainly that the address is private', async () => {

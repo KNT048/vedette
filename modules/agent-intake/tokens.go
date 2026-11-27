@@ -257,3 +257,49 @@ func (s *Service) DeviceMerged(ctx context.Context, tx *sql.Tx, m lifecycle.Merg
 	}
 	return nil
 }
+
+// EnrolKey names a machine's enrolment on a token: the token and the host_identifier it enrols under. A removal keeps it when the
+// person stopped the agent of a device whose token other machines share (DeviceDeleted), so that machine cannot enrol again with it.
+func EnrolKey(token, hostIdentifier string) string {
+	return "osquery-host:" + token + "/" + hostIdentifier
+}
+
+// DeviceDeleted is agent-intake's part of a device delete (core/lifecycle). With the person's choice to stop the device's agent
+// (d.StopAgent, INV-28): the node of the device goes, so its next call gets node_invalid. Its token goes with it only when the token was
+// made for this device and no other machine uses it; a token other machines share is never revoked, and the machine's enrolment on it
+// is handed to the inventory's removal (Block), which refuses it at the next enrol. Without the choice nothing changes here (the token
+// made for the device is released by its foreign key).
+func (s *Service) DeviceDeleted(ctx context.Context, tx *sql.Tx, d lifecycle.Delete) error {
+	if d.StopAgent == nil {
+		return nil
+	}
+	node, ok := strings.CutPrefix(d.StopAgent.Key, "osquery:")
+	if !ok {
+		return nil
+	}
+	var tokenID, tokenName, host string
+	var forDevice sql.NullString
+	var others int
+	err := tx.QueryRowContext(ctx, `SELECT n.token_id, t.name, n.host_identifier, t.device_id,
+		(SELECT count(*) FROM intake_osquery_nodes o WHERE o.token_id = n.token_id AND o.id <> n.id)
+		FROM intake_osquery_nodes n JOIN intake_agent_tokens t ON t.id = n.token_id WHERE n.id = ?`, node).Scan(&tokenID, &tokenName, &host, &forDevice, &others)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil // its record is gone already: nothing reports for it
+	}
+	if err != nil {
+		return fmt.Errorf("agentintake: read the device's node: %w", err)
+	}
+	if forDevice.String == d.Device && others == 0 {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE id = ?`, tokenID); err != nil { // cascades to the node
+			return fmt.Errorf("agentintake: revoke the device's token: %w", err)
+		}
+		d.StopAgent.Token = tokenName
+	} else {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_osquery_nodes WHERE id = ?`, node); err != nil {
+			return fmt.Errorf("agentintake: delete the device's node: %w", err)
+		}
+		d.StopAgent.Block = EnrolKey(tokenID, host)
+	}
+	d.StopAgent.Stopped = true
+	return nil
+}

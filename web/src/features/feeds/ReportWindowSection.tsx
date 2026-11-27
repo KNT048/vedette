@@ -39,7 +39,7 @@ export function ReportWindowSection() {
             {set.error ? <p role="alert" className="text-sm text-danger">{(set.error as Error).message}</p> : null}
             <DialogFooter>
               <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-              <Button type="button" variant="primary" busy={set.isPending} onClick={() => set.mutate(ask, { onSuccess: () => { toast.success(t(ask ? 'window.nowOn' : 'window.nowOff')); setAsk(null) } })}>
+              <Button type="button" variant="primary" busy={set.isPending} busyLabel={t('common:busy.saving')} onClick={() => set.mutate(ask, { onSuccess: () => { toast.success(t(ask ? 'window.nowOn' : 'window.nowOff')); setAsk(null) } })}>
                 {t(ask ? 'window.onConfirm' : 'window.offConfirm')}
               </Button>
             </DialogFooter>

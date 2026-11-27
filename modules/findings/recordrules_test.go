@@ -18,10 +18,11 @@ func TestOtherHardware(t *testing.T) {
 		other     bool
 	}{
 		{"ZX4200-48T", []string{"QRX Series"}, true},
-		{"Acme Networks ZX4200-48T", []string{"QRX Series"}, true},               // vendor words before the model
-		{"ZX4200-48T", []string{"QRX Series with SPC3"}, true},                   // a qualifier narrows the family only
-		{"ZX4200-48T", []string{"QRX 5000 Series with SPC3", "MZ Series"}, true}, // every family is another
-		{"ZX4200-48T", []string{"QRX1600", "QRX2300", "QRX4300"}, true},
+		{"Acme Networks ZX4200-48T", []string{"QRX Series"}, true},                                         // vendor words before the model
+		{"ZX4200-48T", []string{"QRX Series with SPC3"}, true},                                             // a qualifier narrows the family only
+		{"ZX4200-48T", []string{"QRX 5000 Series with SPC3", "MZ Series"}, true},                           // every family is another
+		{"QRX300", []string{"QRX1600", "QRX2300", "QRX4300"}, true},                                        // models of the device's own letters
+		{"ZX4200-48T", []string{"QRX1600", "QRX2300", "QRX4300"}, false},                                   // other letters without "Series": maybe parts, not devices
 		{"ZX4200-48T", []string{"ZX4100", "ZX4300-MP (Multigigabit)", "ZX2300", "ZX4400", "ZX4000"}, true}, // ZX4000 is one model of a list
 		{"ZX204", []string{"ZX10k Series"}, true},
 		{"ZX4200-48T", []string{"ZX Series"}, false},
@@ -49,7 +50,46 @@ func TestOtherHardware(t *testing.T) {
 		{"QRX5600", []string{"QRX5400-5600-5800"}, false},     // more model numbers after a hyphen: a list, not one model
 		{"QRX5800", []string{"QRX5400-5800"}, false},
 		{"QRX5220", []string{"QRX5220-128C"}, false},
-		{"ZX4200-48T", []string{"QRX5220-128C"}, true},
+		{"QRX4200", []string{"QRX5220-128C"}, true},
+		{"ZX4200-48T", []string{"QRX5220-128C"}, false},
+		{"ZX480", []string{"MPC10E", "MPC11E"}, false}, // line cards the device may carry
+		{"ZX480", []string{"QRX Series", "MPC10E"}, false},
+		{"ZX480", []string{"MPC10E (QRX Series)"}, false},
+		{"ZX480", []string{"with SPC3"}, false},
+		{"ZX480", []string{"PIC"}, false},
+		{"ZX480", []string{"SPC3"}, false},
+		{"NX150", []string{"QRX Series with NX150"}, false}, // a "with" qualifier that names a model of other letters
+		{"ZX480", []string{"QRX Series with MPC10E"}, false},
+		{"ZX4200-48T", []string{"QRX Series with QRX-SPC3"}, true},
+		{"ZX4200-48T", []string{"QRX Series (SPC3)"}, false}, // a parenthesis may list more: only the platform's own hardware is read in it
+		{"NX150", []string{"QRX Series (and NX)"}, false},
+		{"ZX4600", []string{"ZX4300 (also ZX4600)"}, false},
+		{"ZX4600", []string{"ZX4300 (ZX4300-48MP)"}, true},
+		{"QRX345", []string{"QRX Series (including vQRX)"}, false},
+		{"ZX4200-48T", []string{"QRX Series (including vQRX)"}, true},
+		{"ZX9208", []string{"ZX92xx"}, false}, // x for any digit
+		{"ZX4200-48T", []string{"ZX92xx"}, true},
+		{"ZX480", []string{"ZX2K-MPC11E"}, false}, // a part named after the hardware it fits: never other hardware
+		{"ZX480", []string{"ZX10K-LC2101"}, false},
+		{"ZX4600", []string{"ZX9200-40XS"}, true},            // a variant suffix
+		{"NX150", []string{"QRX Series (and NX150)"}, false}, // a parenthesis that names more hardware
+		{"NX150", []string{"QRX Series (QRX300, NX150)"}, false},
+		{"NX250", []string{"QRX Series (and NX Series)"}, false},
+		{"ZX4200-48T", []string{"QRX Series (QRX300)"}, true}, // a parenthesis of the platform's own models narrows it
+		{"QRX345", []string{"QRX Series (QRX300)"}, false},
+		{"ZX4200-48T", []string{"All Series"}, false}, // a plain word, not a family's letters
+		{"ZX4200-48T", []string{"Other Series"}, false},
+		{"ZX4200-48T", []string{"all platforms"}, false},
+		{"ZX4200-48T", []string{"QRX/NX Series"}, false},
+		{"NX150", []string{"QRX1500/NX150"}, false},
+		{"NX150", []string{"QRX1500, NX150"}, false},
+		{"ZX10K3", []string{"ZX10003"}, false},               // a model number the device writes with k is not read
+		{"AB12 Q9K-C93180YC", []string{"Q9K Series"}, false}, // a model word the device states that is not read
+		{"zx4200-48t", []string{"ZX Series"}, false},
+		{"ZX4200-48T", []string{"zx series"}, false},
+		{"ZX4200-48T", []string{"ZX  Series"}, false},
+		{"QRX4200", []string{"QRX 4000 Series"}, false},
+		{"QRX4200", []string{"QRX-4200"}, false},
 		{"Chassis AB12 ZX4200", []string{"ZX Series"}, false}, // every model word the device states counts, not only the first
 		{"Rev A12, ZX4200-48T", []string{"ZX4200"}, false},
 		{"Chassis AB12 ZX4200", []string{"QRX Series"}, true},

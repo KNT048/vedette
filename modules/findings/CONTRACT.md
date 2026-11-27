@@ -120,7 +120,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). A model-limited row of the vendor's own
   record (`SchemedRange.Complete`: its `defaultStatus` unaffected, feeds keeps it only from the product's own CNA) whose hardware
   (`Platforms`) the device's stated model cannot be is not about the device (`otherHardware`, read by the names' shape only: "<letters>
-  Series", "<letters><number>", a numbered series; a model or a platform of another shape is never ruled out, and only an operating
+  Series", "<letters><number>", a numbered series; a model or a platform of another shape is never ruled out, nor is a device by a model
+  word without "Series" of other letters, which may name a part it carries ("MPC10E"), and only an operating
   system's or firmware's rows are read so, `deviceFirmware`); when every row of the product is such a row, the device is not affected
   ("lists the OS as affected only on QRX Series, and the switch is a ZX4200-48T"); a version of the vendor's rows for every device, an NVD
   row covering it or an unread row still decide as before. With no row for every device, the starts of the vendor's own model-limited

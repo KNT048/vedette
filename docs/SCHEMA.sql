@@ -1304,7 +1304,7 @@ CREATE TABLE fnd_line_statement (
     asked_at      TEXT    NOT NULL CHECK (asked_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     seen_at       TEXT    NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     rejected_by   TEXT    CHECK (rejected_by IS NULL OR length(rejected_by) BETWEEN 1 AND 320),
-    rejected_at   TEXT    CHECK (rejected_at IS NULL OR rejected_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    rejected_at   TEXT    CHECK (rejected_at IS NULL OR rejected_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), basis TEXT NOT NULL DEFAULT 'stated',
     CHECK ((rejected_by IS NULL) = (rejected_at IS NULL)),
     CHECK (status <> 'fixed' OR fixed_in IS NOT NULL OR last_affected IS NOT NULL)
 );

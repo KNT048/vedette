@@ -247,15 +247,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   a bound only when the quote or the cited page names it (a tracker's "present-in" and "fixed-in" lines), of which only a bound the
   quote names settles a version as not affected or becomes the fix (`TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles`); `fixed`
   with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
-  states line N of that product fixed or affected in a release N.x and nothing for this product's line N) keeps no bound and stands only
+  states line N of that product fixed or affected in a release N.x and nothing for this product's line N) is stored with `basis inferred`
+  (`fnd_line_statement.basis`, else `stated`), keeps no bound and stands only
   as `affected`, with a quote naming that release, and only while no row of this product names a release of line N
   (`ownRowOnLine`), never as `fixed` or `not_affected`; a cited page that names neither the CVE nor an advisory
   the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
-  scheme or the generic order (`verdictFor`). An affected reading with no bound whose quote names its stated line only through releases
-  of it ("115.42" for line 115) speaks for a version on that line before every such release (`namedByRelease`), with no fix (the release
-  may be another product's) and evidence that says the AI inferred it (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`).
+  scheme or the generic order (`verdictFor`). An inferred reading is decided from its basis, not its quote: it never gives a fix and never
+  says not affected, and when its quote names its stated line only through releases of it ("115.42" for line 115) it speaks for a
+  version on that line before every such release (`namedByRelease`), with evidence that says the AI inferred it
+  (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`, `TestLineStatement_AnInferredReadingIsNeverAFixNorNotAffected`).
   Asymmetry: inside the stated affected releases is a finding by itself (range origin
   `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names, its `fixed_in` or a "before X" on the version's
   own train: `LineStatement.fix`; What to do cites the page and the sentence), rejected in one click

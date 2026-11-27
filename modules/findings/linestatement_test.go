@@ -430,11 +430,12 @@ func TestLineStatement_VerdictFor(t *testing.T) {
 		{"quote not found", LineStatement{Status: StatementAffected, StatedLine: "3.4", Quote: "Widget 3.4 is affected.", QuoteFound: false}, ""},
 		{"affected range ends before the version", LineStatement{Status: StatementAffected, Introduced: "3.0", Last: "3.3.9", Quote: "3.0 through 3.3.9", QuoteFound: true}, ""},
 		{"unsure", LineStatement{Status: StatementUnsure, Quote: "Widget 3.4.1", QuoteFound: true}, ""},
-		{"the line named by a later release of it", LineStatement{Status: StatementAffected, StatedLine: "3", Quote: "Fixed in Gadget 3.9 and Widget 4.2.",
-			QuoteFound: true}, VerdictAffected},
-		{"the line named by an earlier release of it", LineStatement{Status: StatementAffected, StatedLine: "3", Quote: "Fixed in Gadget 3.2 and Widget 4.2.",
+		{"inferred, the line named by a later release of it", LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "3",
+			Quote: "Fixed in Gadget 3.9 and Widget 4.2.", QuoteFound: true}, VerdictAffected},
+		{"inferred, the line named by an earlier release of it", LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "3",
+			Quote: "Fixed in Gadget 3.2 and Widget 4.2.", QuoteFound: true}, ""},
+		{"inferred, a release of another line", LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "3", Quote: "Fixed in Gadget 4.9.",
 			QuoteFound: true}, ""},
-		{"a release of another line", LineStatement{Status: StatementAffected, StatedLine: "3", Quote: "Fixed in Gadget 4.9.", QuoteFound: true}, ""},
 		{"a fix the quote does not name settles nothing", LineStatement{Status: StatementFixed, FixedIn: "3.4.0", StatedLine: "3.4",
 			Quote: "Release 3.4 is affected.", QuoteFound: true}, ""},
 	} {
@@ -731,5 +732,36 @@ func TestPossibleCheck_TheAIFailingInARowStopsWithinOneCVE(t *testing.T) {
 	}
 	if run.Failed != len(units) {
 		t.Errorf("failed %d of %d units: every unit the stop left is not checked", run.Failed, len(units))
+	}
+}
+
+// A reading the AI inferred from another product's release line (basis inferred) is decided from that basis, not from its quote: it
+// never gives a fix, even when its quote states "before X" on the version's own train, and never says "not affected".
+func TestLineStatement_AnInferredReadingIsNeverAFixNorNotAffected(t *testing.T) {
+	t.Parallel()
+	id := CheckID{Product: "acme|mail", Line: "115.9.0", Version: "115.9.0"}
+	st := LineStatement{Status: StatementAffected, Basis: BasisInferred, StatedLine: "115", Quote: "Acme Browser ESR 115 versions before 115.42 are affected.", QuoteFound: true}
+	if got := st.verdictFor(id); got != VerdictAffected {
+		t.Errorf("inferred affected: %q, want %q", got, VerdictAffected)
+	}
+	if f := st.fix(id); f.Kind != FixUnknown {
+		t.Errorf("inferred reading's fix %+v, want none", f)
+	}
+	stated := st
+	stated.Basis = BasisStated
+	if f := stated.fix(id); f.Kind != FixUpdate || f.Version != "115.42" {
+		t.Errorf("the same quote stated for this product: fix %+v, want 115.42", f)
+	}
+	na := LineStatement{Status: StatementNotAffected, Basis: BasisInferred, StatedLine: "115", Quote: "Acme Mail 115 is not affected.", QuoteFound: true, VendorPage: true}
+	if got := na.verdictFor(id); got != "" {
+		t.Errorf("inferred not affected: %q, want nothing", got)
+	}
+	fixed := LineStatement{Status: StatementFixed, Basis: BasisInferred, FixedIn: "115.2", StatedLine: "115", Quote: "Release 115 is fixed in 115.2.", QuoteFound: true, VendorPage: true}
+	if got := fixed.verdictFor(id); got != "" {
+		t.Errorf("inferred fixed: %q, want nothing", got)
+	}
+	// a stated reading names its line only through its own words: a release of the line in the quote is no naming of it
+	if got := (LineStatement{Status: StatementAffected, StatedLine: "115", Quote: "Fixed in 115.42.", QuoteFound: true}).verdictFor(id); got != "" {
+		t.Errorf("stated, the line named by a release only: %q, want nothing", got)
 	}
 }

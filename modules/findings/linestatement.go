@@ -36,6 +36,14 @@ const (
 	StatementUnsure      = "unsure"
 )
 
+// The bases of a reading (fnd_line_statement.basis): stated, the text states it for this product; inferred, the AI inferred it from
+// another product's release line of the same record (ProposeVerdict.InferredFrom). An inferred reading only opens: never a fix, never
+// "not affected".
+const (
+	BasisStated   = "stated"
+	BasisInferred = "inferred"
+)
+
 // RangeAIRead is the range origin of a finding the AI's reading of the vendor's statement opened (fnd_finding.range_origin).
 const RangeAIRead = "ai_read"
 
@@ -49,7 +57,8 @@ type LineStatement struct {
 	StatedLine                string // the release line as the AI wrote it ("8.6"); used only when the quote names it
 	RecordHash, PageHash      string
 	Status                    string
-	Introduced, FixedIn, Last string // each "" unless the quote names it
+	Basis                     string // BasisStated or BasisInferred ("" reads as stated)
+	Introduced, FixedIn, Last string // each "" unless the quote or the cited page names it
 	Reason, Quote, URL, Host  string // Host "" when the quote is from the CVE record
 	VendorPage, QuoteFound    bool
 	Model, Profile, Activity  string
@@ -73,14 +82,14 @@ func pageHash(text string) string { return hashHex("page1\x1f" + text) }
 
 const statementColumns = `statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, ifnull(introduced, ''), ifnull(fixed_in, ''),
 	ifnull(last_affected, ''), reason, quote, url, host, vendor_page, quote_found, model, profile, ifnull(activity_id, ''), asked_by, asked_at, seen_at,
-	ifnull(rejected_by, ''), ifnull(rejected_at, '')`
+	ifnull(rejected_by, ''), ifnull(rejected_at, ''), basis`
 
 func scanStatement(sc scanner) (LineStatement, error) {
 	var st LineStatement
 	var asked, seen, rejAt string
 	if err := sc.Scan(&st.Key, &st.CVE, &st.Product, &st.Line, &st.StatedLine, &st.RecordHash, &st.PageHash, &st.Status, &st.Introduced, &st.FixedIn,
 		&st.Last, &st.Reason, &st.Quote, &st.URL, &st.Host, &st.VendorPage, &st.QuoteFound, &st.Model, &st.Profile, &st.Activity, &st.AskedBy, &asked, &seen,
-		&st.RejectedBy, &rejAt); err != nil {
+		&st.RejectedBy, &rejAt, &st.Basis); err != nil {
 		return LineStatement{}, err
 	}
 	var err error
@@ -131,24 +140,27 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 	if !checkKeyRE.MatchString(st.Key) {
 		return fmt.Errorf("findings: bad reading key %q", st.Key)
 	}
+	if st.Basis != "" && st.Basis != BasisStated && st.Basis != BasisInferred {
+		return fmt.Errorf("findings: bad reading basis %q", st.Basis)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL AND statement_key <> ?`,
 		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key); err != nil {
 		return fmt.Errorf("findings: replacing a reading: %w", err)
 	}
 	at := store.FormatTS(st.AskedAt)
 	_, err := tx.ExecContext(ctx, `INSERT INTO fnd_line_statement (statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, introduced,
-		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at, basis)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (statement_key) DO UPDATE SET status = excluded.status, introduced = excluded.introduced, fixed_in = excluded.fixed_in,
 			last_affected = excluded.last_affected, stated_line = excluded.stated_line, reason = excluded.reason, quote = excluded.quote,
 			url = excluded.url, host = excluded.host, vendor_page = excluded.vendor_page, quote_found = excluded.quote_found, model = excluded.model,
 			profile = excluded.profile, activity_id = excluded.activity_id, asked_by = excluded.asked_by, asked_at = excluded.asked_at,
-			seen_at = excluded.seen_at
+			seen_at = excluded.seen_at, basis = excluded.basis
 		WHERE fnd_line_statement.rejected_by IS NULL`,
 		st.Key, st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), clipBytes(st.StatedLine, 200), st.RecordHash, st.PageHash, st.Status,
 		nullString(clipBytes(st.Introduced, 100)), nullString(clipBytes(st.FixedIn, 100)), nullString(clipBytes(st.Last, 100)), clipBytes(st.Reason, 600),
 		clipBytes(st.Quote, 400), clipBytes(st.URL, 2000), clipBytes(st.Host, 255), st.VendorPage, st.QuoteFound, clipBytes(cmpNonEmpty(st.Model, "unknown"), 80),
-		clipBytes(cmpNonEmpty(st.Profile, "unknown"), 160), nullString(st.Activity), st.AskedBy, at, at)
+		clipBytes(cmpNonEmpty(st.Profile, "unknown"), 160), nullString(st.Activity), st.AskedBy, at, at, cmpNonEmpty(st.Basis, BasisStated))
 	if err != nil {
 		return fmt.Errorf("findings: storing a reading: %w", err)
 	}
@@ -248,6 +260,9 @@ func (st LineStatement) verdictFor(id CheckID) string {
 	if !st.QuoteFound || st.RejectedBy != "" {
 		return ""
 	}
+	if st.Basis == BasisInferred && st.Status != StatementAffected {
+		return "" // an inference from another product's line only ever opens
+	}
 	scheme := productScheme(id.Product)
 	names := namesToken(st.Quote, id.Version) || namesToken(st.Quote, id.Line) || st.coversLine(id)
 	bounded := st.Introduced != "" || st.FixedIn != "" || st.Last != ""
@@ -270,8 +285,8 @@ func (st LineStatement) verdictFor(id CheckID) string {
 					return "" // "before X" and the version is X or later: the sentence does not call it affected
 				}
 			}
-			if names || st.namedByRelease(id) {
-				return VerdictAffected // the vendor names the line or the version as affected, or a release of the line the version is before
+			if names || st.Basis == BasisInferred && st.namedByRelease(id) {
+				return VerdictAffected // the vendor names the line or the version as affected; an inference names a release of the line the version is before
 			}
 			return ""
 		}
@@ -349,8 +364,9 @@ func onFixTrain(fix, version string) bool {
 var reVersionToken = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)+`)
 
 // namedByRelease says the quote names the reading's stated line through releases of it only ("Browser ESR 115.42" names line 115), and
-// id's version is on that line and before every such release: a vendor states line N of one product fixed in release N.x, so N.y of
-// the same line before it carried the flaw. A version at or past a named release, or one off the line, is not named.
+// id's version is on that line and before every such release: the record states line N of another product fixed in release N.x, so
+// N.y of this product's line before it carried the flaw. A version at or past a named release, or one off the line, is not named. Only
+// an inferred reading (BasisInferred) speaks for a version this way.
 func (st LineStatement) namedByRelease(id CheckID) bool {
 	l := st.StatedLine
 	if l == "" || !dottedPrefix(l, id.Version) || namesToken(st.Quote, l) {
@@ -369,19 +385,12 @@ func (st LineStatement) namedByRelease(id CheckID) bool {
 	return n > 0
 }
 
-// inferred says the reading speaks for id only through a release of its line the quote names (namedByRelease): the quote names
-// neither the version, nor its line, nor a line containing it.
-func (st LineStatement) inferred(id CheckID) bool {
-	return st.Status == StatementAffected && st.Introduced == "" && st.FixedIn == "" && st.Last == "" &&
-		!namesToken(st.Quote, id.Version) && !namesToken(st.Quote, id.Line) && !st.coversLine(id) && st.namedByRelease(id)
-}
-
 // fix is the fix a finding the reading opened says for id: the stated fixed release, kept only when the quote names it; else the
-// release a "before X" of the quote names on id's own train, when id is before it; none when the reading speaks for id only through a
-// release of its line the quote names (inferred).
+// release a "before X" of the quote names on id's own train, when id is before it; none for a reading inferred from another product's
+// line (BasisInferred).
 func (st LineStatement) fix(id CheckID) Fix {
-	if st.inferred(id) {
-		return Fix{Kind: FixUnknown} // the release the quote names may be another product's: none of this one's
+	if st.Basis == BasisInferred {
+		return Fix{Kind: FixUnknown} // the releases the quote names are another product's: none of this one's
 	}
 	if st.FixedIn != "" && namesToken(st.Quote, st.FixedIn) {
 		return Fix{Kind: FixUpdate, Version: st.FixedIn}
@@ -574,7 +583,7 @@ func aiReadNote(q Question, st LineStatement) string {
 		where = st.Host
 	}
 	note := fmt.Sprintf("Read by AI from %s: the vendor's statement lists %s %s as affected by %s", where, clean(q.Detail.Software), clean(q.Detail.Version), q.CVE)
-	if q.Detail.Check != nil && st.inferred(*q.Detail.Check) {
+	if st.Basis == BasisInferred {
 		note = fmt.Sprintf("Read by AI from %s: the statement names release line %s of %s, not %s %s itself; the AI infers that the same line of %s carried "+
 			"the flaw (%s)", where, clean(st.StatedLine), q.CVE, clean(q.Detail.Software), clean(q.Detail.Version), clean(q.Detail.Software), oneLine(st.Reason, 200))
 	}

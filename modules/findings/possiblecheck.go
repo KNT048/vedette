@@ -888,7 +888,8 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 	st := LineStatement{CVE: cve, Product: id.Product, Line: id.Line, StatedLine: clipBytes(strings.TrimSpace(v.Line), 200),
 		RecordHash: cmpNonEmpty(id.Record, recordHash("")), PageHash: pageHash(cited.text), Status: v.Status, Reason: oneLine(v.Reason, 600), Quote: quote,
 		URL: cited.url, Host: hostOf(cited.url), QuoteFound: quote != "" && quoteFound(quote, cited.text),
-		Model: cmpNonEmpty(ans.Model, "unknown"), Profile: cmpNonEmpty(ans.Profile, "unknown"), Activity: ans.ActivityID, AskedBy: actor, AskedAt: now, SeenAt: now}
+		Model: cmpNonEmpty(ans.Model, "unknown"), Profile: cmpNonEmpty(ans.Profile, "unknown"), Activity: ans.ActivityID, AskedBy: actor, AskedAt: now, SeenAt: now,
+		Basis: BasisStated}
 	if v.Source >= 1 && v.Source <= len(pages) {
 		st.VendorPage = pages[v.Source-1].Vendor
 	}
@@ -912,6 +913,7 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 		st.Status = StatementUnsure
 	}
 	if from := oneLine(v.InferredFrom, 100); from != "" {
+		st.Basis = BasisInferred
 		st.Introduced, st.FixedIn, st.Last = "", "", "" // the bounds of another product are none of this one's
 		st.Reason = oneLine("Inferred from "+from+": "+v.Reason, 600)
 		if st.Status != StatementAffected || !st.coversLine(id) && !st.namedByRelease(id) {

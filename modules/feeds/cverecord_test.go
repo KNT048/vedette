@@ -140,6 +140,11 @@ func TestParseCVERecord_Ranges(t *testing.T) {
 		{"only some operating systems", `{"vendor":"Acme","product":"Gateway","platforms":["Windows"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, nil, 1},
 		{"both bounds", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","lessThanOrEqual":"2.0","status":"affected"}]}`, nil, 1},
 		{"one bad entry spoils its product", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`, nil, 1},
+		{"letter releases: only their versions are left out, the list is partial", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.5.0","lessThan":"3.5.10","status":"affected","versionType":"semver"},{"version":"1.1.1","lessThan":"1.1.1zk","status":"affected","versionType":"custom"},{"version":"1.0.2","lessThan":"1.0.2zt","status":"affected","versionType":"custom"},{"version":"1.0.2zt","status":"unaffected"}]}`,
+			[]span{{si: "3.5.0", ee: "3.5.10", def: k}}, 0},
+		{"a letter release alone is an exact version", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"1.1.1zk","status":"affected"}]}`,
+			[]span{{si: "1.1.1zk", ei: "1.1.1zk", def: u}}, 0},
+		{"a letter branch alone gives no row", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"1.1.1","lessThan":"1.1.1zk","status":"affected"}]}`, nil, 0},
 		{"a partial entry makes its product's list partial", `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.0","lessThan":"3.0.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.0","status":"unaffected"}]}`,
 			[]span{{si: "3.0", ee: "3.0.5", def: k}}, 0},
 	} {

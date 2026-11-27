@@ -11,8 +11,9 @@ import (
 )
 
 // SQL Server's own version. SQL Server setup writes one Uninstall entry for a whole release, "Microsoft SQL Server 2022
-// (64-bit)", without a DisplayVersion: osquery's programs and Wazuh's packages give it as it is, the row maps to CISA's
-// "Microsoft | SQL Server" and findings had to ask a person for a version the machine knows. Two sources, in order:
+// (64-bit)", without a DisplayVersion (or with the build it was installed with): osquery's programs and Wazuh's packages give it as
+// it is, the row maps to CISA's "Microsoft | SQL Server" and findings had to ask a person for a version the machine knows. Two
+// sources, in order (the first also replaces a version the entry states; the second only fills one it lacks):
 //
 //  1. The instance's setup registry, HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup, value PatchLevel: the
 //     build installed, cumulative and security updates included (Microsoft, "Determine version information of SQL Server components
@@ -76,7 +77,7 @@ func sqlUmbrella(name string) (string, bool) {
 func sqlServerVersions(rows []row) sqlVersions {
 	out := sqlVersions{}
 	for _, r := range rows {
-		if rel, ok := sqlUmbrella(r["name"]); ok && r["sql_setup"] == "" {
+		if rel, ok := sqlUmbrella(r["name"]); ok && r["reg_key"] == "" {
 			out[rel] = sqlVersion{}
 		}
 	}
@@ -101,7 +102,7 @@ func sqlServerVersions(rows []row) sqlVersions {
 func sqlPatchLevels(rows []row) map[string]string {
 	out := map[string]string{}
 	for _, r := range rows {
-		m := sqlSetupKeyRE.FindStringSubmatch(r["sql_setup"])
+		m := sqlSetupKeyRE.FindStringSubmatch(r["reg_key"])
 		if m == nil || !sqlBuildRE.MatchString(r["version"]) {
 			continue
 		}
@@ -126,7 +127,7 @@ func sqlComponents(rows []row, rel string) (string, bool) {
 	engine := false
 	for _, r := range rows {
 		name, v := r["name"], r["version"]
-		if r["sql_setup"] != "" || !sqlBuildRE.MatchString(v) || !strings.HasPrefix(v, major+".") {
+		if r["reg_key"] != "" || !sqlBuildRE.MatchString(v) || !strings.HasPrefix(v, major+".") {
 			continue
 		}
 		if _, umbrella := sqlUmbrella(name); umbrella || !slices.ContainsFunc(sqlReleaseRE.FindAllStringSubmatch(name, -1), func(m []string) bool { return m[1] == rel }) {

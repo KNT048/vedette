@@ -170,6 +170,17 @@ func applied(e *entry, pt pattern, name string, m []int) Product {
 	return p
 }
 
+// OwnVersion is the release in a version a program reports with the product's name: without a word the catalogue lists the vendor
+// writing before it (VersionPrefix: AnyDesk's "ad 9.7.6" is 9.7.6), when a number follows; the version as reported otherwise.
+func (p Product) OwnVersion(reported string) string {
+	for _, w := range p.VersionPrefix {
+		if len(reported) > len(w) && strings.EqualFold(reported[:len(w)], w) && reported[len(w)] >= '0' && reported[len(w)] <= '9' {
+			return reported[len(w):]
+		}
+	}
+	return reported
+}
+
 // versionRE is a release a name may state: digits first, then digits, letters, '.', '_' and '+'.
 var versionRE = regexp.MustCompile(`^\d[0-9A-Za-z._+]{0,39}$`)
 

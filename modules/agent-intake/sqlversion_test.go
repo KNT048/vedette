@@ -89,7 +89,8 @@ func TestContract_SQLServerVersionFromTheMachine(t *testing.T) {
 		t.Fatalf("%d agent rows without a version", n)
 	}
 
-	// the setup-registry programs query, after a cumulative update: the setup value comes first in the same snapshot
+	// the setup-registry programs query, after a cumulative update: the setup value comes first in the same snapshot (here from a node
+	// still on the config whose query named the key's column sql_setup)
 	setup := map[string]string{"name": "", "version": "16.0.4135.4", "publisher": "", "install_date": "",
 		"sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\Setup`}
 	w.clock.Advance(6 * time.Minute) // past the source's list window
@@ -104,5 +105,14 @@ func TestContract_SQLServerVersionFromTheMachine(t *testing.T) {
 	}
 	if n := count(func(inventory.MatchSoftware) bool { return true }); n != len(list) {
 		t.Fatalf("%d agent rows for %d programs", n, len(list))
+	}
+
+	// this config's query: the key's column is reg_key
+	setup = map[string]string{"name": "", "version": "16.0.4155.4", "publisher": "", "install_date": "",
+		"reg_key": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\Setup`}
+	w.clock.Advance(6 * time.Minute)
+	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), snap("programs", append([]map[string]string{setup}, list...)...)))
+	if got := rows(); len(got) != 1 || got[0] != (sqlRow{"Microsoft SQL Server 2022 (64-bit)", "16.0.4155.4"}) {
+		t.Fatalf("setup registry (reg_key): %+v", got)
 	}
 }

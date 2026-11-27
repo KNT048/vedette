@@ -86,6 +86,9 @@ type Product struct {
 	Scheme string
 	Trains Trains
 	Class  Class
+	// VersionPrefix are words a vendor writes before the release in the version a program reports ("ad " of AnyDesk's "ad 9.7.6"),
+	// lower case; OwnVersion drops them.
+	VersionPrefix []string
 
 	// Set by Resolve:
 	Distribution string // the runtime family's distribution a name stated ("Temurin"); "" when none
@@ -121,6 +124,7 @@ type fileEntry struct {
 	WindowsPrefix []string      `json:"windows_prefix"`
 	Nmap          []string      `json:"nmap"`
 	Patterns      []filePattern `json:"patterns"`
+	VersionPrefix []string      `json:"version_prefix"`
 	Record        []string      `json:"record"`
 	KEVShared     []string      `json:"kev_shared"`
 }
@@ -200,10 +204,12 @@ func mustLoad(fsys fs.FS, curated, kev []byte) *catalogue {
 }
 
 var (
-	cpeRE   = regexp.MustCompile(`^[aoh]:[a-z0-9_.\-~+&!]+:[a-z0-9_.\-~+&!]+\*?$`)
-	idRE    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,60}$`)
-	nameRE  = regexp.MustCompile(`^[^A-Z\s][^A-Z]{0,99}$`) // a lower-case package or program name
-	errData = errors.New("catalogue data")
+	cpeRE  = regexp.MustCompile(`^[aoh]:[a-z0-9_.\-~+&!]+:[a-z0-9_.\-~+&!]+\*?$`)
+	idRE   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,60}$`)
+	nameRE = regexp.MustCompile(`^[^A-Z\s][^A-Z]{0,99}$`) // a lower-case package or program name
+	// versionPrefixRE is a vendor's word before a release: letters, then a space or a hyphen ("ad ")
+	versionPrefixRE = regexp.MustCompile(`^[a-z]{1,20}[ -]$`)
+	errData         = errors.New("catalogue data")
 )
 
 func load(fsys fs.FS, curated, kev []byte) (*catalogue, error) {
@@ -265,7 +271,12 @@ func (c *catalogue) add(fe fileEntry) (*entry, error) {
 		return nil, fmt.Errorf("scheme %q is not a core/versionscheme scheme", fe.Scheme)
 	}
 	p := Product{ID: fe.ID, Display: fe.Display, Vendor: fe.Vendor, Product: fe.Product, Key: Key(fe.Vendor, fe.Product), Also: fe.Also,
-		Scheme: fe.Scheme, Trains: fe.Trains, Class: fe.Class}
+		Scheme: fe.Scheme, Trains: fe.Trains, Class: fe.Class, VersionPrefix: fe.VersionPrefix}
+	for _, w := range fe.VersionPrefix {
+		if !versionPrefixRE.MatchString(w) {
+			return nil, fmt.Errorf("version_prefix %q must be lower-case letters, then a space or a hyphen", w)
+		}
+	}
 	p.KEV = []string{p.Key}
 	for _, k := range fe.KEV {
 		v, pr, ok := strings.Cut(k, "|")

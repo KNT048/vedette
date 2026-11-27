@@ -1,6 +1,7 @@
 package agentintake
 
 import (
+	"cmp"
 	"encoding/json"
 	"net/netip"
 	"regexp"
@@ -43,8 +44,9 @@ var columns = map[string][]string{
 	"deb_packages": {"name", "version", "arch", "source"},
 	"kernel_info":  {"version"}, // the running kernel release
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
-	// sql_setup: the key of a SQL Server instance's PatchLevel row the programs query reads with the list; '' on a program
-	"programs":    {"name", "version", "publisher", "install_date", "sql_setup"},
+	// reg_key: the registry key of a version value the programs query reads with the list (programsQuery); '' on a program.
+	// sql_setup is its name in the query before .NET's values were read (a node on its last config until it fetches this one).
+	"programs":    {"name", "version", "publisher", "install_date", "reg_key", "sql_setup"},
 	"os_revision": {"name", "version", "revision", "arch"}, // Windows's update revision
 	// the listening sockets and their program (INV-22)
 	"listening_ports":         {"port", "protocol", "address", "name"},
@@ -230,6 +232,10 @@ func (in *logIn) readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem) {
 		if len(rows) >= limit {
 			in.truncated[ev.Name] = true
 			break
+		}
+		if old, ok := r["sql_setup"]; ok {
+			r["reg_key"] = cmp.Or(r["reg_key"], old)
+			delete(r, "sql_setup")
 		}
 		rows = append(rows, r)
 	}

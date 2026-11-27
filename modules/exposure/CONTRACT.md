@@ -307,7 +307,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   level: its checkbox is off and the three generic directory-traversal NVTs are out of the web family
   (`TestOpenVASTuning_WebFuzzingIsOffInEveryLevel`); the web scan (ZAP) is the web attack engine. The report is read with every
   level and QoD; QoD 70 and a severity above 0 stay the cut for every result except a short allowlist of configuration facts
-  (`gmpFacts`: SSH password logins, DHE key exchange, BREACH, TRACE, certificate problems; read with a second get_reports request for those OIDs only, best effort: the main read keeps its QoD 70 filter and caps), each a Low issue with a plain
+  (`gmpFacts`: SSH password logins, DHE key exchange, BREACH, TRACE, certificate problems; TRACE only from the NVT that confirms the echo, never from the HTTP methods enumeration; read with a second get_reports request for those OIDs only, best effort: the main read keeps its QoD 70 filter and caps), each a Low issue with a plain
   title and a fix line, no CVE, one per port (`TestOpenVASFactsHaveTitleAndFix`, `TestOpenVASTuning_ConfigurationFactBecomesALowIssue`).
   Each Greenbone service has a memory limit (`deploy/greenbone`).
   OpenVAS enabled but still starting (its images pull when it is turned on) or loading its feed: the step is skipped with why and

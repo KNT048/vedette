@@ -304,6 +304,8 @@ type zapWorld struct {
 	loaded     string // the ruleset of the last nft -f -
 	runCode    int
 	report     []byte // what the run writes as out.json (nil: nothing)
+	passive    []byte // what the run writes as passive.json before it may hang (nil: nothing)
+	runs       int    // podman runs so far
 	linkReport bool   // the run writes out.json as a symlink
 	runGate    chan struct{}
 	runStarted chan struct{}
@@ -461,8 +463,14 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 		}
 		wrk, _ := strings.CutSuffix(args[slices.Index(args, "--volume")+1], ":/zap/wrk:rw,nosuid,nodev,noexec")
 		plan, _ := os.ReadFile(filepath.Join(wrk, zapPlanName)) //nolint:gosec // the test's own work folder
+		if w.passive != nil {                                   // the passive report of a run with its passive pass comes before the active scan
+			if err := os.WriteFile(filepath.Join(wrk, zapPassiveReportName), w.passive, 0o600); err != nil {
+				w.t.Error(err)
+			}
+		}
 		w.mu.Lock()
 		w.plan, w.runArgv = string(plan), slices.Clone(args)
+		w.runs++
 		if w.leaveCtr { // the container runs while podman run does
 			w.ctr = "ours"
 		}

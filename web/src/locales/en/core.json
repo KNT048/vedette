@@ -600,6 +600,7 @@
       "inventory.box_created": "Vedette box added as a device",
       "inventory.services_pruned": "Open services not seen for 90 days removed",
       "inventory.delete": "Delete device",
+      "inventory.removal_forget": "Let a removed device come back",
       "inventory.discover": "Discover software",
       "inventory.export": "Export devices",
       "inventory.first_scan": "First scan of a new device",

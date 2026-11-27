@@ -20,9 +20,9 @@ import (
 // Checking possible findings. Findings asks two things of this module for a CVE it cannot decide: the text of the CVE's public
 // reference pages (the box fetches them itself: the AI never browses), and, only when findings' own reading of that text decides
 // nothing, the AI's proposal of a verdict with the sentence it relied on. The call runs as the explain-finding job (its profile,
-// fallback, budget, skill switch and internal-only rule), with no tools and no memory beyond what every call of the job carries; what is
-// sent is the CVE, the product's vendor and name, the version and release line, and the public text. Never a device name, address or
-// other customer data.
+// fallback, budget, skill switch and internal-only rule), with no tools, no memory and no knowledge documents; what is sent is the CVE,
+// the product's vendor and name, the version and release line, and the public text. Never a device name, address or other customer
+// data.
 
 // The limits of the reference fetch.
 const (
@@ -247,7 +247,7 @@ func (s *Service) ProposePossible(ctx context.Context, actor string, req Possibl
 		Items []PossibleVerdict `json:"items"`
 	}
 	res, err := s.RunJob(ctx, JobSpec{
-		Job: JobExplainFinding, Actor: actor, Task: possibleTask,
+		Job: JobExplainFinding, Actor: actor, Task: possibleTask, publicOnly: true,
 		Question:  "Which of these items are affected by " + req.CVE + "? Items: " + string(items),
 		Data:      data,
 		Schema:    &provider.Schema{Name: "possible_check", JSON: json.RawMessage(possibleSchema)},

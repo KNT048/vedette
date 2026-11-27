@@ -123,16 +123,23 @@ func (c softwareIdentifier) Identify(ctx context.Context, actor string, req find
 	}
 	ans, err := c.ai.IdentifyProducts(ctx, actor, items)
 	if err != nil {
-		if ae, ok := apierr.As(err); ok && (ae.Status == 409 || ae.Status == 429) {
-			return findings.IdentifyAnswer{}, &findings.CheckStop{Reason: ae.Message} // no profile, or a budget: the run stops
-		}
-		return findings.IdentifyAnswer{}, err
+		return findings.IdentifyAnswer{}, identifyErr(err)
 	}
 	out := findings.IdentifyAnswer{Model: ans.Model, ActivityID: ans.ActivityID}
 	for _, ch := range ans.Choices {
 		out.Choices = append(out.Choices, findings.IdentifyChoice{Index: ch.Index, Choice: ch.Choice, Match: ch.Match, Reason: ch.Reason})
 	}
 	return out, nil
+}
+
+// identifyErr is the error of one identification call as the run reads it: no profile, or a budget, stops the whole run
+// (findings.CheckStop); a hook that stopped the call is about the names of that call, so the call failed and its names wait while the
+// run goes on (a deterministic hook would otherwise stop every run at the same names).
+func identifyErr(err error) error {
+	if ae, ok := apierr.As(err); ok && (ae.Status == 409 || ae.Status == 429) && ae.Code != "blocked_by_hook" {
+		return &findings.CheckStop{Reason: ae.Message}
+	}
+	return err
 }
 
 // PrivateNames are every device's name and hostname, and every account's name, email address and the part of it before the @.

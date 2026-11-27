@@ -330,6 +330,18 @@ func TestAIIdentity_NotThisProductIsThePersonsClose(t *testing.T) {
 		`' AND ev.kind = 'handled' AND ev.actor = '` + SystemUser + `'`); n != 0 {
 		t.Errorf("%d history events say Vedette closed what the person rejected", n)
 	}
+	// a later pass, and the AI asked again, change nothing about it: the product is never offered again and nothing reopens
+	e.advance(2 * time.Hour)
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	runIdentify(t, e)
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = '` + cveWidgetIn + `' AND state = 'handled' AND resolved_by = 'ana@example.com'`); n != 2 {
+		t.Errorf("after a later pass, %d findings closed by the person, want 2", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = '` + cveWidgetIn + `' AND state <> 'handled'`); n != 0 {
+		t.Errorf("after a later pass, %d findings reopened on the rejected product", n)
+	}
 }
 
 // The identification runs only while the automatic run is on and today's reads are not used up, and a budget reached in the middle
@@ -454,7 +466,9 @@ func TestIdentityScrubber(t *testing.T) {
 	for in, want := range map[string]string{
 		"Sync nguyen.an nguyen.an":                       "Sync [name] [name]", // every occurrence, also one right after another
 		"acct-pc-7,ACCT-PC-7":                            "[name],[name]",
-		"Agent for WS-ACCT-9":                            "Agent for [name]",                     // a hostname's own name, without its domain
+		"Agent for WS-ACCT-9":                            "Agent for [name]",       // a hostname's own name, without its domain
+		"Agent for acct-pc-7.branch.example.org (x64)":   "Agent for [name] (x64)", // a short name written with the network's domain: the domain too
+		"Agent for WS-ACCT-9.Other.Example":              "Agent for [name]",
 		`Tool (C:\Users\Nguyen Van An\AppData\Local)`:    `Tool (C:\Users\[user]\AppData\Local)`, // a user folder with spaces
 		`Tool C:\Documents and Settings\nguyen2\Desktop`: `Tool C:\Documents and Settings\[user]\Desktop`,
 		"OneDrive - nguyen.an":                           "OneDrive - [name]",

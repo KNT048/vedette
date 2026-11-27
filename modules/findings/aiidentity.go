@@ -701,7 +701,8 @@ func newScrubber(private []string) scrubber {
 		return scrubber{}
 	}
 	slices.SortFunc(parts, func(a, b string) int { return cmp.Compare(len(b), len(a)) }) // the longest first
-	return scrubber{names: regexp.MustCompile(`(?i)(^|[^\pL\pN])(` + strings.Join(parts, "|") + `)([^\pL\pN]|$)`)}
+	// a name may be written with the network's domain after it ("pc-7.branch.example"): the domain names the customer too
+	return scrubber{names: regexp.MustCompile(`(?i)(^|[^\pL\pN])(` + strings.Join(parts, "|") + `)(?:\.[\pL\pN][\pL\pN-]*)*([^\pL\pN]|$)`)}
 }
 
 // clean is s as it may be sent.

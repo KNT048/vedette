@@ -89,6 +89,29 @@ type ServiceScanner interface {
 	ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error)
 }
 
+// PortsFirstScanner is implemented by a ServiceScanner that runs a deep scan (ScanTarget.Mode.Full) in two nmap runs: the port scan
+// of every TCP port (ScanOpenPorts), then -sV and the scripts on the open ports it found (ScanOpenServices, ports ascending, at
+// most commonports.MaxBelievableOpen). The scan leaves out of the second run the ports the target's settings skip and those its own
+// network answers (INV-44), and does not start it when no port is left. ScanOpenPorts returns ErrPortsFirstUnsupported when the
+// scan container runs the deep scan in one run only (an older worker): the scan then calls ScanServices, as before. Errors are
+// ScanServices' (*Unavailable, ErrServicesTimedOut, ErrAnswersEverywhere: more than commonports.MaxBelievableOpen ports open).
+type PortsFirstScanner interface {
+	ScanOpenPorts(ctx context.Context, t ScanTarget, ip netip.Addr) (OpenPorts, error)
+	ScanOpenServices(ctx context.Context, t ScanTarget, ip netip.Addr, ports []int) (ServiceScan, error)
+}
+
+// ErrPortsFirstUnsupported says the scan container runs a deep scan in one run (every TCP port with -sV and the scripts); nothing was
+// sent.
+var ErrPortsFirstUnsupported = errors.New("exposure: the scan container runs the deep scan in one run")
+
+// OpenPorts is what a deep scan's port scan of every TCP port found: the open TCP ports (untrusted: the scan keeps 1..65535,
+// sorted and distinct), how many ports it probed, and Refused (a closed reply came, so the address answered).
+type OpenPorts struct {
+	Open    []int
+	Ports   int
+	Refused bool
+}
+
 // ServiceScan is what one service identification read.
 type ServiceScan struct {
 	Services []ServiceRow
@@ -112,6 +135,10 @@ type ServiceScan struct {
 	// "vuln" scripts (and "dos", "brute" with the disruptive checks) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
 	Scripts []ScriptRow
+	// Split: the deep scan ran in two runs (PortsFirstScanner); Listed are the open ports of the target its port scan found, the
+	// ports the second run read (none: it did not run). Set by the scan, not by a scanner.
+	Split  bool
+	Listed []int
 }
 
 // ScriptRow is one NSE script result of a deep scan. Port is the open TCP port it ran on, 0
@@ -241,9 +268,13 @@ const ServicesTimeout = 8 * time.Minute
 // (nmapargv.FullHostTimeout, its --host-timeout); the scanner also waits up to 2 minutes for the box's one nmap slot and checks
 // the address and the terms again (about a minute), so the step gets 70 minutes. FullHostLimit is nmap's limit as the line of
 // ErrServicesTimedOut says it. cmd/vedette holds both to nmapargv in a test.
+// FullPortsLimit and FullListLimit are nmap's limits for one address in the deep scan's two runs (the port scan of every TCP port,
+// then the services and scripts on the open ones): both runs, with the waits and checks before each, fit FullServicesTimeout.
 const (
 	FullServicesTimeout = 70 * time.Minute
 	FullHostLimit       = 60 * time.Minute
+	FullPortsLimit      = 36 * time.Minute
+	FullListLimit       = 30 * time.Minute
 )
 
 // The lines of a deep scan's service step, with its own bounds in them (%d minutes).
@@ -252,6 +283,14 @@ const (
 	notDeepSlow              = "The deep scan (nmap on every TCP port, with its scripts) did not finish within %d minutes, so no service versions were read."
 	notDeepGaveUp            = "The deep scan (nmap on every TCP port, with its scripts) did not finish within %d minutes, nmap's limit for one address, so no service versions were read. Services may still be open there; scan again later."
 	notAnswersEverywhereDeep = "More than 40 TCP ports answered the deep scan, more than a normal box exposes: a router or firewall that answers for every port looks like this, so its service and script results and the template checks were skipped. If real services run here, forward only the ports you use."
+)
+
+// The lines of a deep scan that ran in two nmap runs (PortsFirstScanner).
+const (
+	// notDeepGaveUpSplit: one of the deep scan's two nmap runs reached nmap's limit for one address.
+	notDeepGaveUpSplit = "The deep scan's nmap run did not finish within nmap's limit for one address (%d minutes for the port scan of every TCP port, %d for the services and scripts on the open ones), so no service versions were read. Services may still be open there; scan again later."
+	// notServicesNoOpen is the service step of a deep scan whose port scan found no open port of the target: nothing was sent.
+	notServicesNoOpen = "Not needed: the port scan found no open TCP port of this address, so there was no service to identify and no port for nmap's scripts."
 )
 
 // Limits of the script results kept per scan. sensor-active already cut each output to
@@ -399,18 +438,23 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	sctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	rs.start(ctx, stepKeyPorts)
-	res, err := s.cfg.Services.ScanServices(sctx, st, ip)
+	res, split, err := s.scanServices(sctx, st, ip, c.Ports)
+	if split {
+		gaveUp = fmt.Sprintf(notDeepGaveUpSplit, int(FullPortsLimit/time.Minute), int(FullListLimit/time.Minute))
+	}
 	var un *Unavailable
 	switch {
 	case err == nil:
 		got := []ServiceRow{}
 		for _, r := range sanitizeServices(res.Services) {
-			if r.IP == ip.String() { // a row of another address is never the target's: dropped (the scanner was asked about ip only)
+			if r.IP == ip.String() && (!res.Split || slices.Contains(res.Listed, r.Port)) { // a row of another address, or of a port the run was not given, is never the target's: dropped
 				got = append(got, r)
 			}
 		}
 		got = slices.DeleteFunc(got, func(r ServiceRow) bool { return st.Skips(r.Port) }) // a port this target's settings skip is not observed
-		res, got = s.dropPathServices(ctx, ip.String(), res, got)                         // INV-44: a port the box's own network answers is not the target's
+		if !res.Split {                                                                   // the split's port scan already left them out
+			res, got = s.dropPathServices(ctx, ip.String(), res, got) // INV-44: a port the box's own network answers is not the target's
+		}
 		c.Services = append(c.Services, got...)
 		if !st.Mode.Full && (res.AnswersEverywhere || surfaceEverywhere) {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notAnswersEverywhereKept})
@@ -439,13 +483,12 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		ob := s.observerOf(ctx) // the sweep is a probe source of the run's verdicts (observe.go)
 		cut := ""
 		if st.Mode.Full { // INV-22: one miss of a trusted sweep is enough; an untrusted one checks only the fixed list
-			trusted := sweepTrusted(c.Ports, got, ip.String(), res.Refused)
-			switch {
-			case len(unfinished) > 0:
-				cut = fmt.Sprintf("Service identification of %s did not finish, so this scan says nothing about %s.", plural(len(unfinished), "port"), itThem(len(unfinished), "it", "them"))
-			case !trusted && sweepCut(c.Ports, got, ip.String()):
-				cut = "The sweep missed ports that accepted a connection moments before (a firewall or an IPS may have started dropping this box), so only the fixed list of common ports counts as checked."
+			swept := got
+			if res.Split { // the sweep is the port scan: what it found open, whatever the service run then read
+				swept = listedRows(ip.String(), res.Listed)
 			}
+			var trusted bool
+			trusted, cut = sweepVerdict(c.Ports, swept, ip.String(), res.Refused, unfinished)
 			ob.noteSweep(ip.String(), sweepFacts{ran: cut == "", trusted: trusted && len(unfinished) == 0, cut: cut, unfin: unfinished})
 		}
 		if res.Refused { // a closed port answered: the address was reachable in this scan
@@ -457,13 +500,20 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
 		read := servicesRead(got)
 		text := fmt.Sprintf("Service identification (nmap -sV): %s.", read)
+		noOpen := res.Split && len(res.Listed) == 0 // the deep scan's port scan found nothing open: the service run did not start
 		switch {
 		case !st.Mode.Full && len(probed) > 0: // the default scan: -sV read only the open ones of the ports it probed
 			text = fmt.Sprintf("Port scan (nmap) of %s, then service identification (nmap -sV) of the open ones: %s.", plural(len(probed), "TCP port"), read)
+		case noOpen:
+			text = "Port scan (nmap) of every TCP port: no open port, so service identification (nmap -sV) and nmap's scripts had nothing to read."
+		case res.Split:
+			text = fmt.Sprintf("Port scan (nmap) of every TCP port, then service identification (nmap -sV) of the %d open ones: %s.", len(res.Listed), read)
 		case res.Ports > 0:
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
 		if st.Mode.Full { // the script results of the deep scan, kept apart from the services
+			// With no open port the scripts had nothing to run on: an earlier script result of the address is not seen any more, as
+			// when the one run on every port found nothing.
 			c.ScriptsRan = append(c.ScriptsRan, ip.String())
 			vuln := 0
 			for _, r := range sanitizeScripts(res.Scripts) {
@@ -474,7 +524,9 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 					}
 				}
 			}
-			text += fmt.Sprintf(" nmap's scripts: %s, %d saying VULNERABLE.", plural(len(c.Scripts), "result"), vuln)
+			if !noOpen {
+				text += fmt.Sprintf(" nmap's scripts: %s, %d saying VULNERABLE.", plural(len(c.Scripts), "result"), vuln)
+			}
 		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "services", Text: text, At: store.FormatTS(s.clock())})
 		if cut != "" { // the sweep did not see everything it probed: its step and the run say so
@@ -483,7 +535,11 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		} else {
 			rs.end(ctx, stepKeyPorts, corerun.Done, portsNote(st.Mode.Full, len(got), len(probed)))
 		}
-		rs.end(ctx, stepKeyServices, corerun.Done, text)
+		if noOpen {
+			rs.skip(ctx, stepKeyServices, notServicesNoOpen)
+		} else {
+			rs.end(ctx, stepKeyServices, corerun.Done, text)
+		}
 	case ctx.Err() != nil: // the run was stopped: nothing is stored
 		return c, err
 	case errors.Is(err, ErrAnswersEverywhere): // nmap saw it although the surface scan did not: no rows, no templates
@@ -515,6 +571,73 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		notDeep()
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
+}
+
+// scanServices is service identification of ip by the ServiceScanner. A deep scan whose scanner runs it in two runs
+// (PortsFirstScanner) first scans every TCP port, then runs -sV and the scripts only on the open ports it found: without the ports
+// the target's settings skip and those the box's own network answers (INV-44: left out and said once, as dropPathServices does), and
+// not at all when none is left. The port step ends with the first run (partly done when the sweep was cut, sweepVerdict against
+// runner, the ports the runner found open this run) and the service step starts with the second. split says the first run ran
+// (whatever came of the second); a scanner that runs the deep scan in one run gets ScanServices, as a scan that is not deep does.
+func (s *Service) scanServices(ctx context.Context, st ScanTarget, ip netip.Addr, runner []PortRow) (ServiceScan, bool, error) {
+	pf, ok := s.cfg.Services.(PortsFirstScanner)
+	if !st.Mode.Full || !ok {
+		res, err := s.cfg.Services.ScanServices(ctx, st, ip)
+		return res, false, err
+	}
+	found, err := pf.ScanOpenPorts(ctx, st, ip)
+	switch {
+	case errors.Is(err, ErrPortsFirstUnsupported): // an older scan container: the one run on every port, as before
+		res, err := s.cfg.Services.ScanServices(ctx, st, ip)
+		return res, false, err
+	case err != nil:
+		return ServiceScan{}, true, err
+	}
+	open := slices.DeleteFunc(sanitizeProbed(found.Open), st.Skips)
+	if path := s.networkPorts(ctx, ip.String(), open); len(path) > 0 {
+		open = slices.DeleteFunc(open, func(p int) bool { return path[p] })
+		s.leftOut(ctx, ip.String(), path)
+	}
+	res := ServiceScan{Ports: found.Ports, Refused: found.Refused, Split: true, Listed: open, Services: []ServiceRow{}}
+	if len(open) == 0 || ctx.Err() != nil { // nothing to read: the second run is not started (identifyIP ends both steps)
+		return res, true, ctx.Err()
+	}
+	rs := runStepsOf(ctx)
+	if _, cut := sweepVerdict(runner, listedRows(ip.String(), open), ip.String(), found.Refused, nil); cut != "" {
+		rs.end(ctx, stepKeyPorts, corerun.Partial, portsNote(true, len(open), 0)+" "+cut)
+	} else {
+		rs.end(ctx, stepKeyPorts, corerun.Done, portsNote(true, len(open), 0))
+	}
+	rs.start(ctx, stepKeyServices)
+	got, err := pf.ScanOpenServices(ctx, st, ip, open)
+	if err != nil {
+		return ServiceScan{}, true, err
+	}
+	got.Ports, got.Split, got.Listed, got.Refused = found.Ports, true, open, got.Refused || found.Refused
+	return got, true, nil
+}
+
+// listedRows are the open ports a deep scan's port scan found on ip, as rows for sweepVerdict.
+func listedRows(ip string, ports []int) []ServiceRow {
+	out := make([]ServiceRow, 0, len(ports))
+	for _, p := range ports {
+		out = append(out, ServiceRow{IP: ip, Port: p})
+	}
+	return out
+}
+
+// sweepVerdict is whether a deep scan's sweep of every TCP port of ip, which saw swept open, can be trusted (sweepTrusted), and why
+// its results are cut ("" when they are not): service batches that did not finish (unfinished), or a sweep that missed ports the
+// runner found open moments before.
+func sweepVerdict(runner []PortRow, swept []ServiceRow, ip string, refused bool, unfinished []int) (bool, string) {
+	trusted := sweepTrusted(runner, swept, ip, refused)
+	switch {
+	case len(unfinished) > 0:
+		return trusted, fmt.Sprintf("Service identification of %s did not finish, so this scan says nothing about %s.", plural(len(unfinished), "port"), itThem(len(unfinished), "it", "them"))
+	case !trusted && sweepCut(runner, swept, ip):
+		return trusted, "The sweep missed ports that accepted a connection moments before (a firewall or an IPS may have started dropping this box), so only the fixed list of common ports counts as checked."
+	}
+	return trusted, ""
 }
 
 // identificationCut records that service identification of ip failed: the ports it would have probed have no verdict but unknown,

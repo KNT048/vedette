@@ -212,6 +212,11 @@ type HeartbeatNmap struct {
 	// Narrow (protocol 5) says the worker runs a target's deep-scan settings: Job.Narrow and the gentle rate of the full shapes. An
 	// older worker leaves it out: core then never sends it a narrowed or gentle line (nothing is sent; never the wider line).
 	Narrow bool `json:"narrow,omitempty"`
+	// FullPorts (protocol 5) says the worker runs a deep scan in two runs: the port scan of every TCP port (external_full_ports),
+	// then external_full on the open ports it found (the job carries them in Ports). An older worker leaves it out: core then sends
+	// it the one external_full run on every port, as before; it would refuse both new jobs (an unknown shape, ports on a shape that
+	// takes none), never run a wider line.
+	FullPorts bool `json:"full_ports,omitempty"`
 }
 
 // HeartbeatNuclei says whether the worker can run nuclei: Present is "the pinned binary runs -version"; Pack is

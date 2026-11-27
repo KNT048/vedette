@@ -1,4 +1,4 @@
-// Package nmapargv builds and checks the only eleven nmap command lines Vedette ever runs.
+// Package nmapargv builds and checks the only twelve nmap command shapes Vedette ever runs.
 // It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public,
 // and modules/scan/commonports for the external shape's ports, all standard library only), no database and
 // no core/exec, because the sensor binary links it and
@@ -19,10 +19,10 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Kind says which of the eleven nmap command lines is built.
+// Kind says which of the twelve nmap command shapes is built.
 type Kind int
 
-// The eleven kinds, one per command shape.
+// The twelve kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
@@ -46,9 +46,11 @@ const (
 	// it before it hands each job out, the worker again before nmap.
 	External
 	// ExternalFull is the deep scan of the box's own verified public IP once an administrator accepted the target's testing terms
-	// (exposure FULL-1): every TCP port (-p-), -sV, and nmap's "default", "safe" and "vuln" scripts without the
-	// "dos", "brute", "external" and "broadcast" ones (FullScripts), at FullRate, bounded by FullHostTimeout. Same target rule
-	// and the same two own-IP fences as External.
+	// (exposure FULL-1): -sV and nmap's "default", "safe" and "vuln" scripts without the "dos", "brute", "external" and "broadcast"
+	// ones (FullScripts), at FullRate. It has two lines: on the open ports the scan's ExternalFullPorts run found (-p, 1..
+	// commonports.MaxBelievableOpen ascending ports, bounded by FullListHostTimeout; the job carries the ports), or, the line of
+	// before for a worker that does not run ExternalFullPorts, on every TCP port (-p-) in one run bounded by FullHostTimeout. Same
+	// target rule and the same two own-IP fences as External.
 	ExternalFull
 	// ExternalDisruptive is the last step of a deep scan whose run allows the disruptive checks (the terms' extra tick, a person's
 	// scan): the "dos" and "brute" scripts and the login and crash checks (DisruptiveScripts) on the open ports the scan's ExternalFull
@@ -68,10 +70,14 @@ const (
 	// ports the weekly run found open that the normal scan does not cover, at the normal LAN rate. It is the only shape whose -p
 	// list varies: the job carries the ports (sensor protocol, nmap jobs, "ports").
 	PortVersions
+	// ExternalFullPorts is the first run of a deep scan: the port scan of every TCP port (-sS -p-, no -sV, no script, no -O) of the
+	// target ExternalFull then reads on its open ports only, at FullRate (or GentleRate), --max-retries 2, bounded by
+	// FullPortsHostTimeout. It is a full shape: the deep-scan fences, the terms check and the worker's full capability apply to it.
+	ExternalFullPorts
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, AllPorts, Extra}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, AllPorts, Extra, ExternalFullPorts}
 
 // MaxPortVersions is the most ports one PortVersions run reads: -sV and the scripts time themselves (--max-rate does not
 // bound them), so the weekly follow-up stays as small as a normal scan of a device with a few services.
@@ -165,10 +171,21 @@ const (
 	// port scan is 11 minutes; 300 SYNs of 60 bytes a second are 144 kbit/s, nothing for the link, and the router drops most of
 	// them in its firewall.
 	FullRate = 300
-	// FullHostTimeout bounds one full run: port scan (at most 11 min), -sV and the scripts. exposure's step bound of a deep scan
-	// (FullServicesTimeout there) is this plus the waits around it; cmd/vedette holds the two together in a test.
+	// FullHostTimeout bounds the one-run full line (every port with -sV and the scripts, for a worker that does not run
+	// ExternalFullPorts): port scan (at most 11 min), -sV and the scripts. exposure's step bound of a deep scan (FullServicesTimeout
+	// there) is this plus the waits around it; cmd/vedette holds the two together in a test.
 	FullHostTimeout = 60 * time.Minute
 	fullHostTimeout = "60m"
+	// FullPortsHostTimeout bounds the deep scan's port scan (ExternalFullPorts): at most 3 × 65535 probes, 11 minutes at FullRate and
+	// 33 at GentleRate when every port is dropped, with room for nmap slowing down on a lossy path.
+	FullPortsHostTimeout = 36 * time.Minute
+	fullPortsHostTimeout = "36m"
+	// FullListHostTimeout bounds the full line on the open ports (at most commonports.MaxBelievableOpen): a short port scan of the
+	// list, -sV (with --version-all at most about 18 minutes for 40 ports that hold every probe open, see flagVersionAll) and the
+	// scripts in parallel, each capped by fullScriptTimeout. The two runs together (with the waits and fences around each) stay
+	// inside exposure's FullServicesTimeout; cmd/vedette holds them together in a test.
+	FullListHostTimeout = 30 * time.Minute
+	fullListHostTimeout = "30m"
 	// fullRetries is -T5's --max-retries (nmap's default is 10): the path from the box to its own public IP is the LAN and the
 	// router, where probes are rarely lost; it caps the cost of the dropped ports above.
 	fullRetries = "2"
@@ -200,8 +217,11 @@ var DisruptiveScripts = func() string {
 // ExternalFull, ExternalDisruptive): the own-IP fences apply to all three.
 func (k Kind) IsExternal() bool { return k == External || k.IsFull() }
 
-// IsFull reports whether the shape is one of the two deep scans of an accepted target.
-func (k Kind) IsFull() bool { return k == ExternalFull || k == ExternalDisruptive }
+// IsFull reports whether the shape is one of the deep scan's runs of an accepted target (ExternalFullPorts, ExternalFull,
+// ExternalDisruptive).
+func (k Kind) IsFull() bool {
+	return k == ExternalFull || k == ExternalDisruptive || k == ExternalFullPorts
+}
 
 // ExternalRateOf is the one rate an external shape runs at: FullRate for the full shapes, ExternalRate for External.
 func ExternalRateOf(k Kind) int {
@@ -302,6 +322,8 @@ func (k Kind) Name() string {
 		return "extra_ports"
 	case PortVersions:
 		return "port_versions"
+	case ExternalFullPorts:
+		return "external_full_ports"
 	}
 	return ""
 }
@@ -356,7 +378,12 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		if rate != FullRate {
 			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
 		}
-		return fullFlags(rate, Wide(), "")
+		return fullFlags(rate, Wide(), "", nil)
+	case ExternalFullPorts:
+		if rate != FullRate {
+			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
+		}
+		return fullPortsFlags(rate, "")
 	case ExternalDisruptive:
 		return nil, errors.New("nmapargv: the external_disruptive shape needs its ports (FlagsFor)")
 	}
@@ -401,11 +428,15 @@ func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
 }
 
 // FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending) or of an ExternalDisruptive
-// run (1..commonports.MaxBelievableOpen); every other kind takes none, and External without ports is its discovery run (its -sV
+// or ExternalFull run on open ports (1..commonports.MaxBelievableOpen; ExternalFull without ports is its one-run line on every
+// port); every other kind takes none, and External without ports is its discovery run (its -sV
 // batches are BatchFlags', with their host timeout).
 func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 	if kind == ExternalDisruptive {
 		return disruptiveFlags(rate, ports, Wide())
+	}
+	if kind == ExternalFull && len(ports) > 0 { // the full line on the open ports the deep scan's port scan found
+		return FlagsNarrow(kind, rate, ports, Wide())
 	}
 	if kind != PortVersions {
 		if len(ports) != 0 {
@@ -437,10 +468,26 @@ func fullRate(kind Kind, rate int) error {
 
 // fullFlags is the flag part of an ExternalFull run under n (skip is n's ports as an --exclude-ports value, "" for none): the reviewed
 // explicit script list of scripts.go, never a category expression (FORBID-3), one argv element, never through a shell. At GentleRate
-// without --version-all (GentleRate says why).
-func fullFlags(rate int, n Narrow, skip string) ([]string, error) {
+// without --version-all (GentleRate says why). ports nil is the one-run line on every TCP port (-p-, FullHostTimeout); otherwise
+// they are the open ports the deep scan's port scan found (1..commonports.MaxBelievableOpen ascending, distinct, none of n's skipped
+// ones: -p, FullListHostTimeout). The skipped ports stay in --exclude-ports there too, so ScriptsOf leaves followScripts out.
+func fullFlags(rate int, n Narrow, skip string, ports []int) ([]string, error) {
 	if err := fullRate(ExternalFull, rate); err != nil {
 		return nil, err
+	}
+	scope, host := []string{"-p-"}, fullHostTimeout
+	if ports != nil {
+		if len(ports) == 0 || len(ports) > commonports.MaxBelievableOpen {
+			return nil, fmt.Errorf("nmapargv: an external_full run on open ports reads 1 to %d ports, got %d", commonports.MaxBelievableOpen, len(ports))
+		}
+		list, err := portList(ports)
+		if err != nil {
+			return nil, err
+		}
+		if slices.ContainsFunc(ports, func(p int) bool { return slices.Contains(n.SkipPorts, p) }) {
+			return nil, errors.New("nmapargv: the open ports of an external_full run name a port the target's settings skip")
+		}
+		scope, host = []string{"-p", list}, fullListHostTimeout
 	}
 	scripts, err := ScriptsOf(ExternalFull, n)
 	if err != nil {
@@ -450,12 +497,25 @@ func fullFlags(rate int, n Narrow, skip string) ([]string, error) {
 	if rate == FullRate {
 		f = append(f, flagVersionAll)
 	}
-	f = append(f, "-Pn", flagNoDNS, "-p-")
+	f = append(append(f, "-Pn", flagNoDNS), scope...)
 	if skip != "" {
 		f = append(f, flagExcludePorts, skip)
 	}
 	return append(f, flagScript, scripts, flagScriptTimeout, fullScriptTimeout, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, fullRetries,
-		flagHostTimeout, fullHostTimeout), nil
+		flagHostTimeout, host), nil
+}
+
+// fullPortsFlags is the flag part of an ExternalFullPorts run (skip: the target's skipped ports as an --exclude-ports value, "" for
+// none): SYN only on every TCP port, no -sV, no script, at FullRate or GentleRate.
+func fullPortsFlags(rate int, skip string) ([]string, error) {
+	if err := fullRate(ExternalFullPorts, rate); err != nil {
+		return nil, err
+	}
+	f := []string{flagPrivileged, "-sS", "-Pn", flagNoDNS, "-p-"}
+	if skip != "" {
+		f = append(f, flagExcludePorts, skip)
+	}
+	return append(f, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, fullRetries, flagHostTimeout, fullPortsHostTimeout), nil
 }
 
 // disruptiveFlags is the flag part of an ExternalDisruptive run: the disruptive scripts of the groups n allows on
@@ -672,12 +732,19 @@ func shapeOf(flags []string) (Kind, int, []int, Narrow, bool) {
 		return 0, 0, nil, Narrow{}, false
 	}
 	for _, k := range kinds {
-		if skip != nil && k != ExternalFull && k != External {
+		if skip != nil && k != ExternalFull && k != External && k != ExternalFullPorts {
 			continue
 		}
 		for _, n := range narrowsOf(k, skip) {
 			if want, err := FlagsNarrow(k, rate, nil, n); err == nil && slices.Equal(flags, want) {
 				return k, rate, nil, n, true
+			}
+		}
+	}
+	if ports := portsOf(flags); ports != nil { // the full line on the open ports, with the groups and skipped ports of its settings
+		for _, n := range narrowsOf(ExternalFull, skip) {
+			if want, err := FlagsNarrow(ExternalFull, rate, ports, n); err == nil && slices.Equal(flags, want) {
+				return ExternalFull, rate, ports, n, true
 			}
 		}
 	}
@@ -720,12 +787,12 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 }
 
 // Validate is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how Build made it (SYS-2). It accepts exactly the eleven shapes of FlagsFor
+// starts, independently of how Build made it (SYS-2). It accepts exactly the twelve shapes of FlagsFor
 // (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive, all_ports, extra_ports,
-// port_versions), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate), extra_ports and
-// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), of external_disruptive
-// (1..commonports.MaxBelievableOpen ascending ports) and of an external -sV batch (1..MaxBatchPorts ascending ports, with its host
-// timeout, BatchFlags), then "--stats-every 5s -oX -", then 1 to MaxBatch
+// port_versions, external_full_ports), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate),
+// extra_ports and port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), of
+// external_disruptive and of external_full on open ports (1..commonports.MaxBelievableOpen ascending ports) and of an external -sV
+// batch (1..MaxBatchPorts ascending ports, with its host timeout, BatchFlags), then "--stats-every 5s -oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses (port_versions: exactly one; the three external shapes: exactly one canonical public
 // IPv4 address).
 // Everything else is rejected.
@@ -737,7 +804,7 @@ func Validate(args []string) error {
 	flags := args[:i-2]
 	kind, _, _, _, ok := shapeOf(flags)
 	if !ok {
-		return fmt.Errorf("flags %q are not one of the eleven allowed command shapes", flags)
+		return fmt.Errorf("flags %q are not one of the twelve allowed command shapes", flags)
 	}
 	targets := args[i+2:]
 	if kind == PortVersions && len(targets) != 1 {
@@ -782,7 +849,7 @@ func Parse(args []string) (Kind, int, []netip.Addr, error) {
 	return k, rate, targets, err
 }
 
-// ParseFor is Parse with the ports of a PortVersions or ExternalDisruptive line or of an external -sV batch (nil for every other line; a batch's host
+// ParseFor is Parse with the ports of a PortVersions, ExternalDisruptive or open-ports ExternalFull line or of an external -sV batch (nil for every other line; a batch's host
 // timeout is HostTimeoutOf's). A line narrowed by a target's deep-scan settings is refused: its caller would drop the narrowing on
 // the way to the worker (ParseNarrow keeps it). The gentle speed is the rate, which it returns.
 func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {

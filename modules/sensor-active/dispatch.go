@@ -292,6 +292,18 @@ func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
 	return d.probe(ctx, argv, nil, time.Time{})
 }
 
+// RunsFullPorts implements FullPortsProber: the worker's latest heartbeat says it runs a deep scan in two runs (nmap.full_ports).
+func (d *Dispatcher) RunsFullPorts() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.nmap.FullPorts
+}
+
+// splitFull says a line is one of a deep scan's two split runs: the port scan of every port, or the full line on open ports.
+func splitFull(kind nmapargv.Kind, ports []int) bool {
+	return kind == nmapargv.ExternalFullPorts || kind == nmapargv.ExternalFull && len(ports) > 0
+}
+
 // ProbeProven implements ProvenProber: Probe of an external shape (external, external_full, external_disruptive) whose one target
 // core's fence took as the box's own on a sighting at provenAt. The time goes on the wire only to a worker whose heartbeat says
 // own_proof (pollLocked, at hand-over); an older worker gets the job without it and its own sighting decides.
@@ -335,6 +347,9 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 		if !ok {
 			return Output{}, ErrNarrowUnsupported
 		}
+	}
+	if splitFull(kind, ports) && !d.RunsFullPorts() { // Only a worker whose heartbeat says full_ports gets a deep scan's split runs
+		return Output{}, ErrFullPortsUnsupported
 	}
 	if kind == nmapargv.PortVersions { // Only a worker whose heartbeat says it takes a job's ports gets one
 		d.mu.Lock()
@@ -633,6 +648,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && !d.nmap.Narrow && (s.pending.spec.Narrow != nil || k.IsFull() && s.pending.spec.Rate == nmapargv.GentleRate) {
 			continue // the same for a target's deep-scan settings (nmap.narrow): wait, never the wider line
+		}
+		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && !d.nmap.FullPorts && splitFull(k, s.pending.spec.Ports) {
+			continue // the same for a deep scan's split runs (nmap.full_ports): wait, never the one run on every port instead
 		}
 		j := s.pending
 		if !d.ownProof { // the latest heartbeat says this worker takes no proof (an older worker): the job in the shape it knows

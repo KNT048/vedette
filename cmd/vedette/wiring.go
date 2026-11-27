@@ -469,7 +469,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
-			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
+			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE, AffectedOnly: r.AffectedOnly, VendorList: r.VendorList,
 				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
 		}
 		for _, d := range distro[v.CVE] {
@@ -489,8 +489,8 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 // MatchSet is what findings' match pass compares the devices with (findings.Feeds.MatchSet): the exploited lists' entries (Vulns),
 // then every other catalogue CVE whose ranges name a product the devices run (scope.Keep), whose vendor states versions of such a
 // product in its own notation (SchemeCVEs), that a distribution fixed in a package the devices run (scope.Packages) or that a finding
-// holds (scope.Pinned), with the ranges the catalogue's precedence gives (feeds' rangeOrigin: NVD's when NVD has any, else the CVE
-// record's), the vendor's rows read in the product's version scheme (Schemed), the publication day, EPSS and the distributions' word.
+// holds (scope.Pinned), with the ranges as feeds reads them for matching (matchRows: NVD's with the CVE record's CNA rows beside them,
+// else the record's), the vendor's rows read in the product's version scheme (Schemed), the publication day, EPSS and the distributions' word.
 // Every entry, the exploited lists' included, carries the same data whichever of these found it. Nothing while the feeds module is off.
 func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error) {
 	if a.on != nil && !a.on() {
@@ -616,7 +616,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		for _, r := range rows {
 			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
 			if row, ok := r.MatchRow(); ok {
-				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE,
+				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly, VendorList: row.VendorList,
 					Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
 			}
 		}

@@ -84,22 +84,25 @@ var catalogueInvariants = []selfcheck.Invariant{
 			AND NOT EXISTS (SELECT 1 FROM feeds_signal s WHERE s.cve = c.cve AND s.qualifies = 1)
 			AND NOT EXISTS (SELECT 1 FROM fnd_finding f WHERE f.cve = c.cve)`,
 	},
-	{ // range precedence: a finding the data detects through the CVE record's ranges has a CVE NVD gives no ranges for, unless its
-		// line's product has a version scheme: the vendor's own rows decide its trains before NVD's generic rows (vendorscheme.go), and
-		// the generic comparison never reads a scheme product's record rows (feeds recordSkipped). The product is resolved as the
-		// matcher resolves it (productid.ResolveStored of the line), so a line named otherwise (nmap's "netscaler gateway") counts too.
+	{ // range precedence: a finding the data detects through a CVE record's ranges rests on rows of that origin the catalogue holds for
+		// its CVE, and never on an ADP's while NVD has ranges (the CNA's rows are read beside NVD's, an ADP's are not: feeds matchRows),
+		// unless its line's product has a version scheme: the vendor's own rows decide its trains (vendorscheme.go). The product is
+		// resolved as the matcher resolves it (productid.ResolveStored of the line), so a line named otherwise (nmap's "netscaler
+		// gateway") counts too.
 		Name:  "findings.range_precedence",
 		Count: rangePrecedenceBreaks,
 	},
 }
 
-// rangePrecedenceBreaks counts the detected findings that rest on a CVE record's ranges while NVD has ranges for the CVE, leaving out
-// those whose software line is a product with a version scheme (schemedSpans resolves it the same way).
+// rangePrecedenceBreaks counts the detected findings that rest on a CVE record's ranges the catalogue does not hold for the CVE (no
+// row of that origin), or on an ADP's while NVD has ranges for the CVE, leaving out those whose software line is a product with a
+// version scheme (schemedSpans resolves it the same way).
 func rangePrecedenceBreaks(ctx context.Context, db *sql.DB) (int64, error) {
 	rows, err := db.QueryContext(ctx, `SELECT s.vendor, s.product, s.display, ifnull(s.cpe, ''), s.id IS NOT NULL FROM fnd_finding f
 		LEFT JOIN inv_software s ON s.id = f.software_id
 		WHERE f.detected = 1 AND f.range_origin IN ('cna', 'adp')
-		AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd')`)
+		AND (NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = f.range_origin)
+			OR f.range_origin = 'adp' AND EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = f.cve AND r.origin = 'nvd'))`)
 	if err != nil {
 		return 0, err
 	}

@@ -25,8 +25,8 @@ import (
 // (platforms other than processors: anyPlatform). "n/a" and "unspecified" say nothing and are passed over; "all versions" is every
 // version.
 //
-// default_status is the entry's defaultStatus (affected, unaffected, or unknown when absent): a product's list is complete when every
-// row says affected or unaffected. An entry of the product that gives no row and does not say what an unlisted version is makes all of
+// default_status is the entry's defaultStatus (affected, unaffected, or unknown when absent; on these rows "unaffected" only from the
+// vendor's own CNA, ownCNA, else unknown): a product's list is complete when every row says affected or unaffected. An entry of the product that gives no row and does not say what an unlisted version is makes all of
 // the product's rows unknown.
 //
 // Vendor notation. The versions of a product the rules above refuse are not lost: they are kept as the vendor states them, beside
@@ -98,6 +98,9 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			g.entries = append(g.entries, a)
 			if g.unusable {
 				continue
+			}
+			if cnaDefault(a.DefaultStatus) == DefaultUnaffected && (origin != OriginCNA || !ownCNA(assigner, a.Vendor)) {
+				a.DefaultStatus = DefaultUnknown // what a third party did not list, it did not test (ownCNA); g.entries keep its word
 			}
 			got, complete, ok := entryRows(a)
 			if !ok {
@@ -175,6 +178,22 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 		conv(OriginADP, a.Affected, "")
 	}
 	return rows, skipped, statedDropped
+}
+
+// ownCNA says the record's assigner is the vendor of the entry: assignerShortName and vendor name the same company once company words
+// are dropped ("fortinet" and "Fortinet", "openssl" and "OpenSSL"). Only then does the entry's defaultStatus "unaffected" say
+// anything about the versions it does not list: the vendor knows every release it shipped, while a third-party CNA (VulnCheck, a bug
+// bounty platform, a national CERT) lists the releases it tested, and its "unaffected" for the rest is no evidence (CVE JSON 5 leaves
+// the trust in defaultStatus to the reader; versions.md). An entry that names no vendor ("n/a", empty) does not say whose product it
+// is, so it is never the assigner's own. Such an entry is read with defaultStatus unknown: its listed versions still say "affected",
+// a version it does not list stays a question.
+func ownCNA(assigner, vendor string) bool {
+	v := productid.NormVendor(vendor)
+	if noVendor[v] {
+		return false
+	}
+	a := productid.NormVendor(assigner)
+	return a != "" && a == v
 }
 
 // recordMaxStatedProduct and recordMaxStated bound the rows kept as the vendor states them, per product and per record (415 is the

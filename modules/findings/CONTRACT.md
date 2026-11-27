@@ -196,8 +196,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-1** One finding per (device, CVE, line) (M-1).
 - **INV-4** Exploited-list entries are keyed `vendor|product`; a "multiple products" entry yields a finding only through an NVD row
   that names the software itself.
-- **INV-4a** Version ranges come from feeds' match set (NVD's when NVD has any, else the CVE record's). A line with no usable
-  version that cannot be decided is a question, not a finding.
+- **INV-4a** Version ranges come from feeds' match set (NVD's with the CVE record's CNA rows beside them, else the record's). A record
+  row beside NVD's that is not its vendor's complete list (`Affected.AffectedOnly`) only ever makes a version affected, and only a version
+  it states: outside it, it neither applies nor proves "not affected" (`decide`, and `viaNVD` never closes on a reach only such a row
+  gives). A row of a complete record list (`VendorList`) decides both ways, an exact release it lists too (`nvdNames`). A finding the
+  record's rows alone call affected stores `range_origin` `cna` (`recordDecided`). A line with no usable version that cannot be decided is
+  a question, not a finding.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
   every applicable range.
 - **INV-4c** Network device operating systems become software lines through one table, `content/catalog/network-os.json`. The

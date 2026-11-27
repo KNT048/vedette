@@ -27,6 +27,15 @@ type fakeServer struct {
 	otherName string              // answers a TXT record carrying the token on this owner name instead of the name asked
 	otherQ    string              // answers a question about this name instead of the one asked
 	refused   bool                // answers REFUSED (a lame server)
+	squat     string              // a more specific zone it also hosts for someone else: names under it are answered from it
+}
+
+// apex is the zone the server answers name from: its squat zone for a name under that, else its own zone.
+func (s *fakeServer) apex(name string) string {
+	if s.squat != "" && (name == s.squat || strings.HasSuffix(name, "."+s.squat)) {
+		return s.squat
+	}
+	return s.zone
 }
 
 // fakeZones is the zone's own name servers as the box would reach them: NS records and addresses through the box's resolver
@@ -113,7 +122,12 @@ func (z *fakeZones) exchange(ctx context.Context, server netip.Addr, q []byte) (
 	if s.otherQ != "" {
 		question.Name = dnsmessage.MustNewName(s.otherQ + ".")
 	}
-	var answers []dnsmessage.Resource
+	var answers, authority []dnsmessage.Resource
+	soaRR := func(owner string) dnsmessage.Resource {
+		return dnsmessage.Resource{Header: dnsmessage.ResourceHeader{Name: dnsmessage.MustNewName(owner + "."), Class: dnsmessage.ClassINET, TTL: 300},
+			Body: &dnsmessage.SOAResource{NS: dnsmessage.MustNewName("ns1.dns-host.example."), MBox: dnsmessage.MustNewName("hostmaster.dns-host.example."), Serial: 1}}
+	}
+	apex := s.apex(name)
 	txtRR := func(owner, v string) dnsmessage.Resource {
 		return dnsmessage.Resource{Header: dnsmessage.ResourceHeader{Name: dnsmessage.MustNewName(owner + "."), Class: dnsmessage.ClassINET, TTL: 300},
 			Body: &dnsmessage.TXTResource{TXT: []string{v}}}
@@ -124,6 +138,19 @@ func (z *fakeZones) exchange(ctx context.Context, server netip.Addr, q []byte) (
 		rh.Authoritative = false
 	case s.delegated != "" && (name == s.delegated || strings.HasSuffix(name, "."+s.delegated)):
 		rh.Authoritative = false // a referral: the authority section would hold the child's NS records
+	case question.Type == dnsmessage.TypeSOA && s.cname[name] != "":
+		answers = append(answers, dnsmessage.Resource{Header: dnsmessage.ResourceHeader{Name: dnsmessage.MustNewName(name + "."), Class: dnsmessage.ClassINET, TTL: 300},
+			Body: &dnsmessage.CNAMEResource{CNAME: dnsmessage.MustNewName(s.cname[name] + ".")}})
+	case question.Type == dnsmessage.TypeSOA && name == apex:
+		answers = append(answers, soaRR(apex))
+	case question.Type == dnsmessage.TypeSOA && strings.HasSuffix(name, "."+apex):
+		authority = append(authority, soaRR(apex)) // no SOA at the name: the zone's SOA comes in the authority section
+		if s.txt[name] == nil && s.wild == nil {
+			rh.RCode = dnsmessage.RCodeNameError
+		}
+	case question.Type == dnsmessage.TypeSOA:
+		rh.RCode = dnsmessage.RCodeRefused
+		rh.Authoritative = false
 	case s.otherName != "":
 		answers = append(answers, txtRR(s.otherName, s.txt[s.otherName][0]))
 	case s.cname[name] != "":
@@ -164,8 +191,18 @@ func (z *fakeZones) exchange(ctx context.Context, server netip.Addr, q []byte) (
 			err = b.TXTResource(a.Header, *body)
 		case *dnsmessage.CNAMEResource:
 			err = b.CNAMEResource(a.Header, *body)
+		case *dnsmessage.SOAResource:
+			err = b.SOAResource(a.Header, *body)
 		}
 		if err != nil {
+			return nil, err
+		}
+	}
+	if err := b.StartAuthorities(); err != nil {
+		return nil, err
+	}
+	for _, a := range authority {
+		if err := b.SOAResource(a.Header, *a.Body.(*dnsmessage.SOAResource)); err != nil {
 			return nil, err
 		}
 	}
@@ -197,7 +234,6 @@ func (d staleDNS) AuthTXT(ctx context.Context, name string) (AuthAnswer, error) 
 var (
 	ns1 = netip.MustParseAddr("97.74.104.44")
 	ns2 = netip.MustParseAddr("173.201.72.44")
-	nsX = netip.MustParseAddr("198.18.7.7") // a name server of another zone
 	nsA = netip.MustParseAddr("45.79.0.53") // a public name server of another zone
 )
 
@@ -211,7 +247,7 @@ func authWorld(token string) (*fakeDNS, *fakeZones) {
 	}
 	z := &fakeZones{
 		ns:      map[string][]string{"acme.example": {"ns1.dns-host.example", "ns2.dns-host.example"}, "attacker.example": {"ns.attacker.example"}},
-		addr:    map[string][]netip.Addr{"ns1.dns-host.example": {ns1}, "ns2.dns-host.example": {ns2}, "ns.attacker.example": {nsX}},
+		addr:    map[string][]netip.Addr{"ns1.dns-host.example": {ns1}, "ns2.dns-host.example": {ns2}, "ns.attacker.example": {nsA}},
 		servers: map[netip.Addr]*fakeServer{ns1: serve(), ns2: serve()},
 	}
 	return r, z
@@ -238,6 +274,7 @@ func TestOwnedAsksTheZonesOwnServers(t *testing.T) {
 		servers     bool // the zone's own servers answered (Servers set)
 		unchecked   bool
 		refused     bool
+		notAsked    bool // the zone's own servers must not be asked at all
 	}{
 		{name: "stale resolver, both servers serve the record", domain: "acme.example", at: "acme.example", auth: true, servers: true},
 		{name: "the resolver already has it: the servers are not asked", domain: "acme.example",
@@ -288,19 +325,45 @@ func TestOwnedAsksTheZonesOwnServers(t *testing.T) {
 				z.addr["ns1.dns-host.example"] = []netip.Addr{netip.MustParseAddr("10.0.0.53")}
 				z.addr["ns2.dns-host.example"] = []netip.Addr{netip.MustParseAddr("127.0.0.1")}
 			}},
-		{name: "the zone's NS are another zone's servers that claim every name", domain: "acme.example",
+		{name: "the parent zone's servers claim every name, the zone's own deny it", domain: "acme.example",
 			change: func(_ *fakeDNS, z *fakeZones) {
-				// the attacker's server answers every name with authority, but it is not a server of acme.example: never asked
-				z.servers[nsX] = &fakeServer{zone: "example", txt: map[string][]string{"acme.example": {"vedette-verify=" + tok}}, cname: map[string]string{}}
+				// a public server of the parent zone answers every name under it with authority: it is not a server of acme.example,
+				// so it is never asked, and acme.example's own servers decide
+				z.ns["example"] = []string{"ns.attacker.example"}
+				z.servers[nsA] = &fakeServer{zone: "example", cname: map[string]string{}, txt: map[string][]string{
+					"acme.example": {"vedette-verify=" + tok}, "_vedette-verify.acme.example": {"vedette-verify=" + tok}}}
 				for _, s := range []netip.Addr{ns1, ns2} {
 					z.servers[s].txt["acme.example"] = []string{"v=spf1 -all"}
 				}
 			}, servers: true},
+		{name: "the zone has no NS of its own: the parent's servers are not asked in its place", domain: "acme.example",
+			change: func(_ *fakeDNS, z *fakeZones) {
+				delete(z.ns, "acme.example")
+				z.ns["example"] = []string{"ns.attacker.example"}
+				z.servers[nsA] = &fakeServer{zone: "example", cname: map[string]string{}, txt: map[string][]string{
+					"acme.example": {"vedette-verify=" + tok}, "_vedette-verify.acme.example": {"vedette-verify=" + tok}}}
+			}},
+		{name: "another customer's zone for the _vedette-verify name on the same servers", domain: "acme.example",
+			change: func(_ *fakeDNS, z *fakeZones) {
+				// shared DNS hosting: someone created the zone _vedette-verify.acme.example at the provider. acme.example does not
+				// delegate it, so a resolver never reaches it, but the provider's servers answer its names with authority.
+				for _, s := range z.servers {
+					s.txt["acme.example"] = []string{"v=spf1 -all"}
+					s.squat = "_vedette-verify.acme.example"
+					s.txt["_vedette-verify.acme.example"] = []string{"vedette-verify=" + tok}
+				}
+			}, servers: true},
+		{name: "another customer's zone for the checked name itself on the same servers", domain: "git.acme.example",
+			change: func(_ *fakeDNS, z *fakeZones) {
+				for _, s := range z.servers {
+					s.squat = "git.acme.example"
+					s.txt["git.acme.example"] = []string{"vedette-verify=" + tok}
+				}
+			}},
 		{name: "the registered domain is a CNAME: its target's servers are not the zone's", domain: "acme.example",
 			change: func(_ *fakeDNS, z *fakeZones) {
 				// a dangling CNAME to a domain someone else registers: its servers claim acme.example's names with authority
 				z.cname = map[string]string{"acme.example": "attacker.example"}
-				z.addr["ns.attacker.example"] = []netip.Addr{nsA}
 				z.servers[nsA] = &fakeServer{zone: "acme.example", cname: map[string]string{}, txt: map[string][]string{
 					"acme.example": {"vedette-verify=" + tok}, "_vedette-verify.acme.example": {"vedette-verify=" + tok}}}
 			}},
@@ -331,13 +394,23 @@ func TestOwnedAsksTheZonesOwnServers(t *testing.T) {
 			}, at: "_vedette-verify.acme.example", auth: true, servers: true},
 		{name: "no NS answer for the zone", domain: "acme.example",
 			change: func(_ *fakeDNS, z *fakeZones) { delete(z.ns, "acme.example") }},
+		// A failed lookup is no answer: a validating resolver answers SERVFAIL for a forged (DNSSEC-bogus) answer, and the zone's
+		// servers asked directly are not validated, so they are asked only after a definite answer (records, or no such name).
 		{name: "the resolver fails and the servers serve it", domain: "acme.example",
-			change: func(r *fakeDNS, _ *fakeZones) { r.fail["acme.example"] = true }, at: "acme.example", auth: true, servers: true},
+			change: func(r *fakeDNS, _ *fakeZones) { r.fail["acme.example"] = true }, unchecked: true, notAsked: true},
+		{name: "the resolver fails on the _vedette-verify name only", domain: "acme.example",
+			change: func(r *fakeDNS, z *fakeZones) {
+				r.fail["_vedette-verify.acme.example"] = true
+				for _, s := range z.servers {
+					s.txt["acme.example"] = []string{"v=spf1 -all"}
+					s.txt["_vedette-verify.acme.example"] = []string{"vedette-verify=" + tok}
+				}
+			}, unchecked: true, notAsked: true},
 		{name: "the resolver fails and the servers do not answer", domain: "acme.example",
 			change: func(r *fakeDNS, z *fakeZones) {
 				r.fail["acme.example"] = true
 				z.servers[ns1].silent, z.servers[ns2].silent = true, true
-			}, unchecked: true},
+			}, unchecked: true, notAsked: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -351,6 +424,9 @@ func TestOwnedAsksTheZonesOwnServers(t *testing.T) {
 				if p.At != c.at || p.Authoritative != c.auth || p.Propagating != c.propagating || (len(p.Servers) > 0) != c.servers ||
 					p.Unchecked != c.unchecked || p.Refused != c.refused {
 					t.Fatalf("got %+v", p)
+				}
+				if c.notAsked && len(z.askedServers()) > 0 {
+					t.Fatalf("asked %v after the resolver failed", z.askedServers())
 				}
 				for _, a := range z.askedServers() {
 					if a != ns1 && a != ns2 {
@@ -381,23 +457,32 @@ func TestAuthTXTAsksTheRegisteredDomainsServers(t *testing.T) {
 	}
 }
 
-// At most maxNameServers servers are asked, whatever the NS answer holds.
-func TestAuthTXTBoundsTheServers(t *testing.T) {
+// Every name server of the zone is asked, up to 8: one that lacks the record keeps it unproved whatever its name sorts as. A zone
+// that lists more is not asked at all (fail closed to the resolver's answer).
+func TestAuthTXTAsksEveryServerUpToTheBound(t *testing.T) {
 	t.Parallel()
-	tok := Token(key1, "acme.example")
-	_, z := authWorld(tok)
-	z.ns["acme.example"] = nil
-	for i := range 12 {
-		h := "ns" + string(rune('a'+i)) + ".dns-host.example"
-		ad := netip.AddrFrom4([4]byte{97, 74, 104, byte(i + 1)})
-		z.ns["acme.example"] = append(z.ns["acme.example"], h)
-		z.addr[h] = []netip.Addr{ad}
-		z.servers[ad] = &fakeServer{zone: "acme.example", txt: map[string][]string{"acme.example": {"vedette-verify=" + tok}}}
+	tok := "vedette-verify=" + Token(key1, "acme.example")
+	zones := func(n int) *fakeZones {
+		_, z := authWorld(tok)
+		z.ns["acme.example"], z.servers = nil, map[netip.Addr]*fakeServer{}
+		for i := range n {
+			h := "ns" + string(rune('a'+i)) + ".dns-host.example"
+			ad := netip.AddrFrom4([4]byte{97, 74, 104, byte(i + 1)})
+			z.ns["acme.example"] = append(z.ns["acme.example"], h)
+			z.addr[h] = []netip.Addr{ad}
+			z.servers[ad] = &fakeServer{zone: "acme.example", txt: map[string][]string{"acme.example": {tok}}}
+		}
+		return z
 	}
-	a := &Authoritative{R: z, Exchange: z.exchange}
-	got, err := a.AuthTXT(t.Context(), "acme.example")
-	if err != nil || len(z.askedServers()) != maxNameServers || len(got.Servers) != maxNameServers || !slices.Contains(got.TXT, "vedette-verify="+tok) {
-		t.Fatalf("%+v %v, asked %v", got, err, z.askedServers())
+	z := zones(8)
+	z.servers[netip.AddrFrom4([4]byte{97, 74, 104, 8})].txt["acme.example"] = []string{"v=spf1 -all"} // the last by name
+	got, err := (&Authoritative{R: z, Exchange: z.exchange}).AuthTXT(t.Context(), "acme.example")
+	if err != nil || len(got.Servers) != 8 || slices.Contains(got.TXT, tok) || !slices.Contains(got.Some, tok) {
+		t.Fatalf("8 servers: %+v %v, asked %v", got, err, z.askedServers())
+	}
+	z = zones(9)
+	if got, err := (&Authoritative{R: z, Exchange: z.exchange}).AuthTXT(t.Context(), "acme.example"); err == nil || len(z.askedServers()) > 0 {
+		t.Fatalf("9 servers: %+v %v, asked %v", got, err, z.askedServers())
 	}
 }
 
@@ -449,7 +534,7 @@ func TestExchangeUDP(t *testing.T) {
 		}
 		_, _ = pc.WriteTo(resp, from)
 	}()
-	q, id, err := query("acme.example")
+	q, id, err := query("acme.example", dnsmessage.TypeTXT)
 	if err != nil {
 		t.Fatal(err)
 	}

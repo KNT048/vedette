@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"log/slog"
+	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -111,6 +112,26 @@ func TestProof_ZoneServersOnlyWhenTheResolverProvesNothing(t *testing.T) {
 	defer d.mu.Unlock()
 	if d.asked != 0 {
 		t.Fatalf("the zone's servers were asked %d times", d.asked)
+	}
+}
+
+// A failed lookup is no answer: the zone's servers are asked only after a definite answer of the resolver (a validating resolver
+// fails on a forged answer, and the servers asked directly are not validated), so the check stays unverified and they are not asked.
+func TestProof_ZoneServersNotAskedWhenTheResolverFails(t *testing.T) {
+	t.Parallel()
+	e, d := newAuthEnv(t)
+	tg := e.add("admin@acme.example", "example.org")
+	d.serve("example.org", []string{txtRecord(tg.Token)}, []string{txtRecord(tg.Token)})
+	e.dns.mu.Lock()
+	e.dns.err = &net.DNSError{Err: "server misbehaving", Name: "example.org", IsTemporary: true}
+	e.dns.mu.Unlock()
+	if r := e.verify(tg.ID); r.Verified {
+		t.Fatalf("%+v", r)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.asked != 0 {
+		t.Fatalf("the zone's servers were asked %d times after the resolver failed", d.asked)
 	}
 }
 

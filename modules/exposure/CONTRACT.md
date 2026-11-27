@@ -53,9 +53,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   (`TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow`). The Shodan check needs it current (INV-21).
 - **INV-32** A domain is proved by its own TXT token (`vedette-verify=<token>`) on the name, on `_vedette-verify.<name>`, on a
   parent name up to the registered domain, or by a verified ancestor target (`core/domainfence`). Proof is checked with
-  `proof.go` only. The record is read through the box's resolver; when that answer proves nothing, from the zone's own name servers
-  (the registered domain's NS, asked without recursion; every server that answers with authority must serve it, never through a CNAME
-  or a wildcard: `domainfence.Owned`, `TestOwnedAsksTheZonesOwnServers`). The executors' fence (scan container, vedette-host) applies
+  `proof.go` only. The record is read through the box's resolver; when that answer (records or no such name, never a failed lookup)
+  proves nothing, from the zone's own name servers (every NS of the registered domain, at most 8, asked without recursion; every
+  server that answers with authority from the registered domain's own zone must serve it, never through a CNAME or a wildcard:
+  `domainfence.Owned`, `TestOwnedAsksTheZonesOwnServers`). The executors' fence (scan container, vedette-host) applies
   the same rule and still needs the record now for every deep step to an address that is not the box's own.
 - **INV-35** A public IP the customer types is listed at once but never scanned before its proof is found: its token file
   `/.well-known/vedette-verify.txt` served on the IP, or forward-confirmed reverse DNS to a name under a domain the box proves. Then

@@ -568,4 +568,10 @@ func TestFenceAsksTheZonesServersPastAStaleResolver(t *testing.T) {
 	if _, err := w3.o.fenceCheck(t.Context(), nolog, a); fenceCode(err) != api.CodeTargetNotOwned {
 		t.Fatalf("a test world without FenceAuth asks no server: %v", err)
 	}
+	// A failed lookup is no answer: the zone's servers are not asked after it (core's check does the same).
+	down := func(context.Context, string) ([]string, error) { return nil, errors.New("timeout") }
+	w4 := newZapWorld(t, Deps{ZapTXT: down, FenceAuth: serves})
+	if _, err := w4.o.fenceCheck(t.Context(), nolog, a); fenceCode(err) != api.CodeOwnershipUnchecked {
+		t.Fatalf("the resolver failed: %v", err)
+	}
 }

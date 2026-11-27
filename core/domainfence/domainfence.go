@@ -324,7 +324,9 @@ type source struct {
 //
 // The names are asked through the box's resolver first. When that proves nothing and r is also an Authority, the same names are
 // asked of the zone's own name servers with the same rules (authority.go): a record just put in place counts as soon as every one of
-// them serves it, not when the resolver's cached answer runs out.
+// them serves it, not when the resolver's cached answer runs out. Only after a definite answer of the resolver (its records, or no
+// such name): a lookup that failed may be a validating resolver refusing a forged (DNSSEC-bogus) answer, and the servers asked
+// directly are not validated.
 //
 // Every lookup has timeout. A lookup that fails (not "no such host") makes the answer Unchecked unless the other name proves it.
 func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout time.Duration) Proof {
@@ -352,22 +354,43 @@ func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout t
 		},
 	}, nil)
 	a, ok := r.(Authority)
-	if p.At != "" || !ok {
+	if p.At != "" || p.Unchecked || !ok {
 		return p
 	}
-	answers := map[string]AuthAnswer{} // one question per name: its TXT values and its CNAME come in the same answer (owned asks in turn)
-	ask := func(name string) (AuthAnswer, error) {
-		if got, ok := answers[name]; ok {
-			return got, nil
-		}
+	// One question per name: its TXT values and its CNAME come in the same answer. The names of domain are asked side by side, the
+	// random sibling only after, when owned needs it, so the whole check stays within the time of two questions.
+	type authResult struct {
+		ans AuthAnswer
+		err error
+	}
+	answers := map[string]authResult{}
+	fetch := func(name string) authResult {
 		c, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		got, err := a.AuthTXT(c, name+".")
-		if err != nil {
-			return AuthAnswer{}, err
+		return authResult{got, err}
+	}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, name := range ownedNames(domain) {
+		wg.Go(func() {
+			got := fetch(name)
+			mu.Lock()
+			answers[name] = got
+			mu.Unlock()
+		})
+	}
+	wg.Wait()
+	ask := func(name string) (AuthAnswer, error) {
+		got, ok := answers[name]
+		if !ok {
+			got = fetch(name)
+			answers[name] = got
 		}
-		answers[name] = got
-		return got, nil
+		if got.err != nil {
+			return AuthAnswer{}, got.err
+		}
+		return got.ans, nil
 	}
 	var servers []string
 	ap := owned(domain, token, source{
@@ -381,7 +404,7 @@ func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout t
 		},
 	}, func(name string) {
 		if got, ok := answers[name]; ok {
-			for _, s := range got.Servers {
+			for _, s := range got.ans.Servers {
 				if !slices.Contains(servers, s) {
 					servers = append(servers, s)
 				}
@@ -407,10 +430,7 @@ func owned(domain, token string, src source, seen func(name string)) Proof {
 	has := func(vals []string) bool {
 		return slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == want })
 	}
-	names := []string{domain}
-	if alt := VerifyLabel + "." + domain; len(alt) <= 253 {
-		names = append(names, alt)
-	}
+	names := ownedNames(domain)
 	failed, why, propagating := "", "", false
 	for i, at := range names {
 		vals, some, err := src.txt(at)
@@ -457,6 +477,14 @@ func owned(domain, token string, src source, seen func(name string)) Proof {
 		return Proof{Refused: true, Detail: why, Propagating: propagating}
 	}
 	return Proof{Detail: strings.Join(names, " and ") + " have no TXT record vedette-verify=<the token>", Propagating: propagating}
+}
+
+// ownedNames is the names a record of domain may sit on: domain, and _vedette-verify.<domain> unless that would pass 253 characters.
+func ownedNames(domain string) []string {
+	if alt := VerifyLabel + "." + domain; len(alt) <= 253 {
+		return []string{domain, alt}
+	}
+	return []string{domain}
 }
 
 // randomLabel is 16 random hex digits: the sibling name of the wildcard check.

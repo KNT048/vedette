@@ -25,8 +25,11 @@ import (
 // with the same rules:
 //
 //   - the servers are the NS records of the registered domain of the name asked (proofat.Registered), looked up through the box's
-//     resolver (none when that name is a CNAME: the NS records would be its target's), at most maxNameServers of them, each at
-//     its first public IPv4 address (never a private, loopback or local one);
+//     resolver (none when that name is a CNAME: the NS records would be its target's), every one of them, each at its first public
+//     IPv4 address (never a private, loopback or local one); a zone with more than maxNameServers is not asked at all;
+//   - a server counts only when it answers the name from the registered domain's own zone: the SOA record above the name is the
+//     zone's. A server of a shared DNS host may also hold a more specific zone someone else created there (a zone for the
+//     _vedette-verify name, or for the checked name), which a resolver never reaches because the domain does not delegate it;
 //   - each query asks for no recursion; an answer counts only from a server that answers with authority (the AA flag), for the
 //     question asked, with the message id sent: a referral (a server answering for a parent zone only), a lame server, a recursive
 //     resolver listed as a name server, or an answer to another question counts for nothing;
@@ -37,8 +40,8 @@ import (
 // Whoever answers for the zone at its delegated servers is whoever a recursive resolver would end up asking: this trusts no one new,
 // it only skips the resolver's cache.
 
-// maxNameServers bounds the servers asked for one name.
-const maxNameServers = 4
+// maxNameServers bounds the servers asked for one name: a zone that lists more is not asked (every one of them must be).
+const maxNameServers = 8
 
 // authQueryTimeout bounds each query to one server (a server that does not answer is left out).
 const authQueryTimeout = 2 * time.Second
@@ -136,7 +139,17 @@ func (a *Authoritative) AuthTXT(ctx context.Context, name string) (AuthAnswer, e
 		wg.Go(func() {
 			qctx, cancel := context.WithTimeout(ctx, authQueryTimeout)
 			defer cancel()
+			var apex string
+			var zoned bool
+			soa := make(chan struct{})
+			go func() { // the zone the server answers from, asked beside the TXT question
+				defer close(soa)
+				apex, zoned = a.zoneOf(qctx, s.addr, name)
+			}()
 			ans, ok := a.ask(qctx, s.addr, name)
+			<-soa
+			// A CNAME answer only ever refuses the name, so it counts without the zone; any other answer counts only from the zone.
+			ok = ok && (ans.cname || zoned && apex == zone)
 			res[i] = result{host: s.host, ans: ans, ok: ok}
 		})
 	}
@@ -171,7 +184,8 @@ type nameServer struct {
 	addr netip.Addr
 }
 
-// servers is the zone's name servers, each with its first public IPv4 address, sorted by name, at most maxNameServers.
+// servers is the zone's name servers, each with its first public IPv4 address, sorted by name; none (an error) when the zone lists
+// more than maxNameServers.
 func (a *Authoritative) servers(ctx context.Context, zone string) ([]nameServer, error) {
 	// A resolver follows a CNAME, and LookupNS keeps every NS record of the answer: for a registered domain that is a CNAME (a name
 	// under a private public suffix such as a platform's host name) those would be the NS records of the CNAME's target, whose
@@ -196,7 +210,7 @@ func (a *Authoritative) servers(ctx context.Context, zone string) ([]nameServer,
 	}
 	slices.Sort(hosts)
 	if len(hosts) > maxNameServers {
-		hosts = hosts[:maxNameServers]
+		return nil, errors.New(zone + " lists more name servers than are asked: not asked")
 	}
 	out := make([]nameServer, len(hosts))
 	var wg sync.WaitGroup
@@ -231,9 +245,28 @@ type answer struct {
 // ask sends one query to server and reads its answer; ok is false when it does not count (no answer, not authoritative, not
 // for this question).
 func (a *Authoritative) ask(ctx context.Context, server netip.Addr, name string) (answer, bool) {
-	q, id, err := query(name)
-	if err != nil {
+	resp, id, ok := a.send(ctx, server, name, dnsmessage.TypeTXT)
+	if !ok {
 		return answer{}, false
+	}
+	return parseAnswer(resp, id, name)
+}
+
+// zoneOf asks server for the SOA record of name: the zone it answers name from. ok is false when that is not known (no answer, not
+// authoritative, a CNAME at the name, no SOA).
+func (a *Authoritative) zoneOf(ctx context.Context, server netip.Addr, name string) (string, bool) {
+	resp, id, ok := a.send(ctx, server, name, dnsmessage.TypeSOA)
+	if !ok {
+		return "", false
+	}
+	return parseZone(resp, id, name)
+}
+
+// send sends the question for name of type t to server and returns its answer with the id sent.
+func (a *Authoritative) send(ctx context.Context, server netip.Addr, name string, t dnsmessage.Type) ([]byte, uint16, bool) {
+	q, id, err := query(name, t)
+	if err != nil {
+		return nil, 0, false
 	}
 	var resp []byte
 	if a.Exchange != nil {
@@ -241,14 +274,11 @@ func (a *Authoritative) ask(ctx context.Context, server netip.Addr, name string)
 	} else {
 		resp, err = exchange(ctx, server, q, id)
 	}
-	if err != nil {
-		return answer{}, false
-	}
-	return parseAnswer(resp, id, name)
+	return resp, id, err == nil
 }
 
-// query is the TXT question for name without recursion, with a random id and an EDNS0 payload size.
-func query(name string) ([]byte, uint16, error) {
+// query is the question of type t for name without recursion, with a random id and an EDNS0 payload size.
+func query(name string, t dnsmessage.Type) ([]byte, uint16, error) {
 	var idb [2]byte
 	_, _ = rand.Read(idb[:]) // crypto/rand.Read never fails (Go 1.24+)
 	id := binary.BigEndian.Uint16(idb[:])
@@ -260,7 +290,7 @@ func query(name string) ([]byte, uint16, error) {
 	if err := b.StartQuestions(); err != nil {
 		return nil, 0, err
 	}
-	if err := b.Question(dnsmessage.Question{Name: n, Type: dnsmessage.TypeTXT, Class: dnsmessage.ClassINET}); err != nil {
+	if err := b.Question(dnsmessage.Question{Name: n, Type: t, Class: dnsmessage.ClassINET}); err != nil {
 		return nil, 0, err
 	}
 	if err := b.StartAdditionals(); err != nil {
@@ -282,13 +312,7 @@ func query(name string) ([]byte, uint16, error) {
 // TXT values (the strings of one record joined, as net.LookupTXT does) and a CNAME.
 func parseAnswer(resp []byte, id uint16, name string) (answer, bool) {
 	var p dnsmessage.Parser
-	h, err := p.Start(resp)
-	if err != nil || h.ID != id || !h.Response || h.OpCode != 0 || !h.Authoritative || h.Truncated ||
-		(h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError) {
-		return answer{}, false
-	}
-	qs, err := p.AllQuestions()
-	if err != nil || len(qs) != 1 || qs[0].Type != dnsmessage.TypeTXT || qs[0].Class != dnsmessage.ClassINET || !sameName(qs[0].Name, name) {
+	if !start(&p, resp, id, name, dnsmessage.TypeTXT) {
 		return answer{}, false
 	}
 	var out answer
@@ -325,6 +349,56 @@ func parseAnswer(resp []byte, id uint16, name string) (answer, bool) {
 		}
 	}
 	return out, true
+}
+
+// start reads the header and the question of a server's answer: it counts only when it is a response with id, to the one question
+// of type t for name, authoritative, NOERROR or NXDOMAIN, not truncated.
+func start(p *dnsmessage.Parser, resp []byte, id uint16, name string, t dnsmessage.Type) bool {
+	h, err := p.Start(resp)
+	if err != nil || h.ID != id || !h.Response || h.OpCode != 0 || !h.Authoritative || h.Truncated ||
+		(h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError) {
+		return false
+	}
+	qs, err := p.AllQuestions()
+	return err == nil && len(qs) == 1 && qs[0].Type == t && qs[0].Class == dnsmessage.ClassINET && sameName(qs[0].Name, name)
+}
+
+// parseZone reads a server's answer to the SOA question for name sent with id: the zone it answers name from, the owner of the SOA
+// record in the answer (name is the zone's apex) or in the authority section (a name inside the zone, with or without records). A
+// CNAME at name says nothing of name's zone (the SOA that follows is its target's): not known.
+func parseZone(resp []byte, id uint16, name string) (string, bool) {
+	var p dnsmessage.Parser
+	if !start(&p, resp, id, name, dnsmessage.TypeSOA) {
+		return "", false
+	}
+	for {
+		rh, err := p.AnswerHeader()
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
+			break
+		}
+		if err != nil || (sameName(rh.Name, name) && rh.Type == dnsmessage.TypeCNAME) {
+			return "", false
+		}
+		if sameName(rh.Name, name) && rh.Type == dnsmessage.TypeSOA && rh.Class == dnsmessage.ClassINET {
+			return name, true
+		}
+		if err := p.SkipAnswer(); err != nil {
+			return "", false
+		}
+	}
+	for {
+		rh, err := p.AuthorityHeader()
+		if err != nil {
+			return "", false // ErrSectionDone included: no SOA, the zone is not known
+		}
+		owner := strings.ToLower(strings.TrimSuffix(rh.Name.String(), "."))
+		if rh.Type == dnsmessage.TypeSOA && rh.Class == dnsmessage.ClassINET && strings.HasSuffix(name, "."+owner) {
+			return owner, true
+		}
+		if err := p.SkipAuthority(); err != nil {
+			return "", false
+		}
+	}
 }
 
 func sameName(n dnsmessage.Name, name string) bool {

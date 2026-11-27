@@ -269,7 +269,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   nothing is closed, proved or asked on the AI's word. "Not this product" (`POST /findings/{id}/identity/reject`, operator, audit
   `findings.ai_identity_rejected`) stores a `rejected` row for the name that wins over the AI (the product is never offered for it
   again), drops the AI's choice and matches again at once the finding's device and every device whose last match had a line of that
-  name (the findings close `data_corrected`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
+  name (the findings close `data_corrected`, resolved by that person: `goneVia`, `identityRejectedBy`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
   `TestIdentityCandidates`, `TestIdentityScrubber`.
 
 ## Invariants

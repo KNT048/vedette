@@ -292,6 +292,32 @@ func TestAIIdentity_APersonsCorrectionWins(t *testing.T) {
 	}
 }
 
+// The findings a person's "Not this product" closes are closed by that person, on every device: the finding's history and the Handled
+// list name them, not Vedette, and the close is not left out of the Handled list as Vedette's own correction of its match.
+func TestAIIdentity_NotThisProductIsThePersonsClose(t *testing.T) {
+	t.Parallel()
+	e, _, _ := identityWorld(t)
+	runIdentify(t, e)
+	var id string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = 'pc-01' AND cve = ?`, cveWidgetIn).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RejectIdentity(t.Context(), id, "ana@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = '` + cveWidgetIn + `' AND state = 'handled' AND resolved_by = 'ana@example.com'`); n != 2 {
+		t.Errorf("%d findings closed by the person, want 2 (every device)", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_event ev JOIN fnd_finding f ON f.id = ev.finding_id WHERE f.cve = '` + cveWidgetIn +
+		`' AND ev.kind = 'handled' AND ev.actor = 'ana@example.com'`); n != 2 {
+		t.Errorf("%d history events of the close name the person, want 2", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_event ev JOIN fnd_finding f ON f.id = ev.finding_id WHERE f.cve = '` + cveWidgetIn +
+		`' AND ev.kind = 'handled' AND ev.actor = '` + SystemUser + `'`); n != 0 {
+		t.Errorf("%d history events say Vedette closed what the person rejected", n)
+	}
+}
+
 // The identification runs only while the automatic run is on and today's reads are not used up, and a budget reached in the middle
 // stops it: what was stored stays, nothing else is stored.
 func TestAIIdentity_Budget(t *testing.T) {
@@ -410,13 +436,18 @@ func TestIdentityCandidates(t *testing.T) {
 // What goes to the AI never names the customer: the box's own device and account names, email addresses and user folders are replaced.
 func TestIdentityScrubber(t *testing.T) {
 	t.Parallel()
-	sc := newScrubber([]string{"ACCT-PC-7", "nguyen.an", "x"})
+	sc := newScrubber([]string{"ACCT-PC-7", "nguyen.an", "x", "ws-acct-9.corp.example"})
 	for in, want := range map[string]string{
-		"OneDrive - nguyen.an":                 "OneDrive - [name]",
-		"Backup agent for acct-pc-7 (x64)":     "Backup agent for [name] (x64)",
-		"Mail sync an@example.com":             "Mail sync [email]",
-		`Tool (C:\Users\nguyen\AppData\Local)`: `Tool (C:\Users\[user]\AppData\Local)`,
-		"Xbox":                                 "Xbox",
+		"Sync nguyen.an nguyen.an":                       "Sync [name] [name]", // every occurrence, also one right after another
+		"acct-pc-7,ACCT-PC-7":                            "[name],[name]",
+		"Agent for WS-ACCT-9":                            "Agent for [name]",                     // a hostname's own name, without its domain
+		`Tool (C:\Users\Nguyen Van An\AppData\Local)`:    `Tool (C:\Users\[user]\AppData\Local)`, // a user folder with spaces
+		`Tool C:\Documents and Settings\nguyen2\Desktop`: `Tool C:\Documents and Settings\[user]\Desktop`,
+		"OneDrive - nguyen.an":                           "OneDrive - [name]",
+		"Backup agent for acct-pc-7 (x64)":               "Backup agent for [name] (x64)",
+		"Mail sync an@example.com":                       "Mail sync [email]",
+		`Tool (C:\Users\nguyen\AppData\Local)`:           `Tool (C:\Users\[user]\AppData\Local)`,
+		"Xbox":                                           "Xbox",
 	} {
 		if got := sc.clean(in); got != want {
 			t.Errorf("clean(%q) = %q, want %q", in, got, want)

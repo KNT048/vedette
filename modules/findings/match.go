@@ -139,6 +139,10 @@ type Asset struct {
 	// NotInstalled are the reported rows a person said are not installed on the device (inventory INV-41 (6)), as the source reports
 	// them, with Correction naming the person; they are not in Software. The open findings only they produce close (INV-6c).
 	NotInstalled []Software
+	// rejectedBy is, per cleaned publisher and name, the products a person said the line is not ("Not this product", by
+	// CatalogueProduct.key) and who said it: a finding opened through the AI's choice of one of them closes as that person's
+	// (identityRejectedBy); nil when none. Shared, never changed.
+	rejectedBy map[nameKey]map[string]string
 	// winList is the whole stored exploited list a Windows release row's build month is read from when
 	// the match gets only a part of it (Reconcile's backlog and recent writes); nil: the match's own list.
 	winList []Vuln

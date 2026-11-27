@@ -150,8 +150,9 @@ type nameKey struct{ publisher, name string }
 
 // identities is fnd_identity as the match reads it: the AI's row per name, and the products a person rejected per name.
 type identities struct {
-	ai       map[nameKey]identityRow
-	rejected map[nameKey]map[string]bool // CatalogueProduct.key
+	ai         map[nameKey]identityRow
+	rejected   map[nameKey]map[string]bool   // CatalogueProduct.key
+	rejectedBy map[nameKey]map[string]string // CatalogueProduct.key -> the person who rejected it
 }
 
 // identityCache keeps fnd_identity in memory between its writes (every write goes through this service and drops it).
@@ -179,7 +180,7 @@ func (s *Service) identities(ctx context.Context) (*identities, error) {
 		return nil, fmt.Errorf("findings: reading identities: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := &identities{ai: map[nameKey]identityRow{}, rejected: map[nameKey]map[string]bool{}}
+	out := &identities{ai: map[nameKey]identityRow{}, rejected: map[nameKey]map[string]bool{}, rejectedBy: map[nameKey]map[string]string{}}
 	for rows.Next() {
 		var r identityRow
 		var at string
@@ -193,9 +194,9 @@ func (s *Service) identities(ctx context.Context) (*identities, error) {
 		k := nameKey{r.Publisher, r.Name}
 		if r.Kind == "rejected" {
 			if out.rejected[k] == nil {
-				out.rejected[k] = map[string]bool{}
+				out.rejected[k], out.rejectedBy[k] = map[string]bool{}, map[string]string{}
 			}
-			out.rejected[k][r.product().key()] = true
+			out.rejected[k][r.product().key()], out.rejectedBy[k][r.product().key()] = true, r.By
 			continue
 		}
 		out.ai[k] = r
@@ -234,6 +235,9 @@ func (s *Service) withAIProducts(ctx context.Context, a *Asset) error {
 	if err != nil {
 		return err
 	}
+	if len(ids.rejectedBy) > 0 {
+		a.rejectedBy = ids.rejectedBy
+	}
 	if len(ids.ai) == 0 {
 		return nil
 	}
@@ -249,6 +253,16 @@ func (s *Service) withAIProducts(ctx context.Context, a *Asset) error {
 		a.Software[i].AIProduct = p
 	}
 	return nil
+}
+
+// identityRejectedBy is the person who said the software of f is not the product the AI chose for it ("Not this product"), "" when f
+// does not rest on the AI's choice or nobody rejected that product.
+func identityRejectedBy(a Asset, f Finding) string {
+	if f.Evidence == nil || f.Evidence.Identity == nil || f.Evidence.Identity.Method != IdentityAI {
+		return ""
+	}
+	n := f.Evidence.Identity
+	return a.rejectedBy[nameKey{n.Publisher, n.Name}][productid.NormKey(n.Vendor, n.Product)]
 }
 
 // aiInventory is the inventory as every match of this service reads it: MatchInput's lines carry the product the AI chose for them,
@@ -581,19 +595,25 @@ type scrubber struct{ names *regexp.Regexp }
 
 var (
 	reEmail    = regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}`)
-	reUserPath = regexp.MustCompile(`(?i)(\\users\\|/users/|/home/)[^\\/\s)]+`)
+	reUserPath = regexp.MustCompile(`(?i)(\\users\\|/users/|/home/|\\documents and settings\\)[^\\/)"]+`) // a folder name may have spaces
 )
 
 func newScrubber(private []string) scrubber {
 	var parts []string
 	seen := map[string]bool{}
-	for _, n := range private {
-		n = strings.TrimSpace(n)
+	add := func(n string) {
 		if len([]rune(n)) < 3 || seen[strings.ToLower(n)] {
-			continue
+			return
 		}
 		seen[strings.ToLower(n)] = true
 		parts = append(parts, regexp.QuoteMeta(n))
+	}
+	for _, n := range private {
+		n = strings.TrimSpace(n)
+		add(n)
+		if host, _, ok := strings.Cut(n, "."); ok && !strings.ContainsAny(n, "@ \t") {
+			add(host) // a hostname's own name, as a software name writes it, without its domain
+		}
 	}
 	if len(parts) == 0 {
 		return scrubber{}
@@ -604,10 +624,16 @@ func newScrubber(private []string) scrubber {
 
 // clean is s as it may be sent.
 func (sc scrubber) clean(s string) string {
+	s = strings.ReplaceAll(s, "\x00", "")
 	s = reEmail.ReplaceAllString(s, "[email]")
 	s = reUserPath.ReplaceAllString(s, "${1}[user]")
 	if sc.names != nil {
-		s = sc.names.ReplaceAllString(s, "${1}[name]${3}")
+		// a match takes the character after the name, so a name right after it is found by the next pass; the mark is no letter or
+		// digit until the end, so no pass finds a name in it, and every pass that changes s shortens it
+		for prev := ""; prev != s; {
+			prev, s = s, sc.names.ReplaceAllString(s, "${1}\x00${3}")
+		}
+		s = strings.ReplaceAll(s, "\x00", "[name]")
 	}
 	return clipRunes(s, 200)
 }

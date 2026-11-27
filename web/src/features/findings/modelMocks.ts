@@ -383,16 +383,16 @@ export const modelHandlers = [
     return HttpResponse.json({ handled: change.length, skipped: found.length - change.length })
   }),
 
-  // Not this product: every open finding resting on the same AI identification of the same software closes as the box's own correction
+  // Not this product: every open finding resting on the same AI identification of the same software closes as the person's correction
   http.post(`${API}/findings/:id/identity/reject`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied
     const r = one(String(params.id))
     if (!r?.identity) return fail(404, 'not_found', 'This finding does not rest on the AI\'s identification of its software.')
     const same = (x: FindingRecord) => x.state === 'open' && x.identity?.product === r.identity!.product && x.identity.vendor === r.identity!.vendor && x.software?.name === r.software?.name
     const ids = rows().filter(same).map((x) => x.id)
-    const at = nowIso()
-    patch(ids, (x) => ({ ...x, state: 'handled', resolution: 'not_relevant', via: 'data_corrected', resolved_by: 'system', resolved_at: at,
-      events: [...x.events, event('system', 'handled', { note: `A person said this software is not ${r.identity!.title}.` })] }))
+    const user = who(), at = nowIso()
+    patch(ids, (x) => ({ ...x, state: 'handled', resolution: 'not_relevant', via: 'data_corrected', resolved_by: user, resolved_at: at,
+      events: [...x.events, event(user, 'handled', { note: `A person said this software is not ${r.identity!.title}.` })] }))
     if (ids.length) audit('findings.ai_identity_rejected', r.id, `${r.cve}: the software "${r.software?.name ?? ''}" is not ${r.identity.title} (${r.identity.vendor}:${r.identity.product}), as the AI chose; applies to every device with it`)
     return HttpResponse.json({ ok: true })
   }),

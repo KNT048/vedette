@@ -289,6 +289,7 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 //     (they updated the software and said so), unless the reading is a person's correction of what a source reads (a wrong version
 //     corrected, nothing changed on the device): data_corrected, corrected;
 //   - the distribution's fixed package release proves it: distro_fixed;
+//   - a person said the software is not the product the AI chose for it ("Not this product"): data_corrected, corrected, by that person;
 //   - anything else (range data changed, an answer about the platform): data_corrected.
 func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match) (via Via, from, to, by string, corrected bool) {
 	l, ok := lines[f.SoftwareID]
@@ -302,6 +303,9 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 			return ViaSoftwareRemoved, "", "", "", false
 		}
 		return ViaDataCorrected, "", "", "", false
+	}
+	if by := identityRejectedBy(a, f); by != "" {
+		return ViaDataCorrected, "", "", by, true // a person's correction of the AI's identification: theirs, not Vedette's
 	}
 	cur, pkg := l.reading.Version, false
 	// a line with a package release is matched on it (detectionOf, scanLine): whatever the basis, except the device's version read

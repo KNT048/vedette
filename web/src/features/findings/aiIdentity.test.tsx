@@ -19,6 +19,7 @@ describe('Identified by AI', () => {
     await userEvent.keyboard('{Escape}')
     await userEvent.click(screen.getByRole('button', { name: 'Cisco Packet Tracer is not this software' }))
     await waitFor(() => expect(records.get().find((r) => r.id === 'fv-pc01-ptracer-1')?.state).toBe('handled'), T)
+    expect(records.get().find((r) => r.id === 'fv-pc01-ptracer-1')?.resolved_by).not.toBe('system') // the person's close, not Vedette's
     expect(await screen.findByText(/this software is not Cisco Packet Tracer/, {}, T)).toBeInTheDocument()
   })
 

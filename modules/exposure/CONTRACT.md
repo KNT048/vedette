@@ -266,6 +266,27 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   64 ports, a path that does not start with "/" or holds anything but the characters of a URL path, and more than 20 paths, and is
   audited (`exposure.deep_settings`, before and after). `TestDeepSettings_*`, the `settings/` rows of `TestObservationMatrix`,
   `cmd/vedette` `TestExposureGroups_*`.
+- **INV-47** A domain's deep scan reuses the address-level layer of a fresh deep scan of the same address (`reuse.go`), so a name
+  that points at an address scanned a moment ago as its own target (203.0.113.5 as an IP target, then example.com on it) does not
+  send the same port sweep, nmap -sV and scripts, OpenVAS and disruptive scripts again. Per address, after `deepGate` passed: the
+  source is the newest finished run of the IP target whose value is the address, and it is reused only when it is a deep run that
+  ended done (never a partly done, failed or stopped one), started within 24 hours (`ReuseWindow`) and not after now, the IP target's
+  terms and deep-scan settings were last changed before it started, its port and service steps ran, its recorded settings allowed at
+  least what the step allows now (`scopeCovers`: no group turned off that the step has on, the normal speed unless the step is
+  gentle, every port and web path it skipped skipped by the step too), and its OpenVAS and disruptive steps ran when the step would
+  run them now on an address with open ports. A reuse never closes or reopens anything by itself (`reuseKeepsRows`): when the domain
+  holds an open port there the source did not see, an open address-level issue (nmap's scripts, OpenVAS, the comparison with
+  exploited CVEs) it did not report, or one gone or marked patched or mitigated that it did report, the address is scanned as
+  before; the reused findings are written as the domain's (`issueIn.reused`: added and kept, never opened again), and the comparison
+  closes nothing on reused services. Every doubt (a row that cannot be read, a run of an older release without its settings) scans.
+  The web layer always runs for the domain: the templates with the domain's step and Host, ZAP by name, the certificates by name.
+  OpenVAS is not split: its task scans the address with one config, with no host name, so its network and service checks cannot
+  be taken apart from its web checks; the whole OpenVAS result of the address is reused, and ZAP and the templates are the
+  domain's web checks. Nothing is sent to the address for the reused layer but the liveness checks before the web layer (INV-42).
+  The address's step says "Reused from the deep scan of <ip> at <time>" with what was reused, the OpenVAS and disruptive steps say
+  it for that address, and a run item (subject `run`, outcome `reused`) links the source run's page; the address counts as
+  deep-scanned, with its last deep scan the source's start. Only an IP target's run is a source (another domain's run of the same address
+  is not). `TestDomainReuse_*`.
 - **INV-19** Service identification runs before results are stored.
 - **INV-20** Exploited CVEs of a service are matched at scan time through findings' matcher (`Config.Matcher`).
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.

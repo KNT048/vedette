@@ -488,7 +488,11 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 			state[a.ip.String()] = HostIP{Deep: DeepIncomplete, LastTried: now}
 		default:
 			took++
-			state[a.ip.String()] = HostIP{Deep: DeepScanned, LastDeep: now, LastTried: now}
+			lastDeep := now
+			if src := s.observerOf(ctx).reusedOf(a.ip.String()); src != nil { // its address-level layer is as old as the run it came from
+				lastDeep = store.FormatTS(src.started)
+			}
+			state[a.ip.String()] = HostIP{Deep: DeepScanned, LastDeep: lastDeep, LastTried: now}
 			scanned = append(scanned, a)
 		}
 		if !a.inZone && st.Mode.Disruptive {
@@ -607,23 +611,17 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	if stD.Domain != nil {
 		how = "through the domain fence, name " + stD.Domain.Name
 	}
+	// INV-47: a fresh deep scan of the address itself at an equal or wider scope gives the address-level layer; the web layer runs here
+	if src, why := s.reuseFor(ctx, st, stD, a); src != nil {
+		return s.reuseIP(ctx, stD, a, src, sub, how, c)
+	} else if why != "" {
+		s.cfg.Log.InfoContext(ctx, "exposure: a domain's address is scanned, not reused", "target", st.Value, "ip", a.ip, "why", why)
+	}
 	sub.Checks = append(sub.Checks, CheckRow{Kind: "deep", At: store.FormatTS(s.clock()), Text: "deep scan at the testing terms depth (" + how + ")."})
 	if sub, err = s.identifyIP(ctx, stD, a.ip, sub); err != nil {
 		return DeepIncomplete, err
 	}
-	c.Ports = addServicePorts(c.Ports, sub.Services, sub.Scripts, a.ip.String()) // an open port the deep scan found is an open port of the domain (counts, the day diff, INV-22)
-	c.Services = append(c.Services, sub.Services...)
-	c.Scripts = append(c.Scripts, sub.Scripts...)
-	c.Templates = append(c.Templates, sub.Templates...)
-	c.TemplatesRan, c.ScriptsRan = append(c.TemplatesRan, sub.TemplatesRan...), append(c.ScriptsRan, sub.ScriptsRan...)
-	for _, r := range sub.Checks {
-		r.Text = clipText(label+": "+r.Text, maxLineText)
-		c.Checks = append(c.Checks, r)
-	}
-	for _, r := range sub.NotChecked {
-		r.Text = clipText(label+": "+r.Text, maxLineText)
-		c.NotChecked = append(c.NotChecked, r)
-	}
+	mergeAddress(c, sub, label, a.ip.String())
 	// "scanned" only when nmap -sV really ran on the address (its Checked line); otherwise nothing is known of its ports
 	if !slices.ContainsFunc(sub.Checks, func(r CheckRow) bool { return r.Kind == "services" }) {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(label+": "+deepNoNmap, maxLineText)})
@@ -671,6 +669,10 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 		}
 		if line != "" {
 			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan: " + line}}, audit: "not done: the re-check refused it", state: GBRunNotRun})
+			continue
+		}
+		if src := s.observerOf(ctx).reusedOf(a.ip.String()); src != nil { // INV-47: its results came with the address's own deep scan
+			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan again: " + s.reuseLine(src) + "."}}, audit: "reused from run " + src.runID, state: GBRunNotRun})
 			continue
 		}
 		o, err := s.greenboneAt(ctx, stD, a.ip, gbPorts(ports, a.ip, stD.SkipPorts))

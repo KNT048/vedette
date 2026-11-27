@@ -86,6 +86,7 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 		ip netip.Addr
 	}
 	var addrs []addr
+	var reused []string // the addresses whose disruptive results a domain's step reused (INV-47)
 	if t.Kind == KindIP {
 		ip, err := netip.ParseAddr(t.Value)
 		if err != nil {
@@ -106,6 +107,12 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 			if !a.box || !a.inZone {
 				continue
 			}
+			if src := s.observerOf(ctx).reusedOf(a.ip.String()); src != nil { // INV-47: nothing is sent again
+				if src.disruptive {
+					reused = append(reused, clipText("Not run again on "+a.ip.String()+": "+s.reuseLine(src)+".", maxLineText))
+				}
+				continue
+			}
 			stD, line, err := s.deepGate(ctx, deepMode(st, a), a.ip, a.names)
 			if err != nil {
 				return
@@ -114,6 +121,10 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 				addrs = append(addrs, addr{stD, a.ip})
 			}
 		}
+	}
+	if len(addrs) == 0 && len(reused) > 0 {
+		rs.skip(ctx, stepKeyDisruptive, strings.Join(reused, " "))
+		return
 	}
 	if len(addrs) == 0 {
 		rs.skip(ctx, stepKeyDisruptive, notDisruptiveNoAddress)
@@ -179,7 +190,7 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 			notes = append(notes, notDisruptiveFail)
 		}
 	}
-	note := strings.Join(notes, " ")
+	note := strings.Join(append(notes, reused...), " ")
 	if len(rows) > 0 || len(finished) > 0 {
 		fresh, err := s.writeDisruptive(ctx, t, x.ID(), rows, finished)
 		if err != nil {

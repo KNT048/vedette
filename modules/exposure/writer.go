@@ -38,6 +38,10 @@ type scanWrite struct {
 	verdicts verdictSet
 	gone     map[string]bool
 	ran      engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
+	// reused are the findings of the deep scans of a domain's addresses this run reused (INV-47), and reusedAt those addresses: the
+	// findings are written as the domain's, never opened again, and the comparison closes nothing there.
+	reused   []issueIn
+	reusedAt map[string]bool
 	vulns    []VulnRow // the exploited CVEs matched on its services (withVulns)
 	first    bool      // the target had no rows before this scan
 }
@@ -76,6 +80,7 @@ type issueIn struct {
 	severity string
 	cves     []string
 	detail   IssueDetail
+	reused   bool // a finding of the run a domain's step reused (INV-47): it adds and keeps, never opens again what was closed or fixed
 }
 
 // writeScan writes the rows of one scan in tx, with its exposure.scan audit row, and returns what changed.
@@ -116,6 +121,7 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if ran[EngineMatch] {
 		issues = append(issues, matchIssues(w.vulns)...)
 	}
+	issues = append(issues, w.reused...)
 	hosts := hostAddrs(w.target, w.c.Hosts)
 	var again []reopenedIssue
 	if out.newIssues, again, err = writeIssues(ctx, tx, w.target.ID, w.runID, at, hosts, issues, ran, scanCoverage(w)); err != nil {
@@ -901,6 +907,9 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 			_, err = tx.ExecContext(ctx, `INSERT INTO exp_issue (id, target_id, service_id, engine, key, title, severity, cves, detail, state, first_seen, last_seen, last_run_id)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`, id, target, svc, string(in.engine), clipText(in.key, 600), in.title, in.severity, string(cves), string(detail), at, at, runID)
 			fresh = append(fresh, id)
+		case err == nil && in.reused && (state == IssueGone || state == IssueHandled && (res == string(ResolvedPatched) || res == string(ResolvedMitigated))):
+			reported[id] = true // a reuse never opens again what a scan closed or a person marked fixed (INV-47)
+			continue
 		case err == nil:
 			if state == IssueGone {
 				fresh = append(fresh, id)
@@ -1043,8 +1052,10 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 	for _, p := range c.Ports {
 		open[portKey(p.IP, p.Port)] = true
 	}
-	for _, r := range c.Services { // the services the comparison with exploited CVEs read this run
-		compared[portKey(r.IP, r.Port)] = true
+	for _, r := range c.Services { // the services the comparison with exploited CVEs read this run, not those a reuse gave (INV-47)
+		if !w.reusedAt[ipKey(r.IP)] {
+			compared[portKey(r.IP, r.Port)] = true
+		}
 	}
 	return map[IssueEngine]coverFunc{
 		EngineSurface: func(x issueWhere) bool {

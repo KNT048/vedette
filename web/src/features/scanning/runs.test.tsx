@@ -113,6 +113,12 @@ describe('/runs/<id>: one run', () => {
     expect(screen.queryByText('203.0.113.10:8444')).toBeNull()
   })
 
+  it('a domain scan that reused an address\'s own deep scan links that run', async () => {
+    renderApp('/runs/run-m9')
+    expect(await screen.findByRole('link', { name: 'Deep scan of 203.0.113.10 at 09:20' }, T)).toHaveAttribute('href', '/runs/run-m5')
+    expect(screen.getByText('its address results were reused by this scan')).toBeInTheDocument()
+  })
+
   it('a run that is not kept says so and leads to every run', async () => {
     renderApp('/runs/run-nope')
     expect(await screen.findByText('This run is not kept: it does not exist, or it ended more than 400 days ago.', {}, T)).toBeInTheDocument()

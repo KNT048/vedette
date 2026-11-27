@@ -512,7 +512,8 @@
       "deep_waiting": "next in line for the deep scan",
       "deep_fence": "checked by name only",
       "deep_refused": "deep scan refused before anything was sent",
-      "deep_incomplete": "deep scan did not finish"
+      "deep_incomplete": "deep scan did not finish",
+      "reused": "its address results were reused by this scan"
     },
     "inItsWay": "Running now:",
     "count": "{{done}} of {{total}}",

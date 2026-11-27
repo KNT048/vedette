@@ -43,6 +43,7 @@ func (r *reuseEnv) scanBox() ScanResult {
 	keep := r.run.content
 	r.run.content = Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}
 	defer func() { r.run.content = keep }()
+	r.advance(time.Minute) // the terms and settings were set before the scan started
 	s, err := r.svc.Scan(r.ctx(), "admin@acme.example", r.box)
 	if err != nil {
 		r.t.Fatal(err)
@@ -197,9 +198,18 @@ func TestDomainReuse_NoReuse(t *testing.T) {
 				VALUES ('xs-old', ?, ?, 2222, 'tcp', 'probed', 'open', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`, r.dom.ID, ipA)
 		}},
 		{name: "a finding the source reported is gone on the domain", after: func(r *reuseEnv) {
-			r.exec(`INSERT INTO exp_issue (id, target_id, engine, key, title, severity, state, first_seen, last_seen, last_run_id)
-				VALUES ('xi-gone', ?, 'surface', ?, 'Weak finding', 'high', 'gone', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`,
+			r.exec(`INSERT INTO exp_service (id, target_id, ip, port, proto, ident, state, first_seen, last_seen, last_run_id)
+				VALUES ('xs-443', ?, ?, 443, 'tcp', 'probed', 'open', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`, r.dom.ID, ipA)
+			r.exec(`INSERT INTO exp_issue (id, target_id, service_id, engine, key, title, severity, state, first_seen, last_seen, last_run_id)
+				VALUES ('xi-gone', ?, 'xs-443', 'surface', ?, 'Weak finding', 'high', 'gone', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`,
 				r.dom.ID, keyScript+ipA+" ssl-x:Weak finding")
+		}},
+		{name: "a finding the source reported is marked patched on the domain", after: func(r *reuseEnv) {
+			r.exec(`INSERT INTO exp_service (id, target_id, ip, port, proto, ident, state, first_seen, last_seen, last_run_id)
+				VALUES ('xs-443', ?, ?, 443, 'tcp', 'probed', 'open', '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`, r.dom.ID, ipA)
+			r.exec(`INSERT INTO exp_issue (id, target_id, service_id, engine, key, title, severity, state, resolution, resolved_by, resolved_at, first_seen, last_seen, last_run_id)
+				VALUES ('xi-fixed', ?, 'xs-443', 'surface', ?, 'Weak finding', 'high', 'handled', 'patched', 'admin@acme.example', '2026-11-02T00:00:00.000Z',
+				'2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'r-old')`, r.dom.ID, keyScript+ipA+" ssl-x:Weak finding")
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -265,8 +275,8 @@ func TestDomainReuse_DisruptiveScopeMustBeCovered(t *testing.T) {
 			r.deepRow(r.box, false, true, true, true, true, SpeedNormal, "[]", "[]") // DoS off for the box's scan
 			r.deepRow(r.dom.ID, false, true, true, true, true, SpeedNormal, "[]", "[]")
 			src := r.scanBox()
-			if ds.calls(ipA) != 1 {
-				t.Fatalf("the box's scan ran the disruptive scripts %d times", ds.calls(ipA))
+			if ds.calls() != 1 {
+				t.Fatalf("the box's scan ran the disruptive scripts %d times", ds.calls())
 			}
 			r.advance(time.Hour)
 			if tc.dosNow {
@@ -278,8 +288,8 @@ func TestDomainReuse_DisruptiveScopeMustBeCovered(t *testing.T) {
 			s := r.scan()
 			if tc.reuse {
 				r.wantReused(s, src.RunID, before)
-				if ds.calls(ipA) != 1 {
-					t.Fatalf("the domain's run sent the disruptive scripts again (%d)", ds.calls(ipA))
+				if ds.calls() != 1 {
+					t.Fatalf("the domain's run sent the disruptive scripts again (%d)", ds.calls())
 				}
 				d := r.runDetail(r.ctx(), s.RunID)
 				for _, st := range d.Steps {
@@ -307,14 +317,107 @@ func (d *disruptiveSeams) ScanDisruptive(_ context.Context, _ ScanTarget, ip net
 	return ServiceScan{}, nil
 }
 
-func (d *disruptiveSeams) calls(ip string) int {
+// calls counts the disruptive jobs sent to the box's own IP.
+func (d *disruptiveSeams) calls() int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	n := 0
 	for _, x := range d.sent {
-		if x == ip {
+		if x == ipA {
 			n++
 		}
 	}
 	return n
+}
+
+// scopeCovers is the settings rule alone: the source's settings must allow at least what the domain's step allows now.
+func TestDomainReuse_ScopeCovers(t *testing.T) {
+	t.Parallel()
+	all := DeepSettings{DoS: true, Logins: true, WebActive: true, DataChange: true, OpenVAS: true, Speed: SpeedNormal}
+	step := ScanTarget{Mode: ScanMode{Full: true, Disruptive: true, Logins: true, Change: true, WebActive: true, OpenVAS: true}, Groups: all.Groups() &^ GroupDoS,
+		SkipPorts: []int{25, 8443}, SkipPaths: []string{"/admin"}}
+	for _, tc := range []struct {
+		name string
+		sum  settingsSummary
+		d    DeepSettings
+		step func(ScanTarget) ScanTarget
+		ok   bool
+	}{
+		{name: "equal", sum: settingsSummary{Speed: SpeedNormal, SkipPorts: []int{25}}, d: all, ok: true},
+		{name: "the source wider: it skipped nothing", sum: settingsSummary{Speed: SpeedNormal}, d: all, ok: true},
+		{name: "a skipped path under one the step skips", sum: settingsSummary{Speed: SpeedNormal, SkipPaths: []string{"/admin/x"}}, d: all, ok: true},
+		{name: "the gentle step takes a normal source", sum: settingsSummary{Speed: SpeedNormal}, d: all, step: func(s ScanTarget) ScanTarget { s.Gentle = true; return s }, ok: true},
+		{name: "DoS off then, on now", sum: settingsSummary{Off: GroupDoS.Names(), Speed: SpeedNormal}, d: all,
+			step: func(s ScanTarget) ScanTarget { s.Mode.DoS, s.Groups = true, s.Groups|GroupDoS; return s }},
+		{name: "logins off then", sum: settingsSummary{Off: GroupLogins.Names(), Speed: SpeedNormal}, d: all},
+		{name: "OpenVAS off in the source's settings", sum: settingsSummary{Speed: SpeedNormal}, d: DeepSettings{Logins: true, WebActive: true, DataChange: true, Speed: SpeedNormal}},
+		{name: "a port skipped then is scanned now", sum: settingsSummary{Speed: SpeedNormal, SkipPorts: []int{22}}, d: all},
+		{name: "a path skipped then is scanned now", sum: settingsSummary{Speed: SpeedNormal, SkipPaths: []string{"/api"}}, d: all},
+		{name: "gentle then, normal now", sum: settingsSummary{Speed: SpeedGentle}, d: all},
+		{name: "an unknown group name", sum: settingsSummary{Off: []string{"something new"}, Speed: SpeedNormal}, d: all},
+	} {
+		st := step
+		if tc.step != nil {
+			st = tc.step(st)
+		}
+		if why := scopeCovers(tc.sum, tc.d, st); (why == "") != tc.ok {
+			t.Errorf("%s: scopeCovers = %q, want reuse %v", tc.name, why, tc.ok)
+		}
+	}
+}
+
+// OpenVAS: a domain whose address had its own deep scan with OpenVAS a moment ago does not start a second OpenVAS task there. The
+// address's OpenVAS findings become the domain's, its OpenVAS step says where they come from, and a second reuse closes none of them.
+func TestDomainReuse_OpenVASResultsComeWithTheAddress(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.terms = nil
+	e.enable()
+	dns := &deepDNS{fakeResolver: e.dns, a: map[string][]string{"acme.example": {ipA}}}
+	e.svc.cfg.Resolver, e.svc.cfg.DomainFence, e.svc.cfg.Services, e.svc.cfg.Matcher = dns, &fakeFence{}, &deepSeams{}, &fakeMatcher{}
+	box := e.detect(ipA)
+	if _, err := e.commit(box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(box[0].ID, false)
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, false)
+	run := &fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}}
+	e.svc.SetRunner(run)
+	e.advance(time.Minute)
+	src, err := e.svc.Scan(e.ctx(), "admin@acme.example", box[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := e.runDetail(e.ctx(), src.RunID); d.Status != corerun.Done {
+		t.Fatalf("the box's scan ended %s %q", d.Status, d.Summary)
+	}
+	found := e.count(`SELECT count(*) FROM exp_issue WHERE target_id = ? AND engine = 'openvas' AND state = 'open'`, box[0].ID)
+	if found == 0 {
+		t.Fatal("the box's scan found no OpenVAS result to reuse")
+	}
+	tasks := len(h.gvm.log.rows)
+	run.content = Content{Hosts: []HostRow{{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassBox}}}},
+		Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", HTTP: true}}}
+	for range 2 {
+		e.advance(time.Hour)
+		s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(h.gvm.log.rows) != tasks {
+			t.Fatalf("the domain's run started OpenVAS again: %+v", h.gvm.log.rows[tasks:])
+		}
+		if got := e.count(`SELECT count(*) FROM exp_issue WHERE target_id = ? AND engine = 'openvas' AND state = 'open'`, dom.ID); got != found {
+			t.Fatalf("the domain holds %d open OpenVAS findings, the address's scan %d", got, found)
+		}
+		d := e.runDetail(e.ctx(), s.RunID)
+		i := slices.IndexFunc(d.Steps, func(st corerun.Step) bool { return st.Name == stepNameOpenVAS })
+		if i < 0 || d.Steps[i].Status != corerun.Skipped || !strings.Contains(reuseNote(d.Steps[i]), "Reused from the deep scan of "+ipA) {
+			t.Fatalf("OpenVAS step %+v", d.Steps)
+		}
+		if d.Status != corerun.Done {
+			t.Fatalf("the domain's run ended %s %q", d.Status, d.Summary)
+		}
+	}
 }

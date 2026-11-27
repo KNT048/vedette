@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -87,10 +88,218 @@ const (
 	aiFailStreak  = 3
 )
 
-// CVERecordText is the public text of a CVE's record.
+// CVERecordText is the public text of a CVE's record: its description, the CNA's solution, the affected rows of every product it names
+// and its references.
 type CVERecordText struct {
 	Description string
+	Solution    string // the CNA's solution text, "" when none
+	Rows        []RecordRow
 	Refs        []RefLink
+}
+
+// RecordRow is one affected row of a CVE record as a person reads it, with the product it is about (the record's words).
+type RecordRow struct {
+	Vendor, Product string
+	Edition         string // the edition the row's CPE pins (sw_edition, "esr"), "" when none
+	Text            string // "acme widget (edition esr): affected from 3.0 before 3.4.2 [nvd]"
+}
+
+// recordRowsMax is the most rows of the record one reading sends (the item's own product first).
+const recordRowsMax = 40
+
+// readRecordRows is the record's rows the AI reads for the product: its own rows first, then every other product's, at most recordRowsMax;
+// the rows the match read for the question when the record gave none.
+func readRecordRows(rec CVERecordText, product string, q Question) []string {
+	if len(rec.Rows) == 0 {
+		return q.undecidedRows()
+	}
+	vendor, name, _ := strings.Cut(product, "|")
+	own := func(r RecordRow) bool {
+		return productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name)
+	}
+	var mine, others []string
+	for _, r := range rec.Rows {
+		if t := strings.TrimSpace(r.Text); t != "" {
+			if own(r) {
+				mine = append(mine, t)
+			} else {
+				others = append(others, t)
+			}
+		}
+	}
+	out := append(mine, others...)
+	return out[:min(len(out), recordRowsMax)]
+}
+
+// ownRowOnLine says a row of the record about product names a release of release line ("115.13" or "115.13.0" for line 115): an inference
+// from another product's line N stands only while the record says nothing of this product's own line N.
+func ownRowOnLine(rec CVERecordText, product, line string) bool {
+	if line == "" {
+		return false
+	}
+	vendor, name, _ := strings.Cut(product, "|")
+	for _, r := range rec.Rows {
+		if productid.Norm(r.Vendor) != productid.Norm(vendor) || productid.Norm(r.Product) != productid.Norm(name) {
+			continue
+		}
+		for _, tok := range reVersionToken.FindAllString(r.Text, -1) {
+			if tok == line || dottedPrefix(line, tok) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// otherProductsRow is the product ("vendor product") of the record's row that quote is from, when that row is another product's and the
+// quote is in no row of product, nor in the description or the solution: an answer relying on it reads another product's statement,
+// so it is an inference whatever the answer says (its bounds are that product's releases). "" otherwise.
+func otherProductsRow(rec CVERecordText, product, quote string) string {
+	if quoteFound(quote, rec.Description) || quoteFound(quote, rec.Solution) {
+		return ""
+	}
+	vendor, name, _ := strings.Cut(product, "|")
+	from := ""
+	for _, r := range rec.Rows {
+		if !quoteFound(quote, r.Text) {
+			continue
+		}
+		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
+			return ""
+		}
+		if from == "" {
+			from = strings.TrimSpace(r.Vendor + " " + r.Product)
+		}
+	}
+	return from
+}
+
+// unpairedBound names the other product of the record a release of the answer belongs to, when the quote names another product of the
+// record: a bound the answer gives, the "before X" on the version's own train the quote states (its fix), and the version or line the
+// quote names are this product's only when, at every place the quote names them, the nearest product name before it is this product's
+// ("fixed in Browser ESR 115.42 and Mail 140.17": 115.42 is the browser's). A name inside a longer one is the longer one's ("Mail" in
+// "Mail Server", "Mail-Server" or "MailServer"); a name is this product's for the vendor's same product or its edition ("Browser
+// ESR"). A bound the quote does not hold is not this product's either. "" when the quote names no other product of the record, or every
+// release it pairs is this product's.
+func unpairedBound(rec CVERecordText, id CheckID, v ProposeVerdict) string {
+	quote := strings.ToLower(oneLine(v.Quote, 400))
+	vendor, name, _ := strings.Cut(id.Product, "|")
+	own := func(rv, rp string) bool {
+		p, n := productid.Norm(rp), productid.Norm(name)
+		return productid.Norm(rv) == productid.Norm(vendor) && (p == n || strings.HasPrefix(p, n) && releaseWord[p[len(n):]])
+	}
+	type named struct {
+		start, end int
+		own        bool
+		label      string
+	}
+	var found []named
+	add := func(rv, rp string) {
+		words := strings.FieldsFunc(strings.ToLower(rp), func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') })
+		if len(strings.Join(words, "")) < 2 {
+			return
+		}
+		for i, w := range words {
+			words[i] = regexp.QuoteMeta(w)
+		}
+		re := regexp.MustCompile(`(?:^|[^a-z0-9])(` + strings.Join(words, `[\s_.\-]{0,2}`) + `)(?:$|[^a-z0-9])`)
+		for _, m := range re.FindAllStringSubmatchIndex(quote, -1) {
+			found = append(found, named{start: m[2], end: m[3], own: own(rv, rp), label: strings.TrimSpace(rv + " " + rp)})
+		}
+	}
+	add(vendor, name)
+	for _, r := range rec.Rows {
+		add(r.Vendor, r.Product)
+	}
+	var names []named // a name inside a longer name of the quote is that longer name's
+	other := ""
+	for _, n := range found {
+		if slices.ContainsFunc(found, func(o named) bool { return o.start <= n.start && o.end >= n.end && o.end-o.start > n.end-n.start }) {
+			continue
+		}
+		names = append(names, n)
+		if !n.own && other == "" {
+			other = n.label
+		}
+	}
+	if other == "" {
+		return ""
+	}
+	pairedOwn := func(at int) string { // "" when the nearest name before at is this product's, else the product it is paired with
+		var near *named
+		for i := range names {
+			n := &names[i]
+			if n.end > at {
+				continue
+			}
+			if near == nil || n.start > near.start || n.start == near.start && n.end > near.end {
+				near = n
+			}
+		}
+		switch {
+		case near == nil:
+			return other
+		case !near.own:
+			return near.label
+		}
+		return ""
+	}
+	bounds := []string{v.Introduced, v.FixedIn, v.LastAffected}
+	for _, m := range reBefore.FindAllStringSubmatch(v.Quote, -1) {
+		if x := strings.TrimRight(m[1], "."); onFixTrain(x, id.Version) {
+			bounds = append(bounds, x)
+		}
+	}
+	for i, b := range append(bounds, id.Version, id.Line, v.Line) {
+		b = strings.ToLower(strings.TrimSpace(b))
+		if b == "" {
+			continue
+		}
+		at := tokenIndexes(quote, b)
+		if len(at) == 0 && i < len(bounds) {
+			return other // a bound the quote does not hold
+		}
+		for _, a := range at {
+			if p := pairedOwn(a); p != "" {
+				return p
+			}
+		}
+	}
+	return ""
+}
+
+// tokenIndexes are the places text (lower case) names tok as a whole version (namesToken): not inside a longer version, a sentence's
+// last period may follow it.
+func tokenIndexes(text, tok string) []int {
+	word := func(c byte) bool { return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' }
+	var out []int
+	for from := 0; tok != ""; {
+		i := strings.Index(text[from:], tok)
+		if i < 0 {
+			break
+		}
+		at, end := from+i, from+i+len(tok)
+		from = at + 1
+		if at > 0 && (word(text[at-1]) || text[at-1] == '.') {
+			continue
+		}
+		if end < len(text) && (word(text[end]) || text[end] == '.' && end+1 < len(text) && word(text[end+1])) {
+			continue
+		}
+		out = append(out, at)
+	}
+	return out
+}
+
+// recordText is the text of the record the AI reads as data block 0 and its quotes are looked up in: the description, the solution and
+// the rows, one per line.
+func recordText(rec CVERecordText, rows []string) string {
+	parts := []string{strings.TrimSpace(rec.Description)}
+	if s := strings.TrimSpace(rec.Solution); s != "" {
+		parts = append(parts, s)
+	}
+	parts = append(parts, rows...)
+	return strings.TrimSpace(strings.Join(parts, "\n"))
 }
 
 // RefLink is one reference of a CVE record with its tags ("Vendor Advisory", "Patch").
@@ -110,10 +319,11 @@ type FetchedPage struct {
 	Empty bool
 }
 
-// ProposeItem is one product version of a CVE the AI is asked about (no device data).
+// ProposeItem is one product version of a CVE the AI is asked about (no device data). Edition is the build's edition as a CPE
+// sw_edition when the box knows it and the record's rows pin editions ("esr"), "" otherwise.
 type ProposeItem struct {
-	Index                          int
-	Vendor, Product, Version, Line string
+	Index                                   int
+	Vendor, Product, Version, Line, Edition string
 }
 
 // ProposeRequest is one AI call: the CVE's public record and pages, and the items.
@@ -132,6 +342,9 @@ type ProposeVerdict struct {
 	Line                              string // the release line as the statement names it
 	Reason, Quote                     string
 	Source                            int // 1-based page index, 0 for the record
+	// InferredFrom names the other product of the record whose release line the answer infers this one's from ("" when the text states
+	// it for this product): such an answer may only say "affected" (readingOfAnswer).
+	InferredFrom string
 }
 
 // ProposeAnswer is the answer of one AI call.
@@ -652,27 +865,17 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		unparsed[u.key] = why
 		ask = append(ask, u)
 	}
-	switch {
-	case len(ask) == 0:
+	if len(ask) == 0 {
 		return res
-	case len(urls) == 0: // no reference the box may read: the AI would see the record alone; undecided until the record changes
-		for _, u := range ask {
-			res.checks = append(res.checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure,
-				Reason: "The CVE record lists no reference page the box can read.", Undecided: &Undecided{Reason: UndecidedNoReference},
-				CheckedBy: actor, CheckedAt: now})
-		}
-		return res
-	case !read && !slices.ContainsFunc(pages, func(p FetchedPage) bool { return !p.Empty }):
-		// every reference answered without advisory text (a script-rendered portal's shell): no AI call, and undecided until the record
-		// changes, since fetching again gives the same
-		for _, u := range ask {
-			res.checks = append(res.checks, Check{Key: u.key, CVE: cve, ID: u.id, DecidedBy: DecidedStructured, Verdict: VerdictUnsure, Sources: sources,
-				Reason:    "The CVE's reference pages have no advisory text the box can read (they may need a browser).",
-				Undecided: &Undecided{Reason: UndecidedFetchFailed}, CheckedBy: actor, CheckedAt: now})
-		}
-		return res
-	case !read: // no page answered: no AI call and nothing stored, so the next check tries the pages again (fetches cost no tokens)
+	}
+	// The AI reads the whole record (its description, solution and every product's rows) beside the pages; when no page could be read
+	// (none referenced, a script-rendered shell, a refusal) it reads the record alone, as a person would. A record with no text and no
+	// page read is not sent: nothing is stored, and the next check tries the pages again.
+	rows := readRecordRows(rec, group[0].id.Product, group[0].q)
+	recText := recordText(rec, rows)
+	if !read && recText == "" {
 		res.failed = len(ask)
+		s.markUnread(keys, true, now)
 		return res
 	}
 	okPages := slices.DeleteFunc(slices.Clone(pages), func(p FetchedPage) bool { return p.Status != "ok" })
@@ -687,7 +890,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 	for _, l := range lines {
 		unsureAgain := l.last != nil && l.last.RejectedBy == "" && l.last.Status == StatementUnsure && now.Sub(l.last.AskedAt) >= statementRecheck
 		if st := l.last; st != nil && st.RecordHash == l.units[0].id.Record && !unsureAgain {
-			if text, ok := pageText(st, okPages, rec.Description); ok && pageHash(text) == st.PageHash {
+			if text, ok := pageText(st, okPages, recText); ok && pageHash(text) == st.PageHash {
 				res.seen = append(res.seen, st.Key)
 				continue
 			}
@@ -696,7 +899,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 	}
 	for start := 0; start < len(asks); start += possibleCheckItems {
 		part := asks[start:min(start+possibleCheckItems, len(asks))]
-		req := ProposeRequest{CVE: cve, Description: rec.Description, Rows: part[0].units[0].q.undecidedRows(), Pages: okPages}
+		req := ProposeRequest{CVE: cve, Description: recordText(CVERecordText{Description: rec.Description, Solution: rec.Solution}, nil), Rows: rows, Pages: okPages}
 		for k, l := range part {
 			id := l.units[0].id
 			vendor, product, _ := strings.Cut(id.Product, "|")
@@ -706,7 +909,8 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 					versions = append(versions, u.id.Release())
 				}
 			}
-			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line})
+			req.Items = append(req.Items, ProposeItem{Index: k, Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line,
+				Edition: edition(l.units[0].q)})
 		}
 		var keys []string
 		for _, l := range part {
@@ -759,10 +963,154 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 				res.failed += len(l.units)
 				continue
 			}
-			res.readings = append(res.readings, readingOfAnswer(cve, l.units[0].id, v, okPages, rec, ans, actor, now))
+			if v.InferredFrom == "" && (v.Source < 1 || v.Source > len(okPages)) {
+				v.InferredFrom = otherProductsRow(rec, l.units[0].id.Product, v.Quote) // another product's row is that product's statement
+			}
+			if v.InferredFrom == "" {
+				v.InferredFrom = unpairedBound(rec, l.units[0].id, v) // a release the sentence pairs with another product is that product's
+			}
+			st := readingOfAnswer(cve, l.units[0].id, v, okPages, recText, rec.Refs, ans, actor, now)
+			if st.Status == StatementAffected && v.InferredFrom != "" && ownRowOnLine(rec, l.units[0].id.Product, st.StatedLine) {
+				st.Status = StatementUnsure // the record has a row of this product on the line: its own row, not another product's, decides
+				st.Reason = oneLine("The record has a row of this product on line "+st.StatedLine+", so another product's line decides nothing: "+st.Reason, 600)
+			}
+			if st.Basis == BasisStated && !namedWithThisProduct(st.Quote, ownNames(rec, l.units[0].id.Product), ownEditions(rec, l.units[0].id.Product, edition(l.units[0].q)), ownVendors(l.units[0].id.Product)) {
+				st.Basis = BasisUnpaired // a version the quote does not pair with this product's own name: it may open, never settle or fix
+			}
+			res.readings = append(res.readings, st)
 		}
 	}
 	return res
+}
+
+// edition is the build's edition as a CPE sw_edition the reading tells the AI (ProposeItem.Edition), "" when none.
+func edition(q Question) string {
+	if q.Detail.Attribute == AttrUnlistedLine {
+		return mozillaESR // the edition is known, its line is what the rows do not list
+	}
+	return ""
+}
+
+// ownNames is how the record and the catalogue name the product (lower case, words joined by spaces): the product key's name, the
+// catalogue's display name, product name and other names, and the product of the record's own rows.
+func ownNames(rec CVERecordText, product string) []string {
+	vendor, name, _ := strings.Cut(product, "|")
+	var out []string
+	add := func(n string) {
+		n = strings.Join(strings.Fields(strings.ToLower(strings.ReplaceAll(n, "_", " "))), " ")
+		if len(n) >= 2 && !slices.Contains(out, n) {
+			out = append(out, n)
+		}
+	}
+	add(name)
+	if p, ok := productid.ByKey(product); ok {
+		add(p.Display)
+		add(p.Product)
+		for _, a := range p.Also { // the catalogue's other names of the product ("Synology|DSM")
+			_, n, _ := strings.Cut(a, "|")
+			add(n)
+		}
+	}
+	for _, r := range rec.Rows {
+		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
+			add(r.Product)
+		}
+	}
+	return out
+}
+
+// ownEditions is the edition words the record's own rows of the product pin, and the build's edition the box knows (lower case).
+func ownEditions(rec CVERecordText, product, known string) []string {
+	vendor, name, _ := strings.Cut(product, "|")
+	var out []string
+	for _, e := range append([]string{known}, func() []string {
+		var es []string
+		for _, r := range rec.Rows {
+			if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
+				es = append(es, r.Edition)
+			}
+		}
+		return es
+	}()...) {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" && !slices.Contains(out, e) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// reVersionLike is any version-like token of a sentence (lower case), the token in group 1: one starting with a digit ("115", "115.42",
+// "115.x", "8.6.5p1", "21.4r2-s3", a date "2026-01-15") or a short letter prefix with a dotted or dashed release ("v115.42", "r2-s3").
+// Every value a reading may take as a bound, a line or a fix is one of these.
+var reVersionLike = regexp.MustCompile(`(?:^|[^0-9a-z])([a-z]{1,3}[0-9]+(?:[.\-_][0-9a-z]+)+|[0-9][0-9a-z]*(?:[.\-_][0-9a-z]+)*)`)
+
+// namedWithThisProduct says every version-like token in quote (reVersionLike: a whole number, a wildcard line or a date too) follows one
+// of the product's own names (names), with only spaces, or one of its own edition words, between ("Mail 115.42", "Mail ESR 115.42"):
+// only such a quote may settle "not affected" or give a fix. A CVE id is no version, and a number inside one of the product's own names
+// ("Server 2019") is the name's. A quote with no version, a version after another name ("Mail Server 115.42", a name the record does not
+// know) or after no name ("fixed in 115.42", "3 issues") is not.
+func namedWithThisProduct(quote string, names, editions, vendors []string) bool {
+	q := strings.ToLower(quote)
+	if len(q) != len(quote) {
+		return false // a quote whose case changes its length: positions would not line up with the original's words
+	}
+	var spans [][]int
+	for _, m := range reVersionLike.FindAllStringSubmatchIndex(q, -1) {
+		spans = append(spans, m[2:4])
+	}
+	if len(spans) == 0 {
+		return false
+	}
+	// a name of this product ends p, and the word before it is the vendor's name, the start, punctuation or a lower-case word: a
+	// capitalised other word makes it another product's name ("Thunder Mail")
+	endsWithName := func(p string) bool {
+		for _, n := range names {
+			if !strings.HasSuffix(p, n) || len(p) > len(n) && isAlnum(p[len(p)-len(n)-1]) {
+				continue
+			}
+			head := strings.TrimRight(p[:len(p)-len(n)], " \t")
+			if head == "" || !isAlnum(head[len(head)-1]) {
+				return true
+			}
+			k := len(head)
+			for k > 0 && isAlnum(head[k-1]) {
+				k--
+			}
+			w := head[k:]
+			if slices.Contains(vendors, w) || quote[len(head)-len(w)] >= 'a' && quote[len(head)-len(w)] <= 'z' {
+				return true
+			}
+		}
+		return false
+	}
+	for _, sp := range spans {
+		before := q[:sp[0]]
+		if strings.HasSuffix(before, "cve-") || endsWithName(q[:sp[1]]) {
+			continue // a CVE id, or a number of one of the product's own names
+		}
+		p := strings.TrimRight(before, " \t")
+		if len(p) == len(before) {
+			return false // no space before the version ("v115.42", "(115.42")
+		}
+		if endsWithName(p) {
+			continue
+		}
+		ok := false
+		for _, e := range editions {
+			if !strings.HasSuffix(p, e) || len(p) > len(e) && isAlnum(p[len(p)-len(e)-1]) {
+				continue
+			}
+			rest := p[:len(p)-len(e)]
+			if r := strings.TrimRight(rest, " \t"); len(r) < len(rest) && endsWithName(r) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // linesToAsk groups the units by release line (product and line), with the newest stored reading of each line.
@@ -805,21 +1153,28 @@ func pageText(st *LineStatement, pages []FetchedPage, record string) (string, bo
 }
 
 // readingOfAnswer is the AI's answer for one release line as the box keeps it: the quote looked up word for word in the text the box
-// fetched, a version bound kept only when the quote names it, a "fixed" with no bound left unsure, and a page that is not about this
-// CVE (it names neither the CVE nor an advisory the record references: aboutCVE) left unsure whatever the AI read in it.
-func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPage, rec CVERecordText, ans ProposeAnswer, actor string, now time.Time) LineStatement {
-	cited := citedText(v.Source, pages, rec.Description)
+// fetched (a page, or the record's text for source 0), a version bound kept only when the quote or the cited page names it, a "fixed"
+// with no bound left unsure, and a page that is not about this CVE (it names neither the CVE nor an advisory the record references:
+// aboutCVE) left unsure whatever the AI read in it. An answer inferred from another product's release line keeps no bound (they are
+// the other product's) and stands only as "affected" with a quote naming a release of the item's line (namedByRelease) or the line
+// itself; anything else it says is unsure.
+func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPage, record string, refs []RefLink, ans ProposeAnswer, actor string,
+	now time.Time) LineStatement {
+	cited := citedText(v.Source, pages, record)
 	quote := oneLine(v.Quote, 400)
 	st := LineStatement{CVE: cve, Product: id.Product, Line: id.Line, StatedLine: clipBytes(strings.TrimSpace(v.Line), 200),
 		RecordHash: cmpNonEmpty(id.Record, recordHash("")), PageHash: pageHash(cited.text), Status: v.Status, Reason: oneLine(v.Reason, 600), Quote: quote,
 		URL: cited.url, Host: hostOf(cited.url), QuoteFound: quote != "" && quoteFound(quote, cited.text),
-		Model: cmpNonEmpty(ans.Model, "unknown"), Profile: cmpNonEmpty(ans.Profile, "unknown"), Activity: ans.ActivityID, AskedBy: actor, AskedAt: now, SeenAt: now}
+		Model: cmpNonEmpty(ans.Model, "unknown"), Profile: cmpNonEmpty(ans.Profile, "unknown"), Activity: ans.ActivityID, AskedBy: actor, AskedAt: now, SeenAt: now,
+		Basis: BasisStated}
 	if v.Source >= 1 && v.Source <= len(pages) {
 		st.VendorPage = pages[v.Source-1].Vendor
 	}
+	// a bound counts when the quote names it, or the cited page does (a tracker's "present-in" and "fixed-in" lines are two sentences);
+	// only a bound the quote names may settle a version as not affected or become the fix (pastFix, fix)
 	bound := func(b string) string {
 		b = strings.TrimSpace(b)
-		if len(b) > 100 || !namesToken(quote, b) {
+		if len(b) > 100 || !namesToken(quote, b) && !namesToken(cited.text, b) {
 			return ""
 		}
 		return b
@@ -829,12 +1184,23 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 	case StatementAffected, StatementNotAffected, StatementUnsure:
 	case StatementFixed:
 		if st.FixedIn == "" && st.Last == "" {
-			st.Status = StatementUnsure // "fixed" in a release the quote does not name decides nothing
+			st.Status = StatementUnsure // "fixed" in a release the text does not name decides nothing
 		}
 	default:
 		st.Status = StatementUnsure
 	}
-	if cited.url != "" && st.Status != StatementUnsure && !aboutCVE(cited.text, cve, rec.Refs) {
+	if from := oneLine(v.InferredFrom, 100); from != "" {
+		st.Basis = BasisInferred
+		st.Introduced, st.FixedIn, st.Last = "", "", "" // the bounds of another product are none of this one's
+		st.Reason = oneLine("Inferred from "+from+": "+v.Reason, 600)
+		switch {
+		case st.Status == StatementNotAffected: // a person decides it, like every "not affected" the AI reads (a proposal)
+		case st.Status != StatementAffected || !st.coversLine(id) && !st.namedByRelease(id):
+			st.Status = StatementUnsure
+			st.Reason = oneLine("An inference from "+from+" opens only from a quote that names a release of this line: "+v.Reason, 600)
+		}
+	}
+	if cited.url != "" && st.Status != StatementUnsure && !aboutCVE(cited.text, cve, refs) {
 		st.Status = StatementUnsure
 		st.Reason = "The page the AI read names neither " + cve + " nor an advisory the CVE record references, so it decides nothing for this CVE."
 	}
@@ -878,15 +1244,15 @@ func emptyPages(pages []FetchedPage, cve string, group []checkUnit) {
 // the page is on the vendor's host.
 func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 	vendor, _, _ := strings.Cut(product, "|")
-	for i := range pages {
-		for _, r := range refs {
-			if r.URL == pages[i].URL && slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "vendor-advisory" }) {
-				pages[i].Vendor = true
-			}
+	tagged := map[string]bool{} // the addresses of the references tagged vendor-advisory
+	for _, r := range refs {
+		if slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "vendor-advisory" }) {
+			tagged[r.URL] = true
 		}
-		if u, err := url.Parse(pages[i].URL); err == nil && vendorHost(u.Hostname(), vendor) {
-			pages[i].Vendor = true
-		}
+	}
+	for i, p := range pages {
+		u, err := url.Parse(p.URL)
+		pages[i].Vendor = p.Vendor || tagged[p.URL] || err == nil && vendorHost(u.Hostname(), vendor)
 	}
 }
 
@@ -1245,4 +1611,14 @@ func devicesOfCVE(ctx context.Context, q querier, cve string) ([]string, error) 
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+// ownVendors is the vendor's name as the product key and the catalogue write it (lower case).
+func ownVendors(product string) []string {
+	vendor, _, _ := strings.Cut(product, "|")
+	out := []string{strings.ToLower(strings.TrimSpace(vendor))}
+	if p, ok := productid.ByKey(product); ok && p.Vendor != "" {
+		out = append(out, strings.ToLower(strings.TrimSpace(p.Vendor)))
+	}
+	return out
 }

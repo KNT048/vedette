@@ -22,6 +22,7 @@ type fakeChecker struct {
 	sent     []ProposeRequest
 	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
 	budget   ReadBudget
+	records  map[string]CVERecordText // by CVE: the record's text and rows (unset: a one-sentence description)
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
@@ -36,6 +37,10 @@ func (f *fakeChecker) Record(_ context.Context, cve string) (CVERecordText, erro
 			tags = []string{"vendor-advisory"}
 		}
 		refs = append(refs, RefLink{URL: p.URL, Tags: tags})
+	}
+	if r, ok := f.records[cve]; ok {
+		r.Refs = append(refs, r.Refs...)
+		return r, nil
 	}
 	return CVERecordText{Description: "A flaw in Synology DiskStation Manager.", Refs: refs}, nil
 }
@@ -65,8 +70,8 @@ func (f *fakeChecker) Propose(_ context.Context, _ string, req ProposeRequest) (
 	ans := ProposeAnswer{Model: "test-model", Profile: "test", ActivityID: "act-1"}
 	for _, it := range req.Items {
 		v, ok := f.verdicts[req.CVE+"|"+it.Version]
-		if !ok {
-			continue
+		if !ok { // a model answers every item: what the text does not state is unsure
+			v = ProposeVerdict{Status: StatementUnsure, Reason: "The text states nothing for this release line."}
 		}
 		v.Index = it.Index
 		ans.Verdicts = append(ans.Verdicts, v)
@@ -177,14 +182,14 @@ func TestPossible_NeverHidesOrDoublesAFinding(t *testing.T) {
 }
 
 // The app decides first: a vendor's advisory the box reads decides without AI (and the match applies it: a finding with the advisory as
-// its range origin); only what it leaves goes to the AI, in one call per CVE, as readings of the release line. A CVE whose page could
-// not be read is not sent to the AI and is not stored (not checked). A second check sends nothing: every key was checked.
+// its range origin); only what it leaves goes to the AI, in one call per CVE, as readings of the release line (of the record alone for
+// the CVEs whose pages could not be read). A second check sends nothing: every key was checked.
 func TestPossibleCheck_AppFirstThenAIProposalsOnce(t *testing.T) {
 	t.Parallel()
 	e, fc := possibleWorld(t)
 	run := runCheck(t, e)
-	if run.Advisory != 1 || run.Readings != 1 || run.Failed != 1 || run.Stopped != nil {
-		t.Errorf("run %+v: want 1 decided from the advisory, 1 reading, 1 not checked", run)
+	if run.Advisory != 1 || run.Readings != 4 || run.Failed != 0 || run.Stopped != nil {
+		t.Errorf("run %+v: want 1 decided from the advisory, 4 readings (2 from the record alone), none failed", run)
 	}
 	for _, req := range fc.sent {
 		if req.CVE == "CVE-2026-82001" {
@@ -506,48 +511,38 @@ func TestPossibleCheck_NotAffectedOnlyFromTheVendorsAdvisory(t *testing.T) {
 	}
 }
 
-// When no reference page could be read, the AI is not asked (it would see the record alone) and nothing is stored: the next check
-// tries the pages again, which costs fetches only. A CVE with no reference the box may read is not sent to the AI either; it is
-// stored undecided (no_reference_page) until its record changes.
-func TestPossibleCheck_NoPageReadNoAICall(t *testing.T) {
+// When no reference page could be read, the AI reads the CVE record alone (its description and rows), as a person would: a CVE whose
+// page failed and one with no reference the box may read are both asked with no page, and their readings cite the record. The next
+// check does not ask again while the record is unchanged.
+func TestPossibleCheck_NoPageReadTheAIReadsTheRecord(t *testing.T) {
 	t.Parallel()
 	e, fc := possibleWorld(t)
 	run := runCheck(t, e)
+	asked := map[string]bool{}
 	for _, req := range fc.sent {
+		asked[req.CVE] = true
 		if len(fc.pages[req.CVE]) == 0 || req.CVE == "CVE-2026-82003" {
-			t.Errorf("the AI was asked about %s, whose pages were not read", req.CVE)
+			if len(req.Pages) != 0 || req.Description == "" {
+				t.Errorf("%s: %d pages, description %q; want the record alone", req.CVE, len(req.Pages), req.Description)
+			}
 		}
 	}
-	if n := e.count(`SELECT count(*) FROM fnd_possible_check WHERE cve = 'CVE-2026-82003'`); n != 0 {
-		t.Errorf("%d checks stored for a CVE whose page could not be read", n)
+	if !asked["CVE-2026-82003"] || !asked["CVE-2026-81001"] {
+		t.Errorf("asked %v: want the CVE whose page failed and the one with no reference read from the record", asked)
 	}
-	if run.Failed == 0 {
-		t.Errorf("run %+v: the CVE whose page could not be read is not counted as not checked", run)
+	if n := e.count(`SELECT count(*) FROM fnd_line_statement WHERE cve = 'CVE-2026-82003' AND url = '' AND host = ''`); n != 1 {
+		t.Errorf("%d readings of 82003's record, want 1", n)
 	}
-	if !possibleByCVE(t, e)["CVE-2026-82003"].Checkable() {
-		t.Error("a CVE whose page could not be read is not checkable again")
+	if n := e.count(`SELECT count(*) FROM fnd_possible_check WHERE decided_by = 'structured'`); n != 0 {
+		t.Errorf("%d structured checks stored: the record was read instead", n)
 	}
-	rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve, decided_by, verdict, detail FROM fnd_possible_check`)
-	if err != nil {
-		t.Fatal(err)
+	if run.Failed != 0 {
+		t.Errorf("run %+v: want every CVE read", run)
 	}
-	defer func() { _ = rows.Close() }()
-	noRefs := 0
-	for rows.Next() {
-		var cve, by, verdict, detail string
-		if err := rows.Scan(&cve, &by, &verdict, &detail); err != nil {
-			t.Fatal(err)
-		}
-		if len(fc.pages[cve]) > 0 {
-			continue
-		}
-		noRefs++
-		if by != DecidedStructured || verdict != VerdictUnsure || !strings.Contains(detail, UndecidedNoReference) {
-			t.Errorf("%s (no reference): check %s %s %s, want structured unsure %s", cve, by, verdict, detail, UndecidedNoReference)
-		}
-	}
-	if noRefs == 0 {
-		t.Error("the fixture has no possible CVE without a reference")
+	calls := len(fc.sent)
+	runCheck(t, e)
+	if len(fc.sent) != calls {
+		t.Errorf("the unchanged records were read again (%d calls)", len(fc.sent)-calls)
 	}
 }
 
@@ -660,34 +655,28 @@ func TestConfirmProposal_AffectedOnACatalogueCVEUsesItsRecord(t *testing.T) {
 }
 
 // A reference that answers with a script-rendered portal's shell (no CVE id, no product: "Loading", "CSS Error", "Refresh") is not a
-// page read: when every reference is such a page, the AI is not called and the CVE is stored undecided (fetch_failed), since fetching
-// again gives the same shell until the record changes. A page that failed for a moment still stores nothing.
+// page read: its text never reaches the AI, which reads the record alone; the shell is listed as not read.
 func TestPossibleCheck_AScriptShellIsNotARead(t *testing.T) {
 	t.Parallel()
 	e, fc := possibleWorld(t)
 	shell := "Example Community\n\nLoading\n\n× Sorry to interrupt\nCSS Error\n\nRefresh"
 	fc.pages["CVE-2026-82003"] = []FetchedPage{{URL: "https://portal.example.com/A72300", Status: "ok", Text: shell}}
 	runCheck(t, e)
+	n := 0
 	for _, req := range fc.sent {
-		if req.CVE == "CVE-2026-82003" {
-			t.Error("the AI was asked about a CVE whose only page is a script shell")
+		if req.CVE != "CVE-2026-82003" {
+			continue
+		}
+		n++
+		if len(req.Pages) != 0 {
+			t.Errorf("the shell's text was sent to the AI: %+v", req.Pages)
 		}
 	}
-	cs, err := checksOf(t.Context(), e.db.Reader(), allKeys(t, e))
-	if err != nil {
-		t.Fatal(err)
+	if n != 1 {
+		t.Errorf("82003 asked %d times, want once on the record alone", n)
 	}
-	var got *Check
-	for _, c := range cs {
-		if c.CVE == "CVE-2026-82003" {
-			got = &c
-		}
-	}
-	if got == nil || got.DecidedBy != DecidedStructured || got.Verdict != VerdictUnsure || got.Undecided == nil || got.Undecided.Reason != UndecidedFetchFailed {
-		t.Fatalf("82003 check %+v: want structured, unsure, fetch_failed", got)
-	}
-	if len(got.Sources) != 1 || got.Sources[0].Status == "ok" {
-		t.Errorf("82003 sources %+v: want the shell listed as not read", got.Sources)
+	if n := e.count(`SELECT count(*) FROM fnd_line_statement WHERE cve = 'CVE-2026-82003' AND url = ''`); n != 1 {
+		t.Errorf("%d readings of 82003's record, want 1", n)
 	}
 }
 

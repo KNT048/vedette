@@ -174,3 +174,27 @@ func TestProposePossible_TheAutomaticReadingLeavesAPersonRoomInEveryMinute(t *te
 		}
 	}
 }
+
+// The reading sends the whole record as data block 0 (the description and every product's rows, not only the item's) with the item's
+// edition, and the answer may name the other product of the record a line was inferred from.
+func TestProposePossible_TheWholeRecordAndAnInference(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"items":[{"index":0,"status":"affected","introduced":"","fixed_in":"","last_affected":"","line":"115","reason":"Inferred from the browser's 115 line.","quote":"quillfeather browser (edition esr): affected from 115.1.0 before 115.42.0 [nvd]","source":0,"inferred_from":"Quillfeather Browser ESR"}]}`)
+	ans, err := a.svc.ProposePossible(a.ctx(), "it@acme.example", ai.PossibleRequest{CVE: "CVE-2099-72002", Description: "Use-after-free in the layout engine.",
+		Rows:  []string{"quillfeather mail: affected before 157.0 [nvd]", "quillfeather browser (edition esr): affected from 115.1.0 before 115.42.0 [nvd]"},
+		Items: []ai.PossibleItem{{Index: 0, Vendor: "quillfeather", Product: "Mail", Version: "115.9.0", Line: "115.9.0", Edition: "esr"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ans.Verdicts) != 1 || ans.Verdicts[0].InferredFrom != "Quillfeather Browser ESR" || ans.Verdicts[0].Line != "115" {
+		t.Fatalf("answer %+v", ans)
+	}
+	req := a.fake.reqs[len(a.fake.reqs)-1]
+	all := req.System + req.Messages[0].Text
+	for _, want := range []string{"quillfeather browser (edition esr): affected from 115.1.0 before 115.42.0", `"edition":"esr"`, "inferred_from", "never \"fixed\" or \"not_affected\""} {
+		if !strings.Contains(all, want) {
+			t.Errorf("the request does not carry %q", want)
+		}
+	}
+}

@@ -698,7 +698,7 @@ func seedProposal(t *testing.T, e *env, cve, verdict string) {
 	c := Check{Key: q.CheckKey, CVE: cve, ID: *q.Detail.Check, DecidedBy: DecidedAI, Verdict: verdict, Confidence: ConfidenceLikely, Reason: "The page says so.",
 		Quote: "DSM 7.2 is not affected by this issue", Sources: []CheckSource{{URL: dsmPageURL, Status: "ok", Cited: true}}, Model: "test-model",
 		Profile: "test", CheckedBy: "ana@example.com", CheckedAt: e.svc.now()}
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { _, err := insertCheck(t.Context(), tx, c); return err }); err != nil {
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { return insertCheck(t.Context(), tx, c) }); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -205,9 +205,9 @@ func checksFor(ctx context.Context, q querier, qs []Question) (map[string]Check,
 }
 
 // insertCheck stores one check; a key already checked keeps its first check (a key is checked once).
-func insertCheck(ctx context.Context, tx *sql.Tx, c Check) (bool, error) {
+func insertCheck(ctx context.Context, tx *sql.Tx, c Check) error {
 	if !checkKeyRE.MatchString(c.Key) {
-		return false, fmt.Errorf("findings: bad check key %q", c.Key)
+		return fmt.Errorf("findings: bad check key %q", c.Key)
 	}
 	sources := c.Sources
 	if sources == nil {
@@ -215,22 +215,21 @@ func insertCheck(ctx context.Context, tx *sql.Tx, c Check) (bool, error) {
 	}
 	sb, err := json.Marshal(sources)
 	if err != nil {
-		return false, err
+		return err
 	}
 	db, err := json.Marshal(checkDetail{Undecided: c.Undecided})
 	if err != nil {
-		return false, err
+		return err
 	}
-	res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO fnd_possible_check (check_key, cve, product_key, line, version, evidence_hash, decided_by, verdict, confidence,
+	_, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO fnd_possible_check (check_key, cve, product_key, line, version, evidence_hash, decided_by, verdict, confidence,
 		reason, quote, sources, detail, model, profile, activity_id, checked_by, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.Key, c.CVE, clipBytes(c.ID.Product, 300), clipBytes(c.ID.Line, 200), clipBytes(c.ID.Release(), 200), c.ID.Evidence, c.DecidedBy, c.Verdict, nullString(c.Confidence),
 		clipBytes(cleanOr(c.Reason, "No reason given."), 600), clipBytes(c.Quote, 400), string(sb), string(db), nullString(clipBytes(c.Model, 80)),
 		nullString(clipBytes(c.Profile, 160)), nullString(c.ActivityID), c.CheckedBy, store.FormatTS(c.CheckedAt))
 	if err != nil {
-		return false, fmt.Errorf("findings: storing a check: %w", err)
+		return fmt.Errorf("findings: storing a check: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	return n == 1, nil
+	return nil
 }
 
 func cleanOr(s, alt string) string {

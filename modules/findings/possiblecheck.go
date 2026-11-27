@@ -733,13 +733,6 @@ func cmpNonEmpty(a, b string) string {
 	return b
 }
 
-func cmpUndecided(a, b *Undecided) *Undecided {
-	if a != nil {
-		return a
-	}
-	return b
-}
-
 // emptyPages marks a page read whose text names neither the CVE nor a product of the group as not read and empty: it is no advisory of
 // this CVE (a script-rendered portal's shell, "Loading … Refresh", names neither), and its text is not sent to the AI.
 func emptyPages(pages []FetchedPage, cve string, group []checkUnit) {
@@ -878,7 +871,7 @@ func (s *Service) storeChecks(ctx context.Context, cs []Check, readings []LineSt
 	now := s.now()
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		for _, c := range cs {
-			if _, err := insertCheck(ctx, tx, c); err != nil {
+			if err := insertCheck(ctx, tx, c); err != nil {
 				return err
 			}
 		}

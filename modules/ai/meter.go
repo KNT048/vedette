@@ -86,13 +86,13 @@ func MonthStart(now time.Time, loc *time.Location) time.Time {
 	return time.Date(y, mo, 1, 0, 0, 0, 0, loc)
 }
 
-// Renews is when the current month's budget starts again: local midnight of the first day of the next month.
 // DayStart is the start of today in the box's time zone (the automatic reading counts its reads per day).
 func (m *Meter) DayStart() time.Time {
 	now := m.clock().In(m.loc)
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, m.loc)
 }
 
+// Renews is when the current month's budget starts again: local midnight of the first day of the next month.
 func (m *Meter) Renews() time.Time { return MonthStart(m.clock(), m.loc).AddDate(0, 1, 0) }
 
 func (m *Meter) set(t Tier, capTokens int) error {

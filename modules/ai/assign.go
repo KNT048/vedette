@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"time"
 )
 
 // SlotView is the primary and fallback profile id of one job (nil = none).
@@ -165,7 +164,7 @@ type ConfigView struct {
 }
 
 // Config returns the settings. Tier is the configured level (the monthly budget never lowers it).
-func (s *Service) Config() ConfigView {
+func (s *Service) Config(ctx context.Context) ConfigView {
 	sn := s.snap.Load()
 	v := ConfigView{Tier: s.meter.Tier(), MonthlyBudget: sn.cfg.MonthlyBudget, MonthUsed: s.meter.Used(), RenewsOn: s.meter.Renews().Format("2006-01-02"), RedactPII: s.redactPII(),
 		TierEstimates: map[Tier]*int{}, JobsReady: make(map[string]bool, len(Jobs()))}
@@ -183,8 +182,6 @@ func (s *Service) Config() ConfigView {
 		c, _ := s.router.Candidates(j)
 		v.JobsReady[string(j)] = len(c) > 0
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 	ar := s.AutoReadState(ctx)
 	v.AutoRead, v.DailyReads, v.ReadsToday = ar.Auto, ar.Daily, min(ar.Used, ar.Daily)
 	return v
@@ -231,5 +228,5 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 	}
 	s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: in})
 	s.harness.Store(hnext)
-	return s.Config(), nil
+	return s.Config(ctx), nil
 }

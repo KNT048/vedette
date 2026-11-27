@@ -414,6 +414,19 @@ export const InputList = z.object({
   items: z.array(InputItem).describe('Devices not added yet first, then one card per added device (what runs there, urgent findings not confirmed, its questions grouped by software line) by what waits, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true'),
   total: z.number().int().min(0).describe('The queue length: the tab count'),
 })
+export const CheckSource = z.object({
+  url: z.string(), title: z.string().optional(), status: z.enum(['ok', 'failed', 'skipped']), note: z.string().optional().describe('Why it was not read'),
+  cited: z.boolean().optional().describe('The verdict\'s quote is from this page'),
+}).describe('One reference page a check read or tried to')
+export const PossibleCheck = z.object({
+  key: z.string().describe('The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)'),
+  decided_by: z.enum(['structured', 'advisory', 'ai']).describe('advisory: the box read the vendor\'s advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects'),
+  verdict: z.enum(['affected', 'not_affected', 'unsure']),
+  confidence: z.enum(['confident', 'likely']).nullable().describe('ai only: confident when the AI\'s quote is in the page word for word and names a release range of this version\'s line; likely otherwise. null for the box\'s own verdicts and for unsure'),
+  reason: z.string(), quote: z.string().describe('The sentence the verdict rests on, as the page writes it; "" when none'),
+  sources: z.array(CheckSource), model: z.string().nullable().describe('ai only: the model'), checked_by: z.string(), checked_at: iso,
+  rejected: z.boolean().describe('A person rejected this AI proposal: the CVE is possible again'),
+}).describe('A check of a possible CVE\'s advisories')
 export const AnsweredQuestion = z.object({
   id: z.string().describe('The question'),
   question: QuestionKind,
@@ -424,6 +437,7 @@ export const AnsweredQuestion = z.object({
   answer: z.literal('not_affected'),
   by: z.string().describe('Who answered'),
   at: iso,
+  check: PossibleCheck.nullable().describe('The check of its evidence stored by the time of the answer (a later one, made for another device sharing the evidence, is not what the person answered): decided_by ai when the answer is a confirmed AI proposal (its pages and model); null when none'),
 }).describe('A question a person answered "not affected": no finding records it, so it is listed here and can be asked again')
 export const AnsweredList = z.object({
   items: z.array(AnsweredQuestion).describe('The newest answer first'),
@@ -468,6 +482,7 @@ export const View = z.object({
   first_seen: iso,
   last_seen: iso.describe('The last match that still detected it'),
   events: z.array(FindingEvent).describe('Oldest first, append-only'),
+  ai_check: PossibleCheck.nullable().describe('A finding a person confirmed from an AI proposal: the AI\'s check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding'),
 }).describe('A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields')
 export const FirstItem = z.object({ device: DeviceRef, block: FixBlock })
 export const FirstRunSummary = z.object({
@@ -494,19 +509,6 @@ export const Undecided = z.object({
   text: z.string().optional().describe('Up to 500 characters of advisory text the box could not read as ranges'),
   url: z.string().optional().describe('The page text is from'),
 }).describe('Why a CVE stays possible and what blocked the decision')
-export const CheckSource = z.object({
-  url: z.string(), title: z.string().optional(), status: z.enum(['ok', 'failed', 'skipped']), note: z.string().optional().describe('Why it was not read'),
-  cited: z.boolean().optional().describe('The verdict\'s quote is from this page'),
-}).describe('One reference page a check read or tried to')
-export const PossibleCheck = z.object({
-  key: z.string().describe('The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)'),
-  decided_by: z.enum(['structured', 'advisory', 'ai']).describe('advisory: the box read the vendor\'s advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects'),
-  verdict: z.enum(['affected', 'not_affected', 'unsure']),
-  confidence: z.enum(['confident', 'likely']).nullable().describe('ai only: confident when the AI\'s quote is in the page word for word and names a release range of this version\'s line; likely otherwise. null for the box\'s own verdicts and for unsure'),
-  reason: z.string(), quote: z.string().describe('The sentence the verdict rests on, as the page writes it; "" when none'),
-  sources: z.array(CheckSource), model: z.string().nullable().describe('ai only: the model'), checked_by: z.string(), checked_at: iso,
-  rejected: z.boolean().describe('A person rejected this AI proposal: the CVE is possible again'),
-}).describe('A check of a possible CVE\'s advisories')
 export const PossibleRow = z.object({
   id: z.string().describe('The question (confirm: POST /findings/possible/{id}/confirm; answer: POST /findings/questions/{id}/answer)'),
   cve, kind: QuestionKind, device: DeviceRef, software: SoftwareRef.nullable(), severity: CveSeverity.nullable(),

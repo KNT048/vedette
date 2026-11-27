@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { Bot, CircleHelp, ExternalLink, MoreHorizontal, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ExpandToggle, ListRow } from '@/components/common/ListParts'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge } from '@/components/common/status'
@@ -126,6 +127,18 @@ export function CheckChip({ check }: { check: PossibleCheck | null }) {
   if (check.rejected) return <Chip tone="off" icon={Bot} title={model}>{t('possible.chip.rejected')}</Chip>
   if (check.verdict === 'unsure') return <Chip tone="off" icon={Bot} title={model}>{t('possible.chip.unsure')}</Chip>
   return <Chip tone="accent" icon={Bot} title={model}>{t(`possible.chip.proposal_${check.verdict}_${check.confidence ?? 'likely'}`)}</Chip>
+}
+
+/** "AI checked" on a finding or an answer a person confirmed from an AI proposal; the check (its reason, quote, pages and model) is
+ *  behind the info icon. */
+export function AiCheckedBadge({ check }: { check: PossibleCheck }) {
+  const { t } = useTranslation('findings')
+  return (
+    <span className="inline-flex items-center gap-1" data-testid="ai-checked">
+      <Chip tone="accent" icon={Bot} title={check.model ? t('possible.chip.model', { model: check.model }) : undefined}>{t('possible.aiChecked')}</Chip>
+      <InfoTip topic={t('possible.aiCheckedTopic')}><CheckDetails check={check} /></InfoTip>
+    </span>
+  )
 }
 
 /** Why the CVE is undecided, in plain words. */
@@ -708,6 +721,8 @@ function AnsweredRow({ x }: { x: AnsweredQuestion }) {
           {x.cve ? <Link to={`/cve/${encodeURIComponent(x.cve)}`} className="text-accent underline-offset-4 hover:underline">{x.cve}</Link> : null}
           <DeviceLine device={x.device} badge={false} />
           {x.software ? <span className="text-meta text-muted">{nameOf(x.software, '')}</span> : null}
+          {/* a confirmed AI proposal says so, with its check */}
+          {x.check?.decided_by === 'ai' && !x.check.rejected && x.check.verdict === 'not_affected' ? <AiCheckedBadge check={x.check} /> : null}
         </span>
         <span className="text-meta text-muted">{t('possible.answered.by', { by: x.by, date: fmtDate(x.at) })}</span>
       </span>

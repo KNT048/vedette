@@ -51017,6 +51017,132 @@
                         "additionalProperties": false
                       },
                       "description": "Oldest first, append-only"
+                    },
+                    "ai_check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string",
+                              "description": "The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)"
+                            },
+                            "decided_by": {
+                              "type": "string",
+                              "enum": [
+                                "structured",
+                                "advisory",
+                                "ai"
+                              ],
+                              "description": "advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects"
+                            },
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "affected",
+                                "not_affected",
+                                "unsure"
+                              ]
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "confident",
+                                    "likely"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "ai only: confident when the AI's quote is in the page word for word and names a release range of this version's line; likely otherwise. null for the box's own verdicts and for unsure"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "The sentence the verdict rests on, as the page writes it; \"\" when none"
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "failed",
+                                      "skipped"
+                                    ]
+                                  },
+                                  "note": {
+                                    "description": "Why it was not read",
+                                    "type": "string"
+                                  },
+                                  "cited": {
+                                    "description": "The verdict's quote is from this page",
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "url",
+                                  "status"
+                                ],
+                                "additionalProperties": false,
+                                "description": "One reference page a check read or tried to"
+                              }
+                            },
+                            "model": {
+                              "description": "ai only: the model",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "checked_by": {
+                              "type": "string"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "rejected": {
+                              "type": "boolean",
+                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "decided_by",
+                            "verdict",
+                            "confidence",
+                            "reason",
+                            "quote",
+                            "sources",
+                            "model",
+                            "checked_by",
+                            "checked_at",
+                            "rejected"
+                          ],
+                          "additionalProperties": false,
+                          "description": "A check of a possible CVE's advisories"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -51034,7 +51160,8 @@
                     "same_cve",
                     "first_seen",
                     "last_seen",
-                    "events"
+                    "events",
+                    "ai_check"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -51879,6 +52006,132 @@
                         "additionalProperties": false
                       },
                       "description": "Oldest first, append-only"
+                    },
+                    "ai_check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string",
+                              "description": "The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)"
+                            },
+                            "decided_by": {
+                              "type": "string",
+                              "enum": [
+                                "structured",
+                                "advisory",
+                                "ai"
+                              ],
+                              "description": "advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects"
+                            },
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "affected",
+                                "not_affected",
+                                "unsure"
+                              ]
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "confident",
+                                    "likely"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "ai only: confident when the AI's quote is in the page word for word and names a release range of this version's line; likely otherwise. null for the box's own verdicts and for unsure"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "The sentence the verdict rests on, as the page writes it; \"\" when none"
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "failed",
+                                      "skipped"
+                                    ]
+                                  },
+                                  "note": {
+                                    "description": "Why it was not read",
+                                    "type": "string"
+                                  },
+                                  "cited": {
+                                    "description": "The verdict's quote is from this page",
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "url",
+                                  "status"
+                                ],
+                                "additionalProperties": false,
+                                "description": "One reference page a check read or tried to"
+                              }
+                            },
+                            "model": {
+                              "description": "ai only: the model",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "checked_by": {
+                              "type": "string"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "rejected": {
+                              "type": "boolean",
+                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "decided_by",
+                            "verdict",
+                            "confidence",
+                            "reason",
+                            "quote",
+                            "sources",
+                            "model",
+                            "checked_by",
+                            "checked_at",
+                            "rejected"
+                          ],
+                          "additionalProperties": false,
+                          "description": "A check of a possible CVE's advisories"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -51896,7 +52149,8 @@
                     "same_cve",
                     "first_seen",
                     "last_seen",
-                    "events"
+                    "events",
+                    "ai_check"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -52762,6 +53016,132 @@
                         "additionalProperties": false
                       },
                       "description": "Oldest first, append-only"
+                    },
+                    "ai_check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string",
+                              "description": "The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)"
+                            },
+                            "decided_by": {
+                              "type": "string",
+                              "enum": [
+                                "structured",
+                                "advisory",
+                                "ai"
+                              ],
+                              "description": "advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects"
+                            },
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "affected",
+                                "not_affected",
+                                "unsure"
+                              ]
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "confident",
+                                    "likely"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "ai only: confident when the AI's quote is in the page word for word and names a release range of this version's line; likely otherwise. null for the box's own verdicts and for unsure"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "The sentence the verdict rests on, as the page writes it; \"\" when none"
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "failed",
+                                      "skipped"
+                                    ]
+                                  },
+                                  "note": {
+                                    "description": "Why it was not read",
+                                    "type": "string"
+                                  },
+                                  "cited": {
+                                    "description": "The verdict's quote is from this page",
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "url",
+                                  "status"
+                                ],
+                                "additionalProperties": false,
+                                "description": "One reference page a check read or tried to"
+                              }
+                            },
+                            "model": {
+                              "description": "ai only: the model",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "checked_by": {
+                              "type": "string"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "rejected": {
+                              "type": "boolean",
+                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "decided_by",
+                            "verdict",
+                            "confidence",
+                            "reason",
+                            "quote",
+                            "sources",
+                            "model",
+                            "checked_by",
+                            "checked_at",
+                            "rejected"
+                          ],
+                          "additionalProperties": false,
+                          "description": "A check of a possible CVE's advisories"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -52779,7 +53159,8 @@
                     "same_cve",
                     "first_seen",
                     "last_seen",
-                    "events"
+                    "events",
+                    "ai_check"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -53625,6 +54006,132 @@
                         "additionalProperties": false
                       },
                       "description": "Oldest first, append-only"
+                    },
+                    "ai_check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string",
+                              "description": "The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)"
+                            },
+                            "decided_by": {
+                              "type": "string",
+                              "enum": [
+                                "structured",
+                                "advisory",
+                                "ai"
+                              ],
+                              "description": "advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects"
+                            },
+                            "verdict": {
+                              "type": "string",
+                              "enum": [
+                                "affected",
+                                "not_affected",
+                                "unsure"
+                              ]
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "confident",
+                                    "likely"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "ai only: confident when the AI's quote is in the page word for word and names a release range of this version's line; likely otherwise. null for the box's own verdicts and for unsure"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "The sentence the verdict rests on, as the page writes it; \"\" when none"
+                            },
+                            "sources": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "failed",
+                                      "skipped"
+                                    ]
+                                  },
+                                  "note": {
+                                    "description": "Why it was not read",
+                                    "type": "string"
+                                  },
+                                  "cited": {
+                                    "description": "The verdict's quote is from this page",
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "url",
+                                  "status"
+                                ],
+                                "additionalProperties": false,
+                                "description": "One reference page a check read or tried to"
+                              }
+                            },
+                            "model": {
+                              "description": "ai only: the model",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "checked_by": {
+                              "type": "string"
+                            },
+                            "checked_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "rejected": {
+                              "type": "boolean",
+                              "description": "A person rejected this AI proposal: the CVE is possible again"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "decided_by",
+                            "verdict",
+                            "confidence",
+                            "reason",
+                            "quote",
+                            "sources",
+                            "model",
+                            "checked_by",
+                            "checked_at",
+                            "rejected"
+                          ],
+                          "additionalProperties": false,
+                          "description": "A check of a possible CVE's advisories"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A finding a person confirmed from an AI proposal: the AI's check it rests on (the pages it read, its quote, the model; its confirmation level still comes from how the version is known). null for any other finding"
                     }
                   },
                   "required": [
@@ -53642,7 +54149,8 @@
                     "same_cve",
                     "first_seen",
                     "last_seen",
-                    "events"
+                    "events",
+                    "ai_check"
                   ],
                   "additionalProperties": false,
                   "description": "A finding as every place shows it: lists, the finding page, the device page, Home, reports, notices and the AI read the same fields"
@@ -53926,6 +54434,132 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "check": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string",
+                                    "description": "The evidence identity the check is stored under (reject: POST /findings/possible/checks/{key}/reject)"
+                                  },
+                                  "decided_by": {
+                                    "type": "string",
+                                    "enum": [
+                                      "structured",
+                                      "advisory",
+                                      "ai"
+                                    ],
+                                    "description": "advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai: the AI read the pages, a proposal a person confirms or rejects"
+                                  },
+                                  "verdict": {
+                                    "type": "string",
+                                    "enum": [
+                                      "affected",
+                                      "not_affected",
+                                      "unsure"
+                                    ]
+                                  },
+                                  "confidence": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "confident",
+                                          "likely"
+                                        ]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "ai only: confident when the AI's quote is in the page word for word and names a release range of this version's line; likely otherwise. null for the box's own verdicts and for unsure"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  },
+                                  "quote": {
+                                    "type": "string",
+                                    "description": "The sentence the verdict rests on, as the page writes it; \"\" when none"
+                                  },
+                                  "sources": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "url": {
+                                          "type": "string"
+                                        },
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "status": {
+                                          "type": "string",
+                                          "enum": [
+                                            "ok",
+                                            "failed",
+                                            "skipped"
+                                          ]
+                                        },
+                                        "note": {
+                                          "description": "Why it was not read",
+                                          "type": "string"
+                                        },
+                                        "cited": {
+                                          "description": "The verdict's quote is from this page",
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "url",
+                                        "status"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "One reference page a check read or tried to"
+                                    }
+                                  },
+                                  "model": {
+                                    "description": "ai only: the model",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "checked_by": {
+                                    "type": "string"
+                                  },
+                                  "checked_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "rejected": {
+                                    "type": "boolean",
+                                    "description": "A person rejected this AI proposal: the CVE is possible again"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "decided_by",
+                                  "verdict",
+                                  "confidence",
+                                  "reason",
+                                  "quote",
+                                  "sources",
+                                  "model",
+                                  "checked_by",
+                                  "checked_at",
+                                  "rejected"
+                                ],
+                                "additionalProperties": false,
+                                "description": "A check of a possible CVE's advisories"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The check of its evidence stored by the time of the answer (a later one, made for another device sharing the evidence, is not what the person answered): decided_by ai when the answer is a confirmed AI proposal (its pages and model); null when none"
                           }
                         },
                         "required": [
@@ -53937,7 +54571,8 @@
                           "cves",
                           "answer",
                           "by",
-                          "at"
+                          "at",
+                          "check"
                         ],
                         "additionalProperties": false,
                         "description": "A question a person answered \"not affected\": no finding records it, so it is listed here and can be asked again"

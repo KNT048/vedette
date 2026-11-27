@@ -635,6 +635,8 @@
     "showFewer": "Show fewer",
     "undo": "Undo",
     "askedAgain": "Asked again: {{cve}} on {{device}} is possible again.",
+    "aiChecked": "AI checked",
+    "aiCheckedTopic": "How the AI checked it",
     "chip": {
       "model": "Model: {{model}}",
       "advisory_affected": "Affected per the vendor advisory",

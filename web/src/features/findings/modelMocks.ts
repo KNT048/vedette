@@ -14,7 +14,7 @@ import { displayName } from '@/features/inventory/nameOf'
 import { BOX_ID, isQuiet, metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { dayAfter, untilOk } from './accept'
-import { possibleCounts } from './possibleMocks'
+import { checkOfQuestion, possibleCounts } from './possibleMocks'
 import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
@@ -187,7 +187,7 @@ function view(r: FindingRecord & { asset: Asset }): View {
     reopened: r.state === 'open' && r.reopened ? { by: null, ...r.reopened } : null,
     fix: { channel: 'public' as const, ...r.fix },
     same_cve: same.map((x) => ({ id: x.id, software: x.software, status: statusOf(x) })),
-    first_seen: r.first_seen, last_seen: r.last_seen, events: r.events,
+    first_seen: r.first_seen, last_seen: r.last_seen, events: r.events, ai_check: r.ai_check ?? null,
   }
 }
 
@@ -446,7 +446,7 @@ export const modelHandlers = [
     const l = questions.get().filter((x) => x.answered && assets.has(x.asset_id) && !isIgnored(x.asset_id) && (!device || x.asset_id === device))
       .sort((a, b) => b.answered!.at.localeCompare(a.answered!.at))
     const items: AnsweredQuestion[] = page(p)(l).map((x) => ({ id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software,
-      cve: x.cve, cves: x.cves, answer: 'not_affected', by: x.answered!.by, at: x.answered!.at }))
+      cve: x.cve, cves: x.cves, answer: 'not_affected', by: x.answered!.by, at: x.answered!.at, check: checkOfQuestion(x) }))
     return { items, total: l.length } satisfies AnsweredList
   })),
 

@@ -66,6 +66,8 @@ export interface FindingRecord {
   last_seen: string
   reopened: { why: 'still_detected' | 'detected_again' | 'acceptance_expired'; at: string; by?: string | null } | null
   events: FindingEvent[]
+  /** A finding a person confirmed from an AI proposal: the AI's check it rests on. */
+  ai_check?: PossibleCheck
 }
 
 /** A question only a person can answer (not a finding). */

@@ -46,6 +46,14 @@ function items(device?: string | null): Item[] {
 
 const checkable = (it: Item) => !!it.key && !it.check
 
+/** The check of a question about one CVE stored by the time of its answer (the Answered list names a confirmed AI proposal by it);
+ *  null when none. */
+export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
+  const key = q.cve ? checkKeyOf(q, q.cve) : ''
+  const c = key ? checks.get()[key] ?? null : null
+  return c && (!q.answered || Date.parse(c.checked_at) <= Date.parse(q.answered.at)) ? c : null
+}
+
 export function possibleCounts(device?: string): PossibleCounts {
   const c = { possible: 0, proposals: 0, unchecked: 0, settled: 0 }
   for (const it of items(device)) {
@@ -204,7 +212,7 @@ function confirmOne(it: Item): string | null {
       id, asset_id: it.q.asset_id, cve: it.cve, software: it.q.software, verified: 'device', basis: 'device_version', verified_by: null, verified_at: at,
       fix: { key: `${it.q.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown', product: it.q.software?.name ?? it.cve, version: null, ref: null, channel: 'public', url: it.check!.sources[0]?.url ?? null },
       ...unhandled, layer: POSSIBLE_EXPLOITED.has(it.cve) ? 2 as const : 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
-      events: [event('system', 'created', { note })],
+      events: [event('system', 'created', { note })], ai_check: it.check!,
     }])
     questions.update((l) => l.filter((q) => q.id !== it.q.id))
   } else {

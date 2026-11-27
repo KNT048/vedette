@@ -183,8 +183,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   names neither the CVE nor the product (a script-rendered portal's shell), is not read; when every reference is such a page, the CVE is
   stored undecided (`fetch_failed`, `decided_by structured`) without an AI call (`TestPossibleCheck_AScriptShellIsNotARead`). The AI request carries no device data. `TestPossibleCheck_AppFirstThenAIProposalsOnce`, `TestPossibleCheck_SendsNoDeviceData`, `TestPossibleCheck_AStopKeepsWhatWasDecided`.
 - **P-5 A person decides proposals.** Confirm one (`POST /findings/possible/{id}/confirm`; affected needs an admin) records the finding
-  (range origin `ai_confirmed`, kept by the match while the answer applies; its confirmation from the version's source, never from the AI)
-  or answers not affected; confirm a class at once (`POST /findings/possible/confirm`), never an exploited CVE proposed not affected (an
+  (range origin `ai_confirmed`, kept by the match while the answer applies; its confirmation from the version's source, never from the AI;
+  its view carries the AI's check as `ai_check`: pages, quote, model) or answers not affected (the Answered list carries the check as
+  `check`, `TestAIChecked_ViewAndAnsweredCarryTheCheck`); confirm a class at once (`POST /findings/possible/confirm`), never an exploited CVE proposed not affected (an
   exploited list that cannot be read confirms nothing); reject
   (`POST /findings/possible/checks/{key}/reject`) makes it possible again and is not checked again for the same evidence. An exploited CVE
   never vanishes: `TestPossibleCheck_Count_ExploitedNeverVanish`.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -117,7 +118,7 @@ func TestCVE5Status_EndToEnd(t *testing.T) {
 							return err
 						}
 					}
-					return storeRecordRanges(tx, cve, rec.Ranges)
+					return storeRecordRanges(ctx, tx, cve, rec.Ranges)
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -151,7 +152,7 @@ func TestCVE5Status_EndToEnd(t *testing.T) {
 }
 
 // storeRecordRanges writes a parsed record's ranges as the record pull stores them.
-func storeRecordRanges(tx *sql.Tx, cve string, rows []feeds.Range) error {
+func storeRecordRanges(ctx context.Context, tx *sql.Tx, cve string, rows []feeds.Range) error {
 	for _, r := range rows {
 		var plats any
 		if len(r.Platforms) > 0 {
@@ -161,7 +162,7 @@ func storeRecordRanges(tx *sql.Tx, cve string, rows []feeds.Range) error {
 			}
 			plats = string(b)
 		}
-		if _, err := tx.Exec(`INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status, platforms)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status, platforms)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, r.Origin, r.Part, r.Vendor, r.Product, r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl, r.Fixed, r.VersionType, r.DefaultStatus, plats); err != nil {
 			return err
 		}

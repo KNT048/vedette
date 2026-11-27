@@ -1156,7 +1156,7 @@ func nvdNames(in swInfo, v Vuln, affirming bool) bool {
 	_, win := winDevice(in)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
-		if err != nil || c.Part.Kind == NA || af.AffectedOnly && !affirming || !endBound(af.Range) && !af.Range.fromZero() && !(af.VendorList && versionEvidence(af)) {
+		if err != nil || c.Part.Kind == NA || af.AffectedOnly && !affirming || !endBound(af.Range) && !af.Range.fromZero() && (!af.VendorList || !versionEvidence(af)) {
 			continue
 		}
 		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {

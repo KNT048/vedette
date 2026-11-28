@@ -89,6 +89,15 @@ func TestCheckConfigMarksRiskyLinesBySyntax(t *testing.T) {
 		{"powershell block", "New-NetFirewallRule -DisplayName smb -Direction Inbound -Action Block -LocalPort 445", ""},
 		{"chpasswd pipe", "echo 'helper:pw' | sudo chpasswd", "1:new_credential"},
 		{"junos root ssh", "set system services ssh root-login allow", "1:auth_off"},
+		// review 1 lows
+		{"iptables all tcp", "iptables -A INPUT -p tcp -j ACCEPT", "1:broad_allow"},
+		{"iptables tcp lan", "iptables -A INPUT -s 192.168.10.0/24 -p tcp -j ACCEPT", ""},
+		{"forti trusthost any", "config system admin\n edit \"admin\"\n  set trusthost1 0.0.0.0 0.0.0.0\n next\nend", "2:new_credential,3:management_exposed"},
+		{"ufw from any", "ufw allow from any to any port 22", "1:management_exposed"},
+		{"ios standard any", "access-list 10 permit any", "1:broad_allow"},
+		{"ios standard host", "access-list 10 permit 192.168.10.0 0.0.0.255", ""},
+		{"no access-list", "no access-list 101", "1:protection_off"},
+		{"rdp registry", `reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f`, "1:management_exposed"},
 		// A comment that talks about the risky thing is not the thing.
 		{"comments", "# do not use permit ip any any\n! never set password here", ""},
 	}

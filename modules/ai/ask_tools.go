@@ -13,9 +13,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/conn/read"
-	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // The read tools of "Ask your data" (S-AI-5, INV-14): six of the box (search_assets, list_findings, get_finding,
@@ -59,7 +59,10 @@ type toolImpl struct {
 	internal bool
 	// class is what the tool reaches with its arguments (jobPowers decides which classes a job may call).
 	class toolClass
-	run   func(ctx context.Context, args map[string]any) (toolOut, error)
+	// catalog is what the connection's server wrote about a connection tool (its name, its connection, the values it allows), one
+	// line of the fenced data block of connection tools; "" for a tool of the box.
+	catalog string
+	run     func(ctx context.Context, args map[string]any) (toolOut, error)
 }
 
 // Limits of the result of one call. Every turn of a question sends the whole conversation again, so a result is paid for
@@ -752,11 +755,136 @@ func connToolName(rt read.ReadTool) string {
 
 // schemaKeywords are the only keywords of a connection tool's schema the model is shown. A device or an MCP server writes the schema,
 // and free text in it (description, title, examples, default, x-* extensions, a pattern) is the best place to hide an instruction
-// (tool poisoning), so what is not on this list is dropped. enum values, types and bounds stay: they are what the call has to be. The
+// (tool poisoning), so what is not on this list is dropped, enum values too (they go as fenced data: connToolSchema); types, names and
+// bounds stay: they are what the call has to be. The
 // reader (core/conn/read) also hands over only the part of the schema it enforces; this list does not depend on that.
-var schemaKeywords = map[string]bool{"type": true, "properties": true, "required": true, "items": true, "enum": true, "minimum": true, "maximum": true,
+var schemaKeywords = map[string]bool{"type": true, "properties": true, "required": true, "items": true, "minimum": true, "maximum": true,
 	"exclusiveMinimum": true, "exclusiveMaximum": true, "minLength": true, "maxLength": true, "minItems": true, "maxItems": true, "additionalProperties": true,
 	"anyOf": true, "oneOf": true, "allOf": true}
+
+// connToolDesc is the whole description of a connection tool the model is offered: the box's own words. What the server wrote about
+// the tool is data (connCatalog).
+const connToolDesc = "Read-only call of a tool of a connection. Which tool and connection it is, and the values its arguments allow, are in the data block of connection tools. It can change nothing."
+
+var argNameRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
+
+// The limits of the values a connection tool's schema may list.
+const (
+	connMaxValues    = 64
+	connMaxValueLen  = 200
+	connMaxDepth     = 6
+	connMaxValueText = 4000 // all the values of one tool, as listed in the data block
+)
+
+// connToolSchema checks the schema a connection's server wrote and splits it (tool poisoning, OWASP LLM01): the shape the model is
+// offered (types, argument names, required, bounds, no enum value and no free text: stripSchemaText), and the values it allows, as
+// "argument: one of ..." lines for the fenced data block. ok is false, and the tool is not offered, when the schema does not hold up: not
+// one JSON object schema of type object, an argument name that is not an identifier, a value with a control or invisible character or
+// longer than 200 characters, more than 64 values, deeper than 6 levels, or values longer than 4,000 characters in all.
+func connToolSchema(raw json.RawMessage) (shape json.RawMessage, values []string, ok bool) {
+	var root map[string]any
+	if err := json.Unmarshal(raw, &root); err != nil || root["type"] != "object" {
+		return nil, nil, false
+	}
+	n, size := 0, 0
+	var walk func(v any, path string, depth int) bool
+	walk = func(v any, path string, depth int) bool {
+		m, isMap := v.(map[string]any)
+		if !isMap {
+			_, isBool := v.(bool) // additionalProperties: true/false
+			return isBool
+		}
+		if depth > connMaxDepth {
+			return false
+		}
+		if e, has := m["enum"]; has {
+			l, isList := e.([]any)
+			if !isList {
+				return false
+			}
+			var vals []string
+			for _, x := range l {
+				n++
+				b, _ := json.Marshal(x)
+				if str, isStr := x.(string); isStr && (str != cleanUntrusted(str) || strings.ContainsAny(str, "\n\t") || utf8.RuneCountInString(str) > connMaxValueLen) {
+					return false
+				}
+				vals = append(vals, string(b))
+				size += len(b)
+			}
+			if n > connMaxValues || size > connMaxValueText {
+				return false
+			}
+			name := path
+			if name == "" {
+				name = "the value"
+			}
+			values = append(values, name+": one of "+strings.Join(vals, ", "))
+		}
+		if p, has := m["properties"]; has {
+			props, isMap := p.(map[string]any)
+			if !isMap {
+				return false
+			}
+			for k, sub := range props {
+				if !argNameRE.MatchString(k) || !walk(sub, strings.TrimPrefix(path+"."+k, "."), depth+1) {
+					return false
+				}
+			}
+		}
+		if r, has := m["required"]; has {
+			l, isList := r.([]any)
+			if !isList {
+				return false
+			}
+			for _, x := range l {
+				if str, isStr := x.(string); !isStr || !argNameRE.MatchString(str) {
+					return false
+				}
+			}
+		}
+		for _, k := range []string{"items", "additionalProperties"} {
+			if sub, has := m[k]; has && !walk(sub, path, depth+1) {
+				return false
+			}
+		}
+		for _, k := range []string{"anyOf", "oneOf", "allOf"} {
+			if sub, has := m[k]; has {
+				l, isList := sub.([]any)
+				if !isList {
+					return false
+				}
+				for _, x := range l {
+					if !walk(x, path, depth+1) {
+						return false
+					}
+				}
+			}
+		}
+		return true
+	}
+	if !walk(root, "", 0) {
+		return nil, nil, false
+	}
+	sort.Strings(values)
+	return stripSchemaText(raw), values, true
+}
+
+// connCatalog is the fenced data block of the connection tools a session offers: what their servers wrote about them. Empty when there
+// is none.
+func (ts *toolSession) connCatalog() []DataBlock {
+	var lines []string
+	for _, t := range ts.tools {
+		if impl := ts.impl[t.Name]; impl.catalog != "" {
+			lines = append(lines, impl.catalog)
+		}
+	}
+	if len(lines) == 0 {
+		return nil
+	}
+	sort.Strings(lines)
+	return []DataBlock{Untrusted(SourceTool, "connection tools: what their servers wrote about them", strings.Join(lines, "\n"))}
+}
 
 func stripSchemaText(raw json.RawMessage) json.RawMessage {
 	empty := json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)
@@ -805,9 +933,10 @@ func stripSchemaText(raw json.RawMessage) json.RawMessage {
 	return b
 }
 
-// internalTarget reports whether the address a connection points to is inside the network: a literal private, loopback, unique-local or
-// CGNAT IP address, judged like the address of a profile (INV-3). A name is not trusted (it could resolve to a public address after
-// this check), so it is not internal; the same for anything that does not parse.
+// internalTarget reports whether the address a connection points to is inside the network: a literal private IPv4 address (10/8,
+// 172.16/12, 192.168/16) or an IPv6 unique-local one (fc00::/7), an IPv4-mapped form judged as its IPv4 address. Everything else is
+// outside, failing closed: the ISP's shared space (CGNAT 100.64/10, also a tailnet's, whose nodes may be other people's machines),
+// link-local, loopback, global and public addresses, a name (it could resolve anywhere after this check) and what does not parse.
 func internalTarget(target string) bool {
 	host := strings.TrimSpace(target)
 	if i := strings.Index(host, "://"); i >= 0 {
@@ -826,7 +955,7 @@ func internalTarget(target string) bool {
 		host = strings.Trim(host, "[]")
 	}
 	ip, err := netip.ParseAddr(host)
-	return err == nil && provider.IsInternalAddr(ip)
+	return err == nil && ip.Zone() == "" && ip.Unmap().IsPrivate()
 }
 
 // connectionTools lists the read tools of the connections that are on and ready. A reader that cannot list adds none: the question is
@@ -858,7 +987,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 	allowed, err := s.askConnections(ctx, s.cfg.DB.Reader())
 	if err != nil { // a setting that cannot be read allows no connection outside the network
 		s.cfg.Log.WarnContext(ctx, "ai: could not read which connections Ask may use", "error", err)
-		allowed = askConnSetting{Allowed: map[string]bool{}}
+		allowed = askConnSetting{Connections: map[string]askConnChoice{}}
 	}
 	var out []toolImpl
 	seen := map[string]bool{}
@@ -872,7 +1001,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		class := toolConnLAN
 		if !inside {
 			class = toolConnOut
-			if !allowed.Allowed[rt.ConnectionID] {
+			if ok, _ := allowed.choice(rt.ConnectionID, targets[rt.ConnectionID]); !ok {
 				continue
 			}
 		}
@@ -880,13 +1009,23 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		if seen[name] || rt.ConnectionID == "" || rt.Name == "" {
 			continue
 		}
+		// The server wrote the schema: a schema that does not hold up is not offered; its values go as fenced data (connCatalog)
+		shape, values, ok := connToolSchema(rt.Schema)
+		if !ok {
+			continue
+		}
 		seen[name] = true
 		connID, tool, connName := rt.ConnectionID, rt.Name, clip(rt.ConnectionName, 60)
+		line := fmt.Sprintf("- %s: the tool %q of the connection %q (%s)", name, clip(tool, 60), connName, clip(rt.Kind, 20))
+		if len(values) > 0 {
+			line += "; allowed values: " + strings.Join(values, "; ")
+		}
 		out = append(out, toolImpl{
 			internal: inside,
 			class:    class,
-			Tool: Tool{Name: name, Access: AccessRead, Enabled: true, Jobs: []Job{JobAskMyData}, ConnectorID: connID, Schema: stripSchemaText(rt.Schema),
-				Description: fmt.Sprintf("Read-only call on the connection %q (%s): %s. It can change nothing. Give the arguments exactly as the schema allows.", connName, clip(rt.Kind, 20), clip(tool, 60))},
+			catalog:  line,
+			Tool: Tool{Name: name, Access: AccessRead, Enabled: true, Jobs: []Job{JobAskMyData}, ConnectorID: connID, Schema: shape,
+				Description: connToolDesc},
 			run: func(ctx context.Context, args map[string]any) (toolOut, error) {
 				text, err := cr.CallRead(read.WithActor(ctx, "ai:ask-my-data"), connID, tool, args)
 				switch {

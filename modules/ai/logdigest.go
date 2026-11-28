@@ -554,7 +554,7 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 func (s *Service) suggestFrom(ctx context.Context, remember []string, evidence, by string) int {
 	kept := 0
 	for _, text := range remember {
-		stored, err := s.suggestMemory(ctx, text, evidence)
+		stored, err := s.suggestMemory(ctx, plainText(text), evidence) // a suggestion is kept without links, like every text of a model
 		if stored {
 			kept++
 		}

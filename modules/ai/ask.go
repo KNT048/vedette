@@ -287,7 +287,7 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	var answer, remember, docs []string
 	var out AskResult
 	_, err = s.RunJob(ctx, JobSpec{
-		Job: JobAskMyData, Actor: actor, Task: task, Question: personQuestion(sent), tools: ts, AnswerWhenBlocked: true, MaxTokens: askMaxTokens,
+		Job: JobAskMyData, Actor: actor, Task: task, Question: personQuestion(sent), tools: ts, Data: ts.connCatalog(), AnswerWhenBlocked: true, MaxTokens: askMaxTokens,
 		Summary: "Answered a question",
 		Check: func(text string) error {
 			var perr error

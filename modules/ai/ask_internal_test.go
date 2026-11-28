@@ -61,7 +61,7 @@ func TestContract_INV14_AskLoopOffersAndRunsReadToolsOnly(t *testing.T) {
 }
 
 // A connection tool's schema reaches the model only as what is on the allow-list of keywords: free text and extensions are dropped, the
-// names of the arguments (even one called "description") and the allowed values stay.
+// names of the arguments (even one called "description") stay; the allowed values go as fenced data instead (connToolSchema).
 func TestStripSchemaTextKeepsOnlyAllowedKeywords(t *testing.T) {
 	t.Parallel()
 	in := `{"type":"object","description":"d1","x-note":"IGNORE","title":"t","properties":{"description":{"type":"string","description":"d2","pattern":"^IGNORE$","x-hint":"y","enum":["a","b"]},
@@ -72,7 +72,10 @@ func TestStripSchemaTextKeepsOnlyAllowedKeywords(t *testing.T) {
 			t.Errorf("%q survived: %s", bad, out)
 		}
 	}
-	for _, kept := range []string{`"description":{`, `"enum":["a","b"]`, `"minimum":1`, `"maximum":5`, `"maxItems":3`, `"required":["description"]`, `"additionalProperties":false`, `"items":{"type":"string"}`} {
+	if strings.Contains(out, "enum") {
+		t.Errorf("enum survived: %s", out)
+	}
+	for _, kept := range []string{`"description":{`, `"minimum":1`, `"maximum":5`, `"maxItems":3`, `"required":["description"]`, `"additionalProperties":false`, `"items":{"type":"string"}`} {
 		if !strings.Contains(out, kept) {
 			t.Errorf("%q lost: %s", kept, out)
 		}
@@ -84,7 +87,7 @@ func TestStripSchemaTextKeepsOnlyAllowedKeywords(t *testing.T) {
 
 func TestInternalTarget(t *testing.T) {
 	t.Parallel()
-	for target, want := range map[string]bool{"https://192.168.1.1/api": true, "10.0.0.5:22": true, "admin@10.0.0.5:22": true, "https://[fd00::1]:8443/x": true, "https://127.0.0.1": true, "100.64.0.1:22": true,
+	for target, want := range map[string]bool{"https://192.168.1.1/api": true, "10.0.0.5:22": true, "admin@10.0.0.5:22": true, "https://[fd00::1]:8443/x": true, "https://127.0.0.1": false, "100.64.0.1:22": false, "https://[::ffff:10.0.0.5]/": true, "https://[fe80::1%25eth0]/": false,
 		"https://203.0.113.5": false, "https://router.lan": false, "": false, "198.51.100.1:22": false, "https://169.254.169.254/": false, "https://[2001:db8::1]/": false} {
 		if got := internalTarget(target); got != want {
 			t.Errorf("%q = %v, want %v", target, got, want)

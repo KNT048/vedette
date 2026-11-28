@@ -450,8 +450,10 @@ func TestAskConnectionToolsAreReadsAndTheirTextIsNotTrusted(t *testing.T) {
 			t.Errorf("description of %s = %q", d.Name, d.Description)
 		}
 	}
-	if !strings.Contains(string(offered[0].InputSchema), `"/api/status"`) || !strings.Contains(string(offered[1].InputSchema), `"description"`) {
-		t.Errorf("the allowed values and a parameter that is named description must stay: %s %s", offered[0].InputSchema, offered[1].InputSchema)
+	// the allowed values travel as fenced data (the server wrote them); a parameter that is named description stays an argument
+	if !strings.Contains(outsideFences(t, reqs[0])+reqs[0].Messages[0].Text, `"/api/status"`) || strings.Contains(string(offered[0].InputSchema), `"/api/status"`) ||
+		!strings.Contains(string(offered[1].InputSchema), `"description"`) {
+		t.Errorf("the allowed values go as data and a parameter that is named description stays: %s %s", offered[0].InputSchema, offered[1].InputSchema)
 	}
 	calls := a.conns.callList()
 	if len(calls) != 1 || calls[0].conn != "cn1" || calls[0].tool != "fetch_url" || calls[0].args["path"] != "/api/status" {
@@ -1044,7 +1046,7 @@ func TestContract_INV3_AskConnectionToolsStayInsideWhileTheRuleIsOn(t *testing.T
 	a := setup(t, true)
 	a.fake.play(turn{text: "Nothing."})
 	a.ask("What does the firewall say?", 200, "")
-	if got := connNames(a); got != "conn_cg__fetch_url,conn_in1__fetch_url" { // an address that is not a private literal is not offered
+	if got := connNames(a); got != "conn_in1__fetch_url" { // an address that is not a private literal (CGNAT is the ISP's) is not offered
 		t.Fatalf("offered under the rule = %q", got)
 	}
 	// without the rule, a connection outside the network (a public address, a name, an address that is not known) is offered only once
@@ -1052,7 +1054,7 @@ func TestContract_INV3_AskConnectionToolsStayInsideWhileTheRuleIsOn(t *testing.T
 	b := setup(t, false)
 	b.fake.play(turn{text: "Nothing."})
 	b.ask("What does the firewall say?", 200, "")
-	if got := connNames(b); got != "conn_cg__fetch_url,conn_in1__fetch_url" {
+	if got := connNames(b); got != "conn_in1__fetch_url" {
 		t.Fatalf("offered without the rule, none allowed = %q", got)
 	}
 	for _, id := range []string{"pub", "named", "unknown"} {

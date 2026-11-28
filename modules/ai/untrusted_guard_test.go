@@ -203,3 +203,22 @@ func TestUntrustedTextIsCleanedBeforeTheHooks(t *testing.T) {
 		t.Fatal("an invalid CVE id went into an instruction")
 	}
 }
+
+// "Strict" is literal: a key must be written exactly as the schema names it (Go's decoder would take "STATUS" for "status"), and a key
+// given twice is refused (the decoder would keep the last one).
+func TestDecodeAnswerTakesExactKeysOnce(t *testing.T) {
+	type item struct {
+		Status string `json:"status"`
+	}
+	type answer struct {
+		Items []item `json:"items"`
+	}
+	for _, bad := range []string{`{"items":[{"STATUS":"fixed"}]}`, `{"Items":[]}`, `{"items":[{"status":"unsure","status":"fixed"}]}`, `{"items":[],"items":[]}`} {
+		if _, err := decodeAnswer[answer](bad, nil); err == nil {
+			t.Errorf("accepted %s", bad)
+		}
+	}
+	if a, err := decodeAnswer[answer](`{"items":[{"status":"fixed"}]}`, nil); err != nil || a.Items[0].Status != "fixed" {
+		t.Fatalf("%+v %v", a, err)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -174,6 +175,9 @@ func maskedInstruction(q string) Instruction { return Instruction(q) }
 // indexes in range). Any failure is ErrBadOutput: the answer is discarded, never repaired.
 func decodeAnswer[T any](text string, check func(*T) error) (T, error) {
 	var v T
+	if err := exactKeys(json.NewDecoder(strings.NewReader(strings.TrimSpace(text))), reflect.TypeOf(v)); err != nil {
+		return v, fmt.Errorf("%w: %s", ErrBadOutput, clipRunes(err.Error(), 200))
+	}
 	dec := json.NewDecoder(bytes.NewReader([]byte(strings.TrimSpace(text))))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&v); err != nil {
@@ -188,6 +192,76 @@ func decodeAnswer[T any](text string, check func(*T) error) (T, error) {
 		}
 	}
 	return v, nil
+}
+
+// exactKeys walks one JSON value beside the Go type it is decoded into and refuses a key the type does not name exactly (encoding/json
+// matches keys without regard to case) and a key an object gives twice (encoding/json keeps the last one).
+func exactKeys(dec *json.Decoder, t reflect.Type) error {
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	d, isDelim := tok.(json.Delim)
+	if !isDelim {
+		return nil
+	}
+	switch d {
+	case '{':
+		fields := map[string]reflect.Type{}
+		if t != nil && t.Kind() == reflect.Struct {
+			for i := range t.NumField() {
+				f := t.Field(i)
+				name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+				if name == "" {
+					name = f.Name
+				}
+				if name != "-" && f.IsExported() {
+					fields[name] = f.Type
+				}
+			}
+		}
+		seen := map[string]bool{}
+		for dec.More() {
+			kt, err := dec.Token()
+			if err != nil {
+				return err
+			}
+			key, _ := kt.(string)
+			if seen[key] {
+				return fmt.Errorf("the key %q is given twice", clipRunes(key, 40))
+			}
+			seen[key] = true
+			var sub reflect.Type
+			switch {
+			case t != nil && t.Kind() == reflect.Struct:
+				ft, ok := fields[key]
+				if !ok {
+					return fmt.Errorf("the key %q is not one the answer has", clipRunes(key, 40))
+				}
+				sub = ft
+			case t != nil && t.Kind() == reflect.Map:
+				sub = t.Elem()
+			}
+			if err := exactKeys(dec, sub); err != nil {
+				return err
+			}
+		}
+	case '[':
+		var sub reflect.Type
+		if t != nil && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) {
+			sub = t.Elem()
+		}
+		for dec.More() {
+			if err := exactKeys(dec, sub); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = dec.Token() // the closing delimiter
+	return err
 }
 
 // capRunes is the length check of one answer field: at most n characters.

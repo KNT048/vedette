@@ -83,9 +83,24 @@ func (p power) permits(class toolClass, name string) bool {
 // ---- connections outside the network in Ask
 
 // askConnSetting is ai_setting key `ask_connections`: per connection id, whether an administrator allowed Ask to use that connection
-// although it is outside the network (true), or decided not to (false). No entry = not decided = not allowed.
+// although it is outside the network, and the address it pointed to then. No entry, or an entry for another address (the connection
+// was moved since), = not decided = not allowed.
 type askConnSetting struct {
-	Allowed map[string]bool `json:"allowed"`
+	Connections map[string]askConnChoice `json:"connections"`
+}
+
+type askConnChoice struct {
+	Allowed bool   `json:"allowed"`
+	Address string `json:"address"`
+}
+
+// choice is the decision for the connection at its current address: decided only when it was made for that address.
+func (v askConnSetting) choice(id, address string) (allowed, decided bool) {
+	c, ok := v.Connections[id]
+	if !ok || c.Address != address {
+		return false, false
+	}
+	return c.Allowed, true
 }
 
 func (s *Service) askConnections(ctx context.Context, q interface {
@@ -94,7 +109,7 @@ func (s *Service) askConnections(ctx context.Context, q interface {
 	var raw string
 	err := q.QueryRowContext(ctx, `SELECT value FROM ai_setting WHERE key = 'ask_connections'`).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		return askConnSetting{Allowed: map[string]bool{}}, nil
+		return askConnSetting{Connections: map[string]askConnChoice{}}, nil
 	}
 	if err != nil {
 		return askConnSetting{}, fmt.Errorf("ai: ask connections: %w", err)
@@ -103,16 +118,25 @@ func (s *Service) askConnections(ctx context.Context, q interface {
 	if err := json.Unmarshal([]byte(raw), &v); err != nil {
 		return askConnSetting{}, fmt.Errorf("ai: ask connections: %w", err)
 	}
-	if v.Allowed == nil {
-		v.Allowed = map[string]bool{}
+	if v.Connections == nil {
+		v.Connections = map[string]askConnChoice{}
 	}
 	return v, nil
 }
 
-// askAllows reports whether Ask may use the connection outside the network now; a setting that cannot be read allows nothing.
+// askAllows reports whether Ask may use the connection outside the network now, at the address it points to now; a setting or an
+// address that cannot be read allows nothing.
 func (s *Service) askAllows(ctx context.Context, connID string) bool {
+	if s.cfg.ConnTargets == nil {
+		return false
+	}
+	targets, err := s.cfg.ConnTargets(ctx)
+	if err != nil {
+		return false
+	}
 	v, err := s.askConnections(ctx, s.cfg.DB.Reader())
-	return err == nil && v.Allowed[connID]
+	allowed, _ := v.choice(connID, targets[connID])
+	return err == nil && allowed
 }
 
 // AskConnection is one connection outside the network that has read tools, with whether Ask may use it.
@@ -122,6 +146,7 @@ type AskConnection struct {
 	Address string `json:"address"`
 	Allowed bool   `json:"allowed"`
 	Decided bool   `json:"decided"`
+	target  string // the address as core/conn has it, unclipped: what a decision is for
 }
 
 // AskConnectionsView is GET /ai/ask/connections. Notice is set while a connection outside the network has not been decided: the page
@@ -156,7 +181,7 @@ func (s *Service) outsideConnections(ctx context.Context) ([]AskConnection, erro
 			continue
 		}
 		seen[rt.ConnectionID] = true
-		out = append(out, AskConnection{ID: rt.ConnectionID, Name: clip(rt.ConnectionName, 60), Address: clip(targets[rt.ConnectionID], 200)})
+		out = append(out, AskConnection{ID: rt.ConnectionID, Name: clip(rt.ConnectionName, 60), Address: clip(targets[rt.ConnectionID], 200), target: targets[rt.ConnectionID]})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Name < out[j].Name || out[i].Name == out[j].Name && out[i].ID < out[j].ID
@@ -176,8 +201,7 @@ func (s *Service) AskConnections(ctx context.Context) (AskConnectionsView, error
 	}
 	v := AskConnectionsView{Items: []AskConnection{}}
 	for _, c := range list {
-		c.Allowed, c.Decided = set.Allowed[c.ID]
-		c.Allowed = c.Allowed && c.Decided
+		c.Allowed, c.Decided = set.choice(c.ID, c.target)
 		v.Notice = v.Notice || !c.Decided
 		v.Items = append(v.Items, c)
 	}
@@ -204,7 +228,7 @@ func (s *Service) SetAskConnection(ctx context.Context, who, id string, allowed 
 		if err != nil {
 			return err
 		}
-		set.Allowed[id] = allowed
+		set.Connections[id] = askConnChoice{Allowed: allowed, Address: list[i].target}
 		if err := upsertSetting(ctx, tx, "ask_connections", set, s.cfg.Clock(), who); err != nil {
 			return err
 		}

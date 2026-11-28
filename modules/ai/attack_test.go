@@ -412,7 +412,7 @@ func TestAttackMatrix(t *testing.T) {
 // have read its goal.
 func resetAttack(t *testing.T, a *api) {
 	t.Helper()
-	a.env.t = t
+	a.t = t
 	a.clock.Add(31 * time.Minute)
 	d, f := newFakeData(), newFacts()
 	a.data.mu.Lock()

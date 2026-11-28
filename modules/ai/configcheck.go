@@ -42,6 +42,7 @@ var riskText = map[string]string{ //nolint:gosec // sentences for the page, not 
 const maxConfigWarnings = 20
 
 var (
+	regDZero  = regexp.MustCompile(`/d\s+0(\s|$)`)
 	wanName   = regexp.MustCompile(`(?i)\b(wan\d*|outside|internet|untrust(ed)?|external|ppp\d*|pppoe\d*|dialer\d*)\b`)
 	mgmtPorts = map[string]bool{"22": true, "23": true, "80": true, "161": true, "443": true, "3389": true, "5900": true, "8080": true, "8291": true, "8443": true, "8728": true, "8729": true,
 		"ssh": true, "telnet": true, "http": true, "https": true, "snmp": true, "rdp": true, "winbox": true}
@@ -164,6 +165,8 @@ func CheckConfig(code string) []ConfigWarning {
 				add(n, RiskLoggingOff)
 			case key == "allowaccess" && sec == "system interface" && wanName.MatchString(edit) && slices.ContainsFunc(vals, func(v string) bool { return slices.Contains(mgmtServices, v) }):
 				add(n, RiskManagementUp)
+			case strings.HasPrefix(key, "trusthost") && len(vals) > 0 && (anyAddr(vals[0]) || vals[0] == "0.0.0.0" && (len(vals) == 1 || vals[1] == "0.0.0.0")):
+				add(n, RiskManagementUp) // an administrator may sign in from any address
 			case key == "password" || key == "passwd" || key == "psksecret" || key == "secret" || strings.HasSuffix(key, "-password"):
 				add(n, RiskCredential)
 			case key == "status" && len(vals) > 0 && vals[0] == "disable" && (sec == "firewall policy" || sec == "system auto-update"):
@@ -321,7 +324,8 @@ func CheckConfig(code string) []ConfigWarning {
 			continue
 		}
 		if i := slices.Index(f, "permit"); i >= 0 && (cmd == "access-list" || cmd == "permit" || i <= 3 && isNumber(cmd)) {
-			if ciscoAnyAny(f[i+1:]) {
+			rest := f[i+1:]
+			if ciscoAnyAny(rest) || len(rest) == 1 && anyAddr(rest[0]) || len(rest) == 2 && rest[0] == "0.0.0.0" && rest[1] == "255.255.255.255" { // a standard ACL: the source only
 				add(n, RiskBroadAllow)
 			}
 			continue
@@ -347,7 +351,7 @@ func CheckConfig(code string) []ConfigWarning {
 			add(n, RiskManagementUp)
 		case (cmd == "http" || cmd == "ssh" || cmd == "telnet") && len(f) == 4 && (f[1] == "0.0.0.0" || f[1] == "0") && wanName.MatchString(f[3]):
 			add(n, RiskManagementUp)
-		case cmd == "no" && len(f) > 2 && (f[1] == "access-group" || f[1] == "ip" && f[2] == "access-group"):
+		case cmd == "no" && len(f) > 2 && (f[1] == "access-group" || f[1] == "access-list" || f[1] == "ip" && f[2] == "access-group"):
 			add(n, RiskProtectOff)
 		}
 
@@ -449,7 +453,7 @@ func checkIptables(args []string, n int, add func(int, string)) {
 	case target != "ACCEPT" || chain != "INPUT" && chain != "FORWARD" || src != "" && !anyAddr(src) || iface == "lo":
 	case port != "" && slices.ContainsFunc(strings.Split(port, ","), func(p string) bool { return mgmtPorts[p] }):
 		add(n, RiskManagementUp)
-	case port == "" && opt["--state"]+opt["--ctstate"] == "" && opt["-p"]+opt["--protocol"] == "" && (iface == "" || wanName.MatchString(iface)):
+	case port == "" && opt["--state"]+opt["--ctstate"] == "" && !strings.Contains(strings.ToLower(opt["-p"]+opt["--protocol"]), "icmp") && (iface == "" || wanName.MatchString(iface)):
 		add(n, RiskBroadAllow)
 	}
 }
@@ -490,8 +494,16 @@ func checkHostCommand(f []string, low string, n int, add func(int, string)) {
 		add(n, RiskProtectOff)
 	case cmd == "ufw" && arg(1) == "default" && arg(2) == "allow":
 		add(n, RiskBroadAllow)
-	case cmd == "ufw" && arg(1) == "allow" && !slices.Contains(f, "from"):
-		if p, _, _ := strings.Cut(arg(2), "/"); mgmtPorts[p] {
+	case cmd == "ufw" && arg(1) == "allow":
+		from := ""
+		if i := slices.Index(f, "from"); i >= 0 && i+1 < len(f) {
+			from = f[i+1]
+		}
+		port := arg(2)
+		if i := slices.Index(f, "port"); i >= 0 && i+1 < len(f) {
+			port = f[i+1]
+		}
+		if p, _, _ := strings.Cut(port, "/"); mgmtPorts[p] && (from == "" || anyAddr(from)) {
 			add(n, RiskManagementUp)
 		}
 	case cmd == "netsh" && strings.Contains(low, "add rule") && strings.Contains(low, "action=allow") && !strings.Contains(low, "remoteip="):
@@ -512,6 +524,8 @@ func checkHostCommand(f []string, low string, n int, add func(int, string)) {
 		} else {
 			add(n, RiskBroadAllow)
 		}
+	case cmd == "reg" && strings.Contains(low, "fdenytsconnections") && regDZero.MatchString(low):
+		add(n, RiskManagementUp) // turns Remote Desktop on
 	case cmd == "auditpol" && strings.Contains(low, ":disable"), cmd == "wevtutil" && (arg(1) == "cl" || arg(1) == "sl" && strings.Contains(low, "/e:false")):
 		add(n, RiskLoggingOff)
 	}

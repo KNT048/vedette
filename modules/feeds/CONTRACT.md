@@ -74,7 +74,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-41** The CVE Program's list of CNAs (`cve-cna-list`, `CNAsList.json` from `CVEProject/cve-website`, the list cve.org shows) is
   pulled once a week, at most 2,000,000 bytes, conditional on its ETag, and replaces `feeds_cna` whole: per CNA its short name (lower
   case; a short name two CNAs share is left out), organization name and whether it may be a vendor (`cnaMayBeVendor`: typed Vendor or
-  Open Source, and a scope that does not take the reports of other CNAs' products); no contact data. A list that is not one JSON array,
+  Open Source, and a scope that does not define itself against another CNA's scope); no contact data. A list that is not one JSON array,
   holds no usable entry, or holds fewer than half the CNAs stored is refused and the stored list kept. A record's CNA is the vendor's
   own by the list when one form of its organization name (`cnaOrgForms`: case, punctuation, a leading "The", parts in parentheses and
   trailing legal-form words set aside) is the row's vendor; no name of a vendor or CNA is written in code or data. The list is read only

@@ -451,7 +451,8 @@ func matchRows(rows []Range) []Range {
 }
 
 // recordComplete says, per product of the CNA's generic rows of one CVE (recordKey), whether every row states what a version the
-// record does not list is (defaultStatus affected or unaffected; a third-party CNA's "unaffected" is stored unknown: ownCNA).
+// record does not list is (defaultStatus affected or unaffected, as the rows are read: a third-party CNA's "unaffected" is read as
+// unknown, trustRow).
 func recordComplete(rows []Range) map[[3]string]bool {
 	out := map[[3]string]bool{}
 	for _, r := range rows {

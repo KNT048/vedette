@@ -354,3 +354,42 @@ func fmtJSON(t *testing.T, v any) string {
 	}
 	return string(b)
 }
+
+// The AI never closes its own finding with a newer "affected" either: one whose quote the box did not find decides nothing, and one
+// whose bounds leave the installed version out says, for that version, what "not affected" says. Neither ends the finding the older
+// reading opened.
+func TestResearch_ANewerAffectedAnswerDoesNotCloseTheAIFinding(t *testing.T) {
+	t.Parallel()
+	unchecked := quillResearch(StatementAffected, QuoteNotFound, "Quillfeather Mail 115.9.0 is affected and fixed in 115.13", "")
+	unchecked.Verdict.Introduced, unchecked.Verdict.FixedIn = "", "115.13"
+	outside := quillResearch(StatementAffected, QuoteTool, "Quillfeather Mail 115.10 through 115.11 is affected", "QSA-2026-17 (CVE-2026-991001): Quillfeather Mail 115.10 through 115.11 is affected.")
+	outside.Verdict.Introduced, outside.Verdict.FixedIn, outside.Verdict.LastAffected = "115.10", "", "115.11"
+	for name, newer := range map[string]ResearchAnswer{"unchecked quote": unchecked, "bounds leave the version out": outside} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorld(t, "115.9.0")
+			fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementAffected, QuoteTool, quillAffected, quillSAText)}
+			fc.pages["elsewhere"] = []FetchedPage{{URL: quillSA, Status: "ok", Text: quillSAText}}
+			runCheck(t, e)
+			if quillFindings(t, e) != 1 {
+				t.Fatal("the affected research opened no finding")
+			}
+			fc.answers[cveQuill+"|115.9.0"] = newer
+			fc.pages["elsewhere"][0].Text = "QSA-2026-17 was revised."
+			e.feeds.vulns[0].Stamp = "revised"
+			if _, err := e.svc.Reconcile(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			runCheck(t, e)
+			if len(fc.research) != 2 {
+				t.Fatalf("%d researches, want the line researched again", len(fc.research))
+			}
+			if _, err := e.svc.Reconcile(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			if quillFindings(t, e) != 1 {
+				t.Fatal("the AI's newer affected answer closed the finding its older reading opened")
+			}
+		})
+	}
+}

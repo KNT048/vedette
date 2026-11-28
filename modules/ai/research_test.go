@@ -369,3 +369,25 @@ func TestResearch_AutomaticPaceAndDailyNumber(t *testing.T) {
 		t.Error("a call past the daily number was sent")
 	}
 }
+
+// A quote counts as checked only when the whole of it is in the text: a quote whose first words are the vendor's sentence but whose end
+// the model wrote itself (here a release the vendor never named) is not a checked quote, whatever the share of words that match.
+func TestResearch_QuoteWithAMadeUpEndIsNotChecked(t *testing.T) {
+	a := researchSetup(t, ai.ResearchEconomy, false)
+	pageServer(t, a)
+	const real = "Widget releases 4.0 through 4.2.0 are affected by this issue"
+	la := &layerAnswers{by: map[string]string{"Quick": verdict("affected", "high", real+" and 4.1.3")},
+		texts: map[string][]string{"Quick": {"Advisory for CVE-2099-81001. " + real + ". Update to 4.2.1."}}}
+	a.fake.research = la.answer
+	ans, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ai.QuoteChecked(ans.QuoteCheck) {
+		t.Errorf("quote check %s: a quote whose end is not in the text was taken as checked", ans.QuoteCheck)
+	}
+	la.by["Quick"] = verdict("affected", "high", real)
+	if ans, _ = a.svc.Research(a.ctx(), "it@acme.example", researchReq); ans.QuoteCheck != ai.QuoteTool {
+		t.Errorf("the whole sentence: %s", ans.QuoteCheck)
+	}
+}

@@ -148,13 +148,13 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 	if st.Basis != "" && st.Basis != BasisStated && st.Basis != BasisUnpaired && st.Basis != BasisInferred {
 		return fmt.Errorf("findings: bad reading basis %q", st.Basis)
 	}
-	// a newer reading that may not call the line affected keeps the older ones that did: the finding they opened stays until a person
-	// confirms the newer answer (lineReading.held, P-12); a newer "affected" replaces them all, and so does a newer one stating the same
-	keepAffected := st.Status != StatementAffected
+	// a newer reading keeps the older ones that called the line affected with a found quote: the finding they opened stays until a
+	// person confirms the newer answer (lineReading.held, P-12). That holds for a newer "affected" too, whose bounds may leave out a
+	// version the older reading put inside; only a newer one stating the same replaces them
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL AND statement_key <> ?
-		AND NOT (? AND status IN ('affected', 'fixed') AND quote_found = 1
+		AND NOT (status IN ('affected', 'fixed') AND quote_found = 1
 			AND NOT (status = ? AND ifnull(fixed_in, '') = ? AND ifnull(last_affected, '') = ? AND ifnull(introduced, '') = ?))`,
-		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key, keepAffected, st.Status, clipBytes(st.FixedIn, 100), clipBytes(st.Last, 100),
+		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key, st.Status, clipBytes(st.FixedIn, 100), clipBytes(st.Last, 100),
 		clipBytes(st.Introduced, 100)); err != nil {
 		return fmt.Errorf("findings: replacing a reading: %w", err)
 	}

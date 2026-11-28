@@ -421,9 +421,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`AiReading.research`). Outcomes: "affected" with a checked quote opens a finding (range origin `ai_read`), with no checked quote it
   decides nothing (`TestResearch_AffectedOpensOnlyWithACheckedQuote`); "not affected" never closes anything: the question stays open
   as a proposal for a person (`TestResearch_NotAffectedNeverClosesARow`); "unsure" stays possible with the AI's reason. **The AI never
-  closes its own finding either:** a newer reading that no longer calls the version affected (not affected, unsure, past a fix) keeps
-  the older readings that did (`storeStatement`: an older affected or fixed reading whose quote was found stays unless the newer one
-  is "affected" or states the same bounds), and the match keeps the finding detected on the newest of them (`lineReading.held`) while
+  closes its own finding either:** a newer reading that no longer calls the version affected (not affected, unsure, past a fix, or
+  "affected" with bounds that leave the version out) keeps the older readings that did (`storeStatement`: an older affected or fixed
+  reading whose quote was found stays unless the newer one states the same status and bounds;
+  `TestResearch_ANewerAffectedAnswerDoesNotCloseTheAIFinding`), and the match keeps the finding detected on the newest of them (`lineReading.held`) while
   its question is stored with `Detail.Review` (never in Needs your input or the possible list): it waits in Review AI answers with
   `PossibleRow.finding` naming the open finding, and only a person's confirmation closes it (`ConfirmReview` answers the question not
   affected and matches the device again; an exploited CVE only when named; rejecting the older reading does too). A newer "affected"

@@ -594,17 +594,11 @@ func normQuote(s string) string {
 	return reSpacePunct.ReplaceAllString(s, "$1") // "**affected**;" folds to "affected;"
 }
 
-// quoteIn finds the folded quote q in one of texts: whole, or its first four fifths (at least six words) when it has six words or more
-// (a model that cuts the end of a long sentence).
+// quoteIn finds the folded quote q, whole, in one of texts. A quote of which only a part is found is not checked: the part the model
+// wrote itself may be the very release that decides the verdict.
 func quoteIn(q string, texts []string) (string, bool) {
-	w := strings.Fields(q)
-	head := ""
-	if len(w) >= 6 {
-		head = strings.Join(w[:max(6, len(w)*4/5)], " ")
-	}
 	for _, t := range texts {
-		n := normQuote(t)
-		if strings.Contains(n, q) || head != "" && strings.Contains(n, head) {
+		if strings.Contains(normQuote(t), q) {
 			return t, true
 		}
 	}

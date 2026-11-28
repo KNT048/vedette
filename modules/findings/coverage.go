@@ -176,8 +176,9 @@ func (c *covers) set(id string, d deviceCover) {
 }
 
 // pass keeps only the devices of live and stores their sum as the last pass's coverage, with the CVEs the pass set aside as outside the
-// reporting window.
-func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
+// reporting window. The closing gate's answers in shadow are summed only on a pass that recorded them (shadow): a pass without it
+// reports none, even of a device that kept its counts from an earlier pass, and drops the closures recorded meanwhile.
+func (c *covers) pass(live map[string]bool, at time.Time, outside int, shadow bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	maps.DeleteFunc(c.m, func(id string, _ deviceCover) bool { return !live[id] })
@@ -186,6 +187,9 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	var gate map[gateCount]int // nil when the shadow is off
 	for _, d := range c.m {
 		for k, n := range d.gate {
+			if !shadow {
+				break
+			}
 			if gate == nil {
 				gate = map[gateCount]int{}
 			}
@@ -234,9 +238,10 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 		out.Identity = append(out.Identity, CoverageMethod{Method: m, Lines: identity[m]})
 	}
 	c.gate = gateReport{}
-	if gate != nil || c.gone != nil {
+	if shadow && (gate != nil || c.gone != nil) {
 		c.gate = gateReport{would: sortedGateCounts(gate), gone: c.takeGone()}
 	}
+	c.gone = nil
 	c.last = &out
 }
 

@@ -59,11 +59,13 @@ type gateShadow struct {
 
 // ShadowGate switches the closing gate's shadow on or off for the next passes: with it on, each closing step records what the gate
 // would read from it, and the pass keeps the gate's answers in memory beside its counts (for measurement runs; nothing reads them to
-// decide). Off by default, and then no shadow work is done.
+// decide). Off by default, and then no shadow work is done. A pass reads the setting once, when it starts, and the device match stamp
+// holds it: the first pass after a switch matches every device again, so its report never mixes the two settings.
 func (s *Service) ShadowGate(on bool) { s.gateShadow.Store(on) }
 
 // shadowGate makes every row of the device match record the gate's shadow.
 func (d *devMatch) shadowGate() {
+	d.shadow = true
 	for i := range d.infos {
 		d.infos[i].shadow = true
 	}
@@ -372,10 +374,10 @@ func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 func nextStart(end string, starts []string, branched bool) string {
 	next := ""
 	for _, st := range starts {
-		if c, ok := CompareVersions(st, end); ok && c > 0 {
+		if c, ok := compareBound(st, end); ok && c > 0 { // with build tails, as the gate reads the span (compareIn)
 			if next == "" {
 				next = st
-			} else if c2, ok := CompareVersions(st, next); ok && c2 < 0 {
+			} else if c2, ok := compareBound(st, next); ok && c2 < 0 {
 				next = st
 			}
 		}

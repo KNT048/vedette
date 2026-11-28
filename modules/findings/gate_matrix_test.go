@@ -519,3 +519,14 @@ func TestGate_StatementWithoutDirectionNeverCloses(t *testing.T) {
 		t.Errorf("gate %s (%s), want undecided (%s)", d.State, d.Cause, CauseNoProof)
 	}
 }
+
+// "Every version but those listed" with nothing listed is not a statement about any version: it never closes.
+func TestGate_AllButNothingListedNeverCloses(t *testing.T) {
+	t.Parallel()
+	p := mProof(mkStated, FormatCVE5, Scope{Product: mProduct, Origin: OriginSet{Any: true}, Platform: PlatformSet{Any: true},
+		Versions: VersionSet{Scheme: SchemeGeneric, AllExceptListed: true}})
+	p.Src.DefaultUnaffected = true
+	if d := Gate(mCVE, mInstall(0, 4), []Proof{p}, nil, false); d.State == GateNotAffected {
+		t.Errorf("closed by an all-but-listed statement that lists nothing")
+	}
+}

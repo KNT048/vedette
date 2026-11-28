@@ -606,7 +606,8 @@ func (s *Service) upsertPart(ctx context.Context, a Asset, vulns []Vuln, judged 
 		if whole != nil {
 			qm = *whole
 		}
-		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
+		// the shadow of a pass's match; not of one computed again for a newer reading (MatchAsset records none)
+		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit, pre != nil && pre.dm.shadow && !changed)
 		res = r
 		if err != nil || pre == nil {
 			return err

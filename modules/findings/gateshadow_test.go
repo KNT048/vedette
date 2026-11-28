@@ -147,3 +147,39 @@ func BenchmarkMatchAsset_NotAffectedHeavyShadowOn(b *testing.B) {
 		dm.result(nil, nil)
 	}
 }
+
+// Switching the shadow between passes never leaves a report of the other setting: a device the next pass would skip as unchanged is
+// matched again, so a pass with the shadow on reads every device with it, and a pass with it off reports nothing.
+func TestGateShadow_SwitchingBetweenPassesNeverMixesThem(t *testing.T) {
+	t.Parallel()
+	for _, first := range []bool{true, false} {
+		e := newEnv(t)
+		e.svc.ShadowGate(first)
+		e.inv.assets = map[string]AssetView{"a-1": {ID: "a-1", Hostname: ptr("nas01"), IP: "192.0.2.10", Kind: "nas", Approved: true}}
+		rows := []Affected{{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.0.5"}}, {CPE: qnapCPE, Range: VersionRange{StartIncl: "6.1", EndExcl: "6.1.2"}}}
+		e.feeds.vulns = []Vuln{qnapVuln(rows...)}
+		e.inv.match = map[string]Asset{"a-1": nas("6.1.4")} // not affected: the ranges producer proves it
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		if n := len(e.svc.gateShadowReport().would); (n > 0) != first {
+			t.Fatalf("shadow %t: first pass reports %d groups", first, n)
+		}
+		e.svc.ShadowGate(!first)
+		e.advance(ReconcileEvery)
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		if n := len(e.svc.gateShadowReport().would); (n > 0) == first {
+			t.Errorf("switched to %t: the next pass reports %d groups, as the previous setting did", !first, n)
+		}
+	}
+}
+
+// A fix holds up to the next row's start, read with its build tail: a row from 13.1-49.20 starts after a fix at 13.1-49.15.
+func TestGateShadow_NextStartReadsBuildTails(t *testing.T) {
+	t.Parallel()
+	if got := nextStart("13.1-49.15", []string{"13.1-48.10", "13.1-49.20"}, false); got != "13.1-49.20" {
+		t.Errorf("next start = %q, want 13.1-49.20", got)
+	}
+}

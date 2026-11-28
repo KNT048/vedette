@@ -116,6 +116,10 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 	if vs.AllExceptListed && f != FormatOSV && (f != FormatCVE5 || !p.Src.DefaultUnaffected) {
 		return false, CauseKindNotAllowed
 	}
+	// and only when it lists something: every version but none is not a statement about any version
+	if vs.AllExceptListed && !vs.Every && len(vs.Ranges)+len(vs.Exact) == 0 {
+		return false, CauseKindNotAllowed
+	}
 	switch p.Kind {
 	case ProofFixedAt: // a fix: spans that start at the fixed release
 		if vs.Every || vs.AllExceptListed || len(vs.Exact) > 0 || len(vs.Ranges) == 0 {

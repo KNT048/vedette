@@ -42,7 +42,9 @@ func storedLine(id string) string {
 //   - every finding of the device that was detected until now, whose CVE is in vulns and that this match no longer detects, goes
 //     away the way the data says (goneVia): a safe check's proof or a person's confirmation holds against data alone (Transition);
 //   - the device's questions become those of qm (the match of the whole list).
-func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any)) (UpsertResult, error) {
+//
+// shadow: m is a match that recorded the closing gate's shadow; each finding it closes as gone then records the gate's answer too.
+func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any), shadow bool) (UpsertResult, error) {
 	var res UpsertResult
 	byKey := make(map[string]Finding, len(existing))
 	for _, f := range existing {
@@ -175,7 +177,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		}
 		if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvHandled }) {
 			res.Closed++
-			if s.gateShadow.Load() { // the closing gate's answer in shadow: recorded, never read here
+			if shadow { // the closing gate's answer in shadow: recorded, never read here
 				p, hasProof := proofs[lineKey(f.CVE, f.SoftwareID)]
 				s.covers.recordGone(gateGoneOf(a, lines, vulns, f, via, via == ViaDataCorrected && corrected && by != "", p, hasProof))
 			}
@@ -545,7 +547,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	} else {
 		res.Closed += n
 	}
-	in := passInput{set: newMatchSet(vulns), ok: true}
+	in := passInput{set: newMatchSet(vulns), ok: true, shadow: s.gateShadow.Load()}
 	if s.cfg.HaveSince != nil {
 		if in.since, err = s.cfg.HaveSince(ctx); err != nil {
 			in.ok = false // every device is matched; its write reports the error
@@ -580,7 +582,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	}
 	s.stamps.keepOnly(matched)
 	if len(vulns) > 0 {
-		s.covers.pass(matched, s.now().UTC(), len(outside))
+		s.covers.pass(matched, s.now().UTC(), len(outside), in.shadow)
 		if err := s.storeCoverage(ctx); err != nil { // counts only: the pass's writes stand
 			if ctx.Err() != nil {
 				return res, ctx.Err()
@@ -746,7 +748,7 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 	// The device's rows are read once and each entry once: the whole match (its questions: which findings exist does not change them)
 	// and each write's match of its part are assembled from the same readings (devMatch).
 	dm := newDevMatch(a, dev, now)
-	if s.gateShadow.Load() {
+	if in.shadow {
 		dm.shadowGate()
 	}
 	whole := dm.result(nil, nil)

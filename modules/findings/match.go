@@ -707,6 +707,8 @@ type devMatch struct {
 	reads     []*entryRead  // per entry, its reading of the rows; nil until asked
 	// own is, per row the AI identified (Software.AIProduct), the row read by its own names alone; nil for every other row.
 	own []*ownRow
+	// shadow: its rows record the closing gate's shadow (shadowGate).
+	shadow bool
 }
 
 // ownRow is a row the AI identified as its own names alone read it: its reading, its KEV keys and the entries NVD's list may name it in.

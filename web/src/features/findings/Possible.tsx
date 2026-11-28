@@ -806,7 +806,16 @@ function OlderBuilds({ rows, withDevice = false }: { rows: PossibleRow[]; withDe
         <div id="possible-older-builds" className="grid gap-1 sm:pl-6">
           <p className="text-meta text-muted">{t('possible.olderBuild.body')}</p>
           <RowList label={t('possible.olderBuild.caption')}>
-            {lines.map((l) => <LineBlock key={l.key} l={l} withDevice={withDevice} bulk={false} />)}
+            {lines.map((l) => {
+              const name = nameOf(l.software, t('possible.theSoftware'))
+              return (
+                // the software line first, its device beside it when the list is of every device
+                <ListRow key={l.key} testId="possible-line" label={withDevice ? `${l.device.name}: ${name}` : name} title={name}
+                  sub={withDevice ? l.device.name : undefined} meta={[t('possible.line.count', { count: l.rows.length })]}>
+                  <Rows rows={l.rows} label={t('possible.line.cvesOf', { software: name, device: l.device.name })} />
+                </ListRow>
+              )
+            })}
           </RowList>
         </div>
       ) : null}

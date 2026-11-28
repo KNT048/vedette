@@ -212963,6 +212963,10 @@ func (s *FindingsGetFindingsOverviewOKPossible) encodeFields(e *jx.Encoder) {
 		s.Causes.Encode(e)
 	}
 	{
+		e.FieldStart("older_build")
+		e.Int(s.OlderBuild)
+	}
+	{
 		e.FieldStart("possible")
 		e.Int(s.Possible)
 	}
@@ -212980,12 +212984,13 @@ func (s *FindingsGetFindingsOverviewOKPossible) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOverviewOKPossible = [5]string{
+var jsonFieldsNameOfFindingsGetFindingsOverviewOKPossible = [6]string{
 	0: "causes",
-	1: "possible",
-	2: "proposals",
-	3: "settled",
-	4: "unchecked",
+	1: "older_build",
+	2: "possible",
+	3: "proposals",
+	4: "settled",
+	5: "unchecked",
 }
 
 // Decode decodes FindingsGetFindingsOverviewOKPossible from json.
@@ -213007,8 +213012,20 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"causes\"")
 			}
-		case "possible":
+		case "older_build":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.OlderBuild = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"older_build\"")
+			}
+		case "possible":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.Possible = int(v)
@@ -213020,7 +213037,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"possible\"")
 			}
 		case "proposals":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -213032,7 +213049,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "settled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Settled = int(v)
@@ -213044,7 +213061,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"settled\"")
 			}
 		case "unchecked":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Unchecked = int(v)
@@ -213065,7 +213082,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214220,6 +214237,10 @@ func (s *FindingsGetFindingsPossibleOKCounts) encodeFields(e *jx.Encoder) {
 		s.Causes.Encode(e)
 	}
 	{
+		e.FieldStart("older_build")
+		e.Int(s.OlderBuild)
+	}
+	{
 		e.FieldStart("possible")
 		e.Int(s.Possible)
 	}
@@ -214237,12 +214258,13 @@ func (s *FindingsGetFindingsPossibleOKCounts) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKCounts = [5]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKCounts = [6]string{
 	0: "causes",
-	1: "possible",
-	2: "proposals",
-	3: "settled",
-	4: "unchecked",
+	1: "older_build",
+	2: "possible",
+	3: "proposals",
+	4: "settled",
+	5: "unchecked",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKCounts from json.
@@ -214264,8 +214286,20 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"causes\"")
 			}
-		case "possible":
+		case "older_build":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.OlderBuild = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"older_build\"")
+			}
+		case "possible":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.Possible = int(v)
@@ -214277,7 +214311,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"possible\"")
 			}
 		case "proposals":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -214289,7 +214323,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "settled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Settled = int(v)
@@ -214301,7 +214335,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"settled\"")
 			}
 		case "unchecked":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Unchecked = int(v)
@@ -214322,7 +214356,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214663,6 +214697,10 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.Line.Encode(e)
 	}
 	{
+		e.FieldStart("older_build")
+		s.OlderBuild.Encode(e)
+	}
+	{
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
@@ -214680,7 +214718,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItem = [16]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItem = [17]string{
 	0:  "bulk",
 	1:  "cause",
 	2:  "check",
@@ -214693,10 +214731,11 @@ var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItem = [16]string{
 	9:  "id",
 	10: "kind",
 	11: "line",
-	12: "severity",
-	13: "software",
-	14: "state",
-	15: "undecided",
+	12: "older_build",
+	13: "severity",
+	14: "software",
+	15: "state",
+	16: "undecided",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKItemsItem from json.
@@ -214704,7 +214743,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsPossibleOKItemsItem to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -214848,8 +214887,18 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"line\"")
 			}
-		case "severity":
+		case "older_build":
 			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				if err := s.OlderBuild.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"older_build\"")
+			}
+		case "severity":
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -214859,7 +214908,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "software":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Software.Decode(d); err != nil {
 					return err
@@ -214869,7 +214918,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "state":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -214879,7 +214928,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "undecided":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Undecided.Decode(d); err != nil {
 					return err
@@ -214897,9 +214946,10 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -216464,6 +216514,131 @@ func (s FindingsGetFindingsPossibleOKItemsItemKind) MarshalJSON() ([]byte, error
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsPossibleOKItemsItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("tested")
+		e.ArrStart()
+		for _, elem := range s.Tested {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("year")
+		e.Int(s.Year)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemOlderBuild = [2]string{
+	0: "tested",
+	1: "year",
+}
+
+// Decode decodes FindingsGetFindingsPossibleOKItemsItemOlderBuild from json.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsPossibleOKItemsItemOlderBuild to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "tested":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Tested = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Tested = append(s.Tested, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tested\"")
+			}
+		case "year":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Year = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"year\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsPossibleOKItemsItemOlderBuild")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemOlderBuild) {
+					name = jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemOlderBuild[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -317794,6 +317969,50 @@ func (s NilFindingsGetFindingsPossibleOKItemsItemHeld) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsGetFindingsPossibleOKItemsItemHeld) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsPossibleOKItemsItemOlderBuild as json.
+func (o NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes FindingsGetFindingsPossibleOKItemsItemOlderBuild from json.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsPossibleOKItemsItemOlderBuild to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v FindingsGetFindingsPossibleOKItemsItemOlderBuild
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

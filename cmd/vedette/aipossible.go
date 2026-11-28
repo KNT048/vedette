@@ -46,7 +46,7 @@ func (c possibleChecker) Record(ctx context.Context, cve string) (findings.CVERe
 	if err != nil || !ok {
 		return findings.CVERecordText{}, err
 	}
-	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution}
+	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution, Workaround: b.Workaround}
 	for _, r := range b.Ranges {
 		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r)}
 		if f := strings.Split(r.CPE, ":"); len(f) == 13 && f[9] != "*" && f[9] != "-" {

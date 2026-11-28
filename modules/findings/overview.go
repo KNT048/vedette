@@ -156,7 +156,9 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 	if err != nil {
 		return nil, err
 	}
-	o.Possible = countPossible(pi, s.ReadState(ctx))
+	rs := s.ReadState(ctx)
+	s.markOlderBuilds(ctx, pi, rs)
+	o.Possible = countPossible(pi, rs)
 	if o.First, err = s.firstBlocks(ctx, gs); err != nil {
 		return nil, err
 	}

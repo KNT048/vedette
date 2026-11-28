@@ -367,6 +367,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   again), drops the AI's choice and matches again at once the finding's device and every device whose last match had a line of that
   name (the findings close `data_corrected`, resolved by that person: `goneVia`, `identityRejectedBy`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
   `TestIdentityCandidates`, `TestIdentityScrubber`.
+- **P-10 Reported only for an older build.** A possible CVE whose rows are only the exact builds a third party tested
+  (`third_party_tested_build`), every one older than the release the line runs (`testedBuilds`: `laterThan`, or an older release line by
+  `lineOrder`; a range, a row that does not read or a list `undecidedRows` may have cut reads none), on no exploited list, not a proposal,
+  with no fix the question names, whose cause the record or a reading of it leaves (`vendor_silent`, `ai_unsure`, `needs_reading`,
+  `ai_budget`), and whose CVE record gives no solution, no workaround and no reference tagged as the vendor's (vendor advisory, release
+  notes, patch, mitigation; `recordSilent`, read through `PossibleChecker.Record`) is listed apart (`PossibleRow.older_build`: the builds
+  tested and the year of the CVE id) and counted apart: `PossibleCounts.older_build`, not in `possible`, its `causes` or the device badge
+  (`possibleByDevice`); Home and the lists show both numbers. Without the record (no checker, a read error) the CVE stays in the main list.
+  It changes no decision: the question, its check key, the automatic reading and every answer stay as they are, and nothing closes
+  (`markOlderBuilds`, run by the list, Home and the device counts only). `TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart`,
+  `TestOlderBuild_NoRecordNoGroup`, `TestOlderBuild_TestedBuilds`.
 
 ## Invariants
 

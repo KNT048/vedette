@@ -93,6 +93,7 @@ const (
 type CVERecordText struct {
 	Description string
 	Solution    string // the CNA's solution text, "" when none
+	Workaround  string // the CNA's workaround text, "" when none
 	Rows        []RecordRow
 	Refs        []RefLink
 }

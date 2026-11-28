@@ -1033,6 +1033,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	if err != nil {
 		return nil, err
 	}
+	s.markOlderBuilds(ctx, items, s.ReadState(ctx))
 	var only map[string]bool
 	if assets != nil {
 		only = make(map[string]bool, len(assets))

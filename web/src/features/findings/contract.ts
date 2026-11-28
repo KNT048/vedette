@@ -537,6 +537,10 @@ export const PossibleHeld = z.object({
   reason: z.enum(['hook_refused', 'answer_unusable', 'ai_failed'])
     .describe('Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks could not finish in time)'),
 }).describe('The automatic AI reading leaves this CVE until a time, and why')
+export const PossibleOlderBuild = z.object({
+  tested: z.array(z.string()).min(1).describe('The builds the third party reported, as its rows write them ("5.4.0"); each older than the release the device runs'),
+  year: z.number().int().describe('The year of the report: the year of the CVE id'),
+}).describe('Reported only for an older build: a third party lists the builds it tested, every one older than the installed release; the CVE is on no exploited list and its record gives no fix, workaround or reference from the vendor. It stays possible and is listed and counted apart')
 export const PossibleRow = z.object({
   id: z.string().describe('The question (confirm: POST /findings/possible/{id}/confirm; answer: POST /findings/questions/{id}/answer)'),
   cve, kind: QuestionKind, device: DeviceRef, software: SoftwareRef.nullable(), severity: CveSeverity.nullable(),
@@ -547,14 +551,16 @@ export const PossibleRow = z.object({
   bulk: z.boolean().describe('proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not affected (one by one)'),
   cause: PossibleCause.nullable().describe('Why it is still possible; null for a settled row'),
   held: PossibleHeld.nullable().describe('The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today\'s reads used up, no AI profile)'),
+  older_build: PossibleOlderBuild.nullable().describe('Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
-  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once)'),
+  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build'),
+  older_build: z.number().int().min(0).describe('Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible'),
   proposals: z.number().int().min(0).describe('AI proposals waiting for a person'),
-  unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at: what the "Check possible with AI" button counts'),
+  unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at, those reported only for an older build included: what the "Check possible with AI" button counts'),
   settled: z.number().int().min(0).describe('Settled not affected by the box from a vendor\'s advisory'),
   causes: z.object(Object.fromEntries(PossibleCause.options.map((c) => [c, z.number().int().min(0)])) as Record<z.infer<typeof PossibleCause>, z.ZodNumber>)
-    .describe('The possible CVEs by cause; every cause of the list is present'),
+    .describe('The possible CVEs of possible by cause; every cause of the list is present'),
 })
 export const PossibleCheckRun = z.object({
   running: z.boolean(), total: z.number().int().min(0), done: z.number().int().min(0),

@@ -193,7 +193,7 @@ func TestResearchWorker_ShutdownKeepsTheQueue(t *testing.T) {
 func TestResearchWorker_OneCallPerLineUnderConcurrency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		e, fc, cves := manyQuill(t, 4)
-		release := make(chan struct{})
+		release, releaseDeeper := make(chan struct{}), make(chan struct{})
 		var mu sync.Mutex
 		running, most, perCVE, mostPerCVE := 0, 0, map[string]int{}, 0
 		fc.tick = func(_ context.Context, req ResearchRequest) error {
@@ -202,8 +202,11 @@ func TestResearchWorker_OneCallPerLineUnderConcurrency(t *testing.T) {
 			perCVE[req.CVE]++
 			most, mostPerCVE = max(most, running), max(mostPerCVE, perCVE[req.CVE])
 			mu.Unlock()
-			if req.CVE == cves[0] && !req.Deeper {
+			switch {
+			case req.CVE == cves[0] && !req.Deeper:
 				<-release
+			case req.CVE == cves[0]:
+				<-releaseDeeper // the deeper research runs while the second request arrives: queued or in flight, never done yet
 			}
 			mu.Lock()
 			running--
@@ -239,6 +242,8 @@ func TestResearchWorker_OneCallPerLineUnderConcurrency(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		synctest.Wait()
+		close(releaseDeeper)
 		synctest.Wait()
 		if n := count(); n != 2 {
 			t.Errorf("%d calls for %s after two requests in a row, want 2", n, cves[0])

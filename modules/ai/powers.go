@@ -58,7 +58,8 @@ var jobPowers = map[Job]power{
 	JobLogDigest: {writes: "the stored log digest; memory suggestions, which an administrator accepts or not", egress: "none"},
 	JobExplainFinding: {
 		writes: "the stored explanation; readings of vendor statements, kept only where their quote is in the page the box fetched and " +
-			"opening findings at most (a not-affected reading is a proposal a person confirms); a product for a program, only one of the " +
+			"opening findings, settling not affected only for a CVE no exploited list has and only from the vendor's own page, and " +
+			"otherwise waiting for a person; a product for a program, only one of the " +
 			"candidates the box offered",
 		egress: "none (the box fetches the public pages itself, before the call)",
 	},

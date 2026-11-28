@@ -323,6 +323,8 @@
       "description": "IPs you removed and chose not to add again.",
       "descriptionInfo": "The box never adds them back and never scans them. Restore lets detection add one again; it does not make it scannable: it still needs ownership proof and your confirmation.",
       "caption": "IPs on the Ignored list",
+      "summary_one": "{{count}} ignored IP",
+      "summary_other": "{{count}} ignored IPs",
       "col": {
         "ip": "IP",
         "by": "Ignored by",

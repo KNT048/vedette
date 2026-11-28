@@ -105,7 +105,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
   ]
   return (
     <Section id="box-ignored" title={t('boxIp.ignored.title')} description={t('boxIp.ignored.description')} info={t('boxIp.ignored.descriptionInfo')}>
-      <DataTable urlKey="boxip-ignored" caption={t('boxIp.ignored.caption')} data={ignored} columns={columns} pageSize={20}
+      <DataTable urlKey="boxip-ignored" caption={t('boxIp.ignored.caption')} data={ignored} columns={columns} pageSize={20} summary={t('boxIp.ignored.summary', { count: ignored.length })}
         mobileRow={(r) => (
           <div className="grid gap-1.5">
             <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.value}</span>{btn(r)}</div>

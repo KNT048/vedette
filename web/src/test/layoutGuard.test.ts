@@ -15,6 +15,9 @@
 //  - a detail page goes back with breadcrumbs (PageHeader `breadcrumbs`), not a "Back to …" arrow link;
 //  - a page title is the short noun of the page's sidebar entry or settings menu entry ("Findings", "Devices", "Logs", "Updates"), never a
 //    sentence or a count: those go in the header's `meta` line under it (see PAGE_TITLES);
+//  - a list with a search says how many rows it holds: every DataTable of the SUMMARY_LISTS files passes `summary` (its count line);
+//  - the pages of an incident, an intrusion alert and a trap hit hold no form of their own: a note is asked in a dialog opened from
+//    the header's actions, and their rows are ListRows, not an <li> with padding of its own (NO_INLINE_FORM);
 //  - a tab panel does not open with a heading that repeats its tab's name ("Trap hits" in the Hits tab): its Section has no
 //    `title`, only a `label` (the English texts of the feature's tab labels and Section titles are compared).
 // A named exception is listed in ALLOWED with why it stays; an entry no longer used fails too, so the list only shrinks.
@@ -259,6 +262,21 @@ const TITLE_EXEMPT: { entry: string; why: string }[] = [
   { entry: 'common:shell.declared', why: 'a block of the device settings, drawn as a Section, not a page with its own header' },
 ]
 
+/** Files whose every DataTable has a count line (`summary`): the lists a person searches and filters. */
+const SUMMARY_LISTS = [
+  'features/notify/IncidentsPage.tsx', 'features/notify/History.tsx', 'features/notify/ChannelsSettings.tsx', 'features/notify/IncidentDetailPage.tsx',
+  'features/reports/HistoryTab.tsx', 'features/exposure/BoxIpPanel.tsx', 'features/findings/Possible.tsx', 'features/detection/DetectionPage.tsx',
+]
+
+/** The detail pages that hold no inline form and draw no <li> row of their own. */
+const NO_INLINE_FORM = ['features/notify/IncidentDetailPage.tsx', 'features/detection/AlertPage.tsx', 'features/detection/DetectionPage.tsx', 'features/honeypot/HitPage.tsx']
+
+/** DataTables of a source without a `summary` prop. */
+const noSummary = (source: string) => {
+  const text = source.replace(/<DataTable<[\w<>, |]+?>(?=\s)/g, '<DataTable') // a typed table: <DataTable<Row> …>
+  return [...text.matchAll(/<DataTable\b/g)].filter((m) => prop(text.slice(m.index, openEnd(text, m.index) + 1), 'summary') === undefined).length
+}
+
 describe('layout guard: tabs, list toolbars, count lines, rows, row titles, row toggles and breadcrumbs come from the shared parts', () => {
   it('reads the app sources', () => {
     expect(files.length).toBeGreaterThan(200)
@@ -339,6 +357,28 @@ describe('layout guard: tabs, list toolbars, count lines, rows, row titles, row 
       const v = english(ns, k) ?? ''
       expect(v.split(' ').length, `${p.entry} reads as a sentence: "${v}"`).toBeLessThanOrEqual(5)
       expect(v, `${p.entry} carries a count or punctuation: "${v}"`).not.toMatch(/[.:,{}\d]/)
+    }
+  })
+
+  it('summary: every list of the searchable lists has its count line', () => {
+    for (const file of SUMMARY_LISTS) {
+      const text = files.find((f) => f.file === file)?.text
+      expect(text, `${file}: no such file`).toBeDefined()
+      expect(/<DataTable\b/.test(text!), `${file} has no DataTable`).toBe(true)
+      expect(noSummary(text!), `${file}: a DataTable with no \`summary\` (its count line)`).toBe(0)
+    }
+    expect(noSummary(`<DataTable caption="x" data={d} />`)).toBe(1)
+    expect(noSummary(`<DataTable<Row> caption="x" data={d} />`)).toBe(1)
+    expect(noSummary(`<DataTable caption="x" summary={t('n', { count: 1 })} data={d} />`)).toBe(0)
+  })
+
+  it('no-inline-form: an incident, an alert and a hit page ask a note in a dialog, and list their rows with ListRow', () => {
+    for (const file of NO_INLINE_FORM) {
+      const text = files.find((f) => f.file === file)?.text
+      expect(text, `${file}: no such file`).toBeDefined()
+      // a Textarea is only inside a dialog
+      if (/<Textarea\b/.test(text!)) expect(/<DialogContent\b/.test(text!), `${file}: a note field outside a dialog`).toBe(true)
+      expect(count(text!, /<li\b[^>]*className="[^"]*\bpx-4\b/g), `${file}: a row with its own <li> padding: use ListRow in a RowList`).toBe(0)
     }
   })
 

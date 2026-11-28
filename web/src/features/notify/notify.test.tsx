@@ -133,9 +133,10 @@ describe('notify: incidents (S-ALERT-3)', () => {
   it('detail: what happened, first and last seen, count, who responded; message text per channel; Respond link', async () => {
     renderApp('/incidents/al-4')
     expect(await screen.findByRole('heading', { level: 1, name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toBeInTheDocument()
-    // Respond is one way to handle the incident: in the Handle section, not the header
-    expect(within(screen.getByRole('region', { name: 'Handle the incident' })).getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
-    expect(within(screen.getByRole('heading', { level: 1 }).closest('header')!).queryByRole('link', { name: 'Respond' })).toBeNull()
+    // Respond, Acknowledge and Resolve are the header's actions: no form of its own in the page
+    expect(within(screen.getByRole('heading', { level: 1 }).closest('header')!).getByRole('link', { name: 'Respond' })).toHaveAttribute('href', '/response?incident=al-4')
+    expect(screen.queryByRole('region', { name: 'Handle the incident' })).toBeNull()
+    expect(screen.queryByLabelText('Note (optional)')).toBeNull()
     expect(screen.getByRole('link', { name: 'Open trap touch' })).toHaveAttribute('href', '/honeypot/hits/hit-seed-1')
     expect(screen.getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
     expect(screen.getByText('Times seen')).toBeInTheDocument()
@@ -165,9 +166,13 @@ describe('notify: incidents (S-ALERT-3)', () => {
   it('acknowledge, then resolve with a note, then reopen', async () => {
     renderApp('/incidents/al-4', { role: 'operator' })
     await press('Acknowledge')
+    const ack = await screen.findByRole('dialog', { name: 'Acknowledge this incident' })
+    await userEvent.click(within(ack).getByRole('button', { name: 'Acknowledge' }))
     expect(await screen.findByText(/Acknowledged by it@acme\.example/)).toBeInTheDocument()
-    await userEvent.type(await screen.findByLabelText('Note (optional)'), 'Machine is clean')
     await press('Resolve')
+    const dlg = await screen.findByRole('dialog', { name: 'Resolve this incident' })
+    await userEvent.type(within(dlg).getByLabelText('Note (optional)'), 'Machine is clean')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Resolve' }))
     expect(await screen.findByText(/Resolved by it@acme\.example/)).toBeInTheDocument()
     expect(screen.getByText(/Note: Machine is clean/)).toBeInTheDocument()
     expect(auditStore.get().some((e) => e.action === 'notify.incident_status' && e.detail?.includes('resolved'))).toBe(true)

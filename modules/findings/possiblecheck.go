@@ -504,8 +504,8 @@ func cveLine(cve string, id CheckID) string { return cve + "\x1f" + id.Product +
 func lineCount(items []PossibleItem, units []checkUnit) (total, done int) {
 	answered := map[string]bool{}
 	for _, it := range items {
-		if it.Question.CheckKey == "" || it.Question.Detail.Check == nil || !checkable(it.Question) {
-			continue
+		if it.Question.CheckKey == "" || it.Question.Detail.Check == nil || !checkable(it.Question) || it.Deferred != nil {
+			continue // a deferred row is not researched (checkUnits)
 		}
 		k := cveLine(it.CVE, *it.Question.Detail.Check)
 		if _, ok := answered[k]; !ok {
@@ -778,13 +778,24 @@ func (s *Service) scoresOf(ctx context.Context, items []PossibleItem) map[string
 }
 
 // checkUnits groups the checkable possible items by evidence identity: exploited CVEs first, then the highest CVSS score, then by CVE.
+// A line every device's row of which is deferred (an update its line needs covers it) is left; a line one device's row is not
+// deferred on is researched, for every device.
 func checkUnits(items []PossibleItem, scores map[string]CVSS) []checkUnit {
 	by := map[string]int{}
 	var out []checkUnit
 	exploited := map[string]bool{}
+	open := map[string]bool{} // check keys with a row that is not deferred
+	for _, it := range items {
+		if it.Deferred == nil {
+			open[it.Question.CheckKey] = true
+		}
+	}
 	for _, it := range items {
 		if !it.Checkable() || it.Question.Detail.Check == nil || !checkable(it.Question) {
 			continue // a question the distribution's data or the device's own version decides is never sent to the AI, whatever key it kept
+		}
+		if !open[it.Question.CheckKey] {
+			continue // every device's row of the line is deferred
 		}
 		exploited[it.CVE] = exploited[it.CVE] || it.Exploited
 		if i, ok := by[it.Question.CheckKey]; ok {

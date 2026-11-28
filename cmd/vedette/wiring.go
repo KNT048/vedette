@@ -373,6 +373,17 @@ type vulnCache struct {
 	products      []feeds.RangeProduct
 }
 
+// Kept is feeds' one reading of "an exploitation signal keeps this CVE" (findings.Feeds.Kept): findings never groups such a CVE under
+// a fix it already lists, it researches it.
+func (a findingsFeeds) Kept(ctx context.Context, cves []string) (map[string]bool, error) {
+	return a.st.Kept(ctx, cves, time.Now())
+}
+
+// Unsupported is feeds' reading of the CVE Program's unsupported-when-assigned tag (findings.Feeds.Unsupported).
+func (a findingsFeeds) Unsupported(ctx context.Context, cves []string) (map[string]bool, error) {
+	return a.st.UnsupportedWhenAssigned(ctx, cves)
+}
+
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
 	rows, err := a.st.KevVulnsByCVE(ctx, cves)
 	if err != nil {

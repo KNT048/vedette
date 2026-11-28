@@ -205,4 +205,10 @@ type Feeds interface {
 	// gives them (NVD's when NVD has any, else the CVE record's; Vuln.Origin), its publication day, EPSS and the distributions' word on
 	// the scope's packages. None while the feeds module is off.
 	MatchSet(ctx context.Context, scope MatchScope) ([]Vuln, error)
+	// Kept says which of cves an exploitation signal keeps whatever their age (feeds Store.Kept): an exploited-list entry, an exploited
+	// signal, an intrusion alert of this network or a public exploit dated inside the reporting window. CVEs it does not keep are absent.
+	Kept(ctx context.Context, cves []string) (map[string]bool, error)
+	// Unsupported says which of cves have a record that states the product unsupported by its vendor when the CVE was assigned (the CVE
+	// Program's unsupported-when-assigned tag, as the record's description carries it). CVEs it does not tag are absent.
+	Unsupported(ctx context.Context, cves []string) (map[string]bool, error)
 }

@@ -578,6 +578,15 @@ export const PossibleOlderBuild = z.object({
   tested: z.array(z.string()).min(1).describe('The builds the third party reported, as its rows write them ("5.4.0"); each older than the release the device runs'),
   year: z.number().int().describe('The year of the report: the year of the CVE id'),
 }).describe('Reported only for an older build: a third party lists the builds it tested, every one older than the installed release; the CVE is on no exploited list and its record gives no fix, workaround or reference from the vendor. It stays possible and is listed and counted apart')
+export const PossibleDeferred = z.object({
+  anchor: z.string().describe('anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible CVE (PossibleRow.id) whose record states the line unsupported'),
+  anchor_kind: z.enum(['finding', 'unsupported_line']).describe('finding: an open finding of the same line Vedette decided from data or a person decided (never the AI\'s), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that covers the installed release: move to a supported release'),
+  anchor_cve: cve.describe('The CVE of the anchor'),
+  fix_key: z.string().min(1).max(400).nullable().describe('finding: the anchor\'s fix key, the "By fix" group the row is listed under; null for unsupported_line'),
+  kind: FixKind.describe('The action for the line: the anchor\'s fix kind (update, distro_update, ...; unknown or none_yet when the line has no fix); feature_update for unsupported_line'),
+  version: z.string().nullable().describe('The release to install, when the action names one: the anchor\'s fix, or a later release (raised); null otherwise'),
+  raised: z.boolean().describe('The anchor\'s fix does not clear every grouped CVE (a range of one of them lists it affected): version is the lowest later release the data names that is outside every such range, computed by the box'),
+}).describe('An update the line already needs covers this CVE: it is on no exploited list and no exploitation signal keeps it, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; "Research deeper" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself')
 export const PossibleRow = z.object({
   id: z.string().describe('The question (confirm: POST /findings/possible/{id}/confirm; answer: POST /findings/questions/{id}/answer)'),
   cve, kind: QuestionKind, device: DeviceRef, software: SoftwareRef.nullable(), severity: CveSeverity.nullable(),
@@ -591,14 +600,16 @@ export const PossibleRow = z.object({
   older_build: PossibleOlderBuild.nullable().describe('Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise'),
   finding: z.string().optional().describe('Review AI answers only: the open finding an older AI reading of the line opened, which this newer "not affected" answer would close. The AI never closes it; a person\'s confirmation does (an exploited CVE only when named). Absent otherwise'),
   distro_pending: z.boolean().describe('Waiting for the distribution\'s word on its own package: listed apart in its own group, counted in counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server\'s one definition of the group)'),
+  deferred: PossibleDeferred.nullable().describe('Covered by an update its line already needs: grouped under that action, counted in counts.deferred, not in counts.possible, its causes or the device badge; null otherwise. Never set on an exploited CVE'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
-  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution'),
+  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build, those waiting for the distribution and those an update their line needs covers (deferred)'),
   older_build: z.number().int().min(0).describe('Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible'),
   distro_pending: z.number().int().min(0).describe('Possible CVEs waiting for the distribution\'s word on its own package (PossibleRow.cause distro_silent), counted apart from possible and its causes and left out of the device badge'),
   distro_pending_exploited: z.number().int().min(0).describe('How many of distro_pending are on an exploited list'),
+  deferred: z.number().int().min(0).describe('Possible CVEs an update their line already needs covers (PossibleRow.deferred), counted apart from possible and its causes: Home\'s "still unknown" leaves them out. Never exploited'),
   proposals: z.number().int().min(0).describe('AI proposals waiting for a person'),
-  unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at, those reported only for an older build included: what the "Check possible with AI" button counts'),
+  unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at, those reported only for an older build included, the deferred ones not (a check leaves a line every device\'s row of which is deferred): what the "Check possible with AI" button counts'),
   settled: z.number().int().min(0).describe('Settled not affected by the box from a vendor\'s advisory'),
   causes: z.object(Object.fromEntries(PossibleCause.options.map((c) => [c, z.number().int().min(0)])) as Record<z.infer<typeof PossibleCause>, z.ZodNumber>)
     .describe('The possible CVEs of possible by cause; every cause of the list is present'),

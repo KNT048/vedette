@@ -491,6 +491,29 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   confirms nothing (`TestReview_BulkConfirmExcludesExploitedUnlessNamed`). **Research deeper** (`POST /findings/possible/{id}/research`,
   operator): the line of one possible CVE researched again now by the strong layer whatever was read before, in front of the research
   worker's queue (404 `not_found`; `TestResearch_DeeperResearchesTheLineAgain`).
+- **P-13 CVEs a needed update already covers are grouped, not researched one by one** (`deferred.go`). When a software line of a device
+  already needs an action, an undecided CVE of the line that is not exploited cannot change it, so it is not worth the customer's AI
+  tokens or attention one by one. An anchor of a line is an open finding of the same device and line whose range origin is not the
+  AI's reading and that was not opened through the product the AI chose (`anchorsOf`; of several, the fix that names most, then the
+  newest release); an accepted or handled finding is not open, so no anchor. A line with no anchor finding has one when the CVE record
+  of another of its possible CVEs is tagged unsupported when assigned (`Feeds.Unsupported`, feeds' reading of the CVE Program's mark)
+  and one of its rows that applies to the line covers the installed release or might (`lineCovered`); the action is then to move to a
+  supported release, and the tagged CVE stays an ordinary row. A possible CVE of a line with an anchor is **deferred**
+  (`PossibleItem.Deferred`, `PossibleRow.deferred`) when it is undecided (not a proposal, not settled, not waiting for its distribution)
+  and on no exploited list, and no exploitation signal keeps it (`Feeds.Kept`; a signal that cannot be read defers nothing). It is
+  derived when the possible CVEs are read, never stored: it stays an open question with its cause, is never closed, never not
+  affected and never goes through the closing gate. It is counted apart (`PossibleCounts.deferred`, not in `possible`, its causes,
+  `unchecked` or the device badge, whose device has the anchor open). The research worker and a person's "Check possible with AI" leave
+  a line only when every device's row of it is deferred (`checkUnits`, `lineCount`); "Research deeper" still researches a deferred row.
+  When the anchor closes (the version moved, a person handled it: `handle` wakes the worker) the rows are ordinary possible CVEs again
+  and are researched by themselves. The row names its anchor (finding, or the tagged CVE's question), the anchor's fix key and the
+  action; when the anchor's update does not clear every deferred CVE of the line (a range of one of them lists it affected), the
+  target is the lowest release at or above it, among the ends of their ranges, outside every range of theirs that applies to the line
+  (`raiseTargets`, the rule `planReleases` applies to a block, computed for the groups a page shows; `raised`). Tests:
+  `TestDeferred_AnUpdateTheLineNeedsCoversItsOtherUndecidedCVEs`, `TestDeferred_OnlyAnOpenFindingDecidedByDataOrAPersonIsAnAnchor`,
+  `TestDeferred_ALaterFixTheDataStatesRaisesTheTarget`, `TestResearchWorker_SkipsALineOnlyWhenEveryDeviceRowIsDeferred`,
+  `TestDeferred_ResearchDeeperStillRuns`, `TestDeferred_ResearchResumesWhenTheAnchorCloses`,
+  `TestDeferred_ALineTheRecordStatesUnsupportedIsAnAnchor`.
 
 ## Invariants
 

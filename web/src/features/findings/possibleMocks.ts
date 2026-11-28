@@ -94,7 +94,7 @@ export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
 }
 
 export function possibleCounts(device?: string): PossibleCounts {
-  const c = { possible: 0, older_build: 0, distro_pending: 0, distro_pending_exploited: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
+  const c = { possible: 0, older_build: 0, distro_pending: 0, distro_pending_exploited: 0, deferred: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
   for (const it of items(device)) {
     if (it.state === 'settled') { c.settled++; continue }
     if (it.state === 'proposal') c.proposals++
@@ -137,6 +137,7 @@ function row(it: Item): PossibleRow {
     held: heldOf(it),
     older_build: olderBuildOf(it),
     distro_pending: distroPendingOf(it),
+    deferred: null,
   }
 }
 

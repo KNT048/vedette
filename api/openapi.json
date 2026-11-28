@@ -60496,7 +60496,7 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution"
+                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build, those waiting for the distribution and those an update their line needs covers (deferred)"
                         },
                         "older_build": {
                           "type": "integer",
@@ -60516,6 +60516,12 @@
                           "maximum": 9007199254740991,
                           "description": "How many of distro_pending are on an exploited list"
                         },
+                        "deferred": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Possible CVEs an update their line already needs covers (PossibleRow.deferred), counted apart from possible and its causes: Home's \"still unknown\" leaves them out. Never exploited"
+                        },
                         "proposals": {
                           "type": "integer",
                           "minimum": 0,
@@ -60526,7 +60532,7 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs a check can still look at, those reported only for an older build included: what the \"Check possible with AI\" button counts"
+                          "description": "Possible CVEs a check can still look at, those reported only for an older build included, the deferred ones not (a check leaves a line every device's row of which is deferred): what the \"Check possible with AI\" button counts"
                         },
                         "settled": {
                           "type": "integer",
@@ -60609,6 +60615,7 @@
                         "older_build",
                         "distro_pending",
                         "distro_pending_exploited",
+                        "deferred",
                         "proposals",
                         "unchecked",
                         "settled",
@@ -62419,6 +62426,84 @@
                           "distro_pending": {
                             "type": "boolean",
                             "description": "Waiting for the distribution's word on its own package: listed apart in its own group, counted in counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's one definition of the group)"
+                          },
+                          "deferred": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "anchor": {
+                                    "type": "string",
+                                    "description": "anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible CVE (PossibleRow.id) whose record states the line unsupported"
+                                  },
+                                  "anchor_kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "finding",
+                                      "unsupported_line"
+                                    ],
+                                    "description": "finding: an open finding of the same line Vedette decided from data or a person decided (never the AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that covers the installed release: move to a supported release"
+                                  },
+                                  "anchor_cve": {
+                                    "type": "string",
+                                    "pattern": "^CVE-\\d{4}-\\d{4,}$",
+                                    "description": "The CVE of the anchor"
+                                  },
+                                  "fix_key": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 400
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "finding: the anchor's fix key, the \"By fix\" group the row is listed under; null for unsupported_line"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "update",
+                                      "distro_update",
+                                      "os_update",
+                                      "feature_update",
+                                      "restart",
+                                      "none_yet",
+                                      "unknown"
+                                    ],
+                                    "description": "The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when the line has no fix); feature_update for unsupported_line"
+                                  },
+                                  "version": {
+                                    "description": "The release to install, when the action names one: the anchor's fix, or a later release (raised); null otherwise",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "raised": {
+                                    "type": "boolean",
+                                    "description": "The anchor's fix does not clear every grouped CVE (a range of one of them lists it affected): version is the lowest later release the data names that is outside every such range, computed by the box"
+                                  }
+                                },
+                                "required": [
+                                  "anchor",
+                                  "anchor_kind",
+                                  "anchor_cve",
+                                  "fix_key",
+                                  "kind",
+                                  "version",
+                                  "raised"
+                                ],
+                                "additionalProperties": false,
+                                "description": "An update the line already needs covers this CVE: it is on no exploited list and no exploitation signal keeps it, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; \"Research deeper\" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Covered by an update its line already needs: grouped under that action, counted in counts.deferred, not in counts.possible, its causes or the device badge; null otherwise. Never set on an exploited CVE"
                           }
                         },
                         "required": [
@@ -62439,7 +62524,8 @@
                           "cause",
                           "held",
                           "older_build",
-                          "distro_pending"
+                          "distro_pending",
+                          "deferred"
                         ],
                         "additionalProperties": false,
                         "description": "One possible CVE of one software line of one device"
@@ -62459,7 +62545,7 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution"
+                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build, those waiting for the distribution and those an update their line needs covers (deferred)"
                         },
                         "older_build": {
                           "type": "integer",
@@ -62479,6 +62565,12 @@
                           "maximum": 9007199254740991,
                           "description": "How many of distro_pending are on an exploited list"
                         },
+                        "deferred": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Possible CVEs an update their line already needs covers (PossibleRow.deferred), counted apart from possible and its causes: Home's \"still unknown\" leaves them out. Never exploited"
+                        },
                         "proposals": {
                           "type": "integer",
                           "minimum": 0,
@@ -62489,7 +62581,7 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs a check can still look at, those reported only for an older build included: what the \"Check possible with AI\" button counts"
+                          "description": "Possible CVEs a check can still look at, those reported only for an older build included, the deferred ones not (a check leaves a line every device's row of which is deferred): what the \"Check possible with AI\" button counts"
                         },
                         "settled": {
                           "type": "integer",
@@ -62572,6 +62664,7 @@
                         "older_build",
                         "distro_pending",
                         "distro_pending_exploited",
+                        "deferred",
                         "proposals",
                         "unchecked",
                         "settled",
@@ -64642,6 +64735,84 @@
                           "distro_pending": {
                             "type": "boolean",
                             "description": "Waiting for the distribution's word on its own package: listed apart in its own group, counted in counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's one definition of the group)"
+                          },
+                          "deferred": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "anchor": {
+                                    "type": "string",
+                                    "description": "anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible CVE (PossibleRow.id) whose record states the line unsupported"
+                                  },
+                                  "anchor_kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "finding",
+                                      "unsupported_line"
+                                    ],
+                                    "description": "finding: an open finding of the same line Vedette decided from data or a person decided (never the AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that covers the installed release: move to a supported release"
+                                  },
+                                  "anchor_cve": {
+                                    "type": "string",
+                                    "pattern": "^CVE-\\d{4}-\\d{4,}$",
+                                    "description": "The CVE of the anchor"
+                                  },
+                                  "fix_key": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 400
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "finding: the anchor's fix key, the \"By fix\" group the row is listed under; null for unsupported_line"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "update",
+                                      "distro_update",
+                                      "os_update",
+                                      "feature_update",
+                                      "restart",
+                                      "none_yet",
+                                      "unknown"
+                                    ],
+                                    "description": "The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when the line has no fix); feature_update for unsupported_line"
+                                  },
+                                  "version": {
+                                    "description": "The release to install, when the action names one: the anchor's fix, or a later release (raised); null otherwise",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "raised": {
+                                    "type": "boolean",
+                                    "description": "The anchor's fix does not clear every grouped CVE (a range of one of them lists it affected): version is the lowest later release the data names that is outside every such range, computed by the box"
+                                  }
+                                },
+                                "required": [
+                                  "anchor",
+                                  "anchor_kind",
+                                  "anchor_cve",
+                                  "fix_key",
+                                  "kind",
+                                  "version",
+                                  "raised"
+                                ],
+                                "additionalProperties": false,
+                                "description": "An update the line already needs covers this CVE: it is on no exploited list and no exploitation signal keeps it, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; \"Research deeper\" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Covered by an update its line already needs: grouped under that action, counted in counts.deferred, not in counts.possible, its causes or the device badge; null otherwise. Never set on an exploited CVE"
                           }
                         },
                         "required": [
@@ -64662,7 +64833,8 @@
                           "cause",
                           "held",
                           "older_build",
-                          "distro_pending"
+                          "distro_pending",
+                          "deferred"
                         ],
                         "additionalProperties": false,
                         "description": "One possible CVE of one software line of one device"

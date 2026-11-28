@@ -40,6 +40,9 @@ type PossibleItem struct {
 	Held *Held
 	// OlderBuild says it is reported only for an older build (markOlderBuilds): listed and counted apart; nil otherwise.
 	OlderBuild *OlderBuild
+	// Deferred says an update its line already needs covers it (markDeferred): grouped under that fix, counted apart and left out of
+	// the automatic research; nil otherwise.
+	Deferred *Deferred
 }
 
 // DistroPending says the item waits for the distribution's word on its own package (cause distro_silent): it is listed and counted
@@ -132,6 +135,9 @@ func (s *Service) possibleItemsOf(ctx context.Context, device string, review boo
 		return cmp.Or(cmp.Compare(a.Question.AssetID, b.Question.AssetID), cmp.Compare(a.Question.SoftwareID, b.Question.SoftwareID),
 			-cmpBool(a.Exploited, b.Exploited), cmp.Compare(a.CVE, b.CVE))
 	})
+	if err := s.markDeferred(ctx, device, out); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -228,20 +234,22 @@ func (s *Service) exploitedSet(ctx context.Context) (map[string]bool, error) {
 	return out, nil
 }
 
-// PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals) but those reported only for an older build and
-// those waiting for the distribution, each group apart, the AI proposals waiting, the ones a check can still look at, and the ones the
+// PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals) but those reported only for an older build,
+// those waiting for the distribution and those an update their line needs covers, each group apart, the AI proposals waiting, the ones a check can still look at, and the ones the
 // box settled from an advisory.
 type PossibleCounts struct {
 	Possible   int `json:"possible"`
 	OlderBuild int `json:"older_build"` // reported only for an older build (OlderBuild), not in Possible
 	// DistroPending: waiting for the distribution's word on its own package (DistroPending), not in Possible or its causes;
 	// DistroPendingExploited how many of them are on an exploited list
-	DistroPending          int            `json:"distro_pending"`
-	DistroPendingExploited int            `json:"distro_pending_exploited"`
-	Proposals              int            `json:"proposals"`
-	Unchecked              int            `json:"unchecked"`
-	Settled                int            `json:"settled"`
-	Causes                 map[string]int `json:"causes"` // the possible CVEs of Possible by cause (PossibleCause), every cause of the list present
+	DistroPending          int `json:"distro_pending"`
+	DistroPendingExploited int `json:"distro_pending_exploited"`
+	// Deferred: covered by an update their line already needs (PossibleItem.Deferred), not in Possible or its causes; never exploited
+	Deferred  int            `json:"deferred"`
+	Proposals int            `json:"proposals"`
+	Unchecked int            `json:"unchecked"`
+	Settled   int            `json:"settled"`
+	Causes    map[string]int `json:"causes"` // the possible CVEs of Possible by cause (PossibleCause), every cause of the list present
 }
 
 func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
@@ -257,7 +265,7 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 		case PossibleProposal:
 			c.Proposals++
 		}
-		if it.Checkable() {
+		if it.Checkable() && it.Deferred == nil { // a check leaves a deferred CVE (checkUnits)
 			c.Unchecked++
 		}
 		if it.DistroPending() {
@@ -265,6 +273,10 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 			if it.Exploited {
 				c.DistroPendingExploited++
 			}
+			continue
+		}
+		if it.Deferred != nil {
+			c.Deferred++
 			continue
 		}
 		if it.OlderBuild != nil {
@@ -278,12 +290,13 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 }
 
 // possibleByDevice is how many possible CVEs (not settled) each device has, those reported only for an older build apart: the device
-// badge's counts when nothing open is more urgent. Those waiting for the distribution are not counted (the badge leaves them out).
+// badge's counts when nothing open is more urgent. Those waiting for the distribution are not counted (the badge leaves them out), nor
+// those an update their line needs covers (the device has that open finding, which the badge shows).
 func possibleByDevice(items []PossibleItem) (main, older map[string]int) {
 	main, older = map[string]int{}, map[string]int{}
 	for _, it := range items {
 		switch {
-		case it.State == PossibleSettled, it.DistroPending():
+		case it.State == PossibleSettled, it.DistroPending(), it.Deferred != nil:
 		case it.OlderBuild != nil:
 			older[it.Question.AssetID]++
 		default:
@@ -325,6 +338,35 @@ type PossibleRowJS struct {
 	Finding *string `json:"finding,omitempty"`
 	// DistroPending: waiting for the distribution, listed apart in its own group (PossibleItem.DistroPending: the one definition)
 	DistroPending bool `json:"distro_pending"`
+	// Deferred: covered by an update its line already needs, grouped under that fix (PossibleItem.Deferred); null otherwise
+	Deferred *DeferredJS `json:"deferred"`
+}
+
+// DeferredJS is contract.ts PossibleDeferred.
+type DeferredJS struct {
+	Anchor     string  `json:"anchor"`
+	AnchorKind string  `json:"anchor_kind"`
+	AnchorCVE  string  `json:"anchor_cve"`
+	FixKey     *string `json:"fix_key"`
+	Kind       FixKind `json:"kind"`
+	Version    *string `json:"version"`
+	Raised     bool    `json:"raised"`
+}
+
+func deferredJS(d *Deferred) *DeferredJS {
+	if d == nil {
+		return nil
+	}
+	out := &DeferredJS{Anchor: d.Anchor, AnchorKind: d.AnchorKind, AnchorCVE: d.AnchorCVE, Kind: d.Fix.Kind, Raised: d.Raised}
+	if d.FixKey != "" {
+		k := d.FixKey
+		out.FixKey = &k
+	}
+	if d.Fix.Version != "" {
+		v := d.Fix.Version
+		out.Version = &v
+	}
+	return out
 }
 
 // HeldJS is contract.ts PossibleHeld.
@@ -427,7 +469,8 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 		}
 		q := strings.ToLower(strings.TrimSpace(f.Q))
 		var rows []PossibleRowJS
-		for _, it := range items {
+		var of []int // the item of each row
+		for i, it := range items {
 			if f.State == "" && it.State == PossibleSettled || f.State != "" && it.State != f.State {
 				continue
 			}
@@ -435,10 +478,19 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 			if q != "" && !possibleMatches(r, q) {
 				continue
 			}
-			rows = append(rows, r)
+			rows, of = append(rows, r), append(of, i)
 		}
 		out.Total = len(rows)
 		lo, hi := p.cut(len(rows))
+		// the targets of the deferred groups this page shows, each group judged on all of its items (one target on every page)
+		page := map[[2]string]bool{}
+		for _, i := range of[lo:hi] {
+			page[[2]string{items[i].Question.AssetID, items[i].Question.SoftwareID}] = true
+		}
+		s.raiseTargets(ctx, items, page)
+		for j, i := range of[lo:hi] {
+			rows[lo+j].Deferred = deferredJS(items[i].Deferred)
+		}
 		out.Items = append(out.Items, rows[lo:hi]...)
 		return nil
 	})
@@ -453,7 +505,7 @@ func possibleRow(it PossibleItem, ref refs, rs ReadState) PossibleRowJS {
 	q := it.Question
 	r := PossibleRowJS{ID: q.ID, CVE: it.CVE, Kind: string(q.Kind), Device: deviceRef(ref.device(q.AssetID)), Exploited: it.Exploited, State: it.State,
 		Undecided: q.Detail.Undecided, Fixes: q.Detail.Fixes, Check: checkJS(it.Check), Checkable: it.Checkable(), Bulk: it.Bulk(), OlderBuild: it.OlderBuild,
-		DistroPending: it.DistroPending()}
+		DistroPending: it.DistroPending(), Deferred: deferredJS(it.Deferred)}
 	if r.Fixes == nil {
 		r.Fixes = []string{}
 	}

@@ -139,6 +139,31 @@ type fakeFeeds struct {
 	unlisted map[string]bool
 	// vulnsErr, when set, is asked before each read of the exploited list; an error fails that read.
 	vulnsErr func() error
+	// kept are the CVEs an exploitation signal keeps (Kept) beside those on the exploited list.
+	kept map[string]bool
+	// unsupported are the CVEs whose record is tagged unsupported when assigned (Unsupported).
+	unsupported map[string]bool
+}
+
+func (f *fakeFeeds) Unsupported(_ context.Context, cves []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	for _, c := range cves {
+		if f.unsupported[c] {
+			out[c] = true
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeFeeds) Kept(_ context.Context, cves []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	listed, _ := f.Vulns(context.Background())
+	for _, c := range cves {
+		if f.kept[c] || slices.ContainsFunc(listed, func(v Vuln) bool { return v.CVE == c }) {
+			out[c] = true
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {

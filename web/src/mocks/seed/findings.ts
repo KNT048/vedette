@@ -95,6 +95,8 @@ export interface QuestionRecord {
   answered?: { by: string; at: string }
   /** Why the CVE is undecided (a possible finding's reason); absent: the usual reason of its kind. */
   undecided?: { reason: UndecidedReason; ranges?: string[]; text?: string; url?: string }
+  /** third_party_tested_build: the CVE record gives a fix, a workaround or the vendor's advisory (absent: it gives nothing from the vendor). */
+  vendor_word?: boolean
 }
 
 const day = (days: number) => D(days).slice(0, 10)
@@ -234,6 +236,25 @@ export function seedQuestions(): QuestionRecord[] {
       asked_at: D(1), url: null, command: 'get system status', choices: [], cve_list: ['CVE-2026-124401', 'CVE-2026-124402', 'CVE-2026-124403'] },
     ...routerQuestions(),
     ...sqlQuestions(),
+    ...olderBuildQuestions(),
+  ]
+}
+
+/** CVEs a third party reported for an older build it tested, on two lines of the accounting server: three the vendor never spoke
+ *  about (reported only for an older build) and one whose record gives the vendor's fix (it stays in the main list). */
+function olderBuildQuestions(): QuestionRecord[] {
+  const remote = { id: 's-srvacc-remote', name: 'Remote Support Client', version: '9.7.6' }
+  const ftp = { id: 's-srvacc-ftp', name: 'FTP Client', version: '3.66.5' }
+  const q = (n: number, software: typeof remote, cve: string, builds: string[], extra: Partial<QuestionRecord> = {}): QuestionRecord => ({
+    id: `fq-srvacc-old-${n}`, kind: 'no_range_data', asset_id: 'a-srvacc', software, cve, cves: 1, asked_at: D(4), url: null, command: null, choices: [],
+    versions_listed: true, undecided: { reason: 'third_party_tested_build', ranges: builds.map((b) => `cpe:2.3:a:example:${software.id.slice(9)}:${b}:*:*:*:*:*:*:*`) }, ...extra,
+  })
+  return [
+    q(1, remote, 'CVE-2016-920094', ['2.5.0']),
+    q(2, remote, 'CVE-2019-925261', ['5.4.0']),
+    q(3, remote, 'CVE-2025-934499', ['7.0.15', '9.0.1']),
+    q(4, ftp, 'CVE-2019-925683', ['3.40.0']),
+    q(5, ftp, 'CVE-2026-953959', ['3.63.1'], { vendor_word: true }),
   ]
 }
 

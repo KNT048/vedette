@@ -385,11 +385,21 @@ export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled
   const panel = `possible-${rowKey(r).replace(/[^\w-]/g, '_')}`
   // a version_needed CVE is decided by the line's version, not one by one
   const perCve = r.kind !== 'version_needed'
+  const older = r.older_build
   return (
     <ListRow testId="possible-row" title={r.cve} to={`/cve/${encodeURIComponent(r.cve)}`}
       toggle={r.check ? { open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('possible.detail.toggleOf', { cve: r.cve }) } : null}
       badges={<><SeverityBadge severity={r.severity} compact />{r.exploited ? <ExploitedChip /> : null}<CheckChip check={r.check} /></>}
-      meta={[
+      meta={older ? [
+        // reported only for an older build: what was tested and when, what the device runs, and that the vendor gave nothing
+        <span key="older" data-testid="possible-older-build">
+          {t(r.software?.version ? 'possible.olderBuild.tested' : 'possible.olderBuild.testedNoVersion',
+            { builds: older.tested.join(', '), year: older.year, version: r.software?.version ?? '' })}
+        </span>,
+        r.held ? <span key="cause" data-testid="possible-held" data-reason={r.held.reason}>
+          {t('possible.held.line', { when: fmtDateTime(r.held.until), reason: t(`possible.held.reason.${r.held.reason}`) })}</span>
+          : t('possible.olderBuild.vendor'),
+      ] : [
         // a version_needed CVE: the line already says the version decides it
         (settled && r.check) || !perCve ? null : reason(r),
         // the second line: the quote of what settled it, or what holds the CVE (its cause)
@@ -601,6 +611,7 @@ function useSummary() {
   const { t } = useTranslation('findings')
   return (counts: PossibleCounts, devices: number) => {
     const parts = [t('possible.summary', { count: counts.possible, devices: t('byDevice.devices', { count: devices }) })]
+    if (counts.older_build) parts.push(t('possible.olderBuild.summary', { count: counts.older_build }))
     if (counts.proposals) parts.push(t('possible.summaryProposals', { count: counts.proposals }))
     return parts.join(' · ')
   }
@@ -623,12 +634,12 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: device || undefined })
   const summary = useSummary()
-  const rows = useMemo(() => q.data?.items ?? [], [q.data])
+  const [rows, older] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const devices = useMemo(() => devicesOf(rows), [rows])
   const products = useMemo(() => productsOf(rows), [rows])
   useScrollHere(!!q.data)
   const counts = q.data?.counts
-  const show = !!counts?.possible || q.isError
+  const show = !!counts?.possible || !!counts?.older_build || q.isError
   return (
     <section id="possible" aria-label={t('possible.title')} className={cn('grid scroll-mt-4 gap-3', show && 'pt-4')}>
       {show ? (
@@ -649,6 +660,7 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
                     list={(x) => <ProductGroup p={x} />}
                     summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} />} />
                 )}
+                <OlderBuilds rows={older} withDevice={!device} />
               </>
             )}
           </QueryState>
@@ -665,21 +677,24 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
 export function DevicePossible({ assetId }: { assetId: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: assetId })
-  const rows = useMemo(() => q.data?.items ?? [], [q.data])
+  const [rows, older] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const lines = useMemo(() => linesOf(rows), [rows])
   useScrollHere(!!q.data)
   const counts = q.data?.counts
   if (!counts) return null
+  const summary = [t('possible.summaryDevice', { count: counts.possible })]
+  if (counts.older_build) summary.push(t('possible.olderBuild.summary', { count: counts.older_build }))
   return (
     <section id="possible" aria-label={t('possible.title')} className="grid gap-3">
-      {counts.possible ? (
+      {counts.possible || counts.older_build ? (
         <>
           <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
           <CheckRunLine />
           <DataTable urlKey="device-possible" caption={t('possible.captionDevice')} data={lines} pageSize={20}
             columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (l: PossibleLine) => searchText(l.rows) }] satisfies ColumnDef<PossibleLine>[]}
             list={(l) => <LineBlock l={l} />}
-            summary={t('possible.summaryDevice', { count: counts.possible })} actions={<CheckPossible counts={counts} device={assetId} />} />
+            summary={summary.join(' · ')} actions={<CheckPossible counts={counts} device={assetId} />} />
+          <OlderBuilds rows={older} />
         </>
       ) : null}
       <Settled device={assetId} />
@@ -770,6 +785,35 @@ export function usePossibleCheckWatch() {
 
 /** "Checked, not affected": what the box settled from a vendor's advisory on this device, exploited CVEs first. Visible behind one
  *  click and reversible: a person can still say a CVE affects the device (the evidence is shown in the dialog). */
+/** The rows of a possible list, and those reported only for an older build, which are listed apart. */
+function splitOlder(rows: PossibleRow[]): [PossibleRow[], PossibleRow[]] {
+  return [rows.filter((r) => !r.older_build), rows.filter((r) => r.older_build)]
+}
+
+/** The CVEs reported only for an older build, closed until clicked: by software line (with its device on the list of every device),
+ *  each row saying what was tested, when, and what the device runs. Still possible: answered like any other row. */
+function OlderBuilds({ rows, withDevice = false }: { rows: PossibleRow[]; withDevice?: boolean }) {
+  const { t } = useTranslation('findings')
+  const [open, setOpen] = useState(false)
+  const lines = useMemo(() => linesOf(rows), [rows])
+  if (!rows.length) return null
+  return (
+    <div className="grid gap-2" data-testid="older-builds">
+      <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls="possible-older-builds">
+        {t('possible.olderBuild.toggle', { count: rows.length })}
+      </ExpandToggle>
+      {open ? (
+        <div id="possible-older-builds" className="grid gap-1 sm:pl-6">
+          <p className="text-meta text-muted">{t('possible.olderBuild.body')}</p>
+          <RowList label={t('possible.olderBuild.caption')}>
+            {lines.map((l) => <LineBlock key={l.key} l={l} withDevice={withDevice} bulk={false} />)}
+          </RowList>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function Settled({ device }: { device: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device, state: 'settled' })

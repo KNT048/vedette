@@ -128,6 +128,36 @@ describe('Possible findings in By device and By fix', () => {
     expect(screen.getByRole('menuitem', { name: 'Accept the risk…' })).toHaveAttribute('data-disabled')
     expect(screen.getByRole('menuitem', { name: 'Not affected…' })).not.toHaveAttribute('data-disabled')
   })
+
+  it('CVEs reported only for an older build are counted and listed apart, closed, each saying what was tested, when, and what runs', async () => {
+    const c = possibleCounts()
+    expect(c.older_build).toBe(4)
+    renderApp('/findings?tab=device')
+    const s = await section()
+    // both numbers on the summary line; the causes add up to the main number only
+    expect(await within(s).findByText(new RegExp(`^${c.possible} possible CVEs on \\d+ devices: .+ · 4 reported only for an older build`), {}, T)).toBeInTheDocument()
+    expect(Object.values(c.causes).reduce((a, b) => a + b, 0)).toBe(c.possible)
+    // not in the main list: the device row counts only its main possible CVEs
+    const group = within(s).getByTestId('older-builds')
+    expect(within(group).queryAllByTestId('possible-row')).toHaveLength(0)
+    await userEvent.click(within(group).getByRole('button', { name: 'Reported only for an older build: 4 CVEs' }))
+    const rows = within(group).getAllByTestId('possible-row')
+    expect(rows).toHaveLength(4)
+    const row = rows.find((r) => r.textContent?.includes('CVE-2025-934499'))!
+    expect(within(row).getByTestId('possible-older-build')).toHaveTextContent('A third party tested 7.0.15, 9.0.1 (reported 2025); this device runs 9.7.6.')
+    expect(row).toHaveTextContent('No fix or statement from the vendor in the CVE record.')
+    // still possible: answered like any other row
+    expect(within(row).getByRole('button', { name: /^Answer for CVE-2025-934499 on SRV-ACCOUNTS/ })).toBeInTheDocument()
+    // the record that gives the vendor's fix keeps its CVE in the main list
+    expect(rows.some((r) => r.textContent?.includes('CVE-2026-953959'))).toBe(false)
+  })
+
+  it('a device whose only possible CVEs were reported for an older build still shows them, apart', async () => {
+    renderApp('/devices/a-srvacc?tab=findings')
+    const s = await section()
+    expect(await within(s).findByText(/· 4 reported only for an older build$/, {}, T)).toBeInTheDocument()
+    expect(within(s).getByRole('button', { name: 'Reported only for an older build: 4 CVEs' })).toBeInTheDocument()
+  })
 })
 
 describe('Checking possible findings and the AI proposals', () => {
@@ -187,5 +217,6 @@ describe('Checking possible findings and the AI proposals', () => {
     renderApp('/')
     expect(await screen.findByRole('link', { name: `${c.possible} possible CVEs to check` }, T)).toHaveAttribute('href', '/findings?tab=device#possible')
     expect(screen.getByRole('link', { name: `${c.proposals} AI proposals wait for you` })).toHaveAttribute('href', '/findings?tab=proposals')
+    expect(screen.getByRole('link', { name: `${c.older_build} reported only for an older build` })).toHaveAttribute('href', '/findings?tab=device#possible')
   })
 })

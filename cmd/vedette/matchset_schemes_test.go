@@ -290,3 +290,56 @@ func TestSelfcheck_RangePrecedenceResolvesTheLineProduct(t *testing.T) {
 	}
 	t.Fatal("no range_precedence invariant")
 }
+
+// A vendor-notation row's "unaffected for every version it does not list" counts as a complete list (SchemedRange.Complete) only when
+// the product's own vendor assigned the record: a third party's record lists what it tested and says nothing of the rest.
+func TestWiringVendorNotationRowIsCompleteOnlyFromTheVendorsCNA(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		assigner string
+		want     bool
+	}{{"vmware", true}, {"example-lab", false}} {
+		t.Run(c.assigner, func(t *testing.T) {
+			t.Parallel()
+			s := newStack(t)
+			ctx := t.Context()
+			const cve = "CVE-2099-90110"
+			err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+				if err := seedNVD(ctx, tx, cve, time.Now().AddDate(0, -1, 0), 0); err != nil {
+					return err
+				}
+				if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET assigner = ? WHERE cve = ?`, c.assigner, cve); err != nil {
+					return err
+				}
+				return seedVendorRow(ctx, tx, cve, "vmware", "esxi", "8.0", "ESXi80U2e-24789317")
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			fs, err := feedsService(*s.d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			host := esxiHostAsset()
+			set, err := findingsFeeds{st: fs.Store()}.MatchSet(ctx, findings.NewMatchScope([]findings.Asset{host}, nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, v := range set {
+				if v.CVE != cve {
+					continue
+				}
+				if len(v.Schemed) == 0 {
+					t.Fatalf("%s carries no vendor rows", cve)
+				}
+				for _, r := range v.Schemed {
+					if r.Complete != c.want {
+						t.Errorf("assigner %s: row %+v complete %v, want %v", c.assigner, r.Span, r.Complete, c.want)
+					}
+				}
+				return
+			}
+			t.Fatalf("%s is not in the match set", cve)
+		})
+	}
+}

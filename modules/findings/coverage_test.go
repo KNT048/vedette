@@ -49,8 +49,8 @@ func syntheticProducts() []synthetic {
 		{name: "own CNA, defaultStatus unaffected, version outside", sw: line("s-cinder", "Cindertrail", "Sync", "9.1.0"),
 			vuln: cna("CVE-2026-990004", RangesCVEOrg, Affected{CPE: "cpe:2.3:*:cindertrail:sync:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "8.0", EndExcl: "8.4.2"}, VendorList: true}), by: RangeCNA},
 		{name: "third-party CNA, one tested build only", sw: line("s-dove", "Dovetail", "Notes", "4.2.0"),
-			vuln: cna("CVE-2026-990005", RangesCVEOrgPartial, Affected{CPE: "cpe:2.3:*:dovetail:notes:4.1.3:*:*:*:*:*:*:*", AffectedOnly: true}), cause: "vendor_silent",
-			pending: "the matcher reads a third-party CNA's tested build as saying nothing and asks no question: the possible finding gets the named cause vendor_silent with the possible-cause rules"},
+			vuln: Vuln{CVE: "CVE-2026-990005", NVDAnswered: true, Origin: RangeCNA, RangesFrom: RangesCVEOrgPartial, // not the vendor's own CNA
+				Affected: []Affected{{CPE: "cpe:2.3:*:dovetail:notes:4.1.3:*:*:*:*:*:*:*", AffectedOnly: true}}}, cause: CauseNeedsReading},
 		{name: "NVD NA row beside a range", sw: line("s-ember", "Emberlight", "Proxy", "1.9.0"),
 			vuln: nvd("CVE-2026-990006", Affected{CPE: "cpe:2.3:a:emberlight:proxy:-:*:*:*:*:*:*:*"}, r("cpe:2.3:a:emberlight:proxy:*:*:*:*:*:*:*:*", "1.0", "1.8.5")), by: RangeNVD},
 		{name: "NVD NA row alone", sw: line("s-glow", "Glowmere", "Relay", "2.3.0"),
@@ -116,8 +116,8 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 	// is no pair: it counts under the identity "none".
 	want := Coverage{Devices: 1, Lines: len(cases), Pairs: 7,
 		Decided: []CoverageSource{{By: RangeNVD, Affected: 1, NotAffected: 2}, {By: RangeCNA, Affected: 1, NotAffected: 1}},
-		Possible: []CoverageCause{{Cause: CauseNeedsReading, Count: 1, Details: []CoverageDetail{{Detail: UndecidedNoRanges, Count: 1}}},
-			{Cause: CoverageOtherRecordUnread, Count: 1, Details: []CoverageDetail{}}},
+		Possible: []CoverageCause{{Cause: CauseNeedsReading, Count: 2, Details: []CoverageDetail{{Detail: UndecidedNoRanges, Count: 1},
+			{Detail: UndecidedThirdPartyBuild, Count: 1}}}},
 		Identity: []CoverageMethod{{IdentityStated, 0}, {IdentityCatalogue, 0}, {IdentityRecord, 7}, {IdentityAI, 0}, {IdentityAIFamily, 0}, {IdentityNone, 1}}}
 	checkCoverage(t, e.svc, want)
 	// A person's answer decides its pair; a pass that finds the device unchanged keeps its counts
@@ -134,7 +134,7 @@ func TestCoverage_SyntheticProductsAreIdentifiedAndDecidedWithoutCatalogue(t *te
 			t.Fatal(err)
 		}
 		want.Decided = []CoverageSource{{By: RangeNVD, Affected: 1, NotAffected: 2}, {By: RangeCNA, Affected: 1, NotAffected: 1}, {By: RangePerson, NotAffected: 1}}
-		want.Possible = []CoverageCause{{Cause: CoverageOtherRecordUnread, Count: 1, Details: []CoverageDetail{}}}
+		want.Possible = []CoverageCause{{Cause: CauseNeedsReading, Count: 1, Details: []CoverageDetail{{Detail: UndecidedThirdPartyBuild, Count: 1}}}}
 		checkCoverage(t, e.svc, want)
 	}
 	// Each pass is a row; a service started again on the same database serves the newest until its own first pass

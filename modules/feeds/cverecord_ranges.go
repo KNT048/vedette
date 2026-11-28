@@ -68,8 +68,15 @@ type recordGroup struct {
 
 // recordRanges converts the CNA's affected list and each ADP's into ranges of cve (recordGroup rules above). skipped is the products
 // that had entries but no usable rows.
+//
+// An entry of a product that gives no row the generic comparison reads (noRowPart: an "unspecified", "n/a" or unknown-status version
+// and no defaultStatus; or a product whose entries cannot be read, unusable) is a statement about the product the rows do not keep: it
+// may name a system, or every one, the rows left do not. Then no row of that product, in any container of the record, keeps its system
+// limit (liftSystems): a system the rows left name is no proof that another one is not affected. A version inside them still reads
+// affected, so this only ever opens.
 func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) (rows []Range, skipped, statedDropped int) {
-	stated := 0 // the rows kept as the vendor states them, at most recordMaxStated a record
+	stated := 0                    // the rows kept as the vendor states them, at most recordMaxStated a record
+	lifted := map[[2]string]bool{} // vendor, product of the products an entry of which gave no row
 	conv := func(origin string, list []cnaAffected, fallback string) {
 		if len(list) == 0 {
 			return
@@ -136,6 +143,9 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			}
 		}
 		for _, g := range groups {
+			if g.unusable || g.noRowPart {
+				lifted[[2]string{g.key[1], g.key[2]}] = true
+			}
 			schemed := SchemeProduct(Range{Part: g.key[0], Vendor: g.key[1], Product: g.key[2]})
 			vendors := origin == OriginCNA && !slices.ContainsFunc(g.entries, func(a cnaAffected) bool { return !ownCNA(assigner, a.Vendor) })
 			own := func(got []Range) {
@@ -195,7 +205,33 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 	for _, a := range adps {
 		conv(OriginADP, a.Affected, "")
 	}
-	return rows, skipped, statedDropped
+	return liftSystems(rows, lifted), skipped, statedDropped
+}
+
+// liftSystems drops the system limit of the generic rows of the lifted products (recordRanges), and the rows that then repeat another
+// (one per system of an entry) once each, the repeat's weaker defaultStatus kept. A row limited to models keeps them.
+func liftSystems(rows []Range, lifted map[[2]string]bool) []Range {
+	if len(lifted) == 0 {
+		return rows
+	}
+	out := rows[:0]
+	for _, r := range rows {
+		if lifted[[2]string{r.Vendor, r.Product}] && r.Generic() && len(r.Platforms) > 0 &&
+			!slices.ContainsFunc(r.Platforms, func(p string) bool { return !systemTargets[p] }) {
+			r.Platforms = nil
+			if j := slices.IndexFunc(out, func(h Range) bool {
+				return len(h.Platforms) == 0 && h.Origin == r.Origin && h.Part == r.Part && h.Vendor == r.Vendor && h.Product == r.Product &&
+					h.CPE == r.CPE && h.VersionType == r.VersionType && sameSpan(h, r)
+			}); j >= 0 {
+				if r.DefaultStatus == DefaultUnknown {
+					out[j].DefaultStatus = DefaultUnknown
+				}
+				continue
+			}
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // maxAssigner bounds the stored assigner (feeds_cve.assigner): a CNA's short name is a word, never longer.

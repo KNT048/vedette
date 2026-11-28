@@ -138,8 +138,9 @@ func fixTrainReadings(in swInfo, v Vuln, key []identity, name string) (agreement
 // outside such a list proves nothing, but a system does, when the statement comes from who knows the product's builds. Whether the list
 // names every affected version or only some, it names the systems the product is affected on, and none of them is one the device's own
 // agent reports (installOf: the agent's OS, never a scan's guess). The rows count when the vendor's own CNA wrote them
-// (Affected.VendorCNA), or when NVD's own analysis of the CVE agrees: it has rows, and every one of them is limited to a system the
-// device does not run either. A third party's record alone names the system it tested on ("as demonstrated on Linux"), so it decides
+// (Affected.VendorCNA), or when NVD's own analysis agrees for the line's product: NVD has rows that name the line's product (entryFor
+// own), and like every row of it they are limited to a system the device does not run. NVD's rows of another product say nothing
+// about the line's. A third party's record alone names the system it tested on ("as demonstrated on Linux"), so it decides
 // nothing.
 //
 // Both sides must read in the target_sw vocabulary (osFamilies) and not meet (platformsMeet). A row for every system, for the build of
@@ -151,11 +152,8 @@ func systemReadings(in swInfo, v Vuln, key []identity, name string) (agreement, 
 	if have == "" || in.install.platformWhy == "" || in.hasCPE && in.cpe.TargetSW.Kind != Any || len(v.Schemed) > 0 || len(v.Lines) > 0 {
 		return agreement{}, false
 	}
-	switch {
-	case v.RangesFrom == RangesCVEOrgPartial:
-	case v.RangesFrom == "" && len(recordRows(in, v, key, false)) == 0:
-	default:
-		return agreement{}, false // a complete list, or NVD's own rows of the line: decide already read their systems
+	if v.RangesFrom != RangesCVEOrgPartial && v.RangesFrom != "" {
+		return agreement{}, false // a complete list: decide already read its systems
 	}
 	// other is the family name of the system row c is limited to when the device does not run it, "" otherwise
 	other := func(c CPE) string {
@@ -170,8 +168,8 @@ func systemReadings(in swInfo, v Vuln, key []identity, name string) (agreement, 
 		return osFamilyNames[w]
 	}
 	var systems []string
-	third := false               // a row of the line is a third party's
-	nvdRows, nvdOther := 0, true // NVD's own rows of the CVE, and whether each is limited to a system the device does not run
+	third := false // a row of the line is a third party's
+	nvdRows := 0   // NVD's rows of the line's own product (each limited to a system the device does not run)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
@@ -181,24 +179,23 @@ func systemReadings(in swInfo, v Vuln, key []identity, name string) (agreement, 
 		if !own && (byKey || !known) {
 			return agreement{}, false
 		}
-		if v.RangesFrom == "" && !af.AffectedOnly { // NVD's row (of another product: recordRows found none of the line's)
-			nvdRows++
-			nvdOther = nvdOther && other(c) != ""
-			continue
-		}
 		if !own {
-			continue // the record's row of another product
+			continue // a row of another product (NVD's says nothing about the line's product)
 		}
 		n := other(c)
 		if n == "" {
 			return agreement{}, false
+		}
+		if v.RangesFrom == "" && !af.AffectedOnly { // NVD's own row of the line's product, limited to another system
+			nvdRows++
+			continue
 		}
 		third = third || !af.VendorCNA
 		if !slices.Contains(systems, n) {
 			systems = append(systems, n)
 		}
 	}
-	if len(systems) == 0 || third && (nvdRows == 0 || !nvdOther) {
+	if len(systems) == 0 || third && nvdRows == 0 {
 		return agreement{}, false
 	}
 	slices.Sort(systems)

@@ -106,3 +106,50 @@ func TestRecordRanges_LineFixReachesTheMatcher(t *testing.T) {
 		t.Fatalf("exploited-list view %+v, want the line fix on the row that ends highest", rows)
 	}
 }
+
+// An entry of a product that gives no row (a version "unspecified", "n/a" or of status unknown, and no defaultStatus) is a statement
+// the reader cannot keep: the product may be affected on any system that entry names, or on every one. The product's rows then lose
+// their system limit, so no system is ruled out by the entries that are left (a version inside them still reads affected).
+func TestRecordSystems_ADroppedEntryLiftsTheSystemLimit(t *testing.T) {
+	t.Parallel()
+	const ios = `{"vendor":"Acme","product":"Meeting App","platforms":["iOS"],"versions":[{"version":"0","lessThan":"7.0.0","status":"affected","versionType":"custom"}]}`
+	adp := func(entry string) []byte {
+		return []byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-1000","state":"PUBLISHED","assignerShortName":"acme",` +
+			`"datePublished":"2026-11-01T10:00:00.000Z","dateUpdated":"2026-11-01T12:00:00.000Z"},"containers":{"cna":{"affected":[` + ios + `]},` +
+			`"adp":[{"providerMetadata":{"orgId":"00000000-0000-0000-0000-000000000000","shortName":"example-adp"},"affected":[` + entry + `]}]}}`)
+	}
+	for _, tc := range []struct {
+		name    string
+		rec     []byte
+		limited bool
+	}{
+		{"alone", record(ios), true},
+		{"beside a Windows entry of an unspecified version", record(`{"vendor":"Acme","product":"Meeting App","platforms":["Windows"],` +
+			`"versions":[{"version":"unspecified","status":"affected"}]},` + ios), false},
+		{"beside an entry of every system with n/a", record(`{"vendor":"Acme","product":"Meeting App","versions":[{"version":"n/a","status":"affected"}]},` + ios), false},
+		{"beside a Linux entry of status unknown", record(`{"vendor":"Acme","product":"Meeting App","platforms":["Linux"],` +
+			`"versions":[{"version":"5.0","status":"unknown"}]},` + ios), false},
+		{"beside an entry that states every version unaffected", record(`{"vendor":"Acme","product":"Meeting App","platforms":["Windows"],` +
+			`"defaultStatus":"unaffected","versions":[{"version":"6.0","status":"unaffected"}]},` + ios), true},
+		{"beside another product's dropped entry", record(`{"vendor":"Acme","product":"Meeting SDK","versions":[{"version":"n/a","status":"affected"}]},` + ios), true},
+		{"an ADP's dropped entry of the product", adp(`{"vendor":"Acme","product":"Meeting App","versions":[{"version":"unspecified","status":"affected"}]}`), false},
+	} {
+		got, err := ParseCVERecord(tc.rec, "CVE-2026-1000")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rows []Range
+		for _, r := range genericRows(got.Ranges) {
+			if r.Product == "meetingapp" {
+				rows = append(rows, r)
+			}
+		}
+		if len(rows) != 1 || rows[0].EndExcl != "7.0.0" {
+			t.Errorf("%s: rows %+v, want the one iOS range", tc.name, rows)
+			continue
+		}
+		if limited := len(rows[0].Platforms) > 0; limited != tc.limited {
+			t.Errorf("%s: platforms %v, limited %v, want %v", tc.name, rows[0].Platforms, limited, tc.limited)
+		}
+	}
+}

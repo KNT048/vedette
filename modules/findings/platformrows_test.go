@@ -8,7 +8,7 @@ import (
 // Platform-limited rows of a list that is not complete: a CVE record's rows read beside NVD's, or a CNA's partial list. Every row of the
 // line's own product names a system (CPE target_sw, or the record's platforms as target_sw), the vendor's own CNA wrote them and the
 // device's own agent states another system: the CVE does not apply to the line, whatever the record leaves unsaid about versions.
-// A third party's record counts only when NVD's own rows agree. Anything unmapped, unknown or overlapping keeps it possible.
+// A third party's record counts only when NVD's rows of the line's own product agree. Anything unmapped, unknown or overlapping keeps it possible.
 // Synthetic product: the rule reads the vocabulary of target_sw and the device's platform, never the product.
 func TestPlatformRows_DisjointSystemsDecideNotAffected(t *testing.T) {
 	t.Parallel()
@@ -45,6 +45,7 @@ func TestPlatformRows_DisjointSystemsDecideNotAffected(t *testing.T) {
 		r.VendorCNA = false
 		return Vuln{CVE: "CVE-2099-7305", NVDAnswered: true, Published: uncNew, Affected: []Affected{nvd, r}}
 	}
+	nvdSame := Affected{CPE: "cpe:2.3:a:example:meeting_app:*:*:*:*:*:android:*:*", Range: VersionRange{EndExcl: "7.0.4"}}
 	nvdAny := Affected{CPE: "cpe:2.3:a:example:meeting_sdk:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "7.0.4"}}
 	nvdOwn := Affected{CPE: "cpe:2.3:a:example:meeting_sdk:*:*:*:*:*:windows:*:*", Range: VersionRange{EndExcl: "7.0.4"}}
 	scanned := line
@@ -69,7 +70,8 @@ func TestPlatformRows_DisjointSystemsDecideNotAffected(t *testing.T) {
 		{"a system outside the vocabulary", on("VMware ESXi 8.0 Update 3", line), partial(later("linux")), false},
 		{"a row a scan saw: a container may run it", on(windows, scanned), partial(row("android", "7.2.1")), false},
 		{"a third party's record names the system it tested on", on(windows, line), partial(tested), false},
-		{"a third party's record NVD's own rows agree with", on(windows, line), thirdBeside(other), true},
+		{"a third party's record, NVD's rows of the line's product agree", on(windows, line), thirdBeside(nvdSame), true},
+		{"a third party's record, NVD's rows of another product only", on(windows, line), thirdBeside(other), false},
 		{"a third party's record, NVD names every system", on(windows, line), thirdBeside(nvdAny), false},
 		{"a third party's record, NVD names the device's system", on(windows, line), thirdBeside(nvdOwn), false},
 		{"an exploited CVE closes only by a person", on(windows, line), listed, false},

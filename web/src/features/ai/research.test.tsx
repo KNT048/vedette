@@ -29,9 +29,9 @@ const captured = () => {
 describe('ai: research settings', () => {
   it('shows the three modes with typical tokens per CVE and saves the chosen mode as research_mode', async () => {
     const form = await settings()
-    expect(within(form).getByText('Typically about 20,000 tokens per CVE')).toBeInTheDocument()
-    expect(within(form).getByText('Typically about 70,000 tokens per CVE')).toBeInTheDocument()
-    expect(within(form).getByText('Typically about 200,000 tokens per CVE')).toBeInTheDocument()
+    // a figure only where this box has research runs (the current mode, from the run log); never an invented one
+    expect(await within(form).findAllByText(/On this box: about [\d,]+ tokens per CVE \(last 30 days\)/)).toHaveLength(1)
+    expect(form.textContent).not.toMatch(/Typically/)
     expect(within(form).getByRole('radio', { name: /Balanced/ })).toBeChecked()
     const bodies = captured()
     await userEvent.click(within(form).getByRole('radio', { name: /Thorough/ }))
@@ -61,6 +61,7 @@ describe('ai: research settings', () => {
   it('says what is sent, shows the share as tokens used and left, and never renders a currency symbol', async () => {
     const form = await settings()
     expect(within(form).getByText('What is sent')).toBeInTheDocument()
+    expect(within(form).getByText('%')).toBeInTheDocument()
     expect(within(form).getByText(/Never device names, addresses or users/)).toBeInTheDocument()
     expect(within(form).getByText(/tokens used, .* left\./)).toBeInTheDocument()
     expect(form.textContent).not.toMatch(/[$€£¥₫]/)
@@ -74,7 +75,7 @@ const ROW = {
     key: 'k1', decided_by: 'ai', verdict: 'affected', confidence: 'likely', reason: '', quote: 'QTS 5.0.1 and earlier are affected; fixed in 5.0.1.2345.',
     sources: [{ url: 'https://vendor.example.com/advisory/qsa-22-29', status: 'ok', cited: true }], model: 'sample-strong', checked_by: 'system', checked_at: '2026-11-27T10:00:00Z', rejected: false,
     reading: {
-      status: 'fixed', line: '5.0', stated_line: '5.0', introduced: null, fixed_in: '5.0.1.2345', last_affected: null, host: 'vendor.example.com', vendor_page: true, quote_found: true,
+      status: 'affected', line: '5.0', stated_line: '5.0', introduced: null, fixed_in: '5.0.1.2345', last_affected: null, host: 'vendor.example.com', vendor_page: true, quote_found: true,
       research: {
         layer: 'strong', quote_check: 'live', tokens: 61000,
         detail: {
@@ -97,6 +98,8 @@ describe('ai: research panel on the CVE page', () => {
     const panel = (await screen.findByRole('heading', { name: 'AI research' }, { timeout: 5000 })).closest('section')!
     expect(within(panel).getByText('Release line 5.0')).toBeInTheDocument()
     expect(within(panel).getByText('2 devices on this line')).toBeInTheDocument()
+    expect(within(panel).getByText('Affected')).toBeInTheDocument()
+    expect(within(panel).getByText('Fix: 5.0.1.2345')).toBeInTheDocument()
     expect(within(panel).getByText(/QTS 5\.0\.1 and earlier are affected/)).toBeInTheDocument()
     expect(within(panel).getByText('Quote found on the cited page, fetched by Vedette')).toBeInTheDocument()
     expect(within(panel).getByRole('link', { name: 'Source: vendor.example.com' })).toHaveAttribute('href', 'https://vendor.example.com/advisory/qsa-22-29')
@@ -114,6 +117,19 @@ describe('ai: research panel on the CVE page', () => {
     server.use(http.get('*/api/v1/findings/possible', () => HttpResponse.json({ items: [bad], total: 1, counts: {} })))
     renderApp('/cve/CVE-2022-27593')
     expect(await screen.findByText('Quote not found on any page: this answer decides nothing', undefined, { timeout: 5000 })).toBeInTheDocument()
+  })
+})
+
+describe('ai: research verdict in customer words', () => {
+  it('a reading whose status is fixed reads Not affected, already fixed in the release', async () => {
+    const past = structuredClone(ROW)
+    past.check.reading.status = 'fixed'
+    server.use(http.get('*/api/v1/findings/possible', () => HttpResponse.json({ items: [past], total: 1, counts: {} })))
+    renderApp('/cve/CVE-2022-27593')
+    const panel = (await screen.findByRole('heading', { name: 'AI research' }, { timeout: 5000 })).closest('section')!
+    expect(within(panel).getByText('Not affected')).toBeInTheDocument()
+    expect(within(panel).getByText('Already fixed in 5.0.1.2345')).toBeInTheDocument()
+    expect(within(panel).queryByText('Fixed')).not.toBeInTheDocument()
   })
 })
 

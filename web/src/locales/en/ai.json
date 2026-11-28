@@ -228,19 +228,21 @@
           "what": "The strong profile only. Most reliable, most tokens."
         }
       },
-      "perCve": "About {{tokens}} tokens per CVE on this box",
-      "perCveTypical": "Typically about {{tokens}} tokens per CVE",
       "share": "Share of the monthly token budget",
-      "shareHint": "From 1 to 100 percent; default 50. A person's Research deeper is held only by the monthly budget itself.",
+      "shareHint": "From 1 to 100 percent; default 50.",
       "shareErr": "The share must be a whole number from 1 to 100.",
       "shareUse": "This month: {{used}} of {{allowed}} tokens used, {{left}} left.",
       "shareOver": "This month's research share is used up: research waits until {{date}}, or raise the share.",
       "daily": "Research calls a day",
-      "dailyHint": "From 1 to 5,000; default 300. Identifying software counts here too, at most half of it; a call that failed after it was sent counts. It also pauses with other background jobs at 80 % of the monthly budget.",
+      "dailyHint": "From 1 to 5,000; default 300.",
       "today": "Today: {{used}} of {{daily}} calls.",
       "err": "The number must be a whole number from 1 to 5,000.",
       "sentTitle": "What is sent",
-      "sentBody": "The CVE id, its public record, the product's name and version line, and excerpts of public vendor pages. Never device names, addresses or users."
+      "sentBody": "The CVE id, its public record, the product's name and version line, and excerpts of public vendor pages. Never device names, addresses or users.",
+      "perCveMeasured": "On this box: about {{tokens}} tokens per CVE (last 30 days)",
+      "shareInfo": "A person's Research deeper is held only by the monthly budget itself, not by this share.",
+      "dailyInfo": "Identifying software counts here too, at most half of it; a call that failed after it was sent counts. It also pauses with other background jobs at 80 % of the monthly budget.",
+      "unitPercent": "%"
     }
   },
   "cve": {
@@ -279,11 +281,11 @@
       "line": "Release line {{line}}",
       "verdict": {
         "affected": "Affected",
-        "fixed": "Fixed",
+        "fixed": "Not affected",
         "not_affected": "Not affected",
         "unsure": "Unsure"
       },
-      "fixedIn": "Fixed in {{version}}",
+      "fixedIn": "Already fixed in {{version}}",
       "quote": "Quote it relies on",
       "noQuote": "The AI gave no quote.",
       "quoteCheck": {
@@ -308,16 +310,19 @@
         "strong": "Answered by the strong profile"
       },
       "when": "Checked {{time}}",
-      "devices": "{{count}} devices on this line",
       "how": "How it decided",
       "step": "{{n}}. {{layer}}: {{verdict}}",
       "stepLayer": {
         "quick": "Quick",
         "strong": "Strong"
       },
-      "stepFacts_one": "{{tokens}} tokens, {{count}} page read", "stepFacts_other": "{{tokens}} tokens, {{count}} pages read",
+      "stepFacts_one": "{{tokens}} tokens, {{count}} page read",
+      "stepFacts_other": "{{tokens}} tokens, {{count}} pages read",
       "stepNone": "no answer",
-      "note": "Note"
+      "note": "Note",
+      "fix": "Fix: {{version}}",
+      "devices_one": "{{count}} device on this line",
+      "devices_other": "{{count}} devices on this line"
     }
   },
   "logs": {

@@ -10,7 +10,7 @@ import type { PossibleCheck, PossibleRow } from '@/features/findings/types'
 type Reading = NonNullable<PossibleCheck['reading']>
 type Line = { line: string; check: PossibleCheck; reading: Reading; devices: number }
 
-const TONE = { affected: 'danger', fixed: 'danger', not_affected: 'ok', unsure: 'warn' } as const
+const TONE = { affected: 'danger', fixed: 'ok', not_affected: 'ok', unsure: 'warn' } as const
 const safeUrl = (u: string) => { try { const x = new URL(u); return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : null } catch { return null } }
 
 /** The researched lines of one CVE: one entry per release line, since every device on a line shares the answer. */
@@ -58,7 +58,7 @@ function LineCard({ l }: { l: Line }) {
         <span className="font-medium">{t('cve.research.line', { line: l.line })}</span>
         <Chip tone={TONE[r.status]}>{t(`cve.research.verdict.${r.status}`)}</Chip>
         <Chip tone={d.basis === 'inferred' ? 'warn' : 'off'}>{t(d.basis === 'inferred' ? 'cve.research.basis.inferred' : 'cve.research.basis.stated')}</Chip>
-        {r.fixed_in ? <span className="text-sm">{t('cve.research.fixedIn', { version: r.fixed_in })}</span> : null}
+        {r.fixed_in ? <span className="text-sm">{t(r.status === 'fixed' ? 'cve.research.fixedIn' : 'cve.research.fix', { version: r.fixed_in })}</span> : null}
         <span className="text-meta text-muted">{t('cve.research.devices', { count: l.devices })}</span>
       </div>
       <div>

@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import type { DeviceRisk } from './types'
 
 /** A device's badge: the code and its count, or null for none. */
-export type DeviceBadgeValue = { code: DeviceStatusCode; count: number } | null
+export type DeviceBadgeValue = { code: DeviceStatusCode; count: number; older_build?: number } | null
 
 /** Where a device's badge leads: the device's Findings tab filtered to that status; its possible findings for "N possible". */
 export function deviceFindingsLink(device: string, code?: DeviceStatusCode): string {
@@ -31,12 +31,12 @@ export function DeviceBadge({ id, badge, label, className, ...rest }: { id: stri
   // already showing what it leads to (the device's Findings tab with that status): the badge, not a link to this page
   const at = new URL(to, 'http://x')
   if (at.pathname === here.pathname && at.searchParams.get('tab') === new URLSearchParams(here.search).get('tab') && at.searchParams.get('status') === new URLSearchParams(here.search).get('status')) {
-    return <span title={label} className={cn('inline-flex', className)} {...rest}><StatusBadge code={badge.code} count={badge.count} /></span>
+    return <span title={label} className={cn('inline-flex', className)} {...rest}><StatusBadge code={badge.code} count={badge.count} older={badge.older_build} /></span>
   }
   return (
     <Link to={to} aria-label={label} title={label} onClick={(e) => e.stopPropagation()} {...rest}
       className={cn('inline-flex w-fit shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent', className)}>
-      <StatusBadge code={badge.code} count={badge.count} />
+      <StatusBadge code={badge.code} count={badge.count} older={badge.older_build} />
     </Link>
   )
 }

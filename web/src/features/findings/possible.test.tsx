@@ -20,8 +20,11 @@ describe('Possible findings in By device and By fix', () => {
     renderApp('/findings?tab=device')
     const line = await waitFor(() => { const e = document.querySelector('[data-count="by-device"]'); if (!e?.textContent?.includes('possible')) throw new Error('no line'); return e }, T)
     const open = records.get().filter((r) => r.state === 'open').length
-    expect(line).toHaveTextContent(new RegExp(`, ${open} open findings · ${n} possible$`))
+    const older = possibleCounts().older_build
+    expect(line).toHaveTextContent(new RegExp(`, ${open} open findings · ${n} possible · ${older} older build$`))
     expect(within(line as HTMLElement).getByRole('link', { name: `${n} possible` })).toHaveAttribute('href', '#possible')
+    // never hidden: the older-build group's count is a link beside it
+    expect(within(line as HTMLElement).getByRole('link', { name: `${older} older build` })).toHaveAttribute('href', '#possible')
     const s = await section()
     expect(await within(s).findByText(new RegExp(`^${n} possible CVEs on \\d+ devices: Vedette cannot decide them`), {}, T)).toBeInTheDocument()
     // every device row counts its CVEs; together they are the total
@@ -131,18 +134,18 @@ describe('Possible findings in By device and By fix', () => {
 
   it('CVEs reported only for an older build are counted and listed apart, closed, each saying what was tested, when, and what runs', async () => {
     const c = possibleCounts()
-    expect(c.older_build).toBe(4)
+    expect(c.older_build).toBe(5)
     renderApp('/findings?tab=device')
     const s = await section()
     // both numbers on the summary line; the causes add up to the main number only
-    expect(await within(s).findByText(new RegExp(`^${c.possible} possible CVEs on \\d+ devices: .+ · 4 reported only for an older build`), {}, T)).toBeInTheDocument()
+    expect(await within(s).findByText(new RegExp(`^${c.possible} possible CVEs on \\d+ devices: .+ · 5 reported only for an older build`), {}, T)).toBeInTheDocument()
     expect(Object.values(c.causes).reduce((a, b) => a + b, 0)).toBe(c.possible)
     // not in the main list: the device row counts only its main possible CVEs
     const group = within(s).getByTestId('older-builds')
     expect(within(group).queryAllByTestId('possible-row')).toHaveLength(0)
-    await userEvent.click(within(group).getByRole('button', { name: 'Reported only for an older build: 4 CVEs' }))
+    await userEvent.click(within(group).getByRole('button', { name: 'Reported only for an older build: 5 CVEs' }))
     const rows = within(group).getAllByTestId('possible-row')
-    expect(rows).toHaveLength(4)
+    expect(rows).toHaveLength(5)
     const row = rows.find((r) => r.textContent?.includes('CVE-2025-900103'))!
     expect(within(row).getByTestId('possible-older-build')).toHaveTextContent('A third party tested 4.0.3, 5.9.1 (reported 2025); this device runs 6.4.2.')
     expect(row).toHaveTextContent('No fix or statement from the vendor in the CVE record.')
@@ -152,11 +155,23 @@ describe('Possible findings in By device and By fix', () => {
     expect(rows.some((r) => r.textContent?.includes('CVE-2026-900105'))).toBe(false)
   })
 
-  it('a device whose only possible CVEs were reported for an older build still shows them, apart', async () => {
+  it('a device with possible CVEs of both kinds counts both on its page', async () => {
     renderApp('/devices/a-srvacc?tab=findings')
     const s = await section()
     expect(await within(s).findByText(/· 4 reported only for an older build$/, {}, T)).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Reported only for an older build: 4 CVEs' })).toBeInTheDocument()
+  })
+
+  it('a device whose only possible CVEs were reported for an older build keeps a badge and a link that say so', async () => {
+    renderApp('/devices/a-nvr01?tab=findings')
+    const s = await section()
+    // no empty main list: the group with its count, and the check that can still read it
+    expect(await within(s).findByRole('button', { name: 'Reported only for an older build: 1 CVE' }, T)).toBeInTheDocument()
+    expect(within(s).queryByText(/^0 possible CVEs/)).toBeNull()
+    expect(within(s).getByRole('button', { name: /^Check 1 possible/ })).toBeInTheDocument()
+    // the device's badge in its header and the findings line's link
+    expect((await screen.findAllByText('1 older build', {}, T)).length).toBeGreaterThan(0)
+    expect(document.querySelector('[data-status="possible"]')).toHaveTextContent('1 older build')
   })
 })
 

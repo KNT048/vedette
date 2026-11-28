@@ -241,7 +241,8 @@ export function seedQuestions(): QuestionRecord[] {
 }
 
 /** CVEs a third party reported for an older build it tested, on two lines of the accounting server: three the vendor never spoke
- *  about (reported only for an older build) and one whose record gives the vendor's fix (it stays in the main list). */
+ *  about (reported only for an older build) and one whose record gives the vendor's fix (it stays in the main list); and one on the
+ *  recorder, its only possible CVE. */
 function olderBuildQuestions(): QuestionRecord[] {
   const remote = { id: 's-srvacc-remote', name: 'Remote Support Client', version: '6.4.2' }
   const ftp = { id: 's-srvacc-ftp', name: 'FTP Client', version: '2.18.0' }
@@ -255,6 +256,8 @@ function olderBuildQuestions(): QuestionRecord[] {
     q(3, remote, 'CVE-2025-900103', ['4.0.3', '5.9.1']),
     q(4, ftp, 'CVE-2019-900104', ['1.40.0']),
     q(5, ftp, 'CVE-2026-900105', ['2.11.0'], { vendor_word: true }),
+    // a recorder whose only possible CVE is one of these: its badge and links still say so
+    { ...q(6, { id: 's-nvr01-fw', name: 'Video Recorder Firmware', version: '4.2.0' }, 'CVE-2020-900106', ['2.0.1']), id: 'fq-nvr01-old-1', asset_id: 'a-nvr01' },
   ]
 }
 

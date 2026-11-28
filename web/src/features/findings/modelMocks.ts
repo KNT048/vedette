@@ -108,8 +108,9 @@ export function deviceStatus(assetId: string): DeviceStatus {
     const layer = Math.min(...open.map((r) => r.layer))
     return { code: OPEN_STATUSES[layer - 1]!, count: new Set(open.filter((r) => r.layer === layer).map((r) => r.cve)).size }
   }
-  const n = possibleCounts(assetId).possible
-  return n ? { code: 'possible', count: n } : null
+  const c = possibleCounts(assetId)
+  const n = c.possible + c.older_build
+  return n ? { code: 'possible', count: n, ...(c.older_build ? { older_build: c.older_build } : {}) } : null
 }
 
 function card(asset: Asset, l: FindingRecord[]): DeviceCard {

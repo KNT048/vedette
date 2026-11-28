@@ -617,6 +617,8 @@
     "colProduct": "Software",
     "countLink_one": "{{count}} possible",
     "countLink_other": "{{count}} possible",
+    "countLinkOlder_one": "{{count}} older build",
+    "countLinkOlder_other": "{{count}} older build",
     "summary_one": "{{count}} possible CVE on {{devices}}: Vedette cannot decide it, so it is not counted as open",
     "summary_other": "{{count}} possible CVEs on {{devices}}: Vedette cannot decide them, so they are not counted as open",
     "summaryProposals_one": "{{count}} AI proposal waits for you",

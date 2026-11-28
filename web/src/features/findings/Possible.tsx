@@ -596,11 +596,14 @@ function ProductGroup({ p }: { p: PossibleProduct }) {
   )
 }
 
-/** " · 16 possible" after a list's count, a link to the Possible section below it; nothing at 0. */
-export function PossibleLink({ count }: { count: number }) {
+/** " · 16 possible · 4 older build" after a list's count, links to the Possible section below it; each part hidden at 0. */
+export function PossibleLink({ count, older = 0 }: { count: number; older?: number }) {
   const { t } = useTranslation('findings')
-  if (!count) return null
-  return <> · <a href="#possible" className="text-accent underline-offset-4 hover:underline">{t('possible.countLink', { count })}</a></>
+  const cls = 'text-accent underline-offset-4 hover:underline'
+  return <>
+    {count ? <> · <a href="#possible" className={cls}>{t('possible.countLink', { count })}</a></> : null}
+    {older ? <> · <a href="#possible" className={cls}>{t('possible.countLinkOlder', { count: older })}</a></> : null}
+  </>
 }
 
 /** The words a list's search reads. */
@@ -649,7 +652,7 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
             {(d) => (
               <>
                 <CheckRunLine />
-                {by === 'device' ? (
+                {!d.counts.possible ? <div className="flex justify-end"><CheckPossible counts={d.counts} device={device || undefined} /></div> : by === 'device' ? (
                   <DataTable urlKey="possible" caption={t('possible.caption')} data={devices} pageSize={20}
                     columns={[{ id: 'text', header: t('byDevice.col'), accessorFn: (x: PossibleDevice) => searchText(x.rows) }] satisfies ColumnDef<PossibleDevice>[]}
                     list={(x) => <DeviceGroup d={x} />} resetPageOn={device}
@@ -690,10 +693,12 @@ export function DevicePossible({ assetId }: { assetId: string }) {
         <>
           <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
           <CheckRunLine />
-          <DataTable urlKey="device-possible" caption={t('possible.captionDevice')} data={lines} pageSize={20}
-            columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (l: PossibleLine) => searchText(l.rows) }] satisfies ColumnDef<PossibleLine>[]}
-            list={(l) => <LineBlock l={l} />}
-            summary={summary.join(' · ')} actions={<CheckPossible counts={counts} device={assetId} />} />
+          {counts.possible ? (
+            <DataTable urlKey="device-possible" caption={t('possible.captionDevice')} data={lines} pageSize={20}
+              columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (l: PossibleLine) => searchText(l.rows) }] satisfies ColumnDef<PossibleLine>[]}
+              list={(l) => <LineBlock l={l} />}
+              summary={summary.join(' · ')} actions={<CheckPossible counts={counts} device={assetId} />} />
+          ) : <div className="flex justify-end"><CheckPossible counts={counts} device={assetId} /></div>}
           <OlderBuilds rows={older} />
         </>
       ) : null}

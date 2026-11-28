@@ -347,6 +347,9 @@ type FindingInfo struct {
 	Open bool
 	// Layer is the stored urgency layer of the finding (1 under attack here .. 5 update recommended). Layer 5 never alerts.
 	Layer int
+	// Exploited is findings' answer to "is it exploited" (Finding.Exploited, the one cutoff findings.ExploitedLayer): only an exploited
+	// finding sends an alert (INV-32). notify never decides it from the layer itself.
+	Exploited bool
 	// Status is the name of the status the finding page shows ("Public exploit available"), Meaning the sentence that says what it asks
 	// of a person, Reasons the line of the reasons ("Exploited in the wild: CISA KEV (19 Nov 2026)"; "" when none), all from findings.
 	Status, Meaning, Reasons string
@@ -358,12 +361,6 @@ type FindingInfo struct {
 	Action  string   // what to do first
 	Devices []string // names of the devices the finding matched; empty = it matched none
 }
-
-// exploitedLayer says whether an urgency layer means attackers use the flaw: under attack here (1), exploited in the wild (2), or not
-// stated (0). It is the one test of "exploited in the wild" in notify (INV-32): the layer is findings' Urgency, read from the same
-// feeds rows as the reporting window's exploited part (an exploited list's entry, a vendor's or a researcher's exploited signal) and
-// from this network's intrusion alerts, whoever found the finding (a scan, a version match, the customer's AI).
-func exploitedLayer(layer int) bool { return layer <= 2 }
 
 // layerUpdate is the urgency layer of a finding with no sign of exploitation (findings.UrgencyUpdate): it never alerts.
 const layerUpdate = 5

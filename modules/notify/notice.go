@@ -45,8 +45,11 @@ type Notice struct {
 	// Status (the badge, "Exploited in the wild") and Verification (how Vedette knows the device is affected) are the finding page's
 	// first and second lines; a digest line carries them with the reasons line.
 	Status, Verification string
-	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer); a digest says "exploited" only when every notice is.
+	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer).
 	Layer int
+	// Exploited: the finding is exploited in the wild (FindingInfo.Exploited; of a summary, one of its findings is). Only such a notice
+	// is queued on a channel (INV-32); a digest says "exploited" only when every notice is.
+	Exploited bool `json:",omitempty"`
 	// Lines are the detail lines of a notice about several findings (a first-run summary): one per finding, worded as a digest line
 	// ("<product>: <CVE> on <device> — <reasons> · <verification>"), in the order of FindingIDs. Empty: the message lists the CVEs.
 	Lines []string `json:",omitempty"`
@@ -78,8 +81,8 @@ func (n Notice) Sendable() bool {
 	return false
 }
 
-// exploited says whether the notice is about a vulnerability that attackers use (Layer 1, 2, or not stated).
-func (n Notice) exploited() bool { return exploitedLayer(n.Layer) }
+// exploited says whether the notice is about a vulnerability exploited in the wild (Exploited, findings' answer).
+func (n Notice) exploited() bool { return n.Exploited }
 
 // SplitSendable separates the notices that may be sent from the count of
 // vulnerability notices dropped for matching no device (HistoryResponse.suppressed).

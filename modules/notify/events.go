@@ -216,8 +216,8 @@ func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventS
 		sev = eventSeverity
 	}
 	cve := cmp.Or(f.CVE, eventCVE)
-	n := Notice{ID: "nt-" + id + "-" + string(event), Event: event, Kind: KindVuln, Severity: AlertSeverity(sev, f.Layer), Product: f.Product, FindingIDs: []string{id},
-		Devices: f.Devices, Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Reasons: f.Reasons, Status: f.Status, Verification: f.Verification, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
+	n := Notice{ID: "nt-" + id + "-" + string(event), Event: event, Kind: KindVuln, Severity: AlertSeverity(sev, f.Exploited), Product: f.Product, FindingIDs: []string{id},
+		Devices: f.Devices, Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Reasons: f.Reasons, Status: f.Status, Verification: f.Verification, Layer: f.Layer, Exploited: f.Exploited, Link: s.link("/findings/" + id), At: s.now()}
 	if cve != "" {
 		n.CVEs = []string{cve}
 	}
@@ -227,14 +227,13 @@ func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventS
 	return s.Publish(ctx, n)
 }
 
-// AlertSeverity is the severity a channel judges a finding's notice at (its min_severity, quiet hours, grouping): the finding's CVSS
-// band raised to the floor of its urgency layer. Layers 1–4 are the ones Vedette alerts for, so none of them is below High; a flaw
-// attackers use (under attack here, exploited in the wild) is Critical whatever its CVSS score, as the exploit-aware ratings of the
-// large scanners rate a flaw on CISA's list. So a channel on the default "Medium and above", or on "High and above", gets every finding
-// that enters layers 1–4; "Critical only" gets the exploited ones and the critical scores. An unknown band takes the floor.
-func AlertSeverity(cvss Severity, layer int) Severity {
+// AlertSeverity is the severity a channel judges a finding's notice at (its min_severity, quiet hours): the finding's CVSS band raised to
+// a floor. A flaw exploited in the wild (findings' answer, FindingInfo.Exploited) is Critical whatever its CVSS score, as the
+// exploit-aware ratings of the large scanners rate a flaw on CISA's list; only those alert (INV-32), so no channel minimum holds one
+// back. Any other urgent finding (the daily summary, Send now) is at least High. An unknown band takes the floor.
+func AlertSeverity(cvss Severity, exploited bool) Severity {
 	floor := High
-	if exploitedLayer(layer) {
+	if exploited {
 		floor = Critical
 	}
 	if cvss.Valid() && cvss.rank() > floor.rank() {

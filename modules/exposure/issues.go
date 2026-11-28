@@ -253,6 +253,11 @@ func (s *Service) RunAcceptExpiry(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+			// open again: news of the daily summary's span, and told again if its CVE is exploited (the exploited-check job), as an
+			// ended risk acceptance of a finding is
+			if _, err := tx.ExecContext(ctx, `UPDATE exp_issue SET opened_at = ?, exploited = 0 WHERE id = ?`, store.FormatTS(now), d.id); err != nil {
+				return fmt.Errorf("reopening issue %s: %w", d.id, err)
+			}
 			if err := s.audit(ctx, tx, SystemUser, "exposure.issue_reopen", what, "risk acceptance expired (accepted by "+d.by+" until "+d.until+")"); err != nil {
 				return err
 			}

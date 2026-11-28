@@ -32,11 +32,13 @@ type UrgencyRaisedEvent struct {
 // FirstRunEvent is the payload of findings.urgency.first_run: one first-run window's rises in one pass. Key names the window ("install",
 // or a source and the day of its first load); Layer is the most urgent of them; the lists hold up to MaxBackfillListed.
 type FirstRunEvent struct {
-	Key        string   `json:"key"`
-	At         string   `json:"at"` // the pass's time (RFC 3339): each pass's summary is its own notice; a later one says "N more"
-	Findings   int      `json:"findings"`
-	Devices    int      `json:"devices"`
-	Layer      int      `json:"layer"`
+	Key      string `json:"key"`
+	At       string `json:"at"` // the pass's time (RFC 3339): each pass's summary is its own notice; a later one says "N more"
+	Findings int    `json:"findings"`
+	Devices  int    `json:"devices"`
+	Layer    int    `json:"layer"`
+	// Exploited counts the findings of Findings that are exploited (Finding.Exploited): the only ones an alert tells, listed or not
+	Exploited  int      `json:"exploited"`
 	FindingIDs []string `json:"finding_ids"`
 	CVEList    []string `json:"cve_list"`
 }

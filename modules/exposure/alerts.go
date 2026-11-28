@@ -104,21 +104,60 @@ var severityRank = map[string]int{"critical": 2, "high": 1, "medium": 0}
 
 // alertNews sends what a scan of scanned (run runID, step: "" for the scan, "openvas" for its OpenVAS step) found new: one alert per
 // target that holds new rows. Nothing for the baseline, nothing new, or no Alert wired; a failure is logged, the rows stay stored.
+//
+// Each issue it tells as exploited is marked told (exp_issue.exploited = 1); the others stay 0, so the exploited-check job alerts
+// once if their CVE becomes exploited later. The baseline announces nothing: its issues already exploited are marked told silently.
 func (s *Service) alertNews(ctx context.Context, scanned Target, runID, step string, first bool, opened []OpenedService, issues []NewIssue) {
-	if s.cfg.Alert == nil || first || (len(opened) == 0 && len(issues) == 0) {
+	if len(opened) == 0 && len(issues) == 0 {
 		return
 	}
 	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
-	for _, a := range s.alertsOf(actx, scanned, runID, step, opened, issues) {
+	if first {
+		var hit []string
+		for _, i := range issues {
+			var cves string
+			if err := s.cfg.DB.Reader().QueryRowContext(actx, `SELECT cves FROM exp_issue WHERE id = ? AND state = 'open'`, i.ID).Scan(&cves); err != nil {
+				continue
+			}
+			if c, err := s.exploitedOf(actx, cves); err == nil && c != "" {
+				hit = append(hit, i.ID)
+			}
+		}
+		s.markTold(actx, hit)
+		return
+	}
+	if s.cfg.Alert == nil {
+		return
+	}
+	alerts, told := s.alertsOf(actx, scanned, runID, step, opened, issues)
+	for _, a := range alerts {
 		if err := s.cfg.Alert(actx, a); err != nil {
 			s.cfg.Log.WarnContext(actx, "exposure: sending what a scan found new failed", "target", a.TargetID, "error", err)
+			continue // not marked told: the exploited-check job tries again
 		}
+		s.markTold(actx, told[a.TargetID])
 	}
 }
 
-// alertsOf builds the alerts of a scan's new rows, one per holding target, in the order the targets first appear.
-func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step string, opened []OpenedService, issues []NewIssue) []Alert {
+// markTold marks issues told as exploited in the wild (exp_issue.exploited = 1).
+func (s *Service) markTold(ctx context.Context, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	raw, _ := json.Marshal(ids)
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE exp_issue SET exploited = 1 WHERE id IN (SELECT value FROM json_each(?))`, string(raw))
+		return err
+	}); err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: marking issues told as exploited failed", "error", err)
+	}
+}
+
+// alertsOf builds the alerts of a scan's new rows, one per holding target, in the order the targets first appear, and the issues each
+// tells as exploited, by target.
+func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step string, opened []OpenedService, issues []NewIssue) ([]Alert, map[string][]string) {
+	told := map[string][]string{}
 	lines := map[string][]alertLine{}
 	var order []string
 	add := func(target string, l alertLine) {
@@ -159,6 +198,9 @@ func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step stri
 			text += " (exploited in the wild)"
 		}
 		add(i.TargetID, alertLine{rank: severityRank[sev], quiet: hit == "", text: text})
+		if hit != "" {
+			told[i.TargetID] = append(told[i.TargetID], i.ID)
+		}
 	}
 	var out []Alert
 	for _, target := range order {
@@ -170,7 +212,7 @@ func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step stri
 			out = append(out, a)
 		}
 	}
-	return out
+	return out, told
 }
 
 // alertOf is the one alert of a target's new lines; ok is false when every line is quiet.
@@ -237,15 +279,114 @@ func (s *Service) exploitedOf(ctx context.Context, raw string) (string, error) {
 	return "", nil
 }
 
-// NewSince counts what external scans found new in [from, to) that did not alert (the daily summary of notify): the issues first seen
-// then, still open, with no CVE exploited in the wild, and the services first seen then, still open.
+// ExploitedTick is how often the exploited-check job looks for open issues whose CVE became exploited in the wild since they were found.
+const ExploitedTick = 15 * time.Minute
+
+// RunExploitedCheck is the body of the exploited-check job: an open issue that was checked and not exploited (exp_issue.exploited = 0)
+// whose CVE is exploited in the wild now alerts at once, one alert per target, and is marked told, as a finding whose urgency rises to
+// exploited does. A row written before this check existed (exploited NULL) has its state read once, silently: an upgrade sends no burst.
+func (s *Service) RunExploitedCheck(ctx context.Context) error {
+	if s.cfg.Exploited == nil {
+		return nil
+	}
+	type row struct {
+		id, target, title, sev, where, cves string
+		checked                             bool
+	}
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT i.id, i.target_id, i.title, i.severity, coalesce(x.ip || ':' || x.port, ''), i.cves, i.exploited IS NOT NULL
+		FROM exp_issue i LEFT JOIN exp_service x ON x.id = i.service_id
+		WHERE i.state = 'open' AND (i.exploited IS NULL OR i.exploited = 0) AND i.cves <> '[]' ORDER BY i.target_id, i.first_seen, i.id`)
+	if err != nil {
+		return fmt.Errorf("exposure: exploited check: %w", err)
+	}
+	var list []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.target, &r.title, &r.sev, &r.where, &r.cves, &r.checked); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("exposure: exploited check: %w", err)
+		}
+		list = append(list, r)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return fmt.Errorf("exposure: exploited check: %w", err)
+	}
+	var silent, unchecked []string
+	lines := map[string][]string{}
+	ids := map[string][]string{}
+	var order []string
+	for _, r := range list {
+		hit, err := s.exploitedOf(ctx, r.cves)
+		if err != nil {
+			return err
+		}
+		switch {
+		case !r.checked && hit != "":
+			silent = append(silent, r.id)
+		case !r.checked:
+			unchecked = append(unchecked, r.id)
+		case hit != "":
+			if _, ok := lines[r.target]; !ok {
+				order = append(order, r.target)
+			}
+			text := r.title
+			if r.where != "" {
+				text += " on " + r.where
+			}
+			if !strings.Contains(text, hit) {
+				text += " (" + hit + ")"
+			}
+			lines[r.target] = append(lines[r.target], "- "+text+" is now exploited in the wild")
+			ids[r.target] = append(ids[r.target], r.id)
+		}
+	}
+	s.markTold(ctx, silent)
+	if len(unchecked) > 0 {
+		raw, _ := json.Marshal(unchecked)
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `UPDATE exp_issue SET exploited = 0 WHERE exploited IS NULL AND id IN (SELECT value FROM json_each(?))`, string(raw))
+			return err
+		}); err != nil {
+			return fmt.Errorf("exposure: exploited check: %w", err)
+		}
+	}
+	if s.cfg.Alert == nil {
+		return nil
+	}
+	for _, target := range order {
+		value := target
+		if t, err := loadTarget(ctx, s.cfg.DB.Reader(), target); err == nil {
+			value = t.Value
+		}
+		ls := lines[target]
+		shown := ls[:min(len(ls), maxAlertLines)]
+		if n := len(ls) - len(shown); n > 0 {
+			shown = append(slices.Clone(shown), fmt.Sprintf("- and %d more", n))
+		}
+		text := fmt.Sprintf("Attackers now use %s that external scans found on %s:\n%s\nOpen External exposure in Vedette and choose %s to see them.",
+			plural(len(ls), "flaw"), value, strings.Join(shown, "\n"), value)
+		a := Alert{ID: "exp-exploited-" + ids[target][0] + "-" + s.clock().UTC().Format("20060102T1504"), TargetID: target, Severity: AlertCritical,
+			Title: value + ": an exposed flaw is now exploited in the wild", Text: text}
+		if err := s.cfg.Alert(ctx, a); err != nil {
+			s.cfg.Log.WarnContext(ctx, "exposure: sending an issue that became exploited failed", "target", target, "error", err)
+			continue // stays 0: the next check tries again
+		}
+		s.markTold(ctx, ids[target])
+	}
+	return nil
+}
+
+// NewSince counts what external scans found new in [from, to) that did not alert (the daily summary of notify): the issues that opened
+// then (first seen, or found again), still open, never told as exploited and with no CVE exploited in the wild now (one that is will
+// alert through the exploited-check job), and the services that opened then (new, or open again), still open.
 func (s *Service) NewSince(ctx context.Context, from, to time.Time) (issues, ports int, err error) {
 	db := s.cfg.DB.Reader()
 	f, t := store.FormatTS(from), store.FormatTS(to)
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM exp_service WHERE state = 'open' AND first_seen >= ? AND first_seen < ?`, f, t).Scan(&ports); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM exp_service WHERE state = 'open' AND coalesce(opened_at, first_seen) >= ? AND coalesce(opened_at, first_seen) < ?`, f, t).Scan(&ports); err != nil {
 		return 0, 0, fmt.Errorf("exposure: new since: %w", err)
 	}
-	rows, err := db.QueryContext(ctx, `SELECT cves FROM exp_issue WHERE state = 'open' AND first_seen >= ? AND first_seen < ?`, f, t)
+	rows, err := db.QueryContext(ctx, `SELECT cves FROM exp_issue WHERE state = 'open' AND coalesce(exploited, 0) = 0
+		AND coalesce(opened_at, first_seen) >= ? AND coalesce(opened_at, first_seen) < ?`, f, t)
 	if err != nil {
 		return 0, 0, fmt.Errorf("exposure: new since: %w", err)
 	}

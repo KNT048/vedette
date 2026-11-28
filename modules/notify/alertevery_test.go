@@ -184,7 +184,7 @@ func TestAlertSeverityIsTheCVSSBandRaisedToTheLayerFloor(t *testing.T) {
 		{notify.Low, 1, notify.Critical}, {notify.Low, 2, notify.Critical}, {notify.Medium, 2, notify.Critical},
 		{notify.Low, 3, notify.High}, {notify.Medium, 4, notify.High}, {notify.Critical, 3, notify.Critical}, {"", 3, notify.High}, {"", 2, notify.Critical},
 	} {
-		if got := notify.AlertSeverity(c.cvss, c.layer); got != c.want {
+		if got := notify.AlertSeverity(c.cvss, findings.ExploitedLayer(c.layer)); got != c.want {
 			t.Errorf("AlertSeverity(%q, %d) = %q, want %q", c.cvss, c.layer, got, c.want)
 		}
 	}

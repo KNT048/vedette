@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { usePossibleSame } from '@/features/inventory/api'
 import { useDeviceCards, useFixCards, usePossibleCounts } from './api'
-import { PossibleLink, PossibleSection } from './Possible'
+import { PossibleLink } from './Possible'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { HandleDialog, type HandleRow } from './HandleDialog'
@@ -168,7 +168,6 @@ export function ByFix({ status }: { status: string }) {
           </>
         )}
       </QueryState>
-      <PossibleSection by="product" />
       {want ? <LoadRows want={want} q={raw.q} status={status} onRows={gotRows} onFail={failed} /> : null}
       {handling ? <HandleDialog {...handling} onClose={() => setHandling(null)} /> : null}
     </div>

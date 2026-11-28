@@ -17,7 +17,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ExpandToggle, ListRow, RowList } from '@/components/common/ListParts'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice } from '@/components/common/PageHeader'
-import { QueryState } from '@/components/common/States'
+import { EmptyState, QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -27,13 +27,15 @@ import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDeviceAction } from '@/features/inventory/api'
 import { VersionDialog } from '@/features/inventory/VersionDialog'
-import { useAllPossible, useAnswer, useAnswered, useConfirmProposal, useIgnoreQuestions, usePossibleCheck, useRejectIdentity, useRejectProposal, useStartPossibleCheck, useUnanswer } from './api'
+import { useAiConfig } from '@/features/ai/api'
+import { useAllPossible, useAnswer, useAnswered, useConfirmProposal, useIgnoreQuestions, usePossibleCheck, useRejectIdentity, useRejectProposal, useResearchDeeper, useStartPossibleCheck, useUnanswer } from './api'
 import { AcceptRiskDialog } from './AcceptRiskDialog'
 import { AskDialog } from './AskDialog'
 import { PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { linkLabels } from './links'
 import { DeviceLine, useDeviceRow } from './parts'
+import { pagesRead, researchOf, tokens } from './research'
 import type { AiIdentity, AnsweredQuestion, DeviceRef, PossibleCheck, PossibleCheckRun, PossibleCounts, PossibleRow, SoftwareRef } from './types'
 
 /** At most this many evidence identities are checked per click (the server's limit). */
@@ -49,9 +51,6 @@ export const rowKey = (r: PossibleRow) => `${r.id}|${r.cve}`
 export type PossibleLine = { key: string; device: DeviceRef; software: SoftwareRef | null; rows: PossibleRow[] }
 /** The possible CVEs of one device, by software line. */
 export type PossibleDevice = { device: DeviceRef; lines: PossibleLine[]; rows: PossibleRow[] }
-/** One product at one version across devices (By fix). */
-export type PossibleProduct = { key: string; name: string; version: string | null; lines: PossibleLine[]; rows: PossibleRow[] }
-
 export function linesOf(rows: PossibleRow[]): PossibleLine[] {
   const m = new Map<string, PossibleLine>()
   for (const r of rows) {
@@ -73,19 +72,6 @@ export function devicesOf(rows: PossibleRow[]): PossibleDevice[] {
   // the device with the most exploited possible CVEs first, then the most CVEs, then the name
   return [...m.values()].sort((a, b) => exploitedOf(b.rows) - exploitedOf(a.rows) || b.rows.length - a.rows.length || a.device.name.localeCompare(b.device.name))
 }
-export function productsOf(rows: PossibleRow[]): PossibleProduct[] {
-  const m = new Map<string, PossibleProduct>()
-  for (const l of linesOf(rows)) {
-    const name = l.software?.name ?? l.rows[0]!.cve
-    const version = l.software?.version ?? null
-    const key = `${name.toLowerCase()}|${version ?? ''}`
-    let p = m.get(key)
-    if (!p) { p = { key, name, version, lines: [], rows: [] }; m.set(key, p) }
-    p.lines.push(l)
-    p.rows.push(...l.rows)
-  }
-  return [...m.values()].sort((a, b) => exploitedOf(b.rows) - exploitedOf(a.rows) || b.rows.length - a.rows.length || a.name.localeCompare(b.name))
-}
 /** The device page's possible findings: where a device named in a possible list leads. */
 const possibleOf = (device: string) => `/devices/${encodeURIComponent(device)}?tab=findings#possible`
 const exploitedOf = (rows: PossibleRow[]) => rows.filter((r) => r.exploited).length
@@ -106,7 +92,7 @@ function useRoles() {
 // ---- small parts
 
 /** A small label next to a CVE: what a check of its advisories says (AI checked, a proposal's verdict and class). */
-function Chip({ tone, icon: Icon, children, title }: { tone: 'accent' | 'off' | 'ok'; icon?: LucideIcon; children: string; title?: string }) {
+export function Chip({ tone, icon: Icon, children, title }: { tone: 'accent' | 'off' | 'ok'; icon?: LucideIcon; children: string; title?: string }) {
   const cls = { accent: 'border-accent/40 bg-accent-soft text-accent', off: 'border-rule bg-off-soft text-off', ok: 'border-ok/40 bg-ok-soft text-ok' }[tone]
   return (
     <span title={title} className={cn('inline-flex h-6 w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-sm border px-2 text-caption font-medium leading-none', cls)}>
@@ -375,6 +361,51 @@ export function ProposalActions({ r }: { r: PossibleRow }) {
 
 // ---- rows
 
+/** The causes a deeper research of the AI can still change: the vendor said nothing found, the page could not be read, or the AI could
+ *  not tell. The others wait for a version, a package release or the distribution, which no research supplies. */
+const RESEARCHABLE: PossibleRow['cause'][] = ['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget']
+
+/** What the customer's AI already tried for this CVE, in one short line ("Your AI read 3 pages and could not tell · 4,210 tokens"). */
+function Tried({ r }: { r: PossibleRow }) {
+  const { t } = useTranslation('findings')
+  const research = researchOf(r.check)
+  if (!research) return null
+  return <span data-testid="possible-tried">{t('possible.research.tried', { count: pagesRead(research), tokens: tokens(research.tokens), verdict: t(`possible.research.verdict_${research.detail.verdict === 'affected' || research.detail.verdict === 'not_affected' ? research.detail.verdict : 'unsure'}`) })}</span>
+}
+
+/** "Research deeper": the AI researches this CVE's release line again now with its stronger profile. The button says the tokens it
+ *  takes (the research mode's estimate from the AI settings), never money. Nothing without an AI profile for researching. */
+export function ResearchDeeper({ r }: { r: PossibleRow }) {
+  const { t } = useTranslation('findings')
+  const roles = useRoles()
+  const config = useAiConfig()
+  const go = useResearchDeeper()
+  if (r.state !== 'possible' || r.distro_pending || !RESEARCHABLE.includes(r.cause)) return null
+  const c = config.data
+  if (!c || !c.jobs_ready['research-cves']) return null
+  const estimate = c.research_estimates.thorough?.tokens
+  const words = { cve: r.cve, device: r.device.name }
+  return (
+    <Button size="sm" disabled={!roles.operator} title={roles.needOperator ?? t('possible.research.how')} busy={go.isPending} busyLabel={t('common:busy.working')}
+      aria-label={t('possible.research.of', words)}
+      onClick={() => go.mutate({ id: r.id }, { onSuccess: () => toast.success(t('possible.research.started', words)), onError: (e) => toast.error(errMsg(e)) })}>
+      {estimate ? t('possible.research.buttonTokens', { tokens: tokens(estimate) }) : t('possible.research.button')}
+    </Button>
+  )
+}
+
+/** One line, shown while no AI profile is set up for researching: the way to add one. Nothing else on the screen changes. */
+export function NoAiLine() {
+  const { t } = useTranslation('findings')
+  const config = useAiConfig()
+  if (!config.data || config.data.jobs_ready['research-cves']) return null
+  return (
+    <p className="text-sm text-muted" data-testid="no-ai-line">
+      {t('possible.research.noAi')} <Link to="/settings/ai" className="text-accent underline underline-offset-4">{t('possible.research.noAiLink')}</Link>
+    </p>
+  )
+}
+
 /** One possible CVE: its link, severity, exploited, what a check says; why it is undecided; its answers (or the proposal's Confirm
  *  and Reject); the check's evidence behind one click. `device`: name the device (a product's rows across devices). */
 export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled?: boolean }) {
@@ -405,12 +436,12 @@ export function PossibleCveRow({ r, settled = false }: { r: PossibleRow; settled
         // the second line: the quote of what settled it, or what holds the CVE (its cause)
         settled ? (r.check?.quote ? <span key="quote" className="[overflow-wrap:anywhere]">“{r.check.quote}”</span> : null)
           // held: the AI already tried, so until when and why it reads it again replaces the cause's default sentence
-          : r.cause ? <span key="cause" data-testid="possible-cause" data-cause={r.cause}>
+          : r.cause ? <Fragment key="cause"><span data-testid="possible-cause" data-cause={r.cause}>
             {r.held ? <span data-testid="possible-held" data-reason={r.held.reason}>
               {t('possible.held.line', { when: fmtDateTime(r.held.until), reason: t(`possible.held.reason.${r.held.reason}`) })}</span> : cause(r)}
-          </span> : null,
+          </span><Tried r={r} /></Fragment> : null,
       ]}
-      actions={r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <AnswerMenu r={r} /> : null}>
+      actions={r.state === 'proposal' && r.check ? <ProposalActions r={r} /> : settled ? <AnswerMenu r={r} only="affected" /> : perCve ? <><ResearchDeeper r={r} /><AnswerMenu r={r} /></> : null}>
       {open && r.check ? <div id={panel}><CheckDetails check={r.check} /></div> : null}
     </ListRow>
   )
@@ -570,40 +601,17 @@ function DeviceGroup({ d }: { d: PossibleDevice }) {
   )
 }
 
-/** One product at one version of By fix's possible list: "Juniper Junos OS 15.1R7.9 · 12 possible CVEs on 1 device". */
-function ProductGroup({ p }: { p: PossibleProduct }) {
-  const { t } = useTranslation('findings')
-  const [open, setOpen] = useState(false)
-  const panel = `possible-product-${p.key.replace(/[^\w-]/g, '_')}`
-  const name = p.version ? `${p.name} ${p.version}` : p.name
-  const exploited = exploitedOf(p.rows)
-  const devices = new Set(p.lines.map((l) => l.device.id)).size
-  return (
-    <ListRow label={name} title={name}
-      toggle={{ open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('possible.toggleProduct', { product: name }) }}
-      meta={[
-        <>
-          <span>{t('possible.productCount', { count: p.rows.length, devices: t('byDevice.devices', { count: devices }) })}</span>
-          {exploited ? <span className="text-danger">{t('possible.line.exploited', { count: exploited })}</span> : null}
-        </>,
-      ]}>
-      {open ? (
-        <RowList id={panel} label={t('possible.devicesOf', { product: name })}>
-          {p.lines.map((l) => <LineBlock key={l.key} l={l} withDevice />)}
-        </RowList>
-      ) : null}
-    </ListRow>
-  )
-}
+/** Where the CVEs Vedette could not decide are listed. */
+export const NOT_DECIDED = '/findings?tab=possible'
 
 /** " · 16 possible · 4 older build" after a list's count, links to the Possible section below it; each part hidden at 0. */
 export function PossibleLink({ count, older = 0, distro = 0 }: { count: number; older?: number; distro?: number }) {
   const { t } = useTranslation('findings')
   const cls = 'text-accent underline-offset-4 hover:underline'
   return <>
-    {count ? <> · <a href="#possible" className={cls}>{t('possible.countLink', { count })}</a></> : null}
-    {older ? <> · <a href="#possible" className={cls}>{t('possible.countLinkOlder', { count: older })}</a></> : null}
-    {distro ? <> · <a href="#possible" className={cls}>{t('possible.countLinkDistro', { count: distro })}</a></> : null}
+    {count ? <> · <Link to={NOT_DECIDED} className={cls}>{t('possible.countLink', { count })}</Link></> : null}
+    {older ? <> · <Link to={NOT_DECIDED} className={cls}>{t('possible.countLinkOlder', { count: older })}</Link></> : null}
+    {distro ? <> · <Link to={NOT_DECIDED} className={cls}>{t('possible.countLinkDistro', { count: distro })}</Link></> : null}
   </>
 }
 
@@ -633,47 +641,38 @@ function useScrollHere(ready: boolean) {
   }, [ready, hash])
 }
 
-/** The Possible section of the Findings screen, after the open findings: by device (By device) or by product and version (By fix).
- *  `device` narrows it to one device. */
-export function PossibleSection({ by, device = '' }: { by: 'device' | 'product'; device?: string }) {
+/** Not decided, the Findings screen's tab: the CVEs Vedette could not decide, by device, each with its plain cause and what the AI tried;
+ *  older-build and distribution groups stay closed with their counts. `device` narrows it to one device. With no AI profile, one line
+ *  invites the person to add one. */
+export function PossibleSection({ device = '' }: { device?: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: device || undefined })
   const summary = useSummary()
   const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const devices = useMemo(() => devicesOf(rows), [rows])
-  const products = useMemo(() => productsOf(rows), [rows])
   useScrollHere(!!q.data)
   const counts = q.data?.counts
-  const show = !!counts?.possible || !!counts?.older_build || !!counts?.distro_pending || q.isError
+  const show = !!counts?.possible || !!counts?.older_build || !!counts?.distro_pending
   return (
-    <section id="possible" aria-label={t('possible.title')} className={cn('grid scroll-mt-4 gap-3', show && 'pt-4')}>
-      {show ? (
-        <>
-          <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
-          <QueryState query={q}>
-            {(d) => (
-              <>
-                <CheckRunLine />
-                {!d.counts.possible ? <div className="flex justify-end"><CheckPossible counts={d.counts} device={device || undefined} /></div> : by === 'device' ? (
-                  <DataTable urlKey="possible" filterPlaceholder={t('possible.search')} caption={t('possible.caption')} data={devices} pageSize={20}
-                    columns={[{ id: 'text', header: t('byDevice.col'), accessorFn: (x: PossibleDevice) => searchText(x.rows) }] satisfies ColumnDef<PossibleDevice>[]}
-                    list={(x) => <DeviceGroup d={x} />} resetPageOn={device}
-                    summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} device={device || undefined} />} />
-                ) : (
-                  <DataTable urlKey="possible-fix" filterPlaceholder={t('possible.search')} caption={t('possible.captionProduct')} data={products} pageSize={20}
-                    columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (x: PossibleProduct) => searchText(x.rows) }] satisfies ColumnDef<PossibleProduct>[]}
-                    list={(x) => <ProductGroup p={x} />}
-                    summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} />} />
-                )}
-                <OlderBuilds rows={older} withDevice={!device} />
-                <DistroPending rows={distro} exploited={d.counts.distro_pending_exploited} withDevice={!device} />
-              </>
+    <section id="possible" aria-label={t('possible.title')} className="grid scroll-mt-4 gap-3">
+      <QueryState query={q}>
+        {(d) => (
+          <>
+            <NoAiLine />
+            <CheckRunLine />
+            {!show ? <EmptyState title={t('possible.empty')}>{t('possible.emptyBody')}</EmptyState> : null}
+            {!d.counts.possible ? (show ? <div className="flex justify-end"><CheckPossible counts={d.counts} device={device || undefined} /></div> : null) : (
+              <DataTable urlKey="possible" filterPlaceholder={t('possible.search')} caption={t('possible.caption')} data={devices} pageSize={20}
+                columns={[{ id: 'text', header: t('byDevice.col'), accessorFn: (x: PossibleDevice) => searchText(x.rows) }] satisfies ColumnDef<PossibleDevice>[]}
+                list={(x) => <DeviceGroup d={x} />} resetPageOn={device}
+                summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} device={device || undefined} />} />
             )}
-          </QueryState>
-        </>
-      ) : null}
+            <OlderBuilds rows={older} withDevice={!device} />
+            <DistroPending rows={distro} exploited={d.counts.distro_pending_exploited} withDevice={!device} />
+          </>
+        )}
+      </QueryState>
       {device ? <Settled device={device} /> : null}
-      <Answered device={device} />
     </section>
   )
 }
@@ -697,6 +696,7 @@ export function DevicePossible({ assetId }: { assetId: string }) {
       {counts.possible || counts.older_build || counts.distro_pending ? (
         <>
           <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
+          <NoAiLine />
           <CheckRunLine />
           {counts.possible ? (
             <DataTable urlKey="device-possible" filterPlaceholder={t('possible.search')} caption={t('possible.captionDevice')} data={lines} pageSize={20}
@@ -709,7 +709,6 @@ export function DevicePossible({ assetId }: { assetId: string }) {
         </>
       ) : null}
       <Settled device={assetId} />
-      <Answered device={assetId} />
     </section>
   )
 }
@@ -916,7 +915,7 @@ function AnsweredRow({ x }: { x: AnsweredQuestion }) {
 }
 
 /** The questions answered "not affected" (by a person, or a confirmed AI proposal), behind one click: a wrong answer is never final. */
-function Answered({ device }: { device: string }) {
+export function Answered({ device }: { device: string }) {
   const { t } = useTranslation('findings')
   const q = useAnswered({ device }, { offset: 0, limit: PAGE_MAX })
   const [open, setOpen] = useState(false)

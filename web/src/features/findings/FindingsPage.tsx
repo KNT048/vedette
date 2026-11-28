@@ -1,6 +1,7 @@
 // Findings (S-MIT-1, S-TIER-1): one screen for what to fix and what was done. By device (default) and By fix are the open findings
 // grouped two ways, with one status filter, each followed by the possible findings (CVEs Vedette cannot decide, counted apart);
-// AI proposals lists what a check proposed about possible CVEs, for a person to confirm or reject (shown while there are some);
+// Review AI answers lists the AI's "not affected" answers for a person to confirm or reject; Not decided lists the CVEs Vedette cannot
+// decide, with the plain cause and what the AI tried;
 // Handled is what was done, by whom and how; Ignored devices holds what a person chose not to watch. The recommended updates are
 // the open findings with the status "Update recommended" (`/plan` opens them here).
 import { useSearchParams, Navigate } from 'react-router'
@@ -13,8 +14,8 @@ import { ByDevice } from './ByDevice'
 import { ByFix } from './ByFix'
 import { HandledTab } from './HandledTab'
 import { IgnoredTab } from './IgnoredTab'
-import { usePossibleCheckWatch } from './Possible'
-import { ProposalsTab } from './Proposals'
+import { PossibleSection, usePossibleCheckWatch } from './Possible'
+import { ReviewTab } from './ReviewTab'
 import { statusesOf } from './StatusFilter'
 
 /**
@@ -30,6 +31,7 @@ export function newQuery(p: URLSearchParams): URLSearchParams | null {
   if (p.get('by') === 'fix') { put('by', null); put('tab', 'fix') }
   else if (tab === 'fix' && p.get('device')) put('tab', 'device')
   else if (tab === 'open' || tab === 'input') put('tab', 'device')
+  else if (tab === 'proposals') put('tab', 'review')
   else if (tab === 'accepted') { put('tab', 'handled'); put('resolution', 'accepted') }
   if (p.get('cve')) { put('by-device.q', p.get('cve')!.toUpperCase()); put('cve', null); if (!n.get('tab') || n.get('tab') === 'handled') put('tab', 'device') }
   for (const k of ['severity', 'product', 'fix', 'notrelevant', 'input.q', 'input.page', 'input.size']) if (p.has(k)) put(k, null)
@@ -61,8 +63,8 @@ function Screen() {
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'device', label: t('tabs.device'), panel: <ByDevice status={status} device={device} onDevice={setDevice} /> },
         { id: 'fix', label: t('tabs.fix'), panel: <ByFix status={status} /> },
-        // shown while proposals wait (or a link opens it): an empty tab nobody can fill without an AI profile would only be noise
-        ...(proposals || params.get('tab') === 'proposals' ? [{ id: 'proposals', label: t('tabs.proposals'), panel: <ProposalsTab />, badge: proposals ? { count: proposals, label: t('tabs.proposalsBadge') } : undefined }] : []),
+        { id: 'review', label: t('tabs.review'), panel: <ReviewTab />, badge: proposals ? { count: proposals, label: t('tabs.reviewBadge') } : undefined },
+        { id: 'possible', label: t('tabs.possible'), panel: <PossibleSection device={device} /> },
         { id: 'handled', label: t('tabs.handled'), panel: <HandledTab device={device} /> },
         { id: 'ignored', label: t('tabs.ignored'), panel: <IgnoredTab /> },
       ]} />

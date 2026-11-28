@@ -38,7 +38,7 @@ function items(device?: string | null): Item[] {
       const check = key ? cs[key] ?? null : null
       // the AI's reading of the vendor's page: not affected settles the CVE unless it is exploited (a person confirms that one)
       const read = !!check?.reading && check.verdict === 'not_affected' && !check.rejected
-      const state = !check ? 'possible' : read ? (POSSIBLE_EXPLOITED.has(cve) ? 'proposal' : 'settled')
+      const state = !check ? 'possible' : read ? (POSSIBLE_EXPLOITED.has(cve) || check.reading?.research ? 'proposal' : 'settled')
         : check.decided_by !== 'ai' && check.verdict === 'not_affected' ? 'settled'
         : check.decided_by === 'ai' && !check.rejected && check.verdict !== 'unsure' ? 'proposal' : 'possible'
       out.push({ q, cve, key, check, state })

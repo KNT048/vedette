@@ -17,6 +17,7 @@ import { useCan } from '@/lib/session'
 import { useHandledList, useReopen } from './api'
 import { AskDialog } from './AskDialog'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
+import { Answered } from './Possible'
 import { DeviceLine } from './parts'
 import type { HandledRow, Resolution } from './types'
 
@@ -114,6 +115,8 @@ export function HandledTab({ device }: { device: string }) {
           </>
         )}
       </QueryState>
+      {/* the AI answers a person confirmed (and any "not affected" answer) are here, each with Ask again */}
+      <Answered device={device} />
     </div>
   )
 }

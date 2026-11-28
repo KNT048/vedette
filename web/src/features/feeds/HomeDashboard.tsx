@@ -99,18 +99,19 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
   )
 }
 
-/** What waits for a person about findings: the possible CVEs (Vedette cannot decide them; counted apart from the open findings) and
- *  the AI proposals about them waiting for a confirmation. Each a link, hidden at 0. */
+/** The CVEs in three numbers: what Vedette decided, what the customer's AI researched and waits for a person's word, and what is still
+ *  unknown. Nothing when there is none of them. */
 function PossibleLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  const { possible, older_build: older, distro_pending: distro, distro_pending_exploited: distroExploited, proposals } = o.possible
-  if (!possible && !older && !distro && !proposals) return null
+  const { possible, older_build: older, distro_pending: distro, proposals, settled } = o.possible
+  const unknown = Math.max(0, possible - proposals) + older + distro
+  if (!settled && !proposals && !unknown) return null
+  const link = 'text-accent underline-offset-4 hover:underline'
   return (
-    <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      {possible ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.possible', { count: possible })}</Link> : null}
-      {older ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.olderBuild', { count: older })}</Link> : null}
-      {distro ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.distroPending', { count: distro })}{distroExploited ? ` (${t('dash.distroPendingExploited', { count: distroExploited })})` : ''}</Link> : null}
-      {proposals ? <Link to="/findings?tab=proposals" className="text-accent underline-offset-4 hover:underline">{t('dash.proposals', { count: proposals })}</Link> : null}
+    <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm" data-testid="home-undecided">
+      <span>{t('dash.decidedByVedette', { count: settled })}</span>
+      <Link to="/findings?tab=review" className={link}>{t('dash.researchedByAi', { count: proposals })}</Link>
+      <Link to="/findings?tab=possible" className={link}>{t('dash.stillUnknown', { count: unknown })}</Link>
     </p>
   )
 }

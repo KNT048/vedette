@@ -18,7 +18,8 @@ import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { HandleDialog, type HandleRow } from './HandleDialog'
 import { NotAdded } from './NotAdded'
 import { asAsset, FixLink, useDeviceRow, useFixTitle } from './parts'
-import { PossibleLink, PossibleSection } from './Possible'
+import { AiFoundMark } from './FoundByAi'
+import { PossibleLink } from './Possible'
 import { StatusFilter } from './StatusFilter'
 import type { DeviceCard, DeviceRef, FixBlock } from './types'
 
@@ -46,8 +47,11 @@ function Block({ device, block, rank, narrowed, onHandle, fold = false }: { devi
       {open ? <div id={panel}><CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
         items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, urgency: f.urgency, verification: f.verification, to: `/findings/${encodeURIComponent(f.id)}` }))}
         action={(i) => (
-          <Button size="sm" variant="ghost" className="h-7" disabled={!can} title={need} aria-label={t('byDevice.handleOneOf', { cve: i.cve, device: device.name })}
-            onClick={() => onHandle({ device, rows: rows.filter((r) => r.id === i.id) })}>{t('byDevice.handleOne')}</Button>
+          <>
+            {i.id ? <AiFoundMark id={i.id} cve={i.cve} /> : null}
+            <Button size="sm" variant="ghost" className="h-7" disabled={!can} title={need} aria-label={t('byDevice.handleOneOf', { cve: i.cve, device: device.name })}
+              onClick={() => onHandle({ device, rows: rows.filter((r) => r.id === i.id) })}>{t('byDevice.handleOne')}</Button>
+          </>
         )} /></div> : null}
     </ListRow>
   )
@@ -127,7 +131,6 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
           </>
         )}
       </QueryState>
-      <PossibleSection by="device" device={device} />
       {handling ? <HandleDialog {...handling} onClose={() => setHandling(null)} /> : null}
     </div>
   )

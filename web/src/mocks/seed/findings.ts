@@ -203,6 +203,11 @@ export function seedFindingRecords(): FindingRecord[] {
       verified: 'no', basis: 'device_version', fix: fixOf('cisco:packet_tracer', 'Cisco Packet Tracer', 'update', '8.2.2'), layer: 5, reasons: [] }, 2),
       identity: { method: 'ai', title: 'Cisco Packet Tracer', vendor: 'cisco', product: 'packet_tracer', reason: 'The publisher is Cisco and the display name is Packet Tracer with its version.', model: 'gpt-5-mini' } },
 
+    // RT-BACKUP: findings the customer's AI opened from the vendor's statement for the release line; one names the fix, one does not.
+    ...AI_FOUND.map((f) => ({ ...open({ id: `fv-rt02-ai-${f.n}`, asset_id: 'a-rt02', cve: `CVE-2026-2401${String(f.n).padStart(2, '0')}`, software: { id: 's-rt02', name: 'MikroTik RouterOS', version: '7.14' }, verified: 'no', basis: 'device_version',
+      fix: { key: `mikrotik routeros|update|${f.fixed ?? ''}`, kind: 'update' as const, product: 'MikroTik RouterOS', version: f.fixed, ref: null, url: ADVISORY }, layer: 5, reasons: [] }, 1),
+      ai_check: aiFoundCheck(f.n) })),
+
     // Handled, each with who and how.
     handled({ id: 'fv-pc02-win-1', asset_id: 'a-pc02', cve: 'CVE-2025-21333', software: { id: 's-pc1', name: 'Windows', version: '11 Pro 23H2' }, verified: 'device', basis: 'device_version',
       fix: fixOf('microsoft:windows_11_23h2', 'Windows 11 23H2', 'os_update', '22631.4751', 'KB5050021'), layer: 2, reasons: [kev(300, 279)],
@@ -327,6 +332,45 @@ export function checkKeyOf(q: Pick<QuestionRecord, 'id' | 'kind' | 'software' | 
   return out
 }
 
+type Research = NonNullable<NonNullable<CheckRecord['reading']>['research']>
+/** How the customer's AI researched one release line, as the box stores it: the layers that ran, the pages they read, the tokens. */
+function researchOf(o: { tokens: number; pages: string[]; quote?: Research['quote_check']; inferred?: boolean; confidence?: 'high' | 'medium' | 'low'; verdict?: string; fixedIn?: string; strong?: boolean }): Research {
+  const verdict = o.verdict ?? 'not_affected'
+  const confidence = o.confidence ?? 'high'
+  const quote = o.quote ?? 'digest'
+  const step = (layer: 'quick' | 'strong', model: string, profile: string, web: 'none' | 'provider', share: number) => ({
+    layer, model, profile, web, excerpt_chars: 6200, tokens_in: Math.round(o.tokens * share * 0.8), tokens_out: Math.round(o.tokens * share * 0.2),
+    searches: web === 'provider' ? 2 : 0, pages: o.pages, verdict, confidence, quote_check: quote,
+  })
+  return {
+    layer: o.strong ? 'strong' : 'quick', quote_check: quote, tokens: o.tokens,
+    detail: {
+      mode: 'balanced', verdict, confidence, basis: o.inferred ? 'inferred' : 'stated', fixed_in: o.fixedIn ?? '', trap: '', note: '',
+      steps: o.strong ? [step('quick', 'qwen3:8b', 'Local quick', 'none', 0.3), step('strong', 'claude-sonnet-5', 'Strong cloud', 'provider', 0.7)] : [step('quick', 'qwen3:8b', 'Local quick', 'none', 1)],
+      reader: 3, fallback: !!o.strong, fetch: { pages: o.pages.length, bytes: 48_000 * o.pages.length, excerpt_chars: 6200 },
+    },
+  }
+}
+const ADVISORY = 'https://mikrotik.example.com/security/advisories/routeros-2026-07'
+const rtq = (i: number) => ({ id: `fq-rt02-${i}`, kind: 'no_range_data' as const, software: { id: 's-rt02', name: 'MikroTik RouterOS', version: '7.14' }, undecided: ROUTER_REASONS[(i - 1) % ROUTER_REASONS.length] })
+
+/** The CVEs of the router the AI's reading opened a finding for: one names the release that fixes it, one (inferred) names none. */
+const AI_FOUND = [
+  { n: 15, fixed: '7.16.3', inferred: false, quote: 'RouterOS 7.10 through 7.16.2 are affected; fixed in 7.16.3.' },
+  { n: 16, fixed: null, inferred: true, quote: 'The container package shares this code; every release of the package is affected.' },
+] as const
+export function aiFoundCheck(n: number): CheckRecord {
+  const f = AI_FOUND.find((x) => x.n === n)!
+  const cve = `CVE-2026-2401${String(n).padStart(2, '0')}`
+  const key = checkKeyOf(rtq(n), cve)
+  return {
+    key, decided_by: 'ai', verdict: 'affected', confidence: 'confident', reason: 'The vendor states that this release line is affected.', quote: f.quote,
+    sources: [{ url: ADVISORY, title: 'MikroTik security advisory: RouterOS WinBox and WebFig', status: 'ok', cited: true }], model: 'qwen3:8b', checked_by: 'it@example.com', checked_at: D(0, 3), rejected: false,
+    reading: { status: f.fixed ? 'fixed' : 'affected', line: '7.14', stated_line: '7.14', introduced: null, fixed_in: f.fixed, last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: true,
+      research: researchOf({ tokens: f.inferred ? 21_800 : 9_400, pages: [ADVISORY], verdict: 'affected', inferred: f.inferred, fixedIn: f.fixed ?? '', strong: f.inferred, confidence: f.inferred ? 'medium' : 'high' }) },
+  }
+}
+
 /** A stored check of a possible CVE, keyed by its evidence identity. */
 export type CheckRecord = PossibleCheck
 const AI_SOURCES = [
@@ -353,7 +397,40 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
       quote, sources: [AI_SOURCES[0]!], model: null, checked_by: 'it@example.com', checked_at: at, rejected: false, reading: null }]
   }
   const sql = { id: 'fq-srvacc-1', kind: 'no_range_data' as const, software: { id: 's-srvacc-sql', name: 'Microsoft SQL Server 2019 Enterprise Edition (64-bit) with Reporting Services and Integration Services', version: '15.0.4385.2' }, undecided: { reason: 'no_ranges' as const } }
+  // the AI's "not affected" answers from its research of a release line, which wait for a person: varied confidence, pages, tokens and
+  // evidence (one inferred, one whose quote was not found, one with no quote, one exploited, one from two layers)
+  type Answer = { pages?: string[]; tokens: number; quote: string; confidence?: 'high' | 'medium' | 'low'; found?: boolean; inferred?: boolean; strong?: boolean; reason?: string }
+  const answer = (q: ReturnType<typeof rt> | typeof sql, cve: string, o: Answer): [string, CheckRecord] => {
+    const found = o.found ?? o.quote !== ''
+    const quote = !o.quote ? 'none' as const : found ? 'digest' as const : 'not_found' as const
+    return ai(q, cve, 'not_affected', found ? 'confident' : 'likely', o.quote, o.reason ?? 'The vendor names the releases this affects; this version is not among them.',
+      { reading: { status: 'not_affected', line: '7.14', stated_line: '7.14', introduced: null, fixed_in: null, last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: found,
+        research: researchOf({ tokens: o.tokens, pages: o.pages ?? [ADVISORY], quote, confidence: o.confidence, inferred: o.inferred, strong: o.strong }) } })
+  }
+  const PAGES = [ADVISORY, 'https://mikrotik.example.com/security/advisories', 'https://nvd.example.org/vuln/detail', 'https://cve.example.org/record']
+  const answers: [string, CheckRecord][] = [
+    answer(rt(3), 'CVE-2026-240103', { tokens: 8_200, quote: 'Only RouterOS 7.15 and later are affected; 7.14 is not.' }),
+    answer(rt(11), 'CVE-2026-240111', { tokens: 11_900, pages: PAGES.slice(0, 2), quote: 'The flaw is in the 7.16 WebFig rewrite; earlier releases do not contain it.' }),
+    answer(rt(12), 'CVE-2026-240112', { tokens: 7_400, confidence: 'medium', quote: 'Releases before 7.15 do not ship the affected parser.' }),
+    answer(rt(14), 'CVE-2026-240114', { tokens: 9_100, pages: PAGES.slice(0, 3), quote: 'The long-term branch 7.14 is not affected by this issue.' }),
+    answer(rt(17), 'CVE-2026-240117', { tokens: 6_300, confidence: 'low', found: false, quote: 'We could not reproduce the issue on 7.14.' }),
+    answer(rt(18), 'CVE-2026-240118', { tokens: 14_600, pages: PAGES, confidence: 'medium', strong: true, quote: 'RouterOS 7.14 is outside the affected range 7.16 to 7.16.2.' }),
+    answer(rt(20), 'CVE-2026-240120', { tokens: 18_300, pages: PAGES.slice(0, 2), confidence: 'medium', inferred: true, strong: true, quote: 'The container package shares this code and is not affected on 7.14.' }),
+    answer(rt(21), 'CVE-2026-240121', { tokens: 5_200, confidence: 'low', quote: '', reason: 'No page names this release line; the AI concluded it from the release notes.' }),
+    answer(rt(22), 'CVE-2026-240122', { tokens: 9_800, quote: 'This issue was introduced in 7.15.' }),
+    answer(rt(23), 'CVE-2026-240123', { tokens: 8_800, quote: 'Not affected: RouterOS v7.14 and earlier.' }),
+    answer(rt(24), 'CVE-2026-240124', { tokens: 7_700, quote: 'RouterOS versions below 7.15 are unaffected.' }),
+    answer(rt(25), 'CVE-2026-240125', { tokens: 12_300, pages: PAGES.slice(0, 3), quote: 'Only the CHR image of 7.16 is affected.' }),
+    answer(rt(26), 'CVE-2026-240126', { tokens: 6_900, confidence: 'medium', quote: 'The vulnerable module is not built into 7.14.' }),
+    answer(rt(27), 'CVE-2026-240127', { tokens: 8_100, quote: 'Only 7.16 and 7.17 are affected.' }),
+    answer(rt(28), 'CVE-2026-240128', { tokens: 7_000, quote: 'The 7.14 long-term line is not affected.' }),
+    answer(rt(29), 'CVE-2026-240129', { tokens: 9_500, quote: 'No release before 7.15 contains the feature.' }),
+    answer(rt(30), 'CVE-2026-240130', { tokens: 8_600, confidence: 'medium', quote: 'Affected versions: 7.15 to 7.16.2.' }),
+    answer(sql, 'CVE-2026-245503', { tokens: 13_700, pages: PAGES.slice(0, 3), quote: 'SQL Server 2019 is not affected; the issue is limited to SQL Server 2022.' }),
+    [aiFoundCheck(15).key, aiFoundCheck(15)], [aiFoundCheck(16).key, aiFoundCheck(16)],
+  ]
   return Object.fromEntries([
+    ...answers,
     ai(rt(1), 'CVE-2026-240101', 'affected', 'confident', 'RouterOS versions 7.10 through 7.15.2 are affected; upgrade to 7.15.3 or 7.16.2.',
       'The advisory names the range 7.10 through 7.15.2, which covers 7.14.'),
     ai(rt(2), 'CVE-2026-240102', 'not_affected', 'likely', 'Only devices running the container package are affected.', 'The advisory limits it to the container package; nothing says it is installed.'),

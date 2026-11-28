@@ -259,7 +259,7 @@ func TestOneAlertPerEscalation(t *testing.T) {
 	}
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", Severity: findings.SeverityHigh})
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", Severity: findings.SeverityHigh}) // redelivered
-	want() // a public exploit is not exploited in the wild: recorded at its layer for the daily summary, never queued (INV-32)
+	want()                                                                                                    // a public exploit is not exploited in the wild: recorded at its layer for the daily summary, never queued (INV-32)
 	if n := e.count(`SELECT count(*) FROM notify_notice_finding WHERE finding_id = 'f-1' AND layer = 3`); n != 1 {
 		t.Fatalf("told at layer 3 %d times, want once", n)
 	}

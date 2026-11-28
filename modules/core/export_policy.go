@@ -164,6 +164,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (the first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
+	"notify_summary":         {export: "id due_at state done_at"}, // the daily summary's marks (when it came due, what it did)
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
 	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at state outcome tries"},
 	"notify_slack_final":     {skipAll: true, skip: "request_id outcome at"},

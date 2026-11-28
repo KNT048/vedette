@@ -644,9 +644,11 @@ var vexStatuses = map[string]string{
 var vexRank = map[string]int{DistroNotAffected: 1, DistroFixed: 2, DistroTriage: 3, DistroOpen: 4}
 
 // vexProPockets are the pockets of a release whose statements are about the release's own source package as Ubuntu Pro ships it:
-// Expanded Security Maintenance of the universe packages (esm-apps) and of main after standard support (esm-infra). Canonical's VEX
-// names a universe package of an LTS release only under esm-apps. Other pockets (fips, fips-updates, realtime) are other builds.
-var vexProPockets = map[string]bool{"esm-apps": true, "esm-infra": true}
+// Expanded Security Maintenance of the universe packages (esm-apps) and of main after standard support (esm-infra), and their Legacy
+// add-on after ESM. Canonical's VEX names a universe package of an LTS release only under esm-apps. The other pockets of the file
+// (fips, fips-updates, fips-preview, realtime, bluefield: 2026-11-28) are other builds and are never read. On 24.04 and 26.04 no
+// plain release and esm pocket state different statuses for one package (2026-11-28); vexRank settles it if one ever does.
+var vexProPockets = map[string]bool{"esm-apps": true, "esm-infra": true, "esm-apps-legacy": true, "esm-infra-legacy": true}
 
 // ParseUbuntuVEX reads Canonical's vex-all.tar.xz and keeps, for the CVEs in want (DistroWant.Row), each source product's stated status
 // ("pkg:deb/ubuntu/<source>@<version>?arch=source&distro=<codename>", or distro=<pocket>/<codename> for an Ubuntu Pro pocket) through

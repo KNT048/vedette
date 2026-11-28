@@ -213756,6 +213756,8 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) Decode(d *jx.Decode
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage
 	default:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReason(v)
 	}
@@ -217418,6 +217420,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Decode(d *jx.Dec
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage
 	default:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReason(v)
 	}

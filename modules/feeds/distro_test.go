@@ -111,7 +111,9 @@ func TestParseUbuntuVEX(t *testing.T) {
 	}
 	// the plain release's and the esm-infra pocket's not affected (Pro), the affected package (open); the binary product and "fixed" keep
 	// no row
-	slices.SortFunc(res.Rows, func(a, b DistroFix) int { return cmp.Or(strings.Compare(a.Package, b.Package), strings.Compare(a.Release, b.Release)) })
+	slices.SortFunc(res.Rows, func(a, b DistroFix) int {
+		return cmp.Or(strings.Compare(a.Package, b.Package), strings.Compare(a.Release, b.Release))
+	})
 	want := []DistroFix{{Distro: "ubuntu", Release: "20.04", Package: "openssh", CVE: "CVE-2026-10001", Status: "not_affected", Pro: true},
 		{Distro: "ubuntu", Release: "26.04", Package: "openssh", CVE: "CVE-2026-10001", Status: "not_affected"},
 		{Distro: "ubuntu", Release: "26.04", Package: "openssh-ssh1", CVE: "CVE-2026-10001", Status: "open"}}

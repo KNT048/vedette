@@ -119940,6 +119940,10 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	Checkable bool                                         `json:"checkable"`
 	Cve       string                                       `json:"cve"`
 	Device    FindingsGetFindingsPossibleOKItemsItemDevice `json:"device"`
+	// Waiting for the distribution's word on its own package: listed apart in its own group, counted in
+	// counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's
+	// one definition of the group).
+	DistroPending bool `json:"distro_pending"`
 	// The CVE is on an exploited list.
 	Exploited bool `json:"exploited"`
 	// Older_line: the newest fixed release of each newer line.
@@ -120001,6 +120005,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) GetCve() string {
 // GetDevice returns the value of Device.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetDevice() FindingsGetFindingsPossibleOKItemsItemDevice {
 	return s.Device
+}
+
+// GetDistroPending returns the value of DistroPending.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetDistroPending() bool {
+	return s.DistroPending
 }
 
 // GetExploited returns the value of Exploited.
@@ -120086,6 +120095,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetCve(val string) {
 // SetDevice sets the value of Device.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetDevice(val FindingsGetFindingsPossibleOKItemsItemDevice) {
 	s.Device = val
+}
+
+// SetDistroPending sets the value of DistroPending.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetDistroPending(val bool) {
+	s.DistroPending = val
 }
 
 // SetExploited sets the value of Exploited.

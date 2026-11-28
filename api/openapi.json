@@ -60893,6 +60893,10 @@
                               }
                             ],
                             "description": "Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise"
+                          },
+                          "distro_pending": {
+                            "type": "boolean",
+                            "description": "Waiting for the distribution's word on its own package: listed apart in its own group, counted in counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's one definition of the group)"
                           }
                         },
                         "required": [
@@ -60912,7 +60916,8 @@
                           "bulk",
                           "cause",
                           "held",
-                          "older_build"
+                          "older_build",
+                          "distro_pending"
                         ],
                         "additionalProperties": false,
                         "description": "One possible CVE of one software line of one device"

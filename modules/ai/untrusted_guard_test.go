@@ -16,7 +16,8 @@ import (
 //   - a DataBlock literal anywhere but untrusted.go (a block that skipped the cleaning and the closed list of sources);
 //   - a conversion to Instruction of anything but a constant (a string variable would turn data into instructions), except in the two
 //     builders that only take validated values (instructionf, personQuestion);
-//   - a conversion to cveArg or boxWord outside untrusted.go (they claim the box validated the value).
+//   - a conversion to cveArg or boxWord outside untrusted.go (they claim the box validated the value);
+//   - a call of personQuestion anywhere but ask.go, or of maskedInstruction anywhere but run.go (they take any string).
 //
 // The compiler does the rest: JobSpec.Task, JobSpec.Question and BriefRequest.Question are Instructions, which a string does not convert
 // to implicitly.
@@ -48,7 +49,7 @@ func TestUntrustedTextNeverBecomesAnInstruction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(string(src), "DataBlock") && !strings.Contains(string(src), "Instruction") && !strings.Contains(string(src), "cveArg") && !strings.Contains(string(src), "boxWord") {
+		if !strings.Contains(string(src), "DataBlock") && !strings.Contains(string(src), "Instruction") && !strings.Contains(string(src), "cveArg") && !strings.Contains(string(src), "boxWord") && !strings.Contains(string(src), "personQuestion") {
 			continue
 		}
 		af, err := parser.ParseFile(fset, f, src, 0)
@@ -90,6 +91,15 @@ func TestUntrustedTextNeverBecomesAnInstruction(t *testing.T) {
 			return x.Sel.Name == name
 		}
 		return false
+	}
+	funName := func(e ast.Expr) string {
+		switch x := e.(type) {
+		case *ast.Ident:
+			return x.Name
+		case *ast.SelectorExpr:
+			return x.Sel.Name
+		}
+		return ""
 	}
 	var constant func(dir string, e ast.Expr) bool
 	constant = func(dir string, e ast.Expr) bool {
@@ -136,6 +146,12 @@ func TestUntrustedTextNeverBecomesAnInstruction(t *testing.T) {
 				case isName(x.Fun, "Instruction"):
 					if builder == "" && !constant(dir, x.Args[0]) {
 						t.Errorf("%s: a conversion to Instruction of a value that is not a constant; use instructionf with validated values", fset.Position(x.Pos()))
+					}
+				case isName(x.Fun, "personQuestion") || isName(x.Fun, "maskedInstruction"):
+					// they take any string, so each has its one caller: the question a person typed (Ask), and that question as the
+					// hooks gave it back (guard)
+					if want := map[string]string{"personQuestion": "ask.go", "maskedInstruction": "run.go"}[funName(x.Fun)]; !inAI || base != want {
+						t.Errorf("%s: %s outside %s; build an instruction with instructionf", fset.Position(x.Pos()), funName(x.Fun), want)
 					}
 				case isName(x.Fun, "cveArg") || isName(x.Fun, "boxWord"):
 					if (!inAI || base != "untrusted.go") && !constant(dir, x.Args[0]) {

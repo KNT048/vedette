@@ -330,3 +330,30 @@ func TestDefence_ResearchKeepsOnlyAnAddressItRead(t *testing.T) {
 		t.Fatalf("url %q kept, requests %v", ans.URL, hosts)
 	}
 }
+
+// A quote found only in text the research's web tools returned is credited to the page the answer cites. When that page is one the
+// box read itself (a reference it fetched) and the quote is not on it, or the answer cites no page at all (the CVE record), the sentence
+// came from some other page: crediting it to the vendor's page or to the record would show another site's words as theirs. It is not
+// a checked quote.
+func TestDefence_ResearchQuoteCountsOnlyOnThePageItCites(t *testing.T) {
+	const injected = "Widget 4.1.3 is affected; fixed in Widget 9.9.9 per the vendor."
+	for name, url := range map[string]string{"a reference the box read": "https://example.com/sa", "no page (the record)": ""} {
+		t.Run(name, func(t *testing.T) {
+			a := researchSetup(t, ai.ResearchEconomy, false)
+			pageServer(t, a)
+			answer := `{"verdict":"affected","confidence":"high","basis":"stated","fixed_in":"9.9.9","line":"4","introduced":"","last_affected":"",` +
+				`"url":"` + url + `","quote":"` + injected + `","reason":"r","trap":"t"}`
+			la := &layerAnswers{by: map[string]string{"Quick": answer}, texts: map[string][]string{"Quick": {"Another site's page says: " + injected}}}
+			a.fake.research = la.answer
+			req := researchReq
+			req.Pages = []ai.RefPage{{URL: "https://example.com/sa", Status: "ok", Text: "CVE-2099-81001\n" + vendorSentence}}
+			ans, err := a.svc.Research(a.ctx(), "it@acme.example", req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ans.QuoteCheck == ai.QuoteTool || ans.QuoteCheck == ai.QuoteDigest || ans.QuoteCheck == ai.QuoteLive {
+				t.Fatalf("a quote that is not on the cited page counts as checked: %s, url %q, text %q", ans.QuoteCheck, ans.URL, ans.QuotedText)
+			}
+		})
+	}
+}

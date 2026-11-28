@@ -442,7 +442,7 @@ func (s *Service) researchLayer(ctx context.Context, actor string, req ResearchR
 	for _, pg := range req.Pages {
 		digest = append(digest, pg.Text)
 	}
-	step.QuoteCheck, text = s.checkQuote(ctx, v, run.texts, digest)
+	step.QuoteCheck, text = s.checkQuote(ctx, v, citedTools(req, run, v.URL), digest)
 	step.Verdict, step.Confidence = v.Verdict, v.Confidence
 	return v, step, text, nil
 }
@@ -575,6 +575,7 @@ type researchRun struct {
 	searches       int
 	pages          []string
 	texts          []string
+	byURL          map[string]string // the text of each page the box's fetch tool read, by its address (as sent)
 	model, profile string
 }
 
@@ -711,6 +712,10 @@ func (r *researchRun) fetch(ctx context.Context, hooks *HookRunner, prompt Promp
 		return "The page was read, but its text could not be passed on.", true
 	}
 	r.texts = append(r.texts, sent)
+	if r.byURL == nil {
+		r.byURL = map[string]string{}
+	}
+	r.byURL[pg.URL] = sent
 	return wrapped, false
 }
 
@@ -741,6 +746,25 @@ func answerJSON(text string) string {
 		}
 	}
 	return t
+}
+
+// citedTools is the tool text a quote may be found in for the page the answer cites (url): none when it cites no page (its quote is the
+// CVE record's, checked in the digest); only that page's own text when the box read the page itself (a reference it fetched, or a page
+// its fetch tool read); every text of the provider's own tools otherwise (it does not say which page each came from). A sentence of
+// another page is never credited to the cited one: findings shows a checked quote as the words of the cited page's site.
+func citedTools(req ResearchRequest, run *researchRun, url string) []string {
+	if url == "" {
+		return nil
+	}
+	if t, ok := run.byURL[url]; ok {
+		return []string{t}
+	}
+	for _, p := range req.Pages {
+		if p.URL == url && p.Status == "ok" {
+			return []string{p.Text}
+		}
+	}
+	return run.texts
 }
 
 // checkQuote looks the answer's quote up: in the text the tools returned, then in the digest, then on a live fetch of the cited page by

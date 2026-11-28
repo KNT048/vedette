@@ -438,6 +438,9 @@ type Match struct {
 	// Lines are the matches of the same entry on the device's other software lines (another ID than SoftwareID) that stand on their
 	// own (version evidence, or a CVE a safe check reads), the best match of each line: a CVE on Java 8 and Java 21 is two findings.
 	Lines []Match
+	// gate: on a "not affected" or "ruled out", what the closing gate reads from the step that decided it (gateshadow.go); recorded
+	// beside the outcome, never read to decide it.
+	gate *gateShadow
 }
 
 // otherLines is Match.Lines of best: of the other matches of the entry, the best one of each other software line that would stand
@@ -704,6 +707,8 @@ type devMatch struct {
 	reads     []*entryRead  // per entry, its reading of the rows; nil until asked
 	// own is, per row the AI identified (Software.AIProduct), the row read by its own names alone; nil for every other row.
 	own []*ownRow
+	// shadow: its rows record the closing gate's shadow (shadowGate).
+	shadow bool
 }
 
 // ownRow is a row the AI identified as its own names alone read it: its reading, its KEV keys and the entries NVD's list may name it in.
@@ -831,7 +836,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			continue
 		}
 		if out != outNone {
-			e.outs = append(e.outs, rowOut{row: i, out: out})
+			e.outs = append(e.outs, rowOut{row: i, out: out, gate: m.gate})
 		}
 		if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
 			// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
@@ -1669,7 +1674,7 @@ func keyIDs(v Vuln) []identity {
 func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time) (Match, outcome) {
 	if named, out := otherSeries(a.Model, v); out { // CISA names other Juniper series than the device's model; no proof about the version
 		note := fmt.Sprintf("%s lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.listName(), v.CVE, orList(named), clean(a.Model))
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, gate: shadowStop(in, prodOtherSeries)}, outRuledOut
 	}
 	if d, ok := distroVerdict(in, v); ok { // The distribution's own word on its package comes before NVD's upstream ranges
 		return distroMatch(a, s, in, v, d, now)
@@ -1751,16 +1756,17 @@ func triagedAffected(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Mat
 func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time) (Match, outcome) {
 	if why, out := platformRuledOut(in, v.CVE); out { // The platform it runs on is not one the CVE affects; after the distribution's own word, which may contradict the hand list
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why, gate: shadowStop(in, prodPlatformList)}, outNotAffected
 	}
 	ps := platformCheck(a, s, in, v.CVE, v.Distro, v.DistroLoading) // what a platform-limited CVE still needs on this row
 	if ps.fixed {
 		note := "Not affected: " + ps.note + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true, provedOn: strings.TrimSpace(s.PkgVersion)}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true, provedOn: strings.TrimSpace(s.PkgVersion), gate: shadowPlatformFixed(v, in)}, outNotAffected
 	}
 	if why, out := edgeLegacyOnly(s, in, v); out { // An Edge Legacy (EdgeHTML) CVE on the Chromium-based Edge
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now},
+			gate: shadowIdentity(in, prodEdgeLegacy)}, outNotAffected
 	}
 	multi := isMultiProduct(v.Product)
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // A Windows release row by its monthly update
@@ -1768,12 +1774,14 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	pinned := ""     // #939: the version is inside whatever the edition or target the row does not state
 	vendorNote := "" // the proof note of the vendor's rows (schemeJudge)
 	schemed := false
-	var lined lineRead // a vendor's release-line statement decided (M-13)
+	var lined lineRead      // a vendor's release-line statement decided (M-13)
+	var schemeRd schemeRead // the vendor's rows read in its scheme decided (schemeJudge)
 	if lr := lineJudge(a, s, in, v); !isWin && ps.ask == askNone && !ps.below && lr.decides() {
 		tri, within, vendorNote = lineDecision(s, v, lr)
 		proof, schemed, lined = proofRange, true, lr
 	} else if !isWin {
 		if r, ok := schemeJudge(a, s, in, v); ok { // the vendor's own rows, read in the product's version scheme, decide first
+			schemeRd = r
 			tri, within, vendorNote = schemeDecision(a, v, r)
 			proof, schemed = proofRange, true
 		} else {
@@ -1810,13 +1818,13 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	switch {
 	case tri == No && schemed:
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
-			provedOn: strings.TrimSpace(in.ver)}, outNotAffected
+			provedOn: strings.TrimSpace(in.ver), gate: shadowSchemed(v, in, lined, schemeRd)}, outNotAffected
 	case tri == No && proof == proofNone:
 		if multi && listsOthersOnly(in, v) { // No proof (NVD's list can lag the advisory); the person reads why
 			note := fmt.Sprintf("NVD lists %s for %s, not %s; check the vendor advisory and close it if it does not apply.", nvdProducts(v.Vendor, v.Affected), v.CVE, clean(s.Display))
-			return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
+			return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, gate: shadowStop(in, prodOthersOnly)}, outRuledOut
 		}
-		return Match{lineUnlisted: unlisted}, outRuledOut
+		return Match{lineUnlisted: unlisted, gate: shadowStop(in, prodRuledOutNoProof)}, outRuledOut
 	case tri == No:
 		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range %s lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.rangesBy(false), v.CVE)
 		switch {
@@ -1836,7 +1844,8 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if agreed != "" {
 			note = "Not affected: " + agreed + ". Vedette closed this by itself and reopens it if a later match says the device is affected."
 		}
-		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed}
+		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed,
+			gate: shadowRanges(in, v, key, proof, w.via != "", agreed != "")}
 		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
 			m.provedOn = strings.TrimSpace(in.ver)
 		}
@@ -2065,6 +2074,9 @@ type swInfo struct {
 	personPkg string
 	// install: the build attributes the box derives for the row (installOf: edition, platform, architecture); zero when not derived.
 	install installAttrs
+	// shadow: the closing steps record what the closing gate would read from them (Match.gate, Service.ShadowGate); off by default,
+	// and then they build nothing.
+	shadow bool
 }
 
 // pkgBuilt says the row is a distribution's package: an agent read it from the package database (packaged), or a person gave a

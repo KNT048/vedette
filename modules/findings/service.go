@@ -76,9 +76,11 @@ type Service struct {
 	gen       atomic.Uint64 // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	stamps    stamps        // each device's match stamp of its last full match (matchstamp.go)
 	covers    covers        // each device's decision coverage of its last full match, and the last pass's sum (coverage.go)
-	check     checkState    // the one check of possible findings at a time (possiblecheck.go)
-	idCache   identityCache // fnd_identity as the match reads it (aiidentity.go)
-	ident     identityState // the one identification run at a time (aiidentity.go)
+	// gateShadow: record the closing gate's answer in shadow beside each closing step (gateshadow.go, ShadowGate). Off by default.
+	gateShadow atomic.Bool
+	check      checkState    // the one check of possible findings at a time (possiblecheck.go)
+	idCache    identityCache // fnd_identity as the match reads it (aiidentity.go)
+	ident      identityState // the one identification run at a time (aiidentity.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -604,7 +606,8 @@ func (s *Service) upsertPart(ctx context.Context, a Asset, vulns []Vuln, judged 
 		if whole != nil {
 			qm = *whole
 		}
-		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
+		// the shadow of a pass's match; not of one computed again for a newer reading (MatchAsset records none)
+		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit, pre != nil && pre.dm.shadow && !changed)
 		res = r
 		if err != nil || pre == nil {
 			return err

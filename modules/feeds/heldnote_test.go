@@ -35,6 +35,7 @@ var countSaysItself = map[string]string{
 	"tor-exit":         "indicators",
 	"hagezi-tif":       "indicators",
 	dropFeedID:         "networks",
+	cnaFeedID:          "CNAs",
 }
 
 // The class of a count shown with no words: measured over every built-in feed, each is decided once.

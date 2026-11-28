@@ -119,7 +119,7 @@ func TestCVE5Status_EndToEnd(t *testing.T) {
 							return err
 						}
 					}
-					return storeRecordRanges(ctx, tx, cve, rec.Ranges)
+					return storeRecordRanges(ctx, tx, cve, rec.Assigner, rec.Ranges)
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -152,8 +152,11 @@ func TestCVE5Status_EndToEnd(t *testing.T) {
 	}
 }
 
-// storeRecordRanges writes a parsed record's ranges as the record pull stores them.
-func storeRecordRanges(ctx context.Context, tx *sql.Tx, cve string, rows []feeds.Range) error {
+// storeRecordRanges writes a parsed record's ranges and its assigner as the record pull stores them.
+func storeRecordRanges(ctx context.Context, tx *sql.Tx, cve, assigner string, rows []feeds.Range) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET assigner = ? WHERE cve = ?`, strings.ToLower(assigner), cve); err != nil {
+		return err
+	}
 	for _, r := range rows {
 		var plats any
 		if len(r.Platforms) > 0 {

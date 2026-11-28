@@ -24,9 +24,9 @@ func TestMatchReaders(t *testing.T) {
 			return err
 		}
 		recs := []CVERecord{
-			{CVE: "CVE-2026-0201", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0201", Origin: OriginCNA, Vendor: "acme", Product: "box", EndExcl: "1.9", DefaultStatus: DefaultUnaffected}}},
-			{CVE: "CVE-2026-0202", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0202", Origin: OriginCNA, Vendor: "paloalto", Product: "panos", StartIncl: "11.1.0", EndExcl: "11.1.5", DefaultStatus: DefaultUnaffected}}},
-			{CVE: "CVE-2026-0203", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0203", Origin: OriginCNA, Vendor: "vmware", Product: "esxi", StartIncl: "8.0", EndExcl: "ESXi80U3d-24585383", Fixed: "ESXi80U3d-24585383", VersionType: VendorNotation + "custom", DefaultStatus: DefaultUnaffected}}},
+			{CVE: "CVE-2026-0201", State: RecordPublished, Assigner: "acme", Ranges: []Range{{CVE: "CVE-2026-0201", Origin: OriginCNA, Vendor: "acme", Product: "box", EndExcl: "1.9", DefaultStatus: DefaultUnaffected}}},
+			{CVE: "CVE-2026-0202", State: RecordPublished, Assigner: "paloalto", Ranges: []Range{{CVE: "CVE-2026-0202", Origin: OriginCNA, Vendor: "paloalto", Product: "panos", StartIncl: "11.1.0", EndExcl: "11.1.5", DefaultStatus: DefaultUnaffected}}},
+			{CVE: "CVE-2026-0203", State: RecordPublished, Assigner: "vmware", Ranges: []Range{{CVE: "CVE-2026-0203", Origin: OriginCNA, Vendor: "vmware", Product: "esxi", StartIncl: "8.0", EndExcl: "ESXi80U3d-24585383", Fixed: "ESXi80U3d-24585383", VersionType: VendorNotation + "custom", DefaultStatus: DefaultUnaffected}}},
 		}
 		k, err := recordKeepOf(t.Context(), tx, now, nil)
 		if err != nil {

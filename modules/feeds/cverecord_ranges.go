@@ -120,8 +120,10 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			if g.unusable {
 				continue
 			}
-			if cnaDefault(a.DefaultStatus) == DefaultUnaffected && (origin != OriginCNA || !ownCNA(assigner, a.Vendor)) {
-				a.DefaultStatus = DefaultUnknown // what a third party did not list, it did not test (ownCNA); g.entries keep its word
+			if cnaDefault(a.DefaultStatus) == DefaultUnaffected && (origin != OriginCNA || noVendor[productid.NormVendor(a.Vendor)]) {
+				// an ADP, or an entry that names no vendor, is never the vendor's own word; a CNA's other rows keep its word, read as
+				// the vendor's own or not when they are read (trustRow); g.entries keep its word
+				a.DefaultStatus = DefaultUnknown
 			}
 			got, complete, ok := entryRows(a, schemeReads(part, vendor, product))
 			if !ok {
@@ -152,7 +154,8 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 				lost[lostKey(g.key[1], g.key[2])] = true
 			}
 			schemed := SchemeProduct(Range{Part: g.key[0], Vendor: g.key[1], Product: g.key[2]})
-			vendors := origin == OriginCNA && !slices.ContainsFunc(g.entries, func(a cnaAffected) bool { return !ownCNA(assigner, a.Vendor) })
+			// the rows of a CNA that names the vendor keep its word, read as the vendor's own or not when they are read (trustRow)
+			vendors := origin == OriginCNA && !slices.ContainsFunc(g.entries, func(a cnaAffected) bool { return noVendor[productid.NormVendor(a.Vendor)] })
 			own := func(got []Range) {
 				for _, r := range got {
 					r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE = cve, origin, g.key[0], g.key[1], g.key[2], g.cpe
@@ -262,12 +265,15 @@ func clipAssigner(s string) string {
 // "unaffected" for the rest is no evidence (CVE JSON 5 leaves the trust in defaultStatus to the reader; versions.md). An entry that
 // names no vendor ("n/a", empty) does not say whose product it is, so it is never the assigner's own. Such an entry is read with
 // defaultStatus unknown: its listed versions still say "affected", a version it does not list stays a question.
-func ownCNA(assigner, vendor string) bool {
-	return ownCNAIn(catalogueProductVendors(), assigner, vendor)
+// The CVE Program's CNA list (cnalist.go) also makes the assigner the vendor's own CNA when the list types it as a vendor and one form
+// of its organization name is the vendor's ("zz" of "Zenith Widgets, Inc."): org is that organization name, "" while the box
+// holds no list recent enough or the list does not hold the assigner as a possible vendor; then the rules above stand alone.
+func ownCNA(assigner, vendor, org string) bool {
+	return ownCNAIn(catalogueProductVendors(), assigner, vendor, org)
 }
 
 // ownCNAIn is ownCNA with the vendors of each product name (productVendors).
-func ownCNAIn(names map[string][]string, assigner, vendor string) bool {
+func ownCNAIn(names map[string][]string, assigner, vendor, org string) bool {
 	v := productid.NormVendor(vendor)
 	if noVendor[v] {
 		return false
@@ -279,8 +285,23 @@ func ownCNAIn(names map[string][]string, assigner, vendor string) bool {
 	if a == v {
 		return true
 	}
-	vs := names[productid.Norm(assigner)]
-	return len(vs) == 1 && vs[0] == v // a name two vendors' products share says nothing
+	if vs := names[productid.Norm(assigner)]; len(vs) == 1 && vs[0] == v { // a name two vendors' products share says nothing
+		return true
+	}
+	return orgNamesVendor(org, vendor)
+}
+
+// trustRow applies, as a stored row is read, what the record's CNA is worth for it: VendorCNA says the assigner is the row's vendor
+// (ownCNA, with org the CNA's organization from a recent CNA list), and a CNA row's defaultStatus "unaffected" from any other CNA is
+// read as unknown: what a third party did not list, it did not test. That holds for every row the generic comparison reads and for a
+// model-limited row (a third party lists the hardware it tested); the rows kept in a vendor's notation keep the record's word, as
+// recordRanges stored them before. Every reader of stored ranges goes through it (readRanges, rangesComplete, RecordStamps), so a
+// CNA list that arrives or changes later changes what is read without reading the records again.
+func trustRow(r *Range, assigner, org string) {
+	r.VendorCNA = r.Origin != OriginADP && ownCNA(assigner, r.Vendor, org)
+	if r.Origin == OriginCNA && r.DefaultStatus == DefaultUnaffected && !r.VendorCNA && (r.Generic() || r.ModelLimited()) {
+		r.DefaultStatus = DefaultUnknown
+	}
 }
 
 // catalogueProductVendors is productVendors of the product catalogue built into the box.

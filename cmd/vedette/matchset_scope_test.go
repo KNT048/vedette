@@ -83,7 +83,8 @@ func TestWiringRecordListCompletenessIsItsAuthors(t *testing.T) {
 	ctx := t.Context()
 	const cve = "CVE-2026-90102"
 	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve (cve, published, updated_at) VALUES (?, ?, ?)`, cve, "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z"); err != nil {
+		// the vendor's own CNA wrote the record: its "unaffected" for what it does not list counts (feeds trustRow)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve (cve, published, updated_at, assigner) VALUES (?, ?, ?, 'acme')`, cve, "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z"); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, version_type, default_status, platforms) VALUES

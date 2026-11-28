@@ -88,7 +88,7 @@ func TestOwnCNA_AProductNameOfTheVendorsOwnCatalogue(t *testing.T) {
 		{"rocket", "n/a", false},         // an entry that names no vendor
 		{"", "Acme", false},              //
 	} {
-		if got := ownCNAIn(names, c.assigner, c.vendor); got != c.want {
+		if got := ownCNAIn(names, c.assigner, c.vendor, ""); got != c.want {
 			t.Errorf("ownCNA(%q, %q) = %v, want %v", c.assigner, c.vendor, got, c.want)
 		}
 	}

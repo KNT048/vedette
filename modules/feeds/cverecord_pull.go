@@ -103,8 +103,10 @@ const (
 	// Range.VendorCNA) and reads an assigner named after a product only its vendor ships as that vendor's own CNA (ownCNA); "ranges-13"
 	// drops the system limit of a product's rows when an entry of the product gives no row; "ranges-14" instead marks every row of
 	// such a product, or of a record with an entry whose product it cannot tell, as one that only ever says "affected" (markLost),
-	// and reads an entry with a version of status unknown as not complete.
-	recordReader = "ranges-14"
+	// and reads an entry with a version of status unknown as not complete; "ranges-15" stores a CNA row's defaultStatus "unaffected"
+	// as the record says it, read as the vendor's own word or not when the row is read (trustRow), so the CVE Program's CNA list can
+	// change that without a read of the records.
+	recordReader = "ranges-15"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"
 )

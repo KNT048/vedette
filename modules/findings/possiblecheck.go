@@ -1634,10 +1634,17 @@ func (s *Service) RejectProposal(ctx context.Context, key, user string) error {
 			if err != nil {
 				return fmt.Errorf("findings: reading a reading: %w", err)
 			}
-			// one rejection covers the line's other readings of the same verdict: an older one must not hold the finding open (P-12)
-			if side := statusSide(st.Status); side != "" {
-				if _, err := tx.ExecContext(ctx, `UPDATE fnd_line_statement SET rejected_by = ?, rejected_at = ? WHERE cve = ? AND product_key = ? AND line = ?
-					AND rejected_by IS NULL AND `+statusSideSQL+` = ?`, user, store.FormatTS(now), st.CVE, st.Product, st.Line, side); err != nil {
+			// one rejection covers the line's other readings it covers (rejectionCovers): an older one must not hold the finding open (P-12)
+			others, err := statementsWhere(ctx, tx, `cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL`, st.CVE, st.Product, st.Line)
+			if err != nil {
+				return err
+			}
+			for _, o := range others {
+				if !rejectionCovers(st, o) {
+					continue
+				}
+				if _, err := tx.ExecContext(ctx, `UPDATE fnd_line_statement SET rejected_by = ?, rejected_at = ? WHERE statement_key = ?`, user,
+					store.FormatTS(now), o.Key); err != nil {
 					return fmt.Errorf("findings: rejecting the line's readings: %w", err)
 				}
 			}

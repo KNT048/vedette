@@ -569,9 +569,12 @@ func answerJSON(text string) string {
 // checkQuote looks the answer's quote up: in the text the tools returned, then in the digest, then on a live fetch of the cited page by
 // the box (public HTTPS hosts only, like fetch_page). It returns where it was found and the text it was found in.
 func (s *Service) checkQuote(ctx context.Context, v ResearchVerdict, tools, digest []string) (string, string) {
-	q := normQuote(v.Quote)
-	if len(q) < 12 {
+	q := quoteFolds{norm: normQuote(v.Quote)}
+	if len(q.norm) < 12 {
 		return QuoteNone, ""
+	}
+	if reQuoteTags.MatchString(v.Quote) {
+		q.keep = foldQuote(v.Quote, false)
 	}
 	if t, ok := quoteIn(q, tools); ok {
 		return QuoteTool, t
@@ -598,18 +601,28 @@ var (
 
 // normQuote folds a text for the quote check: no markup, typographic quotes and dashes plain, Markdown marks dropped, spaces collapsed
 // (none before punctuation), lower case.
-func normQuote(s string) string {
-	s = quoteFold.Replace(html.UnescapeString(reQuoteTags.ReplaceAllString(s, " ")))
+func normQuote(s string) string { return foldQuote(s, true) }
+
+// foldQuote is normQuote, with markup tags dropped only when tags is true.
+func foldQuote(s string, tags bool) string {
+	if tags {
+		s = reQuoteTags.ReplaceAllString(s, " ")
+	}
+	s = quoteFold.Replace(html.UnescapeString(s))
 	s = reQuoteMarks.ReplaceAllString(s, " ")
 	s = strings.ToLower(strings.Join(strings.Fields(s), " "))
 	return reSpacePunct.ReplaceAllString(s, "$1") // "**affected**;" folds to "affected;"
 }
 
+// quoteFolds is a quote as the check looks it up: folded (norm), and, when it has something like a markup tag, folded with the tag kept
+// (keep): dropping a tag must not hide words the quote carries, as the reading uses the quote as written (its releases and bounds).
+type quoteFolds struct{ norm, keep string }
+
 // quoteIn finds the folded quote q, whole, in one of texts. A quote of which only a part is found is not checked: the part the model
-// wrote itself may be the very release that decides the verdict.
-func quoteIn(q string, texts []string) (string, bool) {
+// wrote itself may be the very release that decides the verdict. A quote with a tag is found only where the text has that tag too.
+func quoteIn(q quoteFolds, texts []string) (string, bool) {
 	for _, t := range texts {
-		if strings.Contains(normQuote(t), q) {
+		if strings.Contains(normQuote(t), q.norm) && (q.keep == "" || strings.Contains(foldQuote(t, false), q.keep)) {
 			return t, true
 		}
 	}

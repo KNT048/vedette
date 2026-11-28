@@ -76,6 +76,10 @@ type Coverage struct {
 	Decided       []CoverageSource `json:"decided"`  // by source, the most pairs first
 	Possible      []CoverageCause  `json:"possible"` // by cause, the most first
 	Identity      []CoverageMethod `json:"identity"` // by method, in IdentityMethods order
+	// GateWould and GateGone are the closing gate's answers in shadow (gateshadow.go): for the pairs decided not affected or ruled out,
+	// and for the findings the pass closed as gone. In memory only: not stored with the counts, not served.
+	GateWould []CoverageGate `json:"-"`
+	GateGone  []GateGone     `json:"-"`
 }
 
 // CoverageSource is how many pairs one source decided, each way.
@@ -119,6 +123,7 @@ type deviceCover struct {
 	// identified (a person's "Not this product" matches these devices again at once).
 	unlinked map[nameKey]identityAsk
 	byAI     map[nameKey]bool
+	gate     map[CoverageGate]int // the closing gate's answers in shadow (CoverageGate without Count)
 }
 
 // covers is the counts of each device the pass matched, by device id, and the sum of the last pass.
@@ -126,6 +131,7 @@ type covers struct {
 	mu   sync.Mutex
 	m    map[string]deviceCover
 	last *Coverage
+	gone map[string]GateGone // the closing gate's answers in shadow for the findings closed as gone since the last pass
 }
 
 // unlinked is every line of identity none of the devices' last full matches, once per name (the first device's reading, by device
@@ -179,8 +185,11 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	defer c.mu.Unlock()
 	maps.DeleteFunc(c.m, func(id string, _ deviceCover) bool { return !live[id] })
 	out := Coverage{At: at, OutsideWindow: outside, Decided: []CoverageSource{}, Possible: []CoverageCause{}, Identity: []CoverageMethod{}}
-	decided, possible, identity := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}
+	decided, possible, identity, gate := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}, map[CoverageGate]int{}
 	for _, d := range c.m {
+		for k, n := range d.gate {
+			gate[k] += n
+		}
 		out.Devices++
 		out.Lines += d.lines
 		for k, n := range d.decided {
@@ -223,6 +232,14 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	for _, m := range IdentityMethods {
 		out.Identity = append(out.Identity, CoverageMethod{Method: m, Lines: identity[m]})
 	}
+	for k, n := range gate {
+		k.Count = n
+		out.GateWould = append(out.GateWould, k)
+	}
+	slices.SortFunc(out.GateWould, func(a, b CoverageGate) int {
+		return cmp.Or(cmp.Compare(b.Count, a.Count), strings.Compare(a.Producer, b.Producer), strings.Compare(a.Would, b.Would), strings.Compare(a.Cause, b.Cause), strings.Compare(a.By, b.By))
+	})
+	out.GateGone = c.takeGone()
 	c.last = &out
 }
 
@@ -304,6 +321,10 @@ type pairState struct {
 	affected bool
 	cause    string // undecided: why (PossibleCause, or an unnamed class)
 	detail   string // undecided with a question: the matcher's own reason (coverDetail)
+	// gate: for a pair decided not affected by a proof or ruled out, the closing gate's answer in shadow (gateWould), its cause and
+	// the producer of the step that decided it; "" otherwise. exploited: the CVE is on an exploited list.
+	gate, gateCause, gateBy string
+	exploited               bool
 }
 
 // coverOf counts device dm.a's pairs and lines from the readings of its match (dm, every entry read) and its findings and questions as
@@ -347,15 +368,17 @@ func coverOf(dm *devMatch, rows deviceRows, in causeInputs) deviceCover {
 			}
 		}
 	}
+	d.gate = gateCounts(state)
 	return d
 }
 
 // pairStates is the state of every pair of device dm.a, by lineKey, and the lines (stored id) with a related pair.
 func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairState, map[string]bool) {
-	related := map[string]string{}  // lineKey of every pair a row of the line reached -> its unnamed class, if nothing else decides it
-	proofs := map[string]string{}   // lineKey -> the source of the proof of "not affected"
-	ruledOut := map[string]string{} // lineKey -> the source of the rows that name another product (no proof)
-	linked := map[string]bool{}     // stored line id -> the line has a related pair
+	related := map[string]string{}      // lineKey of every pair a row of the line reached -> its unnamed class, if nothing else decides it
+	proofs := map[string]string{}       // lineKey -> the source of the proof of "not affected"
+	ruledOut := map[string]string{}     // lineKey -> the source of the rows that name another product (no proof)
+	shadows := map[string]*pairShadow{} // lineKey -> what the closing gate reads from the steps that decided it (Match.gate)
+	linked := map[string]bool{}         // stored line id -> the line has a related pair
 	seen := make(map[string]bool, len(dm.vulns))
 	for vi, v := range dm.vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
@@ -372,6 +395,14 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 				related[key] = CoverageOtherDropped
 			}
 			linked[line] = true
+			if o.gate != nil && (o.out == outNotAffected || o.out == outRuledOut) {
+				sh := shadows[key]
+				if sh == nil {
+					sh = &pairShadow{row: o.row, v: vi}
+					shadows[key] = sh
+				}
+				sh.steps = append(sh.steps, o.gate)
+			}
 			switch o.out {
 			case outNotAffected:
 				if k < len(e.provedEach) {
@@ -458,9 +489,9 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 		}
 		switch {
 		case proofs[key] != "":
-			state[key] = pairState{by: proofs[key]}
+			state[key] = shadows[key].on(dm, pairState{by: proofs[key]})
 		case ruledOut[key] != "":
-			state[key] = pairState{by: ruledOut[key]}
+			state[key] = shadows[key].on(dm, pairState{by: ruledOut[key]})
 		case class == DistroNoFixYet: // the distribution says affected and has no fix: decided, raised once a fix or an exploited list comes
 			state[key] = pairState{by: CoverageDistroNoFix, affected: true}
 		default: // reached, and neither a finding, a question nor a proof
@@ -468,6 +499,45 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 		}
 	}
 	return state, linked
+}
+
+// pairShadow is the steps that decided one pair "not affected" or "ruled out" (their Match.gate), with the first row that reached it
+// and the entry.
+type pairShadow struct {
+	row, v int
+	steps  []*gateShadow
+}
+
+// on is st with the closing gate's answer in shadow; st itself when no step recorded one.
+func (sh *pairShadow) on(dm *devMatch, st pairState) pairState {
+	if sh == nil {
+		return st
+	}
+	v := dm.vulns[sh.v]
+	var c GateCause
+	st.gate, c, st.gateBy = gateWould(dm.a, dm.sws[sh.row], dm.infos[sh.row], v, sh.steps)
+	st.gateCause, st.exploited = string(c), v.listed()
+	return st
+}
+
+// CoverageGate is how many pairs decided "not affected" (or ruled out) by one source through one step the closing gate would answer
+// one way, in shadow: Would is the gate's answer (not_affected, undecided, affected, identity), Cause its cause when undecided. In memory
+// only (Coverage.GateWould): never stored or served.
+type CoverageGate struct {
+	By, Producer, Would, Cause string
+	Exploited                  bool
+	Count                      int
+}
+
+// gateCounts counts the gate's answers in shadow of the pairs of state.
+func gateCounts(state map[string]pairState) map[CoverageGate]int {
+	out := map[CoverageGate]int{}
+	for _, st := range state {
+		if st.gate != "" {
+			out[CoverageGate{By: st.by, Producer: st.gateBy, Would: st.gate, Cause: st.gateCause, Exploited: st.exploited}]++
+		}
+	}
+	return out
 }
 
 // coverDetail is the matcher's own reason a question's CVE is undecided: its Undecided.Reason, else the question's kind (a question the
@@ -524,10 +594,12 @@ func proofBy(a Asset, s Software, in swInfo, v Vuln, m Match) string {
 	return v.rangeOrigin()
 }
 
-// rowOut is one row an entry reached and how (entryRead.outs).
+// rowOut is one row an entry reached and how (entryRead.outs), with what the closing gate reads from a "not affected" or a "ruled
+// out" (Match.gate).
 type rowOut struct {
-	row int
-	out outcome
+	row  int
+	out  outcome
+	gate *gateShadow
 }
 
 // causeInputsOf is what the possible CVEs of questions qs are read from in the coverage of a pass, as the lists read them.

@@ -175,6 +175,8 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		}
 		if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvHandled }) {
 			res.Closed++
+			p, hasProof := proofs[lineKey(f.CVE, f.SoftwareID)] // the closing gate's answer in shadow: recorded, never read here
+			s.covers.recordGone(gateGoneOf(a, lines, vulns, f, via, via == ViaDataCorrected && corrected && by != "", p, hasProof))
 		}
 	}
 	if err := replaceQuestions(ctx, tx, a.ID, qs, now); err != nil {

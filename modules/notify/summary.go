@@ -30,7 +30,7 @@ const (
 	summaryJob   = "summary"
 	summaryEvery = time.Minute
 	// summaryCatchUp is how late the job still sends a summary that came due (the box or the module was off): a day-old summary is
-	// replaced by the next one, which covers the same findings.
+	// replaced by the next one, which covers the same findings (its span starts at the last summary told, up to two days back).
 	summaryCatchUp = 24 * time.Hour
 	// summaryFirstSpan is what the first summary covers: the day before its due time.
 	summaryFirstSpan = 24 * time.Hour
@@ -163,11 +163,14 @@ func (s *Service) sendSummary(ctx context.Context, id, dueAt string) (string, er
 		return "skipped", nil
 	}
 	from := to.Add(-summaryFirstSpan)
-	var prev sql.NullString // the due time of the summary before: this one covers what came since
-	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT max(due_at) FROM notify_summary WHERE due_at < ? AND id <> ?`, dueAt, id).Scan(&prev); err != nil {
+	// The due time of the last summary that was told (sent, empty, or taken before a crash): this one covers what came since. A skipped
+	// one (found too late, failed, no channel on) told nothing, so its span is this one's too.
+	var prev sql.NullString
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT max(due_at) FROM notify_summary WHERE due_at < ? AND id <> ? AND state IN ('sent', 'empty', 'sending')`,
+		dueAt, id).Scan(&prev); err != nil {
 		return "", fmt.Errorf("notify: daily summary: %w", err)
 	}
-	if t, err := time.Parse(time.RFC3339, prev.String); prev.Valid && err == nil && t.After(from.Add(-summaryCatchUp)) {
+	if t, err := time.Parse(time.RFC3339, prev.String); prev.Valid && err == nil && !t.Before(from.Add(-summaryCatchUp)) {
 		from = t
 	}
 	m, err := s.buildSummary(ctx, from, to)

@@ -212,7 +212,11 @@ func sanitizeAI(skill Skill, ts time.Time, o AIOutput) findings.AIResult {
 		if len(c.Check) > 20 {
 			check = append(check, "and more")
 		}
-		r.Configs = append(r.Configs, findings.CodeStep{Title: clip(c.Title, 300), Code: code, Note: clip(c.Note, 300), SideEffect: clip(c.SideEffect, maxAIText), Check: check})
+		var warns []findings.CodeWarning
+		for _, w := range c.Warnings[:min(len(c.Warnings), 20)] {
+			warns = append(warns, findings.CodeWarning{Line: max(w.Line, 1), Kind: clip(w.Kind, 40), Text: clip(w.Text, 200)})
+		}
+		r.Configs = append(r.Configs, findings.CodeStep{Title: clip(c.Title, 300), Code: code, Note: clip(c.Note, 300), SideEffect: clip(c.SideEffect, maxAIText), Check: check, Warnings: warns})
 	}
 	for _, a := range o.Answers[:min(len(o.Answers), maxAIAnswers)] {
 		x := findings.AIAnswer{Key: clip(a.Key, 20), Text: clip(a.Text, maxAIAnswer), Links: []findings.AILink{}}

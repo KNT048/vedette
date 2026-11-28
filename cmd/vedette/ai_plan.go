@@ -110,8 +110,8 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		Job: ai.JobResponsePlan, Actor: "system", Task: planTask,
 		Question: "Write the response plan for this finding.",
 		// The catalog is data, not Task: the before-AI hooks look at every data block, and they do not look at Task.
-		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "CVE brief " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
-			{Kind: ai.DataDocument, Source: "actions you may propose", Text: cat.String()}, {Kind: ai.DataDocument, Source: "reads the box made in the last 24 hours", Text: reads}},
+		Data: []ai.DataBlock{ai.Untrusted(ai.SourceFeed, "CVE brief "+t.CVE, p.factsOf(ctx, t.CVE)), ai.Untrusted(ai.SourceDevice, "the device of the finding", dev),
+			ai.Untrusted(ai.SourceCustomer, "actions you may propose", cat.String()), ai.Untrusted(ai.SourceBox, "reads the box made in the last 24 hours", reads)},
 		// a plan with its steps and actions is about 1,500 tokens; the rest is room for what the model thinks first
 		Schema: &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 6000,
 		Summary: "Response plan for " + t.CVE,

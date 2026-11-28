@@ -77,7 +77,15 @@ is always shown as confirmed; an AI answer never is.
 - **The AI has no write tools.** The model is offered only read tools; a write tool of a connection is never in its tool list. Any
   change to a device goes through an action a person approves in the `response` module.
 - **Untrusted data**: text from feeds, logs, devices, web pages and documents goes to the model only as fenced data it is told never to
-  obey, and the answer must match a strict schema.
+  obey, labelled by where it came from and cleaned of invisible characters; the instructions of a call are always Vedette's own. An
+  answer that feeds a decision must match a strict schema (no extra field, values from a fixed list, length limits), and free text a
+  model writes is kept without links.
+- **Each job can do only what its row allows.** Only "Ask your data" may call the read tools of connections; a connection outside your
+  network is used only after an administrator allows it in Settings, AI assistant. The box tests every job against injected text with
+  a fake model that obeys any instruction.
+- **Risky configuration lines are marked.** A configuration the AI drafts is read by the device's syntax, and a line that allows any
+  to any, adds a user or credential, turns logging, sign-in checks or a protection off, or opens management to the internet side is
+  marked on that line. Nothing is applied by the box.
 - **Hooks** run before the call, after the answer and before a tool call, and can block, mask or ask for approval. The built-in
   personal-data hook masks email addresses, phone numbers and device secrets (passwords, hashes, SNMP communities, keys) and stops a
   call whose text holds an ID number, unless an administrator turns it off.

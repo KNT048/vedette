@@ -85,7 +85,7 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 			t.Errorf("the AI's data lacks %q:\n%s", want, all)
 		}
 	}
-	if blocks[1].Kind != "inventory" || blocks[2].Kind != "inventory" || blocks[0].Kind != ai.DataFeed {
+	if blocks[1].Kind != ai.SourceDevice || blocks[2].Kind != ai.SourceDevice || blocks[0].Kind != ai.SourceFeed {
 		t.Fatalf("kinds = %s %s %s", blocks[0].Kind, blocks[1].Kind, blocks[2].Kind)
 	}
 	if len(links) != 2 || links[0].URL != "https://supportportal.juniper.net/JSA72300" || links[1].Title != "NVD" || strings.Contains(all, "javascript:") {

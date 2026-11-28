@@ -287,6 +287,8 @@
     "noteTitle": "Note from the AI",
     "configCaution": "AI-generated: read every line before pasting; a wrong rule can cut access or erase settings. Save the current config first.",
     "checkAddresses": "Check these addresses: they are not addresses Vedette knows for this device or your firewalls:",
+    "riskyLines": "Risky lines: review them before you apply this block.",
+    "riskyLine": "Line {{line}}:",
     "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long or had two commands on one line. Ask again for a new answer.",
     "answer": {
       "affected": "Am I affected?",

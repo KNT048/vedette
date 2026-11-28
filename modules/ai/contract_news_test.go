@@ -482,7 +482,7 @@ func TestNewsFetchedTextCannotBreakTheFence(t *testing.T) {
 	blocks := regexp.MustCompile(`(?s)<<<DATA-`+m[1]+` kind=(\w+) .*?>>>\n(.*?)\n<<<END-DATA-`+m[1]+`>>>`).FindAllStringSubmatch(user, -1)
 	outside := user
 	for _, b := range blocks {
-		if b[1] != "web" && b[1] != "feed" && b[1] != "data" {
+		if b[1] != "web" && b[1] != "feed" && b[1] != "box" {
 			t.Errorf("block kind %s", b[1])
 		}
 		outside = strings.Replace(outside, b[0], "", 1)

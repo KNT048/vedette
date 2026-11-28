@@ -695,6 +695,96 @@ func (s *AiGetAiActivityVerifyOK) SetOk(val bool) {
 	s.Ok = val
 }
 
+type AiGetAiAskConnectionsOK struct {
+	// Connections outside the network that have read tools; one inside the network is always usable and
+	// not listed.
+	Items []AiGetAiAskConnectionsOKItemsItem `json:"items"`
+	// At least one of them was never chosen: Ask no longer uses such a connection until an administrator
+	// allows it.
+	Notice bool `json:"notice"`
+}
+
+// GetItems returns the value of Items.
+func (s *AiGetAiAskConnectionsOK) GetItems() []AiGetAiAskConnectionsOKItemsItem {
+	return s.Items
+}
+
+// GetNotice returns the value of Notice.
+func (s *AiGetAiAskConnectionsOK) GetNotice() bool {
+	return s.Notice
+}
+
+// SetItems sets the value of Items.
+func (s *AiGetAiAskConnectionsOK) SetItems(val []AiGetAiAskConnectionsOKItemsItem) {
+	s.Items = val
+}
+
+// SetNotice sets the value of Notice.
+func (s *AiGetAiAskConnectionsOK) SetNotice(val bool) {
+	s.Notice = val
+}
+
+type AiGetAiAskConnectionsOKItemsItem struct {
+	// The address the connection points to, as Settings, Connections has it.
+	Address string `json:"address"`
+	// Ask may call the read tools of this connection; the arguments the AI writes are sent to it.
+	Allowed bool `json:"allowed"`
+	// An administrator has chosen; false = never chosen, so not allowed.
+	Decided bool   `json:"decided"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+}
+
+// GetAddress returns the value of Address.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetAddress() string {
+	return s.Address
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetAllowed() bool {
+	return s.Allowed
+}
+
+// GetDecided returns the value of Decided.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetDecided() bool {
+	return s.Decided
+}
+
+// GetID returns the value of ID.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// SetAddress sets the value of Address.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// SetDecided sets the value of Decided.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetDecided(val bool) {
+	s.Decided = val
+}
+
+// SetID sets the value of ID.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
 type AiGetAiAsksOK struct {
 	Items []AiGetAiAsksOKItemsItem `json:"items"`
 }
@@ -9713,6 +9803,81 @@ func (s *AiPutAiActivitySettingsReq) GetRetentionDays() int {
 // SetRetentionDays sets the value of RetentionDays.
 func (s *AiPutAiActivitySettingsReq) SetRetentionDays(val int) {
 	s.RetentionDays = val
+}
+
+type AiPutAiAskConnectionsIDOK struct {
+	// The address the connection points to, as Settings, Connections has it.
+	Address string `json:"address"`
+	// Ask may call the read tools of this connection; the arguments the AI writes are sent to it.
+	Allowed bool `json:"allowed"`
+	// An administrator has chosen; false = never chosen, so not allowed.
+	Decided bool   `json:"decided"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+}
+
+// GetAddress returns the value of Address.
+func (s *AiPutAiAskConnectionsIDOK) GetAddress() string {
+	return s.Address
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *AiPutAiAskConnectionsIDOK) GetAllowed() bool {
+	return s.Allowed
+}
+
+// GetDecided returns the value of Decided.
+func (s *AiPutAiAskConnectionsIDOK) GetDecided() bool {
+	return s.Decided
+}
+
+// GetID returns the value of ID.
+func (s *AiPutAiAskConnectionsIDOK) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *AiPutAiAskConnectionsIDOK) GetName() string {
+	return s.Name
+}
+
+// SetAddress sets the value of Address.
+func (s *AiPutAiAskConnectionsIDOK) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *AiPutAiAskConnectionsIDOK) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// SetDecided sets the value of Decided.
+func (s *AiPutAiAskConnectionsIDOK) SetDecided(val bool) {
+	s.Decided = val
+}
+
+// SetID sets the value of ID.
+func (s *AiPutAiAskConnectionsIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *AiPutAiAskConnectionsIDOK) SetName(val string) {
+	s.Name = val
+}
+
+type AiPutAiAskConnectionsIDReq struct {
+	Allowed bool `json:"allowed"`
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *AiPutAiAskConnectionsIDReq) GetAllowed() bool {
+	return s.Allowed
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *AiPutAiAskConnectionsIDReq) SetAllowed(val bool) {
+	s.Allowed = val
 }
 
 type AiPutAiAssignmentsOK struct {
@@ -95648,6 +95813,9 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem s
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -95698,6 +95866,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -95763,6 +95936,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -103530,6 +103708,10 @@ type FindingsGetFindingsIDOKAiConfigConfigsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -103557,6 +103739,11 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetWarnings() []FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetCheck(val []string) {
 	s.Check = val
@@ -103580,6 +103767,118 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetSideEffect(val OptString
 // SetTitle sets the value of Title.
 func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetWarnings(val []FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem struct {
+	Kind FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) GetKind() FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) SetKind(val FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind string
+
+const (
+	FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindBroadAllow        FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind = "broad_allow"
+	FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindNewCredential     FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind = "new_credential"
+	FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindLoggingOff        FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind = "logging_off"
+	FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindAuthOff           FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind = "auth_off"
+	FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindProtectionOff     FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind = "protection_off"
+	FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindManagementExposed FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind values.
+func (FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind) AllValues() []FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind {
+	return []FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind{
+		FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindBroadAllow,
+		FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindNewCredential,
+		FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindLoggingOff,
+		FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindAuthOff,
+		FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindProtectionOff,
+		FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKind(data) {
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindBroadAllow:
+		*s = FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindNewCredential:
+		*s = FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindLoggingOff:
+		*s = FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindAuthOff:
+		*s = FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindProtectionOff:
+		*s = FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindManagementExposed:
+		*s = FindingsGetFindingsIDOKAiConfigConfigsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKAiConfigSkill string
@@ -103957,6 +104256,10 @@ type FindingsGetFindingsIDOKAiExplainConfigsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -103984,6 +104287,11 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetWarnings() []FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetCheck(val []string) {
 	s.Check = val
@@ -104007,6 +104315,118 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetSideEffect(val OptStrin
 // SetTitle sets the value of Title.
 func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetWarnings(val []FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem struct {
+	Kind FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) GetKind() FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) SetKind(val FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind string
+
+const (
+	FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindBroadAllow        FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind = "broad_allow"
+	FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindNewCredential     FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind = "new_credential"
+	FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindLoggingOff        FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind = "logging_off"
+	FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindAuthOff           FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind = "auth_off"
+	FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindProtectionOff     FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind = "protection_off"
+	FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindManagementExposed FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind values.
+func (FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind) AllValues() []FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind {
+	return []FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind{
+		FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindBroadAllow,
+		FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindNewCredential,
+		FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindLoggingOff,
+		FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindAuthOff,
+		FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindProtectionOff,
+		FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKind(data) {
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindBroadAllow:
+		*s = FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindNewCredential:
+		*s = FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindLoggingOff:
+		*s = FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindAuthOff:
+		*s = FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindProtectionOff:
+		*s = FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindManagementExposed:
+		*s = FindingsGetFindingsIDOKAiExplainConfigsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKAiExplainSkill string
@@ -106484,6 +106904,10 @@ type FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -106511,6 +106935,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetTitle()
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetWarnings() []FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
 	s.Check = val
@@ -106536,6 +106965,118 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetTitle(v
 	s.Title = val
 }
 
+// SetWarnings sets the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetWarnings(val []FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem struct {
+	Kind FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) GetKind() FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) SetKind(val FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind string
+
+const (
+	FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow        FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "broad_allow"
+	FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential     FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "new_credential"
+	FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff        FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "logging_off"
+	FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff           FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "auth_off"
+	FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff     FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "protection_off"
+	FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind values.
+func (FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind) AllValues() []FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind {
+	return []FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind{
+		FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow,
+		FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential,
+		FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff,
+		FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff,
+		FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff,
+		FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKind(data) {
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow:
+		*s = FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential:
+		*s = FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed:
+		*s = FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsGetFindingsIDOKPackFirewallItemStepsItem struct {
 	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
 	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
@@ -106546,6 +107087,10 @@ type FindingsGetFindingsIDOKPackFirewallItemStepsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -106573,6 +107118,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetWarnings() []FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetCheck(val []string) {
 	s.Check = val
@@ -106598,6 +107148,118 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetTitle(val string) 
 	s.Title = val
 }
 
+// SetWarnings sets the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetWarnings(val []FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem struct {
+	Kind FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) GetKind() FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) SetKind(val FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind string
+
+const (
+	FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindBroadAllow        FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind = "broad_allow"
+	FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindNewCredential     FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind = "new_credential"
+	FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindLoggingOff        FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind = "logging_off"
+	FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindAuthOff           FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind = "auth_off"
+	FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindProtectionOff     FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind = "protection_off"
+	FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindManagementExposed FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind values.
+func (FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind) AllValues() []FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind {
+	return []FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind{
+		FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindBroadAllow,
+		FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindNewCredential,
+		FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindLoggingOff,
+		FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindAuthOff,
+		FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindProtectionOff,
+		FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKind(data) {
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindBroadAllow:
+		*s = FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindNewCredential:
+		*s = FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindLoggingOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindAuthOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindProtectionOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindManagementExposed:
+		*s = FindingsGetFindingsIDOKPackFirewallItemStepsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsGetFindingsIDOKPackFirewallItemUndoItem struct {
 	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
 	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
@@ -106608,6 +107270,10 @@ type FindingsGetFindingsIDOKPackFirewallItemUndoItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -106635,6 +107301,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetWarnings() []FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) SetCheck(val []string) {
 	s.Check = val
@@ -106658,6 +107329,118 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) SetSideEffect(val OptS
 // SetTitle sets the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) SetWarnings(val []FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem struct {
+	Kind FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) GetKind() FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) SetKind(val FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind string
+
+const (
+	FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindBroadAllow        FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind = "broad_allow"
+	FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindNewCredential     FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind = "new_credential"
+	FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindLoggingOff        FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind = "logging_off"
+	FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindAuthOff           FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind = "auth_off"
+	FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindProtectionOff     FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind = "protection_off"
+	FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindManagementExposed FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind values.
+func (FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind) AllValues() []FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind {
+	return []FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind{
+		FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindBroadAllow,
+		FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindNewCredential,
+		FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindLoggingOff,
+		FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindAuthOff,
+		FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindProtectionOff,
+		FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKind(data) {
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindBroadAllow:
+		*s = FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindNewCredential:
+		*s = FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindNewCredential
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindLoggingOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindAuthOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindAuthOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindProtectionOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindManagementExposed:
+		*s = FindingsGetFindingsIDOKPackFirewallItemUndoItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemVendor string
@@ -106718,6 +107501,10 @@ type FindingsGetFindingsIDOKPackFirewallItemVerifyItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -106745,6 +107532,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetWarnings() []FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) SetCheck(val []string) {
 	s.Check = val
@@ -106768,6 +107560,118 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) SetSideEffect(val Op
 // SetTitle sets the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) SetWarnings(val []FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem struct {
+	Kind FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) GetKind() FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) SetKind(val FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind string
+
+const (
+	FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow        FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind = "broad_allow"
+	FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindNewCredential     FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind = "new_credential"
+	FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff        FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind = "logging_off"
+	FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindAuthOff           FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind = "auth_off"
+	FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff     FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind = "protection_off"
+	FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind values.
+func (FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind) AllValues() []FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind {
+	return []FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind{
+		FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow,
+		FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindNewCredential,
+		FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff,
+		FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindAuthOff,
+		FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff,
+		FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKind(data) {
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow:
+		*s = FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindNewCredential:
+		*s = FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindNewCredential
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindAuthOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindAuthOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff:
+		*s = FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed:
+		*s = FindingsGetFindingsIDOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKPackPatch struct {
@@ -107878,6 +108782,9 @@ type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem struct {
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -107928,6 +108835,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetPr
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -107993,6 +108905,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetPr
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -122588,6 +123505,9 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem s
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -122638,6 +123558,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -122703,6 +123628,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -125722,6 +126652,9 @@ type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem str
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -125772,6 +126705,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -125837,6 +126775,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -128656,6 +129599,10 @@ type FindingsPostFindingsIDAiOKAiConfigConfigsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -128683,6 +129630,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetWarnings() []FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetCheck(val []string) {
 	s.Check = val
@@ -128706,6 +129658,118 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetSideEffect(val OptStr
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetWarnings(val []FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) GetKind() FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) SetKind(val FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind{
+		FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAiOKAiConfigConfigsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKAiConfigSkill string
@@ -129083,6 +130147,10 @@ type FindingsPostFindingsIDAiOKAiExplainConfigsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -129110,6 +130178,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetWarnings() []FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetCheck(val []string) {
 	s.Check = val
@@ -129133,6 +130206,118 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetSideEffect(val OptSt
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetWarnings(val []FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) GetKind() FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) SetKind(val FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind{
+		FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAiOKAiExplainConfigsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKAiExplainSkill string
@@ -131610,6 +132795,10 @@ type FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -131637,6 +132826,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetTitl
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetWarnings() []FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
 	s.Check = val
@@ -131662,6 +132856,118 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetTitl
 	s.Title = val
 }
 
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetWarnings(val []FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) GetKind() FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) SetKind(val FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind{
+		FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAiOKPackFirewallItemStepsItem struct {
 	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
 	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
@@ -131672,6 +132978,10 @@ type FindingsPostFindingsIDAiOKPackFirewallItemStepsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -131699,6 +133009,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetTitle() string 
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetWarnings() []FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetCheck(val []string) {
 	s.Check = val
@@ -131724,6 +133039,118 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetTitle(val strin
 	s.Title = val
 }
 
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetWarnings(val []FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) GetKind() FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) SetKind(val FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind{
+		FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemStepsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAiOKPackFirewallItemUndoItem struct {
 	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
 	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
@@ -131734,6 +133161,10 @@ type FindingsPostFindingsIDAiOKPackFirewallItemUndoItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -131761,6 +133192,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetWarnings() []FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) SetCheck(val []string) {
 	s.Check = val
@@ -131784,6 +133220,118 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) SetSideEffect(val O
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) SetWarnings(val []FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) GetKind() FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) SetKind(val FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindNewCredential     FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindAuthOff           FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindManagementExposed FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind values.
+func (FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind {
+	return []FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind{
+		FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemUndoItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemVendor string
@@ -131844,6 +133392,10 @@ type FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -131871,6 +133423,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetTitle() string
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetWarnings() []FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) SetCheck(val []string) {
 	s.Check = val
@@ -131894,6 +133451,118 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) SetSideEffect(val
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) SetWarnings(val []FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) GetKind() FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) SetKind(val FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindNewCredential     FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindAuthOff           FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind values.
+func (FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind {
+	return []FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind{
+		FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAiOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKPackPatch struct {
@@ -132981,6 +134650,10 @@ type FindingsPostFindingsIDAppliedOKAiConfigConfigsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -133008,6 +134681,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetWarnings() []FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetCheck(val []string) {
 	s.Check = val
@@ -133031,6 +134709,118 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetSideEffect(val O
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetWarnings(val []FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) GetKind() FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) SetKind(val FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind{
+		FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAppliedOKAiConfigConfigsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfigSkill string
@@ -133408,6 +135198,10 @@ type FindingsPostFindingsIDAppliedOKAiExplainConfigsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -133435,6 +135229,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetTitle() string 
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetWarnings() []FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetCheck(val []string) {
 	s.Check = val
@@ -133458,6 +135257,118 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetSideEffect(val 
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetWarnings(val []FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) GetKind() FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) SetKind(val FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind{
+		FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAppliedOKAiExplainConfigsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplainSkill string
@@ -135935,6 +137846,10 @@ type FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem struct 
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -135962,6 +137877,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) Ge
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) GetWarnings() []FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
 	s.Check = val
@@ -135987,6 +137907,118 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) Se
 	s.Title = val
 }
 
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) SetWarnings(val []FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) GetKind() FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) SetKind(val FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind{
+		FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem struct {
 	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
 	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
@@ -135997,6 +138029,10 @@ type FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -136024,6 +138060,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetTitle() st
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetWarnings() []FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetCheck(val []string) {
 	s.Check = val
@@ -136049,6 +138090,118 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetTitle(val 
 	s.Title = val
 }
 
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetWarnings(val []FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) GetKind() FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) SetKind(val FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindNewCredential     FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindAuthOff           FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindManagementExposed FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind values.
+func (FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind {
+	return []FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind{
+		FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem struct {
 	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
 	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
@@ -136059,6 +138212,10 @@ type FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -136086,6 +138243,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetTitle() str
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetWarnings() []FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) SetCheck(val []string) {
 	s.Check = val
@@ -136109,6 +138271,118 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) SetSideEffect(
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) SetWarnings(val []FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) GetKind() FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) SetKind(val FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindNewCredential     FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindAuthOff           FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindManagementExposed FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind values.
+func (FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind {
+	return []FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind{
+		FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemVendor string
@@ -136169,6 +138443,10 @@ type FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem struct {
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+	// AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad
+	// allow, a new user or credential, logging or sign-in checks off, a protection off, management opened
+	// to any address or the internet side); the page marks each line. Nothing is removed for a warning.
+	Warnings []FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem `json:"warnings"`
 }
 
 // GetCheck returns the value of Check.
@@ -136196,6 +138474,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetTitle() s
 	return s.Title
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetWarnings() []FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem {
+	return s.Warnings
+}
+
 // SetCheck sets the value of Check.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) SetCheck(val []string) {
 	s.Check = val
@@ -136219,6 +138502,118 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) SetSideEffec
 // SetTitle sets the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) SetTitle(val string) {
 	s.Title = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) SetWarnings(val []FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) {
+	s.Warnings = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem struct {
+	Kind FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind `json:"kind"`
+	// The line of the block, 1 for the first.
+	Line int `json:"line"`
+	// What the line does, in the box's own words.
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) GetKind() FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) GetLine() int {
+	return s.Line
+}
+
+// GetText returns the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) SetKind(val FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) SetLine(val int) {
+	s.Line = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItem) SetText(val string) {
+	s.Text = val
+}
+
+type FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow        FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind = "broad_allow"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindNewCredential     FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind = "new_credential"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff        FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind = "logging_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindAuthOff           FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind = "auth_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff     FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind = "protection_off"
+	FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind = "management_exposed"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind values.
+func (FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind) AllValues() []FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind {
+	return []FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind{
+		FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindNewCredential,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindAuthOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff,
+		FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindNewCredential:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindAuthOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKind(data) {
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindBroadAllow
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindNewCredential:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindNewCredential
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindLoggingOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindAuthOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindAuthOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindProtectionOff
+		return nil
+	case FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed:
+		*s = FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItemWarningsItemKindManagementExposed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKPackPatch struct {
@@ -137419,6 +139814,9 @@ type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem struct 
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -137469,6 +139867,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Ge
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -137534,6 +139937,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Se
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -141373,6 +143781,9 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem struc
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -141423,6 +143834,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -141488,6 +143904,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -145313,6 +147734,9 @@ type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem struct 
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -145363,6 +147787,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Ge
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -145428,6 +147857,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Se
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.

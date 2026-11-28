@@ -350,7 +350,8 @@ func summaryOfAI(r Summary, at time.Time) AiSummary {
 	return AiSummary{Paragraphs: r.Paragraphs, Model: r.Model, Profile: r.Profile, Tokens: Tokens{Input: r.TokensIn, Output: r.TokensOut}, GeneratedAt: ts(at)}
 }
 
-const pdplTask = `Write a short commentary on a personal-data-protection self-assessment of a small company's network. Use only the facts in the data block, which are what the Vedette box could see. Write at most 3 short paragraphs of plain English: what the technical picture shows, which weaknesses to close first, and that duties about dossiers, procedures and contracts are outside what the box can see and need a responsible person. Do not say the company complies or does not comply with the law, and give no legal advice. Reply with one JSON object only.`
+// PdplTask is the instruction of the commentary job; the ai adapter sends it as a constant (it never takes a task as text).
+const PdplTask = `Write a short commentary on a personal-data-protection self-assessment of a small company's network. Use only the facts in the data block, which are what the Vedette box could see. Write at most 3 short paragraphs of plain English: what the technical picture shows, which weaknesses to close first, and that duties about dossiers, procedures and contracts are outside what the box can see and need a responsible person. Do not say the company complies or does not comply with the law, and give no legal advice. Reply with one JSON object only.`
 
 // Pdpl is GET /reports/pdpl.
 func (s *Service) Pdpl(ctx context.Context) (PdplState, error) {
@@ -483,7 +484,7 @@ func (s *Service) PdplAI(ctx context.Context, actor string) (AiSummary, error) {
 	if rep == nil {
 		return AiSummary{}, apierr.New(409, "report_required", "Create the report first; the AI needs something to comment on.")
 	}
-	res, err := s.cfg.AI.Summarize(ctx, actor, jobPdpl, pdplTask, []Block{{Source: "self-assessment figures", Text: pdplFacts(*rep)}})
+	res, err := s.cfg.AI.Summarize(ctx, actor, jobPdpl, PdplTask, []Block{{Source: "self-assessment figures", Text: pdplFacts(*rep)}})
 	if err != nil {
 		return AiSummary{}, err
 	}

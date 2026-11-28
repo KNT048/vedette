@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -56,11 +57,15 @@ type toolSession struct {
 
 func (s *Service) newToolSession(ctx context.Context, job Job) *toolSession {
 	ts := &toolSession{svc: s, job: job, impl: map[string]toolImpl{}}
+	pw := jobPowers[job]
 	tools := s.productTools()
-	if job == JobAskMyData { // log investigation reads the box only: the connections are not listed, and not asked
+	if slices.Contains(pw.classes, toolConnLAN) || slices.Contains(pw.classes, toolConnOut) { // only a job whose row names connections asks them
 		tools = append(tools, s.connectionTools(ctx)...)
 	}
 	for _, t := range tools {
+		if !pw.permits(t.class, t.Name) { // the table is the authority: what its row does not name is never offered
+			continue
+		}
 		if _, dup := ts.impl[t.Name]; dup {
 			continue
 		}
@@ -144,6 +149,11 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 		record("not available", act("skipped"))
 		return fail("That tool is not available. Use only the tools you were given.")
 	}
+	// the job's row of jobPowers again, at the call, and a connection outside the network only while it is still allowed for Ask
+	if !jobPowers[ts.job].permits(impl.class, impl.Name) || impl.class == toolConnOut && !ts.svc.askAllows(ctx, impl.ConnectorID) {
+		record("not available", act("skipped"))
+		return fail("That tool is not available. Use only the tools you were given.")
+	}
 
 	// The arguments are the model's words, so they go through the hooks like a question: written out once as canonical JSON (a \u
 	// escape cannot hide a word from a pattern), the personal-data hook first, then the before_tool hooks. A mask that leaves no
@@ -199,12 +209,17 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	if err != nil {
 		var tf errToolFailed
 		var bad errBadArgs
+		var cf errConnFailed
 		msg := "The tool failed."
 		switch {
 		case errors.As(err, &bad):
 			msg = "Invalid arguments: " + bad.msg
 		case errors.As(err, &tf):
 			msg = "The tool failed: " + tf.msg
+		case errors.As(err, &cf): // the connection's own words: data, checked and fenced like a result, or left out
+			if said, ok := ts.fencedFailure(ctx, hooks, prompt, t.Name, cf.text); ok {
+				msg = "The tool failed. What the connection said, as data:\n" + said
+			}
 		}
 		record("error", act("error"))
 		return fail(msg)
@@ -262,6 +277,25 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	record(summary, act(outcome))
 	res.Content = wrapped
 	return res
+}
+
+// fencedFailure is the error text of a connection as the model may read it: through the before-AI hooks and the personal-data hook,
+// between the data markers of the call. ok is false when a hook stopped it or could not run: the model then only learns the read failed.
+func (ts *toolSession) fencedFailure(ctx context.Context, hooks *HookRunner, prompt Prompt, tool, text string) (string, bool) {
+	hctx, cancel := context.WithTimeout(ctx, ts.svc.hookTimeout())
+	defer cancel()
+	chk, err := hooks.Run(hctx, BeforeAI, cleanUntrusted(text))
+	if err != nil || chk.Outcome == OutcomeBlocked || chk.Outcome == OutcomeHeld {
+		ts.addHits(chk, StepToolResult, tool)
+		return "", false
+	}
+	ts.addHits(chk, StepToolResult, tool)
+	wrapped, wr, err := WrapToolResult(hctx, hooks, prompt, tool, chk.Text)
+	ts.addHits(wr, StepToolResult, tool)
+	if err != nil || wr.Outcome == OutcomeBlocked || wr.Outcome == OutcomeHeld {
+		return "", false
+	}
+	return wrapped, true
 }
 
 func (ts *toolSession) withheld(res provider.ToolResult, record func(string, *ActivityTool), act func(string) *ActivityTool, why, who string) provider.ToolResult {

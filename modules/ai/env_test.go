@@ -50,6 +50,8 @@ type fakeProviders struct {
 	cut               int // the next answers with a schema that stop at the output limit: half the text, stop reason max_tokens
 	// script, when set, answers every request that carries tools or follows a tool turn instead of the default text (slice 5, ask).
 	script func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
+	// adversary, when set, answers every request that is not a probe: a model that obeys any instruction it finds (attack_test.go).
+	adversary func(req provider.Request) provider.Response
 	// research, when set, answers every request of the research of a CVE (its schema, or its fetch_page tool).
 	research func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
 }
@@ -107,6 +109,9 @@ func (p fakeProvider) Complete(ctx context.Context, req provider.Request) (provi
 	}
 	if len(req.Tools) > 0 && !p.f.tools {
 		return provider.Response{}, &provider.Error{Kind: provider.ErrRequest, Status: 400}
+	}
+	if p.f.adversary != nil { // set after the profile was added and probed
+		return p.f.adversary(req), nil
 	}
 	if p.f.script != nil && req.Schema == nil {
 		return p.f.script(ctx, p.p, req)
@@ -176,6 +181,8 @@ type env struct {
 	askTimeout  time.Duration // 0 = the default
 	data        *fakeData
 	conns       *fakeConns
+	net         *fakeNet          // the box's page fetchers, when a test attached them (attack_test.go)
+	identity    []ai.IdentifyItem // the programs an attack case identifies
 	logs        *fakeLogs
 	logBuf      *logBuffer // what the service logged
 }
@@ -202,14 +209,9 @@ func (e *env) ctx() context.Context { return e.t.Context() }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	db := storetest.New(t)
-	ctx := t.Context()
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "ai", ai.Migrations); err != nil {
-		t.Fatal(err)
-	}
+	// a copy of a database migrated once per test process: the same state as migrating each one, at a fraction of the time (the attack
+	// matrix builds hundreds)
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "ai", FS: ai.Migrations})
 	sec, err := secrets.New([]byte("0123456789abcdef0123456789abcdef"))
 	if err != nil {
 		t.Fatal(err)

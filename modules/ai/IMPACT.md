@@ -37,6 +37,12 @@
 - The description and schema travel in every turn: making them longer breaks `TestAskBetaBoxQuestionStaysInBudget` (≤ 8,000) first.
 - The result is data leaving the box to the AI provider: PRIVACY.md flow 3 "Ask your data" and `privacy.flow.3.items` of `core.json` mention "the updates of one device"; when adding a field, change both in the same commit.
 
+## Modifying: `Untrusted`, `Instruction`, `decodeAnswer`, `jobPowers` (INV-21, INV-21a, INV-21b)
+- A new kind of untrusted text: add a `Source` to the closed list (`untrusted.go`) and to `TestUntrustedSourcesAreAClosedList`; never a `DataBlock` literal (the guard test walks `modules/` and `cmd/`).
+- A new job or a new tool: give it a row in `jobPowers`; a tool its row does not name is neither offered nor run. A new job that reads untrusted text gets a row in `attackJobs()` (`attack_test.go`).
+- A new decision answer: decode it with `decodeAnswer` and a check of its enums, indexes and caps; free text through `plainText`.
+- Callers outside the module: `cmd/vedette` (`aiMitigation`, `responsePlanner`, `reportsAI`) build blocks with `ai.Untrusted` and pass constant instructions (`reportsAITasks` maps a report job to `reports.PdplTask`).
+
 ## Modifying: `ForModel(job, tools) []provider.ToolDef` / `Offered` (INV-14)
 - **mcp-server**: not used. **ask-my-data / log-investigate**: adding a new read-only tool = changing the data surface the AI sees; a `write` tool never enters the list.
 

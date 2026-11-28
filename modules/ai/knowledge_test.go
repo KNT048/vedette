@@ -67,8 +67,8 @@ func (a *api) count(q string) int {
 // kbRun runs one call of the job on the assigned profile and returns what the provider received.
 func (a *api) kbRun(job ai.Job, question string) provider.Request {
 	a.t.Helper()
-	_, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: job, Actor: "system", Task: "Do it.", Question: question,
-		Data: []ai.DataBlock{{Kind: ai.DataLog, Source: "x", Text: "a log line"}}, Schema: &provider.Schema{Name: "s", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
+	_, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: job, Actor: "system", Task: "Do it.", Question: ai.Instruction(question),
+		Data: []ai.DataBlock{ai.Untrusted(ai.SourceLog, "x", "a log line")}, Schema: &provider.Schema{Name: "s", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
 	if err != nil {
 		a.t.Fatal(err)
 	}

@@ -67,6 +67,39 @@ const identifySchema = `{"type":"object","additionalProperties":false,"required"
 "additionalProperties":false,"required":["index","choice","match","reason"],"properties":{"index":{"type":"integer"},"choice":{"type":"string","maxLength":16},
 "match":{"type":"string","enum":["exact","family"]},"reason":{"type":"string","maxLength":200}}}}}}`
 
+// identifyAnswer is the model's answer as decoded (decodeAnswer): only the fields of the schema.
+type identifyAnswer struct {
+	Items []IdentifyChoice `json:"items"`
+}
+
+// identifyReasonMax caps a reason: twice the 200 characters the task asks for and findings keeps.
+const identifyReasonMax = 400
+
+// check validates the choices: at most one per program asked about, a candidate offered for that program or none or unsure (a product
+// a name talked the model into is refused here, before findings sees it), a match of the enum, a reason within its cap.
+func (a *identifyAnswer) check(offered map[int]map[string]bool) error {
+	seen := map[int]bool{}
+	for i := range a.Items {
+		a.Items[i].Reason = plainText(a.Items[i].Reason) // shown as text, never a link
+		c := a.Items[i]
+		ids, ok := offered[c.Index]
+		if !ok || seen[c.Index] {
+			return fmt.Errorf("index %d is not a program asked about once", c.Index)
+		}
+		seen[c.Index] = true
+		if c.Choice != "none" && c.Choice != "unsure" && !ids[c.Choice] {
+			return fmt.Errorf("choice %q is not a candidate of program %d", clipRunes(c.Choice, 20), c.Index)
+		}
+		if err := oneOf("match", c.Match, "exact", "family"); err != nil {
+			return err
+		}
+		if err := capRunes("reason", c.Reason, identifyReasonMax); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // autoIdentifySummary starts the summary of every call of the automatic identification, answered or failed (its count tag): the daily
 // count of automatic reads counts these rows with the reading's, and the identification's own share (AutoReadState).
 const autoIdentifySummary = "Identify software"
@@ -113,9 +146,15 @@ func (s *Service) IdentifyProducts(ctx context.Context, actor string, items []Id
 		data.Write(b)
 		data.WriteByte('\n')
 	}
-	var parsed struct {
-		Items []IdentifyChoice `json:"items"`
+	offered := map[int]map[string]bool{} // per program: the ids of its candidates
+	for _, it := range items {
+		ids := map[string]bool{}
+		for _, c := range it.Candidates {
+			ids[c.ID] = true
+		}
+		offered[it.Index] = ids
 	}
+	var parsed identifyAnswer
 	programs := fmt.Sprintf("%d programs", len(items))
 	if len(items) == 1 {
 		programs = "1 program"
@@ -128,22 +167,15 @@ func (s *Service) IdentifyProducts(ctx context.Context, actor string, items []Id
 	}
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: JobExplainFinding, Actor: actor, Task: identifyTask, publicOnly: true, countTag: tag,
-		Question:  fmt.Sprintf("Which candidate is each of these %d programs? Answer one item per program, by its index.", len(items)),
-		Data:      []DataBlock{{Kind: DataInventory, Source: "installed programs and their candidate products", Text: data.String()}},
+		Question:  instructionf("Which candidate is each of these %s programs? Answer one item per program, by its index.", countArg(len(items))),
+		Data:      []DataBlock{Untrusted(SourceSoftware, "installed programs and their candidate products", data.String())},
 		Schema:    &provider.Schema{Name: "product_identity", JSON: json.RawMessage(identifySchema)},
 		MaxTokens: 1500,
 		Summary:   summary,
 		Check: func(text string) error {
-			parsed.Items = nil
-			if err := json.Unmarshal([]byte(text), &parsed); err != nil {
-				return err
-			}
-			for _, c := range parsed.Items {
-				if c.Match != "exact" && c.Match != "family" {
-					return fmt.Errorf("match %q", c.Match)
-				}
-			}
-			return nil
+			var err error
+			parsed, err = decodeAnswer(text, func(a *identifyAnswer) error { return a.check(offered) })
+			return err
 		},
 	})
 	if err != nil {

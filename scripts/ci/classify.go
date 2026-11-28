@@ -163,6 +163,7 @@ var guardPackages = []string{
 	"core/server",             // route ownership: every operation maps to a module with a manifest
 	"deploy/containers",       // builds and checks the container images from the whole tree
 	"deploy/deb",              // package contents are read from the tree
+	"modules/ai",              // untrusted text never becomes an instruction, in any module or cmd
 	"modules/core",            // every audit action any module writes has a label
 	"modules/host",            // root-safety and the host contract read host/ and cmd/vedette-host
 	"modules/inventory",       // one-line guards and the identify rules read other packages

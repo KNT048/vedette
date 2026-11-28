@@ -76,13 +76,13 @@ func parseNews(text string) (newsAnswer, error) {
 	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "exploited", "public_exploit", "workaround", "other") {
 		return newsAnswer{}, ErrBadOutput
 	}
-	a.Exploited, a.PublicExploit, a.Workaround = cleanLine(a.Exploited, maxNewsLine), cleanLine(a.PublicExploit, maxNewsLine), cleanLine(a.Workaround, maxNewsLine)
+	a.Exploited, a.PublicExploit, a.Workaround = cleanLine(plainText(a.Exploited), maxNewsLine), cleanLine(plainText(a.PublicExploit), maxNewsLine), cleanLine(plainText(a.Workaround), maxNewsLine)
 	if a.Exploited == "" || a.PublicExploit == "" || a.Workaround == "" {
 		return newsAnswer{}, ErrBadOutput
 	}
 	other := []string{}
 	for _, s := range a.Other {
-		if s = cleanLine(s, maxNewsLine); s != "" && len(other) < maxNewsOther {
+		if s = cleanLine(plainText(s), maxNewsLine); s != "" && len(other) < maxNewsOther {
 			other = append(other, s)
 		}
 	}
@@ -138,7 +138,7 @@ func (f *newsFetcher) nvdSource(ctx context.Context, cve string) (newsSource, []
 	// NVD's terms ask every product that uses the API to say so.
 	return newsSource{
 		row:   FetchedSource{Kind: "advisory", Title: title, URL: page, Status: "ok", Note: sizeNote(r.size) + ". This product uses the NVD API but is not endorsed or certified by the NVD."},
-		block: &DataBlock{Kind: DataWeb, Source: "NVD record " + cve, Text: r.info.text},
+		block: blockPtr(Untrusted(SourceWeb, "NVD record "+cve, r.info.text)),
 		cites: []Citation{{Title: "NVD: " + cve, URL: page}},
 	}, r.info.vendors
 }
@@ -195,7 +195,7 @@ func (f *newsFetcher) vendorSource(ctx context.Context, cve string, links []stri
 		}
 		return newsSource{
 			row:   FetchedSource{Kind: "advisory", Title: title, URL: u, Status: "ok", Note: note},
-			block: &DataBlock{Kind: DataWeb, Source: "vendor advisory " + host, Text: sanitizeWeb("Vendor page "+u) + "\n" + r.text},
+			block: blockPtr(Untrusted(SourceWeb, "vendor advisory "+host, sanitizeWeb("Vendor page "+u)+"\n"+r.text)),
 			cites: []Citation{{Title: title, URL: u}},
 		}, true
 	}
@@ -230,7 +230,7 @@ func (f *newsFetcher) githubSource(ctx context.Context, cve string) newsSource {
 	}
 	return newsSource{
 		row:   FetchedSource{Kind: "github", Title: title, URL: page, Status: "ok", Note: note},
-		block: &DataBlock{Kind: DataWeb, Source: "GitHub repository search", Text: r.text},
+		block: blockPtr(Untrusted(SourceWeb, "GitHub repository search", r.text)),
 		cites: []Citation{{Title: title, URL: page}},
 	}
 }
@@ -257,7 +257,7 @@ func (f *newsFetcher) feedSource(ctx context.Context, cve string, feed newsFeed)
 	}
 	s := newsSource{
 		row:   FetchedSource{Kind: "rss", Title: title, URL: feed.URL, Status: "ok", Note: fmt.Sprintf("%d of %d posts mention this CVE", len(hits), len(items))},
-		block: &DataBlock{Kind: DataWeb, Source: "RSS " + feed.Title, Text: text},
+		block: blockPtr(Untrusted(SourceWeb, "RSS "+feed.Title, text)),
 	}
 	for _, h := range hits {
 		link := h.Link
@@ -438,7 +438,7 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 	if miss.Len() > 0 {
 		// The box's own words, but they hold hosts from untrusted links: checked by the hooks like the fetched blocks, left out if
 		// a hook stops them (the summary then just does not name the missing sources).
-		unread := []newsSource{{block: &DataBlock{Kind: "sources", Source: "sources the box could not read", Text: miss.String()}}}
+		unread := []newsSource{{block: blockPtr(Untrusted(SourceBox, "sources the box could not read", miss.String()))}}
 		s.newsHookCheck(ctx, har.runner, unread)
 		if unread[0].block != nil {
 			data = append(data, *unread[0].block)
@@ -469,7 +469,7 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 	now := s.cfg.Clock()
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: JobCVENews, Actor: actor, Task: newsTask,
-		Question:  fmt.Sprintf("What is the latest on %s: is it exploited, is there public exploit code, and what is the workaround?", cve),
+		Question:  instructionf("What is the latest on %s: is it exploited, is there public exploit code, and what is the workaround?", mustCVE(cve)),
 		Data:      data,
 		Schema:    &provider.Schema{Name: "cve_news", JSON: json.RawMessage(newsSchema)},
 		MaxTokens: 4000, // a real answer runs to about 600 tokens; the rest is room for thinking (briefMaxTokens)

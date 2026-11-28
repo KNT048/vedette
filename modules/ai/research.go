@@ -157,6 +157,8 @@ type ResearchStep struct {
 	QuoteCheck   string   `json:"quote_check"`
 	ActivityID   string   `json:"activity_id"`
 	Error        string   `json:"error,omitempty"`
+	// Refused are the addresses the model asked fetch_page for that the job's data did not hold (researchRun.allows): not opened.
+	Refused []string `json:"refused,omitempty"`
 }
 
 // ResearchAnswer is the final answer of a research: the verdict of the layer that stands, where its quote was found and the text it was
@@ -392,7 +394,7 @@ func (s *Service) researchLayer(ctx context.Context, actor string, req ResearchR
 	}
 	caps := capsFor(mode, layer)
 	web := tools && p.APIStyle == provider.StyleAnthropic
-	task := researchTaskExcerpts + researchTraps
+	var task Instruction = researchTaskExcerpts + researchTraps
 	switch {
 	case !tools:
 		step.Web = "none"
@@ -401,8 +403,14 @@ func (s *Service) researchLayer(ctx context.Context, actor string, req ResearchR
 	default:
 		step.Web, task = "box", researchTaskWeb+researchTraps+researchJSONHint
 	}
-	run := &researchRun{s: s, strong: strong, caps: caps, web: web, useTools: tools}
+	run := &researchRun{s: s, strong: strong, caps: caps, web: web, useTools: tools, given: researchGiven(req), hop: map[string]bool{}}
+	for _, pg := range req.Pages { // the reference pages the box read for this job: a link on one is one hop away
+		for _, l := range pg.Links {
+			run.hop[l] = true
+		}
+	}
 	data, chars := researchData(req)
+	var answer ResearchVerdict
 	step.ExcerptChars = chars
 	tag := ""
 	if actor == "system" {
@@ -410,45 +418,126 @@ func (s *Service) researchLayer(ctx context.Context, actor string, req ResearchR
 	}
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: JobResearchCVEs, Actor: actor, Task: task, publicOnly: true, countTag: tag, callTools: run.tools,
-		Question:  researchQuestion(req),
+		Question:  instructionf("Are the installed releases in the data block of the installed software affected by %s?", mustCVE(req.CVE)),
 		Data:      data,
 		Schema:    &provider.Schema{Name: "cve_research", JSON: json.RawMessage(researchSchema)},
 		MaxTokens: researchMaxTokens,
 		Summary:   fmt.Sprintf("Researched %s for one release line (%s layer, %s)", req.CVE, layer, mode),
 		call:      run.converse,
 		Check: func(text string) error {
-			var x ResearchVerdict
-			if err := json.Unmarshal([]byte(text), &x); err != nil {
-				return err
-			}
-			if !slices.Contains([]string{"affected", "not_affected", "unsure"}, x.Verdict) || !slices.Contains([]string{"high", "medium", "low"}, x.Confidence) ||
-				x.Basis != "stated" && x.Basis != "inferred" {
-				return fmt.Errorf("verdict %q confidence %q basis %q", x.Verdict, x.Confidence, x.Basis)
-			}
-			return nil
+			var err error
+			answer, err = decodeAnswer(text, checkResearchVerdict)
+			return err
 		},
 	})
 	step.Model, step.Profile = cmpStr(run.model, p.Model), cmpStr(run.profile, p.Name)
 	step.TokensIn, step.TokensOut, step.Searches, step.Pages = run.usage.InputTokens, run.usage.OutputTokens, run.searches, run.pages
+	step.Refused = run.refused
 	if err != nil {
 		step.Error = researchError(err)
 		return v, step, "", err
 	}
 	step.ActivityID, step.Model, step.Profile = res.ActivityID, res.Model, res.Profile
 	step.TokensIn, step.TokensOut = res.TokensIn, res.TokensOut
-	if err := json.Unmarshal([]byte(res.Text), &v); err != nil {
-		return v, step, "", err
-	}
+	v = answer
 	v.Quote, v.Reason, v.FixedIn, v.Trap = cleanLine(pagetext.DropLabels(v.Quote), 400), cleanLine(v.Reason, 700), cleanLine(v.FixedIn, 100), cleanLine(v.Trap, 300)
 	v.Line, v.Introduced, v.LastAffected = cleanLine(v.Line, 100), cleanLine(v.Introduced, 100), cleanLine(v.LastAffected, 100)
 	v.URL = clipRunes(strings.TrimSpace(v.URL), 2000)
+	if !researchRead(req, run.pages, v.URL) {
+		v.URL = "" // an address the research did not read is one a text may have talked the model into: never fetched, never shown
+	}
 	digest := []string{req.Digest}
 	for _, pg := range req.Pages {
 		digest = append(digest, pg.Text)
 	}
-	step.QuoteCheck, text = s.checkQuote(ctx, v, run.texts, digest)
+	step.QuoteCheck, text = s.checkQuote(ctx, v, citedTools(req, run, v.URL), digest)
 	step.Verdict, step.Confidence = v.Verdict, v.Confidence
 	return v, step, text, nil
+}
+
+// checkResearchVerdict validates a research answer (decodeAnswer): the closed lists of verdict, confidence and basis, and a cap on each
+// text (twice what the task asks for: the box clips them again when it keeps them).
+func checkResearchVerdict(v *ResearchVerdict) error {
+	if err := oneOf("verdict", v.Verdict, "affected", "not_affected", "unsure"); err != nil {
+		return err
+	}
+	if err := oneOf("confidence", v.Confidence, "high", "medium", "low"); err != nil {
+		return err
+	}
+	if err := oneOf("basis", v.Basis, "stated", "inferred"); err != nil {
+		return err
+	}
+	v.Reason, v.Trap = plainText(v.Reason), plainText(v.Trap) // shown as text; the links of a research are the pages it read
+	for _, f := range []struct {
+		name, v string
+		n       int
+	}{{"quote", v.Quote, 800}, {"reason", v.Reason, 1500}, {"trap", v.Trap, 600}, {"url", v.URL, 2000}, {"fixed_in", v.FixedIn, 200},
+		{"line", v.Line, 200}, {"introduced", v.Introduced, 200}, {"last_affected", v.LastAffected, 200}} {
+		if err := capRunes(f.name, f.v, f.n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// researchRead says url is a page the research read: a reference page the box fetched, the page of an excerpt, or a page fetched during
+// the research (by the box's fetch tool or the provider's own); "" (the digest) too.
+func researchRead(req ResearchRequest, fetched []string, url string) bool {
+	if url == "" || slices.Contains(fetched, url) {
+		return true
+	}
+	for _, p := range req.Pages {
+		if p.URL == url {
+			return true
+		}
+	}
+	for _, e := range req.Excerpts {
+		if e.URL == url {
+			return true
+		}
+	}
+	return false
+}
+
+// addressKey is an address as the allow-list compares it: trimmed, without its fragment.
+func addressKey(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return strings.TrimSpace(raw)
+	}
+	u.Fragment = ""
+	return u.String()
+}
+
+// researchGiven is every address the job's own data holds: the reference pages the box read, the excerpts' pages, and the http(s)
+// addresses written in the digest and the excerpts (the CVE record's references are listed there).
+func researchGiven(req ResearchRequest) map[string]bool {
+	out := map[string]bool{}
+	add := func(raw string) {
+		if u, err := url.Parse(raw); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" {
+			out[addressKey(raw)] = true
+		}
+	}
+	for _, p := range req.Pages {
+		add(p.URL)
+	}
+	texts := []string{req.Digest}
+	for _, e := range req.Excerpts {
+		add(e.URL)
+		texts = append(texts, e.Text)
+	}
+	for _, t := range texts {
+		for _, m := range urlInPage.FindAllString(t, 500) {
+			add(strings.TrimRight(m, ".,;:"))
+		}
+	}
+	return out
+}
+
+// allows says fetch_page may open raw: an address the job's data holds, or a link on a page read from one of them (one hop).
+func (r *researchRun) allows(raw string) bool {
+	k := addressKey(raw)
+	return r.given[k] || r.hop[k]
 }
 
 // researchError is the box's sentence of a failed layer (never the provider's words).
@@ -469,9 +558,10 @@ func cmpStr(a, b string) string {
 	return b
 }
 
-// researchQuestion is what is asked: the product, its versions and line, the edition, and the kinds of devices it runs on (it carries
-// the customer's inventory, so it goes through every hook).
-func researchQuestion(req ResearchRequest) string {
+// researchInstalled is the installed software asked about: the product, its versions and line, the edition, the names the devices
+// show it by and the kinds of devices it runs on. It carries the customer's inventory (an agent or a banner may have written it), so it
+// is a data block of its own, through every hook, never the question.
+func researchInstalled(req ResearchRequest) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Installed software: %s %s\nInstalled versions: %s\nRelease line: %s\n", cleanLine(req.Vendor, 100), cleanLine(req.Product, 200),
 		cleanLine(req.Versions, 300), cleanLine(req.Line, 100))
@@ -484,14 +574,14 @@ func researchQuestion(req ResearchRequest) string {
 	if len(req.Platforms) > 0 {
 		fmt.Fprintf(&b, "Runs on: %s\n", cleanLine(strings.Join(req.Platforms, "; "), 300))
 	}
-	fmt.Fprintf(&b, "Are these installed releases affected by %s?", req.CVE)
 	return b.String()
 }
 
 // researchData is the digest and the excerpts of each page, as public data blocks (only the customer's own hooks read them), and the
 // characters of excerpts. The pages themselves are not sent: findings cut what names the CVE from them.
 func researchData(req ResearchRequest) ([]DataBlock, int) {
-	data := []DataBlock{{Kind: DataFeed, Source: "digest: what the appliance read", Text: clipBytes(sanitizeWeb(req.Digest), researchDigestMax), public: true}}
+	data := []DataBlock{Untrusted(SourceSoftware, "the installed software", researchInstalled(req)),
+		publicUntrusted(SourceFeed, "digest: what the appliance read", clipBytes(sanitizeWeb(req.Digest), researchDigestMax))}
 	chars := 0
 	for i := 0; i < len(req.Excerpts); {
 		e := req.Excerpts[i]
@@ -504,7 +594,7 @@ func researchData(req ResearchRequest) ([]DataBlock, int) {
 			break
 		}
 		chars += len(text)
-		data = append(data, DataBlock{Kind: DataWeb, Source: fmt.Sprintf("excerpts of page %d: %s", e.Source, webLine(e.URL, 200)), Text: text, public: true})
+		data = append(data, publicUntrusted(SourceWeb, fmt.Sprintf("excerpts of page %d: %s", e.Source, webLine(e.URL, 200)), text))
 	}
 	return data, chars
 }
@@ -534,7 +624,12 @@ type researchRun struct {
 	searches       int
 	pages          []string
 	texts          []string
+	byURL          map[string]string // the text of each page the box's fetch tool read, by its address (as sent)
 	model, profile string
+	// given are the addresses the job's own data holds (the references, the excerpts' pages, the addresses in the digest and the
+	// excerpts); hop the links on a page read from one of them. fetch_page opens nothing else (refused, listed in the step).
+	given, hop map[string]bool
+	refused    []string
 }
 
 // converse runs the layer's conversation through the router's slot of the layer. With provider-side web tools: one request, sent again
@@ -634,10 +729,15 @@ func (r *researchRun) converse(parent context.Context, hooks *HookRunner, prompt
 				URL string `json:"url"`
 			}
 			switch {
-			case tc.Name != fetchPageTool.Name:
+			case tc.Name != fetchPageTool.Name || !jobPowers[JobResearchCVEs].permits(toolPage, tc.Name):
 				out.Content, out.IsError = "This tool is not available.", true
 			case json.Unmarshal(tc.Arguments, &args) != nil || args.URL == "":
 				out.Content, out.IsError = "The arguments must be {\"url\": \"https://...\"}.", true
+			case !r.allows(args.URL):
+				if len(r.refused) < 20 {
+					r.refused = append(r.refused, clipRunes(args.URL, 300))
+				}
+				out.Content, out.IsError = "That address is not in the data for this job, so it was not opened: open only an address from the CVE record, the references or the excerpts, or a link on a page this research read from them.", true
 			case fetched >= r.caps.fetches:
 				out.Content, out.IsError = fmt.Sprintf("The limit of %d pages for this research is reached: answer from what you have.", r.caps.fetches), true
 			default:
@@ -658,19 +758,28 @@ func (r *researchRun) fetch(ctx context.Context, hooks *HookRunner, prompt Promp
 	if pg.Status != "ok" {
 		return "The page was not read: " + cmpStr(pg.Note, "it could not be fetched") + ".", true
 	}
+	if r.given[addressKey(raw)] { // a page the data named: its links are one hop away; a page reached by a hop adds none
+		for _, l := range pg.Links {
+			r.hop[addressKey(l)] = true
+		}
+	}
 	text := clipBytes(pg.Text, r.caps.pageTokens*researchPageBytes)
 	r.pages = appendPages(r.pages, pg.URL)
 	hctx, cancel := context.WithTimeout(ctx, r.s.hookTimeout())
 	defer cancel()
-	hr, err := hooks.runPublic(hctx, text)
-	if err != nil || hr.Outcome == OutcomeBlocked || hr.Outcome == OutcomeHeld {
+	wrapped, sent, err := WrapPublicToolResult(hctx, hooks, prompt, "page "+webLine(pg.URL, 200), text)
+	switch {
+	case errors.Is(err, errHeldBack):
 		return "The page was read, but a hook held its text back.", true
-	}
-	if strings.Contains(hr.Text, prompt.Fence) {
+	case err != nil:
 		return "The page was read, but its text could not be passed on.", true
 	}
-	r.texts = append(r.texts, hr.Text)
-	return fmt.Sprintf("<<<DATA-%s kind=web source=%q>>>\n%s\n<<<END-DATA-%s>>>", prompt.Fence, sourceLabel("page "+webLine(pg.URL, 200)), hr.Text, prompt.Fence), false
+	r.texts = append(r.texts, sent)
+	if r.byURL == nil {
+		r.byURL = map[string]string{}
+	}
+	r.byURL[pg.URL] = sent
+	return wrapped, false
 }
 
 func appendPages(pages []string, urls ...string) []string {
@@ -702,6 +811,25 @@ func answerJSON(text string) string {
 	return t
 }
 
+// citedTools is the tool text a quote may be found in for the page the answer cites (url): none when it cites no page (its quote is the
+// CVE record's, checked in the digest); only that page's own text when the box read the page itself (a reference it fetched, or a page
+// its fetch tool read); every text of the provider's own tools otherwise (it does not say which page each came from). A sentence of
+// another page is never credited to the cited one: findings shows a checked quote as the words of the cited page's site.
+func citedTools(req ResearchRequest, run *researchRun, url string) []string {
+	if url == "" {
+		return nil
+	}
+	if t, ok := run.byURL[url]; ok {
+		return []string{t}
+	}
+	for _, p := range req.Pages {
+		if p.URL == url && p.Status == "ok" {
+			return []string{p.Text}
+		}
+	}
+	return run.texts
+}
+
 // checkQuote looks the answer's quote up: in the text the tools returned, then in the digest, then on a live fetch of the cited page by
 // the box (public HTTPS hosts only, like fetch_page). It returns where it was found and the text it was found in.
 func (s *Service) checkQuote(ctx context.Context, v ResearchVerdict, tools, digest []string) (string, string) {
@@ -718,7 +846,7 @@ func (s *Service) checkQuote(ctx context.Context, v ResearchVerdict, tools, dige
 	if t, ok := quoteIn(q, digest, true); ok {
 		return QuoteDigest, t
 	}
-	if u, err := url.Parse(v.URL); err == nil && u.Scheme == "https" && u.Host != "" {
+	if u, err := url.Parse(v.URL); err == nil && u.Scheme == "https" && u.Host != "" { // v.URL is a page the research read (researchRead)
 		if pg := s.refs.one(ctx, v.URL); pg.Status == "ok" {
 			if t, ok := quoteIn(q, []string{pg.Text}, true); ok {
 				return QuoteLive, t

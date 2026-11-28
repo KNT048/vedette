@@ -65,10 +65,16 @@ export const FindingRow = Finding.extend({
   software_id: z.string().describe('The device\'s software row the matcher matched the finding on, stored when it opens, touches or closes the finding; "" until the next match reaches an older finding. Never guessed from the product'),
 })
 
+export const CodeWarning = z.object({
+  line: z.number().int().min(1).describe('The line of the block, 1 for the first'),
+  kind: z.enum(['broad_allow', 'new_credential', 'logging_off', 'auth_off', 'protection_off', 'management_exposed']),
+  text: z.string().describe('What the line does, in the box\'s own words'),
+})
 export const CodeStep = z.object({
   title: z.string(), code: z.string(), note: z.string().optional(),
   side_effect: z.string().optional().describe('Side effect that must be stated before the user pastes the command'),
   check: z.array(z.string()).optional().describe('#897 r2, AI config blocks only: the IP addresses the block names that are not the device\'s or a sent firewall\'s (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these addresses" above the block. Nothing is left out for an address'),
+  warnings: z.array(CodeWarning).optional().describe('AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning'),
 })
 export const FirewallGuide = z.object({
   vendor: FirewallVendor, label: z.string(), detected: z.boolean().describe('The user declared a device of this vendor in the inventory'),
@@ -431,6 +437,7 @@ export const AiResearchStep = z.object({
   confidence: z.string().describe('The layer\'s own confidence: high, medium, low, or ""'),
   quote_check: z.string().describe('Where the box found the layer\'s quote (QuoteCheck), or "" when it gave no answer'),
   error: z.string().optional().describe('Why the layer gave no answer, in the box\'s words'),
+  refused: z.array(z.string()).max(20).optional().describe('Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened'),
 }).describe('One layer of a research: how it ran, what it read, what it answered, its tokens (never money)')
 export const AiResearch = z.object({
   layer: z.enum(['quick', 'strong']).describe('The layer whose answer stands'),

@@ -1247,8 +1247,27 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			st.Status = StatementUnsure // the record has a row of this product on the line: its own row, not another product's, decides
 			st.Reason = oneLine("The record has a row of this product on line "+st.StatedLine+", so another product's line decides nothing: "+st.Reason, 600)
 		}
-		if st.Basis == BasisStated && !namedWithThisProduct(st.Quote, ownNames(rec, id.Product), ownEditions(rec, id.Product, edition(l.units[0].q)), ownVendors(id.Product)) {
-			st.Basis = BasisUnpaired // a version the quote does not pair with this product's own name: it may open, never settle or fix
+		// the basis is the box's, never the model's: stated only when the quote the box found names this product itself with a release
+		// or line that covers the installed version, every release it names paired with the product's own name; anything else (another
+		// edition or product, a release it does not pair with this product, no version) is not the vendor's statement for this product:
+		// unpaired, which may open a finding, never gives a fix, and whose "not affected" is a proposal (an inference from another
+		// product's line stays inferred)
+		// only the installed build's own edition may stand between the name and the release: an edition the record pins for another
+		// build of the product (a server edition, an extended-support one) is that build's, not this one's
+		var eds []string
+		if e := strings.ToLower(strings.TrimSpace(edition(l.units[0].q))); e != "" {
+			eds = []string{e}
+		}
+		ids := make([]CheckID, 0, len(l.units))
+		for _, u := range l.units {
+			ids = append(ids, u.id)
+		}
+		if st.Basis == BasisStated && !st.statedForAll(ids, ownNames(rec, id.Product), eds, ownVendors(id.Product)) {
+			st.Basis = BasisUnpaired
+		}
+		ans.Basis = BasisStated // what the research detail shows is the box's basis: stated or inferred, never the model's claim
+		if st.Basis != BasisStated {
+			ans.Basis = BasisInferred
 		}
 		ans.Fetch = ResearchFetch{Pages: len(okPages), Bytes: pageBytes(okPages)}
 		for _, e := range req.Excerpts {
@@ -1292,26 +1311,6 @@ func ownNames(rec CVERecordText, product string) []string {
 	for _, r := range rec.Rows {
 		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
 			add(r.Product)
-		}
-	}
-	return out
-}
-
-// ownEditions is the edition words the record's own rows of the product pin, and the build's edition the box knows (lower case).
-func ownEditions(rec CVERecordText, product, known string) []string {
-	vendor, name, _ := strings.Cut(product, "|")
-	var out []string
-	for _, e := range append([]string{known}, func() []string {
-		var es []string
-		for _, r := range rec.Rows {
-			if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
-				es = append(es, r.Edition)
-			}
-		}
-		return es
-	}()...) {
-		if e = strings.ToLower(strings.TrimSpace(e)); e != "" && !slices.Contains(out, e) {
-			out = append(out, e)
 		}
 	}
 	return out

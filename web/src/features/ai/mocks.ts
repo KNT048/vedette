@@ -10,6 +10,7 @@ import { answerQuestion, boxApart } from './ask'
 import { activeDefs, memorySettings, memoryStore, rejectedTexts, runHooks, skillsView, suggestionsStore } from './harness'
 import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
+import { askConnectionHandlers } from './askConnectionsMock'
 import type { ActivityInput } from './activity'
 import type { AiConfigView, AiProfile, AskHookHit, HookHit, AiRun, AiTier, AskResult, Assignments, ConfigInput, DigestItem, ExplainResult, FetchedSource, LogDigest, NewsResult, ProfileInput, ToolCall, Usage } from './types'
 import { fmtDate } from '@/lib/format'
@@ -329,6 +330,7 @@ const nameOfJob = (job: AiJob) => aiCandidates(job)[0]
 export const handlers = [
   ...harnessHandlers,
   ...activityHandlers,
+  ...askConnectionHandlers,
   http.get(`${API}/ai/config`, () => guard('viewer') ?? HttpResponse.json(view())),
   http.put(`${API}/ai/config`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied

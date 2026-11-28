@@ -215,7 +215,7 @@ func askEvidence(question string, calls []AskToolCall, docs []string) string {
 func parseAsk(text string) ([]string, error) {
 	var out []string
 	for _, p := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n\n") {
-		if p = cleanLine(p, askParaMax); p != "" && len(out) < askParas {
+		if p = cleanLine(plainText(p), askParaMax); p != "" && len(out) < askParas {
 			out = append(out, p)
 		}
 	}
@@ -278,7 +278,7 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 		s.cfg.Log.WarnContext(ctx, "ai: could not read whether memory suggestions are on", "error", err)
 		suggest = false
 	}
-	task := askTask
+	var task Instruction = askTask
 	if suggest {
 		task += askRememberTask
 	}
@@ -287,7 +287,7 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	var answer, remember, docs []string
 	var out AskResult
 	_, err = s.RunJob(ctx, JobSpec{
-		Job: JobAskMyData, Actor: actor, Task: task, Question: sent, tools: ts, AnswerWhenBlocked: true, MaxTokens: askMaxTokens,
+		Job: JobAskMyData, Actor: actor, Task: task, Question: personQuestion(sent), tools: ts, Data: ts.connCatalog(), AnswerWhenBlocked: true, MaxTokens: askMaxTokens,
 		Summary: "Answered a question",
 		Check: func(text string) error {
 			var perr error

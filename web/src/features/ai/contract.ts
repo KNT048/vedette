@@ -134,6 +134,17 @@ export const KnowledgeDoc = z.object({ id: z.string(), name: z.string(), size: z
 export const KnowledgeView = z.object({ index_profile: z.string().nullable().describe('AI profile id chosen for the index (required; it builds nothing until embeddings exist); null = none chosen'), items: z.array(KnowledgeDoc) })
 export const KnowledgeInput = z.object({ name: z.string().min(1).max(120), size: z.number().int().min(1).describe('Bytes of the file; 10 MB at most. PDF, MD, TXT or DOCX'), content: z.string().min(1).describe('The file itself, base64 (standard alphabet, no line breaks); it decodes to exactly `size` bytes. The box keeps only the text it finds in it, never the file'), jobs: z.array(AiJob).optional() })
 export const KnowledgeSettings = z.object({ index_profile: z.string().nullable() })
+export const AskConnection = z.object({
+  id: z.string(),
+  name: z.string(),
+  address: z.string().describe('The address the connection points to, as Settings, Connections has it'),
+  allowed: z.boolean().describe('Ask may call the read tools of this connection; the arguments the AI writes are sent to it'),
+  decided: z.boolean().describe('An administrator has chosen; false = never chosen, so not allowed'),
+})
+export const AskConnectionsView = z.object({
+  items: z.array(AskConnection).describe('Connections outside the network that have read tools; one inside the network is always usable and not listed'),
+  notice: z.boolean().describe('At least one of them was never chosen: Ask no longer uses such a connection until an administrator allows it'),
+})
 export const KnowledgePatch = z.object({ jobs: z.array(AiJob) })
 
 export const BuiltinHook = z.object({ id: z.string(), name: z.string(), description: z.string(), enabled: z.boolean(), locked: z.boolean().describe('true = always on, cannot be turned off') })
@@ -161,6 +172,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/assignments/suggestion', summary: 'Suggested assignments: fast model for bulk jobs, strong model for reasoning jobs', stories: ['S-AI-1'], role: 'viewer', query: z.object({ internal_only: z.enum(['true', 'false']) }), response: Assignments, example: { query: { internal_only: 'false' } } },
   { method: 'get', path: '/ai/usage', summary: 'Token meter: today, this month, per job this month, earlier tier downgrades', stories: ['S-AI-4'], role: 'viewer', response: Usage },
   { method: 'get', path: '/ai/runs', summary: 'Log of AI calls (sent content is not stored)', stories: ['S-AI-4'], role: 'viewer', response: z.object({ items: z.array(AiRun) }) },
+  { method: 'get', path: '/ai/ask/connections', summary: 'Connections outside the network that Ask may use, each only after an administrator allows it', stories: ['S-AI-5'], role: 'admin', response: AskConnectionsView },
+  { method: 'put', path: '/ai/ask/connections/{id}', summary: 'Allow or forbid Ask to use one connection outside the network', stories: ['S-AI-5'], role: 'admin', params: z.object({ id: z.string() }), body: z.object({ allowed: z.boolean() }), response: AskConnection },
   { method: 'get', path: '/ai/asks', summary: 'Recent "Ask your data" questions', stories: ['S-AI-5'], role: 'viewer', response: z.object({ items: z.array(AskResult) }) },
   { method: 'post', path: '/ai/ask', summary: 'Ask about my data; the AI uses read-only tools', stories: ['S-AI-5', 'S-AI-6'], role: 'operator', body: z.object({ question: z.string().min(3).max(500) }), response: AskResult },
   { method: 'get', path: '/ai/activity', summary: 'AI activity log: every AI call with hooks, tools, hashes and result; filter by job, result and date. Entries cannot be edited or deleted', stories: ['S-AI-8'], role: 'operator', query: z.object({ job: z.string().optional(), result: ActivityResult.optional(), from: iso.optional(), to: iso.optional() }), response: ActivityList },

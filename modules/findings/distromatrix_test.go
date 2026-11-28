@@ -200,7 +200,7 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 			[]mxStep{mxRead(widgetDebian, widgetVendor)}, mxWant{none: true}},
 		{"package/debian/own build of another epoch than the fix: another numbering, no word", "Debian GNU/Linux 13 (trixie)", cvePkg, widgetOld.ID,
 			[]mxStep{mxRead(widgetEpoch, widgetOld)}, mxWant{none: true}},
-		{"package/debian/own build, the fix stated for another release only: no word","Debian GNU/Linux 13 (trixie)", cvePkg, widgetOld.ID,
+		{"package/debian/own build, the fix stated for another release only: no word", "Debian GNU/Linux 13 (trixie)", cvePkg, widgetOld.ID,
 			[]mxStep{mxRead(widgetOtherRelease, widgetOld)}, mxWant{none: true}},
 		{"kernel/a kernel of an earlier series than the fix: another kernel, no finding", "", cveKernel, kernOlderSeries.ID,
 			[]mxStep{mxRead(kern, kernOlderSeries)}, mxWant{none: true}},

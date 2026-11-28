@@ -19,7 +19,7 @@ func TestResponsePlanPromptKeepsTheDeviceIP(t *testing.T) {
 		a.want("PUT", "/ai/hooks/builtin/block-pii", "admin", `{"enabled":true}`, 200, "")
 		dev := fmt.Sprintf("Device: %s, IP %s, kind %s\nFinding: %s\n", d[0], d[1], d[2], "CVE-2024-3400")
 		_, err := a.newService().RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "Write a plan.", Question: "Write the response plan.",
-			Data: []ai.DataBlock{{Kind: "inventory", Source: "the device of the finding", Text: dev}}, Schema: &provider.Schema{Name: "response_plan", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
+			Data: []ai.DataBlock{ai.Untrusted(ai.SourceDevice, "the device of the finding", dev)}, Schema: &provider.Schema{Name: "response_plan", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
 		if err != nil {
 			t.Fatal(err)
 		}

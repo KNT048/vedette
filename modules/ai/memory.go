@@ -522,7 +522,7 @@ func (s *Service) memoryForCall(ctx context.Context, hooks *HookRunner, job Job)
 	defer cancel()
 	var lines strings.Builder
 	for _, l := range all {
-		r, err := hooks.Run(hctx, BeforeAI, oneLine(l.text))
+		r, err := hooks.Run(hctx, BeforeAI, normalizeUntrusted(oneLine(l.text))) // checked in the form it is sent
 		if err != nil || r.Outcome == OutcomeBlocked || r.Outcome == OutcomeHeld {
 			mc.left = append(mc.left, l.id)
 			mc.leftNames = append(mc.leftNames, r.Names()...)
@@ -533,7 +533,7 @@ func (s *Service) memoryForCall(ctx context.Context, hooks *HookRunner, job Job)
 		lines.WriteString("- " + r.Text + "\n")
 	}
 	if len(mc.ids) > 0 {
-		mc.block = DataBlock{Kind: DataMemory, Source: "notes kept by an administrator", Text: strings.TrimSuffix(lines.String(), "\n")}
+		mc.block = Untrusted(SourceMemory, "notes kept by an administrator", strings.TrimSuffix(lines.String(), "\n"))
 	}
 	return mc, nil
 }

@@ -14,11 +14,12 @@ import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { CveList, FindingStatusLines, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
-import { dayOf as orgDay, fmtDate, fmtDateTime, fmtDayMonth } from '@/lib/format'
+import { dayOf as orgDay, fmtDate, fmtDateTime, fmtDayMonth, fmtNumber } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { useCoverage, useReviewTotal } from '@/features/findings/api'
 import { useFixTitle } from '@/features/findings/parts'
 import type { FirstItem, Overview } from '@/features/findings/types'
 import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
@@ -99,18 +100,27 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
   )
 }
 
-/** What waits for a person about findings: the possible CVEs (Vedette cannot decide them; counted apart from the open findings) and
- *  the AI proposals about them waiting for a confirmation. Each a link, hidden at 0. */
+/** The CVEs in three numbers. Decided by Vedette: the (software, CVE) pairs its own data decided in the last match pass (the coverage's
+ *  decided pairs, less those a person or the customer's AI decided; readable by an administrator, so it is left out for anyone else).
+ *  Researched by your AI: the answers a person confirmed and those waiting for one. Still unknown: every other CVE nobody has decided. */
 function PossibleLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  const { possible, older_build: older, distro_pending: distro, distro_pending_exploited: distroExploited, proposals } = o.possible
-  if (!possible && !older && !distro && !proposals) return null
+  const admin = useCan('admin')
+  const coverage = useCoverage(admin)
+  const { possible, older_build: older, distro_pending: distro } = o.possible
+  // the AI's not-affected answers are the ones Review AI answers lists; every other undecided CVE is still unknown
+  const waiting = useReviewTotal().data ?? 0
+  const unknown = Math.max(0, possible - waiting) + older + distro
+  const sum = (by: (b: string) => boolean) => (coverage.data?.decided ?? []).filter((d) => by(d.by)).reduce((n, d) => n + d.affected + d.not_affected, 0)
+  const decided = coverage.data ? sum((b) => b !== 'person' && b !== 'ai_confirmed') : null
+  const researched = waiting + (coverage.data ? sum((b) => b === 'ai_confirmed') : 0)
+  if (!decided && !researched && !unknown) return null
+  const link = 'text-accent underline-offset-4 hover:underline'
   return (
-    <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      {possible ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.possible', { count: possible })}</Link> : null}
-      {older ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.olderBuild', { count: older })}</Link> : null}
-      {distro ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.distroPending', { count: distro })}{distroExploited ? ` (${t('dash.distroPendingExploited', { count: distroExploited })})` : ''}</Link> : null}
-      {proposals ? <Link to="/findings?tab=proposals" className="text-accent underline-offset-4 hover:underline">{t('dash.proposals', { count: proposals })}</Link> : null}
+    <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm" data-testid="home-undecided">
+      {decided !== null ? <span>{t('dash.decidedByVedette', { count: decided, formatted: fmtNumber(decided) })}</span> : null}
+      <Link to="/findings?tab=review" className={link}>{t('dash.researchedByAi', { count: researched, formatted: fmtNumber(researched), waiting })}</Link>
+      <Link to="/findings?tab=possible" className={link}>{t('dash.stillUnknown', { count: unknown, formatted: fmtNumber(unknown) })}</Link>
     </p>
   )
 }

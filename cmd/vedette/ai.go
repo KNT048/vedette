@@ -226,7 +226,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 	row := fc.subject()
 	dev, walls := m.facts(ctx, req.Skill, fc)
 	data, links := aiFindingData(req, fc, dev, walls)
-	q := "Answer the four questions for this finding."
+	var q ai.Instruction = "Answer the four questions for this finding."
 	if req.Skill == mitigation.SkillConfig {
 		q = "Answer the four questions for this finding, then write the configuration: the device's own workaround and a rule for each firewall the network block says is on the device's path."
 	}
@@ -255,7 +255,11 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 		if c.BasedOn != "" {
 			note = "Based on: " + c.BasedOn
 		}
-		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check})
+		var warns []findings.CodeWarning
+		for _, w := range c.Warnings {
+			warns = append(warns, findings.CodeWarning{Line: w.Line, Kind: w.Kind, Text: w.Text})
+		}
+		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check, Warnings: warns})
 	}
 	aiMarkAssumed(out.Configs, walls, aiDeviceNames(row, dev))
 	for _, l := range links[:min(len(links), 2)] { // the box builds the sources from the brief's own references; a model never supplies a link
@@ -459,11 +463,11 @@ func aiFindingData(req mitigation.AIRequest, fc findingCase, dev *inventory.Devi
 	}
 	d.WriteString(fc.deviceFactsText())
 	fmt.Fprintf(&d, "A confirmed recommendation pack exists: %t\n", req.HasPack)
-	blocks := []ai.DataBlock{{Kind: ai.DataFeed, Source: "CVE brief " + fc.View.Finding.CVE, Text: fc.briefFeedText(links)}, {Kind: "inventory", Source: "the device of the finding", Text: d.String()}}
+	blocks := []ai.DataBlock{ai.Untrusted(ai.SourceFeed, "CVE brief "+fc.View.Finding.CVE, fc.briefFeedText(links)), ai.Untrusted(ai.SourceDevice, "the device of the finding", d.String())}
 	if req.Skill != mitigation.SkillConfig {
 		return blocks, links
 	}
-	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: aiNetworkBlock(walls)}), links
+	return append(blocks, ai.Untrusted(ai.SourceDevice, "the firewalls of the network", aiNetworkBlock(walls))), links
 }
 
 // aiMatched is the software row the finding is about, with its version: the row the matcher matched it on (the finding's software

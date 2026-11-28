@@ -1478,7 +1478,7 @@
   },
   "risk": {
     "findingsAria": "open its findings with this status",
-    "inputAria": "Vedette cannot decide some CVEs of this device: open its possible findings",
+    "inputAria": "Vedette cannot decide some CVEs of this device: open its CVEs not decided",
     "column": "Risk",
     "chipExploited": "Exploited",
     "chipUpdate": "Update recommended",

@@ -218,7 +218,7 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 
 		fmt.Fprintf(&b, "- %s: %s, IP %s, to %s (%s), seen via %s, listed by %s, confidence %.2f, at %s\n", what, who, clip(x.SrcIP, 45), clip(x.Dest, 253), clip(x.DestKind, 8), clip(x.SeenVia, 60), strings.Join(feeds, ", "), x.Confidence, clip(x.TS, 32))
 	}
-	return DataBlock{Kind: DataLog, Source: "summary of the logs of the last 24 hours: kinds of line and counts, no log lines", Text: b.String()}
+	return Untrusted(SourceLog, "summary of the logs of the last 24 hours: kinds of line and counts, no log lines", b.String())
 }
 
 type digestAnswer struct {
@@ -255,7 +255,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "summary", "items") || (!remember && a.Remember != nil) {
 		return logDigestBody{}, nil, ErrBadOutput
 	}
-	out := logDigestBody{Summary: cleanLine(a.Summary, digestMaxSummary), Items: []LogDigestItem{}}
+	out := logDigestBody{Summary: cleanLine(plainText(a.Summary), digestMaxSummary), Items: []LogDigestItem{}}
 	if out.Summary == "" {
 		return logDigestBody{}, nil, ErrBadOutput
 	}
@@ -263,7 +263,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 		if it.Severity != "high" && it.Severity != "medium" && it.Severity != "info" {
 			return logDigestBody{}, nil, ErrBadOutput
 		}
-		title := cleanLine(it.Title, digestMaxTitle)
+		title := cleanLine(plainText(it.Title), digestMaxTitle)
 		if title == "" {
 			return logDigestBody{}, nil, ErrBadOutput
 		}
@@ -276,7 +276,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 				ev = append(ev, e)
 			}
 		}
-		out.Items = append(out.Items, LogDigestItem{Severity: it.Severity, Title: title, Evidence: ev, Recommendation: cleanLine(it.Recommendation, digestMaxRec)})
+		out.Items = append(out.Items, LogDigestItem{Severity: it.Severity, Title: title, Evidence: ev, Recommendation: cleanLine(plainText(it.Recommendation), digestMaxRec)})
 	}
 	var mem []string
 	for _, r := range a.Remember {
@@ -446,7 +446,8 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	if d.empty() {
 		return s.digestEmpty(tier, s.cfg.Clock()), nil
 	}
-	job, task, version := JobLogDigest, digestTask, "log-digest-v2"
+	var task Instruction = digestTask
+	job, version := JobLogDigest, "log-digest-v2"
 	var ts *toolSession
 	if tier == TierMax && s.Ready(JobLogInvestigate) == nil {
 		job, task, version = JobLogInvestigate, digestTask+digestToolsTask, "log-investigate-v2"
@@ -553,7 +554,7 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 func (s *Service) suggestFrom(ctx context.Context, remember []string, evidence, by string) int {
 	kept := 0
 	for _, text := range remember {
-		stored, err := s.suggestMemory(ctx, text, evidence)
+		stored, err := s.suggestMemory(ctx, plainText(text), evidence) // a suggestion is kept without links, like every text of a model
 		if stored {
 			kept++
 		}

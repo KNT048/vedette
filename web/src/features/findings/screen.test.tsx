@@ -243,10 +243,10 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
     expect(screen.queryByRole('link', { name: /Recommended updates/, hidden: true })).toBeNull()
   })
 
-  it('a link of the earlier Needs your input tab opens By device at its possible findings', async () => {
+  it('a link of the earlier Needs your input tab opens Not decided', async () => {
     renderApp('/findings?tab=input&input.q=CVE-2026-123890')
-    expect(await screen.findByRole('tab', { name: 'By device', selected: true }, T)).toBeInTheDocument()
-    expect(await screen.findByRole('region', { name: 'Possible findings' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Not decided', selected: true }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Not decided' }, T)).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: /Needs your input/ })).toBeNull()
   })
 

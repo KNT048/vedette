@@ -180,11 +180,16 @@ func (c possibleChecker) Research(ctx context.Context, actor string, req finding
 		QuoteCheck: ans.QuoteCheck, QuotedText: ans.QuotedText, Mode: ans.Mode, Layer: ans.Layer, Note: ans.Note, Model: ans.Model, Profile: ans.Profile,
 		ActivityID: ans.ActivityID, TokensIn: ans.TokensIn, TokensOut: ans.TokensOut, Fallback: ans.Fallback}
 	for _, st := range ans.Steps {
-		out.Steps = append(out.Steps, findings.ResearchStep{Layer: st.Layer, Model: st.Model, Profile: st.Profile, Web: st.Web, TokensIn: st.TokensIn,
-			TokensOut: st.TokensOut, Searches: st.Searches, Pages: st.Pages, Verdict: st.Verdict, Confidence: st.Confidence, QuoteCheck: st.QuoteCheck, Error: st.Error,
-			ExcerptChars: st.ExcerptChars})
+		out.Steps = append(out.Steps, researchStepOf(st))
 	}
 	return out, nil
+}
+
+// researchStepOf is one layer of a research as findings keeps it.
+func researchStepOf(st ai.ResearchStep) findings.ResearchStep {
+	return findings.ResearchStep{Layer: st.Layer, Model: st.Model, Profile: st.Profile, Web: st.Web, TokensIn: st.TokensIn,
+		TokensOut: st.TokensOut, Searches: st.Searches, Pages: st.Pages, Verdict: st.Verdict, Confidence: st.Confidence, QuoteCheck: st.QuoteCheck, Error: st.Error,
+		ExcerptChars: st.ExcerptChars, Refused: st.Refused}
 }
 
 // refusedRetry is how long a background run leaves the items of a refused call: the same text is refused again until the record,

@@ -23,8 +23,8 @@ import (
 //
 //   - affected (the version inside the stated bounds, or the line named as affected): a finding, range origin ai_read, labelled as read
 //     by AI from the page's host, which a person can reject in one click;
-//   - not affected (past the stated fix on the same line, or the line named as not affected): settled only when the page is the vendor's
-//     own; an exploited CVE waits for a person; a third-party page settles nothing;
+//   - not affected (past the stated fix on the same line, or the line named as not affected): never settles anything, whatever the page;
+//     it is a proposal a person confirms or rejects in the review queue, and a finding an earlier reading opened stays open meanwhile;
 //   - anything else decides nothing and the CVE stays possible, with its cause.
 //
 // A fix release becomes the finding's fix only when the quote names it.
@@ -413,6 +413,81 @@ func (st LineStatement) verdictFor(id CheckID) string {
 		}
 	}
 	return ""
+}
+
+// boxStated says the reading's quote, as the box found it, names the installed product itself with a release or line that covers id's
+// version: the version or its line, the stated line when it contains the version, a quoted fix the version is at or past, or quoted
+// bounds the version is inside; and every release the quote names follows one of the product's own names (namedWithThisProduct), so a
+// quote about another edition or product of the vendor, with a release it does not pair with this product, or with no version, is not
+// the vendor stating it for this product.
+func (st LineStatement) boxStated(id CheckID, names, editions, vendors []string) bool {
+	if !st.QuoteFound || st.Quote == "" || !namedWithThisProduct(st.Quote, names, editions, vendors) {
+		return false
+	}
+	cands := []string{id.Version, id.Line}
+	if st.coversLine(id) {
+		cands = append(cands, st.StatedLine)
+	}
+	if st.pastFix(id) {
+		cands = append(cands, st.FixedIn, st.Last)
+	}
+	if st.insideQuoted(id) {
+		cands = append(cands, st.Introduced, st.FixedIn, st.Last)
+	}
+	for _, c := range cands {
+		if c != "" && pairedInQuote(st.Quote, c, names, editions, vendors) {
+			return true
+		}
+	}
+	return false
+}
+
+// statedForAll is boxStated for every version the line serves: a quote that covers one installed version and not another is not the
+// vendor's statement for the line.
+func (st LineStatement) statedForAll(ids []CheckID, names, editions, vendors []string) bool {
+	for _, id := range ids {
+		if !st.boxStated(id, names, editions, vendors) {
+			return false
+		}
+	}
+	return len(ids) > 0
+}
+
+// insideQuoted says id's version is inside the bounds the quote itself names (a bound found only beside the quote does not count).
+func (st LineStatement) insideQuoted(id CheckID) bool {
+	q := func(b string) string {
+		if namesToken(st.Quote, b) {
+			return b
+		}
+		return ""
+	}
+	r := textRange{start: q(st.Introduced), end: q(st.FixedIn), quote: st.Quote}
+	if r.end == "" {
+		r.end, r.endIncl = q(st.Last), true
+	}
+	if r.end == "" {
+		return false
+	}
+	v, _, ok := judgeTextRanges([]textRange{r}, id.Version, id.Build, productScheme(id.Product))
+	return ok && v == VerdictAffected
+}
+
+// pairedInQuote says one occurrence of the release tok in quote follows one of the product's own names: namedWithThisProduct on the
+// stretch of the quote from the previous release to this one.
+func pairedInQuote(quote, tok string, names, editions, vendors []string) bool {
+	q, t := strings.ToLower(quote), strings.ToLower(strings.TrimSpace(tok))
+	if len(q) != len(quote) || t == "" {
+		return false
+	}
+	prev := 0
+	for _, m := range reVersionLike.FindAllStringSubmatchIndex(q, -1) {
+		s, e := m[2], m[3]
+		if q[s:e] == t && namedWithThisProduct(quote[prev:e], names, editions, vendors) {
+			return true
+		}
+		prev = e
+	}
+	return false
 }
 
 // pastFix says id's version is at or past the stated fix (or past the last affected release) on the same line: the vendor's own scheme

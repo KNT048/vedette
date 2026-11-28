@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { PAGE_MAX } from './contract'
-import type { AnsweredList, ApplyItem, Coverage, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, Overview, PossibleCheckRun, PossibleCheckState, PossibleList, Resolution, View } from './types'
+import type { AnsweredList, ApplyItem, Coverage, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, Overview, PossibleCheckRun, PossibleCheckState, PossibleList, Resolution, ReviewConfirmed, ReviewList, View } from './types'
 
 /** GET /findings?asset=: one device's findings in every state, each with its history (what a version entry, "I updated it" or
  *  "Not installed" changed). */
@@ -158,5 +158,22 @@ export const useRejectProposal = () => useModelWrite((v: { key: string }) => api
 /** Not this product: the AI's identification of a finding's software was wrong (every device with the software, audited). */
 export const useRejectIdentity = () => useModelWrite((v: { id: string }) => api.post<{ ok: true }>(`/findings/${encodeURIComponent(v.id)}/identity/reject`, {}))
 
+// ---- Review AI answers: the AI's "not affected" answers, which close nothing until a person confirms them.
+
+/** Every AI "not affected" answer waiting for a person, every page (the screen filters them in place, so its filters list every
+ *  device and software line that has one). */
+export const useReview = (enabled = true) =>
+  useQuery({
+    queryKey: model('review', 'all'), enabled,
+    queryFn: () => allPages<ReviewList>((p) => `/findings/review${qs({ offset: p.offset, limit: p.limit })}`),
+  })
+/** How many AI answers wait for review (one small request): the count Not decided leaves out and Review AI answers lists. */
+export const useReviewTotal = (enabled = true) =>
+  useQuery({ queryKey: model('review', 'total'), enabled, queryFn: () => api.get<ReviewList>('/findings/review?limit=1'), select: (d) => d.total })
+/** Confirm AI answers at once: an exploited CVE is confirmed only when `include_exploited` names it. */
+export const useConfirmReview = () => useModelWrite((v: { ids: string[]; include_exploited?: string[] }) => api.post<ReviewConfirmed>('/findings/review/confirm', v))
+/** Research deeper: the AI researches the release line of one possible CVE again now with its strong profile. */
+export const useResearchDeeper = () => useModelWrite((v: { id: string }) => api.post<PossibleCheckRun>(`/findings/possible/${encodeURIComponent(v.id)}/research`, {}))
+
 /** GET /findings/coverage (admin): the decision coverage of the last match pass (Settings → Diagnostics). */
-export const useCoverage = () => useQuery({ queryKey: ['findings', 'coverage'], queryFn: () => api.get<Coverage>('/findings/coverage') })
+export const useCoverage = (enabled = true) => useQuery({ queryKey: ['findings', 'coverage'], enabled, queryFn: () => api.get<Coverage>('/findings/coverage') })

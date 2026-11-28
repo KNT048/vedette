@@ -420,16 +420,6 @@
     "onDevices_one": "{{count}} device",
     "onDevices_other": "{{count}} devices",
     "openNone": "open findings",
-    "possible_one": "{{count}} possible CVE to check",
-    "possible_other": "{{count}} possible CVEs to check",
-    "olderBuild_one": "{{count}} reported only for an older build",
-    "olderBuild_other": "{{count}} reported only for an older build",
-    "distroPending_one": "{{count}} waiting for the distribution",
-    "distroPending_other": "{{count}} waiting for the distribution",
-    "distroPendingExploited_one": "{{count}} exploited",
-    "distroPendingExploited_other": "{{count}} exploited",
-    "proposals_one": "{{count}} AI proposal waits for you",
-    "proposals_other": "{{count}} AI proposals wait for you",
     "notAdded_one": "{{count}} not added yet",
     "notAdded_other": "{{count}} not added yet",
     "cause": "Caused by {{cve}}",
@@ -465,7 +455,13 @@
     "emptyTitle": "No open findings",
     "emptyBody_one": "Vedette checks your {{count}} device again whenever the exploited lists change.",
     "emptyBody_other": "Vedette checks your {{count}} devices again whenever the exploited lists change.",
-    "emptyInfo": "A finding appears when a device runs software affected by a known vulnerability. Newly exploited vulnerabilities, matched or not, are on the board below."
+    "emptyInfo": "A finding appears when a device runs software affected by a known vulnerability. Newly exploited vulnerabilities, matched or not, are on the board below.",
+    "decidedByVedette_one": "{{formatted}} decided by Vedette",
+    "decidedByVedette_other": "{{formatted}} decided by Vedette",
+    "researchedByAi_one": "{{formatted}} researched by your AI, {{waiting}} wait for you",
+    "researchedByAi_other": "{{formatted}} researched by your AI, {{waiting}} wait for you",
+    "stillUnknown_one": "{{formatted}} still unknown",
+    "stillUnknown_other": "{{formatted}} still unknown"
   },
   "firstRun": {
     "title": {

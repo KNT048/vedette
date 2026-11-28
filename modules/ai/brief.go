@@ -48,8 +48,8 @@ type BriefAnswerItem struct {
 type BriefRequest struct {
 	Job      Job // JobExplainFinding or JobMitigationConfig
 	Actor    string
-	Target   string // the CVE, for the activity summary
-	Question string
+	Target   string      // the CVE, for the activity summary
+	Question Instruction // a constant of the caller: what to answer
 	Data     []DataBlock
 	// Refs are the references the answers may cite, numbered from 1 in the data the caller wrote.
 	Refs []BriefRef
@@ -90,6 +90,9 @@ type BriefConfig struct {
 	// Check lists the addresses the block names that are not Trusted (netmasks, wildcards and 0.0.0.0 / :: aside), as written: the page
 	// asks the person to check them before pasting. Nothing is dropped for an address (#897 r2).
 	Check []string
+	// Warnings are the risky lines of the block (CheckConfig: a broad allow, a new credential, logging or sign-in checks off, a
+	// protection off, management opened to the internet side), each shown on its line. Nothing is dropped for a warning either.
+	Warnings []ConfigWarning
 }
 
 type briefBody struct {
@@ -261,7 +264,7 @@ func keptBrief(b briefBody, refs []BriefRef, trusted []netip.Addr) (a BriefAnswe
 		if title == "" {
 			title = "Configuration"
 		}
-		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis, Check: untrustedAddrs(code, trusted)})
+		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis, Check: untrustedAddrs(code, trusted), Warnings: CheckConfig(code)})
 	}
 	var c4 bool
 	a.NoConfigReason, c4 = clipSentence(cleanText(b.NoConfig), briefSideRunes)
@@ -504,7 +507,8 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 	if !s.moduleOn() { // a door another module holds must not run the AI while the module is off
 		return BriefAnswer{}, apiUnavailable("The AI assistant module is off. Turn it on in Settings, Modules.")
 	}
-	task, schema, limit := briefExplainTask, briefSchema, briefMaxTokens
+	var task Instruction = briefExplainTask
+	schema, limit := briefSchema, briefMaxTokens
 	switch r.Job {
 	case JobExplainFinding:
 	case JobMitigationConfig:

@@ -107,6 +107,8 @@ type ResearchStep struct {
 	Error      string   `json:"error,omitempty"`
 	// ExcerptChars is the characters of excerpts the call carried (Web none: the excerpts only; provider or box: the web fallback).
 	ExcerptChars int `json:"excerpt_chars"`
+	// Refused are the addresses the AI asked the box's fetch tool for that the job's data did not hold: not opened (at most 20).
+	Refused []string `json:"refused,omitempty"`
 }
 
 // ResearchAnswer is the answer of a research as findings reads it: Verdict is the answer as a reading of the line (Status affected,

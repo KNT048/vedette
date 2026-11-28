@@ -324,7 +324,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   115.42" or a quote with a second version not so named, which are `basis unpaired`;
   `TestLineReading_OnlyAVersionNamedWithThisProductIsStated`, `TestLineStatement_AFixOnlyFromAReleaseNamedWithThisProduct`,
   `TestNamedWithThisProduct_EveryVersionLikeToken`, `TestNamedWithThisProduct_TheWordBeforeTheName`); readings stored before the basis
-  existed are `unpaired` until read again. Anything else decides nothing. A reading is read again when the record changes (the old one
+  existed are `unpaired` until read again. **The basis is the box's, never the model's** (`LineStatement.boxStated`): a research answer is
+  `stated` only when the box found its quote, every release the quote names follows this product's own name (with, between them, only
+  the installed build's own edition: an edition the record pins for another build, a server or extended-support one, makes it another
+  build's sentence; `TestResearch_AnotherEditionOfTheRecordIsNotStated`), and a release or line it so names covers every installed
+  version the line serves (`statedForAll`, `TestLineStatement_StatedForEveryVersionOfTheLine`) (the version or its line, the stated line containing it, a quoted fix it is at or past, quoted
+  bounds it is inside); anything else is `unpaired` (an inference from another product's line stays `inferred`), and the research detail
+  shows `inferred` for every basis that is not `stated`, whatever the model wrote (`TestResearch_TheBoxDecidesTheBasis`). A reading made
+  before research, from the vendor's own page, of a CVE no list has, saying not affected, is a proposal too and closes no finding
+  (`TestAIRead_NotAffectedFromTheVendorsPageNeverCloses`). Anything else decides nothing. A reading is read again when the record changes (the old one
   applies until then), after 30 days when `unsure`, and its page is fetched again after 30 days (no AI call when its text is unchanged:
   `seen_at`). A finding the reading opened has no question, so the match notes its line when due (`noteReadingDue`) for the next check.
   `TestLineReading_*`, `TestLineStatement_VerdictFor`.

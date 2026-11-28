@@ -63,6 +63,15 @@ const vendorSentence = "Widget releases 4.0 through 4.2.0 are affected; 4.2.1 fi
 var researchReq = ai.ResearchRequest{CVE: "CVE-2099-81001", Vendor: "acme", Product: "Widget", Line: "4", Versions: "4.1.3", Platforms: []string{"windows workstation"},
 	Digest: "CVE CVE-2099-81001\nRecord assigner: vulncheck (not the vendor)\nCNA row: acme widget: affected 4.1.0 [cna, third-party]"}
 
+// fetchReq is researchReq whose CVE record lists the addresses the fetch tests ask for: fetch_page opens only an address the job's data
+// holds (TestDefence_FetchPageOpensOnlyAddressesFromTheData).
+var fetchReq = func() ai.ResearchRequest {
+	r := researchReq
+	r.Digest += "\nReferences: https://lan.example/sa https://loop.example/sa https://127.0.0.1/sa https://10.1.2.3/sa https://example.com/to-lan " +
+		"http://vendor.example/sa https://example.com/sa https://example.com/sa?product=widget"
+	return r
+}()
+
 // Escalation per mode: balanced escalates an unsure or unchecked quick answer to the strong layer and keeps a checked one; economy is the
 // quick layer only; thorough is the strong layer only; with no second profile balanced stays on the quick answer and says why.
 func TestResearch_EscalationPerMode(t *testing.T) {
@@ -203,7 +212,7 @@ func TestResearch_FetchPageRefusesPrivateAddresses(t *testing.T) {
 		results = req.Messages[len(req.Messages)-1].ToolResults
 		return provider.Response{Text: "```json\n" + verdict("affected", "high", vendorSentence) + "\n```", Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
 	}
-	ans, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq)
+	ans, err := a.svc.Research(a.ctx(), "it@acme.example", fetchReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +230,8 @@ func TestResearch_FetchPageRefusesPrivateAddresses(t *testing.T) {
 			t.Errorf("call %d past the cap or refused: %v %q", i+4, r.IsError, r.Content)
 		}
 	}
-	if ans.QuoteCheck != ai.QuoteLive || ans.Steps[0].Web != "box" {
+	// every fetch was refused or past the cap: the page the answer cites was never read, so it is neither fetched nor kept
+	if ans.QuoteCheck != ai.QuoteNotFound || ans.URL != "" || ans.Steps[0].Web != "box" {
 		t.Errorf("answer %+v", ans)
 	}
 }
@@ -246,7 +256,7 @@ func TestResearch_FetchPageRedirectToLANIsRefused(t *testing.T) {
 		results = req.Messages[len(req.Messages)-1].ToolResults
 		return provider.Response{Text: verdict("affected", "high", vendorSentence), Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
 	}
-	ans, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq)
+	ans, err := a.svc.Research(a.ctx(), "it@acme.example", fetchReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -484,7 +494,7 @@ func TestResearch_FetchPageSendsAPlainGET(t *testing.T) {
 		}
 		return provider.Response{Text: verdict("unsure", "low", ""), Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
 	}
-	if _, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq); err != nil {
+	if _, err := a.svc.Research(a.ctx(), "it@acme.example", fetchReq); err != nil {
 		t.Fatal(err)
 	}
 	mu.Lock()

@@ -177,16 +177,16 @@ func hasKeys(text string, keys ...string) bool {
 
 // affectedOf is the box's own answer to "does it affect me": no matching device, no; a confirmed finding (a scan, a person, or the version the device itself reports), yes; a match
 // that nobody confirmed, unknown.
-func affectedOf(assets []AssetFact) string {
+func affectedOf(assets []AssetFact) boxWord {
 	if len(assets) == 0 {
-		return "no"
+		return wordNo
 	}
 	for _, a := range assets {
 		if a.Status == "confirmed" {
-			return "yes"
+			return wordYes
 		}
 	}
-	return "unknown"
+	return wordUnknown
 }
 
 // feedBlock is the exploited-list entry as a data block. Every text field came from a feed, so each goes through sanitizeWeb like the
@@ -194,7 +194,7 @@ func affectedOf(assets []AssetFact) string {
 // cleaned and then kept only when it is still one http(s) token.
 func feedBlock(f CVEFacts) DataBlock {
 	if f.Brief != "" { // the caller wrote the block from the CVE brief: its own text, already one line per fact
-		return DataBlock{Kind: DataFeed, Source: "CVE brief " + f.CVE, Text: f.Brief}
+		return Untrusted(SourceFeed, "CVE brief "+f.CVE, f.Brief)
 	}
 	links := make([]string, 0, len(f.Links))
 	for _, l := range f.Links {
@@ -205,7 +205,7 @@ func feedBlock(f CVEFacts) DataBlock {
 	var b strings.Builder
 	fmt.Fprintf(&b, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nExploited-list source: %s\nRequired action (from that source): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
 		sanitizeWeb(f.CVE), sanitizeWeb(f.Vendor), sanitizeWeb(f.Product), sanitizeWeb(f.Name), sanitizeWeb(f.Description), ListLabel(f.Source), sanitizeWeb(f.RequiredAction), sanitizeWeb(f.DateAdded), f.Ransomware, f.HasTemplate, strings.Join(links, " "))
-	return DataBlock{Kind: DataFeed, Source: "exploited list entry " + f.CVE, Text: b.String()}
+	return Untrusted(SourceFeed, "exploited list entry "+f.CVE, b.String())
 }
 
 // explainKnowledgeQuery is what the documents are searched with for a CVE: the product and the names of the devices it matches, not
@@ -233,7 +233,7 @@ func inventoryBlock(assets []AssetFact) DataBlock {
 		}
 		b.WriteString("\n")
 	}
-	return DataBlock{Kind: "inventory", Source: "devices on this box matching the product", Text: b.String()}
+	return Untrusted(SourceDevice, "devices on this box matching the product", b.String())
 }
 
 // citationsFor builds the sources of an explanation: the feed's links that are plain http(s) addresses, and the count of matching
@@ -422,7 +422,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 	now := s.cfg.Clock()
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: JobExplainFinding, Actor: actor, Task: explainTask,
-		Question:       fmt.Sprintf("Explain %s for this company. The box has decided the affected status is %q.", cve, affected),
+		Question:       instructionf(`Explain %s for this company. The box has decided the affected status is "%s".`, mustCVE(cve), affected),
 		Data:           []DataBlock{feed, inv},
 		KnowledgeQuery: explainKnowledgeQuery(facts, assets),
 		knowledge:      &know,
@@ -437,7 +437,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		// The result is stored in the same transaction as the activity row of the call.
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
 			kept, _ := keepAnswers(answer.Answers, facts.Refs)
-			body = explainBody{Affected: affected, Answers: make([]ExplainAnswer, 0, len(kept)), Citations: append(citationsFor(facts, assets), documentsCite(r.Documents)...)}
+			body = explainBody{Affected: string(affected), Answers: make([]ExplainAnswer, 0, len(kept)), Citations: append(citationsFor(facts, assets), documentsCite(r.Documents)...)}
 			for _, k := range kept {
 				x := ExplainAnswer{Key: k.Key, Text: k.Text, Links: []ExplainLink{}}
 				for _, l := range k.Links {

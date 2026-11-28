@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,8 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/pagetext"
 	"github.com/knt048/vedette/core/store"
+
+	"golang.org/x/net/html"
 )
 
 // Checking possible findings. Findings asks two things of this module for a CVE it cannot decide: the text of the CVE's public
@@ -54,8 +57,11 @@ type RefPage struct {
 	// Blocks is the page as headings, paragraphs and table rows with their header rows (pagetext), what excerpts are cut from.
 	Blocks []pagetext.Block `json:"-"`
 	Bytes  int              `json:"-"` // bytes of the body as received
-	final  string           // the address the page was read from, after redirects
-	hash   [32]byte         // the body's hash: two references to one page are read once
+	// Links are the http(s) addresses the page links to (its anchors, resolved; for a page that is not HTML, the addresses in its
+	// text), at most refMaxLinks: the one hop a research may take from a page it read (researchRun.fetch).
+	Links []string `json:"-"`
+	final string   // the address the page was read from, after redirects
+	hash  [32]byte // the body's hash: two references to one page are read once
 }
 
 var errRefRedirect = errors.New("ai refs: redirect refused")
@@ -244,6 +250,7 @@ func (f *refFetcher) one(ctx context.Context, raw string) RefPage {
 	}
 	p.Bytes, p.hash, p.final = len(body), sha256.Sum256(body), resp.Request.URL.String()
 	ct = strings.ToLower(ct)
+	p.Links = pageLinks(string(body), resp.Request.URL, strings.Contains(ct, "html"))
 	switch {
 	case strings.Contains(ct, "json") || json.Valid(body) && len(body) > 0 && (body[0] == '{' || body[0] == '['):
 		p.JSON, p.Text = true, clipBytes(string(body), refScanBytes)
@@ -327,3 +334,54 @@ func (s *Service) AutoReadState(ctx context.Context) AutoRead {
 
 // identifyShare is the most automatic calls a day the identification of software may make: half of the daily number (at least one).
 func identifyShare(daily int) int { return max(1, daily/2) }
+
+// refMaxLinks caps the links kept of one page.
+const refMaxLinks = 300
+
+var urlInPage = regexp.MustCompile(`https?://[^\s"'<>()\[\]{}]+`)
+
+// pageLinks lists the http(s) addresses a page links to: the href of its anchors resolved against its address for HTML, the addresses
+// written in its text otherwise; without fragment, once each, at most refMaxLinks.
+func pageLinks(body string, base *url.URL, isHTML bool) []string {
+	var out []string
+	add := func(raw string) {
+		u, err := base.Parse(strings.TrimSpace(raw))
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || len(out) >= refMaxLinks {
+			return
+		}
+		u.Fragment = ""
+		if s := u.String(); !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	if !isHTML {
+		for _, m := range urlInPage.FindAllString(body, refMaxLinks*2) {
+			add(strings.TrimRight(m, ".,;:"))
+		}
+		return out
+	}
+	z := html.NewTokenizer(strings.NewReader(body))
+	for range 200_000 {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			break
+		}
+		if tt != html.StartTagToken && tt != html.SelfClosingTagToken {
+			continue
+		}
+		name, attr := z.TagName()
+		if string(name) != "a" || !attr {
+			continue
+		}
+		for {
+			k, v, more := z.TagAttr()
+			if string(k) == "href" {
+				add(string(v))
+			}
+			if !more {
+				break
+			}
+		}
+	}
+	return out
+}

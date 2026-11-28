@@ -91,3 +91,18 @@ func TestUnlistedLine_QuestionSaysTheLineIsNotListed(t *testing.T) {
 		t.Fatalf("questions %+v, want one no_range_data question with reason %s", qs, UndecidedBranchOnly)
 	}
 }
+
+// A line holds several readings: when another reading of it decides the CVE (a distribution's word on its package, a version the rows
+// prove), a reading on an unlisted older line asks nothing more and takes nothing away from that decision.
+func TestUnlistedLine_AnotherReadingOfTheLineDecides(t *testing.T) {
+	t.Parallel()
+	const gw = "cpe:2.3:a:example:gateway:*:*:*:*:*:*:*:*"
+	v := uncVuln("CVE-2026-91003", "Example", "Gateway", uncNew,
+		Affected{CPE: gw, Range: VersionRange{StartIncl: "8.0.0", EndExcl: "8.0.21"}}, Affected{CPE: gw, Range: VersionRange{StartIncl: "9.0.0", EndExcl: "9.0.10"}})
+	decided, unlisted := shapeRow("Gateway", "8.0.25", true), shapeRow("Gateway", "3.1.32", true)
+	a := Asset{ID: "srv", Name: "srv-01", OS: "Windows Server 2022", Software: []Software{decided, unlisted}}
+	res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, uncNow)
+	if len(res.NotAffected) != 1 || len(res.Unchecked) != 0 || len(res.New)+len(res.Existing) != 0 {
+		t.Fatalf("not affected %d, unchecked %+v, findings %d: want the decided reading's proof alone", len(res.NotAffected), res.Unchecked, len(res.New)+len(res.Existing))
+	}
+}

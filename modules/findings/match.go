@@ -813,6 +813,14 @@ func (d *devMatch) read(vi int) *entryRead {
 				info, nm = d.own[i].info, d.own[i].named[vi]
 			}
 		}
+		if m.lineUnlisted { // no outcome: asked about only on a line no other reading decides (unspoken), as a row askRow lists
+			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
+				u := uncheckedOf(s, v, r)
+				u.lineUnlisted = true
+				asks = append(asks, u)
+			}
+			continue
+		}
 		if out != outNone {
 			e.outs = append(e.outs, rowOut{row: i, out: out})
 		}
@@ -833,9 +841,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			e.unchecked = append(e.unchecked, u)
 		case out == outRuledOut || out == outNone && (nm || keyed):
 			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
-				u := uncheckedOf(s, v, r)
-				u.lineUnlisted = m.lineUnlisted
-				e.unchecked = append(e.unchecked, u)
+				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
 			} else if r, silence, ok := askRow(a, s, info, v, keyed, nm); ok && out == outNone {
 				u := uncheckedOf(s, v, r)
 				u.silence = silence

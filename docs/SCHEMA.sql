@@ -1922,7 +1922,7 @@ CREATE TABLE exp_service (
     state       TEXT    NOT NULL CHECK (state IN ('open', 'closed')),
     first_seen  TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen   TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_run_id TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), opened_at TEXT CHECK (opened_at IS NULL OR opened_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), -- the run that last saw it; runs are pruned, so no key
+    last_run_id TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), opened_at TEXT, -- the run that last saw it; runs are pruned, so no key
     UNIQUE (target_id, ip, port, proto),
     CHECK (first_seen <= last_seen)
 );
@@ -1950,7 +1950,7 @@ CREATE TABLE exp_issue (
     accepted_until TEXT    CHECK (accepted_until IS NULL OR accepted_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
     first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_run_id    TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), opened_at TEXT CHECK (opened_at IS NULL OR opened_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'), exploited INTEGER CHECK (exploited IS NULL OR exploited IN (0, 1)),
+    last_run_id    TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), opened_at TEXT, exploited INTEGER,
     CHECK ((state = 'handled') = (resolution IS NOT NULL)),
     CHECK ((resolution IS NULL) = (resolved_by IS NULL) AND (resolution IS NULL) = (resolved_at IS NULL)),
     CHECK (accepted_until IS NULL OR resolution = 'accepted'),

@@ -44,7 +44,9 @@ describe('merge logic', () => {
     const named = (id: string) => (id === 'b' ? 1 : 0)
     expect(defaultKeep([side({ id: 'a', findings: 3 }), side({ id: 'b' })], named)).toBe('b')
     expect(defaultKeep([side({ id: 'a', findings: 1 }), side({ id: 'b', findings: 2 })])).toBe('b')
-    expect(defaultKeep([side({ id: 'a' }), side({ id: 'b' })])).toBe('a') // a tie keeps the first given
+    // a tie keeps the first given (one last_seen for both: two calls of ago() a millisecond apart are no tie)
+    const seen = ago(1)
+    expect(defaultKeep([side({ id: 'a', last_seen: seen }), side({ id: 'b', last_seen: seen })])).toBe('a')
     expect(nameScore({ name: 'Edge', hostname: null })).toBe(2)
     expect(nameScore({ name: null, hostname: 'fw' })).toBe(1)
     expect(nameScore({ name: '  ', hostname: null })).toBe(0)

@@ -111,8 +111,9 @@ func TestUnchecked_910_NetworkOSWithoutOrder(t *testing.T) {
 	}
 }
 
-// Rule 1: a CVE that gives a finding or an "add the version" item on any row of the device is not in the list, even when another
-// row could not check it; noise: an entry for software the device has no row keyed to or named by NVD is never listed.
+// Rule 1: a CVE that gives a finding or an "add the version" item on a row of the device is not in the list for that row's line;
+// another line the entry names that could not be checked is still listed (each line is its own pair, never decided by another line's
+// finding); noise: an entry for software the device has no row keyed to or named by NVD is never listed.
 func TestUnchecked_910_OnePlacePerDeviceAndCVE(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "d", Name: "d", Software: []Software{
@@ -124,7 +125,7 @@ func TestUnchecked_910_OnePlacePerDeviceAndCVE(t *testing.T) {
 	vulns := []Vuln{
 		// row k matches by version (8.0 < 8.5); row x is listed by an exact version only: the finding wins
 		uncVuln("CVE-2026-0020", "Acme", "Gadget", uncNew, uncAff("cpe:2.3:a:acme:gadget:*:*:*:*:*:*:*:*", "8.5"), Affected{CPE: "cpe:2.3:a:acme:gadget:9.0:*:*:*:*:*:*:*"}),
-		// row n has no version: "add the version"; row z only by NVD's exact version: the item wins
+		// row n has no version: "add the version"; row z, another line, only by NVD's exact version: still asked about
 		uncVuln("CVE-2026-0021", "Acme", "Gizmo", uncNew, Affected{CPE: "cpe:2.3:a:acme:gizmo:0.9:*:*:*:*:*:*:*"}),
 		// nothing on the device is keyed to or named by it
 		uncVuln("CVE-2026-0022", "Other", "Thing", uncNew, uncAff("cpe:2.3:a:other:thing:*:*:*:*:*:*:*:*", "2.0")),
@@ -134,7 +135,7 @@ func TestUnchecked_910_OnePlacePerDeviceAndCVE(t *testing.T) {
 	if len(res.New) != 1 || res.New[0].CVE != "CVE-2026-0020" || len(res.NeedVersion) != 1 || res.NeedVersion[0].CVEs[0] != "CVE-2026-0021" {
 		t.Fatalf("matches = %+v", res)
 	}
-	if len(res.Unchecked) != 0 {
+	if len(res.Unchecked) != 1 || res.Unchecked[0].SoftwareID != "z" || res.Unchecked[0].CVE != "CVE-2026-0021" {
 		t.Fatalf("unchecked = %+v", res.Unchecked)
 	}
 }

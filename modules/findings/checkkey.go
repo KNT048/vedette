@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
+	"slices"
 
 	"github.com/knt048/vedette/core/versionscheme"
 )
@@ -18,6 +19,9 @@ var checkKeyRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 func checkable(q Question) bool {
 	if q.CVE == "" || q.SoftwareID == "" || q.Detail.Version == "" || q.Detail.NVDPending {
 		return false
+	}
+	if u := q.Detail.Undecided; u != nil && (u.Reason == UndecidedNetworkVersion || u.Reason == UndecidedPackage || slices.Contains(distroSilentReasons, u.Reason)) {
+		return false // the version the device or a person states decides it, or the distribution's word: not the vendor's advisory
 	}
 	switch q.Kind {
 	case QuestionNoRangeData, QuestionOlderLine:

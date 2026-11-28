@@ -64639,6 +64639,48 @@ func (s *FindingsGetFindingsOverviewOKPossible) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
+		}).Validate(int64(s.DistroPending)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_pending",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DistroPendingExploited)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_pending_exploited",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.OlderBuild)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -64784,6 +64826,27 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ai_unsure",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DistroSilent)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_silent",
 			Error: err,
 		})
 	}
@@ -65072,6 +65135,18 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) Validate() error {
 	case "unparsed_vendor_text":
 		return nil
 	case "ai_unsure":
+		return nil
+	case "version_from_network":
+		return nil
+	case "distro_not_listed":
+		return nil
+	case "distro_other_packages":
+		return nil
+	case "distro_other_releases":
+		return nil
+	case "distro_other_build":
+		return nil
+	case "distro_no_data":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -65367,6 +65442,48 @@ func (s *FindingsGetFindingsPossibleOKCounts) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
+		}).Validate(int64(s.DistroPending)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_pending",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DistroPendingExploited)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_pending_exploited",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.OlderBuild)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -65512,6 +65629,27 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ai_unsure",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DistroSilent)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "distro_silent",
 			Error: err,
 		})
 	}
@@ -65867,6 +66005,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemCause) Validate() error {
 	case "pending_nvd":
 		return nil
 	case "needs_person":
+		return nil
+	case "distro_silent":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -66580,6 +66720,18 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Validate() error 
 	case "unparsed_vendor_text":
 		return nil
 	case "ai_unsure":
+		return nil
+	case "version_from_network":
+		return nil
+	case "distro_not_listed":
+		return nil
+	case "distro_other_packages":
+		return nil
+	case "distro_other_releases":
+		return nil
+	case "distro_other_build":
+		return nil
+	case "distro_no_data":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

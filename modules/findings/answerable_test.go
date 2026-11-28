@@ -163,7 +163,7 @@ func countLines(m map[string]int) string {
 
 // The open questions of a fixture network, by kind and cause: a question stays only when a person's answer can change the verdict.
 // A version read from a network banner is never compared with a CVE on no exploited list, so no answer about comparability changes
-// it (no question); the release a device states over LLDP is its own word and is compared; an exact older release with an update or
+// it; it asks for the version the device or a person states instead (undecided version_from_network); the release a device states over LLDP is its own word and is compared; an exact older release with an update or
 // build qualifier stays a question (a list of exact releases does not say a later release is not affected); a version inside a
 // bounded range is a finding with that range's fix. The "kept" questions stay.
 func TestQuestions_OnlyAnswerableOnes_Count(t *testing.T) {
@@ -173,7 +173,7 @@ func TestQuestions_OnlyAnswerableOnes_Count(t *testing.T) {
 	t.Logf("findings by cause:%s", countLines(findings))
 	t.Logf("proofs (not affected) by cause:%s", countLines(proofs))
 	// Before: 22 questions (10 banner x CVE on no list, 4 older exact releases, 2 LLDP-stated releases, 1 open-ended range, 5 kept).
-	wantQ := map[string]int{"no_range_data / " + causeKept: 5, "no_range_data / " + causeOlder: 4}
+	wantQ := map[string]int{"no_range_data / " + causeKept: 5, "no_range_data / " + causeOlder: 4, "no_range_data / " + causeBanner: 10}
 	if !maps.Equal(questions, wantQ) {
 		t.Errorf("questions %v, want %v", questions, wantQ)
 	}
@@ -186,7 +186,8 @@ func TestQuestions_OnlyAnswerableOnes_Count(t *testing.T) {
 }
 
 // A version read from the network (a banner, the passive sensor, a row of unknown origin) is never compared with a CVE on no exploited
-// list: no finding and no question, inside the range or not. The same version from the device's agent or a person is compared (inside:
+// list: no finding, inside the range or not, and one question that asks for the version the device or a person states
+// (version_from_network), so the pair is not left undecided with nothing to show. The same version from the device's agent or a person is compared (inside:
 // a finding); an exploited CVE is compared with the banner too.
 func TestQuestions_BannerAndACVEOnNoList(t *testing.T) {
 	t.Parallel()
@@ -198,7 +199,7 @@ func TestQuestions_BannerAndACVEOnNoList(t *testing.T) {
 		findings, unasked int // of the CVE on no list
 		listedFinding     bool
 	}{
-		{"nmap", 0, 0, true}, {"scan", 0, 0, true}, {"passive", 0, 0, true}, {"", 0, 0, true},
+		{"nmap", 0, 1, true}, {"scan", 0, 1, true}, {"passive", 0, 1, true}, {"", 0, 1, true},
 		{"agent", 1, 0, true}, {"manual", 1, 0, true}, {"snmp", 1, 0, true},
 	} {
 		a := Asset{ID: "h", Name: "h.example.com", Software: []Software{sshRow("9.6", "", tc.source)}}
@@ -209,7 +210,7 @@ func TestQuestions_BannerAndACVEOnNoList(t *testing.T) {
 			l = l || m.CVE == listed.CVE
 		}
 		for _, u := range res.Unchecked {
-			q += btoi(u.CVE == onNoList.CVE)
+			q += btoi(u.CVE == onNoList.CVE && u.Reason == UncheckedNetworkVersion)
 		}
 		if n != tc.findings || q != tc.unasked || l != tc.listedFinding {
 			t.Errorf("source %q: %d findings and %d questions of the CVE on no list, listed finding %v; want %d, %d, %v",

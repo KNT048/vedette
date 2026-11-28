@@ -177,16 +177,16 @@ func TestCoverage_UpstreamBuildPairsAreDecidedByTheUpstreamRanges(t *testing.T) 
 	}
 	st, _ := pairStates(newDevMatch(a, e.feeds.vulns, now), rows, in)
 	for _, c := range []struct {
-		sw, by, cause string
-		affected      bool
+		sw, by, cause, detail string
+		affected              bool
 	}{
 		{sw: "s-vendor", by: RangeNVD},
 		{sw: "s-old", by: RangeNVD, affected: true},
-		{sw: "s-marked", cause: DistroOtherBuild},
+		{sw: "s-marked", cause: CauseDistroSilent, detail: DistroOtherBuild}, // asked about, never left silent
 	} {
 		got, ok := st[lineKey(v.CVE, c.sw)]
-		if !ok || got.by != c.by || got.cause != c.cause || got.affected != c.affected {
-			t.Errorf("%s: %+v (related %v), want by %q affected %v cause %q", c.sw, got, ok, c.by, c.affected, c.cause)
+		if !ok || got.by != c.by || got.cause != c.cause || got.detail != c.detail || got.affected != c.affected {
+			t.Errorf("%s: %+v (related %v), want by %q affected %v cause %q detail %q", c.sw, got, ok, c.by, c.affected, c.cause, c.detail)
 		}
 	}
 }

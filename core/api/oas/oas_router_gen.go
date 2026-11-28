@@ -17419,7 +17419,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												return r, true
 											case "POST":
 												r.name = FindingsPostFindingsPossibleCheckOperation
-												r.summary = "Check possible findings (of one device, or all): in the background, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit findings.possible_checked"
+												r.summary = "Check possible findings (of one device, or all): queued in front of the research worker, which checks them at once beside what is due, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages itself and decides when the vendor's ranges do; only the rest goes to the AI. 409 ai_unavailable, nothing_to_check. Audit findings.possible_checked"
 												r.operationID = "findings_post_findings_possible_check"
 												r.operationGroup = ""
 												r.pathPattern = "/findings/possible/check"
@@ -17573,7 +17573,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = FindingsPostFindingsPossibleIDResearchOperation
-												r.summary = "Research deeper: the customer's AI researches the release line of this possible CVE again now with its strong profile (the research job's second profile; the first when there is none), in the background as a check of one line; the answer replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money. 409 ai_unavailable, check_running; 404 not_found when the CVE cannot be researched"
+												r.summary = "Research deeper: the customer's AI researches the release line of this possible CVE again now with its strong profile (the research job's second profile; the first when there is none), queued in front of the research worker (never twice for a line queued or being researched); the answer replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money. 409 ai_unavailable; 404 not_found when the CVE cannot be researched"
 												r.operationID = "findings_post_findings_possible_id_research"
 												r.operationGroup = ""
 												r.pathPattern = "/findings/possible/{id}/research"

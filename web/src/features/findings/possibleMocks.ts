@@ -235,7 +235,6 @@ export const possibleHandlers = [
   http.post(`${API}/findings/possible/check`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     if (!aiReady()) return fail(409, 'ai_unavailable', 'Checking possible findings needs the AI assistant on and a profile for explaining findings (Settings, AI assistant).')
-    if (runs.get()?.running) return fail(409, 'check_running', 'A check is already running. Its progress shows here.')
     const b = await body<{ device: string }>(request)
     const keys = [...new Set(items(b.device || null).filter(checkable).map((it) => it.key))].slice(0, 40)
     if (!keys.length) return fail(409, 'nothing_to_check', 'Every possible finding was checked for its current evidence.')
@@ -286,7 +285,6 @@ export const possibleHandlers = [
   http.post(`${API}/findings/possible/:id/research`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied
     if (!aiReady()) return fail(409, 'ai_unavailable', 'Researching CVEs needs the AI assistant on and a profile for researching CVEs (Settings, AI assistant).')
-    if (runs.get()?.running) return fail(409, 'check_running', 'A check is already running. Its progress shows here.')
     const it = items().find((x) => x.q.id === String(params.id))
     if (!it) return fail(404, 'not_found', 'This possible CVE cannot be researched: it was decided, or Vedette lacks the version it needs.')
     runs.set({ running: true, total: 1, done: 0, lines_total: 1, lines_done: 0, advisory: 0, proposals: 0, readings: 0, undecided: 0, failed: 0, stopped: null, by: who(), started_at: nowIso(), finished_at: null, keys: [it.key] })

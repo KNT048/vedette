@@ -531,8 +531,9 @@ func (s *Service) openAIFinding(ctx context.Context, q Question, cve string) (st
 // ErrNotResearchable is "Research deeper" on a possible CVE the box cannot research (no check identity, or not possible any more).
 var ErrNotResearchable = &APIError{"not_found", 404, "This possible CVE cannot be researched: it was decided, or Vedette lacks the version it needs."}
 
-// StartResearchDeeper researches the release line of one possible CVE (question id) again with the strong layer now, in the background
-// (the check's one run at a time; CheckStatus follows it). The answer replaces the line's reading like any research.
+// StartResearchDeeper queues the release line of one possible CVE (question id) in front of the research worker's queue, to be
+// researched again with the strong layer now (CheckStatus follows it; a line already queued or being researched is not asked twice).
+// The answer replaces the line's reading like any research.
 func (s *Service) StartResearchDeeper(ctx context.Context, questionID, actor string) (CheckRun, error) {
 	if err := ValidUser(actor); err != nil {
 		return CheckRun{}, err
@@ -544,21 +545,8 @@ func (s *Service) StartResearchDeeper(ctx context.Context, questionID, actor str
 	if err != nil {
 		return CheckRun{}, err
 	}
-	s.check.mu.Lock()
-	if s.check.run != nil && s.check.run.Running {
-		s.check.mu.Unlock()
-		return CheckRun{}, ErrCheckRunning
-	}
-	run := &CheckRun{Running: true, Total: 1, By: actor, StartedAt: store.FormatTS(s.now())}
-	s.check.run = run
-	first := *run
-	s.check.mu.Unlock()
-	go func() {
-		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckWindow+possibleLineMax)
-		defer cancel()
-		s.runPossibleCheck(bg, []checkUnit{*unit}, actor)
-	}()
-	return first, nil
+	s.push([]checkUnit{*unit}, actor)
+	return s.queuedRun(1, actor), nil
 }
 
 // deeperUnit is the unit "Research deeper" researches for the possible CVE of question id: its evidence identity, marked deeper.

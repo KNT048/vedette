@@ -21,8 +21,8 @@ func TestFindingsReconcileJobAndDeviceList(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	jobs := findingsJobs(*s.d)
-	if len(jobs) != 3 || jobs[0].Module != "findings" || jobs[0].Name != "reconcile" || jobs[1].Name != findings.UrgencyJob ||
-		jobs[2].Module != "findings" || jobs[2].Name != "reach-audit" {
+	if len(jobs) != 4 || jobs[0].Module != "findings" || jobs[0].Name != "reconcile" || jobs[1].Name != findings.UrgencyJob ||
+		jobs[2].Name != findings.ResearchJob || jobs[3].Module != "findings" || jobs[3].Name != "reach-audit" {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 	var want []string

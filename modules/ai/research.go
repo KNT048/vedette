@@ -672,6 +672,14 @@ func (c Settings) researchShare() int {
 	return c.ResearchShare
 }
 
+// ResearchShareUsed says the research share of this month's budget is used up (or its tokens cannot be read): the automatic research
+// waits for the renewal.
+func (s *Service) ResearchShareUsed(ctx context.Context) bool {
+	used, err := s.ResearchUsedMonth(ctx)
+	cfg := s.snap.Load().cfg
+	return err != nil || used >= cfg.MonthlyBudget*cfg.researchShare()/100
+}
+
 // ResearchUsedMonth is the tokens the research job spent this month (every layer, answered or not).
 func (s *Service) ResearchUsedMonth(ctx context.Context) (int, error) {
 	var n int

@@ -121016,8 +121016,8 @@ type FindingsGetFindingsPossibleCheckOKRun struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	// Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time
-	// window leaves the rest to the next run.
+	// Of them, the lines with an answer, read by an earlier run or by this one; a pass that stopped leaves
+	// the rest to the next one.
 	LinesDone int `json:"lines_done"`
 	// Release lines of the possible CVEs the AI may research.
 	LinesTotal int `json:"lines_total"`
@@ -147764,8 +147764,8 @@ type FindingsPostFindingsPossibleCheckOK struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	// Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time
-	// window leaves the rest to the next run.
+	// Of them, the lines with an answer, read by an earlier run or by this one; a pass that stopped leaves
+	// the rest to the next one.
 	LinesDone int `json:"lines_done"`
 	// Release lines of the possible CVEs the AI may research.
 	LinesTotal int `json:"lines_total"`
@@ -148104,8 +148104,8 @@ type FindingsPostFindingsPossibleIDResearchOK struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
-	// Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time
-	// window leaves the rest to the next run.
+	// Of them, the lines with an answer, read by an earlier run or by this one; a pass that stopped leaves
+	// the rest to the next one.
 	LinesDone int `json:"lines_done"`
 	// Release lines of the possible CVEs the AI may research.
 	LinesTotal int `json:"lines_total"`

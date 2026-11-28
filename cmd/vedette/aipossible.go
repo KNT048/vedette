@@ -220,7 +220,7 @@ func (c possibleChecker) Budget(ctx context.Context) findings.ReadBudget {
 		return findings.ReadBudget{}
 	}
 	st := c.ai.AutoReadState(ctx)
-	return findings.ReadBudget{Auto: st.Auto, Reached: st.Left <= 0 || st.Paused}
+	return findings.ReadBudget{Auto: st.Auto, Reached: st.Left <= 0 || st.Paused, ResearchReached: c.ai.ResearchShareUsed(ctx)}
 }
 
 // softwareIdentifier is findings' Identifier: the catalogue's products from feeds, the AI's choice from the ai module, and the names of

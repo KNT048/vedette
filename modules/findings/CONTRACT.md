@@ -452,14 +452,21 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   record changes or a quote it found leaves its page, never by age alone (`TestResearch_APreviousReadersUnsureReadingIsResearchedOnce`).
   **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
   record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
-  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **Research goes on across runs:** a check has a 30-minute window
-  (`possibleCheckWindow`); once it has passed no new line starts, so a check stops between two lines, never during a call (its context
-  is the window plus the longest one line may take, `possibleLineMax`), and the lines it left are neither failed nor held. Each run takes
-  the CVEs whose line waits longest first (no standing answer, then the oldest look; `byLineAge`), so the next run goes on with the lines
-  left; a line whose call failed or timed out stores nothing, keeps its error and retry time (`held`), and the automatic reading asks it
-  again after that time. `PossibleCheckRun` has `lines_total` (the release lines of the possible CVEs the AI may research) and
-  `lines_done` (those with an answer, from earlier runs or this one), shown beside the check's progress
-  (`TestResearch_ARunStopsBetweenLinesAndTheNextGoesOn`, `TestResearch_ATimedOutLineIsRetriedAtTheNextRun`). **Bulk confirm** reads the exploited lists again inside its write
+  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **The research worker** (`ResearchWorker`, the module's `research` job, runs while the module is
+  on): it works through the possible CVEs as soon as they are due, not once an hour: `researchParallel` (2) CVEs at once, each CVE's
+  lines in turn, the longest-waiting line first (no standing answer, then the oldest look; `byLineAge`), every CVE stored and its
+  devices matched again as soon as it ends. Its queue is the database's state, read again after each pass, so a restart loses nothing.
+  A match (`OnMatchChanged`, the hourly pass through `AutoRead`) wakes it, so a new possible CVE or a changed record is researched at
+  once; a person's check or "Research deeper" goes in front of the queue (`push`), never queued twice for one key nor while that key is
+  being checked, and no two calls of one CVE run together (`drain`). It rests (nothing taken) while the AI is not ready (module off, no
+  profile routed), the automatic reading is off, today's reads or the research share of the month are used up (the possible CVEs show
+  `ai_budget`), and for `researchPause` (1 h) after a pass that stopped; a key it took is left for `researchSettle` (15 min), so nothing
+  loops. A line whose call failed or timed out stores nothing, keeps its error and waits `retryBackoff` (1 h, 6 h, then a day). On
+  shutdown no new call starts, every answer received is stored, and a call cut short leaves its line due, neither failed nor held.
+  `PossibleCheckRun` (one pass) has `lines_total` (the release lines of the possible CVEs the AI may research) and `lines_done` (those
+  with an answer). Tests: `TestResearchWorker_DrainsTheQueueWithoutTicks`, `TestResearchWorker_StopsAtTheBudget`,
+  `TestResearchWorker_ShutdownKeepsTheQueue`, `TestResearchWorker_OneCallPerLineUnderConcurrency`,
+  `TestResearchWorker_ATimedOutLineBacksOff`. **Bulk confirm** reads the exploited lists again inside its write
   transaction (`TestReview_ExploitedIsReadInsideTheConfirmation`). A reading
   survives a re-read of the CVE record (a new stamp) while its quote is still in the new record text or on its cited page as the box
   fetches it then: only its record identity moves on (`rehashStatement`), no tokens (`TestResearch_SurvivesARecordReReadOnlyWithItsQuote`,
@@ -470,8 +477,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   ids, one transaction, `confirmOne` like P-5): a row whose CVE is exploited is confirmed only when `include_exploited` names its CVE,
   else it is skipped as `exploited`; a row that no longer waits is skipped as `not_waiting`; an exploited list that cannot be read
   confirms nothing (`TestReview_BulkConfirmExcludesExploitedUnlessNamed`). **Research deeper** (`POST /findings/possible/{id}/research`,
-  operator): the line of one possible CVE researched again now by the strong layer whatever was read before, in the background as a
-  check of one unit (409 `check_running`, 404 `not_found`; `TestResearch_DeeperResearchesTheLineAgain`).
+  operator): the line of one possible CVE researched again now by the strong layer whatever was read before, in front of the research
+  worker's queue (404 `not_found`; `TestResearch_DeeperResearchesTheLineAgain`).
 
 ## Invariants
 

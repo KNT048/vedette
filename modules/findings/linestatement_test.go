@@ -3,7 +3,6 @@ package findings
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -392,22 +391,8 @@ func TestAutoRead_RunsOnlyWhenSwitchedOn(t *testing.T) {
 		t.Fatal("the automatic reading started while switched off")
 	}
 	fc.budget = ReadBudget{Auto: true}
-	if !e.svc.AutoRead(t.Context()) {
-		t.Fatal("the automatic reading did not start")
-	}
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		run, _ := e.svc.CheckStatus(t.Context())
-		if run != nil && !run.Running {
-			if run.By != SystemUser || run.Readings == 0 {
-				t.Errorf("run %+v: want the system's run with a reading", run)
-			}
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the automatic reading did not finish")
-		}
-		runtime.Gosched()
+	if run := autoReadToEnd(t, e); run.By != SystemUser || run.Readings == 0 {
+		t.Errorf("run %+v: want the system's run with a reading", run)
 	}
 	if aiReadFindings(t, e, "nas-01") != 1 {
 		t.Error("the automatic reading's affected line opened no finding")
@@ -551,22 +536,17 @@ func TestLineReading_TheQuotedFixIsTheFix(t *testing.T) {
 	}
 }
 
-// autoReadToEnd starts the automatic reading and waits for its run to finish.
+// autoReadToEnd wakes the automatic reading and runs one pass of the research worker over what is due, to its end.
 func autoReadToEnd(t *testing.T, e *env) CheckRun {
 	t.Helper()
 	if !e.svc.AutoRead(t.Context()) {
 		t.Fatal("the automatic reading did not start")
 	}
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		if run, _ := e.svc.CheckStatus(t.Context()); run != nil && !run.Running {
-			return *run
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the automatic reading did not finish")
-		}
-		runtime.Gosched()
-	}
+	units := e.svc.dueUnits(t.Context())
+	e.svc.startRun(units)
+	e.svc.runPossibleCheck(t.Context(), units, SystemUser)
+	run, _ := e.svc.CheckStatus(t.Context())
+	return *run
 }
 
 func sentFor(fc *fakeChecker, cve string) int {
@@ -679,7 +659,7 @@ func TestPossibleCheck_TheAIFailingInARowStopsTheRun(t *testing.T) {
 	e.svc.check.run = &CheckRun{Running: true}
 	e.svc.runPossibleCheck(t.Context(), units, SystemUser)
 	run := *e.svc.check.run
-	if run.Stopped == nil || !strings.Contains(*run.Stopped, "in a row") || len(fc.sent) != aiFailStreak {
+	if run.Stopped == nil || !strings.Contains(*run.Stopped, "in a row") || !streakCalls(len(fc.sent), aiFailStreak) {
 		t.Fatalf("run %+v after %d calls: want it stopped after %d failures in a row", run, len(fc.sent), aiFailStreak)
 	}
 	if h, ok := e.svc.check.held["k-CVE-2026-91000"]; !ok || h.reason == "" || !h.until.After(e.svc.now()) {
@@ -711,7 +691,7 @@ func TestPossibleCheck_UnusableAnswersInARowStopTheRun(t *testing.T) {
 			e.svc.check.run = &CheckRun{Running: true}
 			e.svc.runPossibleCheck(t.Context(), units, SystemUser)
 			run := *e.svc.check.run
-			if len(fc.sent) != c.calls || (run.Stopped != nil) != c.systemic {
+			if !streakCalls(len(fc.sent), c.calls) || (run.Stopped != nil) != c.systemic {
 				t.Fatalf("run %+v after %d calls: want %d calls, stopped %v", run, len(fc.sent), c.calls, c.systemic)
 			}
 			if h, ok := e.svc.check.held["k-CVE-2026-91200"]; !ok || h.until.Before(e.svc.now().Add(24*time.Hour)) {
@@ -720,6 +700,10 @@ func TestPossibleCheck_UnusableAnswersInARowStopTheRun(t *testing.T) {
 		})
 	}
 }
+
+// streakCalls says n calls were made for a run that stops after want calls: researchParallel CVEs run at once, so the calls already in
+// flight when the streak is reached end too (never more than want calls when want is every call).
+func streakCalls(n, want int) bool { return n >= want && n <= min(want+researchParallel-1, 5) }
 
 // The streak counts calls, not CVEs: a CVE with more release lines than one call carries (possibleCheckItems a call) makes several calls,
 // and when the AI answers none of them the run stops after aiFailStreak calls, not after every call of that CVE.

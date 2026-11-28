@@ -29621,10 +29621,10 @@ func (s *Server) handleFindingsPostFindingsIDVerifyRequest(args [1]string, argsE
 
 // handleFindingsPostFindingsPossibleCheckRequest handles findings_post_findings_possible_check operation.
 //
-// Check possible findings (of one device, or all): in the background, each possible CVE with no check
-// yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages
-// itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are
-// proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit
+// Check possible findings (of one device, or all): queued in front of the research worker, which
+// checks them at once beside what is due, each possible CVE with no check yet (at most 40 evidence
+// identities), once per evidence: the box reads the CVE's reference pages itself and decides when the
+// vendor's ranges do; only the rest goes to the AI. 409 ai_unavailable, nothing_to_check. Audit
 // findings.possible_checked.
 //
 // POST /findings/possible/check
@@ -29709,7 +29709,7 @@ func (s *Server) handleFindingsPostFindingsPossibleCheckRequest(args [0]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsPossibleCheckOperation,
-			OperationSummary: "Check possible findings (of one device, or all): in the background, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit findings.possible_checked",
+			OperationSummary: "Check possible findings (of one device, or all): queued in front of the research worker, which checks them at once beside what is due, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages itself and decides when the vendor's ranges do; only the rest goes to the AI. 409 ai_unavailable, nothing_to_check. Audit findings.possible_checked",
 			OperationID:      "findings_post_findings_possible_check",
 			Body:             request,
 			RawBody:          rawBody,
@@ -30197,10 +30197,10 @@ func (s *Server) handleFindingsPostFindingsPossibleIDConfirmRequest(args [1]stri
 // handleFindingsPostFindingsPossibleIDResearchRequest handles findings_post_findings_possible_id_research operation.
 //
 // Research deeper: the customer's AI researches the release line of this possible CVE again now with
-// its strong profile (the research job's second profile; the first when there is none), in the
-// background as a check of one line; the answer replaces the line's reading. Costs tokens (GET
-// /ai/config research_estimates.thorough), never money. 409 ai_unavailable, check_running; 404
-// not_found when the CVE cannot be researched.
+// its strong profile (the research job's second profile; the first when there is none), queued in
+// front of the research worker (never twice for a line queued or being researched); the answer
+// replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money.
+// 409 ai_unavailable; 404 not_found when the CVE cannot be researched.
 //
 // POST /findings/possible/{id}/research
 func (s *Server) handleFindingsPostFindingsPossibleIDResearchRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30279,7 +30279,7 @@ func (s *Server) handleFindingsPostFindingsPossibleIDResearchRequest(args [1]str
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsPossibleIDResearchOperation,
-			OperationSummary: "Research deeper: the customer's AI researches the release line of this possible CVE again now with its strong profile (the research job's second profile; the first when there is none), in the background as a check of one line; the answer replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money. 409 ai_unavailable, check_running; 404 not_found when the CVE cannot be researched",
+			OperationSummary: "Research deeper: the customer's AI researches the release line of this possible CVE again now with its strong profile (the research job's second profile; the first when there is none), queued in front of the research worker (never twice for a line queued or being researched); the answer replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money. 409 ai_unavailable; 404 not_found when the CVE cannot be researched",
 			OperationID:      "findings_post_findings_possible_id_research",
 			Body:             nil,
 			RawBody:          rawBody,

@@ -22,16 +22,20 @@ type fakeChecker struct {
 	sent     []ProposeRequest
 	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
 	budget   ReadBudget
-	records  map[string]CVERecordText  // by CVE: the record's text and rows (unset: a one-sentence description)
-	answers  map[string]ResearchAnswer // by CVE + "|" + version: a research answer as given (overrides verdicts)
-	research []ResearchRequest         // every research request as sent
-	recorded []string                  // the CVE of every Record call, in order
-	tick     func(ctx context.Context) // run by each research call before it answers (the time a call takes)
+	records  map[string]CVERecordText                             // by CVE: the record's text and rows (unset: a one-sentence description)
+	answers  map[string]ResearchAnswer                            // by CVE + "|" + version: a research answer as given (overrides verdicts)
+	research []ResearchRequest                                    // every research request as sent
+	recorded []string                                             // the CVE of every Record call, in order
+	tick     func(ctx context.Context, req ResearchRequest) error // run by each research call, outside the lock, before it answers
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
 
-func (f *fakeChecker) Budget(context.Context) ReadBudget { return f.budget }
+func (f *fakeChecker) Budget(context.Context) ReadBudget {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.budget
+}
 
 func (f *fakeChecker) Record(_ context.Context, cve string) (CVERecordText, error) {
 	f.mu.Lock()
@@ -69,12 +73,17 @@ func (f *fakeChecker) Fetch(_ context.Context, urls []string) []FetchedPage {
 // request of one release line.
 func (f *fakeChecker) Research(ctx context.Context, _ string, req ResearchRequest) (ResearchAnswer, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.tick != nil {
-		f.tick(ctx)
-	}
 	f.sent = append(f.sent, ProposeRequest{CVE: req.CVE, Description: req.Description, Rows: req.Rows, Items: []ProposeItem{req.Item}, Pages: req.Pages})
 	f.research = append(f.research, req)
+	tick := f.tick
+	f.mu.Unlock()
+	if tick != nil {
+		if err := tick(ctx, req); err != nil {
+			return ResearchAnswer{}, err
+		}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.stop != nil {
 		return ResearchAnswer{}, f.stop
 	}

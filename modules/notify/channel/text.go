@@ -147,9 +147,10 @@ func Listed(t Type, m Message) int {
 // head is the first line of a text rendering (and the email subject): "High: title" for an incident or an approval. A vulnerability
 // notice is its title alone: the title names the finding's status ("exploited in the wild", "public exploit available"), the words
 // every screen uses, while the severity a channel judges it at is a routing level (an exploited flaw is Critical whatever its CVSS
-// score), so "Critical:" over a finding the app shows as Low 2.7 would contradict the app. A test message is its title too.
+// score), so "Critical:" over a finding the app shows as Low 2.7 would contradict the app. A test message and the daily summary are
+// their title too.
 func (m Message) head() string {
-	if m.Kind == "vuln" || m.Kind == "test" {
+	if m.Kind == "vuln" || m.Kind == "test" || m.Kind == KindSummary {
 		return m.Title
 	}
 	return severityLabel[m.Severity] + ": " + m.Title

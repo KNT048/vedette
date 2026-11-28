@@ -3,6 +3,7 @@ package findings
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -997,7 +998,7 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 		case best == nil && !needs:
 			res.Unchecked = append(res.Unchecked, unchecked...)
 		case best == nil: // the rows that need a version have their item; the product's other lines are still asked about
-			res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, false)...)
+			res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, nil)...)
 		}
 		if best == nil {
 			decided[v.CVE] = needs
@@ -1038,7 +1039,7 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 				}
 				res.Unchecked = append(res.Unchecked, unchecked...)
 			} else {
-				res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, false)...)
+				res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, nil)...)
 			}
 			decided[v.CVE] = needs
 			continue
@@ -1058,15 +1059,20 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 				}
 				res.Unchecked = append(res.Unchecked, unchecked...)
 			} else {
-				res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, false)...)
+				res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, nil)...)
 			}
 			decided[v.CVE] = needs
 			continue
 		}
 		decided[v.CVE] = true
-		res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, true)...) // a line beside another line's finding is not decided by it
 		b := *best
 		b.Lines = otherLines(b, e.matched, v, now)
+		found := map[string]bool{storedLine(b.SoftwareID): true} // the lines of the finding
+		for _, l := range b.Lines {
+			found[storedLine(l.SoftwareID)] = true
+		}
+		// a line beside another line's finding is not decided by it: asked about, also when it matched by name alone
+		res.Unchecked = append(res.Unchecked, d.apart(append(unchecked, d.nameOnlyBeside(e, v, found, unchecked)...), e, found)...)
 		if have[v.CVE] {
 			res.Existing = append(res.Existing, b)
 		} else {
@@ -1097,22 +1103,49 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 }
 
 // apart is the unchecked rows of us on no line that has its own word on the entry: a row that needs a version (its "add the version"
-// item lists the entry) and, with matched, a row the entry matches (its finding). Every other line of the product is still asked about.
-func (d *devMatch) apart(us []Unchecked, e *entryRead, matched bool) []Unchecked {
-	taken := map[string]bool{}
+// item lists the entry) and a line of the entry's finding (found). Every other line of the product is still asked about.
+func (d *devMatch) apart(us []Unchecked, e *entryRead, found map[string]bool) []Unchecked {
+	taken := maps.Clone(found)
+	if taken == nil {
+		taken = map[string]bool{}
+	}
 	for _, i := range e.needRows {
 		taken[storedLine(d.sws[i].ID)] = true
-	}
-	if matched {
-		for _, m := range e.matched {
-			taken[storedLine(m.SoftwareID)] = true
-		}
 	}
 	var out []Unchecked
 	for _, u := range us {
 		if !taken[storedLine(u.SoftwareID)] {
 			out = append(out, u)
 		}
+	}
+	return out
+}
+
+// nameOnlyBeside is, for an entry whose finding is on the lines found, an unchecked row for each other line it matched without version
+// evidence (a match on the name or key alone, which otherLines leaves out of the finding) that us does not list yet: the reason the
+// name-only path gives its own row (uncheckedReason; a vendor's "Multiple Products" row NVD's list does not name is no candidate).
+func (d *devMatch) nameOnlyBeside(e *entryRead, v Vuln, found map[string]bool, us []Unchecked) []Unchecked {
+	listed := map[string]bool{}
+	for _, u := range us {
+		listed[storedLine(u.SoftwareID)] = true
+	}
+	var out []Unchecked
+	for _, m := range e.matched {
+		line := storedLine(m.SoftwareID)
+		if line == "" || found[line] || listed[line] {
+			continue
+		}
+		i := slices.IndexFunc(d.sws, func(s Software) bool { return s.ID == m.SoftwareID })
+		if i < 0 {
+			continue
+		}
+		s, in := d.sws[i], d.infos[i]
+		r, ok := uncheckedReason(s, in, v, false)
+		if !ok || isMultiProduct(v.Product) && len(rowEntries(s, in, v)) == 0 {
+			continue
+		}
+		listed[line] = true
+		out = append(out, uncheckedOf(s, v, r))
 	}
 	return out
 }

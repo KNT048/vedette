@@ -2,6 +2,7 @@ package findings
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -234,5 +235,81 @@ func TestPossible_DistributionSilenceIsCountedApart(t *testing.T) {
 	}
 	if !items[0].DistroPending() || items[3].DistroPending() {
 		t.Error("DistroPending must hold for a distribution's silence only")
+	}
+}
+
+// A line matched by its key alone (no version evidence: the record names another product of the vendor) beside another line's finding
+// of the same CVE that a version decided is asked about, never left undecided with nothing to show; the finding stays as it was.
+func TestCoverage_ANameOnlyLineBesideAVersionFindingIsAsked(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := *e.clock
+	a := Asset{ID: "w-5", Name: "desk-05", OS: "Windows 11", Software: []Software{
+		{ID: "s-rt", Display: "Acmesoft Runtime", Vendor: "Acmesoft", Product: "Runtime", Version: "5.0.3", Source: "agent", KevKeys: []string{"acmesoft|runtime"}},
+		{ID: "s-rtt", Display: "Acmesoft Runtime Tools", Vendor: "Acmesoft", Product: "Runtime Tools", Version: "9.0", Source: "agent",
+			CPE: "cpe:2.3:a:acmesoft:runtime_tools:9.0:*:*:*:*:*:*:*", KevKeys: []string{"acmesoft|runtime"}},
+	}}
+	v := Vuln{CVE: "CVE-2026-61020", Vendor: "Acmesoft", Product: "Runtime", NVDAnswered: true, Origin: RangeNVD, Published: now.AddDate(0, -2, 0),
+		DateAdded: now.AddDate(0, -1, 0), Affected: []Affected{{CPE: "cpe:2.3:a:acmesoft:runtime:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.0"}}}}
+	e.inv.assets = map[string]AssetView{a.ID: {ID: a.ID, Hostname: ptr(a.Name), IP: "192.0.2.21", Kind: "workstation", Approved: true}}
+	e.inv.match = map[string]Asset{a.ID: a}
+	e.feeds.vulns = []Vuln{v}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := readDeviceRows(t.Context(), e.db.Reader(), a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in, err := e.svc.causeInputsOf(t.Context(), rows.questions, cveSet(e.feeds.vulns))
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, _ := inWindow(e.feeds.vulns)
+	st, _ := pairStates(newDevMatch(a, read, now), rows, in)
+	if got := st[lineKey(v.CVE, "s-rt")]; !got.affected || got.by == "" {
+		t.Errorf("the line inside the range: %+v, want its finding", got)
+	}
+	got, ok := st[lineKey(v.CVE, "s-rtt")]
+	if !ok || got.by != "" || got.detail == "" || strings.HasPrefix(got.cause, CoverageOther) {
+		t.Errorf("the line matched by its key alone: %+v (related %v), want a possible question with a named cause", got, ok)
+	}
+}
+
+// The CVEs waiting for the distribution live only in their own group: they are not in Needs your input or Home's input number, and the
+// possible row says it is of the group (one definition, read by the web).
+func TestInput_DistributionSilenceIsNotAnInputItem(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	a := Asset{ID: "u-7", Name: "app-07", OS: "Ubuntu 26.04.1 LTS", Software: []Software{{ID: "s-wid", Display: "Widget", Vendor: "Acmesoft", Product: "Widget",
+		Version: "2.4.1", Source: "agent", Packaged: true, PkgVersion: "2.4.1-1ubuntu0.2", PkgSource: "acme-widget"}}}
+	v := Vuln{CVE: "CVE-2026-61021", NVDAnswered: true, Origin: RangeNVD, Published: e.clock.AddDate(0, -2, 0), DistroOn: map[string]bool{"ubuntu": true},
+		Affected: []Affected{{CPE: "cpe:2.3:a:acmesoft:widget:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "2.5"}}}}
+	e.inv.assets = map[string]AssetView{a.ID: {ID: a.ID, Hostname: ptr(a.Name), IP: "192.0.2.22", Kind: "server", Approved: true}}
+	e.inv.match = map[string]Asset{a.ID: a}
+	e.feeds.vulns = []Vuln{v}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	p, err := e.svc.Possible(t.Context(), PossibleFilter{}, Page{Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Counts.DistroPending != 1 || len(p.Items) != 1 || !p.Items[0].DistroPending {
+		t.Fatalf("possible %+v, want one row of the group", p)
+	}
+	in, err := e.svc.Input(t.Context(), "", "", Page{Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Total != 0 {
+		t.Errorf("Needs your input lists %d items, want none: %+v", in.Total, in.Items)
+	}
+	o, err := NewFindingHandlers(e.svc, e.inv, e.feeds, nil).Overview(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.Input != 0 || o.Possible.DistroPending != 1 {
+		t.Errorf("Home: input %d, waiting for the distribution %d; want 0 and 1", o.Input, o.Possible.DistroPending)
 	}
 }

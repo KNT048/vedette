@@ -18,13 +18,15 @@ const JobTick = time.Minute
 //
 // greenbone-feed wakes up every GreenboneSyncTick and updates Greenbone's feed once a week while Greenbone is enabled
 // (RunGreenboneSync); most wake-ups do nothing. accept-expiry opens again the issues whose accepted risk's last day is over
-// (RunAcceptExpiry). The scans a target's schedule starts are core/schedule's, not a job of this module.
+// (RunAcceptExpiry). exploited-check alerts an open issue whose CVE became exploited in the wild since it was found (RunExploitedCheck).
+// The scans a target's schedule starts are core/schedule's, not a job of this module.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "auto-detect", Every: JobTick, Run: svc.RunAutoDetect},
 		{Module: ModuleID, Name: "ip-proof", Every: IPProofTick, Run: svc.RunProofRecheck},
 		{Module: ModuleID, Name: "greenbone-feed", Every: GreenboneSyncTick, Run: svc.RunGreenboneSync},
 		{Module: ModuleID, Name: "accept-expiry", Every: AcceptTick, Run: svc.RunAcceptExpiry},
+		{Module: ModuleID, Name: "exploited-check", Every: ExploitedTick, Run: svc.RunExploitedCheck},
 	}
 }
 

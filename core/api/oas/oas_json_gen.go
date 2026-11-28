@@ -214819,6 +214819,10 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.Device.Encode(e)
 	}
 	{
+		e.FieldStart("distro_pending")
+		e.Bool(s.DistroPending)
+	}
+	{
 		e.FieldStart("exploited")
 		e.Bool(s.Exploited)
 	}
@@ -214868,24 +214872,25 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItem = [17]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItem = [18]string{
 	0:  "bulk",
 	1:  "cause",
 	2:  "check",
 	3:  "checkable",
 	4:  "cve",
 	5:  "device",
-	6:  "exploited",
-	7:  "fixes",
-	8:  "held",
-	9:  "id",
-	10: "kind",
-	11: "line",
-	12: "older_build",
-	13: "severity",
-	14: "software",
-	15: "state",
-	16: "undecided",
+	6:  "distro_pending",
+	7:  "exploited",
+	8:  "fixes",
+	9:  "held",
+	10: "id",
+	11: "kind",
+	12: "line",
+	13: "older_build",
+	14: "severity",
+	15: "software",
+	16: "state",
+	17: "undecided",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKItemsItem from json.
@@ -214963,8 +214968,20 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
-		case "exploited":
+		case "distro_pending":
 			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Bool()
+				s.DistroPending = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pending\"")
+			}
+		case "exploited":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Exploited = bool(v)
@@ -214976,7 +214993,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"exploited\"")
 			}
 		case "fixes":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Fixes = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -214996,7 +215013,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fixes\"")
 			}
 		case "held":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Held.Decode(d); err != nil {
 					return err
@@ -215006,7 +215023,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"held\"")
 			}
 		case "id":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -215018,7 +215035,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -215028,7 +215045,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "line":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Line.Decode(d); err != nil {
 					return err
@@ -215038,7 +215055,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"line\"")
 			}
 		case "older_build":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.OlderBuild.Decode(d); err != nil {
 					return err
@@ -215048,7 +215065,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"older_build\"")
 			}
 		case "severity":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -215058,7 +215075,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "software":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				if err := s.Software.Decode(d); err != nil {
 					return err
@@ -215068,7 +215085,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "state":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -215078,7 +215095,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "undecided":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Undecided.Decode(d); err != nil {
 					return err
@@ -215099,7 +215116,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -330717,10 +330734,6 @@ func (s *NotifyGetNotifyChannelsOK) encodeFields(e *jx.Encoder) {
 		e.Int(s.EmailCodeUsers)
 	}
 	{
-		e.FieldStart("grouping")
-		s.Grouping.Encode(e)
-	}
-	{
 		e.FieldStart("quiet")
 		s.Quiet.Encode(e)
 	}
@@ -330732,14 +330745,18 @@ func (s *NotifyGetNotifyChannelsOK) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		e.FieldStart("vulnerability_trigger")
+		s.VulnerabilityTrigger.Encode(e)
+	}
 }
 
 var jsonFieldsNameOfNotifyGetNotifyChannelsOK = [5]string{
 	0: "channels",
 	1: "email_code_users",
-	2: "grouping",
-	3: "quiet",
-	4: "triggers",
+	2: "quiet",
+	3: "triggers",
+	4: "vulnerability_trigger",
 }
 
 // Decode decodes NotifyGetNotifyChannelsOK from json.
@@ -330781,18 +330798,8 @@ func (s *NotifyGetNotifyChannelsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"email_code_users\"")
 			}
-		case "grouping":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				if err := s.Grouping.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"grouping\"")
-			}
 		case "quiet":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Quiet.Decode(d); err != nil {
 					return err
@@ -330802,7 +330809,7 @@ func (s *NotifyGetNotifyChannelsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"quiet\"")
 			}
 		case "triggers":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Triggers = make([]NotifyGetNotifyChannelsOKTriggersItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -330818,6 +330825,16 @@ func (s *NotifyGetNotifyChannelsOK) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"triggers\"")
+			}
+		case "vulnerability_trigger":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.VulnerabilityTrigger.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vulnerability_trigger\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -331641,149 +331658,6 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemType) UnmarshalJSON(data []byte) e
 }
 
 // Encode implements json.Marshaler.
-func (s *NotifyGetNotifyChannelsOKGrouping) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *NotifyGetNotifyChannelsOKGrouping) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("enabled")
-		e.Bool(s.Enabled)
-	}
-	{
-		e.FieldStart("window_min")
-		s.WindowMin.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfNotifyGetNotifyChannelsOKGrouping = [2]string{
-	0: "enabled",
-	1: "window_min",
-}
-
-// Decode decodes NotifyGetNotifyChannelsOKGrouping from json.
-func (s *NotifyGetNotifyChannelsOKGrouping) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyGetNotifyChannelsOKGrouping to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "enabled":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Bool()
-				s.Enabled = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "window_min":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				if err := s.WindowMin.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"window_min\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode NotifyGetNotifyChannelsOKGrouping")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000011,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfNotifyGetNotifyChannelsOKGrouping) {
-					name = jsonFieldsNameOfNotifyGetNotifyChannelsOKGrouping[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *NotifyGetNotifyChannelsOKGrouping) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyGetNotifyChannelsOKGrouping) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotifyGetNotifyChannelsOKGroupingWindowMin as json.
-func (s NotifyGetNotifyChannelsOKGroupingWindowMin) Encode(e *jx.Encoder) {
-	e.Float64(float64(s))
-}
-
-// Decode decodes NotifyGetNotifyChannelsOKGroupingWindowMin from json.
-func (s *NotifyGetNotifyChannelsOKGroupingWindowMin) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyGetNotifyChannelsOKGroupingWindowMin to nil")
-	}
-	v, err := d.Float64()
-	if err != nil {
-		return err
-	}
-	*s = NotifyGetNotifyChannelsOKGroupingWindowMin(v)
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotifyGetNotifyChannelsOKGroupingWindowMin) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyGetNotifyChannelsOKGroupingWindowMin) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *NotifyGetNotifyChannelsOKQuiet) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -332150,8 +332024,6 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemID) Decode(d *jx.Decoder) error {
 	switch NotifyGetNotifyChannelsOKTriggersItemID(v) {
 	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
 		*s = NotifyGetNotifyChannelsOKTriggersItemIDTrap
-	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
-		*s = NotifyGetNotifyChannelsOKTriggersItemIDVulnerability
 	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
 		*s = NotifyGetNotifyChannelsOKTriggersItemIDIntrusion
 	case NotifyGetNotifyChannelsOKTriggersItemIDBadAddress:
@@ -332220,6 +332092,119 @@ func (s NotifyGetNotifyChannelsOKTriggersItemMin) MarshalJSON() ([]byte, error) 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyGetNotifyChannelsOKTriggersItemMin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("default_on")
+		e.Bool(s.DefaultOn)
+	}
+	{
+		e.FieldStart("on")
+		e.Bool(s.On)
+	}
+}
+
+var jsonFieldsNameOfNotifyGetNotifyChannelsOKVulnerabilityTrigger = [2]string{
+	0: "default_on",
+	1: "on",
+}
+
+// Decode decodes NotifyGetNotifyChannelsOKVulnerabilityTrigger from json.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyGetNotifyChannelsOKVulnerabilityTrigger to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "default_on":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.DefaultOn = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default_on\"")
+			}
+		case "on":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.On = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"on\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyGetNotifyChannelsOKVulnerabilityTrigger")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyGetNotifyChannelsOKVulnerabilityTrigger) {
+					name = jsonFieldsNameOfNotifyGetNotifyChannelsOKVulnerabilityTrigger[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -333450,8 +333435,6 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Decode(d *jx.Decoder)
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours
-	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
-		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff:
@@ -333474,6 +333457,8 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Decode(d *jx.Decoder)
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited
 	default:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReason(v)
 	}
@@ -334481,8 +334466,6 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decoder
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
-	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
@@ -334505,6 +334488,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decoder
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 	default:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReason(v)
 	}
@@ -335892,8 +335877,6 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Decode(d *jx.Deco
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours
-	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff:
@@ -335916,6 +335899,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Decode(d *jx.Deco
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited
 	default:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason(v)
 	}
@@ -338648,8 +338633,6 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decod
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
-	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
@@ -338672,6 +338655,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decod
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 	default:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason(v)
 	}
@@ -341511,8 +341496,6 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) Decode(d *jx.Decoder) err
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonQueued
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours
-	case NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped:
-		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelsOff:
@@ -341535,6 +341518,8 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) Decode(d *jx.Decoder) err
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited
 	default:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReason(v)
 	}
@@ -344353,18 +344338,13 @@ func (s *NotifyPutNotifyRulesOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *NotifyPutNotifyRulesOK) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("grouping")
-		s.Grouping.Encode(e)
-	}
-	{
 		e.FieldStart("quiet")
 		s.Quiet.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfNotifyPutNotifyRulesOK = [2]string{
-	0: "grouping",
-	1: "quiet",
+var jsonFieldsNameOfNotifyPutNotifyRulesOK = [1]string{
+	0: "quiet",
 }
 
 // Decode decodes NotifyPutNotifyRulesOK from json.
@@ -344376,18 +344356,8 @@ func (s *NotifyPutNotifyRulesOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "grouping":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.Grouping.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"grouping\"")
-			}
 		case "quiet":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				if err := s.Quiet.Decode(d); err != nil {
 					return err
@@ -344406,7 +344376,7 @@ func (s *NotifyPutNotifyRulesOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -344448,149 +344418,6 @@ func (s *NotifyPutNotifyRulesOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyPutNotifyRulesOK) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *NotifyPutNotifyRulesOKGrouping) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *NotifyPutNotifyRulesOKGrouping) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("enabled")
-		e.Bool(s.Enabled)
-	}
-	{
-		e.FieldStart("window_min")
-		s.WindowMin.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfNotifyPutNotifyRulesOKGrouping = [2]string{
-	0: "enabled",
-	1: "window_min",
-}
-
-// Decode decodes NotifyPutNotifyRulesOKGrouping from json.
-func (s *NotifyPutNotifyRulesOKGrouping) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyPutNotifyRulesOKGrouping to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "enabled":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Bool()
-				s.Enabled = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "window_min":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				if err := s.WindowMin.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"window_min\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode NotifyPutNotifyRulesOKGrouping")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000011,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfNotifyPutNotifyRulesOKGrouping) {
-					name = jsonFieldsNameOfNotifyPutNotifyRulesOKGrouping[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *NotifyPutNotifyRulesOKGrouping) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyPutNotifyRulesOKGrouping) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotifyPutNotifyRulesOKGroupingWindowMin as json.
-func (s NotifyPutNotifyRulesOKGroupingWindowMin) Encode(e *jx.Encoder) {
-	e.Float64(float64(s))
-}
-
-// Decode decodes NotifyPutNotifyRulesOKGroupingWindowMin from json.
-func (s *NotifyPutNotifyRulesOKGroupingWindowMin) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyPutNotifyRulesOKGroupingWindowMin to nil")
-	}
-	v, err := d.Float64()
-	if err != nil {
-		return err
-	}
-	*s = NotifyPutNotifyRulesOKGroupingWindowMin(v)
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotifyPutNotifyRulesOKGroupingWindowMin) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyPutNotifyRulesOKGroupingWindowMin) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -344752,18 +344579,13 @@ func (s *NotifyPutNotifyRulesReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *NotifyPutNotifyRulesReq) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("grouping")
-		s.Grouping.Encode(e)
-	}
-	{
 		e.FieldStart("quiet")
 		s.Quiet.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfNotifyPutNotifyRulesReq = [2]string{
-	0: "grouping",
-	1: "quiet",
+var jsonFieldsNameOfNotifyPutNotifyRulesReq = [1]string{
+	0: "quiet",
 }
 
 // Decode decodes NotifyPutNotifyRulesReq from json.
@@ -344775,18 +344597,8 @@ func (s *NotifyPutNotifyRulesReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "grouping":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.Grouping.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"grouping\"")
-			}
 		case "quiet":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				if err := s.Quiet.Decode(d); err != nil {
 					return err
@@ -344805,7 +344617,7 @@ func (s *NotifyPutNotifyRulesReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -344847,149 +344659,6 @@ func (s *NotifyPutNotifyRulesReq) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyPutNotifyRulesReq) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *NotifyPutNotifyRulesReqGrouping) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *NotifyPutNotifyRulesReqGrouping) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("enabled")
-		e.Bool(s.Enabled)
-	}
-	{
-		e.FieldStart("window_min")
-		s.WindowMin.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfNotifyPutNotifyRulesReqGrouping = [2]string{
-	0: "enabled",
-	1: "window_min",
-}
-
-// Decode decodes NotifyPutNotifyRulesReqGrouping from json.
-func (s *NotifyPutNotifyRulesReqGrouping) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyPutNotifyRulesReqGrouping to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "enabled":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Bool()
-				s.Enabled = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"enabled\"")
-			}
-		case "window_min":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				if err := s.WindowMin.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"window_min\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode NotifyPutNotifyRulesReqGrouping")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000011,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfNotifyPutNotifyRulesReqGrouping) {
-					name = jsonFieldsNameOfNotifyPutNotifyRulesReqGrouping[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *NotifyPutNotifyRulesReqGrouping) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyPutNotifyRulesReqGrouping) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes NotifyPutNotifyRulesReqGroupingWindowMin as json.
-func (s NotifyPutNotifyRulesReqGroupingWindowMin) Encode(e *jx.Encoder) {
-	e.Float64(float64(s))
-}
-
-// Decode decodes NotifyPutNotifyRulesReqGroupingWindowMin from json.
-func (s *NotifyPutNotifyRulesReqGroupingWindowMin) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode NotifyPutNotifyRulesReqGroupingWindowMin to nil")
-	}
-	v, err := d.Float64()
-	if err != nil {
-		return err
-	}
-	*s = NotifyPutNotifyRulesReqGroupingWindowMin(v)
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NotifyPutNotifyRulesReqGroupingWindowMin) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NotifyPutNotifyRulesReqGroupingWindowMin) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -345158,10 +344827,15 @@ func (s *NotifyPutNotifyTriggersOK) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		e.FieldStart("vulnerability_trigger")
+		s.VulnerabilityTrigger.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfNotifyPutNotifyTriggersOK = [1]string{
+var jsonFieldsNameOfNotifyPutNotifyTriggersOK = [2]string{
 	0: "triggers",
+	1: "vulnerability_trigger",
 }
 
 // Decode decodes NotifyPutNotifyTriggersOK from json.
@@ -345191,6 +344865,16 @@ func (s *NotifyPutNotifyTriggersOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"triggers\"")
 			}
+		case "vulnerability_trigger":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.VulnerabilityTrigger.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vulnerability_trigger\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -345201,7 +344885,7 @@ func (s *NotifyPutNotifyTriggersOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -345467,8 +345151,6 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemID) Decode(d *jx.Decoder) error {
 	switch NotifyPutNotifyTriggersOKTriggersItemID(v) {
 	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
 		*s = NotifyPutNotifyTriggersOKTriggersItemIDTrap
-	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
-		*s = NotifyPutNotifyTriggersOKTriggersItemIDVulnerability
 	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
 		*s = NotifyPutNotifyTriggersOKTriggersItemIDIntrusion
 	case NotifyPutNotifyTriggersOKTriggersItemIDBadAddress:
@@ -345542,6 +345224,119 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemMin) UnmarshalJSON(data []byte) er
 }
 
 // Encode implements json.Marshaler.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("default_on")
+		e.Bool(s.DefaultOn)
+	}
+	{
+		e.FieldStart("on")
+		e.Bool(s.On)
+	}
+}
+
+var jsonFieldsNameOfNotifyPutNotifyTriggersOKVulnerabilityTrigger = [2]string{
+	0: "default_on",
+	1: "on",
+}
+
+// Decode decodes NotifyPutNotifyTriggersOKVulnerabilityTrigger from json.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPutNotifyTriggersOKVulnerabilityTrigger to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "default_on":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.DefaultOn = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default_on\"")
+			}
+		case "on":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.On = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"on\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPutNotifyTriggersOKVulnerabilityTrigger")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPutNotifyTriggersOKVulnerabilityTrigger) {
+					name = jsonFieldsNameOfNotifyPutNotifyTriggersOKVulnerabilityTrigger[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *NotifyPutNotifyTriggersReq) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -345558,10 +345353,17 @@ func (s *NotifyPutNotifyTriggersReq) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		if s.VulnerabilityTrigger.Set {
+			e.FieldStart("vulnerability_trigger")
+			s.VulnerabilityTrigger.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfNotifyPutNotifyTriggersReq = [1]string{
+var jsonFieldsNameOfNotifyPutNotifyTriggersReq = [2]string{
 	0: "triggers",
+	1: "vulnerability_trigger",
 }
 
 // Decode decodes NotifyPutNotifyTriggersReq from json.
@@ -345590,6 +345392,16 @@ func (s *NotifyPutNotifyTriggersReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"triggers\"")
+			}
+		case "vulnerability_trigger":
+			if err := func() error {
+				s.VulnerabilityTrigger.Reset()
+				if err := s.VulnerabilityTrigger.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vulnerability_trigger\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -345791,8 +345603,6 @@ func (s *NotifyPutNotifyTriggersReqTriggersItemID) Decode(d *jx.Decoder) error {
 	switch NotifyPutNotifyTriggersReqTriggersItemID(v) {
 	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
 		*s = NotifyPutNotifyTriggersReqTriggersItemIDTrap
-	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
-		*s = NotifyPutNotifyTriggersReqTriggersItemIDVulnerability
 	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
 		*s = NotifyPutNotifyTriggersReqTriggersItemIDIntrusion
 	case NotifyPutNotifyTriggersReqTriggersItemIDBadAddress:
@@ -345861,6 +345671,102 @@ func (s NotifyPutNotifyTriggersReqTriggersItemMin) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyPutNotifyTriggersReqTriggersItemMin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("on")
+		e.Bool(s.On)
+	}
+}
+
+var jsonFieldsNameOfNotifyPutNotifyTriggersReqVulnerabilityTrigger = [1]string{
+	0: "on",
+}
+
+// Decode decodes NotifyPutNotifyTriggersReqVulnerabilityTrigger from json.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPutNotifyTriggersReqVulnerabilityTrigger to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "on":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.On = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"on\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPutNotifyTriggersReqVulnerabilityTrigger")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPutNotifyTriggersReqVulnerabilityTrigger) {
+					name = jsonFieldsNameOfNotifyPutNotifyTriggersReqVulnerabilityTrigger[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -349074,6 +348980,39 @@ func (s OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) MarshalJSON() ([]byte,
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPutNotifyTriggersReqVulnerabilityTrigger as json.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes NotifyPutNotifyTriggersReqVulnerabilityTrigger from json.
+func (o *OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNotifyPutNotifyTriggersReqVulnerabilityTrigger to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -186,6 +186,11 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 				return fmt.Errorf("notify: save notice findings: %w", err)
 			}
 		}
+		// Only a finding exploited in the wild sends an alert (INV-32): the notice of any other is recorded (History, Not sent, with Send
+		// now) and told in the daily summary, never queued on a channel.
+		if !n.exploited() {
+			return markUnsent(ctx, tx, n.ID, UnsentNotExploited, "", "")
+		}
 	}
 	triggers, err := loadTriggers(ctx, tx)
 	if err != nil {
@@ -249,14 +254,12 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 			}
 		case n.Event == NoticeFirstRun: // waits for the next pass of the same load (firstrun.go)
 			reason, due = "settle", settleDue(now, n.At)
-		case rules.Grouping.Enabled && rules.Grouping.Validate() == nil && n.Kind == KindVuln && n.Severity != Critical && strings.TrimSpace(n.Product) != "":
-			reason, due = "group", n.At.Add(time.Duration(rules.Grouping.WindowMin)*time.Minute)
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_pending (id, channel, notice_id, notice, reason, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (channel, notice_id) DO NOTHING`, store.NewID("pq"), string(tg.t), n.ID, string(raw), reason, store.FormatTS(due), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: queue notice: %w", err)
 		}
-		if reason != "quiet" { // a channel takes it now or at the end of its grouping window
+		if reason != "quiet" { // a channel takes it now
 			unsent, floor, lowest = UnsentQueued, "", ""
 		}
 	}
@@ -504,14 +507,14 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 			}
 			rowOf, triesOf := map[string]string{}, map[string]int{}
 			seen := map[string]bool{}
-			var nowN, heldN, grpN []Notice
+			var nowN, heldN []Notice
 			for _, r := range list {
 				rowOf[r.notice.ID], triesOf[r.notice.ID] = r.id, r.attempts
 				switch {
 				case r.reason == "quiet":
 					heldN = append(heldN, r.notice)
-				case r.reason == "group":
-					grpN = append(grpN, r.notice)
+				case r.reason == "group" && r.attempts == 0: // queued by an earlier build for its grouping window (gone): it goes now
+					nowN = append(nowN, r.notice)
 				case r.due > nowTS: // put back after a rate limit, due when the provider said
 					seen[r.notice.ID] = true
 				default:
@@ -530,13 +533,11 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				}
 			}
 			always := func(Batch) bool { return true }
-			take(Group(nowN, Grouping{}, c.MinSeverity), always)
+			take(Group(nowN, c.MinSeverity), always)
 			if quiet { // only what Decide let through (critical with allow_critical) goes during quiet hours
 				take(GroupHeld(heldN, c.MinSeverity), func(Batch) bool { return false })
-				take(Group(grpN, rules.Grouping, c.MinSeverity), func(Batch) bool { return false })
 			} else {
 				take(GroupHeld(heldN, c.MinSeverity), always)
-				take(Group(grpN, rules.Grouping, c.MinSeverity), func(b Batch) bool { return !b.DueAt(rules.Grouping).After(now) })
 			}
 			for _, r := range list {
 				if !seen[r.notice.ID] {

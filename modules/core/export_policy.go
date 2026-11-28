@@ -81,10 +81,10 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_deep_setting":       {export: "target_id dos logins web_active data_change openvas speed updated_at updated_by", json: "skip_ports skip_paths"},
 	"exp_host":               {export: "id target_id name source selected child_target_id cname first_seen last_seen"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
-	"exp_issue":              {export: "id target_id service_id engine key title severity state resolution resolved_by resolved_at note accepted_until first_seen last_seen last_run_id", json: "cves detail"},
+	"exp_issue":              {export: "id target_id service_id engine key title severity state resolution resolved_by resolved_at note accepted_until first_seen last_seen last_run_id opened_at exploited", json: "cves detail"},
 	"exp_outside":            {export: "target_id ip checked_at checked_by found", json: "answer"},
 	"exp_scan":               {export: "run_id target_id mode", json: "summary"},
-	"exp_service":            {export: "id target_id ip port proto name product version cpe title is_web ident state first_seen last_seen last_run_id", json: "cert"},
+	"exp_service":            {export: "id target_id ip port proto name product version cpe title is_web ident state first_seen last_seen last_run_id opened_at", json: "cert"},
 	"exp_setting":            {export: "id last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},
 	"exp_target":             {export: "id parent_id kind value origin scope_mode enabled method verified_at created_at proof_method", json: "last_check", skip: "token ip_token"},
 	"feeds_cve":              {skipAll: true, skip: "cve published modified nvd_status nvd_at record_at title description cwe solution workaround ssvc_exploitation ssvc_automatable ssvc_impact updated_at assigner"}, // Public NVD and CVE Program data, pulled again
@@ -164,6 +164,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (the first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
+	"notify_summary":         {export: "id due_at state done_at"}, // the daily summary's marks (when it came due, what it did)
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
 	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at state outcome tries"},
 	"notify_slack_final":     {skipAll: true, skip: "request_id outcome at"},

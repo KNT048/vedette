@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
@@ -60,7 +61,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 			}
 		}
 	}
-	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency,
+	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency, Exploited: f.Exploited(),
 		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
 		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax), Verification: plainText(v.VerificationLine(), noticeReasonsMax)}
 	info.Product = cmp.Or(plainText(product, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
@@ -184,6 +185,31 @@ WHERE s.kind = 'exploited' AND s.qualifies = 1 AND s.stored_at >= ? AND NOT EXIS
 		}
 	}
 	return count, nil
+}
+
+// notifyUpdates is the daily summary's count of new findings with no sign of exploitation (notify SummarySources.Updates): the
+// findings first seen in [from, to) that are open now at "update recommended", and the devices they are on. One read on
+// fnd_finding_state_urgency_ix.
+func notifyUpdates(d *deps) func(ctx context.Context, from, to time.Time) (int, int, error) {
+	return func(ctx context.Context, from, to time.Time) (found, devices int, err error) {
+		if d.DB == nil {
+			return 0, 0, nil
+		}
+		err = d.DB.Reader().QueryRowContext(ctx, `SELECT count(*), count(DISTINCT asset_id) FROM fnd_finding
+WHERE state = 'open' AND urgency = ? AND first_seen >= ? AND first_seen < ?`, findings.UrgencyUpdate, store.FormatTS(from), store.FormatTS(to)).Scan(&found, &devices)
+		return found, devices, err
+	}
+}
+
+// notifyExposureNews is the daily summary's count of what external scans found new that did not alert (notify SummarySources.Exposure,
+// exposure NewSince); nothing while the exposure module is off. The exposure service is read when asked (it is built after notify).
+func notifyExposureNews(d *deps) func(ctx context.Context, from, to time.Time) (int, int, error) {
+	return func(ctx context.Context, from, to time.Time) (int, int, error) {
+		if d.DB == nil || d.Reg != nil && !d.Reg.Enabled(exposure.ModuleID) {
+			return 0, 0, nil
+		}
+		return exposureService(*d).NewSince(ctx, from, to)
+	}
 }
 
 // plainText makes feed text safe to show: control characters and line breaks become spaces, invisible format characters

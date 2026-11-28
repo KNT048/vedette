@@ -650,15 +650,15 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	return v, nil
 }
 
-// SentSince counts the alert messages (kinds incident and vuln: an approval request is not an alert) sent since a time (Home's "alerts
-// sent", #825): sent = attempts that arrived; failed = attempts that did not arrive, are not waiting to be sent again (a "Delayed" row
-// resends by itself), and were not resent with success later to the same channel for the same item (kind, ref_id). One range on
-// notify_send_at_ix; the resend check is a lookup on notify_send_ref_ix.
+// SentSince counts the alert messages (kinds incident and vuln: an approval request and the daily summary, ref_id sum-, are not
+// alerts) sent since a time (Home's "alerts sent", #825): sent = attempts that arrived; failed = attempts that did not arrive, are not
+// waiting to be sent again (a "Delayed" row resends by itself), and were not resent with success later to the same channel for the
+// same item (kind, ref_id). One range on notify_send_at_ix; the resend check is a lookup on notify_send_ref_ix.
 func (s *Service) SentSince(ctx context.Context, since time.Time) (sent, failed int, err error) {
 	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(s.ok = 1), 0),
   ifnull(sum(s.ok = 0 AND s.delayed = 0 AND NOT EXISTS (SELECT 1 FROM notify_send r
     WHERE r.kind = s.kind AND r.ref_id = s.ref_id AND r.channel = s.channel AND r.ok = 1 AND r.at >= s.at)), 0)
-FROM notify_send s WHERE s.at >= ? AND s.kind IN ('incident', 'vuln')`, store.FormatTS(since)).Scan(&sent, &failed)
+FROM notify_send s WHERE s.at >= ? AND s.kind IN ('incident', 'vuln') AND substr(s.ref_id, 1, 4) <> 'sum-'`, store.FormatTS(since)).Scan(&sent, &failed)
 	if err != nil {
 		return 0, 0, fmt.Errorf("notify: count sent messages: %w", err)
 	}

@@ -20709,7 +20709,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "POST":
 								r.name = NotifyPostNotifyNoticesIDSendOperation
-								r.summary = "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity, quiet hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready"
+								r.summary = "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity or quiet hours; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready"
 								r.operationID = "notify_post_notify_notices_id_send"
 								r.operationGroup = ""
 								r.pathPattern = "/notify/notices/{id}/send"

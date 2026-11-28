@@ -26,12 +26,13 @@ const (
 //     never deleted, however old (its devices go with it, ON DELETE CASCADE);
 //   - notify_notice rows created over a year ago, except one a queued message still names (notify_pending) or a send newer than
 //     the cut still covers (a resend of an old notice): the notice rows of a grouped message are only removed with the last send
-//     that covers them.
+//     that covers them;
+//   - notify_summary rows (the daily summary's marks) due over a year ago, once taken.
 //
 // notify_pending (the queue of what is not sent yet) is never touched: it is not history, and the stale rule owns it.
 func (s *Service) RunRetention(ctx context.Context) error {
 	cut := store.FormatTS(s.now().Add(-retention))
-	var sends, incidents, notices int64
+	var sends, incidents, notices, summaries int64
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		for _, d := range []struct {
 			n *int64
@@ -42,6 +43,7 @@ func (s *Service) RunRetention(ctx context.Context) error {
 				AND NOT EXISTS (SELECT 1 FROM notify_pending p WHERE p.notice_id = notify_notice.id)
 				AND NOT EXISTS (SELECT 1 FROM notify_send_notice sn JOIN notify_send s ON s.id = sn.send_id WHERE sn.notice_id = notify_notice.id AND s.at >= ?1)`},
 			{&sends, `DELETE FROM notify_send WHERE at < ?1`},
+			{&summaries, `DELETE FROM notify_summary WHERE due_at < ?1 AND state <> 'due'`},
 			{&incidents, `DELETE FROM notify_incident WHERE status = 'resolved' AND COALESCE(handled_at, last_seen) < ?1
 				AND NOT EXISTS (SELECT 1 FROM notify_send s WHERE s.kind = 'incident' AND s.ref_id = notify_incident.id AND s.at >= ?1)`},
 		} {
@@ -53,11 +55,11 @@ func (s *Service) RunRetention(ctx context.Context) error {
 				return fmt.Errorf("notify: retention: %w", err)
 			}
 		}
-		if sends+incidents+notices == 0 {
+		if sends+incidents+notices+summaries == 0 {
 			return nil
 		}
-		return s.record(ctx, tx, systemUser, "notify.retention", "notify_send, notify_incident, notify_notice",
-			fmt.Sprintf("deleted %d send record(s), %d resolved incident(s), %d vulnerability notice(s) older than 1 year", sends, incidents, notices))
+		return s.record(ctx, tx, systemUser, "notify.retention", "notify_send, notify_incident, notify_notice, notify_summary",
+			fmt.Sprintf("deleted %d send record(s), %d resolved incident(s), %d vulnerability notice(s), %d daily summary mark(s) older than 1 year", sends, incidents, notices, summaries))
 	})
 	if err != nil {
 		return err

@@ -22,8 +22,7 @@ export interface Ch {
   approval_last4: { app_token: string | null; bot_token: string | null }
 }
 export interface Quiet { enabled: boolean; from: string; to: string; allow_critical: boolean }
-export interface Grouping { enabled: boolean; window_min: number }
-export interface Rules { quiet: Quiet; grouping: Grouping }
+export interface Rules { quiet: Quiet }
 export interface Channels extends Rules { channels: Ch[]; email_code_users: number }
 export interface Hist { id: string; at: string; channel: ChannelType; to: string; ok: boolean; error?: string; kind: 'incident' | 'vuln' | 'approval'; what: string; link: string }
 export interface History { items: Hist[]; suppressed: { count: number; days: number } }

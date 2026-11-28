@@ -27,7 +27,7 @@ import (
 func TestBurstOfMatchesIsOneDigestAndNamesOnlyWhatItLists(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{From: "22:00", To: "06:30"}, notify.Grouping{Enabled: true, WindowMin: 60})
+	e.rules(notify.Quiet{From: "22:00", To: "06:30"})
 	for i := range 20 {
 		e.critical(fmt.Sprintf("o%d", i), "Microsoft Office", fmt.Sprintf("CVE-2009-%04d", i))
 	}

@@ -67,19 +67,19 @@ type ChannelInput struct {
 	ZaloLogin bool
 }
 
-// Rules is the quiet-hours and grouping rule pair.
+// Rules are the delivery rules of every channel: quiet hours.
 type Rules struct {
-	Quiet    Quiet    `json:"quiet"`
-	Grouping Grouping `json:"grouping"`
+	Quiet Quiet `json:"quiet"`
 }
 
 // ChannelsView is the answer of GET /notify/channels.
 type ChannelsView struct {
-	Channels       []Channel     `json:"channels"`
-	Quiet          Quiet         `json:"quiet"`
-	Grouping       Grouping      `json:"grouping"`
-	Triggers       []TriggerView `json:"triggers"`
-	EmailCodeUsers int           `json:"email_code_users"`
+	Channels []Channel     `json:"channels"`
+	Quiet    Quiet         `json:"quiet"`
+	Triggers []TriggerView `json:"triggers"`
+	// Vulnerability is the vulnerability trigger: on or off, no minimum (INV-32: a finding alerts only when exploited, always critical)
+	Vulnerability  VulnTriggerView `json:"vulnerability_trigger"`
+	EmailCodeUsers int             `json:"email_code_users"`
 }
 
 // SendView is one delivery attempt as the API shows it.
@@ -201,7 +201,6 @@ type NotSentReason string
 const (
 	UnsentQueued       NotSentReason = "queued"             // a channel took it; the deliver job sends it within a minute
 	UnsentQuietHours   NotSentReason = "quiet_hours"        // held until quiet hours end (INV-5), then sent
-	UnsentGrouped      NotSentReason = "grouped"            // a vulnerability notice waiting for its grouping window (INV-3), then sent
 	UnsentNoChannel    NotSentReason = "no_channel"         // no channel was set up
 	UnsentChannelsOff  NotSentReason = "channels_off"       // channels were set up, none was on
 	UnsentChannelOff   NotSentReason = "channel_off"        // the one channel it waited for (quiet hours, rate limit) was turned off before it went
@@ -213,6 +212,8 @@ const (
 	UnsentLineLeftOut  NotSentReason = "line_left_out"      // a vulnerability notice queued and sent, but its line was past what the message could hold
 	UnsentUnknown      NotSentReason = "unknown"            // opened before the reason was kept, and today's channels would take it
 	UnsentTriggerOff   NotSentReason = "trigger_off"        // its alert trigger is off, or it is below the trigger's minimum (INV-31)
+	// UnsentNotExploited: a finding whose CVE is not exploited in the wild sends no alert (INV-32); it is told in the daily summary
+	UnsentNotExploited NotSentReason = "not_exploited"
 )
 
 // NotSent is the reason an incident has no message on any channel, in the customer's words (INV-24).
@@ -346,6 +347,9 @@ type FindingInfo struct {
 	Open bool
 	// Layer is the stored urgency layer of the finding (1 under attack here .. 5 update recommended). Layer 5 never alerts.
 	Layer int
+	// Exploited is findings' answer to "is it exploited" (Finding.Exploited, the one cutoff findings.ExploitedLayer): only an exploited
+	// finding sends an alert (INV-32). notify never decides it from the layer itself.
+	Exploited bool
 	// Status is the name of the status the finding page shows ("Public exploit available"), Meaning the sentence that says what it asks
 	// of a person, Reasons the line of the reasons ("Exploited in the wild: CISA KEV (19 Nov 2026)"; "" when none), all from findings.
 	Status, Meaning, Reasons string
@@ -357,10 +361,6 @@ type FindingInfo struct {
 	Action  string   // what to do first
 	Devices []string // names of the devices the finding matched; empty = it matched none
 }
-
-// exploitedLayer says whether an urgency layer means attackers use the flaw: under attack here (1), exploited in the wild (2), or not
-// stated (0).
-func exploitedLayer(layer int) bool { return layer <= 2 }
 
 // layerUpdate is the urgency layer of a finding with no sign of exploitation (findings.UrgencyUpdate): it never alerts.
 const layerUpdate = 5

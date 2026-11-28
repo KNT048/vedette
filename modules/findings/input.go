@@ -192,6 +192,7 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	if err != nil {
 		return nil, err
 	}
+	qs = slices.DeleteFunc(qs, distroPendingQuestion) // they wait for the distribution, in their own group: nothing a person must answer
 	assets, lines := map[string]bool{}, map[string]bool{}
 	for id := range counts {
 		assets[id] = true

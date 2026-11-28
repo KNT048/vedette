@@ -135,7 +135,8 @@ function inputItems(): InputItem[] {
     .map((r): InputUnconfirmedItem => ({ kind: 'unconfirmed', id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: OPEN_STATUSES[r.layer - 1] as 'exploited',
       severity: severityOf(r.cve), basis: r.basis, safe_check: SAFE_CHECKS.has(r.cve) }))
   const assets = new Map(assetsStore.get().map((a) => [a.id, a]))
-  const asked = questions.get().filter((x) => !x.answered && assets.has(x.asset_id) && visible(x.asset_id)).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
+  // the CVEs waiting for the distribution live in their own group, not here (the server's distroPendingQuestion)
+  const asked = questions.get().filter((x) => !x.answered && assets.has(x.asset_id) && visible(x.asset_id) && !x.undecided?.reason.startsWith('distro_')).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
     .map((x): InputQuestionItem => ({ kind: 'question', id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software, cve: x.cve, cves: x.cves,
       asked_at: x.asked_at, url: x.url, command: x.command, choices: x.choices, cve_list: x.cve_list ?? [], fixes: x.fixes ?? [], line: x.line ?? null,
       versions_listed: x.versions_listed ?? false, attribute: x.attribute ?? null }))

@@ -403,8 +403,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   has no word on, INV-14; `PossibleItem.DistroPending`) is listed apart, closed until opened, like the older-build group: counted in
   `PossibleCounts.distro_pending` (and `distro_pending_exploited`, so the header says how many are exploited and nothing is hidden), not
   in `possible` or its `causes`; Home, the lists and the API carry both numbers. The device badge leaves it out (`possibleByDevice`: the
-  main list and the older-build group only). It never alerts (P-1) and is never read by the AI (`checkable`). Each row keeps the
-  distribution's reason. It changes no decision. `TestPossible_DistributionSilenceIsCountedApart`.
+  main list and the older-build group only), and so does Needs your input and Home's `input` (`distroPendingQuestion`, the one
+  definition of the group; the row carries it as `PossibleRow.distro_pending`, which the web groups by). It never alerts (P-1) and is
+  never read by the AI (`checkable`). Each row keeps the distribution's reason. It changes no decision.
+  `TestPossible_DistributionSilenceIsCountedApart`, `TestInput_DistributionSilenceIsNotAnInputItem`.
 
 ## Invariants
 
@@ -463,7 +465,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version read from the network (a banner, the passive sensor) it is never compared: the pair asks for the version the device or a
   person states (undecided `version_from_network`, cause `version_needed`), as a line NVD names that has no version at all does
   (`no_version`; `askRow`, `TestQuestions_BannerAndACVEOnNoList`). Each line is its own pair: a finding or an "add the version" item
-  of a CVE on one line of a device does not keep another line the CVE names from being asked (`apart`). A line NVD names only at exact
+  of a CVE on one line of a device does not keep another line the CVE names from being asked (`apart`), also a line the entry matched
+  by name or key alone, which the finding leaves out (`nameOnlyBeside`, with the reason the name-only path gives;
+  `TestCoverage_ANameOnlyLineBesideAVersionFindingIsAsked`). A line NVD names only at exact
   releases older than its own is not asked either: the release numbers each side starts with decide, whatever update or build
   follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). Nor is one NVD's exact list leaves out
   by its release line, in a notation whose lines are known (`lineOrder`: Junos 25.4R1 against 24.4 and 25.2 releases, Java 8

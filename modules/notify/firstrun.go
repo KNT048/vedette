@@ -41,6 +41,10 @@ func settleDue(now, first time.Time) time.Time {
 	return due
 }
 
+// quietPrefix starts the id of the notice of a load's findings that are not exploited (INV-32): "nt-quiet-first-run-<key>-<time>", so
+// no reader of the load's summaries (Home's first look, the waiting summary, "N more") counts it as one.
+const quietPrefix = "nt-quiet-"
+
 // firstRunPrefix starts the id of every summary of one load: "nt-first-run-<key>-".
 func firstRunPrefix(key string) string { return "nt-first-run-" + clip(key, 80) + "-" }
 
@@ -120,6 +124,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		Findings   int      `json:"findings"`
 		Devices    int      `json:"devices"`
 		Layer      int      `json:"layer"`
+		Exploited  int      `json:"exploited"`
 		FindingIDs []string `json:"finding_ids"`
 		CVEList    []string `json:"cve_list"`
 	}
@@ -141,16 +146,17 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	// Passes of one load may be told at the same time (several devices rated at once): a pass that finds the waiting summary changed
 	// when it comes to write reads again, so it joins the summary the other pass wrote instead of queuing a second one beside it.
 	for try := 1; ; try++ {
-		err := s.firstRunPass(ctx, e.Key, prefix, at, e.Findings, e.Devices, e.Layer, e.FindingIDs, try < firstRunTries)
+		err := s.firstRunPass(ctx, e.Key, prefix, at, e.Findings, e.Exploited, e.Devices, e.Layer, e.FindingIDs, try < firstRunTries)
 		if !errors.Is(err, errSummaryMoved) {
 			return err
 		}
 	}
 }
 
-// firstRunPass is one try of urgencyFirstRun for the event of a load (its key and id prefix): eventFindings counted, ids listed.
+// firstRunPass is one try of urgencyFirstRun for the event of a load (its key and id prefix): eventFindings counted (eventExploited of
+// them exploited), ids listed.
 // retry: return errSummaryMoved when the waiting summary changed between the reads and the write (else tell what this pass has alone).
-func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.Time, eventFindings, eventDevices, eventLayer int, eventIDs []string,
+func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.Time, eventFindings, eventExploited, eventDevices, eventLayer int, eventIDs []string,
 	retry bool) error {
 	waiting, err := waitingSummary(ctx, s.cfg.DB.Reader(), prefix)
 	if err != nil {
@@ -172,8 +178,48 @@ func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.
 			infos[id] = f
 		}
 	}
+	// Only a finding exploited in the wild is told in the summary (INV-32): the others of the load are one notice recorded for the
+	// daily summary, which no channel takes as an alert.
+	quiet := map[string]FindingInfo{}
+	var quietIDs []string
+	listedExploited := 0
+	for _, id := range ids {
+		f, ok := infos[id]
+		switch {
+		case !ok:
+		case !f.Exploited:
+			quiet[id] = f
+			quietIDs = append(quietIDs, id)
+			delete(infos, id)
+		case slices.Contains(eventIDs, id):
+			listedExploited++
+		}
+	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		unlisted := max(eventFindings-len(eventIDs), 0) // the event counts more findings than it lists
+		// a finding a quiet notice already told at its layer is not told again (it would be in two daily summaries)
+		var fresh []string
+		for _, id := range quietIDs {
+			told, err := s.toldAt(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			if told == 0 || told > quiet[id].Layer {
+				fresh = append(fresh, id)
+			}
+		}
+		quietIDs := fresh
+		if len(quietIDs) > 0 {
+			q := s.summaryNotice(key, quietIDs, quiet, 0, 0, 0, "")
+			q.ID, q.At = quietPrefix+strings.TrimPrefix(prefix, "nt-")+at.UTC().Format("20060102T150405.000"), at
+			q.Title = plural(len(quietIDs), "finding", "findings") + " not exploited in the wild, for the daily summary"
+			if err := s.enqueue(ctx, tx, q); err != nil {
+				return err
+			}
+		}
+		unlisted := 0 // the event counts more findings than it lists: only its exploited ones are told here
+		if eventFindings > len(eventIDs) {
+			unlisted = max(eventExploited-listedExploited, 0)
+		}
 		w := waiting
 		cur, err := waitingSummaryID(ctx, tx, prefix)
 		if err != nil {
@@ -311,6 +357,7 @@ func (s *Service) summaryNotice(key string, keep []string, infos map[string]Find
 		f := infos[id]
 		n.FindingIDs = append(n.FindingIDs, id)
 		n.FindingLayers = append(n.FindingLayers, f.Layer)
+		n.Exploited = n.Exploited || f.Exploited
 		if n.Layer == 0 || f.Layer < n.Layer {
 			n.Layer = f.Layer
 		}
@@ -337,15 +384,16 @@ func (s *Service) summaryNotice(key string, keep []string, infos map[string]Find
 	}
 	found := len(keep) + unlisted
 	if unlisted > 0 {
+		n.Exploited = true // the unlisted ones are the event's exploited findings
 		devices = max(devices, eventDevices)
 		if eventLayer >= 1 && eventLayer < n.Layer {
 			n.Layer = eventLayer
 		}
 	}
 	n.More = found - len(n.Lines)
-	n.Severity = AlertSeverity(Medium, n.Layer)
+	n.Severity = AlertSeverity(Medium, n.Exploited)
 	n.Link = s.link(findingsListOf(append(slices.Clone(n.FindingLayers), n.Layer)))
-	const urgent = "as exploited, with a public exploit or critical on an edge device"
+	const urgent = "as exploited in the wild" // only those are in a summary (INV-32)
 	if prior != "" {
 		why := "Like those, they come from the first load of a source of exploitation news, so they are listed together here instead of one alert each."
 		switch {

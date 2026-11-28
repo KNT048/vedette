@@ -21,27 +21,47 @@ import (
 // network where phones use private, random MAC addresses a busy office sees many a day), and the medium and low ones of the other kinds
 // do not.
 
-// TriggerVuln is the trigger of the vulnerability notices (an exploited or urgent vulnerability on a device).
+// TriggerVuln is the trigger of the vulnerability notices (a vulnerability exploited in the wild on a device). It has no lowest severity:
+// a finding alerts only when it is exploited in the wild, and that is always critical (INV-32), so a minimum would change nothing. The
+// API gives it its own type, `{on}` (VulnTrigger); a stored rule of an earlier build that still carries a minimum is read and the
+// minimum dropped (loadTriggers).
 const TriggerVuln = "vulnerability"
 
-// Trigger is the rule of one trigger (contract.ts AlertTrigger).
+// Trigger is the rule of one incident trigger (contract.ts AlertTrigger); internally also of TriggerVuln, with no Min.
 type Trigger struct {
 	ID  string   `json:"id"`
 	On  bool     `json:"on"`
-	Min Severity `json:"min"` // the lowest severity that sends: critical, high, medium or low
+	Min Severity `json:"min,omitempty"` // the lowest severity that sends: critical, high, medium or low; "" for TriggerVuln
 }
 
-// TriggerView is a trigger as GET /notify/channels shows it: the rule and its default.
+// TriggerView is an incident trigger as GET /notify/channels shows it: the rule and its default.
 type TriggerView struct {
 	Trigger
 	DefaultOn  bool     `json:"default_on"`
 	DefaultMin Severity `json:"default_min"`
 }
 
+// VulnTrigger is the rule of TriggerVuln (contract.ts VulnerabilityTrigger): on or off, nothing else.
+type VulnTrigger struct {
+	On bool `json:"on"`
+}
+
+// VulnTriggerView is TriggerVuln as the API shows it: the rule and its default.
+type VulnTriggerView struct {
+	On        bool `json:"on"`
+	DefaultOn bool `json:"default_on"`
+}
+
+// TriggersView is the answer of PUT /notify/triggers: the incident triggers and the vulnerability trigger.
+type TriggersView struct {
+	Triggers      []TriggerView   `json:"triggers"`
+	Vulnerability VulnTriggerView `json:"vulnerability_trigger"`
+}
+
 // defaultTriggers lists every trigger in the order the settings show them, with its default rule.
 var defaultTriggers = []Trigger{
 	{ID: string(IncidentTrap), On: true, Min: Low},
-	{ID: TriggerVuln, On: true, Min: Low},
+	{ID: TriggerVuln, On: true},
 	{ID: string(IncidentIntrusion), On: true, Min: High},
 	{ID: string(IncidentBadAddress), On: true, Min: High},
 	{ID: string(IncidentLogAnomaly), On: true, Min: High},
@@ -51,7 +71,7 @@ var defaultTriggers = []Trigger{
 // triggerNames are the words the not-sent reasons and the audit use for each trigger.
 var triggerNames = map[string]string{
 	string(IncidentTrap):          "decoy touched",
-	TriggerVuln:                   "exploited or urgent vulnerability",
+	TriggerVuln:                   "vulnerability exploited in the wild",
 	string(IncidentIntrusion):     "intrusion alert",
 	string(IncidentBadAddress):    "connection to a known-bad address",
 	string(IncidentLogAnomaly):    "log anomaly",
@@ -95,7 +115,7 @@ func (ts Triggers) holds(n Notice) (bool, Severity) {
 	if !t.On {
 		return true, ""
 	}
-	if !MeetsMin(n.Severity, t.Min) {
+	if t.ID != TriggerVuln && !MeetsMin(n.Severity, t.Min) {
 		return true, t.Min
 	}
 	return false, ""
@@ -103,7 +123,8 @@ func (ts Triggers) holds(n Notice) (bool, Severity) {
 
 func defaultsCopy() Triggers { return slices.Clone(defaultTriggers) }
 
-// loadTriggers reads the stored rules over the defaults; a stored trigger the box no longer knows is dropped.
+// loadTriggers reads the stored rules over the defaults; a stored trigger the box no longer knows is dropped, and the minimum an earlier
+// build stored for TriggerVuln is dropped (its on or off is kept).
 func loadTriggers(ctx context.Context, q dbtx) (Triggers, error) {
 	out := defaultsCopy()
 	var v string
@@ -119,7 +140,12 @@ func loadTriggers(ctx context.Context, q dbtx) (Triggers, error) {
 		return out, fmt.Errorf("notify: stored alert triggers: %w", err)
 	}
 	for _, st := range stored {
-		if i := slices.IndexFunc(out, func(t Trigger) bool { return t.ID == st.ID }); i >= 0 && validMin(st.Min) {
+		i := slices.IndexFunc(out, func(t Trigger) bool { return t.ID == st.ID })
+		switch {
+		case i < 0:
+		case st.ID == TriggerVuln:
+			out[i] = Trigger{ID: TriggerVuln, On: st.On}
+		case validMin(st.Min):
 			out[i] = st
 		}
 	}
@@ -128,14 +154,22 @@ func loadTriggers(ctx context.Context, q dbtx) (Triggers, error) {
 
 func validMin(s Severity) bool { return s.Valid() && s != Info }
 
-// triggerViews is the API's list: every trigger with its default.
+// triggerViews is the API's list: every incident trigger with its default (TriggerVuln is vulnView).
 func triggerViews(ts Triggers) []TriggerView {
 	out := make([]TriggerView, 0, len(defaultTriggers))
 	for _, d := range defaultTriggers {
+		if d.ID == TriggerVuln {
+			continue
+		}
 		t := ts.find(d.ID)
 		out = append(out, TriggerView{Trigger: t, DefaultOn: d.On, DefaultMin: d.Min})
 	}
 	return out
+}
+
+// vulnView is TriggerVuln as the API shows it.
+func vulnView(ts Triggers) VulnTriggerView {
+	return VulnTriggerView{On: ts.find(TriggerVuln).On, DefaultOn: Triggers(defaultTriggers).find(TriggerVuln).On}
 }
 
 // triggerWords is how the audit says one trigger's rule: "off" or "on from high".
@@ -143,26 +177,27 @@ func triggerWords(t Trigger) string {
 	if !t.On {
 		return "off"
 	}
-	if t.Min == Low {
+	if t.Min == Low || t.ID == TriggerVuln {
 		return "on"
 	}
 	return "on from " + string(t.Min)
 }
 
-// SaveTriggers stores the alert triggers (PUT /notify/triggers, INV-31). Every trigger in the request must be known and have a minimum of
-// critical, high, medium or low; a trigger left out keeps its rule. The audit entry names each change, old and new.
-func (s *Service) SaveTriggers(ctx context.Context, actor string, in []Trigger) ([]TriggerView, error) {
+// SaveTriggers stores the alert triggers (PUT /notify/triggers, INV-31). Every incident trigger in the request must be known and have a
+// minimum of critical, high, medium or low; vuln, when not nil, turns the vulnerability trigger on or off (it is never in `in`); a trigger
+// left out keeps its rule. The audit entry names each change, old and new.
+func (s *Service) SaveTriggers(ctx context.Context, actor string, in []Trigger, vuln *VulnTrigger) (TriggersView, error) {
 	seen := map[string]bool{}
 	for _, t := range in {
-		if _, ok := triggerNames[t.ID]; !ok {
-			return nil, badRequest("unknown_trigger", fmt.Sprintf("There is no alert trigger %q.", t.ID))
+		if _, ok := triggerNames[t.ID]; !ok || t.ID == TriggerVuln {
+			return TriggersView{}, badRequest("unknown_trigger", fmt.Sprintf("There is no alert trigger %q.", t.ID))
 		}
 		if seen[t.ID] {
-			return nil, badRequest("duplicate_trigger", fmt.Sprintf("The alert trigger %q is listed twice.", t.ID))
+			return TriggersView{}, badRequest("duplicate_trigger", fmt.Sprintf("The alert trigger %q is listed twice.", t.ID))
 		}
 		seen[t.ID] = true
 		if !validMin(t.Min) {
-			return nil, badRequest("bad_min", "The lowest severity must be critical, high, medium or low.")
+			return TriggersView{}, badRequest("bad_min", "The lowest severity must be critical, high, medium or low.")
 		}
 	}
 	var out Triggers
@@ -173,6 +208,9 @@ func (s *Service) SaveTriggers(ctx context.Context, actor string, in []Trigger) 
 		}
 		out = slices.Clone(cur)
 		var changes []string
+		if vuln != nil {
+			in = append(slices.Clone(in), Trigger{ID: TriggerVuln, On: vuln.On})
+		}
 		for _, t := range in {
 			i := slices.IndexFunc(out, func(x Trigger) bool { return x.ID == t.ID })
 			if out[i] == t {
@@ -211,7 +249,7 @@ func (s *Service) SaveTriggers(ctx context.Context, actor string, in []Trigger) 
 		return s.record(ctx, tx, actor, "notify.triggers_save", "alert triggers", strings.Join(changes, "; "))
 	})
 	if err != nil {
-		return nil, err
+		return TriggersView{}, err
 	}
-	return triggerViews(out), nil
+	return TriggersView{Triggers: triggerViews(out), Vulnerability: vulnView(out)}, nil
 }

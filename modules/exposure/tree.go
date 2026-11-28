@@ -404,8 +404,8 @@ func handOverService(ctx context.Context, tx *sql.Tx, log *handLog, sid, to, nam
 	case errors.Is(err, sql.ErrNoRows): // a copy
 		oid = store.NewID("xs")
 		log.made[oid] = true
-		_, err = tx.ExecContext(ctx, `INSERT INTO exp_service (id, target_id, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state, first_seen, last_seen, last_run_id)
-			SELECT ?, ?, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state, first_seen, last_seen, last_run_id FROM exp_service WHERE id = ?`, oid, to, sid)
+		_, err = tx.ExecContext(ctx, `INSERT INTO exp_service (id, target_id, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state, first_seen, last_seen, last_run_id, opened_at)
+			SELECT ?, ?, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state, first_seen, last_seen, last_run_id, opened_at FROM exp_service WHERE id = ?`, oid, to, sid)
 	case err == nil: // merged: the later reading wins, first seen is the earlier
 		if !keep && !log.made[oid] {
 			log.merged[sid] = true // folded into a row the receiver held already: not new there
@@ -573,8 +573,8 @@ func copyIssue(ctx context.Context, tx *sql.Tx, log *handLog, i issueRef, to, sv
 	id := store.NewID("xi")
 	log.made[id] = true
 	_, err = tx.ExecContext(ctx, `INSERT INTO exp_issue (id, target_id, service_id, engine, key, title, severity, cves, detail, state, resolution, resolved_by, resolved_at,
-		note, accepted_until, first_seen, last_seen, last_run_id) SELECT ?, ?, ?, engine, key, title, severity, cves, detail, state, resolution, resolved_by, resolved_at,
-		note, accepted_until, first_seen, last_seen, last_run_id FROM exp_issue WHERE id = ?`, id, to, nullString(svc), i.id)
+		note, accepted_until, first_seen, last_seen, last_run_id, opened_at, exploited) SELECT ?, ?, ?, engine, key, title, severity, cves, detail, state, resolution, resolved_by, resolved_at,
+		note, accepted_until, first_seen, last_seen, last_run_id, opened_at, exploited FROM exp_issue WHERE id = ?`, id, to, nullString(svc), i.id)
 	if err != nil {
 		return fmt.Errorf("copying issue %s: %w", i.id, err)
 	}

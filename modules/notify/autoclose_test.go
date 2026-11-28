@@ -242,7 +242,7 @@ func TestFirstRunSummaryIsNeverLostAndWaitsAsOne(t *testing.T) {
 	if i := e.detail(raised); i.FirstRunSummary || i.Severity != notify.High {
 		t.Fatalf("raised = %+v", i)
 	}
-	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00"}, notify.Grouping{Enabled: false, WindowMin: 60}) // now is 10:00
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00"}) // now is 10:00
 	open("d", notify.Medium)
 	e.autoClose()
 	e.clock.Add(time.Hour)
@@ -263,7 +263,7 @@ func TestFirstRunSummaryOfResolvedIncidentsIsDropped(t *testing.T) {
 	e := newEnv(t)
 	e.firstRunAt(e.clock.Now())
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00"}, notify.Grouping{Enabled: false, WindowMin: 60}) // now is 10:00
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00"}) // now is 10:00
 	id, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentBadAddress, Source: "a", Title: "bad a", Severity: notify.Medium, What: "w", Action: "a", Link: "/logs"})
 	if err != nil {
 		t.Fatal(err)

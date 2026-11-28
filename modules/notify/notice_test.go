@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 func vuln(id, product, cve string, devices []string, sev Severity, t time.Time) Notice {
-	return Notice{ID: id, Kind: KindVuln, Severity: sev, Product: product, CVEs: []string{cve}, Devices: devices,
+	return Notice{ID: id, Kind: KindVuln, Exploited: true, Severity: sev, Product: product, CVEs: []string{cve}, Devices: devices,
 		Title: product + " is being exploited (" + cve + ")", What: "Attackers are using " + cve + " right now.",
 		Action: "Update " + product + " today.", Link: "https://192.168.10.2/findings/" + id, At: t}
 }
@@ -36,72 +37,42 @@ func TestContract_INV2_NoUnmatchedCVE(t *testing.T) {
 	}
 }
 
-func TestContract_INV3_GroupsSameProductInsideWindow(t *testing.T) {
+func TestContract_INV3_EachNoticeDueNowIsABatchAndHeldOnesArePerProduct(t *testing.T) {
 	t.Parallel()
 	ns := []Notice{
 		vuln("a", "WordPress", "CVE-1", []string{"WEB01"}, Medium, at(9, 0)),
 		vuln("b", "Other", "CVE-9", []string{"PC1"}, High, at(9, 10)),
 		vuln("c", "wordpress ", "CVE-2", []string{"WEB01", "WEB02"}, High, at(9, 14)), // same product, case/space-insensitive
-		vuln("d", "WordPress", "CVE-3", []string{"WEB01"}, Low, at(9, 16)),            // 16 min after the first: outside a 15-minute window
+		vuln("d", "WordPress", "CVE-3", []string{"WEB01"}, Low, at(9, 16)),
 		{ID: "i1", Kind: KindIncident, Severity: High, Title: "t", Link: "https://h/x", At: at(9, 1)},
 		{ID: "i2", Kind: KindIncident, Severity: High, Title: "t", Link: "https://h/x", At: at(9, 2)}, // incidents never group
 	}
-	got := Group(ns, Grouping{Enabled: true, WindowMin: 15}, Low)
-	var ids [][]string
+	got := Group(ns, Low)
+	var ids []string
 	for _, b := range got {
-		var r []string
-		for _, n := range b.Notices {
-			r = append(r, n.ID)
+		if len(b.Notices) != 1 {
+			t.Fatalf("a batch of %d notices due now: digest merges them, not Group", len(b.Notices))
 		}
-		ids = append(ids, r)
+		ids = append(ids, b.Notices[0].ID)
 	}
-	want := `[["a","c"],["i1"],["i2"],["b"],["d"]]`
-	if j, _ := json.Marshal(ids); string(j) != want {
-		t.Errorf("batches = %s, want %s", j, want)
+	if j, _ := json.Marshal(ids); string(j) != `["a","i1","i2","b","c","d"]` {
+		t.Errorf("batches = %s", j)
 	}
-	if b := got[0]; b.Severity() != High {
-		t.Errorf("batch severity = %s", b.Severity())
-	}
-
-	// 60 minutes pulls "d" in as well.
-	if got := Group(ns, Grouping{Enabled: true, WindowMin: 60}, Low); len(got) != 4 || len(got[0].Notices) != 3 {
-		t.Errorf("60 min: %d batches", len(got))
-	}
-	// Disabled or invalid window: nothing is grouped.
-	for _, g := range []Grouping{{Enabled: false, WindowMin: 60}, {Enabled: true, WindowMin: 7}} {
-		if got := Group(ns, g, Low); len(got) != len(ns) {
-			t.Errorf("%+v grouped %d notices into %d batches", g, len(ns), len(got))
-		}
-	}
-	// Held during quiet hours: one batch per product whatever the window.
-	if got := GroupHeld(ns, Low); len(got) != 4 || len(got[0].Notices) != 3 {
+	// Held during quiet hours: one batch per product.
+	if got := GroupHeld(ns, Low); len(got) != 4 || len(got[0].Notices) != 3 || got[0].Severity() != High {
 		t.Errorf("GroupHeld: %d batches", len(got))
 	}
 	// Input order does not matter and the input is not modified.
 	rev := []Notice{ns[3], ns[2], ns[1], ns[0]}
-	if got := Group(rev, Grouping{Enabled: true, WindowMin: 15}, Low); got[0].Notices[0].ID != "a" || rev[0].ID != "d" {
+	if got := GroupHeld(rev, Low); got[0].Notices[0].ID != "a" || rev[0].ID != "d" {
 		t.Errorf("order handling: first batch starts with %s", got[0].Notices[0].ID)
 	}
 }
 
-func TestGroupingValidate(t *testing.T) {
-	t.Parallel()
-	for _, w := range []int{15, 60, 240} {
-		if err := (Grouping{Enabled: true, WindowMin: w}).Validate(); err != nil {
-			t.Errorf("%d: %v", w, err)
-		}
-	}
-	for _, w := range []int{0, 5, 30, 120, -60} {
-		if err := (Grouping{Enabled: true, WindowMin: w}).Validate(); !errors.Is(err, ErrBadGrouping) {
-			t.Errorf("%d: %v", w, err)
-		}
-	}
-}
-
-// oneBatch groups ns for a channel with min_severity low and expects one batch.
+// oneBatch groups ns as quiet hours do (one batch per product) for a channel with min_severity low and expects one batch.
 func oneBatch(t *testing.T, ns ...Notice) Batch {
 	t.Helper()
-	b := Group(ns, Grouping{Enabled: true, WindowMin: 240}, Low)
+	b := GroupHeld(ns, Low)
 	if len(b) != 1 {
 		t.Fatalf("expected one batch, got %d", len(b))
 	}
@@ -117,57 +88,33 @@ func msgOf(t *testing.T, b Batch) channel.Message {
 	return m
 }
 
-func TestBatchDueAt(t *testing.T) {
-	t.Parallel()
-	b := oneBatch(t, vuln("a", "P", "CVE-1", []string{"d"}, High, at(9, 0)))
-	if got := b.DueAt(Grouping{Enabled: true, WindowMin: 240}); !got.Equal(at(13, 0)) {
-		t.Errorf("DueAt = %v", got)
-	}
-	if got := b.DueAt(Grouping{Enabled: false}); !got.Equal(at(9, 0)) {
-		t.Errorf("disabled DueAt = %v", got)
-	}
-}
-
 // Critical is never delayed by grouping, so INV-6 (60 minutes) holds for it
 // whatever window is configured.
 func TestContract_INV6_CriticalIsNeverGrouped(t *testing.T) {
 	t.Parallel()
-	g := Grouping{Enabled: true, WindowMin: 240}
 	ns := []Notice{
 		vuln("h1", "WordPress", "CVE-1", []string{"WEB01"}, High, at(9, 0)),
 		vuln("c1", "WordPress", "CVE-2", []string{"WEB01"}, Critical, at(9, 5)),
 		vuln("h2", "WordPress", "CVE-3", []string{"WEB01"}, High, at(9, 10)),
 		vuln("c2", "WordPress", "CVE-4", []string{"WEB01"}, Critical, at(9, 11)),
 	}
-	for name, got := range map[string][]Batch{"Group": Group(ns, g, Low), "GroupHeld": GroupHeld(ns, Low)} {
-		var ids [][]string
-		for _, b := range got {
-			var r []string
-			for _, n := range b.Notices {
-				r = append(r, n.ID)
-				if n.Severity == Critical && len(b.Notices) != 1 {
-					t.Errorf("%s: critical notice %s rides in a batch of %d", name, n.ID, len(b.Notices))
-				}
+	var ids [][]string
+	for _, b := range GroupHeld(ns, Low) {
+		var r []string
+		for _, n := range b.Notices {
+			r = append(r, n.ID)
+			if n.Severity == Critical && len(b.Notices) != 1 {
+				t.Errorf("critical notice %s rides in a batch of %d", n.ID, len(b.Notices))
 			}
-			ids = append(ids, r)
 		}
-		if j, _ := json.Marshal(ids); string(j) != `[["h1","h2"],["c1"],["c2"]]` {
-			t.Errorf("%s: batches = %s", name, j)
-		}
+		ids = append(ids, r)
 	}
-	for _, b := range Group(ns, g, Low) {
-		first := b.Notices[0]
-		want := first.At.Add(4 * time.Hour)
-		if first.Severity == Critical {
-			want = first.At // due at its own time
-		}
-		if got := b.DueAt(g); !got.Equal(want) {
-			t.Errorf("%s: DueAt = %v, want %v", first.ID, got, want)
-		}
+	if j, _ := json.Marshal(ids); string(j) != `[["h1","h2"],["c1"],["c2"]]` {
+		t.Errorf("batches = %s", j)
 	}
 	// The bypass does not depend on the order notices arrive in.
 	rev := []Notice{ns[3], ns[2], ns[1], ns[0]}
-	if got := Group(rev, g, Low); len(got) != 3 {
+	if got := GroupHeld(rev, Low); len(got) != 3 {
 		t.Errorf("reversed input: %d batches", len(got))
 	}
 }
@@ -175,20 +122,19 @@ func TestContract_INV6_CriticalIsNeverGrouped(t *testing.T) {
 // FORBID-1 is enforced inside the library, not only by SplitSendable.
 func TestContract_INV2_LibraryNeverBatchesUnmatched(t *testing.T) {
 	t.Parallel()
-	g := Grouping{Enabled: true, WindowMin: 60}
 	ok := vuln("ok", "WordPress", "CVE-1", []string{"WEB01"}, High, at(9, 0))
 	for name, devices := range map[string][]string{"none": nil, "empty": {}, "blank": {""}, "spaces": {"  ", "\t"}} {
 		bad := vuln("bad", "WordPress", "CVE-2", devices, Critical, at(9, 1))
 		if bad.Sendable() {
 			t.Errorf("%s: Sendable", name)
 		}
-		for gname, batches := range map[string][]Batch{"Group": Group([]Notice{ok, bad}, g, Low), "GroupHeld": GroupHeld([]Notice{ok, bad}, Low)} {
+		for gname, batches := range map[string][]Batch{"Group": Group([]Notice{ok, bad}, Low), "GroupHeld": GroupHeld([]Notice{ok, bad}, Low)} {
 			if len(batches) != 1 || len(batches[0].Notices) != 1 || batches[0].Notices[0].ID != "ok" {
 				t.Errorf("%s/%s: unsendable notice reached a batch: %+v", name, gname, batches)
 			}
 		}
 		// Message refuses a batch someone assembled by hand around it.
-		b := Group([]Notice{ok}, g, Low)[0]
+		b := Group([]Notice{ok}, Low)[0]
 		b.Notices = append(b.Notices, bad)
 		if _, err := b.Message(); !errors.Is(err, ErrUnsendable) {
 			t.Errorf("%s: Message of a tampered batch: %v", name, err)
@@ -207,16 +153,15 @@ func TestContract_INV2_LibraryNeverBatchesUnmatched(t *testing.T) {
 	}
 }
 
-// Grouping is per channel: a Low notice never rides in a batch to a High-only channel.
-func TestContract_INV4_GroupingIsPerChannel(t *testing.T) {
+// Batching is per channel: a Low notice never rides in a batch to a High-only channel.
+func TestContract_INV4_BatchingIsPerChannel(t *testing.T) {
 	t.Parallel()
-	g := Grouping{Enabled: true, WindowMin: 60}
 	ns := []Notice{
 		vuln("lo", "WordPress", "CVE-LOW", []string{"WEB01"}, Low, at(9, 0)),
 		vuln("hi", "WordPress", "CVE-HIGH", []string{"WEB01"}, High, at(9, 1)),
 		vuln("md", "WordPress", "CVE-MED", []string{"WEB01"}, Medium, at(9, 2)),
 	}
-	highOnly := Group(ns, g, High)
+	highOnly := Group(ns, High)
 	if len(highOnly) != 1 || len(highOnly[0].Notices) != 1 {
 		t.Fatalf("high-only channel got %d batches", len(highOnly))
 	}
@@ -225,14 +170,14 @@ func TestContract_INV4_GroupingIsPerChannel(t *testing.T) {
 	if strings.Contains(all, "CVE-LOW") || strings.Contains(all, "CVE-MED") || !strings.Contains(all, "CVE-HIGH") {
 		t.Errorf("message for the high-only channel: %+v", m)
 	}
-	lowOK := Group(ns, g, Low)
+	lowOK := GroupHeld(ns, Low)
 	if len(lowOK) != 1 || len(lowOK[0].Notices) != 3 {
 		t.Errorf("low channel: %d batches", len(lowOK))
 	}
 	if got := GroupHeld(ns, Medium); len(got) != 1 || len(got[0].Notices) != 2 {
 		t.Errorf("GroupHeld for medium: %+v", got)
 	}
-	if len(Group(ns, g, "")) != 0 || len(Group(ns, g, Info)) != 0 {
+	if len(Group(ns, "")) != 0 || len(Group(ns, Info)) != 0 {
 		t.Error("an invalid minimum must pass nothing")
 	}
 	// A batch built for a lenient channel cannot be rendered for the strict one by adding a notice.
@@ -384,7 +329,7 @@ func FuzzBatchMessage(f *testing.F) {
 	f.Add("<b>\u202e", "\x00", "a\r\nb", strings.Repeat("é", 400))
 	f.Add("P", "CVE-1", "  ", "t")
 	f.Fuzz(func(t *testing.T, product, cve, device, title string) {
-		a := Notice{ID: "a", Kind: KindVuln, Severity: High, Product: product, CVEs: []string{cve}, Devices: []string{device}, Title: title, Link: "https://h/x", At: at(9, 0)}
+		a := Notice{ID: "a", Kind: KindVuln, Exploited: true, Severity: High, Product: product, CVEs: []string{cve}, Devices: []string{device}, Title: title, Link: "https://h/x", At: at(9, 0)}
 		b := a
 		b.ID, b.At = "b", at(9, 1)
 		for _, ns := range [][]Notice{{a}, {a, b}} {
@@ -395,7 +340,7 @@ func FuzzBatchMessage(f *testing.F) {
 				}
 			}
 			total := 0
-			for _, bt := range Group(ns, Grouping{Enabled: true, WindowMin: 15}, Low) {
+			for _, bt := range Group(ns, Low) {
 				total += len(bt.Notices)
 				m, err := bt.Message()
 				if err != nil {
@@ -473,7 +418,7 @@ func TestDigestWordingFollowsTheUrgencyLayer(t *testing.T) {
 	t.Parallel()
 	layered := func(id, product, cve string, layer int) Notice {
 		n := vuln(id, product, cve, []string{"NAS-01"}, High, at(9, 0))
-		n.Layer = layer
+		n.Layer, n.Exploited = layer, findings.ExploitedLayer(layer)
 		return n
 	}
 	same := msgOf(t, oneBatch(t, layered("a", "WordPress", "CVE-1", 3), layered("b", "WordPress", "CVE-2", 5)))

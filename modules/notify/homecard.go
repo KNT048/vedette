@@ -77,8 +77,8 @@ func summaryLoad(id string) (prefix, load string, ok bool) {
 func (s *Service) FirstRunSummary(ctx context.Context, since time.Time) (*FirstRunSummary, error) {
 	q := s.cfg.DB.Reader()
 	var newest string
-	err := q.QueryRowContext(ctx, `SELECT id FROM notify_notice WHERE event = ? AND created_at >= ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-		string(NoticeFirstRun), store.FormatTS(since)).Scan(&newest)
+	err := q.QueryRowContext(ctx, `SELECT id FROM notify_notice WHERE event = ? AND created_at >= ? AND substr(id, 1, ?) <> ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+		string(NoticeFirstRun), store.FormatTS(since), len(quietPrefix), quietPrefix).Scan(&newest)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

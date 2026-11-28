@@ -424,6 +424,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   against 3.0.20, `otherBranch`) is set aside: the rows that compare decide, and rows set aside alone decide nothing
   (`TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision`). OpenSSL's letter releases past `z` (`0.9.8za`, `1.0.2zd`, `1.1.1zk`) order
   after `z` and compare like any other (`TestDecide_OpenSSLLetterBranches`).
+- **INV-4g** Evidence per installation. A software line can hold several readings. Readings with the same upstream version (or one
+  without a version) and the same source package or the same package release (one upload builds the product and its extras) are one
+  installation and share their evidence. Other readings (a distribution's package beside a third-party build of another release, two
+  releases installed side by side) are other installations. Each is decided on its own evidence: a distribution's word, a range or a
+  vendor statement decides only the installation it is about. An installation with no evidence of its own is asked about (one question
+  per line) and blocks the line's proof from closing a finding (`unspoken`, `sameInstallation`). Affected evidence on any installation
+  still opens the line. `TestInstallations_EachDecidedOnItsOwnEvidence`.
 - **INV-4f** Record shapes (`recordshape.go`), read from the rows' shape, never from the product they name: an application row whose
   version is NA (`-`) beside a row that versions the same product is about no version and does not apply to a line with a version (CPE
   name matching: NA and a value are disjoint; alone, or on an operating system or firmware, it stays undecided; an NA row that names a

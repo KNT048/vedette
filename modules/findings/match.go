@@ -821,6 +821,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
 				u := uncheckedOf(s, v, r)
 				u.lineUnlisted = true
+				u.at = i + 1
 				asks = append(asks, u)
 			}
 			continue
@@ -849,6 +850,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			} else if r, silence, ok := askRow(a, s, info, v, keyed, nm); ok && out == outNone {
 				u := uncheckedOf(s, v, r)
 				u.silence = silence
+				u.at = i + 1
 				asks = append(asks, u)
 			}
 		}
@@ -902,33 +904,64 @@ func (d *devMatch) read(vi int) *entryRead {
 	return e
 }
 
-// unspoken is the rows of asks (askRow's) on a line no other row of it has a word on for v: an outcome (a finding, a proof, a version
-// or a person's answer it needs, a question), a row already listed as unchecked, or its distribution's "affected, no fix yet". A line
-// holds several rows (its readings); one that is decided or asked about is not asked about again for another of its rows.
+// unspoken is the rows of asks (askRow's, and readings on a release line the record does not list) whose installation no row of their
+// line has a word on for v: an outcome (a finding, a proof, a version or a person's answer it needs, a question) or its distribution's
+// "affected, no fix yet". A row already listed as unchecked keeps its line asked about. A line holds several readings: two readings of
+// one installation share their evidence, so one decided or asked about is not asked about again for the other; another installation of
+// the line (a distribution's package beside a third-party build of another release) is decided on its own evidence, so it is asked
+// about, one question per line, and the line's proof does not close it (unproved).
 func (d *devMatch) unspoken(asks []Unchecked, e *entryRead, v Vuln) []Unchecked {
-	spoken, asked := map[string]bool{}, map[string]bool{}
+	words := map[string][]int{} // line -> its rows that have a word on v; -1: a word about the whole line
+	asked := map[string]bool{}
 	for _, u := range asks {
 		asked[storedLine(u.SoftwareID)] = true
 	}
 	for _, o := range e.outs {
-		spoken[storedLine(d.sws[o.row].ID)] = true
+		words[storedLine(d.sws[o.row].ID)] = append(words[storedLine(d.sws[o.row].ID)], o.row)
 	}
 	for _, u := range e.unchecked {
-		spoken[storedLine(u.SoftwareID)] = true
+		words[storedLine(u.SoftwareID)] = append(words[storedLine(u.SoftwareID)], -1)
 	}
 	for i, s := range d.sws {
 		if in := d.infos[i]; asked[storedLine(s.ID)] && in.pkgBuilt() && distroSilence(in, v) == DistroNoFixYet {
-			spoken[storedLine(s.ID)] = true
+			words[storedLine(s.ID)] = append(words[storedLine(s.ID)], i)
 		}
 	}
 	var out []Unchecked
+	done := map[string]bool{}
 	for _, u := range asks {
-		if line := storedLine(u.SoftwareID); !spoken[line] {
-			spoken[line] = true // one question per line
-			out = append(out, u)
+		line := storedLine(u.SoftwareID)
+		spoken := slices.ContainsFunc(words[line], func(r int) bool { return r < 0 || u.at == 0 || d.sameInstallation(r, u.at-1) })
+		if done[line] || spoken {
+			continue
 		}
+		done[line] = true // one question per line
+		if len(words[line]) > 0 {
+			e.unproved = true // another installation's proof is not this one's
+		}
+		out = append(out, u)
 	}
 	return out
+}
+
+// sameInstallation says rows i and j of the device's readings are one installation of their line: the same upstream version (or one of
+// them reads none) and, when both name a source package, the same one or the same package release (two packages one upload of the
+// release builds: "5.1-2ubuntu0.4" of the product and of its extras). Two releases of a product installed side by side, or the
+// distribution's package beside a build of another release, are two installations, each decided on its own evidence.
+func (d *devMatch) sameInstallation(i, j int) bool {
+	if i == j {
+		return true
+	}
+	a, b := d.infos[i], d.infos[j]
+	if !versionKnown(a.ver) || !versionKnown(b.ver) {
+		return true
+	}
+	if c, ok := compareBound(a.ver, b.ver); !ok || c != 0 {
+		return false
+	}
+	pa, pb := strings.TrimSpace(d.sws[i].PkgSource), strings.TrimSpace(d.sws[j].PkgSource)
+	ra, rb := strings.TrimSpace(d.sws[i].PkgVersion), strings.TrimSpace(d.sws[j].PkgVersion)
+	return pa == "" || pb == "" || pa == pb || ra != "" && ra == rb
 }
 
 // aiGuard is row i's reading of entry vi (and whether the AI's choice made it) when the AI chose the row's product (Software.AIProduct), from its reading m, out with that

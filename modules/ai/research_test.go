@@ -391,3 +391,43 @@ func TestResearch_QuoteWithAMadeUpEndIsNotChecked(t *testing.T) {
 		t.Errorf("the whole sentence: %s", ans.QuoteCheck)
 	}
 }
+
+// A turn the provider pauses is sent again with the whole assistant content so far (earlier searches and results kept), and the
+// layer's caps hold across the continuations: each resend offers only the searches and fetches left, none once a cap is used up.
+func TestResearch_PausedTurnKeepsResultsAndCaps(t *testing.T) {
+	a := researchSetup(t, ai.ResearchEconomy, false) // economy quick: 2 searches, 3 fetches
+	turn := 0
+	var seen []provider.Request
+	a.fake.research = func(_ context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
+		turn++
+		seen = append(seen, req)
+		switch turn {
+		case 1:
+			return provider.Response{Raw: json.RawMessage(`[{"type":"text","text":"first part"}]`), Usage: provider.Usage{InputTokens: 10, OutputTokens: 1}, Stop: provider.StopPause,
+				Web: provider.WebUse{Searches: 1, Fetched: []string{"https://example.com/a", "https://example.com/b"}}}, nil
+		case 2:
+			return provider.Response{Raw: json.RawMessage(`[{"type":"text","text":"second part"}]`), Usage: provider.Usage{InputTokens: 10, OutputTokens: 1}, Stop: provider.StopPause,
+				Web: provider.WebUse{Searches: 1, Fetched: []string{"https://example.com/c"}}}, nil
+		}
+		return provider.Response{Text: verdict("unsure", "low", ""), Usage: provider.Usage{InputTokens: 10, OutputTokens: 1}, Stop: provider.StopEnd}, nil
+	}
+	if _, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("%d requests", len(seen))
+	}
+	if w := seen[0].Web; w == nil || w.Searches != 2 || w.Fetches != 3 {
+		t.Errorf("first request caps %+v", w)
+	}
+	if w := seen[1].Web; w == nil || w.Searches != 1 || w.Fetches != 1 {
+		t.Errorf("second request caps %+v, want what is left (1 search, 1 fetch)", w)
+	}
+	if w := seen[2].Web; w != nil && (w.Searches > 0 || w.Fetches > 0) {
+		t.Errorf("third request still offers web tools %+v after the caps were used up", w)
+	}
+	last := seen[2].Messages
+	if len(last) != 2 || last[1].Role != provider.RoleAssistant || !strings.Contains(string(last[1].Raw), "first part") || !strings.Contains(string(last[1].Raw), "second part") {
+		t.Errorf("the last resend lost earlier content: %+v", last)
+	}
+}

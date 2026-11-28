@@ -444,21 +444,32 @@ func (r *researchRun) converse(ctx context.Context, hooks *HookRunner, prompt Pr
 	}
 	msgs := append([]provider.Message(nil), req.Messages...)
 	if r.web {
-		req.Web = &provider.WebTools{Searches: r.caps.searches, Fetches: r.caps.fetches, PageTokens: r.caps.pageTokens}
+		// The caps hold for the whole layer, whatever the provider counts per request: each resend of a paused turn offers only the
+		// searches and fetches left (none once a cap is used up), and carries the whole assistant content so far, so the results of the
+		// earlier requests stay in the conversation.
+		searches, fetches := r.caps.searches, r.caps.fetches
+		var paused json.RawMessage
 		for range researchPauses + 1 {
+			req.Web = &provider.WebTools{Searches: max(searches, 0), Fetches: max(fetches, 0), PageTokens: r.caps.pageTokens}
+			if searches <= 0 && fetches <= 0 {
+				req.Web = nil
+			}
 			req.Messages = msgs
 			res, err := send(req)
 			if err != nil {
 				return merged(), err
 			}
 			r.searches += res.Response.Web.Searches
+			searches -= res.Response.Web.Searches
+			fetches -= len(res.Response.Web.Fetched)
 			r.pages = appendPages(r.pages, res.Response.Web.Fetched...)
 			r.texts = append(r.texts, res.Response.Web.Texts...)
 			if res.Response.Stop != provider.StopPause {
 				last.Response.Text = answerJSON(res.Response.Text)
 				return merged(), nil
 			}
-			msgs = []provider.Message{req.Messages[0], {Role: provider.RoleAssistant, Raw: res.Response.Raw, Text: res.Response.Text}}
+			paused = joinContent(paused, res.Response.Raw)
+			msgs = []provider.Message{req.Messages[0], {Role: provider.RoleAssistant, Raw: paused}}
 		}
 		return merged(), ErrBadOutput
 	}
@@ -716,6 +727,20 @@ func (s *Service) ResearchEstimates(ctx context.Context) map[string]ResearchEsti
 			est += avg(strong) * len(balStrong) / len(balQuick)
 		}
 		out[ResearchBalanced] = ResearchEstimate{Tokens: est, Measured: true}
+	}
+	return out
+}
+
+// joinContent appends the content blocks of b (a JSON array) to those of a: one assistant turn with everything the provider sent so far.
+func joinContent(a, b json.RawMessage) json.RawMessage {
+	var x, y []json.RawMessage
+	_ = json.Unmarshal(a, &x)
+	if json.Unmarshal(b, &y) != nil {
+		return a
+	}
+	out, err := json.Marshal(append(x, y...))
+	if err != nil {
+		return a
 	}
 	return out
 }

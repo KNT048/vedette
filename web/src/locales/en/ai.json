@@ -114,7 +114,13 @@
     "downgrades": "Automatic level downgrades (before the monthly budget)",
     "noDowngrades": "No downgrade has happened.",
     "noDowngradesInfo": "The monthly budget stops AI jobs at 100 % and never lowers the level.",
-    "downgrade": "{{time}}: lowered from {{from}} to {{to}}. {{reason}}."
+    "downgrade": "{{time}}: lowered from {{from}} to {{to}}. {{reason}}.",
+    "research": {
+      "title": "Research tokens per day",
+      "caption": "Tokens the research of CVEs used on each of the last 14 days",
+      "none": "No research yet in the last 14 days.",
+      "day": "{{day}}: {{tokens}} tokens"
+    }
   },
   "runs": {
     "title": "AI run log",
@@ -188,17 +194,6 @@
     "err": {
       "cap": "The budget must be a whole number from 1,000 to 150,000,000."
     },
-    "autoRead": {
-      "title": "Reading vendor advisories",
-      "intro": "After each match, the AI reads the vendor's advisory for possible findings Vedette cannot decide from its own data (exploited CVEs first, then the most severe), and chooses the product of installed software no standard data names among products of Vedette's own catalogue.",
-      "info": "The box fetches the public advisory pages itself and sends the AI only the CVE, its public record, the product's vendor, name, version, release line and edition, and the page text (the record alone when no page can be read): never device names, addresses or users. The AI answers what the vendor states for the release line with the sentence it relied on; Vedette uses the answer only when it finds that sentence on the page. Affected opens a finding labelled \"Read by AI\" that you can reject; not affected is only a proposal you confirm or reject. To identify software, the AI receives the program's publisher, display name (with the names of your devices and accounts removed) and version, and up to 20 candidate products; a choice only opens findings, labelled \"Identified by AI\", and Not this product undoes it on every device.",
-      "switch": "Read by itself after each match",
-      "switchHint": "Off: only Check with AI on the possible findings reads them, and software no standard data names stays unidentified.",
-      "daily": "AI calls a day",
-      "dailyHint": "From 1 to 5,000; default 300. Identifying software counts here too, at most half of it; a call that failed after it was sent counts. It also pauses with other background jobs at 80 % of the monthly budget.",
-      "today": "Today: {{used}} of {{daily}} calls.",
-      "err": "The number must be a whole number from 1 to 5,000."
-    },
     "askConn": {
       "title": "Connections outside your network in Ask",
       "intro": "Ask uses the read tools of a connection inside your network (a private IPv4 or unique-local IPv6 address) as before. A connection outside it (a public address, the provider's shared range 100.64.0.0/10, a link-local address or a name) is used only after you allow it here, and again after its address changes.",
@@ -218,7 +213,44 @@
     "budgetRenews": "It renews on {{date}}.",
     "budgetWarn": "Past 80 %: response plans pause; at 100 % every AI job stops.",
     "budgetWarnInfo": "Past 80 %: Home shows a warning and an alert goes to the alert channels, if any is set up. Response plans pause, so questions and explanations keep the last 20 %. At 100 % every AI job stops until the budget renews or you raise it.",
-    "budgetStop": "Used up: every AI job is stopped until the budget renews on {{date}} or you raise it here."
+    "budgetStop": "Used up: every AI job is stopped until the budget renews on {{date}} or you raise it here.",
+    "research": {
+      "title": "Research CVEs Vedette cannot decide",
+      "intro": "When Vedette cannot decide a CVE from its own data, your AI reads the vendor's pages and says whether your software is affected. Vedette keeps the answer only when it finds the quoted sentence on the page.",
+      "info": "The box fetches the public advisory pages itself and sends the AI only the CVE, its public record, the product's vendor, name, version, release line and edition, and the page text (the record alone when no page can be read): never device names, addresses or users. The AI answers what the vendor states for the release line with the sentence it relied on; Vedette uses the answer only when it finds that sentence on the page. Affected opens a finding labelled \"Read by AI\" that you can reject; not affected is only a proposal you confirm or reject. To identify software, the AI receives the program's publisher, display name (with the names of your devices and accounts removed) and version, and up to 20 candidate products; a choice only opens findings, labelled \"Identified by AI\", and Not this product undoes it on every device.",
+      "switch": "Research by itself after each match",
+      "switchHint": "Off: only Research deeper or Check with AI on a possible finding researches it, and software no standard data names stays unidentified.",
+      "mode": "How thorough",
+      "modes": {
+        "economy": {
+          "name": "Economy",
+          "what": "The quick profile only. Cheapest; a CVE it is unsure about stays possible."
+        },
+        "balanced": {
+          "name": "Balanced",
+          "what": "The quick profile first, the strong profile only when the quick answer is unsure. Recommended."
+        },
+        "thorough": {
+          "name": "Thorough",
+          "what": "The strong profile only. Most reliable, most tokens."
+        }
+      },
+      "share": "Share of the monthly token budget",
+      "shareHint": "From 1 to 100 percent; default 50.",
+      "shareErr": "The share must be a whole number from 1 to 100.",
+      "shareUse": "This month: {{used}} of {{allowed}} tokens used, {{left}} left.",
+      "shareOver": "This month's research share is used up: research waits until {{date}}, or raise the share.",
+      "daily": "Research calls a day",
+      "dailyHint": "From 1 to 5,000; default 300.",
+      "today": "Today: {{used}} of {{daily}} calls.",
+      "err": "The number must be a whole number from 1 to 5,000.",
+      "sentTitle": "What is sent",
+      "sentBody": "The CVE id, its public record, the product's name and version line, and excerpts of public vendor pages. Never device names, addresses or users.",
+      "perCveMeasured": "On this box: about {{tokens}} tokens per CVE (last 30 days)",
+      "shareInfo": "A person's Research deeper is held only by the monthly budget itself, not by this share.",
+      "dailyInfo": "Identifying software counts here too, at most half of it; a call that failed after it was sent counts. It also pauses with other background jobs at 80 % of the monthly budget.",
+      "unitPercent": "%"
+    }
   },
   "cve": {
     "askTitle": "Ask my AI",
@@ -249,7 +281,56 @@
       "ok": "Fetched",
       "failed": "Could not fetch"
     },
-    "newsMeta": "Summarised {{time}}."
+    "newsMeta": "Summarised {{time}}.",
+    "research": {
+      "title": "AI research",
+      "intro": "How your AI researched this CVE for each release line Vedette could not decide. Every device on a line shares one answer.",
+      "line": "Release line {{line}}",
+      "verdict": {
+        "affected": "Affected",
+        "fixed": "Not affected",
+        "not_affected": "Not affected",
+        "unsure": "Unsure"
+      },
+      "fixedIn": "Already fixed in {{version}}",
+      "quote": "Quote it relies on",
+      "noQuote": "The AI gave no quote.",
+      "quoteCheck": {
+        "tool": "Quote found in the page the AI read",
+        "digest": "Quote found in the text Vedette read itself",
+        "live": "Quote found on the cited page, fetched by Vedette",
+        "not_found": "Quote not found on any page: this answer decides nothing",
+        "none": "No quote to check"
+      },
+      "source": "Source: {{host}}",
+      "sourceRecord": "Source: the CVE record",
+      "basis": {
+        "stated": "Stated: the page says it for this product",
+        "inferred": "Inferred: from a product that shares its code, not stated for this one"
+      },
+      "pages": "Pages read",
+      "noPages": "No page was read.",
+      "model": "Model",
+      "tokens": "{{tokens}} tokens",
+      "layer": {
+        "quick": "Answered by the quick profile",
+        "strong": "Answered by the strong profile"
+      },
+      "when": "Checked {{time}}",
+      "how": "How it decided",
+      "step": "{{n}}. {{layer}}: {{verdict}}",
+      "stepLayer": {
+        "quick": "Quick",
+        "strong": "Strong"
+      },
+      "stepFacts_one": "{{tokens}} tokens, {{count}} page read",
+      "stepFacts_other": "{{tokens}} tokens, {{count}} pages read",
+      "stepNone": "no answer",
+      "note": "Note",
+      "fix": "Fix: {{version}}",
+      "devices_one": "{{count}} device on this line",
+      "devices_other": "{{count}} devices on this line"
+    }
   },
   "logs": {
     "title": "AI log digest",

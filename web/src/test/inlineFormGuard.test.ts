@@ -24,7 +24,8 @@ const OWN_PAGE = 'is the whole content of its own page, not a form among list ro
 const SEARCH = 'is a search or jump box, not an add/edit form'
 
 const ALLOWED: { file: string; count: number; why: string }[] = [
-  { file: 'features/ai/AiSettings.tsx', count: 3, why: SETTINGS },
+  { file: 'features/ai/AiSettings.tsx', count: 2, why: SETTINGS },
+  { file: 'features/ai/ResearchSettings.tsx', count: 1, why: SETTINGS },
   { file: 'features/ai/AssistantPage.tsx', count: 1, why: 'is the question box of the assistant: it asks, it does not add or edit a stored item' },
   { file: 'features/core/AccountPage.tsx', count: 3, why: SETTINGS },
   { file: 'features/core/ChangePasswordPage.tsx', count: 1, why: OWN_PAGE },

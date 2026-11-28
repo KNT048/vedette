@@ -65,6 +65,10 @@ const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
     r(2, 700, 'cve-news', 3400, 700, 'CVE-2026-119977'), S(3, 900, 'explain-finding', 2500, 1200, 'CVE-2026-96951'),
     L(5, 500, 'log-digest', 21000, 3900), S(9, 480, 'ask-my-data', 1300, 450, 'Which devices are not approved yet?'), S(14, 300, 'pdpl-assessment', 11000, 4200),
     S(20, 700, 'explain-finding', 2400, 1000, 'CVE-2026-94418'), L(26, 600, 'log-digest', 18500, 3300),
+    // the research of CVEs Vedette cannot decide: the quick profile, and the strong one when the quick answer was unsure
+    r(0, 200, 'research-cves', 15200, 2600, 'CVE-2026-94418'), S(0, 205, 'research-cves', 52000, 7400, 'CVE-2026-94418'), r(1, 300, 'research-cves', 14100, 2300, 'CVE-2026-96951'),
+    r(1, 330, 'research-cves', 16800, 2900, 'CVE-2026-119977'), r(3, 400, 'research-cves', 13900, 2100, 'CVE-2022-27593'), S(4, 500, 'research-cves', 61000, 8800, 'CVE-2026-96951'),
+    r(6, 300, 'research-cves', 15500, 2500, 'CVE-2026-94418'),
   ]
 }, () => [])
 const downgrades = collection<Usage['downgrades']>('ai_downgrades', () => [{ id: 'dg-1', ts: new Date(Date.now() - 3 * DAY).toISOString(), from: 'med', to: 'min', reason: 'Over the 60,000 tokens/day cap' }], () => [])

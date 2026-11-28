@@ -431,3 +431,42 @@ func TestResearch_PausedTurnKeepsResultsAndCaps(t *testing.T) {
 		t.Errorf("the last resend lost earlier content: %+v", last)
 	}
 }
+
+// What a page the AI names costs the box: one GET with the fixed user agent, no cookie, no sign-in or key header, nothing about the
+// box or the customer beyond the address the AI wrote.
+func TestResearch_FetchPageSendsAPlainGET(t *testing.T) {
+	a := newAPI(t)
+	id := a.addProfile(internalBody("Local"))["id"].(string)
+	a.want("PUT", "/ai/assignments", "admin", `{"internal_only":false,"jobs":{"research-cves":{"primary":"`+id+`","fallback":null}}}`, 200, "")
+	var mu sync.Mutex
+	var got []*http.Request
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = append(got, r.Clone(context.Background()))
+		mu.Unlock()
+		_, _ = w.Write([]byte("<p>CVE-2099-81001: " + vendorSentence + "</p>"))
+	}))
+	t.Cleanup(srv.Close)
+	a.svc.SetPageServer(srv, func(context.Context, string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil })
+	turn := 0
+	a.fake.research = func(_ context.Context, _ ai.Profile, _ provider.Request) (provider.Response, error) {
+		if turn++; turn == 1 {
+			return provider.Response{ToolCalls: []provider.ToolCall{{ID: "a", Name: "fetch_page", Arguments: json.RawMessage(`{"url":"https://example.com/sa?product=widget"}`)}},
+				Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopToolUse}, nil
+		}
+		return provider.Response{Text: verdict("unsure", "low", ""), Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
+	}
+	if _, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 1 {
+		t.Fatalf("%d requests", len(got))
+	}
+	r := got[0]
+	if r.Method != http.MethodGet || r.UserAgent() != "Vedette" || r.Header.Get("Cookie") != "" || r.Header.Get("Authorization") != "" ||
+		r.Header.Get("x-api-key") != "" || r.URL.RequestURI() != "/sa?product=widget" {
+		t.Errorf("request %s %s ua %q headers %v", r.Method, r.URL.RequestURI(), r.UserAgent(), r.Header)
+	}
+}

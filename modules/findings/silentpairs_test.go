@@ -31,7 +31,7 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 	}
 	ubuntu := Asset{ID: "u-1", Name: "app-01", OS: "Ubuntu 26.04.1 LTS", Software: []Software{
 		pkg("s-wid", "Acmesoft", "Widget", "2.4.1", "2.4.1-1ubuntu0.2", "acme-widget"),
-		pkg("s-ppa", "Acmesoft", "Gizmo", "3.2.0", "3.2.0-1+ubuntu26.04.1+ppa.example+1", "acme-gizmo"),
+		pkg("s-ppa", "Acmesoft", "Gizmo", "3.2.0", "3.2.0-3~ubuntu26.04.1", "acme-gizmo"), // the distribution's mark, another build than its row's
 		pkg("s-norel", "Acmesoft", "Sprocket", "1.8", "", ""), // the agent gave no package release or source
 		// one line read from two packages: the distribution decides one, and has no word on the other
 		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool"),
@@ -81,7 +81,7 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		{name: "an exploited CVE the distribution lists for an older release only", device: "u-1", sw: "s-wid", vuln: olderRelease,
 			cause: CauseDistroSilent, detail: DistroOtherReleases},
 		{name: "the distribution's row is about another build", device: "u-1", sw: "s-ppa",
-			vuln: nvd("CVE-2026-61004", gizmo, "3.3", row("26.04", "acme-gizmo", "fixed", "3.2.0-1ubuntu1.1")), cause: CauseDistroSilent, detail: DistroOtherBuild},
+			vuln: nvd("CVE-2026-61004", gizmo, "3.3", row("26.04", "acme-gizmo", "fixed", "3.1.0-2ubuntu7.20")), cause: CauseDistroSilent, detail: DistroOtherBuild},
 		{name: "a package row with no release", device: "u-1", sw: "s-norel", vuln: nvd("CVE-2026-61005", sprocket, "1.9"),
 			cause: CauseVersionNeeded, detail: UndecidedPackage},
 		{name: "no data of the distribution", device: "r-2", sw: "s-rwid", vuln: nvd("CVE-2026-61006", widget, "2.5"),

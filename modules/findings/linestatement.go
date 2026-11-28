@@ -390,7 +390,11 @@ func (st LineStatement) namedByRelease(id CheckID) bool {
 			return false
 		}
 		if m := reLowerBound.FindStringSubmatch(st.Quote[:at[0]]); m != nil {
-			if before || strings.EqualFold(m[1], "after") && strings.EqualFold(tok, id.Version) {
+			if strings.EqualFold(m[1], "after") {
+				if atMost, ok := versionAtMost(id, tok); !ok || atMost {
+					return false
+				}
+			} else if before {
 				return false
 			}
 			continue
@@ -443,6 +447,20 @@ func versionBefore(id CheckID, x string) (before, ok bool) {
 	}
 	c, ok := CompareVersions(id.Version, x)
 	return c < 0, ok
+}
+
+// versionAtMost says id's version is at or before release x (ok false when the two cannot be ordered): "after x" excludes x however
+// the text writes it ("115.1" is "115.1.0").
+func versionAtMost(id CheckID, x string) (atMost, ok bool) {
+	if scheme := productScheme(id.Product); scheme != nil {
+		v, _, ok := judgeTextRanges([]textRange{{end: x, endIncl: true}}, id.Version, id.Build, scheme)
+		return v == VerdictAffected, ok
+	}
+	if id.Build != "" {
+		return false, false
+	}
+	c, ok := CompareVersions(id.Version, x)
+	return c <= 0, ok
 }
 
 // asCheck is the reading as the lists show a check of a possible CVE: decided by the AI, the verdict it gives this version (unsure when

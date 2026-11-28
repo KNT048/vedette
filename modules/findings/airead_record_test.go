@@ -610,3 +610,24 @@ func TestOtherProductsRow_ARowOfAnotherBuildOfThisProduct(t *testing.T) {
 		}
 	}
 }
+
+// "after X" excludes X however the record writes it: a version equal to X with more or fewer zero components ("115.1" and "115.1.0")
+// is not past it, while one past it on the line is.
+func TestNamedByRelease_AfterExcludesTheSameReleaseWrittenOtherwise(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		quote, version string
+		want           bool
+	}{
+		{"quillfeather browser 115.x: affected after 115.1 before 115.42.0", "115.1.0", false},
+		{"quillfeather browser 115.x: affected after 115.1.0 before 115.42.0", "115.1", false},
+		{"quillfeather browser 115.x: affected after 115.1.0 before 115.42.0", "115.1.0", false},
+		{"quillfeather browser 115.x: affected after 115.1 before 115.42.0", "115.1.1", true},
+		{"quillfeather browser 115.x: affected from 115.1 before 115.42.0", "115.1.0", true},
+	} {
+		st := LineStatement{StatedLine: "115", Quote: tc.quote, Basis: BasisInferred, Status: StatementAffected}
+		if got := st.namedByRelease(CheckID{Product: "quillfeather|mail", Line: tc.version, Version: tc.version}); got != tc.want {
+			t.Errorf("%q at %s: named %v, want %v", tc.quote, tc.version, got, tc.want)
+		}
+	}
+}

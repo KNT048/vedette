@@ -783,8 +783,6 @@ export function usePossibleCheckWatch() {
 
 // ---- settled and answered
 
-/** "Checked, not affected": what the box settled from a vendor's advisory on this device, exploited CVEs first. Visible behind one
- *  click and reversible: a person can still say a CVE affects the device (the evidence is shown in the dialog). */
 /** The rows of a possible list, and those reported only for an older build, which are listed apart. */
 function splitOlder(rows: PossibleRow[]): [PossibleRow[], PossibleRow[]] {
   return [rows.filter((r) => !r.older_build), rows.filter((r) => r.older_build)]
@@ -823,6 +821,8 @@ function OlderBuilds({ rows, withDevice = false }: { rows: PossibleRow[]; withDe
   )
 }
 
+/** "Checked, not affected": what the box settled from a vendor's advisory on this device, exploited CVEs first. Visible behind one
+ *  click and reversible: a person can still say a CVE affects the device (the evidence is shown in the dialog). */
 function Settled({ device }: { device: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device, state: 'settled' })

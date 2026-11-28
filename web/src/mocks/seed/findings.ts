@@ -243,18 +243,18 @@ export function seedQuestions(): QuestionRecord[] {
 /** CVEs a third party reported for an older build it tested, on two lines of the accounting server: three the vendor never spoke
  *  about (reported only for an older build) and one whose record gives the vendor's fix (it stays in the main list). */
 function olderBuildQuestions(): QuestionRecord[] {
-  const remote = { id: 's-srvacc-remote', name: 'Remote Support Client', version: '9.7.6' }
-  const ftp = { id: 's-srvacc-ftp', name: 'FTP Client', version: '3.66.5' }
+  const remote = { id: 's-srvacc-remote', name: 'Remote Support Client', version: '6.4.2' }
+  const ftp = { id: 's-srvacc-ftp', name: 'FTP Client', version: '2.18.0' }
   const q = (n: number, software: typeof remote, cve: string, builds: string[], extra: Partial<QuestionRecord> = {}): QuestionRecord => ({
     id: `fq-srvacc-old-${n}`, kind: 'no_range_data', asset_id: 'a-srvacc', software, cve, cves: 1, asked_at: D(4), url: null, command: null, choices: [],
     versions_listed: true, undecided: { reason: 'third_party_tested_build', ranges: builds.map((b) => `cpe:2.3:a:example:${software.id.slice(9)}:${b}:*:*:*:*:*:*:*`) }, ...extra,
   })
   return [
-    q(1, remote, 'CVE-2016-920094', ['2.5.0']),
-    q(2, remote, 'CVE-2019-925261', ['5.4.0']),
-    q(3, remote, 'CVE-2025-934499', ['7.0.15', '9.0.1']),
-    q(4, ftp, 'CVE-2019-925683', ['3.40.0']),
-    q(5, ftp, 'CVE-2026-953959', ['3.63.1'], { vendor_word: true }),
+    q(1, remote, 'CVE-2016-900101', ['1.2.0']),
+    q(2, remote, 'CVE-2019-900102', ['3.1.0']),
+    q(3, remote, 'CVE-2025-900103', ['4.0.3', '5.9.1']),
+    q(4, ftp, 'CVE-2019-900104', ['1.40.0']),
+    q(5, ftp, 'CVE-2026-900105', ['2.11.0'], { vendor_word: true }),
   ]
 }
 

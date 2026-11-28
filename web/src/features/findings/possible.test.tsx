@@ -143,13 +143,13 @@ describe('Possible findings in By device and By fix', () => {
     await userEvent.click(within(group).getByRole('button', { name: 'Reported only for an older build: 4 CVEs' }))
     const rows = within(group).getAllByTestId('possible-row')
     expect(rows).toHaveLength(4)
-    const row = rows.find((r) => r.textContent?.includes('CVE-2025-934499'))!
-    expect(within(row).getByTestId('possible-older-build')).toHaveTextContent('A third party tested 7.0.15, 9.0.1 (reported 2025); this device runs 9.7.6.')
+    const row = rows.find((r) => r.textContent?.includes('CVE-2025-900103'))!
+    expect(within(row).getByTestId('possible-older-build')).toHaveTextContent('A third party tested 4.0.3, 5.9.1 (reported 2025); this device runs 6.4.2.')
     expect(row).toHaveTextContent('No fix or statement from the vendor in the CVE record.')
     // still possible: answered like any other row
-    expect(within(row).getByRole('button', { name: /^Answer for CVE-2025-934499 on SRV-ACCOUNTS/ })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /^Answer for CVE-2025-900103 on SRV-ACCOUNTS/ })).toBeInTheDocument()
     // the record that gives the vendor's fix keeps its CVE in the main list
-    expect(rows.some((r) => r.textContent?.includes('CVE-2026-953959'))).toBe(false)
+    expect(rows.some((r) => r.textContent?.includes('CVE-2026-900105'))).toBe(false)
   })
 
   it('a device whose only possible CVEs were reported for an older build still shows them, apart', async () => {

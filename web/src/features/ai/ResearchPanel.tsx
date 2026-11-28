@@ -79,7 +79,7 @@ function LineCard({ l }: { l: Line }) {
           {d.steps.map((s, i) => (
             <li key={i}>
               <span className="font-medium">{t('cve.research.step', { n: i + 1, layer: t(`cve.research.stepLayer.${s.layer}`), verdict: s.verdict || t('cve.research.stepNone') })}</span>{' '}
-              <span className="text-muted">{s.model} · {t('cve.research.stepFacts', { tokens: fmtNumber(s.tokens_in + s.tokens_out), pages: s.pages.length })}</span>
+              <span className="text-muted">{s.model} · {t('cve.research.stepFacts', { tokens: fmtNumber(s.tokens_in + s.tokens_out), count: s.pages.length })}</span>
               {s.error ? <span className="block text-meta text-warn">{s.error}</span> : null}
             </li>
           ))}

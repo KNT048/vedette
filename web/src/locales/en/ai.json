@@ -315,7 +315,7 @@
         "quick": "Quick",
         "strong": "Strong"
       },
-      "stepFacts": "{{tokens}} tokens, {{pages}} pages read",
+      "stepFacts_one": "{{tokens}} tokens, {{count}} page read", "stepFacts_other": "{{tokens}} tokens, {{count}} pages read",
       "stepNone": "no answer",
       "note": "Note"
     }

@@ -371,9 +371,10 @@ func laterExactInTrain(own []Affected, ver string) bool {
 // basis. The rows speak for the version (false) when
 //   - a row is of a list that states what every unlisted version is (VendorList: the product's own CNA, defaultStatus);
 //   - the version is past the fix of a row of its own release line: a range that starts at or below it on the line the range's start
-//     and end share (at least their first number: "20.0.0" before "20.19.4" is line 20, "8.0.0" before "8.0.21" line 8.0), a range
-//     from version 0 or with no start whose end is on the version's train (its first two numbers), or a fixed release the record
-//     states above its rows (LineFix) on its line that it is at or past;
+//     and end share (at least their first number: "20.0.0" before "20.19.4" is line 20, "8.0.0" before "8.0.21" line 8.0) or on the
+//     train its end is on, a range from version 0 or with no start whose end is on the version's line (as the record's other ranges
+//     name lines: "153.8.0" past "before 153.3.0" beside a range from 154.0.0), or a fixed release the record states above its rows
+//     (LineFix) on its line that it is at or past;
 //   - a row is one release of the version's own train: the line is listed (exactListProves reads such a list);
 //   - no range starts above it (a line newer than every listed one, past every fix), or the lowest start above it is a release inside
 //     a line ("2.4.17" before "2.4.60", "17.12.10"): the record states where the flaw came in, and an older version is before it.
@@ -384,16 +385,28 @@ func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 	if !versionKnown(in.ver) || v.RangesFrom == RangesCVEOrg { // a complete CVE record states what every unlisted version is
 		return false
 	}
-	var lowest string   // the lowest start of a range above the version
-	lowestLine := false // that start is the first release of a line
+	var own []Affected // the rows that name the line, as decide reads them
+	line := 0          // the numbers that name a release line in the rows' own ranges: the fewest any range's start and end share
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || af.Lost {
 			continue
 		}
-		if own, _, _ := entryFor(c, in, key); !own || otherSystem(in, c) || naVersionApart(c, in.ver, v.Affected) || earlierMarker(c, af, v.Affected) {
+		if o, _, _ := entryFor(c, in, key); !o || otherSystem(in, c) || naVersionApart(c, in.ver, v.Affected) || earlierMarker(c, af, v.Affected) {
 			continue
 		}
+		own = append(own, af)
+		if start := cmp.Or(af.Range.StartIncl, af.Range.StartExcl); start != "" && !isPlaceholder(start) {
+			if _, _, exact := exactRow(af); !exact {
+				if n, rel := rowLine(start, cmp.Or(af.Range.EndExcl, af.Range.EndIncl)); rel != nil && (line == 0 || n < line) {
+					line = n
+				}
+			}
+		}
+	}
+	var lowest string   // the lowest start of a range above the version
+	lowestLine := false // that start is the first release of a line
+	for _, af := range own {
 		if af.VendorList && !af.AffectedOnly {
 			return false
 		}
@@ -411,7 +424,7 @@ func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 		r := af.Range
 		start, end := cmp.Or(r.StartIncl, r.StartExcl), cmp.Or(r.EndExcl, r.EndIncl)
 		if start == "" || isPlaceholder(start) {
-			if !af.AffectedOnly && pastEnd(r, in.ver) && onEndTrain(in.ver, end) {
+			if !af.AffectedOnly && pastEnd(r, in.ver) && onEndLine(in.ver, end, line) {
 				return false
 			}
 			continue
@@ -475,17 +488,20 @@ func onRowLine(ver, start, end string) bool {
 	if rel != nil && len(pv.rel) >= n && len(rel) >= n && slices.Equal(pv.rel[:n], rel[:n]) {
 		return true
 	}
-	return onEndTrain(ver, end)
+	return onEndLine(ver, end, 0)
 }
 
-// onEndTrain says ver starts with every number of end but its last (at least the first): "7.4.8" and "7.4.7", "8.0.25" and "8.0.21",
-// "1.5" and "1.2". The fix a range ends at is a fix of that train.
-func onEndTrain(ver, end string) bool {
+// onEndLine says ver is on the release line of end, the fix a range ends at: they share the first n numbers, or with n 0 every number
+// of end but its last, at least the first ("7.4.8" and "7.4.7", "8.0.25" and "8.0.21", "1.5" and "1.2"). A range with no start reads
+// with n the line its record's other ranges name ("153.8.0" past "before 153.3.0" beside a range from 154.0.0 to 156.0.0: line 153).
+func onEndLine(ver, end string, n int) bool {
 	pv, okV := parseVersion(ver)
 	pe, okE := parseVersion(end)
 	if !okV || !okE || end == "" || len(pe.rel) == 0 {
 		return false
 	}
-	n := max(len(pe.rel)-1, 1)
-	return len(pv.rel) >= n && slices.Equal(pv.rel[:n], pe.rel[:n])
+	if n == 0 {
+		n = max(len(pe.rel)-1, 1)
+	}
+	return len(pv.rel) >= n && len(pe.rel) >= n && slices.Equal(pv.rel[:n], pe.rel[:n])
 }

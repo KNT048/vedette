@@ -43,6 +43,8 @@ func TestUnlistedLine_OlderLineIsNotClosed(t *testing.T) {
 		{"past the fix of its own major line", "20.20.0", majors, closed},
 		{"past the fix a range spanning several lines ends at", "7.4.8", []Affected{rng("6.4.0", "7.4.7"), rng("7.6.0", "7.6.2")}, closed},
 		{"a complete CVE record states every unlisted version", "7.0.5", nil, closed},
+		{"past the fix of a range with no start on the record's major line", "53.8.0", []Affected{upTo("53.3.0"), rng("54.0.0", "56.0.0")}, closed},
+		{"an older line between the ranges of a record of major lines", "28.11.0", []Affected{rng("15.0", "15.42.0"), rng("40.0", "40.17.0"), rng("54.0.0", "57.0.0")}, undecided},
 		{"a newer line past every fix", "10.0.1", supported, closed},
 		{"the vendor's complete list states every unlisted version", "7.0.5", []Affected{complete(rng("8.0.0", "8.0.21")), complete(rng("9.0.0", "9.0.10"))}, closed},
 		{"a fixed release the record states on its line", "3.1.32", []Affected{lineFix(rng("3.0.0", "3.0.5"), "3.1.0"), rng("8.0.0", "8.0.21")}, closed},

@@ -340,7 +340,7 @@ export const modelHandlers = [
   http.get(`${API}/findings/coverage`, () => guard('admin') ?? HttpResponse.json({
     at: nowIso(), devices: 12, lines: 2140, pairs: 47940, outside_window: 3,
     decided: [{ by: 'distro', affected: 412, not_affected: 39870 }, { by: 'nvd', affected: 96, not_affected: 5310 }, { by: 'cna', affected: 21, not_affected: 1288 },
-      { by: 'vendor_line', affected: 6, not_affected: 64 }, { by: 'person', affected: 2, not_affected: 11 }, { by: 'platform_list', affected: 0, not_affected: 9 }],
+      { by: 'vendor_line', affected: 6, not_affected: 64 }, { by: 'person', affected: 2, not_affected: 11 }, { by: 'ai_confirmed', affected: 1, not_affected: 9 }, { by: 'platform_list', affected: 0, not_affected: 9 }],
     possible: [
       { cause: 'version_needed', count: 418, details: [{ detail: 'no_version', count: 402 }, { detail: 'platform_unknown', count: 16 }] },
       { cause: 'needs_reading', count: 402, details: [{ detail: 'version_scheme_mismatch', count: 211 }, { detail: 'exact_releases_only', count: 117 }, { detail: 'product_not_named', count: 74 }] },

@@ -176,4 +176,4 @@ export const useConfirmReview = () => useModelWrite((v: { ids: string[]; include
 export const useResearchDeeper = () => useModelWrite((v: { id: string }) => api.post<PossibleCheckRun>(`/findings/possible/${encodeURIComponent(v.id)}/research`, {}))
 
 /** GET /findings/coverage (admin): the decision coverage of the last match pass (Settings → Diagnostics). */
-export const useCoverage = () => useQuery({ queryKey: ['findings', 'coverage'], queryFn: () => api.get<Coverage>('/findings/coverage') })
+export const useCoverage = (enabled = true) => useQuery({ queryKey: ['findings', 'coverage'], enabled, queryFn: () => api.get<Coverage>('/findings/coverage') })

@@ -1,5 +1,6 @@
 // What the customer's AI researched about a CVE Vedette could not decide (contract.ts: AiResearch, on PossibleCheck.reading.research):
 // the pure reads every screen shares, so a row says the same thing wherever it is shown. Counts are tokens, never money.
+import type { AiConfigView, AiRun } from '@/features/ai/types'
 import type { PossibleCheck } from './types'
 
 type Research = NonNullable<NonNullable<PossibleCheck['reading']>['research']>
@@ -39,4 +40,18 @@ export type Confidence = (typeof CONFIDENCES)[number]
 export const confidenceOf = (check: PossibleCheck | null | undefined): Confidence | null => {
   const c = researchOf(check)?.detail.confidence
   return c === 'high' || c === 'medium' || c === 'low' ? c : null
+}
+
+/** Tokens one research of a CVE takes on this box in the current research mode, measured from its own runs (the box's own figure when
+ *  it has one, else the research tokens of the last 30 days over the distinct CVEs researched: the same source as Settings, AI
+ *  assistant). null when nothing is measured: nobody shows an invented figure. */
+export function measuredTokens(cfg: AiConfigView | undefined, runs: AiRun[] | undefined): number | null {
+  if (!cfg) return null
+  const est = cfg.research_estimates[cfg.research_mode]
+  if (est?.measured) return est.tokens
+  const since = Date.now() - 30 * 86_400_000
+  const mine = (runs ?? []).filter((r) => r.skill === 'research-cves' && r.status === 'ok' && new Date(r.ts).getTime() >= since)
+  const cves = new Set(mine.map((r) => r.target).filter(Boolean))
+  if (!mine.length || !cves.size) return null
+  return Math.round(mine.reduce((n, r) => n + r.tokens_in + r.tokens_out, 0) / cves.size)
 }

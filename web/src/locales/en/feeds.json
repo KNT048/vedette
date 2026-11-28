@@ -456,12 +456,12 @@
     "emptyBody_one": "Vedette checks your {{count}} device again whenever the exploited lists change.",
     "emptyBody_other": "Vedette checks your {{count}} devices again whenever the exploited lists change.",
     "emptyInfo": "A finding appears when a device runs software affected by a known vulnerability. Newly exploited vulnerabilities, matched or not, are on the board below.",
-    "decidedByVedette_one": "{{count}} decided by Vedette",
-    "decidedByVedette_other": "{{count}} decided by Vedette",
-    "researchedByAi_one": "Researched by your AI: {{count}} waits for you",
-    "researchedByAi_other": "Researched by your AI: {{count}} wait for you",
-    "stillUnknown_one": "{{count}} still unknown",
-    "stillUnknown_other": "{{count}} still unknown"
+    "decidedByVedette_one": "{{formatted}} decided by Vedette",
+    "decidedByVedette_other": "{{formatted}} decided by Vedette",
+    "researchedByAi_one": "{{formatted}} researched by your AI, {{waiting}} wait for you",
+    "researchedByAi_other": "{{formatted}} researched by your AI, {{waiting}} wait for you",
+    "stillUnknown_one": "{{formatted}} still unknown",
+    "stillUnknown_other": "{{formatted}} still unknown"
   },
   "firstRun": {
     "title": {

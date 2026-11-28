@@ -14,31 +14,31 @@ const section = () => screen.findByRole('region', { name: 'Not decided' }, T)
 const openRow = async (root: HTMLElement, name: RegExp) => userEvent.click(await within(root).findByRole('button', { name }, T))
 
 describe('Possible findings in By device and By fix', () => {
-  it('are counted apart: the count line says "· N possible", the open total is unchanged, and both lists agree with Home', async () => {
+  it('are counted apart: the count line says "· N not decided", the open total is unchanged, and both lists agree with Home', async () => {
     const n = possibleCounts().possible - reviewCount()
     expect(n).toBeGreaterThan(30)
     renderApp('/findings?tab=device')
-    const line = await waitFor(() => { const e = document.querySelector('[data-count="by-device"]'); if (!e?.textContent?.includes('possible')) throw new Error('no line'); return e }, T)
+    const line = await waitFor(() => { const e = document.querySelector('[data-count="by-device"]'); if (!e?.textContent?.includes('not decided')) throw new Error('no line'); return e }, T)
     const open = records.get().filter((r) => r.state === 'open').length
     const older = possibleCounts().older_build
     const distro = possibleCounts().distro_pending
-    expect(line).toHaveTextContent(new RegExp(`, ${open} open findings · ${n} possible · ${older} older build · ${distro} waiting for the distribution$`))
-    expect(within(line as HTMLElement).getByRole('link', { name: `${n} possible` })).toHaveAttribute('href', '/findings?tab=possible')
+    expect(line).toHaveTextContent(new RegExp(`, ${open} open findings · ${n} not decided · ${older} older build · ${distro} waiting for the distribution$`))
+    expect(within(line as HTMLElement).getByRole('link', { name: `${n} not decided` })).toHaveAttribute('href', '/findings?tab=possible')
     // never hidden: the older-build group's count is a link beside it
     expect(within(line as HTMLElement).getByRole('link', { name: `${older} older build` })).toHaveAttribute('href', '/findings?tab=possible')
     renderApp('/findings?tab=possible')
     const s = await section()
-    expect(await within(s).findByText(new RegExp(`^${n} possible CVEs on \\d+ devices`), {}, T)).toBeInTheDocument()
+    expect(await within(s).findByText(new RegExp(`^${n} CVEs not decided on \\d+ devices`), {}, T)).toBeInTheDocument()
     // every device row counts its CVEs; together they are the total
     const rows = within(s).getAllByRole('article')
-    const sum = rows.reduce((t, a) => t + Number(/^(\d+)/.exec(within(a).getByText(/^\d+ possible CVEs?$/).textContent ?? '')?.[1]), 0)
+    const sum = rows.reduce((t, a) => t + Number(/^(\d+)/.exec(within(a).getByText(/^\d+ CVEs? not decided$/).textContent ?? '')?.[1]), 0)
     expect(sum).toBe(n)
   })
 
   it('every possible CVE names its cause in one sentence: a reading from a third party, an unsure one, a rejected one, a page that cannot be read', async () => {
     renderApp('/findings?tab=possible')
     const s = await section()
-    await openRow(s, /^Show or hide the possible CVEs of RT-BACKUP/)
+    await openRow(s, /^Show or hide the not decided CVEs of RT-BACKUP/)
     const line = await within(s).findByRole('article', { name: 'MikroTik RouterOS 7.14' }, T)
     await userEvent.click(within(line).getByRole('button', { name: /^Show all \d+ CVEs/ }))
     const rows = within(line).getAllByTestId('possible-row')
@@ -55,7 +55,7 @@ describe('Possible findings in By device and By fix', () => {
   it('a CVE the automatic AI reading leaves for now says until when and why, in plain words', async () => {
     renderApp('/findings?tab=possible')
     const s = await section()
-    await openRow(s, /^Show or hide the possible CVEs of RT-BACKUP/)
+    await openRow(s, /^Show or hide the not decided CVEs of RT-BACKUP/)
     const line = await within(s).findByRole('article', { name: 'MikroTik RouterOS 7.14' }, T)
     const rows = within(line).getAllByTestId('possible-row')
     const row = rows.find((r) => r.textContent?.includes('CVE-2026-240104'))!
@@ -69,12 +69,12 @@ describe('Possible findings in By device and By fix', () => {
     expect(within(rows.find((r) => r.textContent?.includes('CVE-2026-240101'))!).queryByTestId('possible-held')).toBeNull()
   })
 
-  it('a device with 28 possible CVEs lists its line once, exploited first, the first 8 then "Show all 28 CVEs"', async () => {
+  it('a device with 28 CVEs not decided lists its line once, exploited first, the first 8 then "Show all 28 CVEs"', async () => {
     renderApp('/findings?tab=possible')
     const s = await section()
-    await openRow(s, /^Show or hide the possible CVEs of RT-BACKUP/)
+    await openRow(s, /^Show or hide the not decided CVEs of RT-BACKUP/)
     const line = await within(s).findByRole('article', { name: 'MikroTik RouterOS 7.14' }, T)
-    expect(line).toHaveTextContent('28 possible CVEs')
+    expect(line).toHaveTextContent('28 CVEs not decided')
     expect(within(line).getAllByTestId('possible-row')).toHaveLength(8)
     // exploited first: the first row carries the badge
     expect(within(within(line).getAllByTestId('possible-row')[0]!).getByText('Exploited in the wild')).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('Possible findings in By device and By fix', () => {
     renderApp('/findings?tab=possible')
     const s = await section()
     // both numbers on the summary line; the causes add up to the main number only
-    expect(await within(s).findByText(new RegExp(`^${c.possible - reviewCount()} possible CVEs on \\d+ devices · 5 reported only for an older build`), {}, T)).toBeInTheDocument()
+    expect(await within(s).findByText(new RegExp(`^${c.possible - reviewCount()} CVEs not decided on \\d+ devices · 5 reported only for an older build`), {}, T)).toBeInTheDocument()
     expect(Object.values(c.causes).reduce((a, b) => a + b, 0)).toBe(c.possible)
     // not in the main list: the device row counts only its main possible CVEs
     const group = within(s).getByTestId('older-builds')
@@ -153,7 +153,7 @@ describe('Possible findings in By device and By fix', () => {
     expect(c.causes.distro_silent).toBe(0) // the causes add up to the main number only
     renderApp('/findings?tab=possible')
     const s = await section()
-    expect(await within(s).findByText(new RegExp(`^${c.possible - reviewCount()} possible CVEs on \\d+ devices · .* · 3 waiting for the distribution`), {}, T)).toBeInTheDocument()
+    expect(await within(s).findByText(new RegExp(`^${c.possible - reviewCount()} CVEs not decided on \\d+ devices · .* · 3 waiting for the distribution`), {}, T)).toBeInTheDocument()
     const group = within(s).getByTestId('distro-pending')
     expect(within(group).queryAllByTestId('possible-row')).toHaveLength(0)
     await userEvent.click(within(group).getByRole('button', { name: 'The distribution has not decided yet: 3 CVEs · 1 exploited' }))
@@ -184,7 +184,7 @@ describe('Possible findings in By device and By fix', () => {
     // no empty main list: the group with its count, and the check that can still read it
     expect(await within(s).findByRole('button', { name: 'Reported only for an older build: 1 CVE' }, T)).toBeInTheDocument()
     expect(within(s).queryByText(/^0 possible CVEs/)).toBeNull()
-    expect(within(s).getByRole('button', { name: /^Check 1 possible/ })).toBeInTheDocument()
+    expect(within(s).getByRole('button', { name: /^Check 1 not decided/ })).toBeInTheDocument()
     // the device's badge in its header and the findings line's link
     expect((await screen.findAllByText('1 older build', {}, T)).length).toBeGreaterThan(0)
     expect(document.querySelector('[data-status="possible"]')).toHaveTextContent('1 older build')
@@ -192,17 +192,17 @@ describe('Possible findings in By device and By fix', () => {
 })
 
 describe('Checking possible findings and the AI proposals', () => {
-  it('"Check N possible" runs in the background, shows how far it is, and says when proposals wait', async () => {
+  it('"Check N not decided" runs in the background, shows how far it is, and says when proposals wait', async () => {
     const before = possibleCounts()
     renderApp('/findings?tab=possible')
     const s = await section()
-    const button = await within(s).findByRole('button', { name: `Check ${before.unchecked} possible` }, T)
+    const button = await within(s).findByRole('button', { name: `Check ${before.unchecked} not decided` }, T)
     await userEvent.click(button)
     expect(await within(s).findByText(/^Checking: \d+ of \d+$/, {}, T)).toBeInTheDocument()
     // the run ends by itself; the toast leads to the proposals
     expect(await screen.findByText(/^Check finished: /, {}, { timeout: 20000 })).toBeInTheDocument()
     await waitFor(() => expect(possibleCounts().unchecked).toBe(0), T)
-    expect(await within(s).findByRole('button', { name: 'Check 0 possible' }, T)).toBeDisabled()
+    expect(await within(s).findByRole('button', { name: 'Check 0 not decided' }, T)).toBeDisabled()
     expect(possibleCounts().proposals).toBeGreaterThan(before.proposals)
   })
 

@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDeviceAction } from '@/features/inventory/api'
 import { VersionDialog } from '@/features/inventory/VersionDialog'
-import { useAiConfig } from '@/features/ai/api'
+import { useAiConfig, useRuns } from '@/features/ai/api'
 import { useAllPossible, useAnswer, useAnswered, useConfirmProposal, useIgnoreQuestions, usePossibleCheck, useRejectIdentity, useRejectProposal, useResearchDeeper, useStartPossibleCheck, useUnanswer } from './api'
 import { AcceptRiskDialog } from './AcceptRiskDialog'
 import { AskDialog } from './AskDialog'
@@ -35,7 +35,7 @@ import { PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { linkLabels } from './links'
 import { DeviceLine, useDeviceRow } from './parts'
-import { pagesRead, researchOf, tokens } from './research'
+import { measuredTokens, pagesRead, researchOf, tokens } from './research'
 import type { AiIdentity, AnsweredQuestion, DeviceRef, PossibleCheck, PossibleCheckRun, PossibleCounts, PossibleRow, SoftwareRef } from './types'
 
 /** At most this many evidence identities are checked per click (the server's limit). */
@@ -380,13 +380,14 @@ export function ResearchDeeper({ r }: { r: PossibleRow }) {
   const roles = useRoles()
   const config = useAiConfig()
   const go = useResearchDeeper()
+  const runs = useRuns()
   if (r.state !== 'possible' || r.distro_pending || !RESEARCHABLE.includes(r.cause)) return null
   const c = config.data
   if (!c || !c.jobs_ready['research-cves']) return null
-  const estimate = c.research_estimates.thorough?.tokens
+  const estimate = measuredTokens(c, runs.data?.items) // measured on this box; nothing is shown when nothing is measured
   const words = { cve: r.cve, device: r.device.name }
   return (
-    <Button size="sm" disabled={!roles.operator} title={roles.needOperator ?? t('possible.research.how')} busy={go.isPending} busyLabel={t('common:busy.working')}
+    <Button size="sm" disabled={!roles.operator} title={roles.needOperator ?? t(estimate ? 'possible.research.howMeasured' : 'possible.research.how')} busy={go.isPending} busyLabel={t('common:busy.working')}
       aria-label={t('possible.research.of', words)}
       onClick={() => go.mutate({ id: r.id }, { onSuccess: () => toast.success(t('possible.research.started', words)), onError: (e) => toast.error(errMsg(e)) })}>
       {estimate ? t('possible.research.buttonTokens', { tokens: tokens(estimate) }) : t('possible.research.button')}

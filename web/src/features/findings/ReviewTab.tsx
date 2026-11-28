@@ -73,12 +73,15 @@ function HowItDecided({ row }: { row: PossibleRow }) {
 }
 
 /** Confirm these answers: says how many, that an exploited CVE is named only on purpose, and what it records. */
-function ConfirmDialog({ rows, includeExploited, onClose, onDone }: { rows: PossibleRow[]; includeExploited: boolean; onClose: () => void; onDone: () => void }) {
+function ConfirmDialog({ rows, acknowledged, onClose, onDone }: { rows: PossibleRow[]; acknowledged: boolean; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation('findings')
   const confirm = useConfirmReview()
   const exploited = rows.filter((r) => r.exploited)
+  // an exploited CVE is confirmed only with a person's extra tick: "Include N exploited" in a bulk confirmation, this box on its own
+  const [checked, setChecked] = useState(acknowledged)
+  const need = exploited.length > 0 && !checked
   const send = () => confirm.mutate(
-    { ids: [...new Set(rows.map((r) => r.id))], ...(includeExploited && exploited.length ? { include_exploited: [...new Set(exploited.map((r) => r.cve))] } : {}) },
+    { ids: [...new Set(rows.map((r) => r.id))], ...(exploited.length ? { include_exploited: [...new Set(exploited.map((r) => r.cve))] } : {}) },
     {
       onSuccess: (res) => {
         toast.success(t('review.done', { count: res.confirmed }))
@@ -91,21 +94,27 @@ function ConfirmDialog({ rows, includeExploited, onClose, onDone }: { rows: Poss
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('review.dialogTitle', { count: rows.length })} description={t('review.dialogBody', { count: rows.length })}>
-        {exploited.length ? <p className="text-sm text-muted">{t('review.dialogExploited', { count: exploited.length })}</p> : null}
+        {exploited.length && acknowledged ? <p className="text-sm text-muted">{t('review.dialogExploited', { count: exploited.length })}</p> : null}
+        {exploited.length && !acknowledged ? (
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox className="mt-0.5" checked={checked} onCheckedChange={(v) => setChecked(v === true)} />
+            {t('review.acknowledge', { count: exploited.length })}
+          </label>
+        ) : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
           {/* empty-guard: the dialog opens only for at least one answer */}
-          <Button variant="primary" busy={confirm.isPending} busyLabel={t('common:busy.saving')} onClick={send}>{t('review.submit', { count: rows.length })}</Button>
+          <Button variant="primary" disabled={need} busy={confirm.isPending} busyLabel={t('common:busy.saving')} onClick={send}>{t('review.submit', { count: rows.length })}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-type RowProps = { r: PossibleRow; picked: boolean; onPick: (v: boolean) => void; onConfirm: () => void }
+type RowProps = { r: PossibleRow; picked: boolean; pickable: boolean; onPick: (v: boolean) => void; onConfirm: () => void }
 
 /** One AI answer: tick, the CVE and its badges, the evidence line, the quote and its page, Confirm and Not right?. */
-function ReviewRow({ r, picked, onPick, onConfirm }: RowProps) {
+function ReviewRow({ r, picked, pickable, onPick, onConfirm }: RowProps) {
   const { t } = useTranslation('findings')
   const operator = useCan('operator')
   const reject = useRejectProposal()
@@ -116,7 +125,7 @@ function ReviewRow({ r, picked, onPick, onConfirm }: RowProps) {
   const need = operator ? undefined : t('common:needRole', { role: t('common:role.operator') })
   return (
     <div className="flex items-start gap-3">
-      <Checkbox className="mt-1.5" checked={picked} onCheckedChange={(v) => onPick(v === true)} aria-label={t('review.pick', { cve: r.cve, device: r.device.name })} />
+      <Checkbox className="mt-1.5" checked={picked} disabled={!pickable} title={pickable ? undefined : t('review.exploitedLocked')} onCheckedChange={(v) => onPick(v === true)} aria-label={t('review.pick', { cve: r.cve, device: r.device.name })} />
       <div className="min-w-0 flex-1">
         <ListRow testId="review-row" label={t('review.rowOf', { cve: r.cve, device: r.device.name })} title={r.cve} to={`/cve/${encodeURIComponent(r.cve)}`}
           toggle={researchOf(check) ? { open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('review.how.toggleOf', { cve: r.cve }) } : null}
@@ -165,17 +174,24 @@ export function ReviewTab() {
   const [f, setF] = useState<Filters>(NONE)
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
   const [includeExploited, setIncludeExploited] = useState(false)
-  const [asking, setAsking] = useState<{ rows: PossibleRow[]; include: boolean } | null>(null)
+  const [asking, setAsking] = useState<{ rows: PossibleRow[]; acknowledged: boolean } | null>(null)
   const all = useMemo(() => (q.data?.items ?? []).filter((r) => r.check), [q.data])
   const rows = useMemo(() => applyFilters(all, f), [all, f])
   const devices = useMemo(() => [...new Map(all.map((r) => [r.device.id, r.device.name])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [all])
   const softwares = useMemo(() => [...new Set(all.map(softwareName).filter(Boolean))].sort(), [all])
-  const selected = rows.filter((r) => picked.has(keyOf(r)))
-  const selectedExploited = selected.filter((r) => r.exploited)
-  const toConfirm = selected.filter((r) => !r.exploited || includeExploited)
+  const exploitedRows = rows.filter((r) => r.exploited)
+  // an exploited row can be ticked only after "Include N exploited"
+  const pickable = (r: PossibleRow) => !r.exploited || includeExploited
+  const selectable = rows.filter(pickable)
+  const selected = selectable.filter((r) => picked.has(keyOf(r)))
+  const toConfirm = selected
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) => setF((p) => ({ ...p, [k]: v }))
   const pick = (r: PossibleRow, v: boolean) => setPicked((p) => { const n = new Set(p); if (v) n.add(keyOf(r)); else n.delete(keyOf(r)); return n })
-  const allPicked = rows.length > 0 && selected.length === rows.length
+  const allPicked = selectable.length > 0 && selected.length === selectable.length
+  const include = (v: boolean) => {
+    setIncludeExploited(v)
+    setPicked((p) => { const n = new Set(p); for (const r of exploitedRows) { if (v) n.add(keyOf(r)); else n.delete(keyOf(r)) } return n })
+  }
   const columns: ColumnDef<PossibleRow>[] = [
     { id: 'text', header: t('review.col'), accessorFn: (r) => [r.cve, r.device.name, r.device.ip ?? '', softwareName(r), r.check?.quote ?? ''].join(' ') },
   ]
@@ -209,24 +225,24 @@ export function ReviewTab() {
           </ListToolbar>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-rule bg-surface px-3 py-2 text-sm" data-testid="review-bar">
             <label className="flex items-center gap-2">
-              <Checkbox checked={allPicked ? true : selected.length ? 'indeterminate' : false} disabled={!rows.length}
-                onCheckedChange={(v) => setPicked(v === true ? new Set(rows.map(keyOf)) : new Set())} />
-              {selected.length ? t('review.selected', { count: selected.length }) : t('review.selectAll', { count: rows.length })}
+              <Checkbox checked={allPicked ? true : selected.length ? 'indeterminate' : false} disabled={!selectable.length}
+                onCheckedChange={(v) => setPicked(v === true ? new Set(selectable.map(keyOf)) : new Set())} />
+              {selected.length ? t('review.selected', { count: selected.length }) : t('review.selectAll', { count: selectable.length })}
             </label>
-            {selectedExploited.length ? (
+            {exploitedRows.length ? (
               <label className="flex items-center gap-2">
-                <Checkbox checked={includeExploited} onCheckedChange={(v) => setIncludeExploited(v === true)} />
-                {t('review.includeExploited', { count: selectedExploited.length })}
+                <Checkbox checked={includeExploited} onCheckedChange={(v) => include(v === true)} />
+                {t('review.includeExploited', { count: exploitedRows.length })}
               </label>
             ) : null}
             <Button size="sm" variant="primary" className="ml-auto" disabled={!operator || !toConfirm.length}
               title={operator ? (toConfirm.length ? undefined : t('review.nothingToConfirm')) : t('common:needRole', { role: t('common:role.operator') })}
-              onClick={() => setAsking({ rows: toConfirm, include: includeExploited })}>{t('review.confirmSelected', { count: toConfirm.length })}</Button>
+              onClick={() => setAsking({ rows: toConfirm, acknowledged: true })}>{t('review.confirmSelected', { count: toConfirm.length })}</Button>
           </div>
           <DataTable urlKey="review" caption={t('review.caption')} data={rows} columns={columns} pageSize={25}
             summary={t('review.summary', { count: rows.length, exploited: rows.filter((r) => r.exploited).length })} filtered={rows.length !== all.length} onClearFilters={() => setF(NONE)}
-            list={(r) => <ReviewRow r={r} picked={picked.has(keyOf(r))} onPick={(v) => pick(r, v)} onConfirm={() => setAsking({ rows: [r], include: r.exploited })} />} />
-          {asking ? <ConfirmDialog rows={asking.rows} includeExploited={asking.include} onClose={() => setAsking(null)}
+            list={(r) => <ReviewRow r={r} picked={picked.has(keyOf(r)) && pickable(r)} pickable={pickable(r)} onPick={(v) => pick(r, v)} onConfirm={() => setAsking({ rows: [r], acknowledged: false })} />} />
+          {asking ? <ConfirmDialog rows={asking.rows} acknowledged={asking.acknowledged} onClose={() => setAsking(null)}
             onDone={() => { setPicked((p) => { const n = new Set(p); asking.rows.forEach((r) => n.delete(keyOf(r))); return n }); setAsking(null) }} /> : null}
         </div>
       )}

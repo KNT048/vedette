@@ -14,12 +14,12 @@ import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { CveList, FindingStatusLines, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
-import { dayOf as orgDay, fmtDate, fmtDateTime, fmtDayMonth } from '@/lib/format'
+import { dayOf as orgDay, fmtDate, fmtDateTime, fmtDayMonth, fmtNumber } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
-import { useReviewTotal } from '@/features/findings/api'
+import { useCoverage, useReviewTotal } from '@/features/findings/api'
 import { useFixTitle } from '@/features/findings/parts'
 import type { FirstItem, Overview } from '@/features/findings/types'
 import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
@@ -100,21 +100,27 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
   )
 }
 
-/** The CVEs in three numbers: what Vedette decided, what the customer's AI researched and waits for a person's word, and what is still
- *  unknown. Nothing when there is none of them. */
+/** The CVEs in three numbers. Decided by Vedette: the (software, CVE) pairs its own data decided in the last match pass (the coverage's
+ *  decided pairs, less those a person or the customer's AI decided; readable by an administrator, so it is left out for anyone else).
+ *  Researched by your AI: the answers a person confirmed and those waiting for one. Still unknown: every other CVE nobody has decided. */
 function PossibleLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  const { possible, older_build: older, distro_pending: distro, settled } = o.possible
+  const admin = useCan('admin')
+  const coverage = useCoverage(admin)
+  const { possible, older_build: older, distro_pending: distro } = o.possible
   // the AI's not-affected answers are the ones Review AI answers lists; every other undecided CVE is still unknown
-  const proposals = useReviewTotal().data ?? 0
-  const unknown = Math.max(0, possible - proposals) + older + distro
-  if (!settled && !proposals && !unknown) return null
+  const waiting = useReviewTotal().data ?? 0
+  const unknown = Math.max(0, possible - waiting) + older + distro
+  const sum = (by: (b: string) => boolean) => (coverage.data?.decided ?? []).filter((d) => by(d.by)).reduce((n, d) => n + d.affected + d.not_affected, 0)
+  const decided = coverage.data ? sum((b) => b !== 'person' && b !== 'ai_confirmed') : null
+  const researched = waiting + (coverage.data ? sum((b) => b === 'ai_confirmed') : 0)
+  if (!decided && !researched && !unknown) return null
   const link = 'text-accent underline-offset-4 hover:underline'
   return (
     <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm" data-testid="home-undecided">
-      <span>{t('dash.decidedByVedette', { count: settled })}</span>
-      <Link to="/findings?tab=review" className={link}>{t('dash.researchedByAi', { count: proposals })}</Link>
-      <Link to="/findings?tab=possible" className={link}>{t('dash.stillUnknown', { count: unknown })}</Link>
+      {decided !== null ? <span>{t('dash.decidedByVedette', { count: decided, formatted: fmtNumber(decided) })}</span> : null}
+      <Link to="/findings?tab=review" className={link}>{t('dash.researchedByAi', { count: researched, formatted: fmtNumber(researched), waiting })}</Link>
+      <Link to="/findings?tab=possible" className={link}>{t('dash.stillUnknown', { count: unknown, formatted: fmtNumber(unknown) })}</Link>
     </p>
   )
 }

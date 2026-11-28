@@ -26,7 +26,7 @@ var ErrBadOutput = errors.New("ai: the answer does not match the expected format
 // token meter, and the activity row.
 type JobSpec struct {
 	Job   Job
-	Actor string // email of the person who asked, "system" for a scheduled job
+	Actor string      // email of the person who asked, "system" for a scheduled job
 	Task  Instruction // the job's instructions (skill prompt): a constant of the job
 	// Question is what is asked, and Data the untrusted text that goes with it (feed items, device data, log lines): Data is the
 	// only way untrusted text reaches the prompt, between the per-call markers (INV-21).

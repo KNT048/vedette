@@ -106,11 +106,11 @@ func TestDefence_AskAnswerCarriesNoAddresses(t *testing.T) {
 func TestDefence_EveryBlockLosesInvisibleCharacters(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	a.facts.assets["CVE-2022-27593"] = []ai.AssetFact{{Name: "NAS​-PHOTOS‮\U000E0041", IP: "192.168.10.40", Kind: "nas", Basis: "product", Status: "open"}}
+	a.facts.assets["CVE-2022-27593"] = []ai.AssetFact{{Name: "NAS\u200b-PHOTOS\u202e\U000E0041", IP: "192.168.10.40", Kind: "nas", Basis: "product", Status: "open"}}
 	a.fake.setAnswer(goodExplain)
 	a.want("POST", "/ai/cve/CVE-2022-27593/explain", "operator", "", 200, "")
 	user := a.fake.lastRequest(t).Messages[0].Text
-	for _, r := range []string{"​", "‮", "\U000E0041"} {
+	for _, r := range []string{"\u200b", "\u202e", "\U000E0041"} {
 		if strings.Contains(user, r) {
 			t.Errorf("the prompt keeps %q", r)
 		}

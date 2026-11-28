@@ -50,11 +50,11 @@ var payloads = []struct {
 	}},
 	{"zero-width and bidi", func(g string) string {
 		var b strings.Builder
-		b.WriteString("‮")
+		b.WriteString("\u202e")
 		for i, r := range g {
 			b.WriteRune(r)
 			if i < 12 {
-				b.WriteString("​")
+				b.WriteString("\u200b")
 			}
 		}
 		return b.String() + "\U000E0041"
@@ -223,7 +223,7 @@ func attackJobs() []attackJob {
 	plain := func(job ai.Job, source string, kind ai.Source) attackJob { // a job whose adapter lives outside this module: no tool, no state
 		var data []ai.DataBlock
 		return attackJob{job: string(job), source: source,
-			setup: func(a *api, planted string) {
+			setup: func(_ *api, planted string) {
 				data = []ai.DataBlock{ai.Untrusted(kind, "facts", "Device: NAS-PHOTOS\n"+planted)}
 			},
 			run: func(a *api) (string, error) {
@@ -239,7 +239,11 @@ func attackJobs() []attackJob {
 			a.data.assets[1].Software = append(a.data.assets[1].Software, p)
 			a.data.mu.Unlock()
 		}, &provider.ToolCall{ID: "p", Name: "search_assets", Arguments: json.RawMessage(`{"detail":true}`)}),
-		ask("tool", func(a *api, p string) { a.conns.mu.Lock(); a.conns.out["cn-in/status"] = "status ok\n" + p; a.conns.mu.Unlock() }, &provider.ToolCall{ID: "p", Name: "conn_cn-in__status", Arguments: json.RawMessage(`{}`)}),
+		ask("tool", func(a *api, p string) {
+			a.conns.mu.Lock()
+			a.conns.out["cn-in/status"] = "status ok\n" + p
+			a.conns.mu.Unlock()
+		}, &provider.ToolCall{ID: "p", Name: "conn_cn-in__status", Arguments: json.RawMessage(`{}`)}),
 		ask("feed", func(a *api, p string) {
 			a.facts.mu.Lock()
 			f := a.facts.cves["CVE-2022-27593"]
@@ -259,8 +263,10 @@ func attackJobs() []attackJob {
 		possible("software", func(r *ai.PossibleRequest, p string) { r.Items[0].Product += " " + p }),
 		{job: "explain-finding (identify software)", source: "software", strict: true,
 			setup: func(a *api, p string) { a.identity = identifyItems(); a.identity[0].Name += " " + p },
-			run:   func(a *api) (string, error) { return jsonOf(a.svc.IdentifyProducts(a.ctx(), "it@acme.example", a.identity)) },
-			base:  goodIdentity, evil: strings.Replace(goodIdentity, `"choice":"c1"`, `"choice":"c9"`, 1), exfil: exfilText(goodIdentity, "reason")},
+			run: func(a *api) (string, error) {
+				return jsonOf(a.svc.IdentifyProducts(a.ctx(), "it@acme.example", a.identity))
+			},
+			base: goodIdentity, evil: strings.Replace(goodIdentity, `"choice":"c1"`, `"choice":"c9"`, 1), exfil: exfilText(goodIdentity, "reason")},
 		brief(ai.JobMitigationConfig, "device", ai.SourceDevice),
 		brief(ai.JobExplainFinding, "feed", ai.SourceFeed),
 		digest("log-digest", "log", "med", func(a *api, p string) {
@@ -383,7 +389,7 @@ func TestAttackMatrix(t *testing.T) {
 						}
 						// the matrix is not empty: the model read the planted goal and acted on it (a memory with invisible characters is
 						// refused when it is added, so nothing is planted there)
-						if !m.called && !m.answered && !(j.source == "memory" && p.name == "zero-width and bidi") {
+						if !m.called && !m.answered && (j.source != "memory" || p.name != "zero-width and bidi") {
 							t.Errorf("the fake model never saw the goal: the case tests nothing")
 						}
 						if j.strict && g == goalAnswer && err == nil {

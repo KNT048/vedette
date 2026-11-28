@@ -63,10 +63,10 @@ var jobPowers = map[Job]power{
 			"candidates the box offered",
 		egress: "none (the box fetches the public pages itself, before the call)",
 	},
-	JobMitigationConfig: {writes: "a draft configuration a person reviews, each risky line marked, never applied by the box", egress: "none"},
-	JobCVENews:          {writes: "the stored news summary", egress: "none (the box fetches the public sources itself, before the call)"},
-	JobWeeklyReport:     {writes: "report commentary", egress: "none"},
-	JobPDPLAssessment:   {writes: "report commentary", egress: "none"},
+	JobMitigationConfig:  {writes: "a draft configuration a person reviews, each risky line marked, never applied by the box", egress: "none"},
+	JobCVENews:           {writes: "the stored news summary", egress: "none (the box fetches the public sources itself, before the call)"},
+	JobWeeklyReport:      {writes: "report commentary", egress: "none"},
+	JobPDPLAssessment:    {writes: "report commentary", egress: "none"},
 	JobTranslateAdvisory: {writes: "a translation shown as text", egress: "none"},
 	JobResponsePlan: {writes: "a plan whose actions response turns into approval requests a person decides, never run by the AI",
 		egress: "none"},
@@ -158,7 +158,9 @@ func (s *Service) outsideConnections(ctx context.Context) ([]AskConnection, erro
 		seen[rt.ConnectionID] = true
 		out = append(out, AskConnection{ID: rt.ConnectionID, Name: clip(rt.ConnectionName, 60), Address: clip(targets[rt.ConnectionID], 200)})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name || out[i].Name == out[j].Name && out[i].ID < out[j].ID })
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name || out[i].Name == out[j].Name && out[i].ID < out[j].ID
+	})
 	return out, nil
 }
 

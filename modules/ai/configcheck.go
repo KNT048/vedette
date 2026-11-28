@@ -15,7 +15,7 @@ import (
 // The kinds of risky line.
 const (
 	RiskBroadAllow   = "broad_allow"        // allows any source to any destination, or makes accept the default
-	RiskCredential   = "new_credential"     // creates a user, a password, a key or an SNMP community
+	RiskCredential   = "new_credential"     //nolint:gosec // the name of a kind of line, not a credential
 	RiskLoggingOff   = "logging_off"        // turns logging off or removes it
 	RiskAuthOff      = "auth_off"           // weakens or removes sign-in checks
 	RiskProtectOff   = "protection_off"     // turns a firewall, its rules or another protection off
@@ -29,7 +29,7 @@ type ConfigWarning struct {
 	Text string `json:"text"`
 }
 
-var riskText = map[string]string{
+var riskText = map[string]string{ //nolint:gosec // sentences for the page, not credentials
 	RiskBroadAllow:   "Allows traffic from any source to any destination.",
 	RiskCredential:   "Creates a user, a password, a key or an SNMP community.",
 	RiskLoggingOff:   "Turns logging off or removes it.",
@@ -274,7 +274,9 @@ func CheckConfig(code string) []ConfigWarning {
 					kv[k] = strings.Trim(v, `"'`)
 				}
 			}
-			path := strings.Join(f[:slices.IndexFunc(append(f, "add"), func(w string) bool { return w == "add" || w == "set" || w == "remove" || w == "disable" || strings.Contains(w, "=") })], " ")
+			path := strings.Join(f[:slices.IndexFunc(append(f, "add"), func(w string) bool {
+				return w == "add" || w == "set" || w == "remove" || w == "disable" || strings.Contains(w, "=")
+			})], " ")
 			switch {
 			case strings.Contains(path, "ip firewall filter") && kv["action"] == "accept" && (kv["chain"] == "input" || kv["chain"] == "forward") &&
 				kv["src-address"] == "" && kv["src-address-list"] == "" && kv["connection-state"] == "" && kv["in-interface"] == "" && kv["dst-port"] == "":
@@ -372,7 +374,8 @@ func ciscoAnyAny(rest []string) bool {
 		}
 		return false
 	}
-	return addr() && addr()
+	src := addr() // the source first: addr moves past what it read
+	return src && addr()
 }
 
 // checkIptables reads one iptables command: a default policy of ACCEPT, a flush, or an ACCEPT rule on INPUT or FORWARD that names no

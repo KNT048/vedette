@@ -176,8 +176,8 @@ type env struct {
 	askTimeout  time.Duration // 0 = the default
 	data        *fakeData
 	conns       *fakeConns
-	net         *fakeNet            // the box's page fetchers, when a test attached them (attack_test.go)
-	identity    []ai.IdentifyItem   // the programs an attack case identifies
+	net         *fakeNet          // the box's page fetchers, when a test attached them (attack_test.go)
+	identity    []ai.IdentifyItem // the programs an attack case identifies
 	logs        *fakeLogs
 	logBuf      *logBuffer // what the service logged
 }

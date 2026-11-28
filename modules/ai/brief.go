@@ -48,7 +48,7 @@ type BriefAnswerItem struct {
 type BriefRequest struct {
 	Job      Job // JobExplainFinding or JobMitigationConfig
 	Actor    string
-	Target   string // the CVE, for the activity summary
+	Target   string      // the CVE, for the activity summary
 	Question Instruction // a constant of the caller: what to answer
 	Data     []DataBlock
 	// Refs are the references the answers may cite, numbered from 1 in the data the caller wrote.

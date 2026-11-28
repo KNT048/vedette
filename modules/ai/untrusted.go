@@ -89,7 +89,7 @@ func cleanUntrusted(s string) string {
 		switch {
 		case r == '\n' || r == '\t':
 			b.WriteRune(r)
-		case r == '\r' || r == ' ' || r == ' ' || r == '\u0085':
+		case r == '\r' || r == '\u2028' || r == '\u2029' || r == '\u0085':
 			b.WriteByte('\n')
 		case unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || invisible(r):
 		default:
@@ -156,7 +156,7 @@ func instructionf(format Instruction, args ...safeArg) Instruction {
 	for i, a := range args {
 		vals[i] = a.instructionText()
 	}
-	return Instruction(fmt.Sprintf(string(format), vals...)) //nolint:govet // the format is an Instruction constant
+	return Instruction(fmt.Sprintf(string(format), vals...))
 }
 
 // blockPtr returns a pointer to a copy of b (a source whose block may be left out).

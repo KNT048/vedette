@@ -44,7 +44,7 @@ func TestUntrustedTextNeverBecomesAnInstruction(t *testing.T) {
 	parsed := map[string]*ast.File{}
 	consts := map[string]map[string]bool{} // directory -> the names of its package-level and local constants
 	for _, f := range files {
-		src, err := os.ReadFile(f)
+		src, err := os.ReadFile(f) //nolint:gosec // a file of this repository found by the walk above
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -125,7 +125,7 @@ func TestUntrustedTextNeverBecomesAnInstruction(t *testing.T) {
 						}
 					}
 				}
-				if blockLit && !(inAI && base == "untrusted.go") {
+				if blockLit && (!inAI || base != "untrusted.go") {
 					t.Errorf("%s: a DataBlock literal; build untrusted text with ai.Untrusted", fset.Position(x.Pos()))
 				}
 			case *ast.CallExpr:
@@ -138,7 +138,7 @@ func TestUntrustedTextNeverBecomesAnInstruction(t *testing.T) {
 						t.Errorf("%s: a conversion to Instruction of a value that is not a constant; use instructionf with validated values", fset.Position(x.Pos()))
 					}
 				case isName(x.Fun, "cveArg") || isName(x.Fun, "boxWord"):
-					if !(inAI && base == "untrusted.go") && !constant(dir, x.Args[0]) {
+					if (!inAI || base != "untrusted.go") && !constant(dir, x.Args[0]) {
 						t.Errorf("%s: a validated value made outside untrusted.go; use asCVE or mustCVE", fset.Position(x.Pos()))
 					}
 				}
@@ -173,7 +173,7 @@ func TestUntrustedSourcesAreAClosedList(t *testing.T) {
 // Untrusted text is cleaned once, before any hook reads it: line breaks of every kind become "\n", tabs stay, and control and invisible
 // format characters go (bidi controls, zero-width characters, Unicode tags, variation selectors); a huge text is cut.
 func TestUntrustedTextIsCleanedBeforeTheHooks(t *testing.T) {
-	in := "a\r\nb\rc d e\tf\u0000g\u001bh​i‍j‮k⁦l\U000E0049m️n­o"
+	in := "a\r\nb\rc\u2028d\u2029e\tf\u0000g\u001bh\u200bi\u200dj\u202ek\u2066l\U000E0049m\ufe0fn\u00ado"
 	if got := Untrusted(SourceLog, "x", in).Text; got != "a\nb\nc\nd\ne\tfghijklmno" {
 		t.Fatalf("%q", got)
 	}

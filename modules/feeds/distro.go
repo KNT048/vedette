@@ -680,6 +680,11 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 				return nil
 			}
 			for _, p := range st.Products {
+				// most products of a CVE file are binaries and packages no device runs: a tier CVE's product of a package not kept is
+				// skipped before its query is read (the parse of every statement's products costs most of the pull otherwise)
+				if n, named := purlName(p.ID); named && !want.KEV[cve] && !want.Packages[n] {
+					continue
+				}
 				name, codename, pro, ok, bad := sourcePurl(p.ID)
 				if bad {
 					tl.reject(row, "%s: product %s is not a Debian package", cve, quoteVal(p.ID))
@@ -726,6 +731,21 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 		return DistroResult{}, err
 	}
 	return DistroResult{Rows: out, Stats: tl.stats()}, nil
+}
+
+// purlName is the package name of an Ubuntu product ("pkg:deb/ubuntu/<name>@…"), unescaped; named is false for any other product.
+func purlName(id string) (string, bool) {
+	rest, found := strings.CutPrefix(id, "pkg:deb/ubuntu/")
+	if !found {
+		return "", false
+	}
+	name, _, _ := strings.Cut(rest, "@")
+	name, _, _ = strings.Cut(name, "?")
+	if strings.Contains(name, "%") {
+		n, err := url.PathUnescape(name)
+		return n, err == nil
+	}
+	return name, true
 }
 
 // sourcePurl reads an Ubuntu source product. ok is false for a product that is not about a source package of a release or of one of

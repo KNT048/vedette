@@ -112,6 +112,7 @@ func CheckConfig(code string) []ConfigWarning {
 	var pol *fortiPolicy
 	junos := map[string]*fortiPolicy{} // Junos: per policy name, which match terms are any and where it permits
 	cisco := ""                        // Cisco: the open mode line (line vty, interface ...)
+	mikrotik := ""                     // MikroTik: the menu a line of its own opened (/ip firewall filter), for the add and set lines under it
 	for i, raw := range strings.Split(code, "\n") {
 		n := i + 1
 		line := strings.TrimSpace(raw)
@@ -215,6 +216,10 @@ func CheckConfig(code string) []ConfigWarning {
 				add(n, RiskCredential)
 				continue
 			}
+			if cmd == "set" && rest[0] == "system" && len(rest) > 3 && rest[1] == "services" && rest[2] == "ssh" && slices.Contains(rest, "root-login") && slices.Contains(rest, "allow") {
+				add(n, RiskAuthOff)
+				continue
+			}
 			if cmd == "set" && rest[0] == "system" && len(rest) > 2 && rest[1] == "services" && (rest[2] == "telnet" || rest[2] == "web-management") {
 				add(n, RiskManagementUp)
 				continue
@@ -243,6 +248,9 @@ func CheckConfig(code string) []ConfigWarning {
 				add(n, RiskProtectOff)
 			case strings.Contains(low, "policy accept") && (strings.Contains(low, "hook input") || strings.Contains(low, "hook forward") || cmd == "policy"):
 				add(n, RiskBroadAllow)
+			case strings.HasSuffix(low, " accept") && slices.Contains(f, "dport") && !strings.Contains(low, "saddr") && (!strings.Contains(low, "iif") || wanName.MatchString(low)) &&
+				slices.ContainsFunc(f[slices.Index(f, "dport")+1:], func(w string) bool { return mgmtPorts[strings.Trim(w, "{},")] }):
+				add(n, RiskManagementUp)
 			case strings.HasSuffix(low, " accept") && !strings.Contains(low, "saddr") && !strings.Contains(low, "ct state") && !strings.Contains(low, "iif") && !strings.Contains(low, "dport"):
 				add(n, RiskBroadAllow)
 			}
@@ -260,14 +268,19 @@ func CheckConfig(code string) []ConfigWarning {
 					to = f[j+1]
 				}
 			}
-			if slices.Contains(f, "all") || anyAddr(from) && anyAddr(to) && !slices.Contains(f, "port") {
+			switch port := slices.Index(f, "port"); {
+			case slices.Contains(f, "all") || anyAddr(from) && anyAddr(to) && port < 0:
 				add(n, RiskBroadAllow)
+			case port >= 0 && (from == "" || anyAddr(from)) && !slices.Contains(f, "out") &&
+				slices.ContainsFunc(f[port+1:], func(w string) bool { return mgmtPorts[strings.Trim(w, "{},")] }):
+				add(n, RiskManagementUp)
 			}
 			continue
 		}
 
 		// ---- MikroTik
-		if strings.HasPrefix(cmd, "/") || strings.Contains(low, "chain=") {
+		mikrotikCmd := cmd == "add" || cmd == "set" || cmd == "remove" || cmd == "disable"
+		if strings.HasPrefix(cmd, "/") || strings.Contains(low, "chain=") || mikrotik != "" && mikrotikCmd {
 			kv := map[string]string{}
 			for _, w := range f {
 				if k, v, ok := strings.Cut(w, "="); ok {
@@ -277,6 +290,13 @@ func CheckConfig(code string) []ConfigWarning {
 			path := strings.Join(f[:slices.IndexFunc(append(f, "add"), func(w string) bool {
 				return w == "add" || w == "set" || w == "remove" || w == "disable" || strings.Contains(w, "=")
 			})], " ")
+			switch {
+			case strings.HasPrefix(cmd, "/") && path == strings.Join(f, " "): // a menu on its own line: the lines under it are in it
+				mikrotik = path
+				continue
+			case path == "":
+				path = mikrotik
+			}
 			switch {
 			case strings.Contains(path, "ip firewall filter") && kv["action"] == "accept" && (kv["chain"] == "input" || kv["chain"] == "forward") &&
 				kv["src-address"] == "" && kv["src-address-list"] == "" && kv["connection-state"] == "" && kv["in-interface"] == "" && kv["dst-port"] == "":
@@ -307,6 +327,9 @@ func CheckConfig(code string) []ConfigWarning {
 			continue
 		}
 		switch {
+		case cmd == "username" && slices.Contains(f, "nopassword"):
+			add(n, RiskCredential)
+			add(n, RiskAuthOff)
 		case cmd == "username" && (slices.Contains(f, "password") || slices.Contains(f, "secret")),
 			cmd == "enable" && len(f) > 1 && (f[1] == "password" || f[1] == "secret"),
 			cmd == "snmp-server" && len(f) > 1 && (f[1] == "community" || f[1] == "user"),
@@ -318,18 +341,25 @@ func CheckConfig(code string) []ConfigWarning {
 			add(n, RiskLoggingOff)
 		case cmd == "no" && len(f) > 1 && (f[1] == "aaa" || f[1] == "login" || f[1] == "password" || f[1] == "service" && len(f) > 2 && f[2] == "password-encryption"),
 			cmd == "aaa" && slices.Contains(f, "authentication") && slices.Contains(f, "none"),
-			cmd == "transport" && slices.Contains(f, "telnet") && strings.HasPrefix(cisco, "line vty"):
+			cmd == "transport" && (slices.Contains(f, "telnet") || slices.Contains(f, "all")) && strings.HasPrefix(cisco, "line vty"):
 			add(n, RiskAuthOff)
 		case cmd == "ip" && len(f) > 2 && f[1] == "http" && (f[2] == "server" || f[2] == "secure-server"):
 			add(n, RiskManagementUp)
 		case (cmd == "http" || cmd == "ssh" || cmd == "telnet") && len(f) == 4 && (f[1] == "0.0.0.0" || f[1] == "0") && wanName.MatchString(f[3]):
 			add(n, RiskManagementUp)
-		case cmd == "no" && len(f) > 2 && f[1] == "access-group":
+		case cmd == "no" && len(f) > 2 && (f[1] == "access-group" || f[1] == "ip" && f[2] == "access-group"):
 			add(n, RiskProtectOff)
 		}
 
 		// ---- Linux and Windows commands, and sshd_config lines
 		checkHostCommand(f, low, n, add)
+		if strings.Contains(low, "|") { // a command a pipe feeds (echo 'user:password' | chpasswd)
+			for _, seg := range strings.Split(low, "|")[1:] {
+				if sf := fields(seg); len(sf) > 0 {
+					checkHostCommand(sf, strings.TrimSpace(seg), n, add)
+				}
+			}
+		}
 	}
 	if pol != nil && pol.src && pol.dst && pol.accept {
 		add(pol.acceptLine, RiskBroadAllow)
@@ -357,7 +387,10 @@ func ciscoAnyAny(rest []string) bool {
 		return false
 	}
 	i := 0
-	if !anyAddr(rest[0]) && !strings.Contains(rest[0], ".") { // a protocol word or number
+	switch {
+	case rest[0] == "object-group" || rest[0] == "object": // an ASA service group or object in the place of the protocol
+		i = 2
+	case !anyAddr(rest[0]) && !strings.Contains(rest[0], "."): // a protocol word or number
 		i = 1
 	}
 	addr := func() bool {
@@ -467,6 +500,14 @@ func checkHostCommand(f []string, low string, n int, add func(int, string)) {
 				if v, ok := strings.CutPrefix(w, "localport="); ok && slices.ContainsFunc(strings.Split(v, ","), func(p string) bool { return mgmtPorts[p] }) {
 					add(n, RiskManagementUp)
 				}
+			}
+		} else {
+			add(n, RiskBroadAllow)
+		}
+	case cmd == "new-netfirewallrule" && strings.Contains(low, "-action allow") && !strings.Contains(low, "-direction outbound") && !strings.Contains(low, "-remoteaddress"):
+		if i := slices.Index(f, "-localport"); i >= 0 {
+			if slices.ContainsFunc(strings.Split(arg(i+1), ","), func(p string) bool { return mgmtPorts[p] }) {
+				add(n, RiskManagementUp)
 			}
 		} else {
 			add(n, RiskBroadAllow)

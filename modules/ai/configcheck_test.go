@@ -70,6 +70,25 @@ func TestCheckConfigMarksRiskyLinesBySyntax(t *testing.T) {
 		{"windows rdp any", "netsh advfirewall firewall add rule name=rdp dir=in action=allow protocol=TCP localport=3389", "1:management_exposed"},
 		{"windows block", "netsh advfirewall firewall add rule name=block dir=in action=block protocol=TCP localport=445", ""},
 		{"auditpol", "auditpol /set /category:\"Logon/Logoff\" /success:disable /failure:disable", "1:logging_off"},
+		// The forms these devices are written in just as often: a MikroTik menu on its own line, the IOS interface ACL, a user with no
+		// password, every transport on the vty lines, an ASA service group, a port opened in nftables, pf or PowerShell, a pipe into chpasswd.
+		{"mikrotik menu accept", "/ip firewall filter\nadd chain=input action=accept", "2:broad_allow"},
+		{"mikrotik menu winbox", "/ip firewall filter\nadd chain=input protocol=tcp dst-port=8291 action=accept\nadd chain=forward dst-address=192.168.10.40 action=drop", "2:management_exposed"},
+		{"mikrotik menu user", "/user\nadd name=helper password=x group=full", "2:new_credential"},
+		{"mikrotik menu service", "/ip service\nset telnet disabled=no", "2:management_exposed"},
+		{"ios remove ip acl", "interface GigabitEthernet0/0\n no ip access-group EDGE in", "2:protection_off"},
+		{"ios nopassword", "username helper privilege 15 nopassword", "1:new_credential,1:auth_off"},
+		{"ios vty all", "line vty 0 4\n transport input all", "2:auth_off"},
+		{"asa object-group", "access-list OUT extended permit object-group SVC any any", "1:broad_allow"},
+		{"nft ssh any", "nft add rule inet filter input tcp dport 22 accept", "1:management_exposed"},
+		{"pf ssh any", "pass in on egress proto tcp from any to any port 22", "1:management_exposed"},
+		{"pf ssh lan", "pass in on em1 proto tcp from 192.168.10.0/24 to any port 22", ""},
+		{"powershell rdp any", "New-NetFirewallRule -DisplayName rdp -Direction Inbound -Action Allow -LocalPort 3389 -Protocol TCP", "1:management_exposed"},
+		{"powershell allow all", "New-NetFirewallRule -DisplayName all -Direction Inbound -Action Allow", "1:broad_allow"},
+		{"powershell rdp lan", "New-NetFirewallRule -DisplayName rdp -Direction Inbound -Action Allow -LocalPort 3389 -RemoteAddress 192.168.10.0/24", ""},
+		{"powershell block", "New-NetFirewallRule -DisplayName smb -Direction Inbound -Action Block -LocalPort 445", ""},
+		{"chpasswd pipe", "echo 'helper:pw' | sudo chpasswd", "1:new_credential"},
+		{"junos root ssh", "set system services ssh root-login allow", "1:auth_off"},
 		// A comment that talks about the risky thing is not the thing.
 		{"comments", "# do not use permit ip any any\n! never set password here", ""},
 	}

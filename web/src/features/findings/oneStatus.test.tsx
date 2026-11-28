@@ -83,7 +83,7 @@ describe('Exact counts and answers that can be taken back', () => {
 
   it('"Not affected" on a possible CVE can be undone from its toast', async () => {
     renderApp('/devices/a-nas01?tab=findings')
-    const section = await screen.findByRole('region', { name: 'Possible findings' }, T)
+    const section = await screen.findByRole('region', { name: 'Not decided' }, T)
     await userEvent.click(await within(section).findByRole('button', { name: 'Answer for CVE-2026-118204 on NAS-BACKUP' }, T))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Not affected…' }))
     const dlg = await screen.findByRole('dialog', { name: 'CVE-2026-118204 does not affect NAS-BACKUP' }, T)
@@ -96,9 +96,9 @@ describe('Exact counts and answers that can be taken back', () => {
     await waitFor(() => expect(questions.get().find((q) => q.id === 'fq-nas01-range')?.answered).toBeFalsy(), T)
   })
 
-  it('an answered CVE is listed after the possible findings; Ask again takes the answer back', async () => {
+  it('an answered CVE is listed under Handled; Ask again takes the answer back', async () => {
     questions.update((l) => l.map((q) => (q.id === 'fq-nas01-range' ? { ...q, answered: { by: 'admin@acme.example', at: new Date().toISOString() } } : q)))
-    renderApp('/devices/a-nas01?tab=findings')
+    renderApp('/findings?tab=handled&device=a-nas01')
     await userEvent.click(await screen.findByRole('button', { name: 'Answered not affected: 1' }, T))
     expect(await screen.findByText(/^Not affected, answered by admin@acme\.example on /, {}, T)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /^Ask again: CVE-2026-118204/ }))

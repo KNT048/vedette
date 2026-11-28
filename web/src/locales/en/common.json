@@ -95,7 +95,7 @@
     "acceptedUntil": "Risk accepted until {{date}}",
     "not_relevant": "Not relevant",
     "false_positive": "False positive",
-    "possible": "Possible",
+    "possible": "Not decided",
     "meaning": {
       "under_attack": "Someone on your network sent this exploit, and this device is affected. Isolate or patch it now.",
       "exploited": "Attackers use this flaw in real attacks. Patch it now.",
@@ -121,8 +121,8 @@
     "critical_edge_other": "{{count}} critical on edge",
     "update_recommended_one": "Update recommended",
     "update_recommended_other": "Update recommended",
-    "possible_one": "{{count}} possible",
-    "possible_other": "{{count}} possible"
+    "possible_one": "{{count}} not decided",
+    "possible_other": "{{count}} not decided"
   },
   "olderBuildCount_one": "{{count}} older build",
   "olderBuildCount_other": "{{count}} older build",

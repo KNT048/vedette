@@ -38,7 +38,7 @@ function items(device?: string | null): Item[] {
       const check = key ? cs[key] ?? null : null
       // the AI's reading of the vendor's page: not affected settles the CVE unless it is exploited (a person confirms that one)
       const read = !!check?.reading && check.verdict === 'not_affected' && !check.rejected
-      const state = !check ? 'possible' : read ? (POSSIBLE_EXPLOITED.has(cve) ? 'proposal' : 'settled')
+      const state = !check ? 'possible' : read ? (POSSIBLE_EXPLOITED.has(cve) || check.reading?.research ? 'proposal' : 'settled')
         : check.decided_by !== 'ai' && check.verdict === 'not_affected' ? 'settled'
         : check.decided_by === 'ai' && !check.rejected && check.verdict !== 'unsure' ? 'proposal' : 'possible'
       out.push({ q, cve, key, check, state })
@@ -92,6 +92,9 @@ export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
   const c = key ? checks.get()[key] ?? null : null
   return c && (!q.answered || Date.parse(c.checked_at) <= Date.parse(q.answered.at)) ? c : null
 }
+
+/** The AI's "not affected" answers waiting in Review AI answers (of one device when set): proposals, but not listed in Not decided. */
+export const reviewCount = (device?: string) => items(device).filter((it) => it.state === 'proposal' && it.check?.verdict === 'not_affected').length
 
 export function possibleCounts(device?: string): PossibleCounts {
   const c = { possible: 0, older_build: 0, distro_pending: 0, distro_pending_exploited: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }

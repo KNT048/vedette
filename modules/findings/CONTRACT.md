@@ -434,6 +434,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
   version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  The same holds for NVD's rows and a CNA's list: a record that lists only the release lines its vendor still supports says nothing
+  about an older line it does not list, so a version outside every row, below a range that starts at the first release of a later
+  line, and past no fix of its own line (a range from its line's start or ending on its train, a range from 0 ending on its train, a
+  stated `LineFix`) is no proof of "not affected": undecided `ranges_start_at_branch_only`, asked as `no_range_data` (listed), never a
+  finding on that basis (`unlistedLine`). The vendor's complete list (`VendorList`, a complete CVE.org record), a line newer than every
+  listed one, and a start inside a line (where the flaw came in) still decide. Windows releases and the vendor's own schemes keep
+  their rules. `TestUnlistedLine_OlderLineIsNotClosed`.
   A row limited to an operating system whose builds do not run on the device's (`otherSystem`) states that system's fix and is not
   read here; only `systemReadings` may rule the line out by such rows. `TestPlatformRows_AnotherSystemsFixProvesNothing`.
   A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that

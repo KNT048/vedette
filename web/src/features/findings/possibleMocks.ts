@@ -92,11 +92,16 @@ export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
 }
 
 export function possibleCounts(device?: string): PossibleCounts {
-  const c = { possible: 0, older_build: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
+  const c = { possible: 0, older_build: 0, distro_pending: 0, distro_pending_exploited: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
   for (const it of items(device)) {
     if (it.state === 'settled') { c.settled++; continue }
     if (it.state === 'proposal') c.proposals++
     if (checkable(it)) c.unchecked++
+    if (it.state === 'possible' && DISTRO_REASONS.includes(undecidedOf(it.q).reason)) {
+      c.distro_pending++
+      if (POSSIBLE_EXPLOITED.has(it.cve)) c.distro_pending_exploited++
+      continue
+    }
     if (olderBuildOf(it)) { c.older_build++; continue }
     c.possible++
     const cause = causeOf(it)

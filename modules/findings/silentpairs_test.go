@@ -207,3 +207,32 @@ func TestPossibleCause_DistributionSilence(t *testing.T) {
 		t.Error("distro_silent is not a cause")
 	}
 }
+
+// A distribution's silence is listed apart: counted in DistroPending (its exploited CVEs too, so nothing is hidden), not in Possible or
+// its causes, and not in the device badge, which counts the main list and the older-build group only. A reading or a version item is
+// still in the main list.
+func TestPossible_DistributionSilenceIsCountedApart(t *testing.T) {
+	t.Parallel()
+	item := func(asset, cve, reason string, exploited bool) PossibleItem {
+		q := Question{AssetID: asset, SoftwareID: "s-1", CVE: cve, Kind: QuestionNoRangeData, Detail: QuestionDetail{Version: "2.4.1", Undecided: &Undecided{Reason: reason}}}
+		return PossibleItem{Question: q, CVE: cve, State: PossibleOpen, Exploited: exploited}
+	}
+	items := []PossibleItem{
+		item("d-1", "CVE-2026-61001", DistroNotListed, false),
+		item("d-1", "CVE-2016-61002", DistroOtherReleases, true),
+		item("d-2", "CVE-2026-61003", DistroOtherBuild, false),
+		item("d-2", "CVE-2026-61004", UndecidedNetworkVersion, false),
+		item("d-2", "CVE-2026-61005", UndecidedExactOnly, false),
+	}
+	c := countPossible(items, ReadState{})
+	if c.Possible != 2 || c.DistroPending != 3 || c.DistroPendingExploited != 1 || c.Causes[CauseDistroSilent] != 0 {
+		t.Errorf("counts %+v, want 2 possible, 3 waiting for the distribution (1 exploited), none of them a cause of possible", c)
+	}
+	main, older := possibleByDevice(items)
+	if main["d-1"] != 0 || main["d-2"] != 2 || len(older) != 0 {
+		t.Errorf("badge counts %v %v, want d-2: 2 and nothing for d-1", main, older)
+	}
+	if !items[0].DistroPending() || items[3].DistroPending() {
+		t.Error("DistroPending must hold for a distribution's silence only")
+	}
+}

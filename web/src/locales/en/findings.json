@@ -619,6 +619,8 @@
     "countLink_other": "{{count}} possible",
     "countLinkOlder_one": "{{count}} older build",
     "countLinkOlder_other": "{{count}} older build",
+    "countLinkDistro_one": "{{count}} waiting for the distribution",
+    "countLinkDistro_other": "{{count}} waiting for the distribution",
     "summary_one": "{{count}} possible CVE on {{devices}}",
     "summary_other": "{{count}} possible CVEs on {{devices}}",
     "search": "Search devices, software or CVEs",
@@ -828,6 +830,16 @@
       "done": "Check finished: {{advisory}} decided from vendor advisories, {{undecided}} still undecided.",
       "doneProposals": "Check finished: {{proposals}} AI proposals wait for you ({{advisory}} decided from vendor advisories).",
       "review": "Review"
+    },
+    "distroPending": {
+      "toggle_one": "The distribution has not decided yet: {{count}} CVE",
+      "toggle_other": "The distribution has not decided yet: {{count}} CVEs",
+      "exploited_one": "{{count}} exploited",
+      "exploited_other": "{{count}} exploited",
+      "summary_one": "{{count}} waiting for the distribution",
+      "summary_other": "{{count}} waiting for the distribution",
+      "body": "These packages are built by the device's Linux distribution, which backports its own fixes, so only the distribution's security data can decide them, and it has no word on these yet. Each row says why. Vedette decides them by itself once the distribution states it; they send no alert and are not read by the AI. Answer one when you know more.",
+      "caption": "CVEs waiting for the distribution"
     },
     "olderBuild": {
       "toggle_one": "Reported only for an older build: {{count}} CVE",

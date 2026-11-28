@@ -119020,11 +119020,16 @@ func (s *FindingsGetFindingsOverviewOKOpenByStatus) SetUpdateRecommended(val int
 type FindingsGetFindingsOverviewOKPossible struct {
 	// The possible CVEs of possible by cause; every cause of the list is present.
 	Causes FindingsGetFindingsOverviewOKPossibleCauses `json:"causes"`
+	// Possible CVEs waiting for the distribution's word on its own package (PossibleRow.cause
+	// distro_silent), counted apart from possible and its causes and left out of the device badge.
+	DistroPending int `json:"distro_pending"`
+	// How many of distro_pending are on an exploited list.
+	DistroPendingExploited int `json:"distro_pending_exploited"`
 	// Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from
 	// possible.
 	OlderBuild int `json:"older_build"`
 	// Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an
-	// older build.
+	// older build and those waiting for the distribution.
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
 	Proposals int `json:"proposals"`
@@ -119038,6 +119043,16 @@ type FindingsGetFindingsOverviewOKPossible struct {
 // GetCauses returns the value of Causes.
 func (s *FindingsGetFindingsOverviewOKPossible) GetCauses() FindingsGetFindingsOverviewOKPossibleCauses {
 	return s.Causes
+}
+
+// GetDistroPending returns the value of DistroPending.
+func (s *FindingsGetFindingsOverviewOKPossible) GetDistroPending() int {
+	return s.DistroPending
+}
+
+// GetDistroPendingExploited returns the value of DistroPendingExploited.
+func (s *FindingsGetFindingsOverviewOKPossible) GetDistroPendingExploited() int {
+	return s.DistroPendingExploited
 }
 
 // GetOlderBuild returns the value of OlderBuild.
@@ -119068,6 +119083,16 @@ func (s *FindingsGetFindingsOverviewOKPossible) GetUnchecked() int {
 // SetCauses sets the value of Causes.
 func (s *FindingsGetFindingsOverviewOKPossible) SetCauses(val FindingsGetFindingsOverviewOKPossibleCauses) {
 	s.Causes = val
+}
+
+// SetDistroPending sets the value of DistroPending.
+func (s *FindingsGetFindingsOverviewOKPossible) SetDistroPending(val int) {
+	s.DistroPending = val
+}
+
+// SetDistroPendingExploited sets the value of DistroPendingExploited.
+func (s *FindingsGetFindingsOverviewOKPossible) SetDistroPendingExploited(val int) {
+	s.DistroPendingExploited = val
 }
 
 // SetOlderBuild sets the value of OlderBuild.
@@ -119689,11 +119714,16 @@ func (s *FindingsGetFindingsPossibleOK) SetTotal(val int) {
 type FindingsGetFindingsPossibleOKCounts struct {
 	// The possible CVEs of possible by cause; every cause of the list is present.
 	Causes FindingsGetFindingsPossibleOKCountsCauses `json:"causes"`
+	// Possible CVEs waiting for the distribution's word on its own package (PossibleRow.cause
+	// distro_silent), counted apart from possible and its causes and left out of the device badge.
+	DistroPending int `json:"distro_pending"`
+	// How many of distro_pending are on an exploited list.
+	DistroPendingExploited int `json:"distro_pending_exploited"`
 	// Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from
 	// possible.
 	OlderBuild int `json:"older_build"`
 	// Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an
-	// older build.
+	// older build and those waiting for the distribution.
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
 	Proposals int `json:"proposals"`
@@ -119707,6 +119737,16 @@ type FindingsGetFindingsPossibleOKCounts struct {
 // GetCauses returns the value of Causes.
 func (s *FindingsGetFindingsPossibleOKCounts) GetCauses() FindingsGetFindingsPossibleOKCountsCauses {
 	return s.Causes
+}
+
+// GetDistroPending returns the value of DistroPending.
+func (s *FindingsGetFindingsPossibleOKCounts) GetDistroPending() int {
+	return s.DistroPending
+}
+
+// GetDistroPendingExploited returns the value of DistroPendingExploited.
+func (s *FindingsGetFindingsPossibleOKCounts) GetDistroPendingExploited() int {
+	return s.DistroPendingExploited
 }
 
 // GetOlderBuild returns the value of OlderBuild.
@@ -119737,6 +119777,16 @@ func (s *FindingsGetFindingsPossibleOKCounts) GetUnchecked() int {
 // SetCauses sets the value of Causes.
 func (s *FindingsGetFindingsPossibleOKCounts) SetCauses(val FindingsGetFindingsPossibleOKCountsCauses) {
 	s.Causes = val
+}
+
+// SetDistroPending sets the value of DistroPending.
+func (s *FindingsGetFindingsPossibleOKCounts) SetDistroPending(val int) {
+	s.DistroPending = val
+}
+
+// SetDistroPendingExploited sets the value of DistroPendingExploited.
+func (s *FindingsGetFindingsPossibleOKCounts) SetDistroPendingExploited(val int) {
+	s.DistroPendingExploited = val
 }
 
 // SetOlderBuild sets the value of OlderBuild.

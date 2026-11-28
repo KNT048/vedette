@@ -399,6 +399,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`markOlderBuilds`, run by the list, Home and the device counts only). `TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart`,
   `TestOlderBuild_NoRecordNoGroup`, `TestOlderBuild_RecordNotReadNoGroup`, `TestOlderBuild_VendorPageReadingKeepsMainList`,
   `TestOlderBuild_RecordSilent`, `TestOlderBuild_TestedBuilds`.
+- **P-11 Waiting for the distribution.** A possible CVE whose cause is `distro_silent` (a distribution's package its distribution's data
+  has no word on, INV-14; `PossibleItem.DistroPending`) is listed apart, closed until opened, like the older-build group: counted in
+  `PossibleCounts.distro_pending` (and `distro_pending_exploited`, so the header says how many are exploited and nothing is hidden), not
+  in `possible` or its `causes`; Home, the lists and the API carry both numbers. The device badge leaves it out (`possibleByDevice`: the
+  main list and the older-build group only). It never alerts (P-1) and is never read by the AI (`checkable`). Each row keeps the
+  distribution's reason. It changes no decision. `TestPossible_DistributionSilenceIsCountedApart`.
 
 ## Invariants
 

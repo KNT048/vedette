@@ -597,12 +597,13 @@ function ProductGroup({ p }: { p: PossibleProduct }) {
 }
 
 /** " · 16 possible · 4 older build" after a list's count, links to the Possible section below it; each part hidden at 0. */
-export function PossibleLink({ count, older = 0 }: { count: number; older?: number }) {
+export function PossibleLink({ count, older = 0, distro = 0 }: { count: number; older?: number; distro?: number }) {
   const { t } = useTranslation('findings')
   const cls = 'text-accent underline-offset-4 hover:underline'
   return <>
     {count ? <> · <a href="#possible" className={cls}>{t('possible.countLink', { count })}</a></> : null}
     {older ? <> · <a href="#possible" className={cls}>{t('possible.countLinkOlder', { count: older })}</a></> : null}
+    {distro ? <> · <a href="#possible" className={cls}>{t('possible.countLinkDistro', { count: distro })}</a></> : null}
   </>
 }
 
@@ -615,6 +616,7 @@ function useSummary() {
   return (counts: PossibleCounts, devices: number) => {
     const parts = [t('possible.summary', { count: counts.possible, devices: t('byDevice.devices', { count: devices }) })]
     if (counts.older_build) parts.push(t('possible.olderBuild.summary', { count: counts.older_build }))
+    if (counts.distro_pending) parts.push(t('possible.distroPending.summary', { count: counts.distro_pending }))
     if (counts.proposals) parts.push(t('possible.summaryProposals', { count: counts.proposals }))
     return <>{parts.join(' · ')}<InfoTip topic={t('possible.notOpenTopic')}>{t('possible.notOpenInfo')}</InfoTip></>
   }
@@ -637,12 +639,12 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: device || undefined })
   const summary = useSummary()
-  const [rows, older] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
+  const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const devices = useMemo(() => devicesOf(rows), [rows])
   const products = useMemo(() => productsOf(rows), [rows])
   useScrollHere(!!q.data)
   const counts = q.data?.counts
-  const show = !!counts?.possible || !!counts?.older_build || q.isError
+  const show = !!counts?.possible || !!counts?.older_build || !!counts?.distro_pending || q.isError
   return (
     <section id="possible" aria-label={t('possible.title')} className={cn('grid scroll-mt-4 gap-3', show && 'pt-4')}>
       {show ? (
@@ -664,6 +666,7 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
                     summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} />} />
                 )}
                 <OlderBuilds rows={older} withDevice={!device} />
+                <DistroPending rows={distro} exploited={d.counts.distro_pending_exploited} withDevice={!device} />
               </>
             )}
           </QueryState>
@@ -680,17 +683,18 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
 export function DevicePossible({ assetId }: { assetId: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: assetId })
-  const [rows, older] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
+  const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const lines = useMemo(() => linesOf(rows), [rows])
   useScrollHere(!!q.data)
   const counts = q.data?.counts
   if (!counts) return null
   const summary = [t('possible.summaryDevice', { count: counts.possible })]
   if (counts.older_build) summary.push(t('possible.olderBuild.summary', { count: counts.older_build }))
+  if (counts.distro_pending) summary.push(t('possible.distroPending.summary', { count: counts.distro_pending }))
   const notOpen = t('possible.notOpenInfo')
   return (
     <section id="possible" aria-label={t('possible.title')} className="grid gap-3">
-      {counts.possible || counts.older_build ? (
+      {counts.possible || counts.older_build || counts.distro_pending ? (
         <>
           <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
           <CheckRunLine />
@@ -701,6 +705,7 @@ export function DevicePossible({ assetId }: { assetId: string }) {
               summary={<>{summary.join(' · ')}<InfoTip topic={t('possible.notOpenTopic')}>{notOpen}</InfoTip></>} actions={<CheckPossible counts={counts} device={assetId} />} />
           ) : <div className="flex justify-end"><CheckPossible counts={counts} device={assetId} /></div>}
           <OlderBuilds rows={older} />
+          <DistroPending rows={distro} exploited={counts.distro_pending_exploited} />
         </>
       ) : null}
       <Settled device={assetId} />
@@ -789,9 +794,43 @@ export function usePossibleCheckWatch() {
 
 // ---- settled and answered
 
-/** The rows of a possible list, and those reported only for an older build, which are listed apart. */
-function splitOlder(rows: PossibleRow[]): [PossibleRow[], PossibleRow[]] {
-  return [rows.filter((r) => !r.older_build), rows.filter((r) => r.older_build)]
+/** The rows of a possible list, those reported only for an older build and those waiting for the distribution, each listed apart. */
+function splitOlder(rows: PossibleRow[]): [PossibleRow[], PossibleRow[], PossibleRow[]] {
+  const distro = (r: PossibleRow) => r.cause === 'distro_silent'
+  return [rows.filter((r) => !r.older_build && !distro(r)), rows.filter((r) => r.older_build && !distro(r)), rows.filter(distro)]
+}
+
+/** The CVEs waiting for the distribution's word on its own packages, closed until clicked; its header says how many are exploited, so
+ *  nothing is hidden. By software line, each row with the distribution's reason. Never an alert, never read by the AI. */
+function DistroPending({ rows, exploited, withDevice = false }: { rows: PossibleRow[]; exploited: number; withDevice?: boolean }) {
+  const { t } = useTranslation('findings')
+  const [open, setOpen] = useState(false)
+  const lines = useMemo(() => linesOf(rows), [rows])
+  if (!rows.length) return null
+  return (
+    <div className="grid gap-2" data-testid="distro-pending">
+      <ExpandToggle open={open} onToggle={() => setOpen((o) => !o)} controls="possible-distro-pending">
+        {t('possible.distroPending.toggle', { count: rows.length })}
+        {exploited ? ` · ${t('possible.distroPending.exploited', { count: exploited })}` : ''}
+      </ExpandToggle>
+      {open ? (
+        <div id="possible-distro-pending" className="grid gap-1 sm:pl-6">
+          <p className="text-meta text-muted">{t('possible.distroPending.body')}</p>
+          <RowList label={t('possible.distroPending.caption')}>
+            {lines.map((l) => {
+              const name = nameOf(l.software, t('possible.theSoftware'))
+              return (
+                <ListRow key={l.key} testId="possible-line" label={withDevice ? `${l.device.name}: ${name}` : name} title={name}
+                  sub={withDevice ? l.device.name : undefined} meta={[t('possible.line.count', { count: l.rows.length })]}>
+                  <Rows rows={l.rows} label={t('possible.line.cvesOf', { software: name, device: l.device.name })} />
+                </ListRow>
+              )
+            })}
+          </RowList>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 /** The CVEs reported only for an older build, closed until clicked: by software line (with its device on the list of every device),

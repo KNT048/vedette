@@ -556,8 +556,10 @@ export const PossibleRow = z.object({
   older_build: PossibleOlderBuild.nullable().describe('Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
-  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build'),
+  possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution'),
   older_build: z.number().int().min(0).describe('Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible'),
+  distro_pending: z.number().int().min(0).describe('Possible CVEs waiting for the distribution\'s word on its own package (PossibleRow.cause distro_silent), counted apart from possible and its causes and left out of the device badge'),
+  distro_pending_exploited: z.number().int().min(0).describe('How many of distro_pending are on an exploited list'),
   proposals: z.number().int().min(0).describe('AI proposals waiting for a person'),
   unchecked: z.number().int().min(0).describe('Possible CVEs a check can still look at, those reported only for an older build included: what the "Check possible with AI" button counts'),
   settled: z.number().int().min(0).describe('Settled not affected by the box from a vendor\'s advisory'),

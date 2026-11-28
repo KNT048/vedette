@@ -103,12 +103,13 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
  *  the AI proposals about them waiting for a confirmation. Each a link, hidden at 0. */
 function PossibleLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  const { possible, older_build: older, proposals } = o.possible
-  if (!possible && !older && !proposals) return null
+  const { possible, older_build: older, distro_pending: distro, distro_pending_exploited: distroExploited, proposals } = o.possible
+  if (!possible && !older && !distro && !proposals) return null
   return (
     <p className="-mt-4 mb-6 flex flex-wrap gap-x-4 gap-y-1 text-sm">
       {possible ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.possible', { count: possible })}</Link> : null}
       {older ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.olderBuild', { count: older })}</Link> : null}
+      {distro ? <Link to="/findings?tab=device#possible" className="text-accent underline-offset-4 hover:underline">{t('dash.distroPending', { count: distro })}{distroExploited ? ` (${t('dash.distroPendingExploited', { count: distroExploited })})` : ''}</Link> : null}
       {proposals ? <Link to="/findings?tab=proposals" className="text-accent underline-offset-4 hover:underline">{t('dash.proposals', { count: proposals })}</Link> : null}
     </p>
   )

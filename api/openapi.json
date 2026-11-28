@@ -59204,13 +59204,25 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build"
+                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution"
                         },
                         "older_build": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
                           "description": "Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible"
+                        },
+                        "distro_pending": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Possible CVEs waiting for the distribution's word on its own package (PossibleRow.cause distro_silent), counted apart from possible and its causes and left out of the device badge"
+                        },
+                        "distro_pending_exploited": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "How many of distro_pending are on an exploited list"
                         },
                         "proposals": {
                           "type": "integer",
@@ -59303,6 +59315,8 @@
                       "required": [
                         "possible",
                         "older_build",
+                        "distro_pending",
+                        "distro_pending_exploited",
                         "proposals",
                         "unchecked",
                         "settled",
@@ -60918,13 +60932,25 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build"
+                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution"
                         },
                         "older_build": {
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
                           "description": "Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible"
+                        },
+                        "distro_pending": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Possible CVEs waiting for the distribution's word on its own package (PossibleRow.cause distro_silent), counted apart from possible and its causes and left out of the device badge"
+                        },
+                        "distro_pending_exploited": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "How many of distro_pending are on an exploited list"
                         },
                         "proposals": {
                           "type": "integer",
@@ -61017,6 +61043,8 @@
                       "required": [
                         "possible",
                         "older_build",
+                        "distro_pending",
+                        "distro_pending_exploited",
                         "proposals",
                         "unchecked",
                         "settled",

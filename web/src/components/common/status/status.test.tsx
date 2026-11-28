@@ -31,7 +31,7 @@ describe('StatusBadge', () => {
     inRouter(<><StatusBadge code="exploited" count={2} to="/findings?tab=device&device=d1&status=exploited" /><StatusBadge code="update_recommended" count={5} /><StatusBadge code="possible" count={1} /></>)
     expect(screen.getByRole('link', { name: '2 exploited' })).toHaveAttribute('href', '/findings?tab=device&device=d1&status=exploited')
     expect(screen.getByText('Update recommended')).toBeInTheDocument()
-    expect(screen.getByText('1 possible')).toBeInTheDocument()
+    expect(screen.getByText('1 not decided')).toBeInTheDocument()
   })
 
   it('an accepted risk says until when', () => {

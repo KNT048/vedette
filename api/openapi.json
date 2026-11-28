@@ -55952,7 +55952,13 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 9007199254740991,
-                                    "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide)"
+                                    "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included"
+                                  },
+                                  "older_build": {
+                                    "description": "possible: how many of count are reported only for an older build (\"3 possible · 2 older build\"); absent when none",
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -57942,7 +57948,13 @@
                                         "type": "integer",
                                         "minimum": 1,
                                         "maximum": 9007199254740991,
-                                        "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide)"
+                                        "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included"
+                                      },
+                                      "older_build": {
+                                        "description": "possible: how many of count are reported only for an older build (\"3 possible · 2 older build\"); absent when none",
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 9007199254740991
                                       }
                                     },
                                     "required": [

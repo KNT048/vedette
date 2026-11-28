@@ -373,13 +373,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestIdentityCandidates`, `TestIdentityScrubber`.
 - **P-10 Reported only for an older build.** A possible CVE whose rows are only the exact builds a third party tested
   (`third_party_tested_build`), every one older than the release the line runs (`testedBuilds`: `laterThan`, or an older release line by
-  `lineOrder`; a range, a row that does not read or a list `undecidedRows` may have cut reads none), on no exploited list, not a proposal,
+  `lineOrder`; a range, a row that does not read or a list `undecidedRows` may have cut reads none), on no exploited list and with no exploitation signal the reporting window keeps it for (`CVERecordText.Kept`, feeds `Store.Kept`: an
+  exploited signal of a vendor or researcher, an intrusion alert here, a public exploit dated inside the window), not a proposal,
   with no fix the question names, whose cause the record or a reading of it leaves (`vendor_silent`, `ai_unsure`, `needs_reading`,
   `ai_budget`), with no stored reading of the vendor's own page, and whose CVE record was read and gives no solution, no workaround, no
   reference tagged as the vendor's (vendor advisory, release notes, patch, mitigation) and no dispute or unsupported-when-assigned tag
   (`recordSilent`, read through `PossibleChecker.Record`) is listed apart (`PossibleRow.older_build`: the builds
-  tested and the year of the CVE id) and counted apart: `PossibleCounts.older_build`, not in `possible`, its `causes` or the device badge
-  (`possibleByDevice`); Home and the lists show both numbers. Without the record (no checker, a read error, a record not read yet) the CVE stays in the main list.
+  tested and the year of the CVE id) and counted apart: `PossibleCounts.older_build`, not in `possible` or its `causes`;
+  Home and the lists show both numbers. Never hidden: the device badge `possible` counts both and says how many are of the group
+  (`DeviceStatus.older_build`, `possibleByDevice`), so a device whose only possible CVEs are of the group keeps a badge. Without the record (no checker, a read error, a record not read yet) the CVE stays in the main list.
   It changes no decision: the question, its check key, the automatic reading and every answer stay as they are, and nothing closes
   (`markOlderBuilds`, run by the list, Home and the device counts only). `TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart`,
   `TestOlderBuild_NoRecordNoGroup`, `TestOlderBuild_RecordNotReadNoGroup`, `TestOlderBuild_VendorPageReadingKeepsMainList`,

@@ -95,8 +95,16 @@ func TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d := dc["pc-01"]; d == nil || d.Possible != 4 {
-		t.Errorf("device counts %+v, want the badge to count the 4 main possible CVEs", d)
+	if d := dc["pc-01"]; d == nil || d.Possible != 4 || d.OlderBuild != 1 {
+		t.Errorf("device counts %+v, want the 4 main possible CVEs and the 1 reported only for an older build", d)
+	}
+	// the badge never hides the group: it counts both and says how many are reported only for an older build
+	st, err := e.svc.deviceStatuses(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := st["pc-01"]; b == nil || b.Code != CodePossible || b.Count != 5 || b.OlderBuild != 1 {
+		t.Errorf("device badge %+v, want possible 5 with 1 reported only for an older build", b)
 	}
 
 	// it never closes anything: the question stays open and no finding is made
@@ -245,5 +253,48 @@ func TestOlderBuild_TestedBuilds(t *testing.T) {
 				t.Errorf("%s: %v, want %v", c.name, got, c.want)
 			}
 		}
+	}
+}
+
+// Any exploitation signal the reporting window keeps a CVE for (an exploited signal of a vendor or a researcher, an intrusion alert of
+// this network, a public exploit dated inside the window; CVERecordText.Kept) keeps it in the main list, as an exploited list does.
+func TestOlderBuild_AnExploitationSignalKeepsMainList(t *testing.T) {
+	t.Parallel()
+	e := oldBuildWorld(t, true, func(rs map[string]CVERecordText) {
+		r := rs["CVE-2019-90101"]
+		r.Kept = true
+		rs["CVE-2019-90101"] = r
+	})
+	list, err := e.svc.Possible(t.Context(), PossibleFilter{}, Page{Limit: PageMax})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list.Counts.Possible != 5 || list.Counts.OlderBuild != 0 {
+		t.Errorf("counts %+v, want every CVE in the main list", list.Counts)
+	}
+}
+
+// A device whose only possible CVEs are reported for an older build keeps a badge that says so; one with both counts both.
+func TestOlderBuild_TheDeviceBadgeNeverHidesTheGroup(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		c    DeviceCounts
+		want *DeviceStatus
+	}{
+		{DeviceCounts{OlderBuild: 2}, &DeviceStatus{Code: CodePossible, Count: 2, OlderBuild: 2}},
+		{DeviceCounts{Possible: 3, OlderBuild: 1}, &DeviceStatus{Code: CodePossible, Count: 4, OlderBuild: 1}},
+		{DeviceCounts{Possible: 3}, &DeviceStatus{Code: CodePossible, Count: 3}},
+		{DeviceCounts{}, nil},
+	}
+	for _, c := range cases {
+		got := DeviceStatusOf(c.c)
+		if (got == nil) != (c.want == nil) || got != nil && *got != *c.want {
+			t.Errorf("DeviceStatusOf(%+v) = %+v, want %+v", c.c, got, c.want)
+		}
+	}
+	c := DeviceCounts{OlderBuild: 1}
+	c.CVEs[UrgencyExploited] = 2
+	if got := DeviceStatusOf(c); got == nil || got.Code != LayerCode(UrgencyExploited) || got.Count != 2 {
+		t.Errorf("an open finding's layer wins: %+v", got)
 	}
 }

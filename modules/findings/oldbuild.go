@@ -54,7 +54,8 @@ func (s *Service) markOlderBuilds(ctx context.Context, items []PossibleItem, rs 
 		quiet, seen := silent[it.CVE]
 		if !seen {
 			rec, err := s.cfg.Checker.Record(ctx, it.CVE)
-			quiet = err == nil && recordSilent(rec)
+			// an exploitation signal the reporting window keeps the CVE for is never quiet, as an exploited list is not
+			quiet = err == nil && recordSilent(rec) && !rec.Kept
 			silent[it.CVE] = quiet
 		}
 		if quiet {

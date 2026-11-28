@@ -304,7 +304,8 @@ export const StatusCounts = z.object({
 }).describe('Open findings by status')
 export const DeviceStatus = z.object({
   code: DeviceStatusCode,
-  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible CVEs of the device (CVEs Vedette cannot decide)'),
+  count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included'),
+  older_build: z.number().int().min(1).optional().describe('possible: how many of count are reported only for an older build ("3 possible · 2 older build"); absent when none'),
 }).nullable().describe('The device badge: the most urgent open status of its findings with a count, else possible when only possible CVEs wait, else null. A link to the device\'s findings with that status. The Devices list, the device page and Home show the same value')
 export const FixBlock = z.object({
   fix: Fix,

@@ -202,3 +202,38 @@ func TestRecordRows_ANoValueBesideNamedValuesIsNotThoseBuilds(t *testing.T) {
 		}
 	}
 }
+
+// The binary's record door says what the older-build group of the possible list relies on: whether the CVE record itself was read (a
+// record never read, only NVD's copy, cannot say the vendor gave nothing, so its CVE stays in the main list) and whether the reporting
+// window keeps the CVE for an exploitation signal (an exploited signal not on any list, an old public exploit not counting).
+func TestPossibleCheckerRecord_ReadAndKept(t *testing.T) {
+	s := newStack(t)
+	ctx := t.Context()
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := possibleChecker{feeds: fs.Store()}
+	const cve = "CVE-2019-90111"
+	s.exec(`INSERT INTO feeds_cve (cve, published, description, updated_at) VALUES (?, '2019-03-01T00:00:00.000Z', 'Acme Desk 3.0.4 contains a flaw.', '2026-11-20T00:00:00.000Z')`, cve)
+	signal := func(kind, source, first string) {
+		s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES (?, ?, ?, ?, ?, ?, 1)`,
+			cve, kind, source, first, "2026-11-20T00:00:00.000Z", "2026-11-20T00:00:00.000Z")
+	}
+	signal("public_exploit", "exploit-db", "2019-03-04T00:00:00.000Z") // the third party's old exploit: not a reason the window keeps it
+	rec, err := c.Record(ctx, cve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.Read || rec.Kept {
+		t.Errorf("only NVD's copy, an old public exploit: read %v, kept %v; want neither", rec.Read, rec.Kept)
+	}
+	s.exec(`UPDATE feeds_cve SET record_at = '2026-11-20T00:00:00.000Z' WHERE cve = ?`, cve)
+	signal("exploited", "msrc", "2026-11-10T00:00:00.000Z") // a vendor says it is exploited, on no list
+	if rec, err = c.Record(ctx, cve); err != nil {
+		t.Fatal(err)
+	}
+	if !rec.Read || !rec.Kept {
+		t.Errorf("record read, a vendor's exploited signal: read %v, kept %v; want both", rec.Read, rec.Kept)
+	}
+}

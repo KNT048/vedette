@@ -246,16 +246,20 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 	return c
 }
 
-// possibleByDevice is how many possible CVEs (not settled, not reported only for an older build) each device has: the device badge's
-// count when nothing open is more urgent.
-func possibleByDevice(items []PossibleItem) map[string]int {
-	out := map[string]int{}
+// possibleByDevice is how many possible CVEs (not settled) each device has, those reported only for an older build apart: the device
+// badge's counts when nothing open is more urgent.
+func possibleByDevice(items []PossibleItem) (main, older map[string]int) {
+	main, older = map[string]int{}, map[string]int{}
 	for _, it := range items {
-		if it.State != PossibleSettled && it.OlderBuild == nil {
-			out[it.Question.AssetID]++
+		switch {
+		case it.State == PossibleSettled:
+		case it.OlderBuild != nil:
+			older[it.Question.AssetID]++
+		default:
+			main[it.Question.AssetID]++
 		}
 	}
-	return out
+	return main, older
 }
 
 // PossibleFilter selects the rows of GET /findings/possible.

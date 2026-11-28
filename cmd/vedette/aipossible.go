@@ -46,8 +46,12 @@ func (c possibleChecker) Record(ctx context.Context, cve string) (findings.CVERe
 	if err != nil || !ok {
 		return findings.CVERecordText{}, err
 	}
+	kept, err := c.feeds.Kept(ctx, []string{cve}, time.Now())
+	if err != nil {
+		return findings.CVERecordText{}, err
+	}
 	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution, Workaround: b.Workaround, Read: b.RecordAt != nil,
-		Rows: recordRows(b.Ranges)}
+		Kept: kept[cve], Rows: recordRows(b.Ranges)}
 	for _, r := range b.References {
 		out.Refs = append(out.Refs, findings.RefLink{URL: r.URL, Tags: r.Tags})
 	}

@@ -98502,8 +98502,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemDeviceKind) UnmarshalText(data []b
 type FindingsGetFindingsDevicesOKItemsItemStatus struct {
 	Code FindingsGetFindingsDevicesOKItemsItemStatusCode `json:"code"`
 	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible
-	// CVEs of the device (CVEs Vedette cannot decide).
+	// CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included.
 	Count int `json:"count"`
+	// Possible: how many of count are reported only for an older build ("3 possible · 2 older build");
+	// absent when none.
+	OlderBuild OptInt `json:"older_build"`
 }
 
 // GetCode returns the value of Code.
@@ -98516,6 +98519,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatus) GetCount() int {
 	return s.Count
 }
 
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsDevicesOKItemsItemStatus) GetOlderBuild() OptInt {
+	return s.OlderBuild
+}
+
 // SetCode sets the value of Code.
 func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetCode(val FindingsGetFindingsDevicesOKItemsItemStatusCode) {
 	s.Code = val
@@ -98524,6 +98532,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetCode(val FindingsGetFin
 // SetCount sets the value of Count.
 func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetCount(val int) {
 	s.Count = val
+}
+
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetOlderBuild(val OptInt) {
+	s.OlderBuild = val
 }
 
 type FindingsGetFindingsDevicesOKItemsItemStatusCode string
@@ -114208,8 +114221,11 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedDeviceKind) UnmarshalText(data [
 type FindingsGetFindingsInput2DeviceNotAddedStatus struct {
 	Code FindingsGetFindingsInput2DeviceNotAddedStatusCode `json:"code"`
 	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible
-	// CVEs of the device (CVEs Vedette cannot decide).
+	// CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included.
 	Count int `json:"count"`
+	// Possible: how many of count are reported only for an older build ("3 possible · 2 older build");
+	// absent when none.
+	OlderBuild OptInt `json:"older_build"`
 }
 
 // GetCode returns the value of Code.
@@ -114222,6 +114238,11 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) GetCount() int {
 	return s.Count
 }
 
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) GetOlderBuild() OptInt {
+	return s.OlderBuild
+}
+
 // SetCode sets the value of Code.
 func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetCode(val FindingsGetFindingsInput2DeviceNotAddedStatusCode) {
 	s.Code = val
@@ -114230,6 +114251,11 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetCode(val FindingsGetF
 // SetCount sets the value of Count.
 func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetCount(val int) {
 	s.Count = val
+}
+
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetOlderBuild(val OptInt) {
+	s.OlderBuild = val
 }
 
 type FindingsGetFindingsInput2DeviceNotAddedStatusCode string

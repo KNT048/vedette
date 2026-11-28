@@ -185675,11 +185675,18 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatus) encodeFields(e *jx.Encoder
 		e.FieldStart("count")
 		e.Int(s.Count)
 	}
+	{
+		if s.OlderBuild.Set {
+			e.FieldStart("older_build")
+			s.OlderBuild.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsDevicesOKItemsItemStatus = [2]string{
+var jsonFieldsNameOfFindingsGetFindingsDevicesOKItemsItemStatus = [3]string{
 	0: "code",
 	1: "count",
+	2: "older_build",
 }
 
 // Decode decodes FindingsGetFindingsDevicesOKItemsItemStatus from json.
@@ -185712,6 +185719,16 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatus) Decode(d *jx.Decoder) erro
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "older_build":
+			if err := func() error {
+				s.OlderBuild.Reset()
+				if err := s.OlderBuild.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"older_build\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -206187,11 +206204,18 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) encodeFields(e *jx.Encod
 		e.FieldStart("count")
 		e.Int(s.Count)
 	}
+	{
+		if s.OlderBuild.Set {
+			e.FieldStart("older_build")
+			s.OlderBuild.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedStatus = [2]string{
+var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedStatus = [3]string{
 	0: "code",
 	1: "count",
+	2: "older_build",
 }
 
 // Decode decodes FindingsGetFindingsInput2DeviceNotAddedStatus from json.
@@ -206224,6 +206248,16 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) Decode(d *jx.Decoder) er
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "older_build":
+			if err := func() error {
+				s.OlderBuild.Reset()
+				if err := s.OlderBuild.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"older_build\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

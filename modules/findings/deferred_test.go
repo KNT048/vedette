@@ -71,11 +71,12 @@ func coveredWorld(t *testing.T, devices []string, cves ...string) (*env, *fakeCh
 	return e, fc
 }
 
-func findingID(t *testing.T, e *env, device, cve string) string {
+// anchorID is the id of the open finding of cveAnchor on device.
+func anchorID(t *testing.T, e *env, device string) string {
 	t.Helper()
 	var id string
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = ? AND cve = ?`, device, cve).Scan(&id); err != nil {
-		t.Fatalf("the finding of %s on %s: %v", cve, device, err)
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM fnd_finding WHERE asset_id = ? AND cve = ?`, device, cveAnchor).Scan(&id); err != nil {
+		t.Fatalf("the finding of %s on %s: %v", cveAnchor, device, err)
 	}
 	return id
 }
@@ -99,7 +100,7 @@ func possibleRows(t *testing.T, e *env) (map[string]PossibleRowJS, PossibleCount
 func TestDeferred_AnUpdateTheLineNeedsCoversItsOtherUndecidedCVEs(t *testing.T) {
 	t.Parallel()
 	e, _ := coveredWorld(t, []string{"pc-01"}, cveAnchor, cveCovered, cveKEV, cveSignalled)
-	anchor := findingID(t, e, "pc-01", cveAnchor)
+	anchor := anchorID(t, e, "pc-01")
 	rows, counts := possibleRows(t, e)
 	got := rows["pc-01|"+cveCovered]
 	if got.Deferred == nil || got.Deferred.Anchor != anchor || got.Deferred.AnchorKind != AnchorFinding || got.Deferred.AnchorCVE != cveAnchor || got.Deferred.Kind != FixUpdate ||
@@ -170,7 +171,7 @@ func TestDeferred_OnlyAnOpenFindingDecidedByDataOrAPersonIsAnAnchor(t *testing.T
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			e, _ := coveredWorld(t, []string{"pc-01"}, cveAnchor, cveCovered)
-			tc.change(t, e, findingID(t, e, "pc-01", cveAnchor))
+			tc.change(t, e, anchorID(t, e, "pc-01"))
 			rows, counts := possibleRows(t, e)
 			if got := rows["pc-01|"+cveCovered].Deferred != nil; got != tc.deferred {
 				t.Errorf("deferred %v, want %v (counts %+v)", got, tc.deferred, counts)
@@ -229,7 +230,7 @@ func TestResearchWorker_SkipsALineOnlyWhenEveryDeviceRowIsDeferred(t *testing.T)
 	})
 	synctest.Test(t, func(t *testing.T) {
 		e, fc := coveredWorld(t, []string{"pc-01", "pc-02"}, cveAnchor, cveCovered)
-		if _, _, err := e.svc.Handle(t.Context(), []string{findingID(t, e, "pc-02", cveAnchor)}, ResolutionAccepted, "The vendor fix waits for the next window.", dayOf(t0).AddDate(0, 1, 0), "ana@example.com"); err != nil {
+		if _, _, err := e.svc.Handle(t.Context(), []string{anchorID(t, e, "pc-02")}, ResolutionAccepted, "The vendor fix waits for the next window.", dayOf(t0).AddDate(0, 1, 0), "ana@example.com"); err != nil {
 			t.Fatal(err)
 		}
 		stop := startWorker(t, e)
@@ -272,7 +273,7 @@ func TestDeferred_ResearchResumesWhenTheAnchorCloses(t *testing.T) {
 		if got := researchedCVEs(fc); len(got) != 0 {
 			t.Fatalf("researched %v while the line needs its update", got)
 		}
-		if _, _, err := e.svc.HandleConfirmed(t.Context(), []string{findingID(t, e, "pc-01", cveAnchor)}, ResolutionPatched, "", time.Time{}, "ana@example.com"); err != nil {
+		if _, _, err := e.svc.HandleConfirmed(t.Context(), []string{anchorID(t, e, "pc-01")}, ResolutionPatched, "", time.Time{}, "ana@example.com"); err != nil {
 			t.Fatal(err)
 		}
 		synctest.Wait()

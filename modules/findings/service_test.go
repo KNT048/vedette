@@ -155,9 +155,9 @@ func (f *fakeFeeds) Unsupported(_ context.Context, cves []string) (map[string]bo
 	return out, nil
 }
 
-func (f *fakeFeeds) Kept(_ context.Context, cves []string) (map[string]bool, error) {
+func (f *fakeFeeds) Kept(ctx context.Context, cves []string) (map[string]bool, error) {
 	out := map[string]bool{}
-	listed, _ := f.Vulns(context.Background())
+	listed, _ := f.Vulns(ctx)
 	for _, c := range cves {
 		if f.kept[c] || slices.ContainsFunc(listed, func(v Vuln) bool { return v.CVE == c }) {
 			out[c] = true

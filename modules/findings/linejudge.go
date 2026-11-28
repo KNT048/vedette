@@ -66,7 +66,7 @@ const (
 	lineAffected                       // the vendor lists the line affected and the version inside its affected releases
 	lineFixed                          // the vendor lists the line and the version at or past its fix (or before the flaw came in)
 	lineUnaffected                     // the vendor states the line unaffected, or its convention does for a line it assessed
-	lineNotAssessed                    // the vendor no longer assessed the line when the CVE was published: decides nothing
+	lineNotAssessed                    // the line was not assessed when the CVE was published, or is out of support now: decides nothing
 	lineHidden                         // the vendor's status of the line is not public yet: decides nothing
 )
 

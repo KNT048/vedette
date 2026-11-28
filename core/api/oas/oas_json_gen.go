@@ -221139,6 +221139,8 @@ func (s *FindingsGetFindingsReviewOKItemsItemCause) Decode(d *jx.Decoder) error 
 		*s = FindingsGetFindingsReviewOKItemsItemCausePendingNvd
 	case FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson:
 		*s = FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson
+	case FindingsGetFindingsReviewOKItemsItemCauseDistroSilent:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseDistroSilent
 	default:
 		*s = FindingsGetFindingsReviewOKItemsItemCause(v)
 	}
@@ -224205,6 +224207,18 @@ func (s *FindingsGetFindingsReviewOKItemsItemUndecidedReason) Decode(d *jx.Decod
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure:
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData
 	default:
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReason(v)
 	}

@@ -63702,9 +63702,15 @@
                                   "no_reference_page",
                                   "fetch_failed",
                                   "unparsed_vendor_text",
-                                  "ai_unsure"
+                                  "ai_unsure",
+                                  "version_from_network",
+                                  "distro_not_listed",
+                                  "distro_other_packages",
+                                  "distro_other_releases",
+                                  "distro_other_build",
+                                  "distro_no_data"
                                 ],
-                                "description": "Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it"
+                                "description": "Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it. version_from_network: only a version read from the network, which a CVE on no exploited list is not compared with. The distribution's silence on its own package (cause distro_silent): distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only), distro_other_releases (rows for other releases only), distro_other_build (its row is about another build), distro_no_data (no security data of that distribution)"
                               },
                               "ranges": {
                                 "description": "The range rows that were read and did not decide it (\"<cpe> [start, end)\"), at most 20",
@@ -64147,9 +64153,10 @@
                                   "identity_unproven",
                                   "version_needed",
                                   "pending_nvd",
-                                  "needs_person"
+                                  "needs_person",
+                                  "distro_silent"
                                 ],
-                                "description": "Why the CVE is still possible and what would decide it: vendor_silent (no vendor page states more than the record), page_unreadable (the pages could not be read), needs_reading (the vendor's advisory must be read: no AI set up, or the reading is still to come), ai_unsure (the AI could not tell, or its quote was not in the page), ai_budget (the AI's reading waits for the budget), identity_unproven (the software is not tied to a product the records name), version_needed (the version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a rejected reading)"
+                                "description": "Why the CVE is still possible and what would decide it: vendor_silent (no vendor page states more than the record), page_unreadable (the pages could not be read), needs_reading (the vendor's advisory must be read: no AI set up, or the reading is still to come), ai_unsure (the AI could not tell, or its quote was not in the page), ai_budget (the AI's reading waits for the budget), identity_unproven (the software is not tied to a product the records name), version_needed (the version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a rejected reading), distro_silent (a distribution's package is judged by the distribution's word alone, and its security data has no word on the package for the CVE; the undecided reason says why)"
                               },
                               {
                                 "type": "null"

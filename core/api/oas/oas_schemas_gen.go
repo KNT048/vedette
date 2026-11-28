@@ -124610,7 +124610,8 @@ func (s *FindingsGetFindingsReviewOKItemsItem) SetUndecided(val FindingsGetFindi
 // identity_unproven (the software is not tied to a product the records name), version_needed (the
 // version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the
 // affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a
-// rejected reading).
+// rejected reading), distro_silent (a distribution's package is judged by the distribution's word
+// alone, and its security data has no word on the package for the CVE; the undecided reason says why).
 type FindingsGetFindingsReviewOKItemsItemCause string
 
 const (
@@ -124623,6 +124624,7 @@ const (
 	FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded    FindingsGetFindingsReviewOKItemsItemCause = "version_needed"
 	FindingsGetFindingsReviewOKItemsItemCausePendingNvd       FindingsGetFindingsReviewOKItemsItemCause = "pending_nvd"
 	FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson      FindingsGetFindingsReviewOKItemsItemCause = "needs_person"
+	FindingsGetFindingsReviewOKItemsItemCauseDistroSilent     FindingsGetFindingsReviewOKItemsItemCause = "distro_silent"
 )
 
 // AllValues returns all FindingsGetFindingsReviewOKItemsItemCause values.
@@ -124637,6 +124639,7 @@ func (FindingsGetFindingsReviewOKItemsItemCause) AllValues() []FindingsGetFindin
 		FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded,
 		FindingsGetFindingsReviewOKItemsItemCausePendingNvd,
 		FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson,
+		FindingsGetFindingsReviewOKItemsItemCauseDistroSilent,
 	}
 }
 
@@ -124660,6 +124663,8 @@ func (s FindingsGetFindingsReviewOKItemsItemCause) MarshalText() ([]byte, error)
 	case FindingsGetFindingsReviewOKItemsItemCausePendingNvd:
 		return []byte(s), nil
 	case FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseDistroSilent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -124695,6 +124700,9 @@ func (s *FindingsGetFindingsReviewOKItemsItemCause) UnmarshalText(data []byte) e
 		return nil
 	case FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson:
 		*s = FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseDistroSilent:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseDistroSilent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -126944,6 +126952,11 @@ type FindingsGetFindingsReviewOKItemsItemUndecided struct {
 	// The range rows that were read and did not decide it (" [start, end)"), at most 20.
 	Ranges []string `json:"ranges"`
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+	// compared with. The distribution's silence on its own package (cause distro_silent):
+	// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+	// build), distro_no_data (no security data of that distribution).
 	Reason FindingsGetFindingsReviewOKItemsItemUndecidedReason `json:"reason"`
 	// Up to 500 characters of advisory text the box could not read as ranges.
 	Text OptString `json:"text"`
@@ -126992,6 +127005,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemUndecided) SetURL(val OptString) {
 }
 
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+// compared with. The distribution's silence on its own package (cause distro_silent):
+// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+// build), distro_no_data (no security data of that distribution).
 type FindingsGetFindingsReviewOKItemsItemUndecidedReason string
 
 const (
@@ -127013,6 +127031,12 @@ const (
 	FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed             FindingsGetFindingsReviewOKItemsItemUndecidedReason = "fetch_failed"
 	FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText      FindingsGetFindingsReviewOKItemsItemUndecidedReason = "unparsed_vendor_text"
 	FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure                FindingsGetFindingsReviewOKItemsItemUndecidedReason = "ai_unsure"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork      FindingsGetFindingsReviewOKItemsItemUndecidedReason = "version_from_network"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed         FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_not_listed"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages     FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_packages"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases     FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_releases"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild        FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_build"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData            FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_no_data"
 )
 
 // AllValues returns all FindingsGetFindingsReviewOKItemsItemUndecidedReason values.
@@ -127036,6 +127060,12 @@ func (FindingsGetFindingsReviewOKItemsItemUndecidedReason) AllValues() []Finding
 		FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed,
 		FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText,
 		FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData,
 	}
 }
 
@@ -127077,6 +127107,18 @@ func (s FindingsGetFindingsReviewOKItemsItemUndecidedReason) MarshalText() ([]by
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText:
 		return []byte(s), nil
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -127139,6 +127181,24 @@ func (s *FindingsGetFindingsReviewOKItemsItemUndecidedReason) UnmarshalText(data
 		return nil
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure:
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

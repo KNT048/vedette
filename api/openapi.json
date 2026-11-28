@@ -52574,6 +52574,14 @@
                                                       "error": {
                                                         "description": "Why the layer gave no answer, in the box's words",
                                                         "type": "string"
+                                                      },
+                                                      "refused": {
+                                                        "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                        "maxItems": 20,
+                                                        "type": "array",
+                                                        "items": {
+                                                          "type": "string"
+                                                        }
                                                       }
                                                     },
                                                     "required": [
@@ -53922,6 +53930,14 @@
                                                       "error": {
                                                         "description": "Why the layer gave no answer, in the box's words",
                                                         "type": "string"
+                                                      },
+                                                      "refused": {
+                                                        "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                        "maxItems": 20,
+                                                        "type": "array",
+                                                        "items": {
+                                                          "type": "string"
+                                                        }
                                                       }
                                                     },
                                                     "required": [
@@ -55291,6 +55307,14 @@
                                                       "error": {
                                                         "description": "Why the layer gave no answer, in the box's words",
                                                         "type": "string"
+                                                      },
+                                                      "refused": {
+                                                        "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                        "maxItems": 20,
+                                                        "type": "array",
+                                                        "items": {
+                                                          "type": "string"
+                                                        }
                                                       }
                                                     },
                                                     "required": [
@@ -56640,6 +56664,14 @@
                                                       "error": {
                                                         "description": "Why the layer gave no answer, in the box's words",
                                                         "type": "string"
+                                                      },
+                                                      "refused": {
+                                                        "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                        "maxItems": 20,
+                                                        "type": "array",
+                                                        "items": {
+                                                          "type": "string"
+                                                        }
                                                       }
                                                     },
                                                     "required": [
@@ -57425,6 +57457,14 @@
                                                             "error": {
                                                               "description": "Why the layer gave no answer, in the box's words",
                                                               "type": "string"
+                                                            },
+                                                            "refused": {
+                                                              "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                              "maxItems": 20,
+                                                              "type": "array",
+                                                              "items": {
+                                                                "type": "string"
+                                                              }
                                                             }
                                                           },
                                                           "required": [
@@ -62998,6 +63038,14 @@
                                                             "error": {
                                                               "description": "Why the layer gave no answer, in the box's words",
                                                               "type": "string"
+                                                            },
+                                                            "refused": {
+                                                              "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                              "maxItems": 20,
+                                                              "type": "array",
+                                                              "items": {
+                                                                "type": "string"
+                                                              }
                                                             }
                                                           },
                                                           "required": [
@@ -65221,6 +65269,14 @@
                                                             "error": {
                                                               "description": "Why the layer gave no answer, in the box's words",
                                                               "type": "string"
+                                                            },
+                                                            "refused": {
+                                                              "description": "Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened",
+                                                              "maxItems": 20,
+                                                              "type": "array",
+                                                              "items": {
+                                                                "type": "string"
+                                                              }
                                                             }
                                                           },
                                                           "required": [

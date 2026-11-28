@@ -53305,6 +53305,25 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 		})
 	}
 	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
@@ -60688,6 +60707,25 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Valid
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "pages",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
 			Error: err,
 		})
 	}
@@ -68423,6 +68461,25 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 		})
 	}
 	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
@@ -69892,6 +69949,25 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "pages",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
 			Error: err,
 		})
 	}
@@ -77152,6 +77228,25 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Va
 		})
 	}
 	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
@@ -79052,6 +79147,25 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 		})
 	}
 	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
@@ -80913,6 +81027,25 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Va
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "pages",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Refused == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Refused)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "refused",
 			Error: err,
 		})
 	}

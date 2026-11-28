@@ -95813,6 +95813,9 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem s
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -95863,6 +95866,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -95928,6 +95936,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -108769,6 +108782,9 @@ type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem struct {
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -108819,6 +108835,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetPr
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -108884,6 +108905,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetPr
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -123479,6 +123505,9 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem s
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -123529,6 +123558,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -123594,6 +123628,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -126613,6 +126652,9 @@ type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem str
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -126663,6 +126705,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -126728,6 +126775,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -139762,6 +139814,9 @@ type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem struct 
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -139812,6 +139867,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Ge
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -139877,6 +139937,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Se
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -143716,6 +143781,9 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem struc
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -143766,6 +143834,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -143831,6 +143904,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.
@@ -147656,6 +147734,9 @@ type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem struct 
 	Profile string   `json:"profile"`
 	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
 	QuoteCheck string `json:"quote_check"`
+	// Addresses the AI asked the box to open that were not in the data for this job (the CVE record, its
+	// references, the excerpts, or a link on a page read from them): not opened.
+	Refused []string `json:"refused"`
 	// Web searches the provider ran.
 	Searches  int `json:"searches"`
 	TokensIn  int `json:"tokens_in"`
@@ -147706,6 +147787,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Ge
 // GetQuoteCheck returns the value of QuoteCheck.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
 	return s.QuoteCheck
+}
+
+// GetRefused returns the value of Refused.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetRefused() []string {
+	return s.Refused
 }
 
 // GetSearches returns the value of Searches.
@@ -147771,6 +147857,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Se
 // SetQuoteCheck sets the value of QuoteCheck.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
 	s.QuoteCheck = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetRefused(val []string) {
+	s.Refused = val
 }
 
 // SetSearches sets the value of Searches.

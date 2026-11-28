@@ -1252,7 +1252,17 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		// edition or product, a release it does not pair with this product, no version) is not the vendor's statement for this product:
 		// unpaired, which may open a finding, never gives a fix, and whose "not affected" is a proposal (an inference from another
 		// product's line stays inferred)
-		if st.Basis == BasisStated && !st.boxStated(id, ownNames(rec, id.Product), ownEditions(rec, id.Product, edition(l.units[0].q)), ownVendors(id.Product)) {
+		// only the installed build's own edition may stand between the name and the release: an edition the record pins for another
+		// build of the product (a server edition, an extended-support one) is that build's, not this one's
+		var eds []string
+		if e := strings.ToLower(strings.TrimSpace(edition(l.units[0].q))); e != "" {
+			eds = []string{e}
+		}
+		ids := make([]CheckID, 0, len(l.units))
+		for _, u := range l.units {
+			ids = append(ids, u.id)
+		}
+		if st.Basis == BasisStated && !st.statedForAll(ids, ownNames(rec, id.Product), eds, ownVendors(id.Product)) {
 			st.Basis = BasisUnpaired
 		}
 		ans.Basis = BasisStated // what the research detail shows is the box's basis: stated or inferred, never the model's claim
@@ -1301,26 +1311,6 @@ func ownNames(rec CVERecordText, product string) []string {
 	for _, r := range rec.Rows {
 		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
 			add(r.Product)
-		}
-	}
-	return out
-}
-
-// ownEditions is the edition words the record's own rows of the product pin, and the build's edition the box knows (lower case).
-func ownEditions(rec CVERecordText, product, known string) []string {
-	vendor, name, _ := strings.Cut(product, "|")
-	var out []string
-	for _, e := range append([]string{known}, func() []string {
-		var es []string
-		for _, r := range rec.Rows {
-			if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
-				es = append(es, r.Edition)
-			}
-		}
-		return es
-	}()...) {
-		if e = strings.ToLower(strings.TrimSpace(e)); e != "" && !slices.Contains(out, e) {
-			out = append(out, e)
 		}
 	}
 	return out

@@ -157,6 +157,8 @@ type ResearchStep struct {
 	QuoteCheck   string   `json:"quote_check"`
 	ActivityID   string   `json:"activity_id"`
 	Error        string   `json:"error,omitempty"`
+	// Refused are the addresses the model asked fetch_page for that the job's data did not hold (researchRun.allows): not opened.
+	Refused []string `json:"refused,omitempty"`
 }
 
 // ResearchAnswer is the final answer of a research: the verdict of the layer that stands, where its quote was found and the text it was
@@ -401,7 +403,12 @@ func (s *Service) researchLayer(ctx context.Context, actor string, req ResearchR
 	default:
 		step.Web, task = "box", researchTaskWeb+researchTraps+researchJSONHint
 	}
-	run := &researchRun{s: s, strong: strong, caps: caps, web: web, useTools: tools}
+	run := &researchRun{s: s, strong: strong, caps: caps, web: web, useTools: tools, given: researchGiven(req), hop: map[string]bool{}}
+	for _, pg := range req.Pages { // the reference pages the box read for this job: a link on one is one hop away
+		for _, l := range pg.Links {
+			run.hop[l] = true
+		}
+	}
 	data, chars := researchData(req)
 	var answer ResearchVerdict
 	step.ExcerptChars = chars
@@ -425,6 +432,7 @@ func (s *Service) researchLayer(ctx context.Context, actor string, req ResearchR
 	})
 	step.Model, step.Profile = cmpStr(run.model, p.Model), cmpStr(run.profile, p.Name)
 	step.TokensIn, step.TokensOut, step.Searches, step.Pages = run.usage.InputTokens, run.usage.OutputTokens, run.searches, run.pages
+	step.Refused = run.refused
 	if err != nil {
 		step.Error = researchError(err)
 		return v, step, "", err
@@ -489,6 +497,47 @@ func researchRead(req ResearchRequest, fetched []string, url string) bool {
 		}
 	}
 	return false
+}
+
+// addressKey is an address as the allow-list compares it: trimmed, without its fragment.
+func addressKey(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return strings.TrimSpace(raw)
+	}
+	u.Fragment = ""
+	return u.String()
+}
+
+// researchGiven is every address the job's own data holds: the reference pages the box read, the excerpts' pages, and the http(s)
+// addresses written in the digest and the excerpts (the CVE record's references are listed there).
+func researchGiven(req ResearchRequest) map[string]bool {
+	out := map[string]bool{}
+	add := func(raw string) {
+		if u, err := url.Parse(raw); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" {
+			out[addressKey(raw)] = true
+		}
+	}
+	for _, p := range req.Pages {
+		add(p.URL)
+	}
+	texts := []string{req.Digest}
+	for _, e := range req.Excerpts {
+		add(e.URL)
+		texts = append(texts, e.Text)
+	}
+	for _, t := range texts {
+		for _, m := range urlInPage.FindAllString(t, 500) {
+			add(strings.TrimRight(m, ".,;:"))
+		}
+	}
+	return out
+}
+
+// allows says fetch_page may open raw: an address the job's data holds, or a link on a page read from one of them (one hop).
+func (r *researchRun) allows(raw string) bool {
+	k := addressKey(raw)
+	return r.given[k] || r.hop[k]
 }
 
 // researchError is the box's sentence of a failed layer (never the provider's words).
@@ -577,6 +626,10 @@ type researchRun struct {
 	texts          []string
 	byURL          map[string]string // the text of each page the box's fetch tool read, by its address (as sent)
 	model, profile string
+	// given are the addresses the job's own data holds (the references, the excerpts' pages, the addresses in the digest and the
+	// excerpts); hop the links on a page read from one of them. fetch_page opens nothing else (refused, listed in the step).
+	given, hop map[string]bool
+	refused    []string
 }
 
 // converse runs the layer's conversation through the router's slot of the layer. With provider-side web tools: one request, sent again
@@ -680,6 +733,11 @@ func (r *researchRun) converse(parent context.Context, hooks *HookRunner, prompt
 				out.Content, out.IsError = "This tool is not available.", true
 			case json.Unmarshal(tc.Arguments, &args) != nil || args.URL == "":
 				out.Content, out.IsError = "The arguments must be {\"url\": \"https://...\"}.", true
+			case !r.allows(args.URL):
+				if len(r.refused) < 20 {
+					r.refused = append(r.refused, clipRunes(args.URL, 300))
+				}
+				out.Content, out.IsError = "That address is not in the data for this job, so it was not opened: open only an address from the CVE record, the references or the excerpts, or a link on a page this research read from them.", true
 			case fetched >= r.caps.fetches:
 				out.Content, out.IsError = fmt.Sprintf("The limit of %d pages for this research is reached: answer from what you have.", r.caps.fetches), true
 			default:
@@ -699,6 +757,11 @@ func (r *researchRun) fetch(ctx context.Context, hooks *HookRunner, prompt Promp
 	pg := r.s.refs.one(ctx, raw)
 	if pg.Status != "ok" {
 		return "The page was not read: " + cmpStr(pg.Note, "it could not be fetched") + ".", true
+	}
+	if r.given[addressKey(raw)] { // a page the data named: its links are one hop away; a page reached by a hop adds none
+		for _, l := range pg.Links {
+			r.hop[addressKey(l)] = true
+		}
 	}
 	text := clipBytes(pg.Text, r.caps.pageTokens*researchPageBytes)
 	r.pages = appendPages(r.pages, pg.URL)

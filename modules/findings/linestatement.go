@@ -442,6 +442,17 @@ func (st LineStatement) boxStated(id CheckID, names, editions, vendors []string)
 	return false
 }
 
+// statedForAll is boxStated for every version the line serves: a quote that covers one installed version and not another is not the
+// vendor's statement for the line.
+func (st LineStatement) statedForAll(ids []CheckID, names, editions, vendors []string) bool {
+	for _, id := range ids {
+		if !st.boxStated(id, names, editions, vendors) {
+			return false
+		}
+	}
+	return len(ids) > 0
+}
+
 // insideQuoted says id's version is inside the bounds the quote itself names (a bound found only beside the quote does not count).
 func (st LineStatement) insideQuoted(id CheckID) bool {
 	q := func(b string) string {

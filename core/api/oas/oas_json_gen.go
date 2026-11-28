@@ -182991,6 +182991,16 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -183012,7 +183022,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -183021,11 +183031,12 @@ var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDe
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem from json.
@@ -183137,8 +183148,27 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -183150,7 +183180,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -183162,7 +183192,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -183174,7 +183204,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -183186,7 +183216,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -183206,7 +183236,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -202668,6 +202698,16 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) encod
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -202689,7 +202729,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) encod
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -202698,11 +202738,12 @@ var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailSteps
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem from json.
@@ -202814,8 +202855,27 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -202827,7 +202887,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -202839,7 +202899,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -202851,7 +202911,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -202863,7 +202923,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -202883,7 +202943,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -220962,6 +221022,16 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -220983,7 +221053,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -220992,11 +221062,12 @@ var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDe
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem from json.
@@ -221108,8 +221179,27 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -221121,7 +221211,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -221133,7 +221223,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -221145,7 +221235,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -221157,7 +221247,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -221177,7 +221267,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -224831,6 +224921,16 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -224852,7 +224952,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -224861,11 +224961,12 @@ var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDeta
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem from json.
@@ -224977,8 +225078,27 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -224990,7 +225110,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -225002,7 +225122,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -225014,7 +225134,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -225026,7 +225146,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -225046,7 +225166,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -248333,6 +248453,16 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) en
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -248354,7 +248484,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) en
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -248363,11 +248493,12 @@ var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailSt
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem from json.
@@ -248479,8 +248610,27 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -248492,7 +248642,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -248504,7 +248654,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -248516,7 +248666,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -248528,7 +248678,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -248548,7 +248698,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -253697,6 +253847,16 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -253718,7 +253878,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -253727,11 +253887,12 @@ var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem from json.
@@ -253843,8 +254004,27 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -253856,7 +254036,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -253868,7 +254048,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -253880,7 +254060,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -253892,7 +254072,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -253912,7 +254092,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -258965,6 +259145,16 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) en
 		e.Str(s.QuoteCheck)
 	}
 	{
+		if s.Refused != nil {
+			e.FieldStart("refused")
+			e.ArrStart()
+			for _, elem := range s.Refused {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("searches")
 		e.Int(s.Searches)
 	}
@@ -258986,7 +259176,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) en
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem = [13]string{
+var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem = [14]string{
 	0:  "confidence",
 	1:  "error",
 	2:  "excerpt_chars",
@@ -258995,11 +259185,12 @@ var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailSt
 	5:  "pages",
 	6:  "profile",
 	7:  "quote_check",
-	8:  "searches",
-	9:  "tokens_in",
-	10: "tokens_out",
-	11: "verdict",
-	12: "web",
+	8:  "refused",
+	9:  "searches",
+	10: "tokens_in",
+	11: "tokens_out",
+	12: "verdict",
+	13: "web",
 }
 
 // Decode decodes FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem from json.
@@ -259111,8 +259302,27 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
+		case "refused":
+			if err := func() error {
+				s.Refused = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Refused = append(s.Refused, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"refused\"")
+			}
 		case "searches":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -259124,7 +259334,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -259136,7 +259346,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -259148,7 +259358,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -259160,7 +259370,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -259180,7 +259390,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00011111,
+		0b00111110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

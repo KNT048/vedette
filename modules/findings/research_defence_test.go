@@ -89,3 +89,43 @@ func TestResearch_TheBoxDecidesTheBasis(t *testing.T) {
 		})
 	}
 }
+
+// An edition the record pins for another build is not the installed one's: when the record also lists a server edition of the same
+// product and the install is the plain product, a quote about the server edition is an inference, not the vendor's word for this build.
+func TestResearch_AnotherEditionOfTheRecordIsNotStated(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.12.0")
+	r := fc.records[cveQuill]
+	r.Rows = append(r.Rows, RecordRow{Vendor: "quillfeather", Product: "mail", Edition: "server", Text: "quillfeather mail (edition server): affected before 115.12 [cna]"})
+	fc.records[cveQuill] = r
+	const quote = "Quillfeather Mail Server 115.12.0 is not affected by this issue"
+	a := quillResearch(StatementNotAffected, QuoteTool, quote, quillSAText+" "+quote+".")
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.12.0": a}
+	runCheck(t, e)
+	it := quillItem(t, e)
+	if it.Check == nil || it.Check.Reading == nil || it.Check.Reading.Research == nil {
+		t.Fatalf("item %+v", it)
+	}
+	if b := it.Check.Reading.Basis; b == BasisStated || it.Check.Reading.Research.Detail.Basis != BasisInferred {
+		t.Fatalf("basis %q (shown %q): another edition's sentence is not stated for this build", b, it.Check.Reading.Research.Detail.Basis)
+	}
+}
+
+// The basis holds for every version the line serves: a quote that names only one of the line's installed versions is not the vendor's
+// statement for the other; one that names the line covers both.
+func TestLineStatement_StatedForEveryVersionOfTheLine(t *testing.T) {
+	t.Parallel()
+	names, vendors := []string{"quillfeather mail", "mail"}, []string{"quillfeather"}
+	ids := []CheckID{{Product: "quillfeather|mail", Line: "115", Version: "115.12.0"}, {Product: "quillfeather|mail", Line: "115", Version: "115.3.0"}}
+	one := LineStatement{Status: StatementNotAffected, Quote: "Quillfeather Mail 115.12.0 is not affected by this issue", QuoteFound: true}
+	if one.statedForAll(ids, names, nil, vendors) {
+		t.Error("a quote naming 115.12.0 only is stated for 115.3.0 too")
+	}
+	if !one.statedForAll(ids[:1], names, nil, vendors) {
+		t.Error("a quote naming 115.12.0 is not stated for 115.12.0")
+	}
+	line := LineStatement{Status: StatementNotAffected, StatedLine: "115", Quote: "Quillfeather Mail 115 is not affected by this issue", QuoteFound: true}
+	if !line.statedForAll(ids, names, nil, vendors) {
+		t.Error("a quote naming the line is not stated for its versions")
+	}
+}

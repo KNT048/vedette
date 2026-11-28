@@ -58,10 +58,8 @@ var jobPowers = map[Job]power{
 	},
 	JobLogDigest: {writes: "the stored log digest; memory suggestions, which an administrator accepts or not", egress: "none"},
 	JobExplainFinding: {
-		writes: "the stored explanation; readings of vendor statements, kept only where their quote is in the page the box fetched and " +
-			"opening findings, settling not affected only for a CVE no exploited list has and only from the vendor's own page, and " +
-			"otherwise waiting for a person; a product for a program, only one of the " +
-			"candidates the box offered",
+		writes: "the stored explanation; a product for a program, only one of the candidates the box offered (it opens findings a person " +
+			"can undo, never closes one)",
 		egress: "none (the box fetches the public pages itself, before the call)",
 	},
 	JobMitigationConfig:  {writes: "a draft configuration a person reviews, each risky line marked, never applied by the box", egress: "none"},
@@ -76,8 +74,9 @@ var jobPowers = map[Job]power{
 		boxTools: []string{"fetch_page"},
 		writes: "a reading of the line that findings keeps only as far as the box checks it: its quote looked up in what the research read, " +
 			"its basis decided by the box, its address only a page the research read; affected opens a finding a person can reject, not " +
-			"affected waits for a person in the review queue",
-		egress: "public HTTPS pages the model names, fetched by the box (or the provider's own web tools on a profile that has them)",
+			"affected is only a proposal a person confirms or rejects in the review queue (it never closes anything)",
+		egress: "public pages the model names whose address is in the job's data or linked from a page read from it, fetched by the box " +
+			"(or the provider's own web tools on a profile that has them)",
 	},
 }
 

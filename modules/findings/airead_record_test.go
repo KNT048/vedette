@@ -419,7 +419,8 @@ func TestLineReading_OnlyAVersionNamedWithThisProductIsStated(t *testing.T) {
 	}{
 		{"another product's name before the version", "Quillfeather Mail Server 115.42 is not affected.", BasisUnpaired},
 		{"this product's name before the version", "Quillfeather Mail 115.42 is not affected.", BasisStated},
-		{"this product's edition word between", "Quillfeather Mail ESR 115.42 is not affected.", BasisStated},
+		// the record pins the esr edition for another build; this install names no edition, so the sentence is about another build
+		{"an edition the install does not have", "Quillfeather Mail ESR 115.42 is not affected.", BasisUnpaired},
 		{"no name before the version", "Release 115.42 is not affected.", BasisUnpaired},
 		{"two versions, one not named with this product", "Quillfeather Mail 115.42 and 115.43 are not affected.", BasisUnpaired},
 	} {

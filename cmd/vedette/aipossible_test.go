@@ -237,3 +237,11 @@ func TestPossibleCheckerRecord_ReadAndKept(t *testing.T) {
 		t.Errorf("record read, a vendor's exploited signal: read %v, kept %v; want both", rec.Read, rec.Kept)
 	}
 }
+
+// A research step carries the addresses fetch_page refused (not in the data for the job) to findings, which keeps them with the run.
+func TestResearchStepKeepsTheRefusedAddresses(t *testing.T) {
+	st := researchStepOf(ai.ResearchStep{Layer: "quick", Web: "box", Pages: []string{"https://example.com/sa"}, Refused: []string{"https://example.com/collect?q=Widget-4.1.3"}})
+	if len(st.Refused) != 1 || st.Refused[0] != "https://example.com/collect?q=Widget-4.1.3" || st.Web != "box" || len(st.Pages) != 1 {
+		t.Fatalf("step %+v", st)
+	}
+}

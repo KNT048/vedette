@@ -108,6 +108,14 @@ func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 			r.Status, r.Error = "error", &note
 			return r
 		}
+		if r.Status == "ok" && s.distroWindowWaits(ctx, r) { // kept for the catalogue as it is; pulled again in full once the window loads
+			note := distroWindowNote
+			if held != "" {
+				note = held + " " + note
+			}
+			r.Error = &note
+			return r
+		}
 		if note := s.distroNote(r.ID); note != "" { // The rows of an earlier pull stay; a real error keeps its text, then says why it waits
 			switch {
 			case r.Status == "error" && r.Error != nil:

@@ -189,33 +189,35 @@ func (s *Store) recentProducts(ctx context.Context, cve string) ([]string, bool,
 	return out, listed, nil
 }
 
-// tierCVEs lists the catalogue's CVEs the match pass reads while nvd-recent is ready (the distribution feeds keep their rows of the
-// devices' packages for these, DistroWant.Tier); nil otherwise. It is the match pass's own set (the wiring's MatchSet: a CVE of the
-// catalogue that OutsideWindow does not set aside), whether NVD has analysed it yet or not, so a pair the matcher
-// reaches never lacks the distribution's word because the pull left its CVE out. About 112,000 short strings on a test box (2026-11-28).
-func (s *Store) tierCVEs(ctx context.Context, now time.Time) (map[string]bool, error) {
+// tierCVEs lists the catalogue's CVEs the match pass reads (the distribution feeds keep their rows of the devices' packages for these,
+// DistroWant.Tier): the match pass's own set (the wiring's MatchSet: a CVE of the catalogue that OutsideWindow does not set aside),
+// whether NVD has analysed it yet or not, so a pair the matcher reaches never lacks the distribution's word because the pull left its
+// CVE out. ready is false while nvd-recent is not loaded: the set is then what the catalogue holds now (it never shrinks below what the
+// match pass reads), and the pull keeps no record of the packages it kept them for, so the pull after the load runs in full
+// (distroPartial). About 112,000 short strings on a test box (2026-11-28).
+func (s *Store) tierCVEs(ctx context.Context, now time.Time) (map[string]bool, bool, error) {
 	st, err := s.TierStatus(ctx, now)
-	if err != nil || st.Recent != TierReady {
-		return nil, err
+	if err != nil {
+		return nil, false, err
 	}
 	w, err := s.Window(ctx, now)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	rows, err := s.db.Reader().QueryContext(ctx, w.readSQL())
 	if err != nil {
-		return nil, fmt.Errorf("feeds: tier cves: %w", err)
+		return nil, false, fmt.Errorf("feeds: tier cves: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	out := map[string]bool{}
 	for rows.Next() {
 		var c string
 		if err := rows.Scan(&c); err != nil {
-			return nil, fmt.Errorf("feeds: tier cves: %w", err)
+			return nil, false, fmt.Errorf("feeds: tier cves: %w", err)
 		}
 		out[c] = true
 	}
-	return out, rows.Err()
+	return out, st.Recent == TierReady, rows.Err()
 }
 
 // readSQL is the CVEs of the catalogue (feeds_cve: every CVE with ranges or on an exploited list has a row) the reporting window lets

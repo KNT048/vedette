@@ -147,6 +147,30 @@ func (s *Service) distroPartial(ctx context.Context, src sourceRow) bool {
 	return ok
 }
 
+// distroWindowWaits says whether distribution feed src's last good pull came while nvd-recent was not loaded (or is off): it kept the
+// distribution's word for the CVEs the catalogue held then (tierCVEs, never fewer than the match pass reads) and no record of what it
+// kept them for, so it runs again in full once the window is there (distroPartial, distroBehind).
+func (s *Service) distroWindowWaits(ctx context.Context, src sourceRow) bool {
+	if src.LastSuccess == nil || !src.Enabled {
+		return false
+	}
+	kept, err := s.st.distroKept(ctx, src.ID)
+	if err != nil || kept != nil {
+		return false
+	}
+	st, err := s.st.TierStatus(ctx, s.now())
+	if err != nil || st.Recent == TierReady {
+		return false
+	}
+	var tier bool // the pull kept rows of CVEs on no exploited list (tier rows) with no record of what for: it came before the window
+	err = s.st.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_distro_fix WHERE source_id = ? AND cve NOT IN (SELECT cve FROM feeds_kev WHERE list = 'cisa'))`,
+		src.ID).Scan(&tier)
+	return err == nil && tier
+}
+
+// distroWindowNote is the Feeds page line of a distribution feed distroWindowWaits is true of.
+const distroWindowNote = "Partly loaded: the CVEs of the last 12 months are not loaded (their feed is still loading, or off), so the last pull kept the distribution's word for the CVEs Vedette holds now. Vedette pulls it again in full once they are loaded."
+
 // distroPartialNote is the Feeds page line of a distribution feed distroPartial is true of.
 const distroPartialNote = "Partly loaded: the last pull came before the CVEs of the last 12 months and the devices' packages were known, so it holds the exploited-list CVEs only and Vedette cannot judge the devices' packages for the others yet. Vedette pulls it again at the next check."
 
@@ -245,8 +269,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	// release's package is not affected (Ubuntu's OSV file lists affected packages only). Only the devices' releases' rows are kept:
 	// the not-affected statements of every release cost 561,161 rows and 485 MB of peak RSS on 2026-11-15.
 	keep := distroKeep(dev) // the packages and releases the tier rows are kept for, stored with them
+	ready := true           // nvd-recent is loaded: the stored record of what the tier rows were kept for is complete
 	if keep != nil {
-		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
+		if want.Tier, ready, err = s.st.tierCVEs(ctx, s.now()); err != nil {
 			return p, err
 		}
 	}
@@ -290,6 +315,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	p.out = outcome{OK: true, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Rows))
 	p.distro, p.hasDistro, p.distroKEV, p.distroKeep = res.Rows, true, want.KEV, keep
+	if !ready { // kept for the catalogue as it is now: no record, so the pull after nvd-recent loads runs in full (distroWindowWaits)
+		p.distroKeep = nil
+	}
 	var ms runtime.MemStats // The heap with the parsed rows still held, logged to measure peak memory (once a day a feed)
 	runtime.ReadMemStats(&ms)
 	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages), "releases", len(want.Releases), "heap_mb", ms.HeapInuse>>20)

@@ -99,9 +99,9 @@ func TestDistroStatus_StatedVEXStatusOutranksAnOSVRecordWithoutAFix(t *testing.T
 		!strings.Contains(r.New[0].Evidence.Summary, "Ubuntu states that it is still triaging CVE-2026-71101 for this package") {
 		t.Fatalf("OSV's missing fix outranked VEX's triage: %+v", r.New)
 	}
-	v.Affected[0].Range.EndExcl = "2.4" // the upstream range does not cover it: no finding at all
-	if r := MatchAsset(a, []Vuln{v}, nil, distroNow); len(r.New) != 0 {
-		t.Fatalf("a triage raised a finding outside the upstream range: %+v", r.New)
+	v.Affected[0].Range.EndExcl = "2.4" // the upstream range does not cover it: still suspected, by the release's stated affected
+	if r := MatchAsset(a, []Vuln{v}, nil, distroNow); len(r.New) != 1 || !r.New[0].upstream {
+		t.Fatalf("a triage dropped an exploited finding outside the upstream range: %+v", r.New)
 	}
 	v.Affected[0].Range.EndExcl = "2.5"
 	if c := distroSilence(swInfoOn(a.Software[0], a), v); c != DistroTriaging {
@@ -147,5 +147,34 @@ func TestDistroStatus_ProPocketNotAffectedNeverOutranksThePublicReleasesAffected
 	v.Distro = []DistroFix{quillRow("not_affected", true)}
 	if r := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, distroNow); len(r.NotAffected) != 1 {
 		t.Fatalf("a pocket's not affected alone: %+v", r)
+	}
+}
+
+// A triage never weakens a finding of an exploited CVE (a triage row may be stale while its feed is held or failing): with the release's
+// own stated "affected, no fix yet" beside it, the pair stays at least a suspected finding, even where the upstream range does not
+// cover the version; never nothing, never confirmed by the device.
+func TestDistroStatus_TriageNeverDropsAnExploitedFindingTheReleaseStatesAffected(t *testing.T) {
+	t.Parallel()
+	a, v := quillpad()
+	v.Vendor, v.Product = "Acme", "Quillpad"
+	v.Affected[0].Range.EndExcl = "2.4" // the upstream range says nothing about 2.4.1
+	v.Distro = []DistroFix{quillRow("open", false), quillRow(distroTriage, false)}
+	r := MatchAsset(a, []Vuln{v}, nil, distroNow)
+	if len(r.New) != 1 || !r.New[0].upstream || r.New[0].Evidence.Agent {
+		t.Fatalf("an exploited CVE the release states affected, under a triage: %+v", r)
+	}
+	if s := r.New[0].Evidence.Summary; !strings.Contains(s, "still triaging CVE-2026-71101") || !strings.Contains(s, "as affected by CVE-2026-71101, with no fixed release yet") {
+		t.Fatalf("evidence %q", s)
+	}
+	// without the stated affected and outside the upstream range there is no word that raises it
+	v.Distro = []DistroFix{quillRow(distroTriage, false)}
+	if r := MatchAsset(a, []Vuln{v}, nil, distroNow); len(r.New) != 0 {
+		t.Fatalf("a triage alone raised a finding outside the range: %+v", r.New)
+	}
+	// on no exploited list the triage keeps it undecided (no finding asks for an update that does not exist)
+	v.Vendor, v.Product = "", ""
+	v.Distro = []DistroFix{quillRow("open", false), quillRow(distroTriage, false)}
+	if r := MatchAsset(a, []Vuln{v}, nil, distroNow); len(r.New) != 0 {
+		t.Fatalf("an unexploited CVE under triage raised: %+v", r.New)
 	}
 }

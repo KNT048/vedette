@@ -174,18 +174,124 @@ VALUES ('CVE-2021-71037', 'custom', 'cisa-kev', 'Acme', 'Quillpad', 'x', '2026-0
 	if !outside["CVE-2023-71033"] || !outside["CVE-2026-71035"] || len(outside) != 2 {
 		t.Fatalf("the window's own answer changed: %v", outside)
 	}
-	tier, err := e.svc.st.tierCVEs(t.Context(), now)
+	tier, ready, err := e.svc.st.tierCVEs(t.Context(), now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !maps.Equal(tier, read) {
+	if !ready || !maps.Equal(tier, read) {
 		t.Fatalf("the pull keeps %v\nthe matcher reads %v", slices.Sorted(maps.Keys(tier)), slices.Sorted(maps.Keys(read)))
 	}
 	if has, err := e.svc.st.hasTierCVEs(t.Context(), now); err != nil || !has {
 		t.Fatalf("has tier CVEs: %v %v", has, err)
 	}
 	write(t, e.db, func(tx *sql.Tx) error { return saveWindow(t.Context(), tx, true, "admin@example.test", now) })
-	if tier, err = e.svc.st.tierCVEs(t.Context(), now); err != nil || !maps.Equal(tier, every) {
+	if tier, _, err = e.svc.st.tierCVEs(t.Context(), now); err != nil || !maps.Equal(tier, every) {
 		t.Fatalf("every age: %v %v", slices.Sorted(maps.Keys(tier)), err)
+	}
+}
+
+// A VEX statement is about its own vulnerability: one that names another CVE than its file's is rejected (counted), never attributed
+// to the file's CVE. A statement with no vulnerability name is read as its file's.
+func TestParseUbuntuVEXRejectsAStatementOfAnotherCVE(t *testing.T) {
+	t.Parallel()
+	doc := `{"statements":[
+ {"vulnerability":{"name":"CVE-2026-71099"},"status":"not_affected","products":[{"@id":"pkg:deb/ubuntu/quillpad@2.4.1-3?arch=source&distro=noble"}]},
+ {"vulnerability":{"name":"CVE-2026-71041"},"status":"affected","products":[{"@id":"pkg:deb/ubuntu/quillpad@2.4.1-3?arch=source&distro=resolute"}]},
+ {"status":"under_investigation","products":[{"@id":"pkg:deb/ubuntu/quillpad@2.4.1-3?arch=source&distro=questing"}]}]}`
+	res, err := ParseUbuntuVEX(bytes.NewReader(xzTar(t, [2]string{"vex/cve/2026/CVE-2026-71041.json", doc})), DistroWant{KEV: map[string]bool{"CVE-2026-71041": true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.SortFunc(res.Rows, func(a, b DistroFix) int { return strings.Compare(a.Release, b.Release) })
+	exp := []DistroFix{{Distro: "ubuntu", Release: "25.10", Package: "quillpad", CVE: "CVE-2026-71041", Status: DistroTriage},
+		{Distro: "ubuntu", Release: "26.04", Package: "quillpad", CVE: "CVE-2026-71041", Status: DistroOpen}}
+	if !slices.Equal(res.Rows, exp) || res.Rejected != 1 || !strings.Contains(res.Reasons[0].Example, "CVE-2026-71099") {
+		t.Fatalf("rows %+v stats %+v", res.Rows, res.Stats)
+	}
+}
+
+// A Debian release status outside resolved, open and undetermined is counted as a reject (a format change shows on the Feeds page),
+// never read as any status.
+func TestParseDebianTrackerCountsAnUnknownStatus(t *testing.T) {
+	t.Parallel()
+	doc := `{"quillpad": {"CVE-2026-71051": {"releases": {"trixie": {"status": "pending-review"}, "bookworm": {"status": "open"}}}}}`
+	res, err := ParseDebianTracker(strings.NewReader(doc), DistroWant{KEV: map[string]bool{"CVE-2026-71051": true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Rows) != 1 || res.Rows[0].Release != "12" || res.Rejected != 1 || !strings.Contains(res.Reasons[0].Example, "pending-review") {
+		t.Fatalf("rows %+v stats %+v", res.Rows, res.Stats)
+	}
+}
+
+// A good pull replaces a feed's triage rows with its other rows: a triage the file no longer states is gone, as a fix it no longer
+// states is.
+func TestApplyDistroPrunesTriageRowsTheFileNoLongerStates(t *testing.T) {
+	t.Parallel()
+	_, db := newStore(t)
+	q := func(status string) DistroFix {
+		return DistroFix{Distro: "ubuntu", Release: "24.04", Package: "quillpad", CVE: "CVE-2026-71061", Status: status}
+	}
+	apply := func(rows ...DistroFix) (changed []string) {
+		write(t, db, func(tx *sql.Tx) error {
+			var err error
+			changed, _, err = applyDistro(t.Context(), tx, ubuntuVEXFeedID, rows)
+			return err
+		})
+		return changed
+	}
+	apply(q(DistroTriage))
+	if n := rowsOf(t, db, "feeds_distro_triage"); n != 1 {
+		t.Fatalf("%d triage rows", n)
+	}
+	if ch := apply(q(DistroOpen)); rowsOf(t, db, "feeds_distro_triage") != 0 || rowsOf(t, db, "feeds_distro_fix") != 1 || !slices.Equal(ch, []string{"CVE-2026-71061"}) {
+		t.Fatalf("the triage stayed, or the change went unnoticed: %v", ch)
+	}
+}
+
+// While nvd-recent is not loaded yet, the pull keeps its rows for every CVE the catalogue holds now (never fewer than the match pass
+// reads), and says it is not ready, so the pull after the load keeps them again in full.
+func TestDistroTierCVEsBeforeTheWindowIsReady(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := e.clock()
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES ('CVE-2026-71071', ?, ?, 'Analyzed', ?, ?)`,
+			store.FormatTS(now.AddDate(0, -1, 0)), store.FormatTS(now), store.FormatTS(now), store.FormatTS(now))
+		return err
+	})
+	tier, ready, err := e.svc.st.tierCVEs(t.Context(), now)
+	if err != nil || ready || !tier["CVE-2026-71071"] {
+		t.Fatalf("before the window is ready: %v ready %v %v", tier, ready, err)
+	}
+}
+
+// A pull while nvd-recent is not loaded keeps the rows of the CVEs the catalogue holds for the devices' packages (the window never
+// shrinks to the exploited list), records no packages so the pull after the load runs in full, and the Feeds page says so.
+func TestDistroPullBeforeTheWindowKeepsTheCatalogueAndSaysSo(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(debianTrackerFeedID)
+	e.mirror(debianTrackerFeedID, o.url("/tracker.json"))
+	o.body("/tracker.json", `"v1"`, debianTierJSON)
+	e.loadKEV()
+	now := e.clock()
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_cve (cve, published, modified, nvd_status, nvd_at, updated_at) VALUES ('CVE-2026-0001', ?, ?, 'Analyzed', NULL, ?)`,
+			store.FormatTS(now.AddDate(0, -2, 0)), store.FormatTS(now), store.FormatTS(now))
+		return err
+	})
+	e.svc.Inventory = &distroInv{got: map[string]map[string]bool{DistroDebian: {"sudo": true}}}
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := stringSet(t.Context(), e.db.Reader(), `SELECT release FROM feeds_distro_fix WHERE cve = 'CVE-2026-0001' AND package = 'sudo'`); len(n) != 2 {
+		t.Fatalf("the catalogue's CVE was not kept for the device's package: %v", n)
+	}
+	if kept, _ := e.svc.st.distroKept(t.Context(), debianTrackerFeedID); kept != nil {
+		t.Fatalf("recorded %v before the window loaded", kept)
+	}
+	if st, line := e.fetchList(t, debianTrackerFeedID); st != "ok" || !strings.Contains(line, distroWindowNote) {
+		t.Fatalf("%s %q", st, line)
 	}
 }

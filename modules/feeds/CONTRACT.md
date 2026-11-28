@@ -46,8 +46,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `DistroLister`: Alpine every branch). ubuntu-vex reads its statements through one table of OpenVEX statuses (`vexStatuses`; another
   status rejects the CVE file), of a plain release and of the release's Ubuntu Pro pockets esm-apps and esm-infra (`Pro` set: the word
   is about the package as Ubuntu Pro ships it); it keeps one row per release and package, the most cautious (`vexRank`), and no row
-  for "fixed" (the current version, not the first fixed one: ubuntu-osv gives that). A row is only ever a stated token: silence is
-  never read as "not affected". Findings reads them all (`DistroFixes`, `DistroFixesFor`) and judges a package the
+  for "fixed" (the current version, not the first fixed one: ubuntu-osv gives that); a statement naming another CVE than its file's is
+  rejected, as is a Debian release status other than resolved, open and undetermined (counted in the source's stats). Triage rows live
+  in `feeds_distro_triage` and are replaced with the feed's other rows by each good pull. While nvd-recent is not loaded the tier CVEs
+  are what the catalogue holds now (never fewer than the match pass reads), no packages are recorded, and the Feeds page says the feed
+  is partly loaded until the pull after the load (`distroWindowWaits`). A row is only ever a stated token: silence is never read as
+  "not affected". Findings reads them all (`DistroFixes`, `DistroFixesFor`) and judges a package the
   distribution built by that word alone while the distribution's feed of fixed and affected rows (debian-tracker, ubuntu-osv; never
   ubuntu-vex) is on (`DistroOn`: on and loaded, or loading). Debian's open entries it will not fix in a security update (no DSA,
   postponed, ignored, unimportant, end-of-life) are kept with that reason (`feeds_distro_fix.reason`, `DistroReasons`).

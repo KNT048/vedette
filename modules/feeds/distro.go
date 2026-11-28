@@ -621,6 +621,9 @@ func preferFix(f, old DistroFix) bool {
 
 type vexDoc struct {
 	Statements []struct {
+		Vulnerability struct {
+			Name string `json:"name"`
+		} `json:"vulnerability"`
 		Status   string `json:"status"`
 		Products []struct {
 			ID string `json:"@id"`
@@ -674,6 +677,10 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 		got := map[key]word{}
 		var unknown string
 		for _, st := range doc.Statements {
+			if n := st.Vulnerability.Name; n != "" && n != cve { // a statement about another CVE is never the file's
+				tl.reject(row, "%s: a statement is about %s", cve, quoteVal(n))
+				continue
+			}
 			status, known := vexStatuses[st.Status]
 			if !known {
 				tl.reject(row, "%s: status %s is not an OpenVEX status this Vedette reads", cve, quoteVal(st.Status))
@@ -876,7 +883,11 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 				// postponed) is kept with its reason (Debian still says affected, and findings says why no fixed package comes)
 				reason := rel.noUpdateReason()
 				open, triage := rel.Status == "open", rel.Status == "undetermined" // undetermined: Debian has not triaged it yet
-				if rel.Status != "resolved" && !open && !triage || codename == "sid" {
+				if codename == "sid" {
+					continue
+				}
+				if rel.Status != "resolved" && !open && !triage { // a status this reader does not know: counted, never guessed
+					tl.reject(row, "%s: status %s is not a Debian tracker status this Vedette reads", cve, quoteVal(rel.Status))
 					continue
 				}
 				num, known := debianReleases[codename]

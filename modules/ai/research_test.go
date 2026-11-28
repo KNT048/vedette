@@ -43,7 +43,7 @@ type layerAnswers struct {
 	calls []string
 }
 
-func (l *layerAnswers) answer(_ context.Context, p ai.Profile, req provider.Request) (provider.Response, error) {
+func (l *layerAnswers) answer(_ context.Context, p ai.Profile, _ provider.Request) (provider.Response, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.calls = append(l.calls, p.Name)

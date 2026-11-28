@@ -99,6 +99,9 @@ type CVERecordText struct {
 	Read        bool   // the CNA's record was read: "" in Solution and Workaround says it gives none (false: only NVD's copy is held)
 	Rows        []RecordRow
 	Refs        []RefLink
+	// Stamp is the record's stamp as the catalogue holds it now (feeds.RecordStamps); "" when unknown. A research reads the record as
+	// it is now, so its reading is keyed by this stamp, whatever stamp a question's older match carries.
+	Stamp string
 }
 
 // RecordRow is one affected row of a CVE record as a person reads it, with the product it is about (the record's words).
@@ -939,6 +942,9 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 	asks := lines[:0]
 	for _, l := range lines {
 		id := l.units[0].id
+		if rec.Stamp != "" {
+			id.Record = recordHash(rec.Stamp) // the record as it is now, what the research reads
+		}
 		st := l.last
 		unsureAgain := st != nil && st.RejectedBy == "" && st.Status == StatementUnsure && now.Sub(st.AskedAt) >= statementRecheck
 		if st != nil && !unsureAgain && !l.units[0].deeper {
@@ -964,6 +970,9 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 	}
 	for i, l := range asks {
 		id := l.units[0].id
+		if rec.Stamp != "" {
+			id.Record = recordHash(rec.Stamp)
+		}
 		vendor, product, _ := strings.Cut(id.Product, "|")
 		var versions []string
 		for _, u := range l.units {

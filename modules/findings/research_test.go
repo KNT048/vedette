@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -240,7 +241,7 @@ func TestResearch_DeeperResearchesTheLineAgain(t *testing.T) {
 	if quillFindings(t, e) != 1 {
 		t.Error("the deeper answer was not applied")
 	}
-	if _, err := e.svc.StartResearchDeeper(t.Context(), "q-none", "ana@example.com"); err != ErrNotResearchable {
+	if _, err := e.svc.StartResearchDeeper(t.Context(), "q-none", "ana@example.com"); !errors.Is(err, ErrNotResearchable) {
 		t.Errorf("an unknown row: %v", err)
 	}
 }

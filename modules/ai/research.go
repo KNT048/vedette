@@ -159,7 +159,7 @@ func needsStrong(v ResearchVerdict, quoteCheck string) bool {
 	case v.Verdict == "" || v.Verdict == "unsure" || v.Confidence == "low":
 		return true
 	case v.Verdict == "not_affected":
-		return !(ok && v.Confidence == "high") // "not affected" stands on a checked quote and high confidence only
+		return !ok || v.Confidence != "high" // "not affected" stands on a checked quote and high confidence only
 	}
 	return !ok // affected: accepted with a checked quote
 }

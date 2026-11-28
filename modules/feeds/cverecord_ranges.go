@@ -68,14 +68,25 @@ type recordGroup struct {
 
 // recordRanges converts the CNA's affected list and each ADP's into ranges of cve (recordGroup rules above). skipped is the products
 // that had entries but no usable rows.
+//
+// An entry of a product the reader cannot keep is a statement about the product the rows do not carry: it may be affected on another
+// system, at another version. Such an entry gives no generic row (noRowPart: an "unspecified", "n/a" or unknown-status version and no
+// defaultStatus; or the product's entries do not read, unusable), or one of its affected versions names no version beside its ranges
+// (dropsVersion). Then every generic row of that product in the record (named by its CPE or its own words, lostKey) only ever says
+// "affected" (Range.Lost, markLost): a version inside it is affected; outside it, past its fix, on another system or by a complete
+// list nothing is proved. An entry whose product cannot be told (entryIdentity), or a container with more entries than the reader
+// keeps, makes every row of the record so.
 func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) (rows []Range, skipped, statedDropped int) {
-	stated := 0 // the rows kept as the vendor states them, at most recordMaxStated a record
+	stated := 0                   // the rows kept as the vendor states them, at most recordMaxStated a record
+	lost := map[ProductKey]bool{} // the products an entry of which the reader could not keep (lostKey)
+	allLost := false              // an entry or a container the reader could not keep names no product it can tell
 	conv := func(origin string, list []cnaAffected, fallback string) {
 		if len(list) == 0 {
 			return
 		}
 		if len(list) > recordMaxEntries {
 			skipped++
+			allLost = true
 			return
 		}
 		var groups []*recordGroup
@@ -95,6 +106,7 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			}
 			part, vendor, product, cpe, ok := entryIdentity(a, fallback)
 			if !ok {
+				allLost = allLost || len(a.Versions) > 0 || cnaDefault(a.DefaultStatus) == DefaultAffected // a statement about a product it cannot tell
 				continue
 			}
 			key := [3]string{part, vendor, product}
@@ -136,6 +148,9 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			}
 		}
 		for _, g := range groups {
+			if g.unusable || g.noRowPart || slices.ContainsFunc(g.entries, dropsVersion) {
+				lost[lostKey(g.key[1], g.key[2])] = true
+			}
 			schemed := SchemeProduct(Range{Part: g.key[0], Vendor: g.key[1], Product: g.key[2]})
 			vendors := origin == OriginCNA && !slices.ContainsFunc(g.entries, func(a cnaAffected) bool { return !ownCNA(assigner, a.Vendor) })
 			own := func(got []Range) {
@@ -195,7 +210,37 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 	for _, a := range adps {
 		conv(OriginADP, a.Affected, "")
 	}
-	return rows, skipped, statedDropped
+	return markLost(rows, lost, allLost), skipped, statedDropped
+}
+
+// lostKey names a product the same way whether an entry names it by its CPE ("acme", "meeting_app") or by its own words ("Acme",
+// "Meeting App"): a lost entry of either form marks the rows of both (markLost).
+func lostKey(vendor, product string) ProductKey { return RecordProductKey(vendor, product) }
+
+// dropsVersion says an affected version of entry a names no version and no range ("unspecified", "n/a" alone): the reader drops it,
+// so the entry's rows are not its whole word.
+func dropsVersion(a cnaAffected) bool {
+	return slices.ContainsFunc(a.Versions, func(v cnaVersion) bool {
+		return strings.EqualFold(strings.TrimSpace(v.Status), "affected") && v.LessThan == nil && v.LessThanOrEqual == nil &&
+			saysNothing[strings.ToLower(strings.TrimSpace(v.Version))]
+	})
+}
+
+// LostNotation is the version_type of a generic CVE record row of a product an entry of which the reader could not keep (markLost).
+const LostNotation = "record-lost"
+
+// markLost marks the generic record rows of the lost products, or every one when all is true (recordRanges): each only ever says
+// "affected" (Range.Lost). The row's own version type gives way to the mark; its bounds, systems and defaultStatus stay.
+func markLost(rows []Range, lost map[ProductKey]bool, all bool) []Range {
+	if len(lost) == 0 && !all {
+		return rows
+	}
+	for i, r := range rows {
+		if r.Origin != OriginNVD && r.Generic() && (all || lost[lostKey(r.Vendor, r.Product)]) {
+			rows[i].VersionType = LostNotation
+		}
+	}
+	return rows
 }
 
 // maxAssigner bounds the stored assigner (feeds_cve.assigner): a CNA's short name is a word, never longer.
@@ -276,6 +321,25 @@ const VendorNotation = "vendor:"
 // 24.4R1: Juniper's statement that releases before 24.4 do not have the flaw; unaffectedRows). Kept in the vendor's notation, so no
 // reader of affected ranges reads it (Range.Generic, RangeScheme); StatementScheme reads it for a product's version scheme.
 const UnaffectedNotation = VendorNotation + "unaffected"
+
+// Lost says the row is a CVE record row of a product an entry of which the reader could not keep (markLost): it only ever says
+// "affected", for a version it states.
+func (r Range) Lost() bool { return r.VersionType == LostNotation }
+
+// StatesUnlisted says a record row states what a version its product's list does not name is (defaultStatus affected or unaffected),
+// so the list may be complete (recordComplete). Never for a lost row, nor for a third party's row that calls every version on one
+// system affected: that says nothing of another system.
+func (r Range) StatesUnlisted() bool {
+	switch {
+	case r.Lost():
+		return false
+	case r.DefaultStatus == DefaultUnaffected:
+		return true
+	case r.DefaultStatus == DefaultAffected:
+		return r.VendorCNA || recordSystem(r) == ""
+	}
+	return false
+}
 
 // Unaffected says the row states versions the vendor says are not affected (UnaffectedNotation), not affected ones.
 func (r Range) Unaffected() bool { return r.VersionType == UnaffectedNotation }
@@ -714,13 +778,15 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 				return nil, false, false // everything but these versions: not a list of ranges
 			}
 		}
-		return []Range{{}}, true, true // every version is affected
+		unknown := slices.ContainsFunc(a.Versions, func(v cnaVersion) bool { return strings.EqualFold(strings.TrimSpace(v.Status), "unknown") })
+		return []Range{{}}, !unknown, true // every version is affected
 	}
 	var spans []cnaSpan
 	var fixed []string // the unaffected versions the entry lists
 	unaffected := 0    // the entry's unaffected statements, of any form
 	var lone []string  // its unaffected versions stated alone (no range)
 	partial := false   // a letter-release version was left out
+	unknown := false   // a version's status is unknown
 	for _, v := range a.Versions {
 		switch strings.ToLower(strings.TrimSpace(v.Status)) {
 		case "affected":
@@ -733,7 +799,8 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 				}
 			}
 			continue
-		default: // "unknown" says nothing
+		default: // "unknown" says nothing, so the entry does not state every version
+			unknown = true
 			continue
 		}
 		vt := strings.ToLower(strings.TrimSpace(v.VersionType))
@@ -824,7 +891,7 @@ func entryVersions(a cnaAffected, reads func(start, end string, incl bool) bool)
 			}
 		}
 	}
-	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected && !partial, true
+	return rows, cnaDefault(a.DefaultStatus) == DefaultUnaffected && !partial && !unknown, true
 }
 
 // highestAbove is the highest of an entry's lone unaffected versions when every one of them is above the end of every affected row

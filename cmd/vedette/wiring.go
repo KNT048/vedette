@@ -482,7 +482,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
-			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE, AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix,
+			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE, AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, Lost: r.Lost, VendorCNA: r.VendorCNA, LineFix: r.LineFix,
 				Platforms: r.Platforms, Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
 		}
 		for _, d := range distro[v.CVE] {
@@ -682,12 +682,12 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 			// it): another publisher's row beside it (an ADP's row of another product) neither completes nor breaks it. Such a row that
 			// does not say what it does not list only ever says "affected": the author's complete word is about its own products, so a
 			// version outside that row proves nothing
-			stated := r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected
+			stated := r.StatesUnlisted() // never a lost row's, nor a third party's "every version" on one system
 			if r.Origin == v.Origin {
 				complete = complete && stated
 			}
 			if row, ok := r.MatchRow(); ok {
-				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly || r.Origin != v.Origin && !stated, VendorList: row.VendorList, VendorCNA: row.VendorCNA,
+				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE, AffectedOnly: row.AffectedOnly || r.Origin != v.Origin && !stated, VendorList: row.VendorList, Lost: row.Lost, VendorCNA: row.VendorCNA,
 					LineFix: row.LineFix, Platforms: row.Platforms, Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
 			}
 		}

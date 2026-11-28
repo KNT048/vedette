@@ -350,7 +350,7 @@ func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, strin
 			continue
 		}
 		rows = append(rows, kevRecordRow(r, cpeVendor, cpeProduct))
-		complete = complete && (r.DefaultStatus == DefaultAffected || r.DefaultStatus == DefaultUnaffected)
+		complete = complete && r.StatesUnlisted()
 	}
 	switch {
 	case len(rows) == 0:
@@ -372,14 +372,15 @@ func kevRecordRow(r Range, vendor, product string) AffectedRow {
 		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:" + sys + ":*:*"
 	}
 	if r.StartIncl != "" && r.StartIncl == r.EndIncl && r.StartExcl == "" && r.EndExcl == "" {
-		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
+		return AffectedRow{CPE: cpe(cpeEscape(r.StartIncl)), AffectedOnly: r.AffectedOnly || r.Lost(), VendorList: r.VendorList && !r.Lost(), Lost: r.Lost(),
+			VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
 	}
 	start := r.StartIncl
 	if recordEvery(r) {
 		start = "0" // every version (recordEvery)
 	}
 	return AffectedRow{CPE: cpe("*"), StartIncl: start, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
-		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
+		AffectedOnly: r.AffectedOnly || r.Lost(), VendorList: r.VendorList && !r.Lost(), Lost: r.Lost(), VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
 }
 
 // ---- counts ----

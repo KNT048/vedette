@@ -1464,7 +1464,8 @@ func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
 // that ends (endBound), or, for a Windows release row, any Windows release or a component Windows' monthly update services
 // (winOSComponents): windowsDecide reads its release and the siblings that take the same update. An exact version NVD lists says
 // nothing on this path (#913): Android's rows name the release (14.0) while its fixes come by security patch level,
-// and NVD lists Edge 117.0.2045.47, the build that fixed CVE-2023-5217, as affected.
+// and NVD lists Edge 117.0.2045.47, the build that fixed CVE-2023-5217, as affected. Only the vendor's own list of exact releases,
+// read per line, reaches the row without a bounded range (nvdReaches, exactListCloses).
 //
 // A row of a complete record list (VendorList) names the row with an exact version too: the vendor stated every version's status. So
 // does a CVE record's "every version is affected" (fromZero), which no NVD row writes: NVD's version-less rows have no bound at all,

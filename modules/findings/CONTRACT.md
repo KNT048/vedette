@@ -179,7 +179,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   line (the vendor may have assessed only that train), a line between listed lines or below them, and every condition above stay as
   they were. The gate's proof is `after_last_listed_line` (CVE5 or NVD CPE), scoped to the product and the installed line, and it
   never closes an exploited CVE: such a pair stays undecided as `newer_line_exploited` for a person. `TestMatch_NewerThanEveryListedLine`,
-  `TestGate_AfterLastListedLine`.
+  `TestGate_AfterLastListedLine`. A CVE only NVD's list ties to the line (`viaNVD`, where an exact row alone says nothing) is reached and
+  closed by these two readings too (`exactListCloses`), never by anything else an exact row says. `TestMatch_ExactListClosesOnTheNVDPath`.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen

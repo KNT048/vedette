@@ -79,6 +79,17 @@ func (s lcState) clone() lcState {
 	return s
 }
 
+// sig is the state as far as every later step can tell (the clock only orders, and the order is the line's): two sequences that reach
+// the same sig have the same futures, so the matrix plays the futures of a sig once per depth left.
+func (s lcState) sig() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%v|%v|%d|%d|%s|%v|", s.answered, s.exploited, s.record, s.page, s.last, s.live)
+	for _, o := range s.line {
+		fmt.Fprintf(&b, "%s/%v/%s/%s;", o.Key[:12], o.RejectedBy != "", o.RecordHash[:8], o.PageHash[:8])
+	}
+	return b.String()
+}
+
 func (s lcState) now() time.Time { return time.Date(2026, 11, 1, 0, 0, s.clock, 0, time.UTC) }
 
 // reading is the reading an AI event stores: cited from the vendor's page as the box read it, keyed like the box keys it.
@@ -243,6 +254,20 @@ func (s *lcState) step(e lcEvent) string {
 	if !s.answered && len(now) > 0 && !open(after) {
 		return fmt.Sprintf("I2: an affected reading with a checked quote is hidden (%s)", after)
 	}
+	// growth is bounded: besides rejected rows (one per claim, record and page a person rejected), the line keeps the newest reading and
+	// at most one reading per distinct affected claim (status and bounds) with a checked quote
+	claims, kept := map[string]bool{}, 0
+	for _, o := range s.line {
+		if o.RejectedBy == "" {
+			kept++
+			if statusSide(o.Status) == StatementAffected && o.QuoteFound {
+				claims[o.Status+"|"+o.Introduced+"|"+o.FixedIn+"|"+o.Last] = true
+			}
+		}
+	}
+	if kept > len(claims)+1 {
+		return fmt.Sprintf("growth: %d readings kept for %d affected claims", kept, len(claims))
+	}
 	s.last, s.live = after, now
 	return ""
 }
@@ -258,22 +283,33 @@ func TestReadingLifeCycle_Matrix(t *testing.T) {
 	}
 	const depth = 4
 	type result struct {
-		sequences int
-		failed    map[string]int
-		first     []string
+		sequences, played int
+		failed            map[string]int
+		first             []string
 	}
 	// one goroutine per first event: the sequences are independent, and the whole matrix stays well under a second
 	results := make([]result, len(lcEvents))
 	var wg sync.WaitGroup
+	var seenMu sync.Mutex
+	seen := map[string]int{} // sig -> the most steps left its futures were played with (shared by the goroutines)
 	for i, e0 := range lcEvents {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			res := result{failed: map[string]int{}}
+			futures := func(left int) int { // the sequences of 1..left events
+				n, p := 0, 1
+				for range left {
+					p *= len(lcEvents)
+					n += p
+				}
+				return n
+			}
 			var walk func(s lcState, path []lcEvent)
 			walk = func(s lcState, path []lcEvent) {
 				e := path[len(path)-1]
 				res.sequences++
+				res.played++
 				if why := s.step(e); why != "" {
 					class := why
 					if i := strings.Index(why, " ("); i > 0 {
@@ -287,6 +323,18 @@ func TestReadingLifeCycle_Matrix(t *testing.T) {
 				if len(path) == depth {
 					return
 				}
+				left := depth - len(path)
+				k := s.sig()
+				seenMu.Lock()
+				done := seen[k] >= left
+				if !done {
+					seen[k] = left
+				}
+				seenMu.Unlock()
+				if done {
+					res.sequences += futures(left) // the same state was played with as many steps left: the same futures
+					return
+				}
 				for _, e := range lcEvents {
 					walk(s.clone(), append(slices.Clone(path), e))
 				}
@@ -296,9 +344,9 @@ func TestReadingLifeCycle_Matrix(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	sequences, failed, seen := 0, map[string]int{}, map[string]bool{}
+	sequences, played, failed, reported := 0, 0, map[string]int{}, map[string]bool{}
 	for _, r := range results {
-		sequences += r.sequences
+		sequences, played = sequences+r.sequences, played+r.played
 		for c, n := range r.failed {
 			failed[c] += n
 		}
@@ -307,13 +355,13 @@ func TestReadingLifeCycle_Matrix(t *testing.T) {
 			if i := strings.Index(class, " ("); i > 0 {
 				class = class[:i]
 			}
-			if !seen[class] {
-				seen[class] = true
+			if !reported[class] {
+				reported[class] = true
 				t.Errorf("%s", f)
 			}
 		}
 	}
-	t.Logf("%d event sequences of length 1 to %d", sequences, depth)
+	t.Logf("%d event sequences of length 1 to %d, %d steps played (a state reached again plays its futures once)", sequences, depth, played)
 	for class, n := range failed {
 		t.Logf("%d sequences: %s", n, class)
 	}

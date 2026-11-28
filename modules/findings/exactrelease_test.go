@@ -49,6 +49,9 @@ func TestTrainCleared_ExactReleases(t *testing.T) {
 		{"a stated fixed release closes past it", [][3]string{{"3.0.0", "3.0.10", ""}}, false, "3.0.11", true},
 		{"a stated fixed release, an exact release above: stays open", rangeAndExact, false, "3.0.7", false},
 		{"a stated fixed release, an exact release above, unaffected default: closes", rangeAndExact, true, "3.0.7", true},
+		{"one release in two rows, unaffected default: still one release, below it stays open", [][3]string{{"3.0.12", "", "3.0.12"}, {"3.0.12", "", "3.0.12"}}, true, "3.0.7", false},
+		{"an exact release below, a range above it in the train: stays open", [][3]string{{"3.0.3", "", "3.0.3"}, {"3.0.20", "3.0.25", ""}}, false, "3.0.7", false},
+		{"an exact release below, a stated fixed release at or before it: closes", [][3]string{{"3.0.3", "", "3.0.3"}, {"3.0.4", "3.0.6", ""}}, false, "3.0.7", true},
 	} {
 		spans := trainSpans(t, tc.rows...)
 		told := make([]bool, len(spans))

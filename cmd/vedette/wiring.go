@@ -755,10 +755,11 @@ func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) e
 			continue
 		}
 		i := at[r.CVE]
-		// Complete: the vendor's own record states the rest unaffected (feeds keeps defaultStatus "unaffected" only from the product's
-		// own CNA, ownCNA); NVD's rows never say what an unlisted version is
+		// Complete: the vendor's own record states the rest unaffected. A row kept in the vendor's notation keeps the record's
+		// defaultStatus whoever assigned it (feeds trustRow), so the assigner is checked here (VendorCNA); NVD's and an ADP's rows
+		// never say what an unlisted version is
 		sr := findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin, Unaffected: unaffected, ModelOnly: modelOnly,
-			Complete: r.Origin != feeds.OriginNVD && r.DefaultStatus == feeds.DefaultUnaffected}
+			Complete: r.Origin == feeds.OriginCNA && r.VendorCNA && r.DefaultStatus == feeds.DefaultUnaffected}
 		if modelOnly { // the hardware it holds on
 			sr.Platforms = r.Platforms
 		}

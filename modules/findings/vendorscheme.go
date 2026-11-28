@@ -375,28 +375,32 @@ func trainCleared(installed versionscheme.Version, spans []versionscheme.Span, t
 	if !endsInTrain(spans, installed) || versionscheme.Judge(installed, spans).State != versionscheme.NotAffected {
 		return false
 	}
-	exact, bounded, above, allTold := 0, false, false, true
+	var exact []versionscheme.Version // the distinct releases listed alone: one release in two rows (two models, two entries) is one
+	bounded, ended, above, allTold := false, false, false, true
 	for i, sp := range spans {
 		if sp.End == nil || sp.End.LineStart || sp.End.Variant != installed.Variant || sp.End.Train != installed.Train {
 			continue
 		}
+		c, ok := versionscheme.Compare(*sp.End, installed)
 		if !oneRelease(sp) {
-			bounded = true
+			bounded, ended = true, ended || ok && c <= 0 // ended: the range's end (a stated fixed release) is at or before installed
 			continue
 		}
-		exact++
+		if !slices.ContainsFunc(exact, func(x versionscheme.Version) bool { d, ok := versionscheme.Compare(x, *sp.End); return ok && d == 0 }) {
+			exact = append(exact, *sp.End)
+		}
 		allTold = allTold && i < len(told) && told[i]
-		if c, ok := versionscheme.Compare(*sp.End, installed); !ok || c > 0 {
+		if !ok || c > 0 {
 			above = true
 		}
 	}
 	switch {
 	case above:
-		return allTold && (exact >= 2 || bounded)
-	case bounded:
-		return true
+		return allTold && (len(exact) >= 2 || bounded)
+	case len(exact) == 0:
+		return bounded
 	}
-	return allTold
+	return allTold || ended
 }
 
 // oneRelease says a span is one release: its start and its included end are the same release.

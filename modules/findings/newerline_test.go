@@ -60,6 +60,8 @@ func TestMatch_NewerThanEveryListedLine(t *testing.T) {
 	}{
 		{"a line newer than both listed lines", "Gizmo", "", "6.0.1", gizmo(false, "4.2.9", "5.1.3"), "", false, "closed", "6.0"},
 		{"a newer minor line of the newest listed major", "Gizmo", "", "5.2.1", gizmo(false, "4.2.9", "5.1.3"), "", false, "closed", "5.2"},
+		{"rows that may name their whole line, all older", "Gizmo", "", "6.0.1", gizmo(false, "4.2.0", "5.1.0"), "", false, "closed", "6.0"},
+		{"rows of two numbers beside three", "Gizmo", "", "6.0.1", gizmo(false, "4.2", "5.1"), "", false, UndecidedExactOnly, ""},
 		{"exploited: never by itself", "Gizmo", "", "6.0.1", gizmo(false, "4.2.9", "5.1.3"), "", true, UndecidedNewerLineExploited, ""},
 		{"one listed line", "Gizmo", "", "6.0.1", gizmo(false, "4.2.7", "4.2.9"), "", false, UndecidedExactOnly, ""},
 		{"a line between listed lines", "Gizmo", "", "5.0.1", gizmo(false, "4.2.9", "5.1.3"), "", false, UndecidedExactOnly, ""},

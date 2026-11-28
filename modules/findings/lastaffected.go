@@ -46,12 +46,11 @@ type release struct {
 }
 
 // line is the release line of r in its form: the first two numbers of a dotted version ("2.4"), the numbers of a release with an
-// update without trailing zeros ("1.8 update"); "" when r names no release inside a line: a dotted version of fewer than three numbers
-// or whose numbers past the line are all zero names the line itself ("2.1", "21.0.0").
+// update without trailing zeros ("1.8 update"); "" for a dotted version of one number.
 func (r release) line() string {
 	switch r.form {
 	case formPlain:
-		if len(r.rel) < 3 || !slices.ContainsFunc(r.rel[2:], func(n uint64) bool { return n != 0 }) {
+		if len(r.rel) < 2 {
 			return ""
 		}
 		return fmt.Sprintf("%d.%d", r.rel[0], r.rel[1])
@@ -63,6 +62,12 @@ func (r release) line() string {
 		return joinNumbers(r.rel[:n]) + " update"
 	}
 	return ""
+}
+
+// namesLine says a listed dotted version may name its line rather than one release in it: fewer than three numbers, or all zero past
+// the line ("2.1", "21.0.0": the whole line may be affected, so it is no last affected release).
+func (r release) namesLine() bool {
+	return r.form == formPlain && (len(r.rel) < 3 || !slices.ContainsFunc(r.rel[2:], func(n uint64) bool { return n != 0 }))
 }
 
 // text is r as the generic order compares it: "2.4.49", "8u45".
@@ -305,7 +310,7 @@ func afterLastAffected(in swInfo, v Vuln, key []identity) ([]lastAffected, bool)
 		last := -1
 		for i, r := range rels {
 			switch line := r.line(); {
-			case line == "": // a row that names a line, not a release in it
+			case line == "" || r.namesLine(): // a row that names a line, not a release in it
 				if r.form == formPlain && len(r.rel) > 0 && len(inst.rel) > 0 && r.rel[0] == inst.rel[0] {
 					return false // it may name the installation's line
 				}
@@ -341,7 +346,8 @@ func (r release) lineNumbers() []uint64 {
 // names no newer line because the flaw was fixed before it branched. Stricter than afterLastAffected, since nothing about the line itself
 // is stated:
 //   - each format writes every release and the installation's version in one numbering: the same form and as many numbers ("158.0.8127.37"
-//     beside "148.0.7778.216"; not "160.0" beside "152.0.3", nor "8 Update 491" beside "1.7.0 update 80"); no row names a line only;
+//     beside "148.0.7778.216"; not "160.0" beside "152.0.3", nor "8 Update 491" beside "1.7.0 update 80"); a row that may name its whole
+//     line ("115.34.0") is read as that line;
 //   - the installation's line is strictly above every listed line, in numbers;
 //   - each format that may prove lists at least two lines: a list of one line may be the only train the vendor assessed.
 //
@@ -358,7 +364,7 @@ func afterLastListedLine(in swInfo, v Vuln, key []identity) ([]lastAffected, boo
 		newest := -1
 		for i, r := range rels {
 			if r.line() == "" || len(r.rel) != len(inst.rel) {
-				return false // a row that names a line only, or another numbering than the installation's
+				return false // another numbering than the installation's
 			}
 			if (version{rel: inst.lineNumbers()}).compare(version{rel: r.lineNumbers()}) <= 0 {
 				return false // a listed line at or above the installation's

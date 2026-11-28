@@ -303,11 +303,17 @@ type DistroFix struct {
 	Distro  string // "ubuntu", "debian" or "alpine" (DistroAlpine)
 	Release string // "24.04", "12", "3.23" (an Alpine branch)
 	Package string // source package
-	Status  string // "fixed", "not_affected" or "open" (affected, no fix yet)
+	Status  string // "fixed", "not_affected", "open" (affected, no fix yet) or "under_investigation" (distroTriage)
 	Fixed   string // the first fixed version (status fixed)
-	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
-	Reason  string // status open from Debian: why no security update comes (feeds.DistroReason*), "" otherwise
+	// Pro: the word is about the package as Ubuntu Pro (ESM) ships it: the fix is in Ubuntu Pro only (status fixed), or Ubuntu tracks
+	// the package for the release only in an Ubuntu Pro pocket, so its fix would come through Ubuntu Pro (status open)
+	Pro    bool
+	Reason string // status open from Debian: why no security update comes (feeds.DistroReason*), "" otherwise
 }
+
+// distroTriage is the status of a distribution's word "this CVE is being triaged for this package" (feeds.DistroTriage: Ubuntu's
+// under_investigation, Debian's undetermined): it decides nothing, and the pair stays undecided with DistroTriaging.
+const distroTriage = "under_investigation"
 
 // Evidence is the explanation shown with a finding.
 type Evidence struct {
@@ -1592,7 +1598,13 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	}
 	if distroDecides(in, v) { // the distribution built it and has no word yet: NVD's upstream range decides, never confirmed
 		m, out := judgeRanges(a, s, in, v, key, now)
-		return awaitingDistro(a, s, in, v, m, out)
+		m, out = awaitingDistro(a, s, in, v, m, out)
+		if out != outMatch {
+			if tm, ok := triagedAffected(a, s, in, v, now); ok {
+				return tm, outMatch
+			}
+		}
+		return m, out
 	}
 	m, out := judgeRanges(a, s, in, v, key, now)
 	m.upstream = m.upstream || out == outMatch && upstreamJudges(in, v) // the upstream release of a package its distribution names no fix of
@@ -1611,15 +1623,46 @@ func awaitingDistro(a Asset, s Software, in swInfo, v Vuln, m Match, out outcome
 		m.Evidence.Agent, m.Evidence.Source = false, ""
 		_, rel := distroOf(in)
 		name := distroName(in)
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s %s from %s %s's packages. %s has not published its answer yet; based on the upstream version "+
+		said := fmt.Sprintf("%s has not published its answer yet", name)
+		if distroSilence(in, v) == DistroTriaging { // the distribution states that it is still triaging the CVE for this package
+			said = fmt.Sprintf("%s states that it is still triaging %s for this package", name, v.CVE)
+		}
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s %s from %s %s's packages. %s; based on the upstream version "+
 			"ranges, its upstream version %s is inside the range affected by %s. %s carries fixes under its own package releases, so this is "+
-			"not confirmed until %s answers.", clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), name, rel, name,
+			"not confirmed until %s answers.", clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), name, rel, said,
 			clean(in.ver), v.CVE, name, name)
 		return m, out
 	case outNotAffected:
 		return Match{}, outNone
 	}
 	return m, out
+}
+
+// triagedAffected is the suspected finding of an exploited CVE the distribution states it is still triaging for the package while it
+// also states the release's package affected with no fix yet (Ubuntu's OSV record beside its VEX triage, or a triage row older than the
+// affected one while its feed is held): a triage never weakens a finding of an exploited CVE to nothing, and the stated affected is
+// never confirmed by it either (awaitingDistro's terms). ok is false for a CVE on no exploited list or without such a stated affected.
+func triagedAffected(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, bool) {
+	if !v.listed() || distroSilence(in, v) != DistroTriaging {
+		return Match{}, false
+	}
+	w := v
+	w.Distro = slices.DeleteFunc(slices.Clone(v.Distro), func(f DistroFix) bool { return f.Status == distroTriage })
+	d, ok := distroVerdict(in, w)
+	if !ok || d.kind != distroNeeded || d.fixed != "" {
+		return Match{}, false
+	}
+	m, out := distroMatch(a, s, in, w, d, now)
+	if out != outMatch {
+		return Match{}, false
+	}
+	m.upstream = true
+	m.Evidence.Agent, m.Evidence.Source = false, ""
+	m.Evidence.Summary = fmt.Sprintf("%s runs %s %s from %s %s's packages. %s states that it is still triaging %s for this package, while its "+
+		"data also lists its %s package as affected by %s, with no fixed release yet (%s). This is not confirmed until %s answers.",
+		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), v.CVE,
+		DistroSource(d.name), d.name)
+	return m, true
 }
 
 // judgeRanges is judge after the distribution's word: the platform list, the vendor's own rows, Windows' releases and NVD's ranges.

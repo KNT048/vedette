@@ -51,7 +51,7 @@ function items(device?: string | null): Item[] {
 const checkable = (it: Item) => !!it.key && !it.check
 
 const VERSION_REASONS: UndecidedReason[] = ['no_version', 'version_from_network', 'platform_unknown', 'package_unknown', 'attribute_unknown']
-const DISTRO_REASONS: UndecidedReason[] = ['distro_not_listed', 'distro_other_packages', 'distro_other_releases', 'distro_other_build', 'distro_no_data']
+const DISTRO_REASONS: UndecidedReason[] = ['distro_not_listed', 'distro_triage', 'distro_other_packages', 'distro_other_releases', 'distro_other_build', 'distro_no_data']
 /** Why the CVE is still possible (the server's PossibleCause, in short); null for a settled row. */
 function causeOf(it: Item): PossibleCause | null {
   const reason = undecidedOf(it.q).reason

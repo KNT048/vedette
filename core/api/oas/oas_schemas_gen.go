@@ -96403,12 +96403,13 @@ type FindingsGetFindingsCoverageOKPossibleItem struct {
 	// why a distribution's package its distribution's data has no word on stays undecided with no question
 	// (distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or
 	// releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the
-	// CVE; distro_no_data: no data of that distribution; version_needed: the agent gave no package
-	// release), or an unnamed class: pairs the matcher reached and neither decided nor asked about, so
-	// nobody is told why (other_distro_silent: a distribution's package its data has no word on;
-	// other_record_unread: the rows name the product and give nothing the matcher compares; other_dropped:
-	// matched on the name alone or an old entry, not listed). A pass counted before causes were kept names
-	// an undecided reason (Undecided.reason), ai_proposal or other here.
+	// CVE; distro_triage: the distribution states it is still triaging the CVE for this package;
+	// distro_no_data: no data of that distribution; version_needed: the agent gave no package release), or
+	// an unnamed class: pairs the matcher reached and neither decided nor asked about, so nobody is told
+	// why (other_distro_silent: a distribution's package its data has no word on; other_record_unread: the
+	// rows name the product and give nothing the matcher compares; other_dropped: matched on the name
+	// alone or an old entry, not listed). A pass counted before causes were kept names an undecided reason
+	// (Undecided.reason), ai_proposal or other here.
 	Cause string `json:"cause"`
 	Count int    `json:"count"`
 	// The same pairs by the matcher's own reason, the most first; empty for an unnamed class and for a
@@ -120146,7 +120147,8 @@ type FindingsGetFindingsPossibleAuditOKGroupsItem struct {
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
 	// compared with. The distribution's silence on its own package (cause distro_silent):
-	// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+	// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+	// the CVE for this package and release), distro_other_packages (rows for other packages only),
 	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
 	// build), distro_no_data (no security data of that distribution).
 	Reason FindingsGetFindingsPossibleAuditOKGroupsItemReason `json:"reason"`
@@ -120185,7 +120187,8 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) SetReason(val FindingsGet
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 // version_from_network: only a version read from the network, which a CVE on no exploited list is not
 // compared with. The distribution's silence on its own package (cause distro_silent):
-// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+// the CVE for this package and release), distro_other_packages (rows for other packages only),
 // distro_other_releases (rows for other releases only), distro_other_build (its row is about another
 // build), distro_no_data (no security data of that distribution).
 type FindingsGetFindingsPossibleAuditOKGroupsItemReason string
@@ -120215,6 +120218,7 @@ const (
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases     FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_other_releases"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild        FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_other_build"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData            FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_no_data"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage            FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_triage"
 )
 
 // AllValues returns all FindingsGetFindingsPossibleAuditOKGroupsItemReason values.
@@ -120244,6 +120248,7 @@ func (FindingsGetFindingsPossibleAuditOKGroupsItemReason) AllValues() []Findings
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage,
 	}
 }
 
@@ -120297,6 +120302,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) MarshalText() ([]byt
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -120377,6 +120384,9 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroTriage
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -122897,7 +122907,8 @@ type FindingsGetFindingsPossibleOKItemsItemUndecided struct {
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
 	// compared with. The distribution's silence on its own package (cause distro_silent):
-	// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+	// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+	// the CVE for this package and release), distro_other_packages (rows for other packages only),
 	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
 	// build), distro_no_data (no security data of that distribution).
 	Reason FindingsGetFindingsPossibleOKItemsItemUndecidedReason `json:"reason"`
@@ -122950,7 +122961,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetURL(val OptString) 
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 // version_from_network: only a version read from the network, which a CVE on no exploited list is not
 // compared with. The distribution's silence on its own package (cause distro_silent):
-// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+// the CVE for this package and release), distro_other_packages (rows for other packages only),
 // distro_other_releases (rows for other releases only), distro_other_build (its row is about another
 // build), distro_no_data (no security data of that distribution).
 type FindingsGetFindingsPossibleOKItemsItemUndecidedReason string
@@ -122980,6 +122992,7 @@ const (
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases     FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_other_releases"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild        FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_other_build"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData            FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_no_data"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage            FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_triage"
 )
 
 // AllValues returns all FindingsGetFindingsPossibleOKItemsItemUndecidedReason values.
@@ -123009,6 +123022,7 @@ func (FindingsGetFindingsPossibleOKItemsItemUndecidedReason) AllValues() []Findi
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage,
 	}
 }
 
@@ -123062,6 +123076,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) MarshalText() ([]
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -123142,6 +123158,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) UnmarshalText(da
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroTriage
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

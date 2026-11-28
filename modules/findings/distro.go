@@ -91,7 +91,7 @@ type distroAnswer struct {
 	release string // the device's release ("24.04", "12", "3.23"), else the release of the row that decided
 	from    string // the release of the row that decided when it is another than the device's (an Alpine fix of a later branch), else ""
 	fixed   string // the fixed version (fixed here, needed)
-	pro     bool   // the fix is in Ubuntu Pro (ESM) only
+	pro     bool   // the fix is in Ubuntu Pro (ESM) only; affected with no fix: tracked in an Ubuntu Pro pocket only
 	reason  string // affected with no fix (open, fixed ""): why the distribution publishes no security update (Debian), "" otherwise
 }
 
@@ -475,8 +475,8 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 		if !v.listed() || !d.own(pkg, ver, false) {
 			return distroAnswer{}, false
 		}
-		a.kind, a.reason = distroNeeded, f.Reason
-	default:
+		a.kind, a.reason, a.pro = distroNeeded, f.Reason, f.Pro
+	default: // being triaged (distroTriage) or a status this matcher does not know: no word that decides
 		return distroAnswer{}, false
 	}
 	return a, true
@@ -581,6 +581,11 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 			said = fmt.Sprintf("%s lists its %s package as affected by %s and %s (%s)", d.name, clean(d.pkg), v.CVE, w, src)
 			until = "so this device has the flaw until a fixed package comes; watch for it or accept the risk."
 		}
+		if d.pro { // the release's package is tracked in an Ubuntu Pro pocket only: no public fix is promised
+			said = fmt.Sprintf("%s lists its %s package of %s %s as affected by %s in Ubuntu Pro (ESM), with no fixed release yet (%s)",
+				d.name, clean(d.pkg), d.name, d.release, v.CVE, src)
+			until = fmt.Sprintf("so this device has the flaw until %s publishes a fixed package, which for this package comes through Ubuntu Pro (ESM) only, and the device installs it.", d.name)
+		}
 	}
 	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s"+suspectedClause,
 		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, said)}
@@ -618,13 +623,16 @@ const (
 	DistroOtherBuild = "distro_other_build"
 	// DistroNotListed: the distribution's data has no row of the CVE at all (not triaged yet, or its feed holds no row of it yet).
 	DistroNotListed = "distro_not_listed"
+	// DistroTriaging: the distribution states that it is still triaging the CVE for this package in this release (Ubuntu's needs-triage,
+	// VEX under_investigation; Debian's undetermined), so it has no word that decides yet.
+	DistroTriaging = "distro_triage"
 	// DistroNoData: Vedette has no security data of the device's distribution (Red Hat, SUSE and the other RPM distributions).
 	DistroNoData = "distro_no_data"
 )
 
 // DistroSilences lists every cause of distroSilence: the causes of a pair no question asks about, beside PossibleCauses (the causes of
 // a question); an agent's package row without its release or source takes PossibleCause's CauseVersionNeeded.
-var DistroSilences = []string{DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNotListed,
+var DistroSilences = []string{DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNotListed, DistroTriaging,
 	DistroNoData, CauseVersionNeeded}
 
 // distroSilence is why the distribution's data decides nothing (or DistroNoFixYet: it decided "affected, no fix yet" and no finding is
@@ -646,8 +654,8 @@ func distroSilence(in swInfo, v Vuln) string {
 	}
 	pkg := d.source(in.pkgSrc)
 	release := func(f DistroFix) bool { return d.anyRelease || f.Release == in.pkgRel }
-	var mine, sameRelease, samePkg, listed bool
-	open := false
+	var mine, sameRelease, samePkg, listed, decisive bool
+	open, triage := false, false
 	for _, f := range v.Distro {
 		if f.Distro != d.id {
 			continue
@@ -657,6 +665,8 @@ func distroSilence(in swInfo, v Vuln) string {
 		case f.Package == pkg && release(f):
 			mine = true
 			open = open || f.Status == "open"
+			triage = triage || f.Status == distroTriage
+			decisive = decisive || f.Status == "fixed" || f.Status == "not_affected"
 		case release(f):
 			sameRelease = true
 		case f.Package == pkg:
@@ -664,6 +674,8 @@ func distroSilence(in swInfo, v Vuln) string {
 		}
 	}
 	switch {
+	case triage && !decisive: // the triage outranks "open" (chooseInRelease); a fixed or not-affected row about another build does not wait for it
+		return DistroTriaging
 	case open && !v.listed():
 		return DistroNoFixYet
 	case mine:

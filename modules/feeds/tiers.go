@@ -189,27 +189,45 @@ func (s *Store) recentProducts(ctx context.Context, cve string) ([]string, bool,
 	return out, listed, nil
 }
 
-// tierCVEs lists the CVEs of nvd-recent published since now minus 365 days while it is ready (the distribution feeds keep
-// their fixed rows for the devices' packages); nil otherwise. About 105,000 short strings on a test box (2026-11-15).
-func (s *Store) tierCVEs(ctx context.Context, now time.Time) (map[string]bool, error) {
+// tierCVEs lists the catalogue's CVEs the match pass reads (the distribution feeds keep their rows of the devices' packages for these,
+// DistroWant.Tier): the match pass's own set (the wiring's MatchSet: a CVE of the catalogue that OutsideWindow does not set aside),
+// whether NVD has analysed it yet or not, so a pair the matcher reaches never lacks the distribution's word because the pull left its
+// CVE out. ready is false while nvd-recent is not loaded: the set is then what the catalogue holds now (it never shrinks below what the
+// match pass reads), and the pull keeps no record of the packages it kept them for, so the pull after the load runs in full
+// (distroPartial). About 112,000 short strings on a test box (2026-11-28).
+func (s *Store) tierCVEs(ctx context.Context, now time.Time) (map[string]bool, bool, error) {
 	st, err := s.TierStatus(ctx, now)
-	if err != nil || st.Recent != TierReady {
-		return nil, err
-	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_cve WHERE published >= ? AND nvd_at IS NOT NULL AND nvd_status <> 'Rejected'`, store.FormatTS(now.AddDate(0, 0, -recentDays)))
 	if err != nil {
-		return nil, fmt.Errorf("feeds: tier cves: %w", err)
+		return nil, false, err
+	}
+	w, err := s.Window(ctx, now)
+	if err != nil {
+		return nil, false, err
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, w.readSQL())
+	if err != nil {
+		return nil, false, fmt.Errorf("feeds: tier cves: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	out := map[string]bool{}
 	for rows.Next() {
 		var c string
 		if err := rows.Scan(&c); err != nil {
-			return nil, fmt.Errorf("feeds: tier cves: %w", err)
+			return nil, false, fmt.Errorf("feeds: tier cves: %w", err)
 		}
 		out[c] = true
 	}
-	return out, rows.Err()
+	return out, st.Recent == TierReady, rows.Err()
+}
+
+// readSQL is the CVEs of the catalogue (feeds_cve: every CVE with ranges or on an exploited list has a row) the reporting window lets
+// the match pass read: every one but those OutsideWindow sets aside (published before the window and kept by no exploited-list entry,
+// exploited signal or recent public exploit; a CVE with no date counts as recent); every one while every age is reported.
+func (w Window) readSQL() string {
+	if w.EveryAge {
+		return `SELECT cve FROM feeds_cve`
+	}
+	return `SELECT cve FROM feeds_cve WHERE published IS NULL OR published >= ` + w.since() + ` OR cve IN (` + w.keptSQL() + `)`
 }
 
 // hasTierCVEs says whether tierCVEs would list any CVE, without reading them.
@@ -218,8 +236,12 @@ func (s *Store) hasTierCVEs(ctx context.Context, now time.Time) (bool, error) {
 	if err != nil || st.Recent != TierReady {
 		return false, err
 	}
+	w, err := s.Window(ctx, now)
+	if err != nil {
+		return false, err
+	}
 	var has bool
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_cve WHERE published >= ? AND nvd_at IS NOT NULL AND nvd_status <> 'Rejected')`, store.FormatTS(now.AddDate(0, 0, -recentDays))).Scan(&has); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (`+w.readSQL()+`)`).Scan(&has); err != nil {
 		return false, fmt.Errorf("feeds: tier cves: %w", err)
 	}
 	return has, nil

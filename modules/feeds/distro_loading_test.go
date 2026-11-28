@@ -122,7 +122,7 @@ func TestDistroOn(t *testing.T) {
 	}
 }
 
-// ubuntu-vex keeps only "not affected" statements: it can never say a package is affected or fixed. Ubuntu's data decides Ubuntu's own
+// ubuntu-vex never gives a fixed version (its "fixed" statements are not kept): it cannot say a package is fixed. Ubuntu's data decides Ubuntu's own
 // packages only while ubuntu-osv (the feed with Ubuntu's fixed and "affected, no fix yet" rows) is on; with ubuntu-osv off, loaded VEX
 // rows alone would leave every Ubuntu-built package with an exploited CVE unjudged (no finding at all).
 func TestDistroOnNeedsAFeedThatSaysAffected(t *testing.T) {

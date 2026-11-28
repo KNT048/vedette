@@ -129,6 +129,10 @@ func fillHeld(t *testing.T, db *store.DB) {
 (?1, 'debian', '12', 'openssh', 'CVE-2026-0001', 'fixed', '1.1'), (?1, 'debian', '13', 'openssh', 'CVE-2026-0001', 'fixed', '1.2'), (?1, 'debian', '12', 'curl', 'CVE-2025-1111', 'fixed', '8.0')`, id); err != nil {
 				return err
 			}
+			// the tier row of curl was kept for the devices' packages (a pull with the window loaded records them)
+			if _, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET distro_packages = '["curl","openssh"]' WHERE id = ?`, id); err != nil {
+				return err
+			}
 		}
 		if err := applyPublicSignals(t.Context(), tx, epoch0, pocGitHubFeedID, []publicSignal{{CVE: "CVE-2026-0001", Date: epoch0, Qualifies: true, Rule: epoch0},
 			{CVE: "CVE-2026-0002", Date: epoch0}}); err != nil {

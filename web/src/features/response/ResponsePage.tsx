@@ -2,7 +2,7 @@ import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, PageEnd, PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
-import { ErrorState, Loading, RequireModule, SampleDataNote } from '@/components/common/States'
+import { ErrorState, Loading, RequireModule } from '@/components/common/States'
 import { useCan } from '@/lib/session'
 import { notOffered } from '@/lib/v1'
 import { useActions, usePlans, useSettings } from './api'
@@ -61,7 +61,7 @@ function Content() {
   return (
     <FrozenCtx.Provider value={leaving}>
       <PageHeader title={t('common:shell.response')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{t('page.meta')}<SampleDataNote /></span>} info={t('page.metaInfo')} />
+        meta={t('page.meta')} info={t('page.metaInfo')} />
       {/* One note per cause: paused (breaker or Emergency stop) says it and links to Settings, so "Execution is off" is not repeated under it */}
       {s && paused ? (
         <Notice tone="danger" role="alert" title={t('page.breakerTitle')} info={s.stopped_at ? t('page.stoppedBodyInfo') : t('page.breakerBodyInfo')}>

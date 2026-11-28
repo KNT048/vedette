@@ -10,7 +10,7 @@ import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { EmptyState, ErrorState, Loading, ModuleOff, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, ErrorState, Loading, ModuleOff, RequireModule } from '@/components/common/States'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { Slot } from '@/components/common/Slot'
 import { Chip } from '@/components/common/StatusChip'
@@ -548,7 +548,7 @@ function Body() {
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: headerKind, when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: headerKind, when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: headerKind, when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: headerKind, when: fmtRelative(a.last_seen) })}</span></span>}
         titleAction={<RenameDevice d={d} />} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}

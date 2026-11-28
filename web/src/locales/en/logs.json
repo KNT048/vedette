@@ -17,8 +17,9 @@
   "titleNoIoc": "Today: {{fresh}}, {{spikes}}.",
   "pageInfo": "Vedette reads the syslog your devices send to the box and compares the last 24 hours with the days before, so new log types, spikes and connections to bad addresses stand out.",
   "titleNoSources": "No device is sending logs to the box yet.",
-  "meta": "{{lines}} lines in the last 24 hours vs the previous {{days}} days. Updated {{time}}.",
-  "metaLearning": "From {{lines}} log lines in the last 24 hours. Updated {{time}}.",
+  "meta": "{{lines}} lines in the last 24 hours vs the previous {{days}} days.",
+  "updated": "Updated {{time}}.",
+  "metaLearning": "From {{lines}} log lines in the last 24 hours.",
   "refresh": "Refresh",
   "refreshing": "Refreshing…",
   "sources": {

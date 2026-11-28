@@ -1,15 +1,14 @@
 {
   "title": {
     "noTraps": "No Trap IP is on. Add one to learn when something probes your network.",
-    "today_one": "{{count}} trap hit today",
-    "today_other": "{{count}} trap hits today",
     "week_one": "Traps were hit {{count}} time in 7 days, last {{when}} from {{src}}",
     "week_other": "Traps were hit {{count}} times in 7 days, last {{when}} from {{src}}",
     "quiet": "No trap was hit in the last 7 days",
     "failed": "A Trap IP is on, but the box could not set it up",
     "starting": "Trap IPs are starting. Nothing is listening yet."
   },
-  "meta": "Updated {{time}}. Traps only listen and log.",
+  "meta": "Traps only listen and log.",
+  "updated": "Updated {{time}}.",
   "metaInfo": "They do not block or hit back.",
   "needAdmin": "Only administrators can add, change or switch Trap IPs. Operators can still view and test traps.",
   "problem": {

@@ -2,7 +2,7 @@ import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
-import { EmptyState, Loading, ModuleOff, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, Loading, ModuleOff, RequireModule } from '@/components/common/States'
 import { useMe } from '@/lib/session'
 import { AgentsSection, WazuhSection } from './AgentsSection'
 import { SensorsSection } from './SensorsSection'
@@ -51,7 +51,7 @@ function Body() {
     <>
       {back}
       <PageHeader title={t('setup.title')} stories={['S-INV-1', 'S-INV-4']}
-        actions={<Link to="/settings/scanning?tab=safety#scope" className={buttonVariants({ variant: 'secondary' })}><SlidersHorizontal />{t('setup.scopeLink')}</Link>} meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('setup.meta')}</span>} info={t('setup.metaInfo')} />
+        actions={<Link to="/settings/scanning?tab=safety#scope" className={buttonVariants({ variant: 'secondary' })}><SlidersHorizontal />{t('setup.scopeLink')}</Link>} meta={t('setup.meta')} info={t('setup.metaInfo')} />
       <OldHashToTab map={OLD_HASH} />
       {/* Areas that each save on their own (the box's sensor, agents, Wazuh). The scan scope is edited in one place only,
           Settings › Scanning › Safety, with the other scanning settings it depends on (window, speed, cost of a pass). */}

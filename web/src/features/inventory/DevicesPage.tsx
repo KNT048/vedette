@@ -11,7 +11,7 @@ import { ListSummary, RowTitle } from '@/components/common/ListParts'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { groupState, useRowSelection } from '@/components/common/Selection'
 import { Slot } from '@/components/common/Slot'
-import { EmptyState, ModuleOff, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, ModuleOff, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Tooltip } from '@/components/ui/tooltip'
 import { hasToken, TokenSearch, type TokenChip } from '@/components/common/TokenSearch'
@@ -490,7 +490,7 @@ function Body() {
   return (
     <>
       <PageHeader title={t('common:shell.devices')} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
-        meta={<SampleDataNote />} info={<><p>{t('list.meta')}</p><p>{t('list.metaInfo')}</p></>}
+        info={<><p>{t('list.meta')}</p><p>{t('list.metaInfo')}</p></>}
         actions={all === 0 ? buttons(false) : undefined} />
       {/* what the box changed by itself in SNMP settings, for an admin, until dismissed */}
       <SnmpNotices />

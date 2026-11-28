@@ -9,7 +9,7 @@ describe('the CVE page of a full brief', () => {
   it('CVE-2025-22225: the sentence, the affected versions behind one click, what to do, the sources by tag, the facts', async () => {
     renderApp('/cve/CVE-2025-22225')
     expect(await screen.findByRole('heading', { level: 1, name: 'CVE-2025-22225' })).toBeInTheDocument()
-    expect(screen.getByTestId('cve-sentence')).toHaveTextContent(/^VMware ESXi hypervisor has a flaw of type “Out-of-bounds Write” \(CWE-787\)/)
+    expect(await screen.findByTestId('cve-sentence')).toHaveTextContent(/^VMware ESXi hypervisor has a flaw of type “Out-of-bounds Write” \(CWE-787\)/)
     const affected = screen.getByRole('heading', { name: 'Affected and fixed' }).closest('section')!
     // the fixed build of each release train, as VMware states it
     expect(within(affected).getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent))).toEqual([

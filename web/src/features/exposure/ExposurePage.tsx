@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { CornerDownRight } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
-import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -39,14 +39,14 @@ function ExposureView() {
   // The first sentence says what is open, then what waits on a person, then that nothing was found.
   const status = !items ? null
     : items.length === 0 ? t('title.none')
-    : issues > 0 ? t('title.issues', { count: issues })
-    : services > 0 ? t('title.services', { count: services })
+    // An open issue or service is a figure of the KPI strip under the header; the header does not say it twice.
+    : issues > 0 || services > 0 ? null
     : waiting > 0 ? t('title.pending', { count: waiting })
     : scanned ? t('title.clean') : t('title.ready', { count: items.length })
   return (
     <>
       <PageHeader title={t('common:shell.exposure')} stories={['S-EXP-1']} info={<p>{t('rule')}</p>}
-        meta={<span className="flex flex-wrap items-center gap-2">{status}<SampleDataNote /></span>} />
+        meta={status} />
       <AnchorRedirect map={ANCHOR_TAB} />
       <QueryState query={q}>
         {(d) => {

@@ -11,7 +11,7 @@ import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { useListParams } from '@/components/common/listParams'
-import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
 import { Button } from '@/components/ui/button'
@@ -407,7 +407,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
 
 /** The line without its syslog header: the program, then the message; the stored line is the tooltip. */
 function Message({ e }: { e: LogEvent }) {
-  return <span className="break-all font-mono text-caption" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
+  return <span className="font-mono text-caption [overflow-wrap:anywhere]" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
 }
 
 /** Bytes as the page says them: decimal units, one decimal from MB up. */
@@ -509,8 +509,9 @@ function Content() {
   const sourcesTab = { id: 'sources', label: t('tabs.sources'), panel: <SourcesSection /> }
   return (
     <>
-      <PageHeader title={t('common:shell.logs')} info={t('pageInfo')} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2"><span>{status}</span>{digest.data && !noSources && !noLogs ? t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) }) : null}<SampleDataNote /></span>} />
+      <PageHeader title={t('common:shell.logs')} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
+        info={<><p>{t('pageInfo')}</p>{digest.data && !noSources && !noLogs ? <p>{t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days })} {t('updated', { time: fmtDateTime(digest.data.generated_at) })}</p> : null}</>}
+        meta={status} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={noSources ? [sourcesTab, ...retention] : [
         { id: 'digest', label: t('tabs.digest'), panel: <>

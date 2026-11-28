@@ -7,10 +7,11 @@ import { PageModule } from '@/lib/v1'
 import { Breadcrumbs, type Crumb } from './Breadcrumbs'
 import { HelpLink } from './HelpLink'
 import { CardLevel } from './Card'
+import { SampleDataNote } from './SampleDataNote'
 
 /** The first line of each page answers the persona's question (FRONTEND §3, information hierarchy).
  *  Page frame: a ~20 px heading and a short description on one line (the description wraps when there is not enough room); then KpiStrip, PageTabs (`PageFrame.tsx`). */
-/*  `meta` is one short line (about 12 words); longer explanation goes into `info` (ⓘ next to the heading, #824). */
+/*  `meta` is one short line (never two: a timestamp or a long figure goes into `info`); the "Sample data" label is drawn by the header itself, on the right before the page's actions (about 12 words); longer explanation goes into `info` (ⓘ next to the heading, #824). */
 /*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
 /** `titleAction` sits right after the title, outside the heading (a Rename button that opens a dialog: a title is never edited in
  *  place, as no item is). */
@@ -37,6 +38,7 @@ export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, t
       </div>
       {/* A main screen links to its guide (docs/cookbook) on the right of its header, after the page's own actions. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 empty:hidden">
+        <SampleDataNote />
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         <HelpLink />
       </div>

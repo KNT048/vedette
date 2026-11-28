@@ -15,6 +15,7 @@
 //  - a detail page goes back with breadcrumbs (PageHeader `breadcrumbs`), not a "Back to …" arrow link;
 //  - a page title is the short noun of the page's sidebar entry or settings menu entry ("Findings", "Devices", "Logs", "Updates"), never a
 //    sentence or a count: those go in the header's `meta` line under it (see PAGE_TITLES);
+//  - the "Sample data" label is PageHeader's (right of the header, before the page's actions), never a chip inside a page's `meta`;
 //  - a tab panel does not open with a heading that repeats its tab's name ("Trap hits" in the Hits tab): its Section has no
 //    `title`, only a `label` (the English texts of the feature's tab labels and Section titles are compared).
 // A named exception is listed in ALLOWED with why it stays; an entry no longer used fails too, so the list only shrinks.
@@ -119,6 +120,10 @@ function ownCardRows(text: string): number {
 const handRows = (t: string) => count(t, /<li\b[^>]*className="[^"]*(?:\bjustify-between\b|grid-cols-\[[^\]"]*_auto\])/g)
 
 const RULES: Rule[] = [
+  {
+    id: 'sample-label', why: 'the "Sample data" label is drawn by PageHeader, on the right of the header: a page does not place it in its meta or actions',
+    owners: ['components/common/PageHeader.tsx', 'components/common/SampleDataNote.tsx'], hits: (t) => count(t, /<SampleDataNote\b/g),
+  },
   {
     id: 'private-tabs', why: 'tabs are PageTabs (panels) or UnderlineNav (links): components/ui/tabs is private to PageTabs',
     owners: ['components/common/PageFrame.tsx'], hits: (t) => count(t, /from '@\/components\/ui\/tabs'/g),

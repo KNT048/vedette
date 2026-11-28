@@ -162,8 +162,43 @@ func TestRecordRowText_EveryProductsRowAsAPersonReadsIt(t *testing.T) {
 		{feeds.BriefRange{Range: feeds.Range{Origin: "nvd", Vendor: "quillfeather", Product: "mail", CPE: "cpe:2.3:a:quillfeather:mail:*:*:*:*:*:macos:x64:*"},
 			Versions: "every version"}, "quillfeather mail (hardware x64, on macos): affected every version [nvd]"},
 	} {
-		if got := recordRowText(tc.r); got != tc.want {
+		if got := recordRowText(tc.r, nil); got != tc.want {
 			t.Errorf("%q, want %q", got, tc.want)
+		}
+	}
+}
+
+// A row whose CPE writes "-" (no value: CPE 2.3's NA) for an edition, system or hardware that another row of the same product names
+// is about the build of none of those values, and its text says so ("edition not esr"): read as "no edition named", it would seem to
+// speak for every build. A "-" no other row of the product names a value for, and every other product's rows, are as before.
+func TestRecordRows_ANoValueBesideNamedValuesIsNotThoseBuilds(t *testing.T) {
+	t.Parallel()
+	row := func(vendor, product, cpe, versions string) feeds.BriefRange {
+		return feeds.BriefRange{Range: feeds.Range{Origin: "nvd", Vendor: vendor, Product: product, CPE: cpe}, Versions: versions}
+	}
+	got := recordRows([]feeds.BriefRange{
+		row("quillfeather", "mail", "cpe:2.3:a:quillfeather:mail:*:*:*:*:-:*:*:*", "before 157.0"),
+		row("quillfeather", "mail", "cpe:2.3:a:quillfeather:mail:*:*:*:*:esr:*:*:*", "from 140.0 before 140.17.0"),
+		row("quillfeather", "mail", "cpe:2.3:a:quillfeather:mail:*:*:*:*:lts:*:*:*", "from 150.0 before 150.2.0"),
+		row("quillfeather", "browser", "cpe:2.3:a:quillfeather:browser:*:*:*:*:-:*:*:*", "before 157.0"),
+		row("quillfeather", "sync", "cpe:2.3:a:quillfeather:sync:*:*:*:*:*:-:*:*", "before 3.0"),
+		row("quillfeather", "sync", "cpe:2.3:a:quillfeather:sync:*:*:*:*:*:macos:*:*", "before 3.1"),
+	})
+	want := []findings.RecordRow{
+		{Vendor: "quillfeather", Product: "mail", NotEditions: []string{"esr", "lts"}, Text: "quillfeather mail (edition not esr or lts): affected before 157.0 [nvd]"},
+		{Vendor: "quillfeather", Product: "mail", Edition: "esr", Text: "quillfeather mail (edition esr): affected from 140.0 before 140.17.0 [nvd]"},
+		{Vendor: "quillfeather", Product: "mail", Edition: "lts", Text: "quillfeather mail (edition lts): affected from 150.0 before 150.2.0 [nvd]"},
+		{Vendor: "quillfeather", Product: "browser", Text: "quillfeather browser: affected before 157.0 [nvd]"},
+		{Vendor: "quillfeather", Product: "sync", Text: "quillfeather sync (not on macos): affected before 3.0 [nvd]"},
+		{Vendor: "quillfeather", Product: "sync", Text: "quillfeather sync (on macos): affected before 3.1 [nvd]"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("%d rows, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if g, w := got[i], want[i]; g.Vendor != w.Vendor || g.Product != w.Product || g.Edition != w.Edition || g.Text != w.Text ||
+			strings.Join(g.NotEditions, ",") != strings.Join(w.NotEditions, ",") {
+			t.Errorf("row %d: %+v, want %+v", i, g, w)
 		}
 	}
 }

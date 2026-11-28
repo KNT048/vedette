@@ -243,7 +243,9 @@ record: its description, the vendor's solution when given, and the affected rows
 release in "introduced" when stated, or the last affected release in "last_affected");
 "not_affected" when the text clearly states the item's release line or version is not affected;
 "unsure" otherwise.
-An item may give its "edition" (a CPE sw_edition such as "esr"): rows that name another edition of its product do not apply to it.
+An item may give its "edition" (a CPE sw_edition such as "esr"): rows that name another edition of its product do not apply to it,
+nor does a row that says "edition not" followed by the item's edition (it is about the builds of no edition); neither is a row of the
+item's own line in step 1.
 A careful reader may take two more steps, and says so in "reason" when taking one:
 1. The record names release line N of another of its products as affected or fixed (a release "N.x" of that product), and states
 neither a row nor a fix for the item's own product on line N, while the item's version is on line N: line N of the item's product

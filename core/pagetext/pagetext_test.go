@@ -110,3 +110,40 @@ func TestHTML_NoscriptAndTemplates(t *testing.T) {
 		t.Fatalf("text %q", full)
 	}
 }
+
+// A noscript inside a noscript is not read again: each level would copy the rest of the page, so a page of nested noscripts would cost
+// time in the square of its size.
+func TestHTML_NestedNoscriptIsReadOnce(t *testing.T) {
+	t.Parallel()
+	blocks, _ := HTML("<noscript><p>Fixed in 2.0 (CVE-2026-2222).</p>" + strings.Repeat("<noscript><p>x</p>", 2000))
+	if full := Text(blocks); !strings.Contains(full, "Fixed in 2.0 (CVE-2026-2222).") || len(blocks) > 2 {
+		t.Fatalf("%d blocks, want the outer noscript's text only: %.200q", len(blocks), full)
+	}
+}
+
+// A table's header is its first few rows: a table of header rows only does not grow one header row by row.
+func TestHTML_AHeaderHasAFewRows(t *testing.T) {
+	t.Parallel()
+	blocks, _ := HTML("<table>" + strings.Repeat("<tr><th>Version</th></tr>", 500) + "<tr><td>CVE-2026-90002</td></tr></table>")
+	last := blocks[len(blocks)-1]
+	if last.Text != "CVE-2026-90002" || strings.Count(last.Header, "\n")+1 > maxHeaderRows {
+		t.Fatalf("row %q with %d header lines, want at most %d", last.Text, strings.Count(last.Header, "\n")+1, maxHeaderRows)
+	}
+}
+
+// The id pattern finds exactly what its regular expression finds, also with many advisory ids (a record citing a hundred vendors'
+// advisories) on text that names none of them.
+func TestIDPattern_ManyAdvisories(t *testing.T) {
+	t.Parallel()
+	var refs []string
+	for i := range 150 {
+		refs = append(refs, fmt.Sprintf("https://vendor%d.example/advisories/SA%d-%04d.html", i, 20+i%5, 1000+i))
+	}
+	ids := IDPattern("CVE-2021-44228", AdvisoryIDs("", refs))
+	for text, want := range map[string]bool{"see sa20-1000 and more": true, "SA 21 1001": true, "cve-2021-44228": true, "CVE-2021-442289": false,
+		"SA20-1001": false, "version 2.14.1 of 1000 items": false, "": false} {
+		if ids.MatchString(text) != want {
+			t.Errorf("%q: match %v, want %v", text, !want, want)
+		}
+	}
+}

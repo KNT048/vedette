@@ -280,15 +280,7 @@ func researchDigest(cve string, rec CVERecordText, rows []string) string {
 
 // platformsOf is the kinds of devices the units run on, as the research reads them: each device's kind and, when it names no device,
 // its system; never a name, a host name or an address. At most 5.
-func (s *Service) platformsOf(ctx context.Context, units []checkUnit) []string {
-	var ids []string
-	for _, u := range units {
-		ids = append(ids, u.devs...)
-	}
-	views, err := s.cfg.Inventory.Assets(ctx, uniqueIDs(ids))
-	if err != nil {
-		return nil
-	}
+func platformsOf(views map[string]AssetView) []string {
 	var out []string
 	for _, id := range slices.Sorted(mapsKeys(views)) {
 		v := views[id]
@@ -301,6 +293,22 @@ func (s *Service) platformsOf(ctx context.Context, units []checkUnit) []string {
 		}
 	}
 	return out
+}
+
+// lineAssets is the devices of a line's units; nil when the inventory cannot say (then nothing about them is sent).
+func (s *Service) lineAssets(ctx context.Context, units []checkUnit) map[string]AssetView {
+	var ids []string
+	for _, u := range units {
+		ids = append(ids, u.devs...)
+	}
+	views, err := s.cfg.Inventory.Assets(ctx, uniqueIDs(ids))
+	switch {
+	case err != nil:
+		return nil
+	case views == nil:
+		return map[string]AssetView{}
+	}
+	return views
 }
 
 // namesDevice says text carries the device's own name, host name or address.
@@ -636,8 +644,13 @@ func (s *Service) deeperUnit(ctx context.Context, questionID string) (*checkUnit
 }
 
 // shownNames is the names the devices show the installed software by (QuestionDetail.Software), for the research: only a name that
-// names the product's vendor or the first word of its name (so a name of the customer's own never leaves the box), each once, at most 5.
-func shownNames(qs []Question, product string) []string {
+// names the product's vendor or the first word of its name (so a name of the customer's own never leaves the box), never one with a
+// path or an address in it (a per-user install) or the name of one of the line's devices (views; none when they are not known), each
+// once, at most 5.
+func shownNames(qs []Question, product string, views map[string]AssetView) []string {
+	if views == nil {
+		return nil
+	}
 	vendor, name, _ := strings.Cut(strings.ToLower(product), "|")
 	words := strings.Fields(strings.NewReplacer("_", " ", "-", " ").Replace(name))
 	var keys []string
@@ -650,7 +663,14 @@ func shownNames(qs []Question, product string) []string {
 	var out []string
 	for _, q := range qs {
 		shown := oneLine(q.Detail.Software, 120)
-		if shown == "" || slices.Contains(out, shown) || len(out) == 5 {
+		if shown == "" || slices.Contains(out, shown) || len(out) == 5 || strings.ContainsAny(shown, `/\@~`) {
+			continue
+		}
+		device := false
+		for _, v := range views {
+			device = device || namesDevice(shown, v)
+		}
+		if device {
 			continue
 		}
 		low := " " + strings.Map(func(r rune) rune {

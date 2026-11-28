@@ -28,8 +28,12 @@ type Block struct {
 	IsHeader bool
 }
 
-// maxTokens bounds the HTML tokens read from one page.
-const maxTokens = 600000
+// maxTokens bounds the HTML tokens read from one page; maxHeaderRows the header rows of one table (a two- or three-level header):
+// a table of header rows only does not grow one header row by row.
+const (
+	maxTokens     = 600000
+	maxHeaderRows = 4
+)
 
 var (
 	skipTags  = map[string]bool{"script": true, "style": true, "svg": true, "template": true, "iframe": true, "object": true, "canvas": true, "select": true, "button": true, "head": true}
@@ -92,7 +96,7 @@ func (p *parser) endRow(t *table) {
 		if text != "" {
 			// header rows: the first row, and every all-<th> row while only header rows came before it (two-level headers); an all-<th>
 			// row further down starts a new block of the same table
-			isHeader := t.rows == 0 || t.allTH && t.rows == t.headers
+			isHeader := t.headers < maxHeaderRows && (t.rows == 0 || t.allTH && t.rows == t.headers)
 			switch {
 			case isHeader:
 				t.headers++
@@ -177,7 +181,11 @@ func (p *parser) text(s string) {
 }
 
 // HTML reads an HTML page into its blocks and title.
-func HTML(src string) (blocks []Block, title string) {
+func HTML(src string) (blocks []Block, title string) { return parseHTML(src, false) }
+
+// parseHTML reads a page; inNoscriptPage says it is the text of a <noscript>, whose own <noscript> is not read again (each level would
+// copy the rest of the page).
+func parseHTML(src string, inNoscriptPage bool) (blocks []Block, title string) {
 	src = reTemplate.ReplaceAllString(src, "$1")
 	z := html.NewTokenizer(strings.NewReader(src))
 	z.SetMaxBuf(1 << 20)
@@ -194,9 +202,10 @@ func HTML(src string) (blocks []Block, title string) {
 			switch {
 			case inTitle:
 				ttl.Write(z.Text())
+			case inNoscript && inNoscriptPage:
 			case inNoscript && skip == 0 && len(p.tables) == 0:
 				// the tokenizer gives a <noscript> as raw text: what a page shows without scripts is read as a page of its own
-				sub, _ := HTML(string(z.Text()))
+				sub, _ := parseHTML(string(z.Text()), true)
 				p.flush()
 				p.out = append(p.out, sub...)
 			case skip == 0:

@@ -1182,10 +1182,11 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		for _, u := range l.units {
 			qs = append(qs, u.q)
 		}
+		views := s.lineAssets(ctx, l.units)
 		item := ProposeItem{Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line, Edition: edition(l.units[0].q),
-			Shown: shownNames(qs, id.Product)}
+			Shown: shownNames(qs, id.Product, views)}
 		req := ResearchRequest{CVE: cve, Description: recordText(CVERecordText{Description: rec.Description, Solution: rec.Solution}, nil), Rows: rows, Item: item,
-			Pages: okPages, Digest: researchDigest(cve, rec, rows), Platforms: s.platformsOf(ctx, l.units), Deeper: l.units[0].deeper,
+			Pages: okPages, Digest: researchDigest(cve, rec, rows), Platforms: platformsOf(views), Deeper: l.units[0].deeper,
 			Excerpts: researchExcerpts(cve, rec, okPages, id.Product), VendorRows: slices.ContainsFunc(rec.Rows, func(r RecordRow) bool { return r.VendorCNA }),
 			VendorPage: slices.ContainsFunc(okPages, func(p FetchedPage) bool { return p.Vendor })}
 		ans, err := s.cfg.Checker.Research(ctx, actor, req)

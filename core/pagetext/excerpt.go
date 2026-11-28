@@ -83,9 +83,27 @@ func AdvisoryIDs(text string, refs []string) []string {
 
 var reLettersDigits = regexp.MustCompile(`[A-Za-z]+|\d+`)
 
+// IDs matches the CVE id and the advisory ids a record cites (IDPattern).
+type IDs struct {
+	re *regexp.Regexp
+	// needles are the longest digit group of each id: a text that holds none of them names no id, and the regular expression (one
+	// branch per id, case-insensitive) is not run on it. A record citing a hundred advisories would otherwise cost seconds a page.
+	needles []string
+}
+
+// MatchString says s names one of the ids.
+func (m *IDs) MatchString(s string) bool {
+	if !slices.ContainsFunc(m.needles, func(n string) bool { return strings.Contains(s, n) }) {
+		return false
+	}
+	return m.re.MatchString(s)
+}
+
 // IDPattern matches the CVE id and the advisory ids as a page writes them (case and separators free: MS15-044, ms15_044).
-func IDPattern(cve string, advisories []string) *regexp.Regexp {
+func IDPattern(cve string, advisories []string) *IDs {
+	m := &IDs{}
 	parts := []string{`\b` + regexp.QuoteMeta(cve) + `\b`}
+	m.needles = append(m.needles, longestDigits(cve))
 	for _, a := range advisories {
 		var ps []string
 		for _, x := range reLettersDigits.FindAllString(a, -1) {
@@ -93,9 +111,22 @@ func IDPattern(cve string, advisories []string) *regexp.Regexp {
 		}
 		if len(ps) > 0 {
 			parts = append(parts, `\b`+strings.Join(ps, `[-_: ]?`)+`\b`)
+			m.needles = append(m.needles, longestDigits(a))
 		}
 	}
-	return regexp.MustCompile(`(?i)` + strings.Join(parts, "|"))
+	m.re = regexp.MustCompile(`(?i)` + strings.Join(parts, "|"))
+	return m
+}
+
+// longestDigits is the longest run of digits in an id, which every writing of it holds as it is; "" (which every text holds) for none.
+func longestDigits(id string) string {
+	out := ""
+	for _, x := range reLettersDigits.FindAllString(id, -1) {
+		if x[0] >= '0' && x[0] <= '9' && len(x) > len(out) {
+			out = x
+		}
+	}
+	return out
 }
 
 // ProductPattern matches the product researched as a page writes it ("SQL Server", "Java SE", "Windows 11"), the vendor's word
@@ -133,7 +164,7 @@ func line(b Block) string {
 // id in the address or title, or an advisory id there on the vendor's own site) keeps its head and then only the blocks naming an id
 // or the product; any other page keeps each block naming an id with its context (a table row with its header rows and the heading
 // above the table, a heading with its section, a paragraph with its heading and, for a bare label, the blocks that follow).
-func Cut(blocks []Block, ids, product *regexp.Regexp, dedicated bool) []Passage {
+func Cut(blocks []Block, ids *IDs, product *regexp.Regexp, dedicated bool) []Passage {
 	total, named := 0, false
 	for _, b := range blocks {
 		total += len(b.Text) + 1
@@ -233,7 +264,7 @@ func Dedicated(pageURL, title, cve string, advisories []string, vendorSite bool)
 	return slices.ContainsFunc(advisories, func(a string) bool { return strings.Contains(where, strings.ToLower(a)) })
 }
 
-func cutDedicated(blocks []Block, ids, product *regexp.Regexp) []Passage {
+func cutDedicated(blocks []Block, ids *IDs, product *regexp.Regexp) []Passage {
 	first := slices.IndexFunc(blocks, func(b Block) bool { return ids.MatchString(b.Text) })
 	if first < 0 {
 		return nil

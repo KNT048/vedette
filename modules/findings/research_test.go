@@ -693,7 +693,28 @@ func TestResearch_TheShownNameGoesWithTheVersion(t *testing.T) {
 		t.Fatalf("shown names %+v", fc.research)
 	}
 	if got := shownNames([]Question{{Detail: QuestionDetail{Software: "Finance team ledger"}}, {Detail: QuestionDetail{Software: "Quillfeather Mail"}}},
-		"quillfeather|mail"); !slices.Equal(got, []string{"Quillfeather Mail"}) {
+		"quillfeather|mail", map[string]AssetView{}); !slices.Equal(got, []string{"Quillfeather Mail"}) {
 		t.Errorf("shown names %v, want only the product's", got)
+	}
+}
+
+// A shown name that carries a path (a per-user install) or the name of one of the line's devices stays on the box, even when it names
+// the product.
+func TestResearch_AShownNameWithAPathOrADeviceStaysHome(t *testing.T) {
+	t.Parallel()
+	host := "acct-laptop-07"
+	views := map[string]AssetView{"pc-01": {ID: "pc-01", Name: "ACCT-LAPTOP-07", Hostname: &host, IP: "10.20.0.7"}}
+	qs := []Question{
+		{Detail: QuestionDetail{Software: `Quillfeather Mail (C:\Users\lan.nguyen\AppData\Local)`}},
+		{Detail: QuestionDetail{Software: "Quillfeather Mail - /home/lan/.local"}},
+		{Detail: QuestionDetail{Software: "Quillfeather Mail for lan@example.com"}},
+		{Detail: QuestionDetail{Software: "Quillfeather Mail on ACCT-LAPTOP-07"}},
+		{Detail: QuestionDetail{Software: "Quillfeather Mail 115.9 (x64 en-US)"}},
+	}
+	if got := shownNames(qs, "quillfeather|mail", views); !slices.Equal(got, []string{"Quillfeather Mail 115.9 (x64 en-US)"}) {
+		t.Errorf("shown names %v, want only the one without a path, an address or a device's name", got)
+	}
+	if got := shownNames(qs[4:], "quillfeather|mail", nil); got != nil {
+		t.Errorf("shown names %v while the devices are not known, want none", got)
 	}
 }

@@ -456,7 +456,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **What the AI reads** (`researchExcerpts`, `core/pagetext`): the box reads up to 8 of the record's references (16
   candidates, vendor's first, at most 2 per site, an http one as its https form, none tagged broken link or not applicable;
   `TestChooseRefs_ReadsHTTPReferencesOverHTTPS`), and names the software as the devices show it when that name names its vendor or
-  product (`shownNames`, `TestResearch_TheShownNameGoesWithTheVersion`) and cuts from their full text the passages naming the CVE or an advisory the record
+  product and carries no path, address or name of one of its devices (`shownNames`, `TestResearch_TheShownNameGoesWithTheVersion`, `TestResearch_AShownNameWithAPathOrADeviceStaysHome`) and cuts from their full text the passages naming the CVE or an advisory the record
   cites (a table row with its header rows and section, a heading's section, a paragraph with its heading, a short page whole, the head of
   a page about the CVE and its rows naming the product), each once, at most 24,000 characters, each with its page's number; the request
   says whether the record has rows its vendor wrote (`VendorRows`) and whether a vendor page was read (`VendorPage`). The research detail

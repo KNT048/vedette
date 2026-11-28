@@ -125,7 +125,7 @@ func TestContract_INV3_InternalOnlyNeverReachesCloud(t *testing.T) {
 	// a new profile becomes the primary of every job that has none, where the rule allows it
 	asg := a.want("GET", "/ai/assignments", "viewer", "", 200, "")
 	jobs := asg["jobs"].(map[string]any)
-	if len(jobs) != 10 || jobs["explain-finding"].(map[string]any)["primary"] != c || jobs["log-digest"].(map[string]any)["primary"] != c {
+	if len(jobs) != len(ai.Jobs()) || jobs["explain-finding"].(map[string]any)["primary"] != c || jobs["log-digest"].(map[string]any)["primary"] != c {
 		t.Fatalf("assignments after adding profiles = %v", asg)
 	}
 	// turning the rule on while a cloud profile holds an internal-data job is refused with the privacy_rule code
@@ -182,7 +182,7 @@ func TestContract_INV2_AssignmentRules(t *testing.T) {
 	// jobs left out of the body are unassigned: all ten are always in the answer
 	got := a.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{"cve-news": {p1, p2}}), 200, "")
 	jobs := got["jobs"].(map[string]any)
-	if len(jobs) != 10 || jobs["cve-news"].(map[string]any)["fallback"] != p2 || jobs["log-digest"].(map[string]any)["primary"] != nil {
+	if len(jobs) != len(ai.Jobs()) || jobs["cve-news"].(map[string]any)["fallback"] != p2 || jobs["log-digest"].(map[string]any)["primary"] != nil {
 		t.Fatalf("assignments = %v", got)
 	}
 	// saved assignments survive a restart
@@ -222,7 +222,7 @@ func TestContract_POST4_DeletingAnAssignedProfile(t *testing.T) {
 	}
 	a.want("DELETE", "/ai/profiles/"+p1, "admin", "", 404, "not_found")
 	var n int
-	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT COUNT(*) FROM ai_assignment`).Scan(&n); err != nil || n != 10 {
+	if err := a.db.Reader().QueryRowContext(a.ctx(), `SELECT COUNT(*) FROM ai_assignment`).Scan(&n); err != nil || n != len(ai.Jobs()) {
 		t.Fatalf("assignment rows = %d, %v", n, err)
 	}
 }

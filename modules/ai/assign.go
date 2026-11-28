@@ -169,6 +169,12 @@ type ConfigView struct {
 	AutoRead      bool            `json:"auto_read"`   // the automatic reading of vendor advisories for possible findings is on
 	DailyReads    int             `json:"daily_reads"` // its AI calls a day
 	ReadsToday    int             `json:"reads_today"` // its AI calls so far today
+	// The research of CVEs (research.go): its mode, the share of the monthly budget its automatic runs may spend, the tokens it spent
+	// this month, and the tokens one research takes per mode (never money).
+	ResearchMode      string                      `json:"research_mode"`
+	ResearchShare     int                         `json:"research_share"`
+	ResearchUsedMonth int                         `json:"research_used_month"`
+	ResearchEstimates map[string]ResearchEstimate `json:"research_estimates"`
 }
 
 // Config returns the settings. Tier is the configured level (the monthly budget never lowers it).
@@ -192,6 +198,8 @@ func (s *Service) Config(ctx context.Context) ConfigView {
 	}
 	ar := s.AutoReadState(ctx)
 	v.AutoRead, v.DailyReads, v.ReadsToday = ar.Auto, ar.Daily, min(ar.Used, ar.Daily)
+	v.ResearchMode, v.ResearchShare, v.ResearchEstimates = s.ResearchMode(), sn.cfg.researchShare(), s.ResearchEstimates(ctx)
+	v.ResearchUsedMonth, _ = s.ResearchUsedMonth(ctx)
 	return v
 }
 
@@ -225,8 +233,8 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 		if err := saveHookSwitch(ctx, tx, HookBlockPII, in.RedactPII); err != nil {
 			return err
 		}
-		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t, auto_read=%t, daily_reads=%d", in.Tier, in.MonthlyBudget, in.RedactPII,
-			!in.AutoReadOff, in.dailyReads()))
+		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t, auto_read=%t, daily_reads=%d, research_mode=%s, research_share=%d", in.Tier, in.MonthlyBudget, in.RedactPII,
+			!in.AutoReadOff, in.dailyReads(), cmpStr(in.ResearchMode, ResearchBalanced), in.researchShare()))
 	})
 	if err != nil {
 		return ConfigView{}, err

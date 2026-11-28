@@ -324,6 +324,8 @@ type ReadingJS struct {
 	Host         *string `json:"host"`
 	VendorPage   bool    `json:"vendor_page"`
 	QuoteFound   bool    `json:"quote_found"`
+	// Research is how the customer's AI researched the line (P-10); null for a reading of the pages the box fetched.
+	Research *LineResearch `json:"research"`
 }
 
 func readingJS(st *LineStatement) *ReadingJS {
@@ -337,7 +339,7 @@ func readingJS(st *LineStatement) *ReadingJS {
 		return &s
 	}
 	return &ReadingJS{Status: st.Status, Line: st.Line, StatedLine: opt(st.StatedLine), Introduced: opt(st.Introduced), FixedIn: opt(st.FixedIn),
-		LastAffected: opt(st.Last), Host: opt(st.Host), VendorPage: st.VendorPage, QuoteFound: st.QuoteFound}
+		LastAffected: opt(st.Last), Host: opt(st.Host), VendorPage: st.VendorPage, QuoteFound: st.QuoteFound, Research: st.Research}
 }
 
 func checkJS(c *Check) *CheckJS {

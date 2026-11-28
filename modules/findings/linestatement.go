@@ -68,6 +68,8 @@ type LineStatement struct {
 	AskedAt, SeenAt           time.Time
 	RejectedBy                string
 	RejectedAt                time.Time
+	// Research is the research behind the reading (fnd_line_research, P-10); nil for a reading of the pages the box fetched.
+	Research *LineResearch
 }
 
 func statementKey(cve, product, line, record, page string) string {
@@ -84,16 +86,17 @@ func pageHash(text string) string { return hashHex("page1\x1f" + text) }
 
 const statementColumns = `statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, ifnull(introduced, ''), ifnull(fixed_in, ''),
 	ifnull(last_affected, ''), reason, quote, url, host, vendor_page, quote_found, model, profile, ifnull(activity_id, ''), asked_by, asked_at, seen_at,
-	ifnull(rejected_by, ''), ifnull(rejected_at, ''), basis`
+	ifnull(rejected_by, ''), ifnull(rejected_at, ''), basis, ` + researchColumn
 
 func scanStatement(sc scanner) (LineStatement, error) {
 	var st LineStatement
-	var asked, seen, rejAt string
+	var asked, seen, rejAt, research string
 	if err := sc.Scan(&st.Key, &st.CVE, &st.Product, &st.Line, &st.StatedLine, &st.RecordHash, &st.PageHash, &st.Status, &st.Introduced, &st.FixedIn,
 		&st.Last, &st.Reason, &st.Quote, &st.URL, &st.Host, &st.VendorPage, &st.QuoteFound, &st.Model, &st.Profile, &st.Activity, &st.AskedBy, &asked, &seen,
-		&st.RejectedBy, &rejAt, &st.Basis); err != nil {
+		&st.RejectedBy, &rejAt, &st.Basis, &research); err != nil {
 		return LineStatement{}, err
 	}
+	st.Research = parseResearch(research)
 	var err error
 	if st.AskedAt, err = parseTS(asked); err != nil {
 		return LineStatement{}, err

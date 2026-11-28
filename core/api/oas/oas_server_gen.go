@@ -1524,6 +1524,14 @@ type Handler interface {
 	//
 	// GET /findings/possible/check
 	FindingsGetFindingsPossibleCheck(ctx context.Context) (*FindingsGetFindingsPossibleCheckOK, error)
+	// FindingsGetFindingsReview implements findings_get_findings_review operation.
+	//
+	// Review AI answers: the AI's "not affected" answers for possible CVEs, which never close anything by
+	// themselves and wait for a person (ignored devices left out), exploited first, with how the AI
+	// researched each.
+	//
+	// GET /findings/review
+	FindingsGetFindingsReview(ctx context.Context, params FindingsGetFindingsReviewParams) (*FindingsGetFindingsReviewOK, error)
 	// FindingsPostFindingsHandle implements findings_post_findings_handle operation.
 	//
 	// Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -1611,6 +1619,16 @@ type Handler interface {
 	//
 	// POST /findings/possible/{id}/confirm
 	FindingsPostFindingsPossibleIDConfirm(ctx context.Context, params FindingsPostFindingsPossibleIDConfirmParams) (*FindingsPostFindingsPossibleIDConfirmOK, error)
+	// FindingsPostFindingsPossibleIDResearch implements findings_post_findings_possible_id_research operation.
+	//
+	// Research deeper: the customer's AI researches the release line of this possible CVE again now with
+	// its strong profile (the research job's second profile; the first when there is none), in the
+	// background as a check of one line; the answer replaces the line's reading. Costs tokens (GET
+	// /ai/config research_estimates.thorough), never money. 409 ai_unavailable, check_running; 404
+	// not_found when the CVE cannot be researched.
+	//
+	// POST /findings/possible/{id}/research
+	FindingsPostFindingsPossibleIDResearch(ctx context.Context, params FindingsPostFindingsPossibleIDResearchParams) (*FindingsPostFindingsPossibleIDResearchOK, error)
 	// FindingsPostFindingsQuestionsAcceptRisk implements findings_post_findings_questions_accept_risk operation.
 	//
 	// Accept the risk of one device, or of one software line of it, until a day, on your word: every open
@@ -1646,6 +1664,15 @@ type Handler interface {
 	//
 	// POST /findings/questions/ignore
 	FindingsPostFindingsQuestionsIgnore(ctx context.Context, req *FindingsPostFindingsQuestionsIgnoreReq) (*FindingsPostFindingsQuestionsIgnoreOK, error)
+	// FindingsPostFindingsReviewConfirm implements findings_post_findings_review_confirm operation.
+	//
+	// Confirm AI "not affected" answers at once, at most 500, in one transaction: each question is
+	// answered not affected (Handled, reopenable). A row whose CVE is exploited is confirmed only when
+	// include_exploited names its CVE; an exploited list that cannot be read confirms nothing. Audit
+	// findings.proposal_confirmed.
+	//
+	// POST /findings/review/confirm
+	FindingsPostFindingsReviewConfirm(ctx context.Context, req *FindingsPostFindingsReviewConfirmReq) (*FindingsPostFindingsReviewConfirmOK, error)
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.

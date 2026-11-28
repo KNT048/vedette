@@ -40,6 +40,10 @@ type Settings struct {
 	AutoReadOff bool `json:"auto_read_off,omitempty"`
 	// DailyReads is how many AI calls the automatic reading may make a day (0: DefaultDailyReads).
 	DailyReads int `json:"daily_reads,omitempty"`
+	// ResearchMode is how the research of CVEs escalates: economy, balanced or thorough ("": balanced).
+	ResearchMode string `json:"research_mode,omitempty"`
+	// ResearchShare is the percent of the monthly budget the automatic research may spend (0: DefaultResearchShare).
+	ResearchShare int `json:"research_share,omitempty"`
 }
 
 // The automatic reading's calls a day: the default and the range an administrator may set.
@@ -79,6 +83,12 @@ func (s Settings) validate() error {
 	}
 	if s.DailyReads < 0 || s.DailyReads > MaxDailyReads {
 		return perr("invalid_daily_reads", "The automatic reads a day must be a whole number from 1 to %d.", MaxDailyReads)
+	}
+	if s.ResearchMode != "" && !ValidResearchMode(s.ResearchMode) {
+		return perr("invalid_research_mode", "Pick a research mode: economy, balanced or thorough.")
+	}
+	if s.ResearchShare < 0 || s.ResearchShare > maxResearchShare {
+		return perr("invalid_research_share", "The research share must be a whole percent from 1 to %d.", maxResearchShare)
 	}
 	return nil
 }

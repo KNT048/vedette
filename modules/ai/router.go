@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -231,6 +232,38 @@ func estimateTokens(req provider.Request) int {
 // Tokens are held (Meter.Reserve) before the request and settled after it, also when the call failed but
 // the provider reported usage.
 func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallResult, error) {
+	return r.call(ctx, job, req, slotAny)
+}
+
+// The slots a call may go to: both in order (a failed primary moves to the fallback), or only one of them.
+const (
+	slotAny = iota
+	slotPrimary
+	slotFallback
+)
+
+// CallSlot sends req for job to one slot only: the primary profile (strong false) or the fallback (strong true), with every check of
+// Call. The research job's layers are its two slots: the quick layer is the primary, the strong one the fallback (research.go).
+func (r *Router) CallSlot(ctx context.Context, job Job, strong bool, req provider.Request) (CallResult, error) {
+	if strong {
+		return r.call(ctx, job, req, slotFallback)
+	}
+	return r.call(ctx, job, req, slotPrimary)
+}
+
+// SlotProfile is the profile in a slot of job (the fallback when strong) that may receive data of the job's class now; ok false when
+// the slot is empty or its profile cannot take the job.
+func (r *Router) SlotProfile(job Job, strong bool) (Profile, bool) {
+	cs, _ := candidates(r.st.Load(), job, job.CarriesInternalData())
+	for _, c := range cs {
+		if c.fallback == strong {
+			return c.p, true
+		}
+	}
+	return Profile{}, false
+}
+
+func (r *Router) call(ctx context.Context, job Job, req provider.Request, slot int) (CallResult, error) {
 	var res CallResult
 	if !job.Valid() {
 		return res, fmt.Errorf("ai: unknown job %q", job)
@@ -238,6 +271,9 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 	st := r.st.Load()
 	carries := carriesInternalData(job, req)
 	cs, reasons := candidates(st, job, carries)
+	if slot != slotAny {
+		cs = slices.DeleteFunc(cs, func(c candidate) bool { return c.fallback != (slot == slotFallback) })
+	}
 	if len(cs) == 0 {
 		if len(reasons) == 0 {
 			reasons = []string{"no profile is assigned to this job"}

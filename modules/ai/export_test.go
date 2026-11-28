@@ -2,6 +2,11 @@ package ai
 
 import (
 	"context"
+	"crypto/x509"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
 	"time"
 )
 
@@ -67,4 +72,18 @@ func (s *Service) HoldProfileBudget(profileID string, profileCap, tokens int) (r
 		panic(err)
 	}
 	return r.Cancel
+}
+
+// SetPageServer makes the box's page reader (reference pages, fetch_page, the live quote check) reach srv for every public host, with
+// resolve naming the addresses of a host: the address guard still runs on what resolve returns.
+func (s *Service) SetPageServer(srv *httptest.Server, resolve func(context.Context, string) ([]netip.Addr, error)) {
+	f := newRefFetcher(resolve, func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, srv.Listener.Addr().String())
+	})
+	pool := x509.NewCertPool()
+	pool.AddCert(srv.Certificate())
+	tr := f.client.Transport.(*http.Transport)
+	tr.TLSClientConfig = srv.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+	tr.TLSClientConfig.RootCAs = pool
+	s.refs = f
 }

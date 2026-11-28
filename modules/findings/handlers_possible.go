@@ -134,3 +134,46 @@ func (h *FindingHandlers) FindingsPostFindingsIDIdentityReject(ctx context.Conte
 	}
 	return &oas.FindingsPostFindingsIDIdentityRejectOK{Ok: true}, nil
 }
+
+// FindingsGetFindingsReview implements findings_get_findings_review: the AI's "not affected" answers waiting for a person.
+func (h *FindingHandlers) FindingsGetFindingsReview(ctx context.Context, p oas.FindingsGetFindingsReviewParams) (*oas.FindingsGetFindingsReviewOK, error) {
+	f := ReviewFilter{Device: p.Device.Or(""), Software: p.Software.Or(""), Q: p.Q.Or("")}
+	if v, ok := p.Confidence.Get(); ok {
+		f.Confidence = string(v)
+	}
+	if v, ok := p.Evidence.Get(); ok {
+		f.Evidence = string(v)
+	}
+	out, err := h.svc.Review(ctx, f, ParsePage(p.Offset.Or(""), p.Limit.Or("")))
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return Into[oas.FindingsGetFindingsReviewOK](out)
+}
+
+// FindingsPostFindingsReviewConfirm implements findings_post_findings_review_confirm (operator): confirm AI "not affected" answers at
+// once, an exploited CVE only when the request names it.
+func (h *FindingHandlers) FindingsPostFindingsReviewConfirm(ctx context.Context, req *oas.FindingsPostFindingsReviewConfirmReq) (*oas.FindingsPostFindingsReviewConfirmOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	out, err := h.svc.ConfirmReview(ctx, req.Ids, req.IncludeExploited, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return Into[oas.FindingsPostFindingsReviewConfirmOK](out)
+}
+
+// FindingsPostFindingsPossibleIDResearch implements findings_post_findings_possible_id_research (operator): "Research deeper".
+func (h *FindingHandlers) FindingsPostFindingsPossibleIDResearch(ctx context.Context, params oas.FindingsPostFindingsPossibleIDResearchParams) (*oas.FindingsPostFindingsPossibleIDResearchOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	run, err := h.svc.StartResearchDeeper(ctx, params.ID, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return Into[oas.FindingsPostFindingsPossibleIDResearchOK](run)
+}

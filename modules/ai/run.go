@@ -37,6 +37,10 @@ type JobSpec struct {
 	knowledge      *knowCall // the passages a caller retrieved already; nil = RunJob retrieves
 	// tools is the read-tool loop of a job that lets the model read the box (ask-my-data); nil = one call, no tools.
 	tools *toolSession
+	// call replaces the router's one call with the caller's own conversation (the research of a CVE: provider-side web tools or the
+	// box's page fetch tool, research.go). Each request it sends goes through the router (privacy rule, caps, meter); it returns the
+	// last response with the usage of every turn, its Text the answer to check. The prompt has a fence for tool results.
+	call func(ctx context.Context, hooks *HookRunner, prompt Prompt, req provider.Request) (CallResult, error)
 	// publicOnly is a call on public text only that runs under a job carrying internal data (a check of possible findings runs as
 	// explain-finding): it gets neither the memory nor knowledge documents, like the public jobs.
 	publicOnly bool
@@ -344,7 +348,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		return JobResult{}, apiBlocked(msg)
 	}
-	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Zone: s.loc.String(), Data: data, WithTools: spec.tools != nil})
+	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Zone: s.loc.String(), Data: data, WithTools: spec.tools != nil || spec.call != nil})
 	if err != nil {
 		return JobResult{}, fmt.Errorf("ai: build prompt: %w", err)
 	}
@@ -352,7 +356,13 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	req := provider.Request{System: prompt.System, Messages: []provider.Message{{Role: provider.RoleUser, Text: prompt.User}}, Schema: spec.Schema, MaxTokens: spec.MaxTokens}
 
 	var res CallResult
-	if spec.tools != nil {
+	if spec.call != nil {
+		res, err = spec.call(ctx, hooks, prompt, req)
+		if err != nil && res.Profile != "" { // a turn answered before the failure: its tokens are spent and its profile is known
+			entry.Profile, entry.ProfileID, entry.Model = res.Profile, res.ProfileID, res.Model
+			entry.TokensIn, entry.TokensOut = res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+		}
+	} else if spec.tools != nil {
 		res, err = s.converse(ctx, spec, hooks, prompt, req)
 		entry.Tools = spec.tools.acts
 		entry.Hooks = dedupe(append(entry.Hooks, spec.tools.names...))

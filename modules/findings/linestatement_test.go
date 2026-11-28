@@ -259,8 +259,9 @@ func TestLineReading_ACheckOfOneDeviceAppliesToTheLineAtOnce(t *testing.T) {
 	}
 }
 
-// A reading is read again when the CVE record changes (the reading keeps applying until then); a page unchanged after 30 days is
-// fetched (no tokens) and not asked again; a changed page is asked again. Only the newest reading of the line is kept.
+// A re-read of the CVE record keeps the reading while its quote is still on its page (its record identity moves on, no tokens; the
+// quote leaving the page: TestResearch_SurvivesARecordReReadOnlyWithItsQuote); a page unchanged after 30 days is fetched (no tokens) and
+// not asked again; a changed page is asked again. Only the newest reading of the line is kept.
 func TestLineReading_ReadAgainWhenTheRecordOrThePageChanges(t *testing.T) {
 	t.Parallel()
 	e, fc := lineWorld(t)
@@ -278,23 +279,27 @@ func TestLineReading_ReadAgainWhenTheRecordOrThePageChanges(t *testing.T) {
 	if asked(calls) || possibleItemDue(t, e) || aiReadFindings(t, e, "nas-01") != 1 {
 		t.Errorf("an unchanged page: asked %v, still due %v; want a fetch only", asked(calls), possibleItemDue(t, e))
 	}
-	// the record changes: due again, asked again; the finding stands meanwhile
-	for i := range e.feeds.vulns {
-		if e.feeds.vulns[i].CVE == "CVE-2026-82002" {
-			e.feeds.vulns[i].Stamp = "changed"
+	// the record changes: due again, but the quote is still on the page: kept, not asked, its record identity moved on
+	restamp := func(stamp string) {
+		for i := range e.feeds.vulns {
+			if e.feeds.vulns[i].CVE == "CVE-2026-82002" {
+				e.feeds.vulns[i].Stamp = stamp
+			}
+		}
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if _, err := e.svc.Reconcile(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+	restamp("changed")
 	if aiReadFindings(t, e, "nas-01") != 1 || !possibleItemDue(t, e) {
 		t.Fatal("a record change dropped the finding or is not due")
 	}
 	calls = len(fc.sent)
 	runCheck(t, e)
-	if !asked(calls) {
-		t.Error("the AI was not asked again after the record changed")
+	if asked(calls) || possibleItemDue(t, e) || aiReadFindings(t, e, "nas-01") != 1 {
+		t.Errorf("a record re-read with the quote still on the page: asked %v, still due %v; want the reading kept", asked(calls), possibleItemDue(t, e))
 	}
+
 	// 31 days, a changed page: asked again
 	e.advance(31 * 24 * time.Hour)
 	fc.pages["CVE-2026-82002"][0].Text = dsmFixedText + " Updated advisory."

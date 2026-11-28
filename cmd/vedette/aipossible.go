@@ -27,7 +27,7 @@ func (c possibleChecker) Ready(context.Context) error {
 	if c.ai == nil || c.reg != nil && !c.reg.Enabled("ai") {
 		return readyError("Checking possible findings needs the AI assistant module turned on (Settings, Modules).")
 	}
-	if err := c.ai.PossibleReady(); err != nil {
+	if err := c.ai.ResearchReady(); err != nil {
 		if ae, ok := apierr.As(err); ok {
 			return readyError(ae.Message)
 		}
@@ -98,7 +98,8 @@ func recordRows(rs []feeds.BriefRange) []findings.RecordRow {
 		if len(f) == 13 {
 			others = named[key(f)]
 		}
-		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r, others)}
+		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r, others), Origin: r.Origin, DefaultStatus: r.DefaultStatus,
+			VendorCNA: r.VendorCNA}
 		switch v := cpeValue(f, 9); v {
 		case "":
 		case "-":
@@ -154,22 +155,25 @@ func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.Fe
 	return out
 }
 
-func (c possibleChecker) Propose(ctx context.Context, actor string, req findings.ProposeRequest) (findings.ProposeAnswer, error) {
-	r := ai.PossibleRequest{CVE: req.CVE, Description: req.Description, Rows: req.Rows}
-	for _, it := range req.Items {
-		r.Items = append(r.Items, ai.PossibleItem{Index: it.Index, Vendor: it.Vendor, Product: it.Product, Version: it.Version, Line: it.Line, Edition: it.Edition})
-	}
+// Research hands one research of a CVE's release line to the ai module (its research job: quick and strong profiles, mode, budget) and
+// reads its answer for findings.
+func (c possibleChecker) Research(ctx context.Context, actor string, req findings.ResearchRequest) (findings.ResearchAnswer, error) {
+	r := ai.ResearchRequest{CVE: req.CVE, Vendor: req.Item.Vendor, Product: req.Item.Product, Line: req.Item.Line, Versions: req.Item.Version,
+		Edition: req.Item.Edition, Platforms: req.Platforms, Digest: req.Digest, Deeper: req.Deeper}
 	for _, p := range req.Pages {
 		r.Pages = append(r.Pages, ai.RefPage{URL: p.URL, Title: p.Title, Status: p.Status, Text: p.Text, JSON: p.JSON})
 	}
-	ans, err := c.ai.ProposePossible(ctx, actor, r)
+	ans, err := c.ai.Research(ctx, actor, r)
 	if err != nil {
-		return findings.ProposeAnswer{}, aiCallError(ctx, err)
+		return findings.ResearchAnswer{}, aiCallError(ctx, err)
 	}
-	out := findings.ProposeAnswer{Model: ans.Model, Profile: ans.Profile, ActivityID: ans.ActivityID}
-	for _, v := range ans.Verdicts {
-		out.Verdicts = append(out.Verdicts, findings.ProposeVerdict{Index: v.Index, Status: v.Status, Introduced: v.Introduced, FixedIn: v.FixedIn,
-			LastAffected: v.LastAffected, Line: v.Line, Reason: v.Reason, Quote: v.Quote, Source: v.Source, InferredFrom: v.InferredFrom})
+	out := findings.ResearchAnswer{Verdict: findings.ProposeVerdict{Status: ans.Verdict, Introduced: ans.Introduced, FixedIn: ans.FixedIn, LastAffected: ans.LastAffected,
+		Line: ans.Line, Reason: ans.Reason, Quote: ans.Quote}, Confidence: ans.Confidence, Basis: ans.Basis, Trap: ans.Trap, URL: ans.URL,
+		QuoteCheck: ans.QuoteCheck, QuotedText: ans.QuotedText, Mode: ans.Mode, Layer: ans.Layer, Note: ans.Note, Model: ans.Model, Profile: ans.Profile,
+		ActivityID: ans.ActivityID, TokensIn: ans.TokensIn, TokensOut: ans.TokensOut}
+	for _, st := range ans.Steps {
+		out.Steps = append(out.Steps, findings.ResearchStep{Layer: st.Layer, Model: st.Model, Profile: st.Profile, Web: st.Web, TokensIn: st.TokensIn,
+			TokensOut: st.TokensOut, Searches: st.Searches, Pages: st.Pages, Verdict: st.Verdict, Confidence: st.Confidence, QuoteCheck: st.QuoteCheck, Error: st.Error})
 	}
 	return out, nil
 }

@@ -7,7 +7,7 @@ const iso = z.iso.datetime()
 const Tokens = z.object({ input: z.number().int(), output: z.number().int() })
 const Citation = z.object({ title: z.string(), url: z.string().optional() })
 
-export const AiJob = z.enum(['explain-finding', 'mitigation-config', 'cve-news', 'log-digest', 'log-investigate', 'ask-my-data', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan'])
+export const AiJob = z.enum(['explain-finding', 'mitigation-config', 'cve-news', 'log-digest', 'log-investigate', 'ask-my-data', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan', 'research-cves'])
 export const ProfileKind = z.enum(['anthropic', 'openai', 'gemini', 'openai-compatible', 'custom'])
 export const ApiStyle = z.enum(['openai', 'anthropic', 'gemini']).describe('openai = Chat Completions, anthropic = Messages, gemini = generateContent')
 export const Location = z.enum(['internal', 'cloud']).describe('internal = runs inside the company network, data never leaves it; cloud = cloud provider')
@@ -31,6 +31,11 @@ export const ModelsResult = z.object({ models: z.array(z.string()).describe('Mod
 export const TestResult = z.object({ ok: z.literal(true), latency_ms: z.number(), tokens_in: z.number(), tokens_out: z.number(), capabilities: z.object({ tools: z.boolean(), structured: z.boolean() }) })
 const Slot = z.object({ primary: z.string().nullable(), fallback: z.string().nullable() })
 export const Assignments = z.object({ internal_only: z.boolean().describe('On: jobs that send logs/device data may only be assigned internal profiles'), jobs: z.record(AiJob, Slot) })
+export const ResearchMode = z.enum(['economy', 'balanced', 'thorough']).describe('How the research of a CVE Vedette cannot decide escalates: economy = the quick profile only; balanced (default) = the quick profile, then the strong profile (the job\'s fallback) when the quick answer is unsure, of low confidence, or rests on a quote the box could not find; thorough = the strong profile only')
+export const ResearchEstimate = z.object({
+  tokens: z.number().int().min(0).describe('Tokens per CVE'),
+  measured: z.boolean().describe('true: the average of this box\'s own researches; false: the figure of a trial on real office software, until the box has researched enough'),
+})
 export const AiConfigView = z.object({
   configured: z.boolean().describe('At least one usable profile exists'), tier: AiTier, monthly_budget: z.number().int().describe('Shared monthly token budget, summed across all profiles: warning at 80 %, every AI job stops at 100 % until it renews or is raised'),
   month_used: z.number().int().describe('Tokens used this calendar month by all profiles'), renews_on: z.string().describe('Local date (YYYY-MM-DD) the monthly budgets start again'), redact_pii: z.boolean(),
@@ -39,9 +44,14 @@ export const AiConfigView = z.object({
   auto_read: z.boolean().describe('After each match pass the AI reads the vendor advisories of possible findings by itself (exploited first, then CVSS), sending only public data; off: only a person\'s "Check with AI" reads them'),
   daily_reads: z.number().int().min(1).max(5000).describe('The automatic reading\'s AI calls a day (default 300); it also stops with scheduled jobs at 80 % of the monthly budget'),
   reads_today: z.number().int().min(0).describe('The automatic reading\'s AI calls so far today (box time zone)'),
+  research_mode: ResearchMode,
+  research_share: z.number().int().min(1).max(100).describe('Percent of the monthly token budget the automatic research of CVEs may spend this month (default 50); a person\'s "Research deeper" is held only by the budget itself'),
+  research_used_month: z.number().int().min(0).describe('Tokens the research of CVEs spent this calendar month (every layer, answered or not)'),
+  research_estimates: z.record(ResearchMode, ResearchEstimate).describe('Tokens one research takes in each mode, never money'),
 })
 export const ConfigInput = z.object({ tier: AiTier, monthly_budget: z.number().int().min(1000).max(150_000_000), redact_pii: z.boolean(),
-  auto_read: z.boolean().optional().describe('Absent: unchanged'), daily_reads: z.number().int().min(1).max(5000).optional().describe('Absent: unchanged') })
+  auto_read: z.boolean().optional().describe('Absent: unchanged'), daily_reads: z.number().int().min(1).max(5000).optional().describe('Absent: unchanged'),
+  research_mode: ResearchMode.optional().describe('Absent: unchanged'), research_share: z.number().int().min(1).max(100).optional().describe('Absent: unchanged') })
 
 export const Usage = z.object({
   tier: AiTier, monthly_budget: z.number(),

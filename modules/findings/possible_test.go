@@ -22,7 +22,9 @@ type fakeChecker struct {
 	sent     []ProposeRequest
 	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
 	budget   ReadBudget
-	records  map[string]CVERecordText // by CVE: the record's text and rows (unset: a one-sentence description)
+	records  map[string]CVERecordText  // by CVE: the record's text and rows (unset: a one-sentence description)
+	answers  map[string]ResearchAnswer // by CVE + "|" + version: a research answer as given (overrides verdicts)
+	research []ResearchRequest         // every research request as sent
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
@@ -57,24 +59,42 @@ func (f *fakeChecker) Fetch(_ context.Context, urls []string) []FetchedPage {
 	return out
 }
 
-func (f *fakeChecker) Propose(_ context.Context, _ string, req ProposeRequest) (ProposeAnswer, error) {
+// Research answers like a careful reader of the box's pages: the verdict set for the CVE and version (unsure otherwise), its quote
+// looked up word for word in the cited page or the record (research overrides it per CVE and version). The call is recorded as the
+// request of one release line.
+func (f *fakeChecker) Research(_ context.Context, _ string, req ResearchRequest) (ResearchAnswer, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.sent = append(f.sent, req)
+	f.sent = append(f.sent, ProposeRequest{CVE: req.CVE, Description: req.Description, Rows: req.Rows, Items: []ProposeItem{req.Item}, Pages: req.Pages})
+	f.research = append(f.research, req)
 	if f.stop != nil {
-		return ProposeAnswer{}, f.stop
+		return ResearchAnswer{}, f.stop
 	}
 	if err := f.refuse[req.CVE]; err != nil {
-		return ProposeAnswer{}, err
+		return ResearchAnswer{}, err
 	}
-	ans := ProposeAnswer{Model: "test-model", Profile: "test", ActivityID: "act-1"}
-	for _, it := range req.Items {
-		v, ok := f.verdicts[req.CVE+"|"+it.Version]
-		if !ok { // a model answers every item: what the text does not state is unsure
-			v = ProposeVerdict{Status: StatementUnsure, Reason: "The text states nothing for this release line."}
-		}
-		v.Index = it.Index
-		ans.Verdicts = append(ans.Verdicts, v)
+	if a, ok := f.answers[req.CVE+"|"+req.Item.Version]; ok {
+		return a, nil
+	}
+	v, ok := f.verdicts[req.CVE+"|"+req.Item.Version]
+	if !ok { // a model answers every item: what the text does not state is unsure
+		v = ProposeVerdict{Status: StatementUnsure, Reason: "The text states nothing for this release line."}
+	}
+	ans := ResearchAnswer{Verdict: v, Model: "test-model", Profile: "test", ActivityID: "act-1", Layer: "quick", Mode: "balanced", Confidence: "high",
+		Basis: BasisStated, QuoteCheck: QuoteNone, TokensIn: 1000, TokensOut: 100}
+	if v.InferredFrom != "" {
+		ans.Basis = BasisInferred
+	}
+	text := recordText(CVERecordText{Description: req.Description}, req.Rows)
+	if v.Source >= 1 && v.Source <= len(req.Pages) {
+		ans.URL, text = req.Pages[v.Source-1].URL, req.Pages[v.Source-1].Text
+	}
+	switch {
+	case v.Quote == "":
+	case quoteFound(v.Quote, text):
+		ans.QuoteCheck, ans.QuotedText = QuoteDigest, text
+	default:
+		ans.QuoteCheck = QuoteNotFound
 	}
 	return ans, nil
 }
@@ -577,8 +597,8 @@ func TestPossibleCheck_ARecordChangeKeepsTheLastVerdict(t *testing.T) {
 	for _, req := range fc.sent[calls:] {
 		asked = asked || req.CVE == "CVE-2026-82002"
 	}
-	if !asked {
-		t.Error("the check on the new evidence did not ask about CVE-2026-82002 again")
+	if asked {
+		t.Error("the check on the new evidence asked about CVE-2026-82002 again although the quote is still on its page")
 	}
 	it = possibleByCVE(t, e)["CVE-2026-82002"]
 	if it.Check == nil || it.Check.Reading == nil || it.Check.Reading.RecordHash != it.Question.Detail.Check.Record || it.Checkable() {

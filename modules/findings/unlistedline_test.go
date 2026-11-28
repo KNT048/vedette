@@ -41,12 +41,18 @@ func TestUnlistedLine_OlderLineIsNotClosed(t *testing.T) {
 		{"past the fix of a range from 0 on its own train", "7.2.12", []Affected{rng("0", "7.2.9"), rng("8.0.0", "8.0.21")}, closed},
 		{"past the fix of its own minor line", "8.0.25", supported, closed},
 		{"past the fix of its own major line", "20.20.0", majors, closed},
+		{"past the fix a range spanning several lines ends at", "7.4.8", []Affected{rng("6.4.0", "7.4.7"), rng("7.6.0", "7.6.2")}, closed},
+		{"a complete CVE record states every unlisted version", "7.0.5", nil, closed},
 		{"a newer line past every fix", "10.0.1", supported, closed},
 		{"the vendor's complete list states every unlisted version", "7.0.5", []Affected{complete(rng("8.0.0", "8.0.21")), complete(rng("9.0.0", "9.0.10"))}, closed},
 		{"a fixed release the record states on its line", "3.1.32", []Affected{lineFix(rng("3.0.0", "3.0.5"), "3.1.0"), rng("8.0.0", "8.0.21")}, closed},
 		{"a start inside a line states where the flaw came in", "2.2.34", []Affected{rng("2.4.17", "2.4.60")}, closed},
 	} {
 		v := uncVuln("CVE-2026-91001", "Example", "Gateway", uncNew, tc.aff...)
+		if tc.aff == nil { // the CNA's record when NVD has none, with defaultStatus stating every version it does not list
+			v = uncVuln("CVE-2026-91001", "Example", "Gateway", uncNew, rng("8.0.0", "8.0.21"), rng("9.0.0", "9.0.10"))
+			v.RangesFrom = RangesCVEOrg
+		}
 		for _, keyed := range []bool{true, false} {
 			s := shapeRow("Gateway", tc.ver, keyed)
 			s.CPE = "cpe:2.3:a:example:gateway:" + tc.ver + ":*:*:*:*:*:*:*"

@@ -381,7 +381,7 @@ func laterExactInTrain(own []Affected, ver string) bool {
 // Only the version's numbers are read (CVE JSON 5 versions with lessThan or lessThanOrEqual, NVD's versionStart/versionEnd): a bound
 // that does not read as numbers starts no line, and a start that does not compare with the version is set aside.
 func unlistedLine(in swInfo, v Vuln, key []identity) bool {
-	if !versionKnown(in.ver) {
+	if !versionKnown(in.ver) || v.RangesFrom == RangesCVEOrg { // a complete CVE record states what every unlisted version is
 		return false
 	}
 	var lowest string   // the lowest start of a range above the version
@@ -411,7 +411,7 @@ func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 		r := af.Range
 		start, end := cmp.Or(r.StartIncl, r.StartExcl), cmp.Or(r.EndExcl, r.EndIncl)
 		if start == "" || isPlaceholder(start) {
-			if !af.AffectedOnly && pastEnd(r, in.ver) && sameTrain(in.ver, end, end) {
+			if !af.AffectedOnly && pastEnd(r, in.ver) && onEndTrain(in.ver, end) {
 				return false
 			}
 			continue
@@ -464,12 +464,28 @@ func firstOfLine(start, end string) bool {
 	return !slices.ContainsFunc(rel[min(n, len(rel)):], func(x uint64) bool { return x != 0 })
 }
 
-// onRowLine says ver is on the release line of the range from start to end (rowLine): it starts with the same leading numbers.
+// onRowLine says ver is on a release line the range from start to end speaks for: the line of its start (rowLine: "20.20.0" of
+// "20.0.0" to "20.19.4"), or the train its end is on (onEndTrain: "7.4.8" of "6.4.0" to "7.4.7", which spans several lines).
 func onRowLine(ver, start, end string) bool {
 	n, rel := rowLine(start, end)
 	pv, ok := parseVersion(ver)
-	if rel == nil || !ok || len(pv.rel) < n || len(rel) < n {
+	if !ok {
 		return false
 	}
-	return slices.Equal(pv.rel[:n], rel[:n])
+	if rel != nil && len(pv.rel) >= n && len(rel) >= n && slices.Equal(pv.rel[:n], rel[:n]) {
+		return true
+	}
+	return onEndTrain(ver, end)
+}
+
+// onEndTrain says ver starts with every number of end but its last (at least the first): "7.4.8" and "7.4.7", "8.0.25" and "8.0.21",
+// "1.5" and "1.2". The fix a range ends at is a fix of that train.
+func onEndTrain(ver, end string) bool {
+	pv, okV := parseVersion(ver)
+	pe, okE := parseVersion(end)
+	if !okV || !okE || end == "" || len(pe.rel) == 0 {
+		return false
+	}
+	n := max(len(pe.rel)-1, 1)
+	return len(pv.rel) >= n && slices.Equal(pv.rel[:n], pe.rel[:n])
 }

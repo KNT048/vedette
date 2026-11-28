@@ -397,6 +397,9 @@ type Match struct {
 	// upstreamJudges for data of fixed releases only): the version compared is the upstream one, never the package release
 	upstream bool
 	every    bool // NVD lists every version of the product as affected: the version cannot change it (#803)
+	// lineUnlisted: a "no proof" whose version is on a release line the rows do not speak for (unlistedLine): undecided, asked about
+	// with ranges_start_at_branch_only, never a finding and never closed on it.
+	lineUnlisted bool
 	// agreed: the verdict rests on every reading of the record giving it (everyReading); the sentence names them. "" otherwise.
 	agreed string
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
@@ -830,7 +833,9 @@ func (d *devMatch) read(vi int) *entryRead {
 			e.unchecked = append(e.unchecked, u)
 		case out == outRuledOut || out == outNone && (nm || keyed):
 			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
-				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
+				u := uncheckedOf(s, v, r)
+				u.lineUnlisted = m.lineUnlisted
+				e.unchecked = append(e.unchecked, u)
 			} else if r, silence, ok := askRow(a, s, info, v, keyed, nm); ok && out == outNone {
 				u := uncheckedOf(s, v, r)
 				u.silence = silence
@@ -930,7 +935,7 @@ func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out 
 		key = keyIDs(v)
 	}
 	m0, out0 := matchOne(d.a, s, r.info, v, keyed, key, r.named[vi], d.now)
-	if out == outMatch && versionBacked(m) && out0 != outNotAffected && (out0 != outMatch || !versionBacked(m0)) {
+	if out == outMatch && versionBacked(m) && out0 != outNotAffected && !m0.lineUnlisted && (out0 != outMatch || !versionBacked(m0)) {
 		if !d.aiNumbering(i) {
 			return m0, out0, false, true
 		}
@@ -1344,10 +1349,13 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
+	if (out == outNotAffected || out == outRuledOut && m.lineUnlisted) && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}
+	}
+	if out == outRuledOut && m.lineUnlisted { // no proof and no finding: the row is asked about (uncheckedRow)
+		return Match{lineUnlisted: true}, outNone
 	}
 	if out == outNotAffected || (out == outMatch || out == outQuestion) && m.bounded {
 		return m, out
@@ -1634,6 +1642,10 @@ func awaitingDistro(a Asset, s Software, in swInfo, v Vuln, m Match, out outcome
 		return m, out
 	case outNotAffected:
 		return Match{}, outNone
+	case outRuledOut:
+		if m.lineUnlisted { // NVD's upstream range would have proved nothing here either: only the distribution may close it
+			return Match{}, outNone
+		}
 	}
 	return m, out
 }
@@ -1721,6 +1733,10 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	if tri == No && lostRow(in, v, key) { // the record reader dropped a statement about the product: nothing proves it is not affected
 		tri, proof, agreed, schemed = Unknown, proofNone, "", false
 	}
+	unlisted := false // a record that lists only later release lines says nothing about the version's own (unlistedLine)
+	if tri == No && proof == proofRange && !schemed && !isWin && agreed == "" && unlistedLine(in, v, key) {
+		proof, unlisted = proofNone, true
+	}
 	switch {
 	case tri == No && schemed:
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
@@ -1730,7 +1746,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 			note := fmt.Sprintf("NVD lists %s for %s, not %s; check the vendor advisory and close it if it does not apply.", nvdProducts(v.Vendor, v.Affected), v.CVE, clean(s.Display))
 			return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
 		}
-		return Match{}, outRuledOut
+		return Match{lineUnlisted: unlisted}, outRuledOut
 	case tri == No:
 		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range %s lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.rangesBy(false), v.CVE)
 		switch {

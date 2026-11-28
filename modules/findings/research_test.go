@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -671,5 +672,28 @@ func TestResearch_AnOlderResearchIsRedoneOnce(t *testing.T) {
 	}
 	if len(fc.research) != 2 {
 		t.Errorf("%d researches, want the older one redone once", len(fc.research))
+	}
+}
+
+// The research names the installed software as the devices show it ("Java 8 Update 491" for 8.0.4910.10), so the AI can map the
+// version to the vendor's labels; a shown name that names neither the vendor nor the product (a name of the customer's own) is not sent.
+func TestResearch_TheShownNameGoesWithTheVersion(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	sw := e.inv.match["pc-01"].Software[0]
+	sw.Display = "Quillfeather Mail 115.9 (x64 en-US)"
+	a := e.inv.match["pc-01"]
+	a.Software = []Software{sw}
+	e.inv.match["pc-01"] = a
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	runCheck(t, e)
+	if len(fc.research) != 1 || !slices.Equal(fc.research[0].Item.Shown, []string{"Quillfeather Mail 115.9 (x64 en-US)"}) {
+		t.Fatalf("shown names %+v", fc.research)
+	}
+	if got := shownNames([]Question{{Detail: QuestionDetail{Software: "Finance team ledger"}}, {Detail: QuestionDetail{Software: "Quillfeather Mail"}}},
+		"quillfeather|mail"); !slices.Equal(got, []string{"Quillfeather Mail"}) {
+		t.Errorf("shown names %v, want only the product's", got)
 	}
 }

@@ -101,8 +101,10 @@ const (
 type ResearchRequest struct {
 	CVE                                      string
 	Vendor, Product, Line, Versions, Edition string
-	Platforms                                []string
-	Digest                                   string
+	// Shown is the names the devices show the software by ("Java 8 Update 491"): the AI maps the versions to the vendor's labels with them.
+	Shown     []string
+	Platforms []string
+	Digest    string
 	// Pages are the reference pages the box read, full: what a quote is checked against. Only Excerpts of them go to the AI.
 	Pages    []RefPage
 	Excerpts []RefExcerpt
@@ -176,7 +178,10 @@ type ResearchAnswer struct {
 // needsWeb says a research goes to the web after an answer from the excerpts (v; zero before any): the excerpts named nothing and the
 // record has no rows the vendor wrote, or the answer is unsure and no page of the vendor was read.
 func needsWeb(req ResearchRequest, v ResearchVerdict) bool {
-	return len(req.Excerpts) == 0 && !req.VendorRows || v.Verdict == "unsure" && !req.VendorPage
+	if req.VendorRows { // the record holds the vendor's own word: the web adds a third party's, at many times the tokens
+		return false
+	}
+	return len(req.Excerpts) == 0 || v.Verdict == "unsure" && !req.VendorPage
 }
 
 // Tokens is every token the research spent.
@@ -225,6 +230,12 @@ const researchTraps = `Known traps - check each before answering, and name the o
 - A fix on an earlier train plus a LATER release of the same product that came after the fix = fixed.
 - A release on a later train than every stated fix (115.9 against fixes in 3.0.10 and 3.1.6) is fixed, unless the record or the vendor says
   that later train is affected. Check the vendor's release history when the gap is large, then answer "not_affected" with the fix you found.
+- The installed version may be written another way than the vendor's labels: map it with the name the devices show and the product's
+  numbering before you compare (8.0.4910.10 shown as "Java 8 Update 491" is Java SE 8u491; 16.0.1000.6 is SQL Server 2022). Never call a
+  version unknown to the vendor's list unsure for its spelling alone.
+- The vendor's own list of the product's affected releases (its advisory's affected-software table, or the record's rows when the vendor
+  wrote the record) is the vendor's statement: a release of the product that the vendor's own list leaves out, published after it on a
+  later release train than every listed one, is not_affected (basis stated, quote the list), unless the vendor says that train is affected.
 - Platform limits (Android/iOS/Linux only, a hardware series) do not apply to other platforms, but only when the vendor states them.
 - Products sharing one code base (an ESR sibling, a server and its client) usually share the flaw: you may infer, and then basis = "inferred".
 - A coordinator's vendor status (CERT/CC "Not Affected", "Fixed") is about the vendor's current release, not every release: the installed
@@ -466,6 +477,9 @@ func researchQuestion(req ResearchRequest) string {
 		cleanLine(req.Versions, 300), cleanLine(req.Line, 100))
 	if req.Edition != "" {
 		fmt.Fprintf(&b, "Edition: %s\n", cleanLine(req.Edition, 60))
+	}
+	if len(req.Shown) > 0 {
+		fmt.Fprintf(&b, "Shown on the devices as: %s\n", cleanLine(strings.Join(req.Shown, "; "), 400))
 	}
 	if len(req.Platforms) > 0 {
 		fmt.Fprintf(&b, "Runs on: %s\n", cleanLine(strings.Join(req.Platforms, "; "), 300))

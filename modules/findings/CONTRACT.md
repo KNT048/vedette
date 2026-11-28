@@ -454,7 +454,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
   record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
   (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **What the AI reads** (`researchExcerpts`, `core/pagetext`): the box reads up to 8 of the record's references (16
-  candidates, vendor's first, at most 2 per site) and cuts from their full text the passages naming the CVE or an advisory the record
+  candidates, vendor's first, at most 2 per site, an http one as its https form, none tagged broken link or not applicable;
+  `TestChooseRefs_ReadsHTTPReferencesOverHTTPS`), and names the software as the devices show it when that name names its vendor or
+  product (`shownNames`, `TestResearch_TheShownNameGoesWithTheVersion`) and cuts from their full text the passages naming the CVE or an advisory the record
   cites (a table row with its header rows and section, a heading's section, a paragraph with its heading, a short page whole, the head of
   a page about the CVE and its rows naming the product), each once, at most 24,000 characters, each with its page's number; the request
   says whether the record has rows its vendor wrote (`VendorRows`) and whether a vendor page was read (`VendorPage`). The research detail
@@ -467,7 +469,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   once; a person's check or "Research deeper" goes in front of the queue (`push`), never queued twice for one key nor while that key is
   being checked, and no two calls of one CVE run together (`drain`). It rests (nothing taken) while the AI is not ready (module off, no
   profile routed), the automatic reading is off, today's reads or the research share of the month are used up (the possible CVEs show
-  `ai_budget`), and for `researchPause` (1 h) after a pass that stopped, unless a person's request arrives or the AI settings change
+  `ai_budget`), and for `researchPause` (1 h) after a pass that stopped (a stop also ends a person's queue at once, said once in the
+  check's state: `TestResearchWorker_APersonsQueueStopsAtTheBudget`), unless a person's request arrives or the AI settings change
   (a budget raised, the research share, the automatic reading turned on, a profile or routing: `ResumeResearch`, run by the ai
   module's `OnSettingsChanged`; the next pass rests again only if it would still stop, `TestResearchWorker_ARaisedBudgetResumesAtOnce`); a key it took is left for `researchSettle` (15 min), so nothing
   loops. A line whose call failed or timed out stores nothing, keeps its error and waits `retryBackoff` (1 h, 6 h, then a day). On

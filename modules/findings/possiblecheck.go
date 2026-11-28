@@ -383,6 +383,9 @@ type FetchedPage struct {
 type ProposeItem struct {
 	Index                                   int
 	Vendor, Product, Version, Line, Edition string
+	// Shown is the names the devices show the installed software by ("Java 8 Update 491"), those naming its vendor or product only
+	// (shownNames): the AI maps the version to the vendor's labels with them.
+	Shown []string
 }
 
 // ProposeRequest is one AI call: the CVE's public record and pages, and the items.
@@ -982,6 +985,8 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 		if res.stop != "" && stopped == "" {
 			stopped = res.stop
 			s.check.rq.pause = s.now().Add(researchPause)
+			// a person's queue ends with the stop (a budget, the AI unavailable): said once, in the check's state; its lines stay due
+			s.check.rq.pushed = nil
 		}
 	}
 	drain(take, check)
@@ -1173,7 +1178,12 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		for _, u := range l.units {
 			keys = append(keys, u.key)
 		}
-		item := ProposeItem{Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line, Edition: edition(l.units[0].q)}
+		qs := make([]Question, 0, len(l.units))
+		for _, u := range l.units {
+			qs = append(qs, u.q)
+		}
+		item := ProposeItem{Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line, Edition: edition(l.units[0].q),
+			Shown: shownNames(qs, id.Product)}
 		req := ResearchRequest{CVE: cve, Description: recordText(CVERecordText{Description: rec.Description, Solution: rec.Solution}, nil), Rows: rows, Item: item,
 			Pages: okPages, Digest: researchDigest(cve, rec, rows), Platforms: s.platformsOf(ctx, l.units), Deeper: l.units[0].deeper,
 			Excerpts: researchExcerpts(cve, rec, okPages, id.Product), VendorRows: slices.ContainsFunc(rec.Rows, func(r RecordRow) bool { return r.VendorCNA }),
@@ -1514,7 +1524,7 @@ func markVendorPages(pages []FetchedPage, refs []RefLink, product string) {
 	tagged := map[string]bool{} // the addresses of the references tagged vendor-advisory
 	for _, r := range refs {
 		if slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "vendor-advisory" }) {
-			tagged[r.URL] = true
+			tagged[r.URL], tagged[httpsForm(r.URL)] = true, true
 		}
 	}
 	for i, p := range pages {
@@ -1584,7 +1594,8 @@ var refTagOrder = []string{"vendor-advisory", "release-notes", "patch", "mitigat
 func refTag(t string) string { return strings.ToLower(strings.Join(strings.Fields(t), "-")) }
 
 // chooseRefs picks the references a check reads, best first: https only, by tag (refTagOrder; untagged after them), a host that names
-// the product's vendor first among equals; never one tagged Exploit. At most refCandidates, refsPerHost of one site; the fetcher
+// the product's vendor first among equals; an http one as its https form (httpsForm); never one tagged exploit, broken link or not
+// applicable. At most refCandidates, refsPerHost of one site; the fetcher
 // reads up to 8 of them.
 func chooseRefs(refs []RefLink, product string) []string {
 	vendor, _, _ := strings.Cut(strings.ToLower(product), "|")
@@ -1595,7 +1606,10 @@ func chooseRefs(refs []RefLink, product string) []string {
 	}
 	var cs []cand
 	for _, r := range refs {
-		if !strings.HasPrefix(strings.ToLower(r.URL), "https://") || slices.ContainsFunc(r.Tags, func(t string) bool { return refTag(t) == "exploit" }) {
+		u := httpsForm(r.URL)
+		if u == "" || slices.ContainsFunc(r.Tags, func(t string) bool {
+			return refTag(t) == "exploit" || refTag(t) == "broken-link" || refTag(t) == "not-applicable"
+		}) {
 			continue
 		}
 		rank := len(refTagOrder) * 2
@@ -1604,14 +1618,14 @@ func chooseRefs(refs []RefLink, product string) []string {
 				rank = min(rank, i*2)
 			}
 		}
-		host := strings.ToLower(strings.TrimPrefix(r.URL, "https://"))
+		host := strings.ToLower(strings.TrimPrefix(u, "https://"))
 		if h, _, ok := strings.Cut(host, "/"); ok {
 			host = h
 		}
 		if vendor == "" || !strings.Contains(host, vendor) {
 			rank++
 		}
-		cs = append(cs, cand{r.URL, rank})
+		cs = append(cs, cand{u, rank})
 	}
 	slices.SortStableFunc(cs, func(a, b cand) int { return a.rank - b.rank })
 	var out []string
@@ -1629,6 +1643,19 @@ func chooseRefs(refs []RefLink, product string) []string {
 		out = append(out, c.url)
 	}
 	return out
+}
+
+// httpsForm is a reference's address as the box reads it: https as it is, http as its https form (old records cite the vendor's
+// advisory over http; the site redirects or serves the same page); "" for any other scheme.
+func httpsForm(raw string) string {
+	low := strings.ToLower(raw)
+	switch {
+	case strings.HasPrefix(low, "https://"):
+		return raw
+	case strings.HasPrefix(low, "http://"):
+		return "https://" + raw[len("http://"):]
+	}
+	return ""
 }
 
 // refCandidates is the most references a check hands the box's fetcher, which reads up to 8 usable ones (vendor's first);

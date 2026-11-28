@@ -650,3 +650,32 @@ func TestResearch_ExcerptsFirstThenTheWebOnlyWhenNeeded(t *testing.T) {
 		})
 	}
 }
+
+// The record's own rows by the vendor are the vendor's word: an unsure answer from them does not go to the web. The question names the
+// software as the devices show it, and the task asks to map the installed version to the vendor's labels with it.
+func TestResearch_VendorRowsKeepTheResearchOffTheWeb(t *testing.T) {
+	a := researchSetup(t, ai.ResearchEconomy, false)
+	var reqs []provider.Request
+	a.fake.research = func(_ context.Context, _ ai.Profile, r provider.Request) (provider.Response, error) {
+		reqs = append(reqs, r)
+		return provider.Response{Text: verdict("unsure", "low", ""), Usage: provider.Usage{InputTokens: 900, OutputTokens: 90}, Stop: provider.StopEnd}, nil
+	}
+	req := researchReq
+	req.Product, req.Versions, req.Shown = "Java SE", "8.0.4910.10", []string{"Java 8 Update 491 (64-bit)"}
+	req.VendorRows = true
+	ans, err := a.svc.Research(a.ctx(), "it@acme.example", req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reqs) != 1 || ans.Fallback || reqs[0].Web != nil {
+		t.Fatalf("%d calls fallback %v: an unsure answer from the vendor's own rows went to the web", len(reqs), ans.Fallback)
+	}
+	if !strings.Contains(reqs[0].Messages[0].Text, "Shown on the devices as: Java 8 Update 491 (64-bit)") {
+		t.Errorf("the question lacks the shown name:\n%s", reqs[0].Messages[0].Text)
+	}
+	for _, want := range []string{"Java 8 Update 491", "a release of the product that the vendor's own list leaves out"} {
+		if !strings.Contains(reqs[0].System, want) {
+			t.Errorf("the task lacks %q", want)
+		}
+	}
+}

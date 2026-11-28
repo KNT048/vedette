@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/knt048/vedette/core/pagetext"
 	"github.com/knt048/vedette/core/store"
@@ -631,4 +632,35 @@ func (s *Service) deeperUnit(ctx context.Context, questionID string) (*checkUnit
 		}
 	}
 	return nil, ErrNotResearchable
+}
+
+// shownNames is the names the devices show the installed software by (QuestionDetail.Software), for the research: only a name that
+// names the product's vendor or the first word of its name (so a name of the customer's own never leaves the box), each once, at most 5.
+func shownNames(qs []Question, product string) []string {
+	vendor, name, _ := strings.Cut(strings.ToLower(product), "|")
+	words := strings.Fields(strings.NewReplacer("_", " ", "-", " ").Replace(name))
+	var keys []string
+	if v := strings.Fields(vendor); len(v) > 0 && len(v[0]) >= 3 {
+		keys = append(keys, v[0])
+	}
+	if len(words) > 0 && len(words[0]) >= 3 {
+		keys = append(keys, words[0])
+	}
+	var out []string
+	for _, q := range qs {
+		shown := oneLine(q.Detail.Software, 120)
+		if shown == "" || slices.Contains(out, shown) || len(out) == 5 {
+			continue
+		}
+		low := " " + strings.Map(func(r rune) rune {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) {
+				return unicode.ToLower(r)
+			}
+			return ' '
+		}, shown) + " "
+		if slices.ContainsFunc(keys, func(k string) bool { return strings.Contains(low, " "+k+" ") }) {
+			out = append(out, shown)
+		}
+	}
+	return out
 }

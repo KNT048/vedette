@@ -337,3 +337,33 @@ func TestResearchWorker_ARaisedBudgetResumesAtOnce(t *testing.T) {
 		}
 	})
 }
+
+// A person's queue stops at the first budget refusal: the calls in flight end, nothing more is tried, the reason is said once in the
+// check's state, and the worker does not try the queued lines again in a loop.
+func TestResearchWorker_APersonsQueueStopsAtTheBudget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e, fc, _ := manyQuill(t, 8)
+		fc.mu.Lock()
+		fc.budget.Auto = false // only the person's queue runs
+		fc.stop = &CheckStop{Reason: "This month's AI budget is used up."}
+		fc.mu.Unlock()
+		stop := startWorker(t, e)
+		defer stop()
+		if _, err := e.svc.StartPossibleCheck(t.Context(), "", "ana@example.com"); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		<-time.After(2 * time.Hour) // synctest time
+		synctest.Wait()
+		if n := len(researchedCVEs(fc)); n == 0 || n > researchParallel {
+			t.Errorf("%d calls after a budget refusal, want at most the %d in flight", n, researchParallel)
+		}
+		run := checkRun(t, e)
+		if run.Running || run.Stopped == nil || !strings.Contains(*run.Stopped, "budget") {
+			t.Errorf("run %+v: want stopped by the budget", run)
+		}
+		if e.svc.hasPushed() {
+			t.Error("the person's queue is still waiting after the stop")
+		}
+	})
+}

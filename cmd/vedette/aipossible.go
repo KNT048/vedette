@@ -164,7 +164,7 @@ func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.Fe
 // reads its answer for findings.
 func (c possibleChecker) Research(ctx context.Context, actor string, req findings.ResearchRequest) (findings.ResearchAnswer, error) {
 	r := ai.ResearchRequest{CVE: req.CVE, Vendor: req.Item.Vendor, Product: req.Item.Product, Line: req.Item.Line, Versions: req.Item.Version,
-		Edition: req.Item.Edition, Platforms: req.Platforms, Digest: req.Digest, Deeper: req.Deeper, VendorRows: req.VendorRows, VendorPage: req.VendorPage}
+		Edition: req.Item.Edition, Shown: req.Item.Shown, Platforms: req.Platforms, Digest: req.Digest, Deeper: req.Deeper, VendorRows: req.VendorRows, VendorPage: req.VendorPage}
 	for _, p := range req.Pages {
 		r.Pages = append(r.Pages, ai.RefPage{URL: p.URL, Title: p.Title, Status: p.Status, Text: p.Text, JSON: p.JSON})
 	}

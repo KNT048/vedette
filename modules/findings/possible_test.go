@@ -734,3 +734,26 @@ func seedProposal(t *testing.T, e *env, cve, verdict string) {
 		t.Fatal(err)
 	}
 }
+
+// Old records cite the vendor's advisory over http: the box reads its https form (redirects stay on https), and a reference tagged as a
+// broken link or not applicable is not read, so it leaves its place to a page that may answer. A page read from the https form of a
+// reference tagged vendor-advisory is the vendor's.
+func TestChooseRefs_ReadsHTTPReferencesOverHTTPS(t *testing.T) {
+	t.Parallel()
+	refs := []RefLink{
+		{URL: "http://lists.example.net/msg", Tags: []string{"mailing-list"}},
+		{URL: "https://oval.example.org/def/1", Tags: []string{"broken-link"}},
+		{URL: "http://secunia.example.com/advisories/1", Tags: []string{"not-applicable"}},
+		{URL: "http://www.oracle.com/technetwork/topics/security/javacpuoct2012-1515924.html", Tags: []string{"patch", "vendor-advisory"}},
+	}
+	got := chooseRefs(refs, "oracle|java se")
+	want := []string{"https://www.oracle.com/technetwork/topics/security/javacpuoct2012-1515924.html", "https://lists.example.net/msg"}
+	if !slices.Equal(got, want) {
+		t.Errorf("chooseRefs = %v, want %v", got, want)
+	}
+	pages := []FetchedPage{{URL: want[0], Status: "ok"}, {URL: want[1], Status: "ok"}}
+	markVendorPages(pages, refs, "acme|widget")
+	if !pages[0].Vendor || pages[1].Vendor {
+		t.Errorf("vendor pages %v %v, want the https form of the vendor-advisory reference only", pages[0].Vendor, pages[1].Vendor)
+	}
+}

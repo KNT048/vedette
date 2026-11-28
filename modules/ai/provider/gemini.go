@@ -21,6 +21,9 @@ func (g *gemini) Complete(ctx context.Context, r Request) (Response, error) {
 	if err := checkRequest(r); err != nil {
 		return Response{}, err
 	}
+	if r.Web != nil {
+		return Response{}, ErrNoWebTools
+	}
 	body, err := g.encode(r)
 	if err != nil {
 		return Response{}, err

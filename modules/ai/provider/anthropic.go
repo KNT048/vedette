@@ -43,6 +43,27 @@ type anBlock struct {
 	IsError   bool            `json:"is_error,omitempty"`
 }
 
+// The versions of Anthropic's server tools for web search and page fetch.
+const (
+	anWebSearch = "web_search_20260209"
+	anWebFetch  = "web_fetch_20260209"
+)
+
+// anBlockIn is a content block as the provider sends it: a server tool's result carries an object or an array as its content, and a
+// text block may carry citations with the source text it cites.
+type anBlockIn struct {
+	Type      string          `json:"type"`
+	Text      string          `json:"text,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+	Content   json.RawMessage `json:"content,omitempty"`
+	Citations []struct {
+		CitedText string `json:"cited_text"`
+		URL       string `json:"url"`
+	} `json:"citations,omitempty"`
+}
+
 type anMessage struct {
 	Role    string `json:"role"`
 	Content any    `json:"content"`
@@ -89,10 +110,18 @@ func (a *anthropic) encode(r Request) (map[string]any, error) {
 	if r.System != "" {
 		body["system"] = r.System
 	}
-	if len(r.Tools) > 0 {
-		ts := make([]map[string]any, 0, len(r.Tools))
+	if len(r.Tools) > 0 || r.Web != nil {
+		ts := make([]map[string]any, 0, len(r.Tools)+2)
 		for _, t := range r.Tools {
 			ts = append(ts, map[string]any{"name": t.Name, "description": t.Description, "input_schema": schemaOrEmpty(t.InputSchema)})
+		}
+		if w := r.Web; w != nil { // the provider's own tools, capped per request
+			if w.Searches > 0 {
+				ts = append(ts, map[string]any{"type": anWebSearch, "name": "web_search", "max_uses": w.Searches})
+			}
+			if w.Fetches > 0 {
+				ts = append(ts, map[string]any{"type": anWebFetch, "name": "web_fetch", "max_uses": w.Fetches, "max_content_tokens": max(w.PageTokens, 1000)})
+			}
 		}
 		body["tools"] = ts
 	}
@@ -114,8 +143,11 @@ func decodeAnthropic(data []byte) (Response, error) {
 		} `json:"stop_details"`
 		Model string `json:"model"`
 		Usage struct {
-			In  *int `json:"input_tokens"`
-			Out *int `json:"output_tokens"`
+			In     *int `json:"input_tokens"`
+			Out    *int `json:"output_tokens"`
+			Server *struct {
+				Searches int `json:"web_search_requests"`
+			} `json:"server_tool_use"`
 		} `json:"usage"`
 		Error *struct {
 			Message string `json:"message"`
@@ -127,7 +159,7 @@ func decodeAnthropic(data []byte) (Response, error) {
 	if w.Error != nil || w.Type == "error" {
 		return Response{}, badResponse("the provider sent an error inside a successful answer")
 	}
-	var blocks []anBlock
+	var blocks []anBlockIn
 	if w.Content == nil || json.Unmarshal(w.Content, &blocks) != nil {
 		return Response{}, badResponse("missing content")
 	}
@@ -143,11 +175,41 @@ func decodeAnthropic(data []byte) (Response, error) {
 		return Response{}, refusal(cat, u)
 	}
 	res := Response{Model: w.Model, Usage: u, Raw: append(json.RawMessage(nil), w.Content...)}
+	if w.Usage.Server != nil && w.Usage.Server.Searches > 0 && w.Usage.Server.Searches <= 1000 {
+		res.Web.Searches = w.Usage.Server.Searches
+	}
 	var text strings.Builder
 	for _, b := range blocks {
 		switch b.Type {
 		case "text":
 			text.WriteString(b.Text)
+			for _, c := range b.Citations {
+				if len(c.CitedText) > 0 {
+					res.Web.Texts = append(res.Web.Texts, c.CitedText)
+				}
+			}
+		case "server_tool_use":
+			var in struct {
+				Query string `json:"query"`
+				URL   string `json:"url"`
+			}
+			_ = json.Unmarshal(b.Input, &in)
+			switch {
+			case b.Name == "web_search" && in.Query != "":
+				res.Web.Queries = append(res.Web.Queries, in.Query)
+			case b.Name == "web_fetch" && in.URL != "":
+				res.Web.Fetched = append(res.Web.Fetched, in.URL)
+			}
+		case "web_search_tool_result", "web_fetch_tool_result":
+			var c any
+			if json.Unmarshal(b.Content, &c) == nil {
+				if m, ok := c.(map[string]any); ok {
+					if code, ok := m["error_code"].(string); ok && code != "" {
+						res.Web.Errors = append(res.Web.Errors, code)
+					}
+				}
+				collectToolText(c, &res.Web.Texts)
+			}
 		case "tool_use":
 			in, ok := object(b.Input)
 			if b.Name == "" || !ok {
@@ -164,8 +226,38 @@ func decodeAnthropic(data []byte) (Response, error) {
 		res.Stop = StopMaxTokens
 	case "tool_use":
 		res.Stop = StopToolUse
+	case "pause_turn":
+		res.Stop = StopPause
 	default:
 		res.Stop = StopOther
 	}
 	return res, nil
 }
+
+// collectToolText adds every text a server tool returned (a fetched document, a search result's title or snippet) of at least 40 bytes:
+// what the model could read, so the box can look a quote up in it. Encrypted search content and base64 sources are skipped.
+func collectToolText(x any, out *[]string) {
+	switch v := x.(type) {
+	case string:
+		if len(v) >= 40 && len(*out) < maxToolTexts {
+			*out = append(*out, v)
+		}
+	case map[string]any:
+		if v["type"] == "base64" {
+			return
+		}
+		for k, e := range v {
+			if k == "encrypted_content" || k == "encrypted_index" {
+				continue
+			}
+			collectToolText(e, out)
+		}
+	case []any:
+		for _, e := range v {
+			collectToolText(e, out)
+		}
+	}
+}
+
+// maxToolTexts bounds the texts kept from one response.
+const maxToolTexts = 200

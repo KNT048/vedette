@@ -14,7 +14,7 @@ type SlotView struct {
 	Fallback *string `json:"fallback"`
 }
 
-// AssignmentsView is the body and the answer of the assignments endpoints: all ten jobs, and the privacy rule.
+// AssignmentsView is the body and the answer of the assignments endpoints: every job, and the privacy rule.
 type AssignmentsView struct {
 	InternalOnly bool                `json:"internal_only"`
 	Jobs         map[string]SlotView `json:"jobs"`
@@ -72,7 +72,7 @@ func (s *Service) SetAssignments(ctx context.Context, who string, in Assignments
 			}
 		}
 	}
-	for _, j := range Jobs() { // all ten, so the saved rows and the router agree
+	for _, j := range Jobs() { // every job, so the saved rows and the router agree
 		if _, ok := asg.Jobs[j]; !ok {
 			asg.Jobs[j] = Slot{}
 		}
@@ -124,7 +124,7 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 				ok = append(ok, p.Profile)
 			}
 		}
-		wantFast := batchJobs[j]
+		wantFast := batchJobs[j] || j == JobResearchCVEs // research: the quick layer first
 		rank := func(p Profile) int {
 			r := 0
 			if fastModel.MatchString(p.Model) != wantFast {
@@ -142,6 +142,14 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 		}
 		if len(ok) > 1 {
 			slot.Fallback = ok[1].ID
+			if j == JobResearchCVEs { // research escalates to a strong model: the first one that is not a quick model, when there is one
+				for _, p := range ok[1:] {
+					if !fastModel.MatchString(p.Model) {
+						slot.Fallback = p.ID
+						break
+					}
+				}
+			}
 		}
 		asg.Jobs[j] = slot
 	}

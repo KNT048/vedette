@@ -121,7 +121,7 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 		if len(kc.refs) == pieces {
 			break
 		}
-		r, err := hooks.Run(hctx, BeforeAI, p.text)
+		r, err := hooks.Run(hctx, BeforeAI, normalizeUntrusted(p.text)) // checked in the form it is sent
 		if err != nil || r.Outcome == OutcomeBlocked || r.Outcome == OutcomeHeld {
 			kc.left = append(kc.left, p.ref)
 			kc.leftNames = append(kc.leftNames, r.Names()...)
@@ -141,7 +141,7 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 		fmt.Fprintf(&out, "[%s]\n%s", p.ref, r.Text)
 	}
 	if len(kc.refs) > 0 {
-		kc.block = DataBlock{Kind: DataDocument, Source: "documents kept by an administrator", Text: out.String()}
+		kc.block = Untrusted(SourceDocument, "documents kept by an administrator", out.String())
 	}
 	return kc, nil
 }
@@ -186,7 +186,7 @@ func knowledgeQuery(spec JobSpec) string {
 		return spec.KnowledgeQuery
 	}
 	var b strings.Builder
-	b.WriteString(spec.Question)
+	b.WriteString(string(spec.Question))
 	for _, d := range spec.Data {
 		b.WriteByte(' ')
 		b.WriteString(d.Text)

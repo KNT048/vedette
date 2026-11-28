@@ -45,7 +45,7 @@ func (a *api) planRequest(job ai.Job, id string) provider.Request {
 	a.t.Helper()
 	a.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{string(job): {id, ""}}), 200, "")
 	_, err := a.newService().RunJob(a.ctx(), ai.JobSpec{Job: job, Actor: "system", Task: "Do it.", Question: "Go.",
-		Data: []ai.DataBlock{{Kind: ai.DataLog, Source: "x", Text: "a log line"}}, Schema: &provider.Schema{Name: "s", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
+		Data: []ai.DataBlock{ai.Untrusted(ai.SourceLog, "x", "a log line")}, Schema: &provider.Schema{Name: "s", JSON: []byte(`{"type":"object"}`)}, MaxTokens: 100})
 	if err != nil {
 		a.t.Fatal(err)
 	}

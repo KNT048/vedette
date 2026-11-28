@@ -121,8 +121,8 @@ func TestLiveEveryAIJob(t *testing.T) {
 		}
 	}
 	setTier(ai.TierMed)
-	finding := []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry CVE-2024-3400", Text: "CVE: CVE-2024-3400\nVendor: Palo Alto Networks\nProduct: PAN-OS\nRequired action (CISA): Apply mitigations per vendor instructions.\n"},
-		{Kind: "inventory", Source: "the device of the finding", Text: "Device: FW-HQ, IP 192.168.1.1, kind firewall, Palo Alto Networks PA-440 PAN-OS 11.1.0\n"}}
+	finding := []ai.DataBlock{ai.Untrusted(ai.SourceFeed, "exploited list entry CVE-2024-3400", "CVE: CVE-2024-3400\nVendor: Palo Alto Networks\nProduct: PAN-OS\nRequired action (CISA): Apply mitigations per vendor instructions.\n"),
+		ai.Untrusted(ai.SourceDevice, "the device of the finding", "Device: FW-HQ, IP 192.168.1.1, kind firewall, Palo Alto Networks PA-440 PAN-OS 11.1.0\n")}
 	jobs := []struct {
 		job ai.Job
 		run func() error

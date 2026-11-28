@@ -27,10 +27,10 @@ var ErrBadOutput = errors.New("ai: the answer does not match the expected format
 type JobSpec struct {
 	Job   Job
 	Actor string // email of the person who asked, "system" for a scheduled job
-	Task  string // the job's instructions (skill prompt)
+	Task  Instruction // the job's instructions (skill prompt): a constant of the job
 	// Question is what is asked, and Data the untrusted text that goes with it (feed items, device data, log lines): Data is the
 	// only way untrusted text reaches the prompt, between the per-call markers (INV-21).
-	Question string
+	Question Instruction
 	Data     []DataBlock
 	// KnowledgeQuery is the text the documents of the knowledge base are searched with (S-AI-7); "" = the question and the data.
 	KnowledgeQuery string
@@ -216,7 +216,7 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 // through all of them. Any block, hold or failed run stops the call (fail closed): nothing is sent. stop says which part was stopped (the question,
 // or the data from a named source) and why; matched is set when a hook matched it (a rephrase or a change of the hook helps), not
 // when the hooks could not run; late when they could not finish in time (they decided nothing: the same call may pass later).
-func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string, matched, late bool) {
+func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question Instruction, data []DataBlock, names []string, stop string, matched, late bool) {
 	// The same deadline as the after_ai pass, for the whole pass: a hook that cannot finish is a block (fail closed).
 	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
@@ -241,11 +241,12 @@ func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (q
 		}
 		return r.Text, true
 	}
-	q, ok := run(spec.Question, "the question", false)
+	q, ok := run(string(spec.Question), "the question", false)
 	if !ok {
 		return "", nil, dedupe(names), stop, matched, late
 	}
 	for _, d := range spec.Data {
+		d.Text = cleanUntrusted(d.Text) // a block a caller changed after Untrusted is checked in the form it is sent
 		t, ok := run(d.Text, fmt.Sprintf("the data sent with it (%s)", clipRunes(cleanLine(d.Source, 80), 80)), d.public)
 		if !ok {
 			return "", nil, dedupe(names), stop, matched, late
@@ -253,7 +254,7 @@ func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (q
 		d.Text = t
 		data = append(data, d)
 	}
-	return q, data, dedupe(names), "", false, false
+	return Instruction(q), data, dedupe(names), "", false, false
 }
 
 func dedupe(in []string) []string {

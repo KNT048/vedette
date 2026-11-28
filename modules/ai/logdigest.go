@@ -218,7 +218,7 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 
 		fmt.Fprintf(&b, "- %s: %s, IP %s, to %s (%s), seen via %s, listed by %s, confidence %.2f, at %s\n", what, who, clip(x.SrcIP, 45), clip(x.Dest, 253), clip(x.DestKind, 8), clip(x.SeenVia, 60), strings.Join(feeds, ", "), x.Confidence, clip(x.TS, 32))
 	}
-	return DataBlock{Kind: DataLog, Source: "summary of the logs of the last 24 hours: kinds of line and counts, no log lines", Text: b.String()}
+	return Untrusted(SourceLog, "summary of the logs of the last 24 hours: kinds of line and counts, no log lines", b.String())
 }
 
 type digestAnswer struct {
@@ -446,7 +446,8 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	if d.empty() {
 		return s.digestEmpty(tier, s.cfg.Clock()), nil
 	}
-	job, task, version := JobLogDigest, digestTask, "log-digest-v2"
+	var task Instruction = digestTask
+	job, version := JobLogDigest, "log-digest-v2"
 	var ts *toolSession
 	if tier == TierMax && s.Ready(JobLogInvestigate) == nil {
 		job, task, version = JobLogInvestigate, digestTask+digestToolsTask, "log-investigate-v2"

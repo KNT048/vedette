@@ -49,7 +49,7 @@ type BriefRequest struct {
 	Job      Job // JobExplainFinding or JobMitigationConfig
 	Actor    string
 	Target   string // the CVE, for the activity summary
-	Question string
+	Question Instruction // a constant of the caller: what to answer
 	Data     []DataBlock
 	// Refs are the references the answers may cite, numbered from 1 in the data the caller wrote.
 	Refs []BriefRef
@@ -504,7 +504,8 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 	if !s.moduleOn() { // a door another module holds must not run the AI while the module is off
 		return BriefAnswer{}, apiUnavailable("The AI assistant module is off. Turn it on in Settings, Modules.")
 	}
-	task, schema, limit := briefExplainTask, briefSchema, briefMaxTokens
+	var task Instruction = briefExplainTask
+	schema, limit := briefSchema, briefMaxTokens
 	switch r.Job {
 	case JobExplainFinding:
 	case JobMitigationConfig:

@@ -506,14 +506,22 @@ func parseParagraphs(text string) ([]string, error) {
 	return out, nil
 }
 
+// reportsAITasks are the instructions of the reports' AI jobs, by job: constants of the reports module, never text handed over at run
+// time, so what a report sends can only ever be data.
+var reportsAITasks = map[string]ai.Instruction{"pdpl-assessment": reports.PdplTask}
+
 func (a reportsAI) Summarize(ctx context.Context, actor, job, task string, data []reports.Block) (reports.Summary, error) {
+	instr, ok := reportsAITasks[job]
+	if !ok || string(instr) != task {
+		return reports.Summary{}, fmt.Errorf("reports: no instruction for the AI job %q", job)
+	}
 	blocks := make([]ai.DataBlock, len(data))
 	for i, b := range data {
-		blocks[i] = ai.DataBlock{Kind: ai.DataFeed, Source: b.Source, Text: b.Text}
+		blocks[i] = ai.Untrusted(ai.SourceCustomer, b.Source, b.Text) // the self-assessment: what a person typed and the box counted
 	}
 	var paragraphs []string
 	res, err := a.svc.RunJob(ctx, ai.JobSpec{
-		Job: ai.Job(job), Actor: actor, Task: task, Question: "Write the commentary.", Data: blocks,
+		Job: ai.Job(job), Actor: actor, Task: instr, Question: "Write the commentary.", Data: blocks,
 		Schema: &provider.Schema{Name: "report_commentary", JSON: json.RawMessage(reportsAISchema)},
 		// at most 4 paragraphs, about 1,200 tokens; the rest is room for what the model thinks first (a cut answer is asked again once)
 		MaxTokens: 4000, Summary: fmt.Sprintf("Commentary on the %s", strings.ReplaceAll(job, "-", " ")),

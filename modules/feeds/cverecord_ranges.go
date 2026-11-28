@@ -221,7 +221,7 @@ func clipAssigner(s string) string {
 // names no vendor ("n/a", empty) does not say whose product it is, so it is never the assigner's own. Such an entry is read with
 // defaultStatus unknown: its listed versions still say "affected", a version it does not list stays a question.
 // The CVE Program's CNA list (cnalist.go) also makes the assigner the vendor's own CNA when the list types it as a vendor and one form
-// of its organization name is the vendor's ("zoom" of "Zoom Communications, Inc."): org is that organization name, "" while the box
+// of its organization name is the vendor's ("zz" of "Zenith Widgets, Inc."): org is that organization name, "" while the box
 // holds no list recent enough or the list does not hold the assigner as a possible vendor; then the rules above stand alone.
 func ownCNA(assigner, vendor, org string) bool {
 	return ownCNAIn(catalogueProductVendors(), assigner, vendor, org)

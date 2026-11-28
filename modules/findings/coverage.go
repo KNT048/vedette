@@ -408,7 +408,8 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 					class = cmp.Or(distroSilence(in, v), CoverageOtherDistroSilent)
 				}
 			}
-			if key := lineKey(v.CVE, line); related[key] == "" {
+			// the distribution's "affected, no fix yet" on one reading of the line decides it, whatever another reading's silence
+			if key := lineKey(v.CVE, line); related[key] == "" || class == DistroNoFixYet {
 				related[key] = class
 			}
 			linked[line] = true

@@ -36,6 +36,9 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		// one line read from two packages: the distribution decides one, and has no word on the other
 		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool"),
 		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool-extras"),
+		// and one whose distribution says "affected, no fix yet" on its second package
+		pkg("s-three", "Acmesoft", "Kit", "7.0", "7.0-1ubuntu1", "acme-kit-extras"),
+		pkg("s-three", "Acmesoft", "Kit", "7.0", "7.0-1ubuntu1", "acme-kit"),
 	}}
 	rhel := Asset{ID: "r-2", Name: "db-02", OS: "Red Hat Enterprise Linux 9.4", Software: []Software{pkg("s-rwid", "Acmesoft", "Widget", "2.4.1", "2.4.1-3.el9", "acme-widget")}}
 	alpine := Asset{ID: "a-3", Name: "gw-03", OS: "Alpine Linux 3.23.8", Software: []Software{pkg("s-abox", "Acmesoft", "Boxer", "1.37.0", "1.37.0-r30", "acme-boxer")}}
@@ -93,7 +96,8 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		{name: "a legacy browser's record on the current browser", device: "w-4", sw: "s-edge", vuln: legacy, unrelated: true},
 	}
 	tool := nvd("CVE-2026-61014", "cpe:2.3:a:acmesoft:tool:*:*:*:*:*:*:*:*", "5.2", row("26.04", "acme-tool", "fixed", "5.1-2ubuntu0.3"))
-	vulns := []Vuln{tool}
+	kit := nvd("CVE-2026-61015", "cpe:2.3:a:acmesoft:kit:*:*:*:*:*:*:*:*", "7.1", row("26.04", "acme-kit", "open", ""))
+	vulns := []Vuln{tool, kit}
 	for _, c := range cases {
 		vulns = append(vulns, c.vuln)
 	}
@@ -134,6 +138,12 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		t.Errorf("a line the distribution decided on one of its packages: %+v, want decided not affected by the distribution", st)
 	}
 	if q, ok := questions["u-1/"+lineKey(tool.CVE, "s-two")]; ok {
+		t.Errorf("a line the distribution decided is asked about for its other package: %+v", q)
+	}
+	if st, ok := states["u-1/"+lineKey(kit.CVE, "s-three")]; !ok || st.by != CoverageDistroNoFix || !st.affected {
+		t.Errorf("a line the distribution says is affected with no fix yet: %+v, want decided affected (%s)", st, CoverageDistroNoFix)
+	}
+	if q, ok := questions["u-1/"+lineKey(kit.CVE, "s-three")]; ok {
 		t.Errorf("a line the distribution decided is asked about for its other package: %+v", q)
 	}
 	if st, ok := states["w-4/"+lineKey(runtime.CVE, "s-run1")]; !ok || !st.affected {

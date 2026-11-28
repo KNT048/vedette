@@ -56,6 +56,9 @@ func TestInstallations_EachDecidedOnItsOwnEvidence(t *testing.T) {
 		{"two packages one upload of the release builds share the distribution's word", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), extras("2.8.5", "2.8.5-1ubuntu3")}, notAffected, false, closed},
 		{"a package naming only the release train beside the package that installs it", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), trainOnly("2.8+12ubuntu1", true)}, notAffected, false, closed},
 		{"the same, the train-only package read first", []Software{trainOnly("2.8+12ubuntu1", true), distroPkg("2.8.5", "2.8.5-1ubuntu3")}, notAffected, false, closed},
+		{"a package whose version does not read, a build of another release beside it", []Software{distroPkg("20230101.git1a2b3c", "20230101.git1a2b3c-1ubuntu3"), upstream("3.0.5")}, notAffected, false, undecided},
+		{"the same, the third-party build read first", []Software{upstream("3.0.5"), distroPkg("20230101.git1a2b3c", "20230101.git1a2b3c-1ubuntu3")}, notAffected, false, undecided},
+		{"a package whose version reads as a placeholder, a build of another release beside it", []Software{distroPkg("0.0~git20230101", "0.0~git20230101-1ubuntu3"), upstream("3.0.5")}, notAffected, false, undecided},
 		{"a less precise reading outside the package database", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), trainOnly("2.8", false)}, notAffected, false, undecided},
 		{"a train-only package of another train", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), trainOnly("2.9+12ubuntu1", true)}, notAffected, false, undecided},
 		{"affected evidence about one installation opens the line", []Software{upstream("3.2.15"), upstream("3.2.5")}, nil, false, affected},
@@ -80,6 +83,41 @@ func TestInstallations_EachDecidedOnItsOwnEvidence(t *testing.T) {
 		}
 		if got != tc.want {
 			t.Errorf("%s: %q, want %q (not affected %d, findings %d, unchecked %+v)", tc.name, got, tc.want, len(res.NotAffected), len(res.Existing)+len(res.New), res.Unchecked)
+		}
+	}
+}
+
+// The distribution's "affected, no fix yet" on its package (a CVE on no exploited list: no finding until the fix comes) is affected
+// evidence about that installation: another installation of the line cleared by a range of its own never closes the line, and one with
+// no evidence of its own is not asked about either, the line being decided affected as a finding's line is.
+func TestInstallations_DistroAffectedNoFixYetIsNotClosedByASibling(t *testing.T) {
+	t.Parallel()
+	const gw = "cpe:2.3:a:example:gateway:*:*:*:*:*:*:*:*"
+	ranges := vendorCNARows([]Affected{{CPE: gw, Range: VersionRange{StartIncl: "3.2.0", EndExcl: "3.2.12"}}, {CPE: gw, Range: VersionRange{StartIncl: "3.3.0", EndExcl: "3.3.3"}}})
+	distroPkg := Software{ID: "s-gw", Display: "Example Gateway", Vendor: "Example", Product: "Gateway", Version: "2.8.5", Source: "agent", Packaged: true,
+		PkgVersion: "2.8.5-1ubuntu3", PkgSource: "example-gateway"}
+	upstream := func(ver string) Software {
+		return Software{ID: "s-gw", Display: "Example Gateway", Vendor: "Example", Product: "Gateway", Version: ver, Source: "agent"}
+	}
+	for _, tc := range []struct {
+		name     string
+		readings []Software
+	}{
+		{"a build of another release the range clears", []Software{distroPkg, upstream("3.2.15")}},
+		{"the same, the build read first", []Software{upstream("3.2.15"), distroPkg}},
+		{"a build of a release line the record does not list", []Software{distroPkg, upstream("3.0.5")}},
+	} {
+		v := Vuln{CVE: "CVE-2026-92003", NVDAnswered: true, Origin: RangeNVD, DistroOn: map[string]bool{"ubuntu": true}, Affected: ranges,
+			Distro: []DistroFix{{Distro: "ubuntu", Release: "24.04", Package: "example-gateway", Status: "open"}}}
+		a := Asset{ID: "srv", Name: "srv-01", OS: "Ubuntu 24.04.1 LTS", Software: tc.readings}
+		res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, uncNow)
+		if len(res.NotAffected) != 0 || len(res.Unchecked) != 0 || len(res.New)+len(res.Existing) != 0 {
+			t.Errorf("%s: not affected %d, unchecked %+v, findings %d: want the line decided affected, no fix yet", tc.name, len(res.NotAffected), res.Unchecked,
+				len(res.New)+len(res.Existing))
+		}
+		st, _ := pairStates(newDevMatch(a, []Vuln{v}, uncNow), deviceRows{}, causeInputs{})
+		if s := st[lineKey(v.CVE, "s-gw")]; s.by != CoverageDistroNoFix || !s.affected {
+			t.Errorf("%s: coverage %+v, want decided affected (%s)", tc.name, s, CoverageDistroNoFix)
 		}
 	}
 }

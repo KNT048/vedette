@@ -457,12 +457,13 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			continue
 		}
 		switch {
+		case class == DistroNoFixYet: // the distribution says affected and has no fix: decided, raised once a fix or an exploited list comes;
+			// another installation's proof does not close it
+			state[key] = pairState{by: CoverageDistroNoFix, affected: true}
 		case proofs[key] != "":
 			state[key] = pairState{by: proofs[key]}
 		case ruledOut[key] != "":
 			state[key] = pairState{by: ruledOut[key]}
-		case class == DistroNoFixYet: // the distribution says affected and has no fix: decided, raised once a fix or an exploited list comes
-			state[key] = pairState{by: CoverageDistroNoFix, affected: true}
 		default: // reached, and neither a finding, a question nor a proof
 			state[key] = pairState{cause: class}
 		}

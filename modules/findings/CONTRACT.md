@@ -425,7 +425,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`TestDecide_RowOfAnotherBranchDoesNotBlockTheDecision`). OpenSSL's letter releases past `z` (`0.9.8za`, `1.0.2zd`, `1.1.1zk`) order
   after `z` and compare like any other (`TestDecide_OpenSSLLetterBranches`).
 - **INV-4g** Evidence per installation. A software line can hold several readings. Readings with the same upstream version (or one
-  without a version) and the same source package or the same package release (one upload builds the product and its extras) are one
+  without a version; a version given that does not read matches only the same text) and the same source package or the same package release (one upload builds the product and its extras) are one
   installation and share their evidence, and so are two readings of the device's package database where one version is a less precise
   prefix of the other ("8.3" of a package naming only the train beside "8.3.6" of the package installing it). Other readings (a distribution's package beside a third-party build of another release, two
   releases installed side by side) are other installations. Each is decided on its own evidence: a distribution's word, a range or a

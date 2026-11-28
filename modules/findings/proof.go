@@ -19,16 +19,17 @@ type ProofKind uint8
 
 // The kinds of proof. ProofFixedAt is also the kind of an "affected" statement's version span (Says).
 const (
-	ProofFixedAt           ProofKind = iota + 1 // the version is at or past a fix the source names
-	ProofStatedUnaffected                       // the source states these versions are not affected
-	ProofBeforeIntroduced                       // the version is older than the release the flaw came in with
-	ProofOtherPlatform                          // the source states the flaw only on other platforms (OS, architecture)
-	ProofOtherHardware                          // the source states the flaw only on other hardware models
-	ProofPersonNotAffected                      // a person answered not affected for this line and CVE
-	ProofAfterLastAffected                      // the version is later than the last affected release the source lists on its line
+	ProofFixedAt             ProofKind = iota + 1 // the version is at or past a fix the source names
+	ProofStatedUnaffected                         // the source states these versions are not affected
+	ProofBeforeIntroduced                         // the version is older than the release the flaw came in with
+	ProofOtherPlatform                            // the source states the flaw only on other platforms (OS, architecture)
+	ProofOtherHardware                            // the source states the flaw only on other hardware models
+	ProofPersonNotAffected                        // a person answered not affected for this line and CVE
+	ProofAfterLastAffected                        // the version is later than the last affected release the source lists on its line
+	ProofAfterLastListedLine                      // the version is on a line newer than every line the source lists releases of
 )
 
-var proofKindNames = [...]string{"", "fixed_at", "stated_unaffected", "before_introduced", "other_platform", "other_hardware", "person_not_affected", "after_last_affected"}
+var proofKindNames = [...]string{"", "fixed_at", "stated_unaffected", "before_introduced", "other_platform", "other_hardware", "person_not_affected", "after_last_affected", "after_last_listed_line"}
 
 func (k ProofKind) String() string {
 	if int(k) < len(proofKindNames) {

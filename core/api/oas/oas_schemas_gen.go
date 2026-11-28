@@ -119255,7 +119255,9 @@ type FindingsGetFindingsPossibleAuditOKGroupsItem struct {
 	Examples []string `json:"examples"`
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
-	// compared with. The distribution's silence on its own package (cause distro_silent):
+	// compared with. newer_line_exploited: the vendor's own list of exact releases names two or more
+	// release lines, all older than this one, and the CVE is exploited: that reading never closes an
+	// exploited CVE by itself. The distribution's silence on its own package (cause distro_silent):
 	// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
 	// the CVE for this package and release), distro_other_packages (rows for other packages only),
 	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
@@ -119295,7 +119297,9 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) SetReason(val FindingsGet
 
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 // version_from_network: only a version read from the network, which a CVE on no exploited list is not
-// compared with. The distribution's silence on its own package (cause distro_silent):
+// compared with. newer_line_exploited: the vendor's own list of exact releases names two or more
+// release lines, all older than this one, and the CVE is exploited: that reading never closes an
+// exploited CVE by itself. The distribution's silence on its own package (cause distro_silent):
 // distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
 // the CVE for this package and release), distro_other_packages (rows for other packages only),
 // distro_other_releases (rows for other releases only), distro_other_build (its row is about another
@@ -119317,6 +119321,7 @@ const (
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ranges_start_at_branch_only"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "eol_line_unlisted"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild   FindingsGetFindingsPossibleAuditOKGroupsItemReason = "third_party_tested_build"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNewerLineExploited      FindingsGetFindingsPossibleAuditOKGroupsItemReason = "newer_line_exploited"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "no_reference_page"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed             FindingsGetFindingsPossibleAuditOKGroupsItemReason = "fetch_failed"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText      FindingsGetFindingsPossibleAuditOKGroupsItemReason = "unparsed_vendor_text"
@@ -119347,6 +119352,7 @@ func (FindingsGetFindingsPossibleAuditOKGroupsItemReason) AllValues() []Findings
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonRangesStartAtBranchOnly,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNewerLineExploited,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText,
@@ -119391,6 +119397,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) MarshalText() ([]byt
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonEolLineUnlisted:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNewerLineExploited:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
 		return []byte(s), nil
@@ -119463,6 +119471,9 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonThirdPartyTestedBuild
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNewerLineExploited:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNewerLineExploited
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonNoReferencePage
@@ -122015,7 +122026,9 @@ type FindingsGetFindingsPossibleOKItemsItemUndecided struct {
 	Ranges []string `json:"ranges"`
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
-	// compared with. The distribution's silence on its own package (cause distro_silent):
+	// compared with. newer_line_exploited: the vendor's own list of exact releases names two or more
+	// release lines, all older than this one, and the CVE is exploited: that reading never closes an
+	// exploited CVE by itself. The distribution's silence on its own package (cause distro_silent):
 	// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
 	// the CVE for this package and release), distro_other_packages (rows for other packages only),
 	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
@@ -122069,7 +122082,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetURL(val OptString) 
 
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 // version_from_network: only a version read from the network, which a CVE on no exploited list is not
-// compared with. The distribution's silence on its own package (cause distro_silent):
+// compared with. newer_line_exploited: the vendor's own list of exact releases names two or more
+// release lines, all older than this one, and the CVE is exploited: that reading never closes an
+// exploited CVE by itself. The distribution's silence on its own package (cause distro_silent):
 // distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
 // the CVE for this package and release), distro_other_packages (rows for other packages only),
 // distro_other_releases (rows for other releases only), distro_other_build (its row is about another
@@ -122091,6 +122106,7 @@ const (
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ranges_start_at_branch_only"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "eol_line_unlisted"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild   FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "third_party_tested_build"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNewerLineExploited      FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "newer_line_exploited"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "no_reference_page"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed             FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "fetch_failed"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText      FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "unparsed_vendor_text"
@@ -122121,6 +122137,7 @@ func (FindingsGetFindingsPossibleOKItemsItemUndecidedReason) AllValues() []Findi
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonRangesStartAtBranchOnly,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNewerLineExploited,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText,
@@ -122165,6 +122182,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) MarshalText() ([]
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonEolLineUnlisted:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNewerLineExploited:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
 		return []byte(s), nil
@@ -122237,6 +122256,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) UnmarshalText(da
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonThirdPartyTestedBuild
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNewerLineExploited:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNewerLineExploited
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonNoReferencePage

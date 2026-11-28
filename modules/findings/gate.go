@@ -97,13 +97,14 @@ func Gate(cve string, in Installation, ev []Proof, bl []Blocker, exploited bool)
 // never closes: an NVD CPE configuration never states "unaffected" (vulnerable=false is the environment), a range start proves an
 // introduction only where the standard says so (OSV's introduced), and only a person's answer is a person's proof.
 var kindFormats = map[ProofKind][]Format{
-	ProofFixedAt:           {FormatCVE5, FormatNVDCPE, FormatOSV, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatMSRelease, FormatLineSource},
-	ProofStatedUnaffected:  {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatLineSource},
-	ProofBeforeIntroduced:  {FormatOSV, FormatCVE5},
-	ProofOtherPlatform:     {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatLineSource},
-	ProofOtherHardware:     {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatLineSource},
-	ProofPersonNotAffected: {FormatPerson},
-	ProofAfterLastAffected: {FormatCVE5, FormatNVDCPE, FormatOSV},
+	ProofFixedAt:             {FormatCVE5, FormatNVDCPE, FormatOSV, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatMSRelease, FormatLineSource},
+	ProofStatedUnaffected:    {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatLineSource},
+	ProofBeforeIntroduced:    {FormatOSV, FormatCVE5},
+	ProofOtherPlatform:       {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatLineSource},
+	ProofOtherHardware:       {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatLineSource},
+	ProofPersonNotAffected:   {FormatPerson},
+	ProofAfterLastAffected:   {FormatCVE5, FormatNVDCPE, FormatOSV},
+	ProofAfterLastListedLine: {FormatCVE5, FormatNVDCPE},
 }
 
 // allowedProof says whether not-affected proof p may close a pair: its format is a declared one that can state its kind, its version
@@ -147,6 +148,10 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 		if r := vs.Ranges[0]; r.From == "" || !r.FromExcl || r.To != "" {
 			return false, CauseKindNotAllowed
 		}
+	case ProofAfterLastListedLine: // a line newer than every listed one: every version of that one line
+		if len(vs.Lines) != 1 || !vs.Every || vs.AllExceptListed || len(vs.Exact)+len(vs.Ranges) > 0 {
+			return false, CauseKindNotAllowed
+		}
 	case ProofOtherPlatform:
 		if pl := p.Scope.Platform; pl.Any || len(pl.OS)+len(pl.Arch) == 0 {
 			return false, CauseKindNotAllowed
@@ -156,7 +161,7 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 			return false, CauseKindNotAllowed
 		}
 	}
-	if exploited && (p.Kind == ProofBeforeIntroduced || p.Kind == ProofOtherHardware) {
+	if exploited && (p.Kind == ProofBeforeIntroduced || p.Kind == ProofOtherHardware || p.Kind == ProofAfterLastListedLine) {
 		return false, CauseExploitedKind
 	}
 	return true, ""

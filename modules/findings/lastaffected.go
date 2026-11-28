@@ -189,8 +189,9 @@ func installedReleases(ver, display string) (plain, upd release, plainOK, updOK 
 	return
 }
 
-// lastAffected is what afterLastAffected read for one format of the record: the line, the newest release it lists on it and the
-// installation's version, both in the form the format lists it.
+// lastAffected is what afterLastAffected (or afterLastListedLine) read for one format of the record: the installation's line, the
+// newest release the format lists on it (the newest listed line, for afterLastListedLine) and the installation's version, in the form
+// the format lists it.
 type lastAffected struct {
 	format    Format
 	product   ProductRef
@@ -198,26 +199,35 @@ type lastAffected struct {
 	line      string
 	last      string
 	installed string
+	lines     []string // afterLastListedLine: the lines the format lists, oldest first
 }
 
-// afterLastAffected says the installation is past the last affected release of its line in every format of v that lists the product
-// the line is identified by (see the comment at the top of this file), with what each format read; ok is false when any condition
-// fails. Only the line's own names count, never one a model chose.
-func afterLastAffected(in swInfo, v Vuln, key []identity) ([]lastAffected, bool) {
+// exactList is a record's exact rows of the product the line is identified by, per format, and the installation's version in both
+// forms (exactListOf).
+type exactList struct {
+	byFormat map[Format][]listedRow
+	ip, iu   release
+	ipOK     bool
+	iuOK     bool
+}
+
+// exactListOf reads the rows of v that name the line by its own names (never one a model chose) as a list of exact releases; ok is
+// false when a row is not one (a range, a row neither form reads), is not the vendor's own word, was lost, states a fix above it or
+// what every unlisted version is, or when no row names the line.
+func exactListOf(in swInfo, v Vuln, key []identity) (exactList, bool) {
 	if !versionKnown(in.ver) {
-		return nil, false
+		return exactList{}, false
 	}
 	own := in.own()
-	ip, iu, ipOK, iuOK := installedReleases(in.ver, in.display)
-	byFormat := map[Format][]listedRow{}
+	l := exactList{byFormat: map[Format][]listedRow{}}
+	l.ip, l.iu, l.ipOK, l.iuOK = installedReleases(in.ver, in.display)
 	sib := siblingsOf(&v)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil {
 			continue
 		}
-		mine, _, _ := entryFor(c, own, key)
-		if !mine {
+		if mine, _, _ := entryFor(c, own, key); !mine {
 			continue
 		}
 		if c.Part.Kind == NA || naVersionApart(c, in.ver, v.Affected) || earlierMarker(c, af, v.Affected) {
@@ -227,11 +237,11 @@ func afterLastAffected(in swInfo, v Vuln, key []identity) ([]lastAffected, bool)
 			continue
 		}
 		if af.Lost || af.VendorList || af.LineFix != "" || !af.VendorCNA {
-			return nil, false
+			return exactList{}, false
 		}
 		p, u, pOK, uOK := listedRelease(af)
 		if !pOK && !uOK { // a range, or an exact row neither form reads
-			return nil, false
+			return exactList{}, false
 		}
 		f := FormatNVDCPE
 		if v.fromCVEOrg() || af.AffectedOnly || v.Origin == RangeADP {
@@ -239,69 +249,146 @@ func afterLastAffected(in swInfo, v Vuln, key []identity) ([]lastAffected, bool)
 		}
 		vn, _ := c.Vendor.Literal()
 		pn, _ := c.Product.Literal()
-		byFormat[f] = append(byFormat[f], listedRow{af: af, ref: ProductRef{Vendor: vn, Product: pn}, p: p, u: u, pOK: pOK, uOK: uOK, proof: !af.AffectedOnly})
+		l.byFormat[f] = append(l.byFormat[f], listedRow{af: af, ref: ProductRef{Vendor: vn, Product: pn}, p: p, u: u, pOK: pOK, uOK: uOK, proof: !af.AffectedOnly})
 	}
-	if len(byFormat) == 0 {
-		return nil, false
-	}
-	var out []lastAffected
-	for _, f := range []Format{FormatCVE5, FormatNVDCPE} {
-		rows := byFormat[f]
+	return l, len(l.byFormat) > 0
+}
+
+// formats calls f for each format that lists the product, CVE record first, with the form its list reads in (a release with an update
+// when any row gives one, else dotted numbers), its releases in that form and the installation's version in it; false when a row or
+// the installation does not read in the form, or f returns false.
+func (l exactList) formats(f func(fm Format, rows []listedRow, rels []release, inst release) bool) bool {
+	for _, fm := range []Format{FormatCVE5, FormatNVDCPE} {
+		rows := l.byFormat[fm]
 		if len(rows) == 0 {
 			continue
 		}
-		// the form of the format's list: a release with an update when any row gives one, else dotted numbers; every row must read in it
 		form := formPlain
 		if slices.ContainsFunc(rows, func(x listedRow) bool { return x.uOK && !x.pOK }) {
 			form = formUpdate
 		}
-		inst, instOK := ip, ipOK
+		inst, ok := l.ip, l.ipOK
 		if form == formUpdate {
-			inst, instOK = iu, iuOK
+			inst, ok = l.iu, l.iuOK
 		}
-		if !instOK || inst.line() == "" {
-			return nil, false // the installation does not state its version in the list's form
+		if !ok || inst.line() == "" {
+			return false // the installation does not state its version in the list's form
 		}
-		var last *listedRow
-		for i := range rows {
-			x := &rows[i]
+		rels := make([]release, len(rows))
+		for i, x := range rows {
 			r, ok := x.p, x.pOK
 			if form == formUpdate {
 				r, ok = x.u, x.uOK
 			}
 			if !ok {
-				return nil, false
+				return false
 			}
-			l := r.line()
-			if l == "" { // a row that names a line, not a release in it
-				if form == formPlain && len(r.rel) > 0 && len(inst.rel) > 0 && r.rel[0] == inst.rel[0] {
-					return nil, false // it may name the installation's line
-				}
-				continue
-			}
-			if l != inst.line() {
-				continue
-			}
-			if last == nil || r.compare(last.in(form)) > 0 {
-				last = x
-			}
+			rels[i] = r
 		}
-		if last == nil {
-			return nil, false // the format lists no release of the installation's line: unlisted, as before
+		if !f(fm, rows, rels, inst) {
+			return false
 		}
-		lr := last.in(form)
-		if inst.compare(lr) <= 0 {
-			return nil, false // at or below the last affected release
-		}
-		if !slices.ContainsFunc(rows, func(x listedRow) bool { return x.proof }) {
-			continue // the record's rows beside NVD's only ever say affected: they agree, NVD's rows prove
-		}
-		out = append(out, lastAffected{format: f, product: last.ref, ref: last.af.CPE, line: inst.line(), last: lr.text(), installed: inst.text()})
 	}
-	return out, len(out) > 0
+	return true
 }
 
-// listedRow is one exact row of the product as afterLastAffected reads it.
+// afterLastAffected says the installation is past the last affected release of its line in every format of v that lists the product
+// the line is identified by (see the comment at the top of this file), with what each format read; ok is false when any condition
+// fails.
+func afterLastAffected(in swInfo, v Vuln, key []identity) ([]lastAffected, bool) {
+	l, ok := exactListOf(in, v, key)
+	if !ok {
+		return nil, false
+	}
+	var out []lastAffected
+	ok = l.formats(func(fm Format, rows []listedRow, rels []release, inst release) bool {
+		last := -1
+		for i, r := range rels {
+			switch line := r.line(); {
+			case line == "": // a row that names a line, not a release in it
+				if r.form == formPlain && len(r.rel) > 0 && len(inst.rel) > 0 && r.rel[0] == inst.rel[0] {
+					return false // it may name the installation's line
+				}
+			case line == inst.line() && (last < 0 || r.compare(rels[last]) > 0):
+				last = i
+			}
+		}
+		if last < 0 || inst.compare(rels[last]) <= 0 {
+			return false // no release of the installation's line (unlisted, as before), or it is at or below the last affected one
+		}
+		if slices.ContainsFunc(rows, func(x listedRow) bool { return x.proof }) { // the record's rows beside NVD's only say affected
+			out = append(out, lastAffected{format: fm, product: rows[last].ref, ref: rows[last].af.CPE, line: inst.line(), last: rels[last].text(), installed: inst.text()})
+		}
+		return true
+	})
+	return out, ok && len(out) > 0
+}
+
+// lineNumbers is the numbers that name r's release line ("2.4" of "2.4.49", "1.8" of "1.8.0 update 45").
+func (r release) lineNumbers() []uint64 {
+	if r.form == formPlain {
+		return r.rel[:min(2, len(r.rel))]
+	}
+	n := len(r.rel)
+	for n > 1 && r.rel[n-1] == 0 {
+		n--
+	}
+	return r.rel[:n]
+}
+
+// afterLastListedLine says the installation is on a release line newer than every line the vendor's own list of exact releases names
+// (exactListOf), in every format that lists the product: a vendor that lists the last affected release of each line it supports
+// names no newer line because the flaw was fixed before it branched. Stricter than afterLastAffected, since nothing about the line itself
+// is stated:
+//   - each format writes every release and the installation's version in one numbering: the same form and as many numbers ("158.0.8127.37"
+//     beside "148.0.7778.216"; not "160.0" beside "152.0.3", nor "8 Update 491" beside "1.7.0 update 80"); no row names a line only;
+//   - the installation's line is strictly above every listed line, in numbers;
+//   - each format that may prove lists at least two lines: a list of one line may be the only train the vendor assessed.
+//
+// The proof is scoped to the product and the installation's line (ProofAfterLastListedLine); the gate never lets it close an exploited
+// CVE by itself.
+func afterLastListedLine(in swInfo, v Vuln, key []identity) ([]lastAffected, bool) {
+	l, ok := exactListOf(in, v, key)
+	if !ok {
+		return nil, false
+	}
+	var out []lastAffected
+	ok = l.formats(func(fm Format, rows []listedRow, rels []release, inst release) bool {
+		lines := map[string]release{}
+		newest := -1
+		for i, r := range rels {
+			if r.line() == "" || len(r.rel) != len(inst.rel) {
+				return false // a row that names a line only, or another numbering than the installation's
+			}
+			if (version{rel: inst.lineNumbers()}).compare(version{rel: r.lineNumbers()}) <= 0 {
+				return false // a listed line at or above the installation's
+			}
+			lines[r.line()] = r
+			if newest < 0 || r.compare(rels[newest]) > 0 {
+				newest = i
+			}
+		}
+		proves := slices.ContainsFunc(rows, func(x listedRow) bool { return x.proof })
+		if !proves {
+			return true // the record's rows beside NVD's only say affected: they agree, NVD's rows prove
+		}
+		if len(lines) < 2 {
+			return false // one listed line: the vendor may have assessed that train only
+		}
+		la := lastAffected{format: fm, product: rows[newest].ref, ref: rows[newest].af.CPE, line: inst.line(), last: rels[newest].text(), installed: inst.text()}
+		for _, r := range lines {
+			la.lines = append(la.lines, r.line())
+		}
+		slices.SortFunc(la.lines, func(a, b string) int {
+			return (version{rel: lines[a].lineNumbers()}).compare(version{rel: lines[b].lineNumbers()})
+		})
+		out = append(out, la)
+		return true
+	})
+	return out, ok && len(out) > 0
+}
+
+// listedRow is one exact row of the product as exactListOf reads it.
 type listedRow struct {
 	af       Affected
 	ref      ProductRef
@@ -316,4 +403,11 @@ func (x listedRow) in(form releaseForm) release {
 		return x.u
 	}
 	return x.p
+}
+
+// newerLineOfExploited says an exploited CVE's own exact list names only lines older than the installation's (afterLastListedLine):
+// the pair stays undecided as newer_line_exploited, never closed by that reading.
+func newerLineOfExploited(in swInfo, v Vuln) bool {
+	_, ok := afterLastListedLine(in, v, keyIDs(v))
+	return ok
 }

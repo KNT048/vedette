@@ -173,6 +173,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   no row is on stays undecided (`unlistedLine`), a release at or below a listed one is never closed by it. The closing note names the
   line and the release; the gate's proof is `after_last_affected`, scoped to the product, that line and the releases above it.
   `TestMatch_ExactListIsTheLastAffectedReleaseOfItsLine`, `TestGate_AfterLastAffected`, `TestGateShadow_ExactRowIsNoFixOnItsOwn`.
+  The same list read for a line it does not name (`afterLastListedLine`): a release on a line strictly above every listed line is not
+  affected when every format that may prove lists at least two lines, and every listed release and the installed version are written
+  in one numbering (same form, as many numbers: not "160.0" beside "152.0.3", nor "8 Update 491" beside "1.7.0 update 80"); one listed
+  line (the vendor may have assessed only that train), a line between listed lines or below them, and every condition above stay as
+  they were. The gate's proof is `after_last_listed_line` (CVE5 or NVD CPE), scoped to the product and the installed line, and it
+  never closes an exploited CVE: such a pair stays undecided as `newer_line_exploited` for a person. `TestMatch_NewerThanEveryListedLine`,
+  `TestGate_AfterLastListedLine`.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen

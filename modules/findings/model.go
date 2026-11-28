@@ -480,10 +480,13 @@ const (
 	UndecidedBranchOnly       = "ranges_start_at_branch_only" // the vendor's ranges start at later branches and say nothing about this one
 	UndecidedEOLUnlisted      = "eol_line_unlisted"           // the rows list releases of later lines only; this older line is not listed
 	UndecidedThirdPartyBuild  = "third_party_tested_build"    // a third party lists the exact build it tested; this later release is not one
-	UndecidedNoReference      = "no_reference_page"           // the CVE has no reference page the box may read
-	UndecidedFetchFailed      = "fetch_failed"                // no reference page could be read
-	UndecidedUnparsedVendor   = "unparsed_vendor_text"        // the advisory was read, its ranges were not
-	UndecidedAIUnsure         = "ai_unsure"                   // the AI read the pages and could not tell
+	// UndecidedNewerLineExploited: the vendor's own list of exact releases names two or more lines, all older than this one
+	// (afterLastListedLine), and the CVE is on an exploited list: that reading never closes an exploited CVE by itself.
+	UndecidedNewerLineExploited = "newer_line_exploited"
+	UndecidedNoReference        = "no_reference_page"    // the CVE has no reference page the box may read
+	UndecidedFetchFailed        = "fetch_failed"         // no reference page could be read
+	UndecidedUnparsedVendor     = "unparsed_vendor_text" // the advisory was read, its ranges were not
+	UndecidedAIUnsure           = "ai_unsure"            // the AI read the pages and could not tell
 	// The distribution's package is judged by its distribution's word alone and its data has no word on it (distroSilence, cause
 	// distro_silent): DistroNotListed, DistroTriaging, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData
 	// (distroSilentReasons).
@@ -495,7 +498,7 @@ var distroSilentReasons = []string{DistroNotListed, DistroTriaging, DistroOtherP
 
 // UndecidedReasons lists every reason.
 var UndecidedReasons = []string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute, UndecidedSchemeMismatch, UndecidedNVDPending,
-	UndecidedNoRanges, UndecidedNotNamed, UndecidedPlatformOnly, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedThirdPartyBuild, UndecidedNoReference, UndecidedFetchFailed,
+	UndecidedNoRanges, UndecidedNotNamed, UndecidedPlatformOnly, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedThirdPartyBuild, UndecidedNewerLineExploited, UndecidedNoReference, UndecidedFetchFailed,
 	UndecidedUnparsedVendor, UndecidedAIUnsure, UndecidedNetworkVersion, DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild,
 	DistroNoData, DistroTriaging}
 

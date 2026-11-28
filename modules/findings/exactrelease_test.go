@@ -243,7 +243,9 @@ func TestMatch_ExactOnlyListClosesNothing(t *testing.T) {
 			continue
 		}
 		// exact_releases_only, or its finer readings: a third party's list (its tested build), releases of later lines only
-		if got := res.Unchecked[0].undecided.Reason; got != UndecidedExactOnly && got != UndecidedThirdPartyBuild && got != UndecidedEOLUnlisted {
+		// or, on the exploited list, a line newer than every line the vendor's own list names (newer_line_exploited)
+		if got := res.Unchecked[0].undecided.Reason; got != UndecidedExactOnly && got != UndecidedThirdPartyBuild && got != UndecidedEOLUnlisted &&
+			got != UndecidedNewerLineExploited {
 			t.Errorf("%s: undecided %s", tc.name, got)
 		}
 	}

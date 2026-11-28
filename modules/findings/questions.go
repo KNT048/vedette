@@ -129,6 +129,9 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 					u.undecided.Ranges = append(u.undecided.Ranges, rowText(af))
 				}
 			}
+		case u.undecided.Reason == UndecidedExactOnly && v.listed() && newerLineOfExploited(in, v):
+			// the vendor's own list names older lines only: not affected by its reading, which never closes an exploited CVE by itself
+			u.undecided.Reason = UndecidedNewerLineExploited
 		case u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver):
 			u.undecided.Reason = UndecidedEOLUnlisted
 		case u.undecided.Reason == UndecidedExactOnly && laterThanEveryListed(own, in.ver) &&

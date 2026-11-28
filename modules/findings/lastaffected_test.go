@@ -67,7 +67,7 @@ func TestMatch_ExactListIsTheLastAffectedReleaseOfItsLine(t *testing.T) {
 		{"at the newest listed release", "Gizmo", "", "4.2.9", gizmo("4.2.7", "4.2.9", "5.1.3"), "", false, false, "", ""},
 		{"between two listed releases of its line", "Gizmo", "", "4.2.8", gizmo("4.2.7", "4.2.9", "5.1.3"), "", false, false, "", ""},
 		{"a line the list does not name, between listed lines", "Gizmo", "", "4.3.1", gizmo("4.2.7", "4.2.9", "5.1.3"), "", false, false, "", ""},
-		{"a line newer than every listed one", "Gizmo", "", "6.0.1", gizmo("4.2.7", "4.2.9", "5.1.3"), "", false, false, "", ""},
+		{"a line newer than every listed one, exploited (newerline_test.go)", "Gizmo", "", "6.0.1", gizmo("4.2.7", "4.2.9", "5.1.3"), "", true, false, "", ""},
 		{"a line older than every listed one", "Gizmo", "", "3.9.9", gizmo("4.2.7", "4.2.9", "5.1.3"), "", false, false, "", ""},
 		{"a third party's list of the builds it tested", "Gizmo", "", "4.2.10", thirdParty, "", false, false, "", ""},
 		{"the record also gives a range", "Gizmo", "", "4.2.10", ranged, "", false, false, "", ""},

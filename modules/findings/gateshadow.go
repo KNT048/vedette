@@ -30,6 +30,7 @@ const (
 	prodSchemeElsewhere  = "scheme_elsewhere"      // listed only on other hardware
 	prodRanges           = "ranges"                // NVD's or the CVE record's ranges, row by row
 	prodLastAffected     = "last_affected"         // a list of exact releases: past the last affected release of the line
+	prodNewerLine        = "newer_line"            // a list of exact releases: a line newer than every listed one
 	prodPastRecordFix    = "past_record_fix"       // past a fix a partial record states for the train
 	prodOSList           = "os_list"               // NVD lists only other releases of the device's OS
 	prodWindowsRelease   = "windows_release"       // the Windows release's own monthly update data
@@ -256,7 +257,7 @@ func shadowRanges(in swInfo, v Vuln, key []identity, proof proofKind, via, agree
 		return &gateShadow{producer: prodWindowsRelease, proofs: []Proof{asRead(prodWindowsRelease, ProofFixedAt, FormatMSRelease, v, in, in.ver)}}
 	case via:
 		return shadowStop(in, prodWindowsSibling)
-	case v.RangesFrom == RangesCVEOrgPartial && !pastLastAffected(in, v, key):
+	case v.RangesFrom == RangesCVEOrgPartial && !pastLastAffected(in, v, key) && !newerLineCloses(in, v, key):
 		return &gateShadow{producer: prodPastRecordFix, proofs: []Proof{asRead(prodPastRecordFix, ProofFixedAt, FormatCVE5, v, in, in.ver)}}
 	}
 	return rangeProofs(in, v, key)
@@ -370,6 +371,15 @@ func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 					Versions: VersionSet{Scheme: SchemeGeneric, Lines: []string{la.line}, Ranges: []Span{{From: la.last, FromExcl: true}}}}})
 		}
 	}
+	if las, ok := afterLastListedLine(in, v, key); ok && !g.decided() {
+		g.producer, g.line, g.ver = prodNewerLine, las[0].line, las[0].installed
+		for _, la := range las {
+			g.proofs = append(g.proofs, Proof{Kind: ProofAfterLastListedLine, CVE: v.CVE, Says: SaysNotAffected, Producer: prodNewerLine,
+				Src: ProofSource{Format: la.format, Publisher: cmp.Or(v.rangeOrigin(), RangeNVD), OwnCNA: true, Ref: la.ref},
+				Scope: Scope{Product: la.product, Origin: OriginSet{Upstream: true}, Platform: PlatformSet{Any: true},
+					Versions: VersionSet{Every: true, Lines: []string{la.line}}}})
+		}
+	}
 	for ref, l := range listed {
 		if everyListed[ref] {
 			continue
@@ -379,6 +389,22 @@ func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 			Scope: Scope{Product: ref, Origin: OriginSet{Upstream: true}, Versions: *l, Platform: PlatformSet{Any: true}}})
 	}
 	return g
+}
+
+// decided says a list-reading producer (last affected, newer line) already gave the step its proof.
+func (g *gateShadow) decided() bool {
+	return g.producer == prodLastAffected || g.producer == prodNewerLine
+}
+
+// newerLineCloses says the installation is on a line newer than every line a vendor's list of exact releases names
+// (afterLastListedLine) and the CVE is not on an exploited list: that reading never closes an exploited CVE by itself
+// (newer_line_exploited).
+func newerLineCloses(in swInfo, v Vuln, key []identity) bool {
+	if v.listed() {
+		return false
+	}
+	_, ok := afterLastListedLine(in, v, key)
+	return ok
 }
 
 // pastLastAffected says the installation is past the last affected release of its line a list of exact releases states

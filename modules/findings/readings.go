@@ -3,6 +3,8 @@ package findings
 import (
 	"cmp"
 	"fmt"
+	"slices"
+	"strings"
 )
 
 // Readings. A record can leave one input open that the box cannot settle, such as whether a list a third party wrote names every
@@ -31,10 +33,13 @@ type agreement struct {
 // or no ambiguity this function knows applies. A "not affected" of a CVE on an exploited list is never decided here: only a person
 // closes those, so they stay possible.
 func everyReading(in swInfo, v Vuln, key []identity, name string) (agreement, bool) {
-	if !versionKnown(in.ver) {
+	if v.listed() {
 		return agreement{}, false
 	}
-	if v.listed() {
+	if a, ok := systemReadings(in, v, key, name); ok {
+		return a, true
+	}
+	if !versionKnown(in.ver) {
 		return agreement{}, false
 	}
 	if a, ok := fixTrainReadings(in, v, key, name); ok {
@@ -126,6 +131,84 @@ func fixTrainReadings(in swInfo, v Vuln, key []identity, name string) (agreement
 	return agreement{t: No, says: fmt.Sprintf("version %s of %s is at or past %s, the release the CVE.org record states fixed on its own release "+
 		"train (%d.%d); decided under every reading: whether the record lists every affected release or only the trains its writer tested, "+
 		"this version carries the fix", clean(in.ver), clean(name), clean(fix), t[0], t[1])}, true
+}
+
+// systemReadings reads a list that is not complete (a partial CVE.org list, or a record's rows read beside NVD's) whose every row of the
+// line's own product is limited to an operating system (CPE target_sw; the record's platforms are stored as target_sw): a version
+// outside such a list proves nothing, but a system does, when the statement comes from who knows the product's builds. Whether the list
+// names every affected version or only some, it names the systems the product is affected on, and none of them is one the device's own
+// agent reports (installOf: the agent's OS, never a scan's guess). The rows count when the vendor's own CNA wrote them
+// (Affected.VendorCNA), or when NVD's own analysis of the CVE agrees: it has rows, and every one of them is limited to a system the
+// device does not run either. A third party's record alone names the system it tested on ("as demonstrated on Linux"), so it decides
+// nothing.
+//
+// Both sides must read in the target_sw vocabulary (osFamilies) and not meet (platformsMeet). A row for every system, for the build of
+// no named system, for a host application or for a word outside the vocabulary, a row only the exploited list's key reaches, one that
+// may name the line, the line's own CPE stating a system, a vendor's own rows (Schemed, Lines) or a device whose system is not known
+// keep the CVE possible.
+func systemReadings(in swInfo, v Vuln, key []identity, name string) (agreement, bool) {
+	have := in.install.platform
+	if have == "" || in.install.platformWhy == "" || in.hasCPE && in.cpe.TargetSW.Kind != Any || len(v.Schemed) > 0 || len(v.Lines) > 0 {
+		return agreement{}, false
+	}
+	switch {
+	case v.RangesFrom == RangesCVEOrgPartial:
+	case v.RangesFrom == "" && len(recordRows(in, v, key, false)) == 0:
+	default:
+		return agreement{}, false // a complete list, or NVD's own rows of the line: decide already read their systems
+	}
+	// other is the family name of the system row c is limited to when the device does not run it, "" otherwise
+	other := func(c CPE) string {
+		lit, ok := c.TargetSW.Literal()
+		if !ok || c.TargetSW.Kind != Value {
+			return ""
+		}
+		w := osFamilies[strings.ToLower(lit)]
+		if w == "" || platformsMeet(have, w) {
+			return ""
+		}
+		return osFamilyNames[w]
+	}
+	var systems []string
+	third := false               // a row of the line is a third party's
+	nvdRows, nvdOther := 0, true // NVD's own rows of the CVE, and whether each is limited to a system the device does not run
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA {
+			return agreement{}, false // which product the row is about is not known
+		}
+		own, byKey, known := entryFor(c, in, key)
+		if !own && (byKey || !known) {
+			return agreement{}, false
+		}
+		if v.RangesFrom == "" && !af.AffectedOnly { // NVD's row (of another product: recordRows found none of the line's)
+			nvdRows++
+			nvdOther = nvdOther && other(c) != ""
+			continue
+		}
+		if !own {
+			continue // the record's row of another product
+		}
+		n := other(c)
+		if n == "" {
+			return agreement{}, false
+		}
+		third = third || !af.VendorCNA
+		if !slices.Contains(systems, n) {
+			systems = append(systems, n)
+		}
+	}
+	if len(systems) == 0 || third && (nvdRows == 0 || !nvdOther) {
+		return agreement{}, false
+	}
+	slices.Sort(systems)
+	who := "the CVE record lists"
+	if third {
+		who = "the CVE record and NVD list"
+	}
+	return agreement{t: No, says: fmt.Sprintf("%s %s for %s on %s only, and %s; decided under every reading: whether the record "+
+		"lists every affected version or only some, it does not list this system", who, v.CVE, clean(name), orList(systems),
+		in.install.platformWhy)}, true
 }
 
 // recordRows are the rows of v that name the line itself (entryFor own) and are CVE record rows of the kind asked: read beside NVD's

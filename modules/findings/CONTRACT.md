@@ -397,7 +397,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
   train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
   so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an
-  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw.
+  Such a list (partial, or beside NVD's rows when no NVD row names the line) whose every row of the line is limited to systems the
+  device's own agent does not report is not affected under both readings too, when the vendor's own CNA wrote the rows or NVD's own
+  rows of the CVE are all limited to such systems as well (a third party's record names the system it tested on); both sides must read
+  in the target_sw vocabulary and not meet (`systemReadings`; an iPhone or iPad app runs on macOS, `platformsMeet`, also for `judge`);
+  a row for every system, an unknown device system or one outside the vocabulary (ESXi, a network OS) keeps it a question. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
@@ -432,6 +437,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153; an exact ESR row lists its own line only) stays asked whether that
   line is affected (`detail.attribute` `unlisted_line`, never the edition: `TestMatchAsset_UnlistedESRLineStaysAsked`). A platform's
   "-" alone is every build (Visual Studio Code); beside named systems (Office's "-" and "macos") it is the build for none of them. A
+  row for a system whose builds run on the device's (iOS on macOS) stays pinned, never ruled out. A
   derived attribute is the device's evidence (the finding is verified `device`) and the evidence names it. What is not derivable stays
   pinned (#906): a version inside the range of every edition NVD lists is a version finding whichever it runs (`pinnedInside`); inside
   some only, a `not_comparable` question whose `detail.attribute` names what decides it (`edition`, `architecture`, `platform`,

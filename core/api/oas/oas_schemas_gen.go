@@ -123190,11 +123190,12 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckVerdict) UnmarshalText(data 
 	}
 }
 
-// An update the line already needs covers this CVE: it is on no exploited list and no exploitation
-// signal keeps it, so it is grouped under that action instead of being checked one by one. It stays
-// undecided (never closed or proved not affected) and is not researched by the automatic AI research;
-// "Research deeper" still runs on it. Once the anchor closes (the version moved, a person handled it)
-// it is an ordinary possible CVE again and research resumes by itself.
+// An update the line already needs covers this CVE: it is on no exploited list, no exploitation signal
+// of any age names it, and no range it states for the line holds the target, so it is grouped under
+// that action instead of being checked one by one. It stays undecided (never closed or proved not
+// affected) and is not researched by the automatic AI research; "Research deeper" still runs on it.
+// Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again
+// and research resumes by itself.
 type FindingsGetFindingsPossibleOKItemsItemDeferred struct {
 	// Anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible
 	// CVE (PossibleRow.id) whose record states the line unsupported.
@@ -123203,17 +123204,17 @@ type FindingsGetFindingsPossibleOKItemsItemDeferred struct {
 	AnchorCve string `json:"anchor_cve"`
 	// Finding: an open finding of the same line Vedette decided from data or a person decided (never the
 	// AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
-	// possible CVE of the line is tagged unsupported when assigned with a row that covers the installed
-	// release: move to a supported release.
+	// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+	// product, edition and line strictly: move to a supported release.
 	AnchorKind FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind `json:"anchor_kind"`
 	// Finding: the anchor's fix key, the "By fix" group the row is listed under; null for unsupported_line.
 	FixKey NilString `json:"fix_key"`
 	// The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when
 	// the line has no fix); feature_update for unsupported_line.
 	Kind FindingsGetFindingsPossibleOKItemsItemDeferredKind `json:"kind"`
-	// The anchor's fix does not clear every grouped CVE (a range of one of them lists it affected):
-	// version is the lowest later release the data names that is outside every such range, computed by the
-	// box.
+	// The anchor's fix does not leave every grouped CVE's stated range: version is the lowest later
+	// release the data names that leaves them, computed by the box. A CVE whose stated range the target
+	// still holds is never grouped.
 	Raised bool `json:"raised"`
 	// The release to install, when the action names one: the anchor's fix, or a later release (raised);
 	// null otherwise.
@@ -123292,8 +123293,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetVersion(val NilStrin
 
 // Finding: an open finding of the same line Vedette decided from data or a person decided (never the
 // AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
-// possible CVE of the line is tagged unsupported when assigned with a row that covers the installed
-// release: move to a supported release.
+// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+// product, edition and line strictly: move to a supported release.
 type FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind string
 
 const (
@@ -126561,11 +126562,12 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckVerdict) UnmarshalText(data []
 	}
 }
 
-// An update the line already needs covers this CVE: it is on no exploited list and no exploitation
-// signal keeps it, so it is grouped under that action instead of being checked one by one. It stays
-// undecided (never closed or proved not affected) and is not researched by the automatic AI research;
-// "Research deeper" still runs on it. Once the anchor closes (the version moved, a person handled it)
-// it is an ordinary possible CVE again and research resumes by itself.
+// An update the line already needs covers this CVE: it is on no exploited list, no exploitation signal
+// of any age names it, and no range it states for the line holds the target, so it is grouped under
+// that action instead of being checked one by one. It stays undecided (never closed or proved not
+// affected) and is not researched by the automatic AI research; "Research deeper" still runs on it.
+// Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again
+// and research resumes by itself.
 type FindingsGetFindingsReviewOKItemsItemDeferred struct {
 	// Anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible
 	// CVE (PossibleRow.id) whose record states the line unsupported.
@@ -126574,17 +126576,17 @@ type FindingsGetFindingsReviewOKItemsItemDeferred struct {
 	AnchorCve string `json:"anchor_cve"`
 	// Finding: an open finding of the same line Vedette decided from data or a person decided (never the
 	// AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
-	// possible CVE of the line is tagged unsupported when assigned with a row that covers the installed
-	// release: move to a supported release.
+	// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+	// product, edition and line strictly: move to a supported release.
 	AnchorKind FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind `json:"anchor_kind"`
 	// Finding: the anchor's fix key, the "By fix" group the row is listed under; null for unsupported_line.
 	FixKey NilString `json:"fix_key"`
 	// The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when
 	// the line has no fix); feature_update for unsupported_line.
 	Kind FindingsGetFindingsReviewOKItemsItemDeferredKind `json:"kind"`
-	// The anchor's fix does not clear every grouped CVE (a range of one of them lists it affected):
-	// version is the lowest later release the data names that is outside every such range, computed by the
-	// box.
+	// The anchor's fix does not leave every grouped CVE's stated range: version is the lowest later
+	// release the data names that leaves them, computed by the box. A CVE whose stated range the target
+	// still holds is never grouped.
 	Raised bool `json:"raised"`
 	// The release to install, when the action names one: the anchor's fix, or a later release (raised);
 	// null otherwise.
@@ -126663,8 +126665,8 @@ func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetVersion(val NilString)
 
 // Finding: an open finding of the same line Vedette decided from data or a person decided (never the
 // AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
-// possible CVE of the line is tagged unsupported when assigned with a row that covers the installed
-// release: move to a supported release.
+// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+// product, edition and line strictly: move to a supported release.
 type FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind string
 
 const (

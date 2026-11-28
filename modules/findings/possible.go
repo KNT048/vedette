@@ -469,8 +469,7 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 		}
 		q := strings.ToLower(strings.TrimSpace(f.Q))
 		var rows []PossibleRowJS
-		var of []int // the item of each row
-		for i, it := range items {
+		for _, it := range items {
 			if f.State == "" && it.State == PossibleSettled || f.State != "" && it.State != f.State {
 				continue
 			}
@@ -478,19 +477,10 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 			if q != "" && !possibleMatches(r, q) {
 				continue
 			}
-			rows, of = append(rows, r), append(of, i)
+			rows = append(rows, r)
 		}
 		out.Total = len(rows)
 		lo, hi := p.cut(len(rows))
-		// the targets of the deferred groups this page shows, each group judged on all of its items (one target on every page)
-		page := map[[2]string]bool{}
-		for _, i := range of[lo:hi] {
-			page[[2]string{items[i].Question.AssetID, items[i].Question.SoftwareID}] = true
-		}
-		s.raiseTargets(ctx, items, page)
-		for j, i := range of[lo:hi] {
-			rows[lo+j].Deferred = deferredJS(items[i].Deferred)
-		}
 		out.Items = append(out.Items, rows[lo:hi]...)
 		return nil
 	})

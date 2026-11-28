@@ -192,7 +192,7 @@ func TestLineReading_NotAffectedOnlyFromTheVendorAndNeverAloneForAnExploitedCVE(
 		if !tc.exploited {
 			e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
 			// a signal keeps it: the line's open finding would otherwise group it under its update, unread (deferred.go)
-			e.feeds.kept = map[string]bool{"CVE-2026-82002": true}
+			e.feeds.signalled = map[string]bool{"CVE-2026-82002": true}
 		}
 		runCheck(t, e)
 		it := possibleByCVE(t, e)["CVE-2026-82002"]
@@ -473,7 +473,7 @@ func TestLineReading_APageThatNamesNeitherTheCVENorItsAdvisoryDecidesNothing(t *
 			e, fc := lineWorld(t)
 			e.feeds.unlisted = map[string]bool{"CVE-2026-82002": true}
 			// a signal keeps it: the line's open finding would otherwise group it under its update, unread (deferred.go)
-			e.feeds.kept = map[string]bool{"CVE-2026-82002": true}
+			e.feeds.signalled = map[string]bool{"CVE-2026-82002": true}
 			fc.pages["CVE-2026-82002"][0].Text = tc.text
 			if tc.verdict != nil {
 				fc.verdicts["CVE-2026-82002|7.2.1-69057-5"] = *tc.verdict

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // CVEs a needed update already covers. When a software line of a device has an open finding Vedette decided from data or a person
@@ -18,14 +20,17 @@ import (
 // A possible CVE is deferred when every one of these holds:
 //   - it is undecided (state possible: not a proposal waiting for a person, not settled) and does not wait for its distribution's word
 //     (DistroPending: its own group, never researched);
-//   - its CVE is on no exploited list and no exploitation signal keeps it (Feeds.Kept): an exploited CVE is researched as always;
+//   - its CVE is on no exploited list and no exploitation signal of any age names it (Feeds.Exploited: an exploited statement, a public
+//     exploit or scan template, an intrusion alert here, whatever its date): an exploited CVE is researched as always;
+//   - the line's action covers it: when the action is a release to install, no range the CVE states for the line still holds that
+//     release (updateTarget); a CVE the release does not leave stays an ordinary undecided row, researched. A CVE with no stated range
+//     for the line is grouped (the group says it was not checked one by one, never that the update fixes it);
 //   - its line has an anchor: an open finding of the same device and software line whose range origin is not the AI's reading
 //     (RangeAIRead) and that was not opened through the product the AI chose for the line (Evidence.Identity). An accepted or handled
 //     finding is not open, so it is no anchor. A line with no such finding has an anchor when the CVE record of another of its
 //     possible CVEs states the line unsupported by its vendor: the record is tagged unsupported when assigned (Feeds.Unsupported) and
-//     one of its rows that applies to the line covers the installed release, or might (an edition or platform the box does not know
-//     decides it; unsupportedAnchors). The action is then to move to a supported release; the tagged CVE itself stays an ordinary
-//     possible row (it is the reason), and is researched as before.
+//     one of its rows matches the installed product, edition and line strictly (lineCovered: never on "might"). The action is then to
+//     move to a supported release; the tagged CVE itself stays an ordinary possible row (it is the reason), researched as before.
 //
 // It is derived when the possible CVEs are read (possibleItemsOf), never stored: the question, its cause and every decision stay as
 // they are (a deferred CVE is never closed, never not affected and never goes through the closing gate). When the anchor closes (the
@@ -44,8 +49,8 @@ type Deferred struct {
 	AnchorKind string // AnchorFinding or AnchorUnsupported
 	AnchorCVE  string
 	FixKey     string // the anchor finding's stored fix key: its "By fix" group; "" for AnchorUnsupported
-	// Fix is the group's target: the anchor's fix, or the lowest later release the data names that is outside every range of the
-	// line's deferred CVEs (Raised; raiseTargets).
+	// Fix is the group's target: the anchor's fix, or the lowest later release the data names that leaves every range of the line's
+	// deferred CVEs (Raised; updateTarget).
 	Fix    Fix
 	Raised bool
 }
@@ -125,8 +130,63 @@ func deferrable(it PossibleItem) bool {
 	return it.State == PossibleOpen && !it.Exploited && it.Question.SoftwareID != "" && !it.DistroPending()
 }
 
-// markDeferred sets Deferred on every item of a line with an anchor that is not exploited (deferrable, and no exploitation signal
-// keeps its CVE). A signal that cannot be read defers nothing: the CVEs are researched as before.
+// lineRefs reads, once per markDeferred, the catalogue entries of some CVEs and the devices of some lines: what the target of an update
+// group and the unsupported statement of a record are judged on. A read that fails is logged and leaves the entry or device absent.
+type lineRefs struct {
+	s       *Service
+	vulns   map[string]Vuln
+	devices map[string]*Asset
+}
+
+func (s *Service) lineRefs(ctx context.Context, cves []string) *lineRefs {
+	r := &lineRefs{s: s, vulns: map[string]Vuln{}, devices: map[string]*Asset{}}
+	if len(cves) == 0 {
+		return r
+	}
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope(nil, cves)) // only the pinned CVEs: the adapter reads nothing more
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: the ranges of possible CVEs could not be read; their lines group nothing", "error", err)
+		return nil
+	}
+	want := map[string]bool{}
+	for _, c := range cves {
+		want[c] = true
+	}
+	for _, v := range vulns {
+		if want[v.CVE] {
+			r.vulns[v.CVE] = v
+		}
+	}
+	return r
+}
+
+// line is software line sw of device id as the matcher reads it; false when the device or the line cannot be read.
+func (r *lineRefs) line(ctx context.Context, id, sw string) (Asset, Software, bool) {
+	a, read := r.devices[id]
+	if !read {
+		got, found, err := r.s.cfg.Inventory.MatchInput(ctx, id)
+		if err != nil {
+			r.s.cfg.Log.WarnContext(ctx, "findings: a device of possible CVEs could not be read", "asset", id, "error", err)
+		}
+		if found && err == nil {
+			a = &got
+		}
+		r.devices[id] = a
+	}
+	if a == nil {
+		return Asset{}, Software{}, false
+	}
+	sws := deviceSoftware(*a)
+	i := slices.IndexFunc(sws, func(s Software) bool { return s.ID == sw })
+	if i < 0 {
+		return Asset{}, Software{}, false
+	}
+	return *a, sws[i], true
+}
+
+// markDeferred sets Deferred on every item of a line with an anchor that is not exploited (deferrable, and no exploitation signal of
+// any age names its CVE: Feeds.Exploited) and that the line's action covers (updateTarget). A signal, catalogue or device that cannot
+// be read defers nothing: the CVEs are researched as before.
 func (s *Service) markDeferred(ctx context.Context, device string, items []PossibleItem) error {
 	if !slices.ContainsFunc(items, deferrable) {
 		return nil
@@ -148,105 +208,84 @@ func (s *Service) markDeferred(ctx context.Context, device string, items []Possi
 	if len(cves) == 0 {
 		return nil
 	}
-	kept, err := s.cfg.Feeds.Kept(ctx, uniqueIDs(cves))
+	signalled, err := s.cfg.Feeds.Exploited(ctx, uniqueIDs(cves))
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "findings: reading the exploitation signals of possible CVEs failed; none is deferred", "error", err)
 		return nil
 	}
-	for i := range items {
-		it := &items[i]
-		a, ok := anchors[[2]string{it.Question.AssetID, it.Question.SoftwareID}]
-		if !ok || !deferrable(*it) || kept[it.CVE] || a.kind == AnchorUnsupported && a.cve == it.CVE {
+	groups := map[[2]string][]int{} // the candidates of each line
+	var ranged []string             // the CVEs of the lines whose action is a release to install: their ranges decide what it covers
+	for i, it := range items {
+		k := [2]string{it.Question.AssetID, it.Question.SoftwareID}
+		a, ok := anchors[k]
+		if !ok || !deferrable(it) || signalled[it.CVE] || a.kind == AnchorUnsupported && a.cve == it.CVE {
 			continue
 		}
-		it.Deferred = &Deferred{Anchor: a.id, AnchorKind: a.kind, AnchorCVE: a.cve, FixKey: a.fixKey, Fix: a.fix}
+		groups[k] = append(groups[k], i)
+		if versioned(a.fix) {
+			ranged = append(ranged, it.CVE)
+		}
+	}
+	var refs *lineRefs
+	if len(ranged) > 0 {
+		if refs = s.lineRefs(ctx, uniqueIDs(ranged)); refs == nil {
+			return nil
+		}
+	}
+	for k, is := range groups {
+		a := anchors[k]
+		d := Deferred{Anchor: a.id, AnchorKind: a.kind, AnchorCVE: a.cve, FixKey: a.fixKey, Fix: a.fix}
+		covered := map[string]bool{}
+		if versioned(a.fix) {
+			dev, sw, ok := refs.line(ctx, k[0], k[1])
+			if !ok {
+				continue
+			}
+			var vs []Vuln
+			for _, i := range is {
+				v, ok := refs.vulns[items[i].CVE]
+				if !ok {
+					v = Vuln{CVE: items[i].CVE} // no stated range: nothing it says holds the target
+				}
+				vs = append(vs, v)
+			}
+			d.Fix.Version, covered = updateTarget(dev, sw, vs, a.fix.Version, productPart(Finding{FixKey: a.fixKey, Fix: a.fix}))
+			d.Raised = d.Fix.Version != a.fix.Version
+		}
+		for _, i := range is {
+			if versioned(a.fix) && !covered[items[i].CVE] {
+				continue // the update does not leave a range it states: an ordinary undecided CVE, researched
+			}
+			g := d
+			items[i].Deferred = &g
+		}
 	}
 	return nil
 }
 
-// raiseTargets raises the target of each group of deferred items (one device and line) whose anchor's fix is a release to install, when
-// that release does not clear every deferred CVE of the line: one whose ranges list the release as affected ("from 115.10.0 before
-// 115.20.0" on 115.12.0) is still there after the update. The target is then the lowest release, at or above the anchor's fix, among
-// the ends of the deferred CVEs' ranges, that is outside every range of theirs that applies to the line (the rule planReleases applies
-// to the CVEs of a block); a range that does not tell (a row with no version, an edition the box does not know) never clears a release.
-// No such release: the anchor's fix stays. It reads only the catalogue and the device, never the AI. A catalogue or device that cannot
-// be read leaves the anchors' fixes. Only the groups of only (device, line) are judged: the list judges those its page shows.
-func (s *Service) raiseTargets(ctx context.Context, items []PossibleItem, only map[[2]string]bool) {
-	groups := map[[2]string][]int{}
-	cves := map[string]bool{}
-	for i, it := range items {
-		k := [2]string{it.Question.AssetID, it.Question.SoftwareID}
-		if d := it.Deferred; d != nil && d.Fix.Kind == FixUpdate && d.Fix.Version != "" && only[k] {
-			groups[k] = append(groups[k], i)
-			cves[it.CVE] = true
-		}
-	}
-	if len(groups) == 0 {
-		return
-	}
-	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope(nil, keys(cves)))
-	if err != nil {
-		s.cfg.Log.WarnContext(ctx, "findings: the ranges of deferred CVEs could not be read", "error", err)
-		return
-	}
-	byCVE := make(map[string]Vuln, len(cves))
-	for _, v := range vulns {
-		if cves[v.CVE] {
-			byCVE[v.CVE] = v
-		}
-	}
-	devices := map[string]Asset{}
-	order := slices.Collect(mapsKeys(groups))
-	slices.SortFunc(order, func(x, y [2]string) int { return cmp.Or(cmp.Compare(x[0], y[0]), cmp.Compare(x[1], y[1])) })
-	for _, k := range order {
-		a, ok := devices[k[0]]
-		if !ok {
-			got, found, err := s.cfg.Inventory.MatchInput(ctx, k[0])
-			if err != nil {
-				s.cfg.Log.WarnContext(ctx, "findings: a device of deferred CVEs could not be read", "asset", k[0], "error", err)
-			}
-			a = got
-			if !found || err != nil {
-				a = Asset{}
-			}
-			devices[k[0]] = a
-		}
-		i := slices.IndexFunc(deviceSoftware(a), func(sw Software) bool { return sw.ID == k[1] })
-		if i < 0 {
-			continue
-		}
-		var lineCVEs []Vuln
-		for _, j := range groups[k] {
-			if v, ok := byCVE[items[j].CVE]; ok && !slices.ContainsFunc(lineCVEs, func(w Vuln) bool { return w.CVE == v.CVE }) {
-				lineCVEs = append(lineCVEs, v)
-			}
-		}
-		d := items[groups[k][0]].Deferred
-		x, ok := clearingRelease(a, deviceSoftware(a)[i], lineCVEs, d.Fix.Version, productPart(Finding{FixKey: d.FixKey, Fix: d.Fix}))
-		if !ok || x == d.Fix.Version {
-			continue
-		}
-		for _, j := range groups[k] {
-			raised := *items[j].Deferred
-			raised.Fix.Version, raised.Raised = x, true
-			items[j].Deferred = &raised
-		}
-	}
-}
+// versioned says the fix is a release of the software to install: the target whose cover of each grouped CVE is judged (updateTarget).
+// Another fix (a distribution's package, a system build, a move with no release named, no fix) names no release the CVE's upstream
+// ranges compare with: the group says "not checked one by one", never that the fix covers it.
+func versioned(f Fix) bool { return f.Kind == FixUpdate && f.Version != "" }
 
-// clearingRelease is the lowest release of product at or above target, among target and the exclusive ends of vs' ranges that apply to
-// line s of device a, that is outside every such range (evalAffected says No for each); false when none is.
-func clearingRelease(a Asset, s Software, vs []Vuln, target, product string) (string, bool) {
+// updateTarget is the release a line's update group advises, and the CVEs of vs it covers: the lowest release at or above the anchor's
+// fix, among the fix and the exclusive ends of the CVEs' ranges, that leaves every stated range of every CVE (the rule planReleases
+// applies to a block); when none leaves them all, the lowest that leaves the most. A CVE the target does not leave is not covered and
+// is not deferred, so the group never says an update covers a CVE it does not. It reads only the catalogue and the device, never the AI.
+func updateTarget(a Asset, s Software, vs []Vuln, fix, product string) (string, map[string]bool) {
 	in := swInfoOn(s, a)
-	var entries []fixedEntry
-	cands := map[string]bool{target: true}
-	for _, v := range vs {
+	stated := make([][]fixedEntry, len(vs))
+	cands := map[string]bool{fix: true}
+	for i, v := range vs {
 		var key []identity
 		if keyedTo(s, v) {
 			key = keyIDs(v)
 		}
-		for _, e := range fixedPartsOf(in, v, key).usable {
-			entries = append(entries, e)
+		for _, e := range fixedPartsOf(in, v, key).ents {
+			if e.r.IsZero() && e.c.Version.Kind != Value {
+				continue // no version: says nothing about a release
+			}
+			stated[i] = append(stated[i], e)
 			if e.r.EndExcl != "" {
 				cands[clean(e.r.EndExcl)] = true
 			}
@@ -254,25 +293,54 @@ func clearingRelease(a Asset, s Software, vs []Vuln, target, product string) (st
 	}
 	var list []string
 	for x := range cands {
-		if c, ok := compareFix(FixUpdate, product, x, target); x == target || ok && c > 0 {
+		if c, ok := compareFix(FixUpdate, product, x, fix); x == fix || ok && c > 0 {
 			list = append(list, x)
 		}
 	}
 	slices.Sort(list)
 	slices.SortStableFunc(list, func(x, y string) int { c, _ := compareFix(FixUpdate, product, x, y); return c })
+	best, most := fix, -1
+	var cover map[string]bool
 	for _, x := range list {
-		if !slices.ContainsFunc(entries, func(e fixedEntry) bool { t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); return t != No }) {
-			return x, true
+		got := map[string]bool{}
+		for i, v := range vs {
+			if !slices.ContainsFunc(stated[i], func(e fixedEntry) bool { return holds(in, product, e, x) }) {
+				got[v.CVE] = true
+			}
+		}
+		if len(got) > most {
+			best, most, cover = x, len(got), got
+		}
+		if len(got) == len(vs) {
+			break
 		}
 	}
-	return "", false
+	return best, cover
+}
+
+// holds says a stated row of a CVE may still hold release x of the line: its range holds x or might (evalAffected is not No: a range
+// with no end, an inclusive end at or past x, an edition the box does not know), or it lists one release of the line at or above x (the
+// fix is later than the listed release). A release that cannot be ordered against x holds it.
+func holds(in swInfo, product string, e fixedEntry, x string) bool {
+	if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t != No {
+		return true
+	}
+	if !e.r.IsZero() {
+		return false
+	}
+	lit, _ := e.c.Version.Literal()
+	if !sameLine(lit, in.ver) {
+		return false
+	}
+	c, ok := compareFix(FixUpdate, product, lit, x)
+	return !ok || c >= 0
 }
 
 // unsupportedAnchors adds to anchors, for each line with a deferrable item and no anchor finding, the statement of a CVE record that
 // the line is unsupported by its vendor: a possible CVE of the line (not settled; exploited or not) whose record is tagged unsupported
-// when assigned and one of whose rows that apply to the line covers the installed release or might (lineCovered). Of several, the
-// lowest CVE id. Only the tag's records are read further (the catalogue's ranges, the device), so a box with none reads nothing more. A
-// tag, catalogue or device that cannot be read adds none: the CVEs are researched as before.
+// when assigned and one of whose rows covers the installed product, edition and line strictly (lineCovered). Of several, the lowest CVE
+// id. Only the tag's records are read further (their catalogue entries, the device), so a box with none reads nothing more. A tag,
+// catalogue or device that cannot be read adds none: the CVEs are researched as before.
 func (s *Service) unsupportedAnchors(ctx context.Context, items []PossibleItem, anchors map[[2]string]anchor) {
 	open := map[[2]string]bool{}
 	for _, it := range items {
@@ -306,51 +374,29 @@ func (s *Service) unsupportedAnchors(ctx context.Context, items []PossibleItem, 
 	if len(cands) == 0 {
 		return
 	}
-	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope(nil, keys(tagged)))
-	if err != nil {
-		s.cfg.Log.WarnContext(ctx, "findings: the ranges of records tagged unsupported could not be read", "error", err)
+	refs := s.lineRefs(ctx, keys(tagged))
+	if refs == nil {
 		return
 	}
-	byCVE := map[string]Vuln{}
-	for _, v := range vulns {
-		if tagged[v.CVE] {
-			byCVE[v.CVE] = v
-		}
-	}
-	devices := map[string]*Asset{}
 	slices.SortStableFunc(cands, func(x, y int) int { return cmp.Compare(items[x].CVE, items[y].CVE) })
 	for _, i := range cands {
 		it := items[i]
 		k := [2]string{it.Question.AssetID, it.Question.SoftwareID}
-		v, ok := byCVE[it.CVE]
+		v, ok := refs.vulns[it.CVE]
 		if _, done := anchors[k]; done || !ok {
 			continue
 		}
-		a, read := devices[k[0]]
-		if !read {
-			got, found, err := s.cfg.Inventory.MatchInput(ctx, k[0])
-			if err != nil {
-				s.cfg.Log.WarnContext(ctx, "findings: a device of a record tagged unsupported could not be read", "asset", k[0], "error", err)
-			}
-			if found && err == nil {
-				a = &got
-			}
-			devices[k[0]] = a
-		}
-		if a == nil {
-			continue
-		}
-		sws := deviceSoftware(*a)
-		j := slices.IndexFunc(sws, func(sw Software) bool { return sw.ID == k[1] })
-		if j >= 0 && lineCovered(*a, sws[j], v) {
+		if dev, sw, ok := refs.line(ctx, k[0], k[1]); ok && lineCovered(dev, sw, v) {
 			anchors[k] = anchor{id: it.Question.ID, kind: AnchorUnsupported, cve: it.CVE, fix: Fix{Kind: FixFeatureUpdate}}
 		}
 	}
 }
 
-// lineCovered says a row of v that applies to line s of device a and names versions (a range, or an exact release) covers the installed
-// release, or might: evalAffected does not say No (an edition or platform the box does not know leaves it open). A row with no version
-// says nothing about this line.
+// lineCovered says a row of v covers line s of device a strictly: the row is about the installed product and edition (evalAffected says
+// Yes, never "might": an edition or platform the box does not know is no match) and either holds the installed release, or names a
+// release of the installed line (its first or last affected release, or the one release it lists) when the product's own scheme names
+// release lines (productid). A row with no version, or a product whose lines the catalogue does not name, covers no line by a release
+// it does not hold.
 func lineCovered(a Asset, s Software, v Vuln) bool {
 	in := swInfoOn(s, a)
 	if !in.given {
@@ -360,12 +406,29 @@ func lineCovered(a Asset, s Software, v Vuln) bool {
 	if keyedTo(s, v) {
 		key = keyIDs(v)
 	}
+	line := ""
+	p, known := productid.ResolveStored(s.Vendor, s.Product, s.Display, s.CPE)
+	if known {
+		line = p.Line(p.Canonical(in.ver))
+	}
 	for _, e := range fixedPartsOf(in, v, key).ents {
 		if e.r.IsZero() && e.c.Version.Kind != Value {
 			continue // no version: "the product", not this line
 		}
-		if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t != No {
+		if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t == Yes {
 			return true
+		}
+		if line == "" {
+			continue
+		}
+		lit, _ := e.c.Version.Literal()
+		for _, x := range []string{e.r.StartIncl, e.r.EndIncl, lit} {
+			if x == "" || p.Line(p.Canonical(x)) != line {
+				continue
+			}
+			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t == Yes {
+				return true
+			}
 		}
 	}
 	return false

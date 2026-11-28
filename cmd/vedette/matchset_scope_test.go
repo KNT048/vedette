@@ -67,10 +67,19 @@ func TestWiringMatchSetEntryIsTheSameForEveryScope(t *testing.T) {
 		{"the switch's own match", findings.NewMatchScope([]findings.Asset{switcher}, nil)},
 		{"the router's match once it holds a finding of the CVE", findings.NewMatchScope([]findings.Asset{router}, []string{cve})},
 		{"every device once one holds a finding of the CVE", findings.NewMatchScope([]findings.Asset{router, switcher}, []string{cve})},
+		{"a reader of the CVE alone", findings.NewMatchScope(nil, []string{cve})},
 	} {
 		if got := entry(c.name, c.scope); !reflect.DeepEqual(got, whole) {
 			t.Errorf("%s reads %s with rows %+v, the pass over every device with %+v", c.name, cve, got.Affected, whole.Affected)
 		}
+	}
+	// a reader of a few CVEs gets their entries alone, not the exploited lists' whole set
+	vs, err := feed.MatchSet(ctx, findings.NewMatchScope(nil, []string{cve}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vs) != 1 {
+		t.Errorf("a reader of %s got %d entries, want its own alone", cve, len(vs))
 	}
 }
 

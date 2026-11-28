@@ -97,6 +97,11 @@ func (sc MatchScope) Keep(vendor, product string, record bool) bool {
 	return false
 }
 
+// PinnedOnly says the scope is pinned CVEs alone, of no device (NewMatchScope(nil, pinned)): a reader of a few CVEs' entries.
+func (sc MatchScope) PinnedOnly() bool {
+	return sc.Empty() && len(sc.records) == 0 && len(sc.Pinned) > 0
+}
+
 // Empty says the devices run nothing a range or a distribution's data could name.
 func (sc MatchScope) Empty() bool {
 	return len(sc.keys) == 0 && len(sc.prefix) == 0 && !sc.windows && len(sc.Packages) == 0

@@ -194,6 +194,26 @@ AND instr(upper(description), ?) > 0`, string(ids), unsupportedMark)
 	return got, nil
 }
 
+// ExploitationSignalled says which of cves any exploitation signal names, whatever its age or the reporting window: an exploited-list
+// entry, or a signal row that passes its source's quality rule (exploited, a public exploit or scan template, an intrusion alert here).
+// findings never groups such a CVE under an update its line needs (findings P-13). Each CVE is one lookup of the two primary keys.
+func (s *Store) ExploitationSignalled(ctx context.Context, cves []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if len(cves) == 0 {
+		return out, nil
+	}
+	ids, err := json.Marshal(cves)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: exploitation signals: %w", err)
+	}
+	got, err := stringSet(ctx, s.db.Reader(), `SELECT j.value FROM json_each(?) j
+WHERE EXISTS (SELECT 1 FROM feeds_kev k WHERE k.cve = j.value) OR EXISTS (SELECT 1 FROM feeds_signal g WHERE g.cve = j.value AND g.qualifies = 1)`, string(ids))
+	if err != nil {
+		return nil, fmt.Errorf("feeds: exploitation signals: %w", err)
+	}
+	return got, nil
+}
+
 // SignalAttackedHere is the kind of the signal this box builds from its own intrusion alerts: an alert named the CVE (source
 // attackedHereSource). first_seen and last_seen are the first and the latest alert that named it, kept here so the reporting window
 // never depends on how long the alerts themselves are kept. It keeps the CVE inside the window until 12 months after last_seen.

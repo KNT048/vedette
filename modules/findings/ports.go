@@ -203,11 +203,13 @@ type Feeds interface {
 	// MatchSet returns what the match pass compares the devices with: every exploited-list entry (as Vulns) and every other catalogue
 	// CVE whose ranges name a product of scope (MatchScope.Keep) or that scope pins, each with its ranges as the catalogue's precedence
 	// gives them (NVD's when NVD has any, else the CVE record's; Vuln.Origin), its publication day, EPSS and the distributions' word on
-	// the scope's packages. None while the feeds module is off.
+	// the scope's packages. None while the feeds module is off. A scope of no device (NewMatchScope(nil, pinned)) gives the pinned CVEs'
+	// entries only, exploited-list entries among them: a reader of a few CVEs pays for those alone.
 	MatchSet(ctx context.Context, scope MatchScope) ([]Vuln, error)
-	// Kept says which of cves an exploitation signal keeps whatever their age (feeds Store.Kept): an exploited-list entry, an exploited
-	// signal, an intrusion alert of this network or a public exploit dated inside the reporting window. CVEs it does not keep are absent.
-	Kept(ctx context.Context, cves []string) (map[string]bool, error)
+	// Exploited says which of cves any exploitation signal names, whatever its age or the reporting window (feeds
+	// Store.ExploitationSignalled): an exploited-list entry, an exploited statement, a public exploit or scan template, an intrusion alert
+	// here. A claim its source's quality rule rejects is none. CVEs no signal names are absent.
+	Exploited(ctx context.Context, cves []string) (map[string]bool, error)
 	// Unsupported says which of cves have a record that states the product unsupported by its vendor when the CVE was assigned (the CVE
 	// Program's unsupported-when-assigned tag, as the record's description carries it). CVEs it does not tag are absent.
 	Unsupported(ctx context.Context, cves []string) (map[string]bool, error)

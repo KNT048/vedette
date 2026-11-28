@@ -62442,7 +62442,7 @@
                                       "finding",
                                       "unsupported_line"
                                     ],
-                                    "description": "finding: an open finding of the same line Vedette decided from data or a person decided (never the AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that covers the installed release: move to a supported release"
+                                    "description": "finding: an open finding of the same line Vedette decided from data or a person decided (never the AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that matches the installed product, edition and line strictly: move to a supported release"
                                   },
                                   "anchor_cve": {
                                     "type": "string",
@@ -62484,7 +62484,7 @@
                                   },
                                   "raised": {
                                     "type": "boolean",
-                                    "description": "The anchor's fix does not clear every grouped CVE (a range of one of them lists it affected): version is the lowest later release the data names that is outside every such range, computed by the box"
+                                    "description": "The anchor's fix does not leave every grouped CVE's stated range: version is the lowest later release the data names that leaves them, computed by the box. A CVE whose stated range the target still holds is never grouped"
                                   }
                                 },
                                 "required": [
@@ -62497,7 +62497,7 @@
                                   "raised"
                                 ],
                                 "additionalProperties": false,
-                                "description": "An update the line already needs covers this CVE: it is on no exploited list and no exploitation signal keeps it, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; \"Research deeper\" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself"
+                                "description": "An update the line already needs covers this CVE: it is on no exploited list, no exploitation signal of any age names it, and no range it states for the line holds the target, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; \"Research deeper\" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself"
                               },
                               {
                                 "type": "null"
@@ -64751,7 +64751,7 @@
                                       "finding",
                                       "unsupported_line"
                                     ],
-                                    "description": "finding: an open finding of the same line Vedette decided from data or a person decided (never the AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that covers the installed release: move to a supported release"
+                                    "description": "finding: an open finding of the same line Vedette decided from data or a person decided (never the AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another possible CVE of the line is tagged unsupported when assigned with a row that matches the installed product, edition and line strictly: move to a supported release"
                                   },
                                   "anchor_cve": {
                                     "type": "string",
@@ -64793,7 +64793,7 @@
                                   },
                                   "raised": {
                                     "type": "boolean",
-                                    "description": "The anchor's fix does not clear every grouped CVE (a range of one of them lists it affected): version is the lowest later release the data names that is outside every such range, computed by the box"
+                                    "description": "The anchor's fix does not leave every grouped CVE's stated range: version is the lowest later release the data names that leaves them, computed by the box. A CVE whose stated range the target still holds is never grouped"
                                   }
                                 },
                                 "required": [
@@ -64806,7 +64806,7 @@
                                   "raised"
                                 ],
                                 "additionalProperties": false,
-                                "description": "An update the line already needs covers this CVE: it is on no exploited list and no exploitation signal keeps it, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; \"Research deeper\" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself"
+                                "description": "An update the line already needs covers this CVE: it is on no exploited list, no exploitation signal of any age names it, and no range it states for the line holds the target, so it is grouped under that action instead of being checked one by one. It stays undecided (never closed or proved not affected) and is not researched by the automatic AI research; \"Research deeper\" still runs on it. Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again and research resumes by itself"
                               },
                               {
                                 "type": "null"

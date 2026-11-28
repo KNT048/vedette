@@ -536,7 +536,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   order, own builds and which row decides). A fixed release compares with the distribution's own build of the same upstream release, or
   of a later one (never a kernel's), and with the distribution's own build below it of any upstream release of the same epoch, which is
   affected with that fix (the release's records state "introduced 0, fixed F", as Grype and Trivy compare; Debian's kernel compares inside its series only,
-  `debianKernelMoves`; a vendor's or PPA's build of the same source name never compares;
+  `debianKernelMoves`; a vendor's or PPA's build of the same source name never compares; nor does a build whose revision names another
+  release than the device's, a package left after an upgrade (`+deb12u3`, `0ubuntu0.22.04.1`, `~24.04.1`: `otherReleaseBuild`);
   `TestDistroPackageFindingScenarios`). An Alpine package release (`-rN`) counts within its branch only: only the device's own branch's
   fix of the same upstream release proves a package fixed; another branch's fixes on the package's own upstream release line
   (major.minor, `apkLine`) only show a release below them (an older upstream release than every one of them), never fixed; a fix on

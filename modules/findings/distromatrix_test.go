@@ -160,6 +160,17 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 	gadgetOld := mxDeb("acme-gadget", "1.2.0", "1.2.0-1ubuntu1", "acme-gadget")
 	gadgetUbuntu := []Vuln{mxVuln(cvePkg, mxUbuntu("acme-gadget", "1.4.0-0ubuntu0.26.04.1", false))}
 	kernOlderSeries := mxKernel("6.8.0-40.40") // a kernel of an earlier series than the fix's: another kernel, never compared
+	// a build marked for another release, left on a box upgraded from it: its own release's fix may be in it, so the device release's
+	// fix of a later upstream release is not compared with it; a build marked for the device's own release still is
+	widgetOwnMark := mxDeb("acme-widget", "2.1.0", "2.1.0-1+deb13u1", "acme-widget")
+	widgetLeftover := mxDeb("acme-widget", "2.1.0", "2.1.0-1~deb12u3", "acme-widget")
+	gadgetOwnMark := mxDeb("acme-gadget", "1.2.0", "1.2.0-0ubuntu0.26.04.1", "acme-gadget")
+	gadgetLeftover := mxDeb("acme-gadget", "1.2.0", "1.2.0-0ubuntu0.24.04.1", "acme-gadget")
+	gadgetLeftoverTilde := mxDeb("acme-gadget", "1.2.0", "1.2.0-1ubuntu0.1~24.04.1", "acme-gadget")
+	// Debian 12's kernel left running on a box upgraded to Debian 13: another series than Debian 13's fix
+	debKernelOld := Software{ID: "s-kernel", Display: "Kernel", Vendor: "Linux", Product: "Kernel", Version: "6.1.128", Source: "agent", Packaged: true,
+		PkgVersion: "6.1.128-1", PkgSource: "linux-signed-amd64", KevKeys: []string{"linux|kernel"}}
+	debKern := []Vuln{mxVuln(cveKernel, DistroFix{Distro: "debian", Release: "13", Package: "linux", Status: "fixed", Fixed: "6.12.60-1"})}
 
 	k43, k44 := mxKernel("7.0.0-43.43"), mxKernel("7.0.0-44.44")
 	img44, img43 := mxImage("7.0.0-44", "7.0.0-44.44"), mxImage("7.0.0-43", "7.0.0-43.43")
@@ -202,6 +213,18 @@ func TestDistroPackageFindingScenarios(t *testing.T) {
 			[]mxStep{mxRead(widgetEpoch, widgetOld)}, mxWant{none: true}},
 		{"package/debian/own build, the fix stated for another release only: no word", "Debian GNU/Linux 13 (trixie)", cvePkg, widgetOld.ID,
 			[]mxStep{mxRead(widgetOtherRelease, widgetOld)}, mxWant{none: true}},
+		{"package/debian/own build marked for the device's release, of an earlier upstream: affected with the fix", "Debian GNU/Linux 13 (trixie)", cvePkg,
+			widgetOwnMark.ID, []mxStep{mxRead(widgetDebian, widgetOwnMark)}, mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "2.3.4-1~deb13u1"}},
+		{"package/debian/a build marked for the release before, left after the upgrade: not compared", "Debian GNU/Linux 13 (trixie)", cvePkg,
+			widgetLeftover.ID, []mxStep{mxRead(widgetDebian, widgetLeftover)}, mxWant{none: true}},
+		{"package/ubuntu/own build marked for the device's release, of an earlier upstream: affected with the fix", "", cvePkg, gadgetOwnMark.ID,
+			[]mxStep{mxRead(gadgetUbuntu, gadgetOwnMark)}, mxWant{open: yes(), fix: FixDistroUpdate, fixVer: "1.4.0-0ubuntu0.26.04.1"}},
+		{"package/ubuntu/a build marked for the release before, left after the upgrade: not compared", "", cvePkg, gadgetLeftover.ID,
+			[]mxStep{mxRead(gadgetUbuntu, gadgetLeftover)}, mxWant{none: true}},
+		{"package/ubuntu/a build marked for the release before after a tilde, left after the upgrade: not compared", "", cvePkg, gadgetLeftoverTilde.ID,
+			[]mxStep{mxRead(gadgetUbuntu, gadgetLeftoverTilde)}, mxWant{none: true}},
+		{"kernel/debian/the release before's kernel still running after the upgrade: another series, no finding", "Debian GNU/Linux 13 (trixie)", cveKernel,
+			debKernelOld.ID, []mxStep{mxRead(debKern, debKernelOld)}, mxWant{none: true}},
 		{"kernel/a kernel of an earlier series than the fix: another kernel, no finding", "", cveKernel, kernOlderSeries.ID,
 			[]mxStep{mxRead(kern, kernOlderSeries)}, mxWant{none: true}},
 

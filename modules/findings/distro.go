@@ -453,7 +453,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	}
 	switch f.Status {
 	case "fixed":
-		if !d.applies(pkg, ver, f.Fixed) {
+		if !d.applies(pkg, in.pkgRel, ver, f.Fixed) {
 			return distroAnswer{}, false
 		}
 		c, ok := d.compare(ver, f.Fixed)

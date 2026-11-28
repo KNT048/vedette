@@ -260,7 +260,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   page, `TestPossibleCheck_NotAffectedOnlyFromTheVendorsAdvisory`); a decision there is the box's own
   (`decided_by advisory`, quoted) and the next match applies it like range data (affected: a finding, range origin `advisory`, its basis
   and confirmation from who stated the version; not affected: the question stays, listed as settled). Only the rest goes to the AI
-  (P-6: a reading of the release line; checks `decided_by ai` stored before P-6 stay proposals, `confident` or `likely`); unsure keeps the
+  (P-6: a reading of the release line, researched by the customer's AI, P-11; checks `decided_by ai` stored before P-6 stay proposals, `confident` or `likely`); unsure keeps the
   CVE possible with the reason. A failed or budget-stopped call stores nothing. The AI reads the whole CVE record beside the pages (its
   description, the CNA's solution and the affected rows of every product it names, the line's own first, at most 40), and the record
   alone when no page could be read (none referenced, every page failed, or a script-rendered shell): a person reads the record too
@@ -397,6 +397,33 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`markOlderBuilds`, run by the list, Home and the device counts only). `TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart`,
   `TestOlderBuild_NoRecordNoGroup`, `TestOlderBuild_RecordNotReadNoGroup`, `TestOlderBuild_VendorPageReadingKeepsMainList`,
   `TestOlderBuild_RecordSilent`, `TestOlderBuild_TestedBuilds`.
+- **P-11 The customer's AI researches what the box cannot decide.** What the box's own readers leave (P-4) goes to the research job
+  once per (CVE, product, release line), every device and version on the line sharing it (`PossibleChecker.Research`, one call per
+  line; `TestResearch_OneResearchPerLineSharedByDevices`), never per device. The request carries the CVE, a digest of what the box read
+  for free (`researchDigest`: whether the record's writer is the vendor's own CNA or a third party, the description, solution and
+  workaround, every product's rows, each row's default status, the references with their tags), the pages the box read, the product's
+  vendor and catalogue name, its versions, line and edition, and the kinds of devices it runs on (`platformsOf`: an inventory kind and
+  a system that names no device), never a device's name, host name or address. The answer (`ResearchAnswer`: verdict, the AI's
+  confidence and basis, bounds, line, quote, its page, where the box found the quote, every layer's model, tokens, searches and pages)
+  becomes the line's reading (P-6, `researchVerdict`: the cited page among the pages the box read, else the record, else the research's
+  own page, marked the vendor's by the record's tags or the vendor's host; a "not affected" whose fix the quote or its text names is a
+  fixed line) and keeps P-6's every rule, with one change: the quote counts where the research found it (in text the AI's tools
+  returned, the digest, or the box's live fetch of the cited page; `quote_found`). Its research is stored beside it
+  (`fnd_line_research`: layer, quote check, tokens, the steps), deleted with it, and served with the reading
+  (`AiReading.research`). Outcomes: "affected" with a checked quote opens a finding (range origin `ai_read`), with no checked quote it
+  decides nothing (`TestResearch_AffectedOpensOnlyWithACheckedQuote`); "not affected" never closes anything: the question stays open
+  as a proposal for a person (`TestResearch_NotAffectedNeverClosesARow`); "unsure" stays possible with the AI's reason. A reading
+  survives a re-read of the CVE record (a new stamp) while its quote is still in the new record text or on its cited page as the box
+  fetches it then: only its record identity moves on (`rehashStatement`), no tokens (`TestResearch_SurvivesARecordReReadOnlyWithItsQuote`,
+  `TestLineReading_ReadAgainWhenTheRecordOrThePageChanges`); a page only the AI's tools read is fetched by the box after 30 days and the
+  line researched again when the quote is no longer on it. **Review AI answers** (`GET /findings/review`, viewer): the AI's "not
+  affected" proposals (`reviewable`), exploited first, filtered by device, software line, the AI's confidence and whether the box found
+  the quote, with `exploited` counting the exploited rows. **Bulk confirm** (`POST /findings/review/confirm`, operator, 1 to 500 question
+  ids, one transaction, `confirmOne` like P-5): a row whose CVE is exploited is confirmed only when `include_exploited` names its CVE,
+  else it is skipped as `exploited`; a row that no longer waits is skipped as `not_waiting`; an exploited list that cannot be read
+  confirms nothing (`TestReview_BulkConfirmExcludesExploitedUnlessNamed`). **Research deeper** (`POST /findings/possible/{id}/research`,
+  operator): the line of one possible CVE researched again now by the strong layer whatever was read before, in the background as a
+  check of one unit (409 `check_running`, 404 `not_found`; `TestResearch_DeeperResearchesTheLineAgain`).
 
 ## Invariants
 

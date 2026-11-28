@@ -11,7 +11,7 @@ import { checkKeyOf, POSSIBLE_EXPLOITED, seedPossibleChecks, type CheckRecord, t
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { assetOf, deviceRef, event, isIgnored, questions, records, severityOf, unhandled } from './modelMocks'
 import { autoReadOn, autoReadReached } from '@/features/ai/mocks'
-import type { PossibleCause, PossibleCheck, PossibleCheckRun, PossibleCheckState, PossibleCounts, PossibleList, PossibleRow, UndecidedReason } from './types'
+import type { PossibleCause, PossibleCheck, PossibleCheckRun, PossibleCheckState, PossibleCounts, PossibleList, PossibleRow, ReviewConfirmed, ReviewList, UndecidedReason } from './types'
 
 export const checks = collection<Record<string, CheckRecord>>('fnd_possible_check', seedPossibleChecks, () => ({}))
 /** The last check run (the box keeps it in memory since it started). */
@@ -166,7 +166,7 @@ function advance() {
       // the AI's reading of the vendor's statement for the release line, its quote found on the page
       const affected = n % 2 === 0
       const reading = { status: affected ? 'fixed' as const : 'not_affected' as const, line: 'line', stated_line: null, introduced: null, fixed_in: affected ? '8.2.1' : null,
-        last_affected: null, host: 'vendor.example.com', vendor_page: true, quote_found: true }
+        last_affected: null, host: 'vendor.example.com', vendor_page: true, quote_found: true, research: null }
       cs[key] = { ...base, decided_by: 'ai', verdict: affected ? 'affected' : 'not_affected', confidence: 'confident', model: 'qwen3:8b', sources: src, reading,
         reason: affected ? 'The vendor states the fix of this release line; this version is older.' : 'The vendor states this release line is not affected.',
         quote: affected ? 'All releases of this line before 8.2.1 are affected.' : 'This release line is not affected by the issue.' }
@@ -247,6 +247,39 @@ export const possibleHandlers = [
     if (!it) return fail(404, 'not_found', NO_PROPOSAL)
     if (it.check!.verdict === 'affected') { const admin = guard('admin'); if (admin) return admin }
     return HttpResponse.json({ finding: confirmOne(it) })
+  }),
+  // Review AI answers: the AI's "not affected" proposals, exploited first; an exploited CVE is confirmed in bulk only when named
+  http.get(`${API}/findings/review`, ({ request }) => read(() => {
+    const p = query(request)
+    const all = items(p.get('device')).filter((it) => it.state === 'proposal' && it.check?.verdict === 'not_affected').map(row)
+      .sort((a, b) => Number(b.exploited) - Number(a.exploited))
+    const offset = Number(p.get('offset') ?? 0)
+    const limit = Math.min(Math.max(Number(p.get('limit') ?? PAGE_DEFAULT), 1), PAGE_MAX)
+    return { items: all.slice(offset, offset + limit), total: all.length, exploited: all.filter((r) => r.exploited).length } satisfies ReviewList
+  })),
+  http.post(`${API}/findings/review/confirm`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = await body<{ ids: string[]; include_exploited?: string[] }>(request)
+    if (!Array.isArray(b.ids) || b.ids.length < 1 || b.ids.length > 500) return fail(400, 'invalid', 'Tick from 1 to 500 AI answers to confirm.')
+    let confirmed = 0
+    const skipped: ReviewConfirmed['skipped'] = []
+    for (const id of new Set(b.ids)) {
+      const it = items().find((x) => x.q.id === id && x.state === 'proposal' && x.check?.verdict === 'not_affected')
+      if (!it) { skipped.push({ id, cve: '', reason: 'not_waiting' }); continue }
+      if (row(it).exploited && !(b.include_exploited ?? []).includes(it.cve)) { skipped.push({ id, cve: it.cve, reason: 'exploited' }); continue }
+      confirmOne(it)
+      confirmed++
+    }
+    return HttpResponse.json({ confirmed, skipped } satisfies ReviewConfirmed)
+  }),
+  http.post(`${API}/findings/possible/:id/research`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    if (!aiReady()) return fail(409, 'ai_unavailable', 'Researching CVEs needs the AI assistant on and a profile for researching CVEs (Settings, AI assistant).')
+    if (runs.get()?.running) return fail(409, 'check_running', 'A check is already running. Its progress shows here.')
+    const it = items().find((x) => x.q.id === String(params.id))
+    if (!it) return fail(404, 'not_found', 'This possible CVE cannot be researched: it was decided, or Vedette lacks the version it needs.')
+    runs.set({ running: true, total: 1, done: 0, advisory: 0, proposals: 0, readings: 0, undecided: 0, failed: 0, stopped: null, by: who(), started_at: nowIso(), finished_at: null, keys: [it.key] })
+    return HttpResponse.json(runView())
   }),
   http.post(`${API}/findings/possible/checks/:key/reject`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied

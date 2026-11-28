@@ -117,7 +117,7 @@ function syncConfig() {
   aiConfigStore.update((c) => ({ ...c, configured: !!first, provider: first ? (first.kind === 'custom' ? 'openai-compatible' : first.kind) : c.provider, base_url: first?.base_url ?? c.base_url, model: first?.model ?? '', key_last4: first?.key_last4 ?? null }))
 }
 
-const JOB_NAME: Record<AiJob, string> = { 'explain-finding': 'explaining findings', 'mitigation-config': 'writing mitigation configs', 'cve-news': 'CVE news', 'log-digest': 'log summaries', 'log-investigate': 'log investigation', 'ask-my-data': 'asking your data', 'weekly-report': 'the weekly report', 'pdpl-assessment': 'the data protection assessment', 'translate-advisory': 'translating advisories', 'response-plan': 'response plans' }
+const JOB_NAME: Record<AiJob, string> = { 'explain-finding': 'explaining findings', 'mitigation-config': 'writing mitigation configs', 'cve-news': 'CVE news', 'log-digest': 'log summaries', 'log-investigate': 'log investigation', 'ask-my-data': 'asking your data', 'weekly-report': 'the weekly report', 'pdpl-assessment': 'the data protection assessment', 'translate-advisory': 'translating advisories', 'response-plan': 'response plans', 'research-cves': 'researching CVEs' }
 function notReady(job: AiJob) {
   if (!isOn('ai')) return fail(409, 'ai_unavailable', 'The AI assistant module is off. Turn it on in Settings, Modules.')
   if (!aiConfigStore.get().configured) return fail(409, 'ai_unavailable', 'No AI profile is set up. An administrator adds one in Settings, AI assistant.')

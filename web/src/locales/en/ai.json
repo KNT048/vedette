@@ -40,7 +40,8 @@
     "connection-test": "Connection test",
     "mitigation-config": "Mitigation config",
     "translate-advisory": "Translate advisory",
-    "response-plan": "Response plan"
+    "response-plan": "Response plan",
+    "research-cves": "Research CVEs"
   },
   "history": {
     "title": "Recent questions",
@@ -476,6 +477,10 @@
     "response-plan": {
       "name": "Response plans",
       "what": "What to do now when a device has a critical finding"
+    },
+    "research-cves": {
+      "name": "Research CVEs",
+      "what": "Researches CVEs Vedette cannot decide: the first profile answers quickly, the second (a stronger model) is asked when the quick answer is not good enough"
     }
   },
   "harness": {

@@ -41,9 +41,12 @@ type LineCover struct {
 }
 
 // LineSupport is one release line of a product: released, and assessed by its vendor until AssessedUntil (zero: still assessed).
+// Ended says that day has passed when the match runs: the line is out of support now. Support data says which lines a vendor looks
+// after, never what a CVE does to a line, so a line out of support is never closed by a source's convention for lines it does not list.
 type LineSupport struct {
 	Source, Product, Line   string
 	Released, AssessedUntil time.Time
+	Ended                   bool
 }
 
 // AbsentUnaffectedIfSupported is the convention "a supported line the vendor does not list is not affected" (feeds line-sources.json).
@@ -188,15 +191,14 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 		if !ok {
 			continue
 		}
-		if !sup.Released.After(v.Published) && (sup.AssessedUntil.IsZero() || sup.AssessedUntil.After(v.Published)) {
-			if c.Absent == AbsentUnaffectedIfSupported && !c.Stale && !c.StatedAt.Before(utcDay(v.Published)) {
-				assessed = out
-				assessed.verdict, assessed.cover, assessed.convention, assessed.support = lineUnaffected, c, true, sup
-			}
-			continue
+		switch held, clears := conventionClears(c, sup, v.Published); {
+		case clears:
+			assessed = out
+			assessed.verdict, assessed.cover, assessed.convention, assessed.support = lineUnaffected, c, true, sup
+		case !held:
+			notAssessed = out
+			notAssessed.verdict, notAssessed.cover, notAssessed.support = lineNotAssessed, c, sup
 		}
-		notAssessed = out
-		notAssessed.verdict, notAssessed.cover, notAssessed.support = lineNotAssessed, c, sup
 	}
 	if assessed.verdict == lineUnaffected {
 		if nvdCovers(in, v) {
@@ -205,6 +207,18 @@ func lineJudge(a Asset, s Software, in swInfo, v Vuln) lineRead {
 		return assessed
 	}
 	return notAssessed
+}
+
+// conventionClears reads a line source's convention for a release line it does not list for a CVE: held says the line counts as one the
+// vendor assessed (released by the CVE's publication and assessed past it, and not out of support now), clears that the convention
+// then states it unaffected (unaffected_if_supported, from a fresh source whose statement is not older than the CVE). A line out of
+// support now (sup.Ended) is never held: which lines a vendor supports is no statement about a CVE, and closing such a line needs the
+// vendor's row for it or the record's own ranges.
+func conventionClears(c LineCover, sup LineSupport, published time.Time) (held, clears bool) {
+	if sup.Ended || sup.Released.After(published) || !sup.AssessedUntil.IsZero() && !sup.AssessedUntil.After(published) {
+		return false, false
+	}
+	return true, c.Absent == AbsentUnaffectedIfSupported && !c.Stale && !c.StatedAt.Before(utcDay(published))
 }
 
 // lineContains says ver is inside a vendor row's affected releases of its line. In the product's version scheme where it reads the
@@ -257,6 +271,7 @@ func supportOf(sup []LineSupport, product, line string) (LineSupport, bool) {
 			out, found = s, true
 			continue
 		}
+		out.Ended = out.Ended && s.Ended // out of support only when every source says so
 		if s.Released.Before(out.Released) {
 			out.Released = s.Released
 		}

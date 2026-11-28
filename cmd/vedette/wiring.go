@@ -560,13 +560,15 @@ func (a findingsFeeds) withLines(ctx context.Context, vulns []findings.Vuln) err
 		cves[i], at[v.CVE] = v.CVE, i
 		vulns[i].Lines, vulns[i].LineCovers, vulns[i].LineSupport = nil, nil, nil // a copy of a cached entry shares its slices
 	}
-	rows, covers, support, err := a.st.LineData(ctx, cves, time.Now())
+	now := time.Now()
+	rows, covers, support, err := a.st.LineData(ctx, cves, now)
 	if err != nil {
 		return err
 	}
 	sup := map[string][]findings.LineSupport{}
 	for _, l := range support {
-		sup[l.Product] = append(sup[l.Product], findings.LineSupport{Source: l.Source, Product: l.Product, Line: l.Line, Released: l.Released, AssessedUntil: l.AssessedUntil})
+		sup[l.Product] = append(sup[l.Product], findings.LineSupport{Source: l.Source, Product: l.Product, Line: l.Line, Released: l.Released, AssessedUntil: l.AssessedUntil,
+			Ended: !l.AssessedUntil.IsZero() && !l.AssessedUntil.After(now)})
 	}
 	for _, c := range covers {
 		i := at[c.CVE]

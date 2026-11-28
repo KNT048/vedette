@@ -512,8 +512,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   waiting for its distribution), on no exploited list, no exploitation signal of any age names it (`Feeds.Exploited`: an exploited
   statement, a public exploit or scan template, an intrusion alert here, whatever its date; a signal that cannot be read defers
   nothing), and the line's action covers it: when the action is a release to install, no range the CVE states for the line still holds
-  the target (`updateTarget`, `holds`: an inclusive end at or past it, a range with no end, an edition the box does not know, an exact
-  release of the line at or above it). A CVE the target does not leave stays an ordinary undecided row and is researched; a CVE with no
+  the target (`updateTarget`, `holds`: an inclusive end at or past it, a range with no end, every version, an edition the box does not
+  know, an exact release of the line at or above it). A CVE the target does not leave stays an ordinary undecided row and is researched; a CVE with no
   stated range for the line is grouped (the group says "not checked one by one", never that the update fixes it). It is
   derived when the possible CVEs are read, never stored: it stays an open question with its cause, is never closed, never not
   affected and never goes through the closing gate. It is counted apart (`PossibleCounts.deferred`, not in `possible`, its causes,

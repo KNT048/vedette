@@ -282,8 +282,8 @@ func updateTarget(a Asset, s Software, vs []Vuln, fix, product string) (string, 
 			key = keyIDs(v)
 		}
 		for _, e := range fixedPartsOf(in, v, key).ents {
-			if e.r.IsZero() && e.c.Version.Kind != Value {
-				continue // no version: says nothing about a release
+			if e.r.IsZero() && e.c.Version.Kind != Value && e.c.Version.Kind != Any {
+				continue // no version ("-"): says nothing about a release. Every version ("*" with no bound) holds every release
 			}
 			stated[i] = append(stated[i], e)
 			if e.r.EndExcl != "" {
@@ -319,8 +319,8 @@ func updateTarget(a Asset, s Software, vs []Vuln, fix, product string) (string, 
 }
 
 // holds says a stated row of a CVE may still hold release x of the line: its range holds x or might (evalAffected is not No: a range
-// with no end, an inclusive end at or past x, an edition the box does not know), or it lists one release of the line at or above x (the
-// fix is later than the listed release). A release that cannot be ordered against x holds it.
+// with no end, every version, an inclusive end at or past x, an edition the box does not know), or it lists one release of the line
+// at or above x (the fix is later than the listed release). A release that cannot be ordered against x holds it.
 func holds(in swInfo, product string, e fixedEntry, x string) bool {
 	if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t != No {
 		return true
@@ -396,9 +396,10 @@ func (s *Service) unsupportedAnchors(ctx context.Context, items []PossibleItem, 
 // Yes, never "might": an edition or platform the box does not know is no match) and either holds the installed release, or names a
 // release of the installed line (its first or last affected release, or the one release it lists) when the product's own scheme names
 // release lines (productid). A row with no version, or a product whose lines the catalogue does not name, covers no line by a release
-// it does not hold.
+// it does not hold. The row must reach the line by its own names, never through the product the AI chose for it (own): an anchor is
+// never the AI's.
 func lineCovered(a Asset, s Software, v Vuln) bool {
-	in := swInfoOn(s, a)
+	in := swInfoOn(s, a).own()
 	if !in.given {
 		return false
 	}

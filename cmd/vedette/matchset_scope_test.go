@@ -177,3 +177,39 @@ func TestWiringOtherPublishersOpenRowNeverClosesItsProduct(t *testing.T) {
 		})
 	}
 }
+
+// Only a reader of a few CVEs with no device skips the reporting window's mark. A device whose rows name no product (a scan saw a
+// service, nothing more) can still hold a finding, and its own match must read that CVE as the window does, or a finding of a CVE that
+// left the window stays open after the device's match.
+func TestWiringMatchSetMarksTheWindowForADeviceThatNamesNoProduct(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	const cve = "CVE-2021-90102"
+	err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, cve, time.Now().AddDate(-3, 0, 0), 7.5); err != nil {
+			return err
+		}
+		return seedRange(ctx, tx, cve, "cpe:2.3:a:globex:web_console:*:*:*:*:*:*:*:*", "", "", "", "2.0.0")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
+	camera := findings.Asset{ID: "a-camera", Software: []findings.Software{{ID: "s-9", Display: "HTTP service", Source: "scan"}}}
+	vs, err := feed.MatchSet(ctx, findings.NewMatchScope([]findings.Asset{camera}, []string{cve}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(vs, func(v findings.Vuln) bool { return v.CVE == cve })
+	if i < 0 {
+		t.Fatalf("%s is not in the camera's match set", cve)
+	}
+	if !vs[i].OutsideWindow {
+		t.Errorf("the camera's match reads %s, published three years ago, as inside the reporting window", cve)
+	}
+}

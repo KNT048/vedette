@@ -27,6 +27,8 @@ const (
 	cveNoEnd = "CVE-2026-993009"
 	// undecided: the record lists the one release 115.14.0 of the line, above the anchor's fix
 	cveListedAbove = "CVE-2026-993010"
+	// undecided: NVD's row names the product with no version bound, every version (the matcher does not decide on it alone)
+	cveEveryVersion = "CVE-2026-993011"
 )
 
 func quillAt(id, version string) Software {
@@ -63,6 +65,8 @@ func coveredWorld(t *testing.T, devices []string, cves ...string) (*env, *fakeCh
 			v.Affected = []Affected{{CPE: cpe, Range: VersionRange{StartIncl: "115.10.0", EndIncl: "115.15.0"}, AffectedOnly: true}}
 		case cveNoEnd:
 			v.Affected = []Affected{{CPE: cpe, Range: VersionRange{StartIncl: "115.10.0"}, AffectedOnly: true}}
+		case cveEveryVersion:
+			v.Affected = []Affected{{CPE: cpe}}
 		case cveListedAbove:
 			v.Affected = []Affected{{CPE: "cpe:2.3:a:quillfeather:mail:115.14.0:*:*:*:*:*:*:*"}}
 		case cveUnsupportedOlder:
@@ -353,31 +357,40 @@ func TestDeferred_ARecordTaggedUnsupportedAnchorsOnlyALineItMatchesStrictly(t *t
 			t.Errorf("%s: covered %v, want %v", tc.name, got, tc.want)
 		}
 	}
+	// a line the record reaches only through the product the AI chose for it: the AI never states a line unsupported
+	chosen := Software{ID: "s-pc-01", Display: "QF Mailer", Vendor: "QF Labs", Product: "Mailer", Version: "115.9.0", Source: "agent",
+		AIProduct: &AIProduct{Vendor: "quillfeather", Product: "mail"}}
+	byAI := Asset{ID: "pc-01", Name: "pc-01", OS: "Microsoft Windows 11 Pro", Software: []Software{chosen}}
+	v := Vuln{CVE: cveUnsupported, NVDAnswered: true, Origin: RangeNVD, Affected: []Affected{{CPE: "cpe:2.3:a:quillfeather:mail:*:*:*:*:*:*:*:*",
+		Range: VersionRange{StartIncl: "115.0", EndExcl: "116.0"}}}}
+	if lineCovered(byAI, chosen, v) {
+		t.Error("a row reached only through the AI's choice of product covers the line, want it not to")
+	}
 }
 
 // The group never says an update covers a CVE it does not: a CVE whose stated range on the line still holds the target (an inclusive
-// end at or past it, a range with no end, an exact release of the line at or above it) is not deferred; it stays an ordinary
+// end at or past it, a range with no end, every version, an exact release of the line at or above it) is not deferred; it stays an ordinary
 // undecided row and is researched. A CVE with no stated range for the line is still grouped.
 func TestDeferred_ACVETheTargetDoesNotLeaveIsNotGrouped(t *testing.T) {
 	t.Parallel()
-	e, fc := coveredWorld(t, []string{"pc-01"}, cveAnchor, cveCovered, cveThroughTarget, cveNoEnd, cveListedAbove)
+	e, fc := coveredWorld(t, []string{"pc-01"}, cveAnchor, cveCovered, cveThroughTarget, cveNoEnd, cveListedAbove, cveEveryVersion)
 	rows, counts := possibleRows(t, e)
 	if d := rows["pc-01|"+cveCovered].Deferred; d == nil || d.Version == nil || *d.Version != "115.12.0" || d.Raised {
 		t.Fatalf("the CVE with no stated range: deferred %+v, want under the update to 115.12.0", d)
 	}
-	for _, c := range []string{cveThroughTarget, cveNoEnd, cveListedAbove} {
+	for _, c := range []string{cveThroughTarget, cveNoEnd, cveListedAbove, cveEveryVersion} {
 		r, ok := rows["pc-01|"+c]
 		if !ok || r.Deferred != nil {
 			t.Errorf("%s: listed %v, deferred %+v, want an ordinary undecided row", c, ok, r.Deferred)
 		}
 	}
-	if counts.Deferred != 1 || counts.Possible != 3 {
-		t.Errorf("counts %+v: want 1 deferred, 3 possible", counts)
+	if counts.Deferred != 1 || counts.Possible != 4 {
+		t.Errorf("counts %+v: want 1 deferred, 4 possible", counts)
 	}
 	runCheck(t, e)
 	got := researchedCVEs(fc)
 	slices.Sort(got)
-	if want := []string{cveThroughTarget, cveNoEnd, cveListedAbove}; !slices.Equal(got, want) {
+	if want := []string{cveThroughTarget, cveNoEnd, cveListedAbove, cveEveryVersion}; !slices.Equal(got, want) {
 		t.Errorf("researched %v, want %v", got, want)
 	}
 }

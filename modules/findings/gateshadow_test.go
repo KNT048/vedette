@@ -28,7 +28,7 @@ func TestGateShadow_RangesScopeEachFixToItsLine(t *testing.T) {
 		s := a.Software[0]
 		in := swInfoOn(s, a)
 		v := qnapVuln(c.rows...)
-		g := rangeProofs(s, in, v, keyIDs(v))
+		g := rangeProofs(in, v, keyIDs(v))
 		would, cause, producer := gateWould(a, s, in, v, []*gateShadow{g})
 		if would != c.would || cause != c.cause || producer != prodRanges {
 			t.Errorf("%s (%s): gate %s (%s) by %s, want %s (%s)", c.name, c.version, would, cause, producer, c.would, c.cause)
@@ -45,5 +45,38 @@ func TestGateShadow_NotAffectedCarriesItsStep(t *testing.T) {
 	}
 	if g := res.NotAffected[0].gate; g == nil || g.producer != prodRanges || len(g.proofs) == 0 {
 		t.Fatalf("gate shadow = %+v", g)
+	}
+}
+
+// A pass records the gate's answers in shadow beside its counts, in memory: per group of pairs decided not affected, and per finding it
+// closed as gone. The counts and the findings are those of the matcher alone.
+func TestGateShadow_PassRecordsTheGateBesideItsCounts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.inv.assets = map[string]AssetView{"a-1": {ID: "a-1", Hostname: ptr("nas01"), IP: "192.0.2.10", Kind: "nas", Approved: true}}
+	rows := []Affected{{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.0.5"}}, {CPE: qnapCPE, Range: VersionRange{StartIncl: "6.1", EndExcl: "6.1.2"}}}
+	e.feeds.vulns = []Vuln{qnapVuln(rows...)}
+	e.inv.match = map[string]Asset{"a-1": nas("6.1.0")}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.svc.gateShadowReport(); len(r.would) != 0 || len(r.gone) != 0 {
+		t.Fatalf("an affected pair has no shadow: %+v", r)
+	}
+	e.inv.match = map[string]Asset{"a-1": nas("6.1.4")} // updated past the fix of its line: the finding closes as gone
+	e.advance(ReconcileEvery)
+	res, err := e.svc.Reconcile(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Closed != 1 {
+		t.Fatalf("closed %d, want 1: %+v", res.Closed, res)
+	}
+	r := e.svc.gateShadowReport()
+	if len(r.would) != 1 || r.would[0].producer != prodRanges || r.would[0].would != "not_affected" || r.would[0].n != 1 {
+		t.Errorf("would = %+v, want one pair the ranges producer proves not affected", r.would)
+	}
+	if len(r.gone) != 1 || r.gone[0].via != string(ViaVersionMoved) || r.gone[0].would != gateWouldExit {
+		t.Errorf("gone = %+v, want the version move the gate also proves", r.gone)
 	}
 }

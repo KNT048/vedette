@@ -41,7 +41,9 @@ type Decision struct {
 // installation (Scope.Contains is Yes) and its kind is one its format can state for this CVE (allowedProof); (4) anything else is
 // undecided with a named cause. The answer does not depend on the order of ev or bl.
 func Gate(cve string, in Installation, ev []Proof, bl []Blocker, exploited bool) Decision {
-	bl = slices.DeleteFunc(slices.Clone(bl), func(b Blocker) bool { return b.CVE != "" && b.CVE != cve })
+	if slices.ContainsFunc(bl, func(b Blocker) bool { return b.CVE != "" && b.CVE != cve }) {
+		bl = slices.DeleteFunc(slices.Clone(bl), func(b Blocker) bool { return b.CVE != "" && b.CVE != cve })
+	}
 	d := Decision{Considered: sortedProofs(ev), Blockers: sortedBlockers(bl)}
 	var affected, closing []*Proof
 	var causes []GateCause
@@ -111,7 +113,7 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 		return false, CauseKindNotAllowed
 	}
 	// an exact or range list says what is not listed only where the source says unlisted versions are not affected
-	if vs.AllExceptListed && !(f == FormatOSV || f == FormatCVE5 && p.Src.DefaultUnaffected) {
+	if vs.AllExceptListed && f != FormatOSV && (f != FormatCVE5 || !p.Src.DefaultUnaffected) {
 		return false, CauseKindNotAllowed
 	}
 	switch p.Kind {
@@ -151,6 +153,9 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 // sortedProofs is a copy of ev in a fixed order (by kind, direction, format, producer, reference, quote), so that the decision and the
 // proof it names do not depend on the order the producers ran in.
 func sortedProofs(ev []Proof) []Proof {
+	if len(ev) == 0 {
+		return nil
+	}
 	out := slices.Clone(ev)
 	slices.SortStableFunc(out, func(a, b Proof) int {
 		return cmp.Or(cmp.Compare(a.Says, b.Says), cmp.Compare(a.Kind, b.Kind), cmp.Compare(a.Src.Format, b.Src.Format),
@@ -161,6 +166,9 @@ func sortedProofs(ev []Proof) []Proof {
 }
 
 func sortedBlockers(bl []Blocker) []Blocker {
+	if len(bl) == 0 {
+		return nil
+	}
 	out := slices.Clone(bl)
 	slices.SortStableFunc(out, func(a, b Blocker) int {
 		return cmp.Or(strings.Compare(string(a.Cause), string(b.Cause)), strings.Compare(a.Producer, b.Producer), strings.Compare(a.CVE, b.CVE))

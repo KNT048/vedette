@@ -177,7 +177,7 @@ func mProof(k int, f Format, sc Scope) Proof {
 
 // mCase is one generated case and the oracle's answer.
 type mCase struct {
-	name      string
+	name      func() string // built only when a case fails
 	in        Installation
 	ev        []Proof
 	bl        []Blocker
@@ -198,7 +198,7 @@ func (r *matrixRun) check(c mCase) {
 	fail := func(format string, args ...any) {
 		r.failed++
 		if r.failed <= 20 {
-			r.t.Errorf("%s: "+format, append([]any{c.name}, args...)...)
+			r.t.Errorf("%s: "+format, append([]any{c.name()}, args...)...)
 		}
 	}
 	switch {
@@ -299,7 +299,7 @@ func TestGateMatrix_LayerA(t *testing.T) {
 							case 3:
 								bl, blocked = []Blocker{{CVE: mCVE, Cause: CauseLostRow, Producer: "op"}}, true
 							}
-							r.check(mCase{name: fmt.Sprintf("full vs%d so%d io%d sh%d k%d op%d", vs, so, io, sh, k, op), in: in, ev: ev, bl: bl,
+							r.check(mCase{name: func() string { return fmt.Sprintf("full vs%d so%d io%d sh%d k%d op%d", vs, so, io, sh, k, op) }, in: in, ev: ev, bl: bl,
 								want: oracle(k, cont, allowed, affY, affU, blocked)})
 						}
 					}
@@ -325,8 +325,10 @@ func TestGateMatrix_LayerA(t *testing.T) {
 						case k == mkBefore && f == FormatCVE5:
 							shape = shape && def
 						}
-						allowed := shape && oFormatKind[f][k] && !(exploited && (k == mkBefore || k == mkHardware))
-						r.check(mCase{name: fmt.Sprintf("format %s k%d vs%d exploited=%v default=%v", f, k, vs, exploited, def), in: mInstall(0, 4),
+						allowed := shape && oFormatKind[f][k] && (!exploited || k != mkBefore && k != mkHardware)
+						r.check(mCase{name: func() string {
+							return fmt.Sprintf("format %s k%d vs%d exploited=%v default=%v", f, k, vs, exploited, def)
+						}, in: mInstall(0, 4),
 							ev: []Proof{p}, exploited: exploited, want: oracle(k, oVersion[vs][4], allowed, false, false, false)})
 					}
 				}
@@ -356,7 +358,7 @@ func TestGateMatrix_LayerA(t *testing.T) {
 				in := mInstall(0, 4)
 				in.Platform = ip
 				p := mProof(k, FormatCVE5, Scope{Product: mProduct, Origin: OriginSet{Upstream: true}, Versions: VersionSet{Every: true}, Platform: sp})
-				r.check(mCase{name: fmt.Sprintf("platform s%d i%d k%d", si, ii, k), in: in, ev: []Proof{p},
+				r.check(mCase{name: func() string { return fmt.Sprintf("platform s%d i%d k%d", si, ii, k) }, in: in, ev: []Proof{p},
 					want: oracle(k, oPlatform[si][ii], oPlatformShape[k][si], false, false, false)})
 			}
 		}
@@ -371,7 +373,7 @@ func TestGateMatrix_LayerA(t *testing.T) {
 				in := mInstall(0, 4)
 				in.Product = ip
 				p := mProof(k, mNaturalFormat[k], Scope{Product: sp, Origin: OriginSet{Upstream: true}, Versions: mVersionSets[1], Platform: platformOf(k)})
-				r.check(mCase{name: fmt.Sprintf("product s%d i%d k%d", si, ii, k), in: in, ev: []Proof{p},
+				r.check(mCase{name: func() string { return fmt.Sprintf("product s%d i%d k%d", si, ii, k) }, in: in, ev: []Proof{p},
 					want: oracle(k, and(oProduct[si][ii], oVersion[1][4]), oShape[k][1], false, false, false)})
 			}
 		}
@@ -387,15 +389,16 @@ func TestGateMatrix_LayerA(t *testing.T) {
 				if pin != "" && pin != key {
 					own = tN
 				}
-				c := mCase{name: fmt.Sprintf("sibling pin=%q key=%s k%d", pin, key, k), in: in, ev: []Proof{p},
+				c := mCase{name: func() string { return fmt.Sprintf("sibling pin=%q key=%s k%d", pin, key, k) }, in: in, ev: []Proof{p},
 					want: oracle(k, and(own, oVersion[1][4]), oShape[k][1], false, false, false)}
 				r.check(c)
 				if own == tN && Gate(mCVE, in, c.ev, nil, false).State == GateNotAffected {
-					t.Errorf("I5: %s closed", c.name)
+					t.Errorf("I5: %s closed", c.name())
 				}
 			}
 		}
 	}
+	blockerCauses := [...]GateCause{CauseLostRow, CauseRowUnread, CauseDistroTriage, CauseRecordClash}
 	// Pairwise: other opposing evidence (each blocker cause, a blocker, an affected and a not-affected statement about another CVE, a
 	// second not-affected proof that does not contain the version) × kind × version set × shape, on upstream.
 	for op := range 7 {
@@ -416,7 +419,7 @@ func TestGateMatrix_LayerA(t *testing.T) {
 					blocked := false
 					switch op {
 					case 0, 1, 2, 3:
-						bl, blocked = []Blocker{{CVE: mCVE, Cause: []GateCause{CauseLostRow, CauseRowUnread, CauseDistroTriage, CauseRecordClash}[op]}}, true
+						bl, blocked = []Blocker{{CVE: mCVE, Cause: blockerCauses[op%len(blockerCauses)]}}, true
 					case 4: // a blocker of another CVE
 						bl = []Blocker{{CVE: "CVE-2026-0002", Cause: CauseLostRow}}
 					case 5: // statements about another CVE, either way
@@ -428,7 +431,7 @@ func TestGateMatrix_LayerA(t *testing.T) {
 						ev = append(ev, Proof{Kind: ProofPersonNotAffected, CVE: mCVE, Src: ProofSource{Format: FormatPerson, Ref: "p"}, Says: SaysNotAffected, Producer: "op",
 							Scope: Scope{Product: mProduct, Origin: OriginSet{Any: true}, Versions: VersionSet{Scheme: SchemeGeneric, Exact: []string{"9.9"}}, Platform: PlatformSet{Any: true}}})
 					}
-					r.check(mCase{name: fmt.Sprintf("opposing op%d k%d vs%d sh%d", op, k, vs, sh), in: in, ev: ev, bl: bl,
+					r.check(mCase{name: func() string { return fmt.Sprintf("opposing op%d k%d vs%d sh%d", op, k, vs, sh) }, in: in, ev: ev, bl: bl,
 						want: oracle(k, and(oOrigin[1][0], oVersion[vs][sh]), allowed, false, false, blocked)})
 				}
 			}

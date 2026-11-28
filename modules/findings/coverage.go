@@ -76,10 +76,6 @@ type Coverage struct {
 	Decided       []CoverageSource `json:"decided"`  // by source, the most pairs first
 	Possible      []CoverageCause  `json:"possible"` // by cause, the most first
 	Identity      []CoverageMethod `json:"identity"` // by method, in IdentityMethods order
-	// GateWould and GateGone are the closing gate's answers in shadow (gateshadow.go): for the pairs decided not affected or ruled out,
-	// and for the findings the pass closed as gone. In memory only: not stored with the counts, not served.
-	GateWould []CoverageGate `json:"-"`
-	GateGone  []GateGone     `json:"-"`
 }
 
 // CoverageSource is how many pairs one source decided, each way.
@@ -123,7 +119,7 @@ type deviceCover struct {
 	// identified (a person's "Not this product" matches these devices again at once).
 	unlinked map[nameKey]identityAsk
 	byAI     map[nameKey]bool
-	gate     map[CoverageGate]int // the closing gate's answers in shadow (CoverageGate without Count)
+	gate     map[gateCount]int // the closing gate's answers in shadow (gateCount without n)
 }
 
 // covers is the counts of each device the pass matched, by device id, and the sum of the last pass.
@@ -131,7 +127,8 @@ type covers struct {
 	mu   sync.Mutex
 	m    map[string]deviceCover
 	last *Coverage
-	gone map[string]GateGone // the closing gate's answers in shadow for the findings closed as gone since the last pass
+	gone map[string]gateGone // the closing gate's answers in shadow for the findings closed as gone since the last pass
+	gate gateReport          // the last pass's answers of the closing gate in shadow (gateshadow.go): in memory only
 }
 
 // unlinked is every line of identity none of the devices' last full matches, once per name (the first device's reading, by device
@@ -185,7 +182,7 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	defer c.mu.Unlock()
 	maps.DeleteFunc(c.m, func(id string, _ deviceCover) bool { return !live[id] })
 	out := Coverage{At: at, OutsideWindow: outside, Decided: []CoverageSource{}, Possible: []CoverageCause{}, Identity: []CoverageMethod{}}
-	decided, possible, identity, gate := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}, map[CoverageGate]int{}
+	decided, possible, identity, gate := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}, map[gateCount]int{}
 	for _, d := range c.m {
 		for k, n := range d.gate {
 			gate[k] += n
@@ -232,14 +229,7 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	for _, m := range IdentityMethods {
 		out.Identity = append(out.Identity, CoverageMethod{Method: m, Lines: identity[m]})
 	}
-	for k, n := range gate {
-		k.Count = n
-		out.GateWould = append(out.GateWould, k)
-	}
-	slices.SortFunc(out.GateWould, func(a, b CoverageGate) int {
-		return cmp.Or(cmp.Compare(b.Count, a.Count), strings.Compare(a.Producer, b.Producer), strings.Compare(a.Would, b.Would), strings.Compare(a.Cause, b.Cause), strings.Compare(a.By, b.By))
-	})
-	out.GateGone = c.takeGone()
+	c.gate = gateReport{would: sortedGateCounts(gate), gone: c.takeGone()}
 	c.last = &out
 }
 
@@ -521,21 +511,12 @@ func (sh *pairShadow) on(dm *devMatch, st pairState) pairState {
 	return st
 }
 
-// CoverageGate is how many pairs decided "not affected" (or ruled out) by one source through one step the closing gate would answer
-// one way, in shadow: Would is the gate's answer (not_affected, undecided, affected, identity), Cause its cause when undecided. In memory
-// only (Coverage.GateWould): never stored or served.
-type CoverageGate struct {
-	By, Producer, Would, Cause string
-	Exploited                  bool
-	Count                      int
-}
-
 // gateCounts counts the gate's answers in shadow of the pairs of state.
-func gateCounts(state map[string]pairState) map[CoverageGate]int {
-	out := map[CoverageGate]int{}
+func gateCounts(state map[string]pairState) map[gateCount]int {
+	out := map[gateCount]int{}
 	for _, st := range state {
 		if st.gate != "" {
-			out[CoverageGate{By: st.by, Producer: st.gateBy, Would: st.gate, Cause: st.gateCause, Exploited: st.exploited}]++
+			out[gateCount{by: st.by, producer: st.gateBy, would: st.gate, cause: st.gateCause, exploited: st.exploited}]++
 		}
 	}
 	return out

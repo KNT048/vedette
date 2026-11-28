@@ -259,16 +259,22 @@ func firstCause(cs []GateCause) GateCause {
 // each are Yes. A No on any of them is No; else an Unknown is Unknown. The cause is that of the first dimension in that order that is
 // not Yes.
 func (s Scope) Contains(in Installation) (Tri, GateCause) {
-	dims := [...]func() (Tri, GateCause){
-		func() (Tri, GateCause) { return s.installIn(in) },
-		func() (Tri, GateCause) { return s.productIn(in) },
-		func() (Tri, GateCause) { return s.Origin.contains(in.Origin) },
-		func() (Tri, GateCause) { return s.Versions.contains(in.Version, in.ReleaseLine) },
-		func() (Tri, GateCause) { return s.Platform.contains(in.Platform) },
-	}
 	out, cause := Yes, GateCause("")
-	for _, d := range dims {
-		t, c := d()
+	for i := range 5 {
+		var t Tri
+		var c GateCause
+		switch i {
+		case 0:
+			t, c = s.installIn(in)
+		case 1:
+			t, c = s.productIn(in)
+		case 2:
+			t, c = s.Origin.contains(in.Origin)
+		case 3:
+			t, c = s.Versions.contains(in.Version, in.ReleaseLine)
+		default:
+			t, c = s.Platform.contains(in.Platform)
+		}
 		switch {
 		case t == No:
 			return No, c

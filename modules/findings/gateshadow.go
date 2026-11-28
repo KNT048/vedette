@@ -191,7 +191,7 @@ func shadowLine(v Vuln, in swInfo, lr lineRead) *gateShadow {
 
 // shadowRanges is a "not affected" from the ranges of judgeRanges' last step: the OS release list, a Windows release's own data or a
 // sibling release's, every reading of the record, a partial record's fix, or the rows themselves (rangeProofs).
-func shadowRanges(s Software, in swInfo, v Vuln, key []identity, proof proofKind, via, agreed bool) *gateShadow {
+func shadowRanges(in swInfo, v Vuln, key []identity, proof proofKind, via, agreed bool) *gateShadow {
 	switch {
 	case agreed:
 		return shadowStop(prodEveryReading)
@@ -204,7 +204,7 @@ func shadowRanges(s Software, in swInfo, v Vuln, key []identity, proof proofKind
 	case v.RangesFrom == RangesCVEOrgPartial:
 		return &gateShadow{producer: prodPastRecordFix, proofs: []Proof{asRead(prodPastRecordFix, ProofFixedAt, FormatCVE5, v, in, in.ver)}}
 	}
-	return rangeProofs(s, in, v, key)
+	return rangeProofs(in, v, key)
 }
 
 // rangeProofs reads v's rows that name the line (its own names, or the exploited list's key) one by one. Each row's affected span is
@@ -212,7 +212,7 @@ func shadowRanges(s Software, in swInfo, v Vuln, key []identity, proof proofKind
 // up to the next row's start, and past the last row only when the rows are one line of releases (no two rows start on different
 // release lines); a record that lists every affected version (VendorList) states every other version not affected. A row of a product
 // only the exploited list's key names is a statement about that product, not about the line's. A row the reader lost blocks.
-func rangeProofs(s Software, in swInfo, v Vuln, key []identity) *gateShadow {
+func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 	g := &gateShadow{producer: prodRanges}
 	f := FormatNVDCPE
 	if v.RangesFrom != "" {
@@ -436,13 +436,55 @@ func gateWould(a Asset, s Software, in swInfo, v Vuln, gs []*gateShadow) (would 
 	return d.State.String(), d.Cause, gs[0].producer
 }
 
-// GateGone is the closing gate's answer in shadow for a finding a pass closed because the match no longer detects it: Via is how it
-// closed today; Would is exit (a change on the device or a person's word: removed, not installed, identity rejected, or a version
+// gateCount is how many pairs decided "not affected" (or ruled out) by one source through one step the closing gate would answer one
+// way, in shadow: would is the gate's answer (not_affected, undecided, affected, identity), cause its cause when undecided.
+type gateCount struct {
+	by, producer, would, cause string
+	exploited                  bool
+	n                          int
+}
+
+// gateGone is the closing gate's answer in shadow for a finding a pass closed because the match no longer detects it: via is how it
+// closed today; would is exit (a change on the device or a person's word: removed, not installed, identity rejected, or a version
 // moved to one the gate proves not affected), not_affected (the gate closes it too), held (the gate would keep it listed, with
-// Cause) or identity (an identity rule decided).
-type GateGone struct {
-	Device, Line, CVE, Via, Would, Cause, Producer string
-	Exploited                                      bool
+// cause) or identity (an identity rule decided).
+type gateGone struct {
+	device, line, cve, via, would, cause, producer string
+	exploited                                      bool
+}
+
+// gateReport is a pass's answers of the closing gate in shadow: per group of pairs, and per finding closed as gone.
+type gateReport struct {
+	would []gateCount
+	gone  []gateGone
+}
+
+// gateShadowReport is the last pass's gateReport (empty before the first pass). In memory only: never stored or served.
+func (s *Service) gateShadowReport() gateReport {
+	s.covers.mu.Lock()
+	defer s.covers.mu.Unlock()
+	return s.covers.gate
+}
+
+// sortedGateCounts is the counts of m, the most pairs first.
+func sortedGateCounts(m map[gateCount]int) []gateCount {
+	out := make([]gateCount, 0, len(m))
+	for k, n := range m {
+		k.n = n
+		out = append(out, k)
+	}
+	slices.SortFunc(out, func(a, b gateCount) int {
+		return cmp.Or(cmp.Compare(b.n, a.n), strings.Compare(a.producer, b.producer), strings.Compare(a.would, b.would),
+			strings.Compare(a.cause, b.cause), strings.Compare(a.by, b.by), cmp.Compare(exploitedRank(a.exploited), exploitedRank(b.exploited)))
+	})
+	return out
+}
+
+func exploitedRank(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // gateGoneMax bounds the closures a pass keeps in memory for the shadow.
@@ -450,7 +492,7 @@ const gateGoneMax = 500
 
 // gateGoneOf is the gate's answer for finding f of device a that closed as gone through via (rejected: a person rejected its
 // identity), from the proof of its pair the match made (p, when ok).
-func gateGoneOf(a Asset, lines map[string]line, vulns []Vuln, f Finding, via Via, rejected bool, p Match, ok bool) GateGone {
+func gateGoneOf(a Asset, lines map[string]line, vulns []Vuln, f Finding, via Via, rejected bool, p Match, ok bool) gateGone {
 	v := Vuln{CVE: f.CVE}
 	for _, x := range vulns {
 		if x.CVE == f.CVE {
@@ -458,14 +500,14 @@ func gateGoneOf(a Asset, lines map[string]line, vulns []Vuln, f Finding, via Via
 			break
 		}
 	}
-	g := GateGone{Device: a.ID, Line: f.SoftwareID, CVE: f.CVE, Via: string(via), Exploited: v.listed()}
+	g := gateGone{device: a.ID, line: f.SoftwareID, cve: f.CVE, via: string(via), exploited: v.listed()}
 	if via == ViaNotInstalled || via == ViaSoftwareRemoved || rejected {
-		g.Would = gateWouldExit
+		g.would = gateWouldExit
 		return g
 	}
 	l, found := lines[f.SoftwareID]
 	if !found {
-		g.Would, g.Cause, g.Producer = gateWouldHeld, string(CauseNoProof), prodGoneNoLine
+		g.would, g.cause, g.producer = gateWouldHeld, string(CauseNoProof), prodGoneNoLine
 		return g
 	}
 	var steps []*gateShadow
@@ -473,37 +515,37 @@ func gateGoneOf(a Asset, lines map[string]line, vulns []Vuln, f Finding, via Via
 		steps = []*gateShadow{p.gate}
 	}
 	would, cause, producer := gateWould(a, l.sw, swInfoOn(l.sw, a), v, steps)
-	g.Producer, g.Cause = producer, string(cause)
+	g.producer, g.cause = producer, string(cause)
 	switch {
 	case would == GateNotAffected.String() && via == ViaVersionMoved:
-		g.Would = gateWouldExit
+		g.would = gateWouldExit
 	case would == GateNotAffected.String():
-		g.Would = gateWouldNotAffected
+		g.would = gateWouldNotAffected
 	case would == gateWouldIdentity:
-		g.Would = gateWouldIdentity
+		g.would = gateWouldIdentity
 	default:
-		g.Would, g.Cause = gateWouldHeld, string(cmp.Or(cause, CauseNoProof))
+		g.would, g.cause = gateWouldHeld, string(cmp.Or(cause, CauseNoProof))
 	}
 	return g
 }
 
 // recordGone keeps g for the pass's coverage (one per device, line and CVE; at most gateGoneMax).
-func (c *covers) recordGone(g GateGone) {
+func (c *covers) recordGone(g gateGone) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.gone == nil {
-		c.gone = map[string]GateGone{}
+		c.gone = map[string]gateGone{}
 	}
-	k := g.Device + "\x1f" + g.Line + "\x1f" + g.CVE
+	k := g.device + "\x1f" + g.line + "\x1f" + g.cve
 	if _, ok := c.gone[k]; ok || len(c.gone) < gateGoneMax {
 		c.gone[k] = g
 	}
 }
 
 // takeGone is the closures recorded since the last pass, in a fixed order; the record starts again. Called with c.mu held.
-func (c *covers) takeGone() []GateGone {
-	out := slices.SortedFunc(maps.Values(c.gone), func(a, b GateGone) int {
-		return cmp.Or(strings.Compare(a.Device, b.Device), strings.Compare(a.Line, b.Line), strings.Compare(a.CVE, b.CVE))
+func (c *covers) takeGone() []gateGone {
+	out := slices.SortedFunc(maps.Values(c.gone), func(a, b gateGone) int {
+		return cmp.Or(strings.Compare(a.device, b.device), strings.Compare(a.line, b.line), strings.Compare(a.cve, b.cve))
 	})
 	c.gone = nil
 	return out

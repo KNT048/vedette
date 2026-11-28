@@ -1843,7 +1843,7 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 			note = "Not affected: " + agreed + ". Vedette closed this by itself and reopens it if a later match says the device is affected."
 		}
 		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed,
-			gate: shadowRanges(s, in, v, key, proof, w.via != "", agreed != "")}
+			gate: shadowRanges(in, v, key, proof, w.via != "", agreed != "")}
 		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
 			m.provedOn = strings.TrimSpace(in.ver)
 		}

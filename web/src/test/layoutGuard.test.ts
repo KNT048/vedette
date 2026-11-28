@@ -176,7 +176,6 @@ const ALLOWED: { rule: string; file: string; hits: number; why: string }[] = [
   { rule: 'hand-row', file: 'features/inventory/DeviceSources.tsx', hits: 1, why: 'the device\'s data sources: one fixed status row per source (state dot, switch, deep-link anchor), a status panel' },
   { rule: 'hand-row', file: 'features/core/NetworkSection.tsx', hits: 1, why: 'the box\'s earlier addresses inside the Box address form, each a sentence with Forget' },
   { rule: 'hand-row', file: 'features/logs/LogsPage.tsx', hits: 1, why: 'the unknown senders inside a warning notice, each a sentence with its one fix' },
-  { rule: 'hand-row', file: 'features/notify/AlertTriggers.tsx', hits: 1, why: 'the rows of one settings form: a labelled switch and severity select per trigger' },
   { rule: 'hand-row', file: 'features/response/NeverTouch.tsx', hits: 1, why: 'the rows of one settings form being edited, saved together' },
   { rule: 'hand-row', file: 'features/reports/SecurityReport.tsx', hits: 2, why: 'the printed report: its own A4 layout, read on paper' },
 ]

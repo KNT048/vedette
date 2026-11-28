@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Label, Select } from '@/components/ui/input'
@@ -31,52 +32,41 @@ export function AlertTriggers({ init, vuln: vulnInit }: { init: AlertTriggerView
     save.mutate({ triggers: rows, vulnerability_trigger: { on: vuln } }, { onSuccess: () => toast.success(t('triggers.saved')), onError: (er) => setError(er instanceof ApiError ? er.message : String(er)) })
   }
   const defaultLine = (on: boolean, min?: RouteSeverity) =>
-    <p className="text-caption text-muted">{t('triggers.default', { rule: on ? (min ? t('triggers.onFrom', { min: t(`triggers.min.${min}`) }) : t('triggers.on')) : t('triggers.off') })}</p>
+    t('triggers.default', { rule: on ? (min ? t('triggers.onFrom', { min: t(`triggers.min.${min}`) }) : t('triggers.on')) : t('triggers.off') })
+  // The title of a row is the label of its switch; its id is the row's anchor (the fix link of a held-back alert opens it).
+  const title = (sw: string, label: string) => <Label id={sw} htmlFor={`${sw}-on`} className="scroll-mt-24">{label}</Label>
+  const onOff = (sw: string, on: boolean, change: (v: boolean) => void) => (
+    <div className="flex items-center gap-2">
+      <Switch id={`${sw}-on`} checked={on} disabled={!isAdmin} onCheckedChange={change} />
+      <span className="text-meta" aria-hidden>{on ? t('triggers.send') : t('triggers.dontSend')}</span>
+    </div>
+  )
   const vulnRow = (
-    <li key="vulnerability" id="trigger-vulnerability" className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
-      <div className="grid gap-0.5">
-        <Label htmlFor="trigger-vulnerability-on" className="font-medium">{t('triggers.kind.vulnerability.label')}</Label>
-        <p className="text-meta text-muted">{t('triggers.kind.vulnerability.why')}</p>
-        {vuln !== vulnInit.default_on ? defaultLine(vulnInit.default_on) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Switch id="trigger-vulnerability-on" checked={vuln} disabled={!isAdmin} onCheckedChange={setVuln} />
-          <span className="text-meta" aria-hidden>{vuln ? t('triggers.send') : t('triggers.dontSend')}</span>
-        </div>
-        <span className="text-meta">{t('triggers.alwaysCritical')}</span>
-      </div>
-    </li>
+    <ListRow key="vulnerability" title={title('trigger-vulnerability', t('triggers.kind.vulnerability.label'))}
+      meta={[t('triggers.kind.vulnerability.why'), vuln !== vulnInit.default_on ? defaultLine(vulnInit.default_on) : null]}
+      actions={<>{onOff('trigger-vulnerability', vuln, setVuln)}<span className="text-meta">{t('triggers.alwaysCritical')}</span></>} />
   )
   return (
     <form onSubmit={submit} className="grid max-w-3xl gap-3" noValidate aria-label={t('triggers.title')}>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      <ul className="grid divide-y divide-border rounded-md border border-border">
+      <RowList label={t('triggers.title')} boxed>
         {rows.flatMap((r, i) => {
           const d = init[i]
           const sw = `trigger-${r.id}`
           const row = (
-            <li key={r.id} id={sw} className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
-              <div className="grid gap-0.5">
-                <Label htmlFor={`${sw}-on`} className="font-medium">{t(`triggers.kind.${r.id}.label`)}</Label>
-                <p className="text-meta text-muted">{t(`triggers.kind.${r.id}.why`)}</p>
-                {d && (r.on !== d.default_on || r.min !== d.default_min) ? defaultLine(d.default_on, d.default_min) : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Switch id={`${sw}-on`} checked={r.on} disabled={!isAdmin} onCheckedChange={(v) => set(r.id, { on: v })} />
-                  <span className="text-meta" aria-hidden>{r.on ? t('triggers.send') : t('triggers.dontSend')}</span>
-                </div>
+            <ListRow key={r.id} title={title(sw, t(`triggers.kind.${r.id}.label`))}
+              meta={[t(`triggers.kind.${r.id}.why`), d && (r.on !== d.default_on || r.min !== d.default_min) ? defaultLine(d.default_on, d.default_min) : null]}
+              actions={<>
+                {onOff(sw, r.on, (v) => set(r.id, { on: v }))}
                 <Label htmlFor={`${sw}-min`} className="sr-only">{t('triggers.fromFor', { what: t(`triggers.kind.${r.id}.label`) })}</Label>
                 <Select id={`${sw}-min`} value={r.min} disabled={!isAdmin || !r.on} className="w-auto" onChange={(e) => set(r.id, { min: e.target.value as RouteSeverity })}>
                   {MINS.map((m) => <option key={m} value={m}>{t(`triggers.min.${m}`)}</option>)}
                 </Select>
-              </div>
-            </li>
+              </>} />
           )
           return i === 0 ? [row, vulnRow] : [row] // the order of the box's list: decoy touched, then the vulnerability trigger
         })}
-      </ul>
+      </RowList>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" disabled={!isAdmin || !changed} busy={save.isPending} busyLabel={t('common:busy.saving')} title={isAdmin ? undefined : t('channels.needRole')}>{t('triggers.save')}</Button>
         <Button type="button" disabled={!isAdmin || atDefaults} onClick={() => { setRows(init.map(({ id, default_on, default_min }) => ({ id, on: default_on, min: default_min }))); setVuln(vulnInit.default_on) }}>{t('triggers.reset')}</Button>

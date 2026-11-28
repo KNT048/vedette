@@ -1424,7 +1424,8 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if (out == outNotAffected || out == outRuledOut && m.lineUnlisted) && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
+	if (out == outNotAffected || out == outRuledOut && m.lineUnlisted) && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() &&
+		(out != outNotAffected || !exactListCloses(in, v)) { // the vendor's own exact list read per line closes on this path too
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}
@@ -1451,7 +1452,8 @@ func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
 	if _, ok := distroVerdict(in, v); ok { // the distribution's word on its own package, before or without NVD naming the product
 		return true
 	}
-	if !nvdNames(in, v, true) || edgeLegacyRow(s, in) {
+	// NVD names the row with a bounded range, or the vendor's own exact list, read per line, decides it (exactListCloses)
+	if !nvdNames(in, v, true) && !exactListCloses(in, v) || edgeLegacyRow(s, in) {
 		return false
 	}
 	_, ok := distroVerdict(in, v)

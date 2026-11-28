@@ -417,3 +417,13 @@ func newerLineOfExploited(in swInfo, v Vuln) bool {
 	_, ok := afterLastListedLine(in, v, keyIDs(v))
 	return ok
 }
+
+// exactListCloses says the vendor's own list of exact releases, read per line, closes v for the installation: past the last affected
+// release of its line, or (not on an exploited list) on a line newer than every listed one. A CVE NVD's list alone ties to the line
+// (viaNVD) closes on it as one the exploited list names does.
+func exactListCloses(in swInfo, v Vuln) bool {
+	if _, ok := afterLastAffected(in, v, nil); ok {
+		return true
+	}
+	return newerLineCloses(in, v, nil)
+}

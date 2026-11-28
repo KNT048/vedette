@@ -41,7 +41,7 @@ func TestWiringARepeatAfterAResolveOpensANewIncidentAndAlerts(t *testing.T) {
 	}
 	nf := newNotify(s.d)
 	// every intrusion alert sends here (the default sends from high): the test is about the repeat, not the trigger
-	if _, err := nf.SaveTriggers(ctx, "admin@acme.example", []notify.Trigger{{ID: "intrusion", On: true, Min: notify.Low}}); err != nil {
+	if _, err := nf.SaveTriggers(ctx, "admin@acme.example", []notify.Trigger{{ID: "intrusion", On: true, Min: notify.Low}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	resolveAll := func(kind string) {

@@ -211233,11 +211233,11 @@ type NotifyGetNotifyChannelsOK struct {
 	Channels []NotifyGetNotifyChannelsOKChannelsItem `json:"channels"`
 	// Users who sign in with two-step email codes: they cannot sign in while the email channel is off or
 	// removed.
-	EmailCodeUsers int                               `json:"email_code_users"`
-	Grouping       NotifyGetNotifyChannelsOKGrouping `json:"grouping"`
-	Quiet          NotifyGetNotifyChannelsOKQuiet    `json:"quiet"`
-	// Which kinds of event send an alert, and from which severity.
-	Triggers []NotifyGetNotifyChannelsOKTriggersItem `json:"triggers"`
+	EmailCodeUsers int                            `json:"email_code_users"`
+	Quiet          NotifyGetNotifyChannelsOKQuiet `json:"quiet"`
+	// Which kinds of incident send an alert, and from which severity.
+	Triggers             []NotifyGetNotifyChannelsOKTriggersItem       `json:"triggers"`
+	VulnerabilityTrigger NotifyGetNotifyChannelsOKVulnerabilityTrigger `json:"vulnerability_trigger"`
 }
 
 // GetChannels returns the value of Channels.
@@ -211250,11 +211250,6 @@ func (s *NotifyGetNotifyChannelsOK) GetEmailCodeUsers() int {
 	return s.EmailCodeUsers
 }
 
-// GetGrouping returns the value of Grouping.
-func (s *NotifyGetNotifyChannelsOK) GetGrouping() NotifyGetNotifyChannelsOKGrouping {
-	return s.Grouping
-}
-
 // GetQuiet returns the value of Quiet.
 func (s *NotifyGetNotifyChannelsOK) GetQuiet() NotifyGetNotifyChannelsOKQuiet {
 	return s.Quiet
@@ -211263,6 +211258,11 @@ func (s *NotifyGetNotifyChannelsOK) GetQuiet() NotifyGetNotifyChannelsOKQuiet {
 // GetTriggers returns the value of Triggers.
 func (s *NotifyGetNotifyChannelsOK) GetTriggers() []NotifyGetNotifyChannelsOKTriggersItem {
 	return s.Triggers
+}
+
+// GetVulnerabilityTrigger returns the value of VulnerabilityTrigger.
+func (s *NotifyGetNotifyChannelsOK) GetVulnerabilityTrigger() NotifyGetNotifyChannelsOKVulnerabilityTrigger {
+	return s.VulnerabilityTrigger
 }
 
 // SetChannels sets the value of Channels.
@@ -211275,11 +211275,6 @@ func (s *NotifyGetNotifyChannelsOK) SetEmailCodeUsers(val int) {
 	s.EmailCodeUsers = val
 }
 
-// SetGrouping sets the value of Grouping.
-func (s *NotifyGetNotifyChannelsOK) SetGrouping(val NotifyGetNotifyChannelsOKGrouping) {
-	s.Grouping = val
-}
-
 // SetQuiet sets the value of Quiet.
 func (s *NotifyGetNotifyChannelsOK) SetQuiet(val NotifyGetNotifyChannelsOKQuiet) {
 	s.Quiet = val
@@ -211288,6 +211283,11 @@ func (s *NotifyGetNotifyChannelsOK) SetQuiet(val NotifyGetNotifyChannelsOKQuiet)
 // SetTriggers sets the value of Triggers.
 func (s *NotifyGetNotifyChannelsOK) SetTriggers(val []NotifyGetNotifyChannelsOKTriggersItem) {
 	s.Triggers = val
+}
+
+// SetVulnerabilityTrigger sets the value of VulnerabilityTrigger.
+func (s *NotifyGetNotifyChannelsOK) SetVulnerabilityTrigger(val NotifyGetNotifyChannelsOKVulnerabilityTrigger) {
+	s.VulnerabilityTrigger = val
 }
 
 type NotifyGetNotifyChannelsOKChannelsItem struct {
@@ -211676,48 +211676,6 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemType) UnmarshalText(data []byte) e
 	}
 }
 
-type NotifyGetNotifyChannelsOKGrouping struct {
-	Enabled   bool                                       `json:"enabled"`
-	WindowMin NotifyGetNotifyChannelsOKGroupingWindowMin `json:"window_min"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *NotifyGetNotifyChannelsOKGrouping) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetWindowMin returns the value of WindowMin.
-func (s *NotifyGetNotifyChannelsOKGrouping) GetWindowMin() NotifyGetNotifyChannelsOKGroupingWindowMin {
-	return s.WindowMin
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *NotifyGetNotifyChannelsOKGrouping) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetWindowMin sets the value of WindowMin.
-func (s *NotifyGetNotifyChannelsOKGrouping) SetWindowMin(val NotifyGetNotifyChannelsOKGroupingWindowMin) {
-	s.WindowMin = val
-}
-
-type NotifyGetNotifyChannelsOKGroupingWindowMin float64
-
-const (
-	NotifyGetNotifyChannelsOKGroupingWindowMin15  NotifyGetNotifyChannelsOKGroupingWindowMin = 15
-	NotifyGetNotifyChannelsOKGroupingWindowMin60  NotifyGetNotifyChannelsOKGroupingWindowMin = 60
-	NotifyGetNotifyChannelsOKGroupingWindowMin240 NotifyGetNotifyChannelsOKGroupingWindowMin = 240
-)
-
-// AllValues returns all NotifyGetNotifyChannelsOKGroupingWindowMin values.
-func (NotifyGetNotifyChannelsOKGroupingWindowMin) AllValues() []NotifyGetNotifyChannelsOKGroupingWindowMin {
-	return []NotifyGetNotifyChannelsOKGroupingWindowMin{
-		NotifyGetNotifyChannelsOKGroupingWindowMin15,
-		NotifyGetNotifyChannelsOKGroupingWindowMin60,
-		NotifyGetNotifyChannelsOKGroupingWindowMin240,
-	}
-}
-
 type NotifyGetNotifyChannelsOKQuiet struct {
 	AllowCritical bool   `json:"allow_critical"`
 	Enabled       bool   `json:"enabled"`
@@ -211768,7 +211726,8 @@ func (s *NotifyGetNotifyChannelsOKQuiet) SetTo(val string) {
 type NotifyGetNotifyChannelsOKTriggersItem struct {
 	DefaultMin NotifyGetNotifyChannelsOKTriggersItemDefaultMin `json:"default_min"`
 	DefaultOn  bool                                            `json:"default_on"`
-	ID         NotifyGetNotifyChannelsOKTriggersItemID         `json:"id"`
+	// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
+	ID NotifyGetNotifyChannelsOKTriggersItemID `json:"id"`
 	// The lowest severity of this kind that sends a message.
 	Min NotifyGetNotifyChannelsOKTriggersItemMin `json:"min"`
 	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
@@ -211880,11 +211839,11 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemDefaultMin) UnmarshalText(data []b
 	}
 }
 
+// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 type NotifyGetNotifyChannelsOKTriggersItemID string
 
 const (
 	NotifyGetNotifyChannelsOKTriggersItemIDTrap          NotifyGetNotifyChannelsOKTriggersItemID = "trap"
-	NotifyGetNotifyChannelsOKTriggersItemIDVulnerability NotifyGetNotifyChannelsOKTriggersItemID = "vulnerability"
 	NotifyGetNotifyChannelsOKTriggersItemIDIntrusion     NotifyGetNotifyChannelsOKTriggersItemID = "intrusion"
 	NotifyGetNotifyChannelsOKTriggersItemIDBadAddress    NotifyGetNotifyChannelsOKTriggersItemID = "bad_address"
 	NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly    NotifyGetNotifyChannelsOKTriggersItemID = "log_anomaly"
@@ -211895,7 +211854,6 @@ const (
 func (NotifyGetNotifyChannelsOKTriggersItemID) AllValues() []NotifyGetNotifyChannelsOKTriggersItemID {
 	return []NotifyGetNotifyChannelsOKTriggersItemID{
 		NotifyGetNotifyChannelsOKTriggersItemIDTrap,
-		NotifyGetNotifyChannelsOKTriggersItemIDVulnerability,
 		NotifyGetNotifyChannelsOKTriggersItemIDIntrusion,
 		NotifyGetNotifyChannelsOKTriggersItemIDBadAddress,
 		NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly,
@@ -211907,8 +211865,6 @@ func (NotifyGetNotifyChannelsOKTriggersItemID) AllValues() []NotifyGetNotifyChan
 func (s NotifyGetNotifyChannelsOKTriggersItemID) MarshalText() ([]byte, error) {
 	switch s {
 	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
-		return []byte(s), nil
-	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
 		return []byte(s), nil
 	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
 		return []byte(s), nil
@@ -211928,9 +211884,6 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemID) UnmarshalText(data []byte) err
 	switch NotifyGetNotifyChannelsOKTriggersItemID(data) {
 	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
 		*s = NotifyGetNotifyChannelsOKTriggersItemIDTrap
-		return nil
-	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
-		*s = NotifyGetNotifyChannelsOKTriggersItemIDVulnerability
 		return nil
 	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
 		*s = NotifyGetNotifyChannelsOKTriggersItemIDIntrusion
@@ -212003,6 +211956,32 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemMin) UnmarshalText(data []byte) er
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type NotifyGetNotifyChannelsOKVulnerabilityTrigger struct {
+	DefaultOn bool `json:"default_on"`
+	// Off: the finding is still recorded, but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetDefaultOn returns the value of DefaultOn.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) GetDefaultOn() bool {
+	return s.DefaultOn
+}
+
+// GetOn returns the value of On.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) GetOn() bool {
+	return s.On
+}
+
+// SetDefaultOn sets the value of DefaultOn.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) SetDefaultOn(val bool) {
+	s.DefaultOn = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) SetOn(val bool) {
+	s.On = val
 }
 
 type NotifyGetNotifyFindingsIDNoticesOK struct {
@@ -212173,8 +212152,8 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel) UnmarshalText(data 
 type NotifyGetNotifyHistoryOK struct {
 	Items []NotifyGetNotifyHistoryOKItemsItem `json:"items"`
 	// The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest
-	// first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the
-	// channels' minimum, no channel or channels off when it was found.
+	// first, each with why: waiting (within a minute, quiet hours), failed, below the channels' minimum,
+	// no channel or channels off when it was found.
 	NotSent    []NotifyGetNotifyHistoryOKNotSentItem `json:"not_sent"`
 	Suppressed NotifyGetNotifyHistoryOKSuppressed    `json:"suppressed"`
 }
@@ -212519,17 +212498,17 @@ type NotifyGetNotifyHistoryOKNotSentItemNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyHistoryOKNotSentItemNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+	// was past what the message could hold; unknown = opened before the reason was kept and today's
+	// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+	// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+	// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 	Reason NotifyGetNotifyHistoryOKNotSentItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours, grouped: when the held message goes out.
+	// Quiet_hours: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -212645,18 +212624,17 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) UnmarshalText(data [
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+// was past what the message could hold; unknown = opened before the reason was kept and today's
+// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 type NotifyGetNotifyHistoryOKNotSentItemNotSentReason string
 
 const (
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued           NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "queued"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "quiet_hours"
-	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "grouped"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel        NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "no_channel"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff      NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channels_off"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "channel_off"
@@ -212668,6 +212646,7 @@ const (
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut      NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "line_left_out"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "unknown"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "trigger_off"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited     NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentReason values.
@@ -212675,7 +212654,6 @@ func (NotifyGetNotifyHistoryOKNotSentItemNotSentReason) AllValues() []NotifyGetN
 	return []NotifyGetNotifyHistoryOKNotSentItemNotSentReason{
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours,
-		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelsOff,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonChannelOff,
@@ -212687,6 +212665,7 @@ func (NotifyGetNotifyHistoryOKNotSentItemNotSentReason) AllValues() []NotifyGetN
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited,
 	}
 }
 
@@ -212696,8 +212675,6 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) MarshalText() ([]byte,
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
-		return []byte(s), nil
-	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -212721,6 +212698,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) MarshalText() ([]byte,
 		return []byte(s), nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
 		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited:
+		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
 	}
@@ -212734,9 +212713,6 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) UnmarshalText(data []
 		return nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonQuietHours
-		return nil
-	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped:
-		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNoChannel
@@ -212770,6 +212746,9 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) UnmarshalText(data []
 		return nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -213096,17 +213075,17 @@ type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+	// was past what the message could hold; unknown = opened before the reason was kept and today's
+	// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+	// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+	// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours, grouped: when the held message goes out.
+	// Quiet_hours: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -213222,18 +213201,17 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data 
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+// was past what the message could hold; unknown = opened before the reason was kept and today's
+// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "queued"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
-	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "grouped"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
@@ -213245,6 +213223,7 @@ const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "line_left_out"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "trigger_off"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited     NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentNotSentReason values.
@@ -213252,7 +213231,6 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 	return []NotifyGetNotifyIncidentsIDOKIncidentNotSentReason{
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
-		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
@@ -213264,6 +213242,7 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited,
 	}
 }
 
@@ -213273,8 +213252,6 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -213298,6 +213275,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
 	}
@@ -213311,9 +213290,6 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
-		return nil
-	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
-		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
@@ -213347,6 +213323,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -214003,17 +213982,17 @@ type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+	// was past what the message could hold; unknown = opened before the reason was kept and today's
+	// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+	// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+	// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours, grouped: when the held message goes out.
+	// Quiet_hours: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -214129,18 +214108,17 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(da
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+// was past what the message could hold; unknown = opened before the reason was kept and today's
+// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
 
 const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued           NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "queued"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "quiet_hours"
-	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "grouped"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel        NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channels_off"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_off"
@@ -214152,6 +214130,7 @@ const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "line_left_out"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "unknown"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "trigger_off"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited     NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason values.
@@ -214159,7 +214138,6 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 	return []NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason{
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours,
-		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff,
@@ -214171,6 +214149,7 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited,
 	}
 }
 
@@ -214180,8 +214159,6 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
-		return []byte(s), nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -214205,6 +214182,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
 		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited:
+		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
 	}
@@ -214218,9 +214197,6 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours
-		return nil
-	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped:
-		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonGrouped
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel
@@ -214254,6 +214230,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -215457,17 +215436,17 @@ type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+	// was past what the message could hold; unknown = opened before the reason was kept and today's
+	// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+	// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+	// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours, grouped: when the held message goes out.
+	// Quiet_hours: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -215583,18 +215562,17 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(dat
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+// was past what the message could hold; unknown = opened before the reason was kept and today's
+// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "queued"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
-	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "grouped"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
@@ -215606,6 +215584,7 @@ const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "line_left_out"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "trigger_off"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited     NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason values.
@@ -215613,7 +215592,6 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 	return []NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason{
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
-		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
@@ -215625,6 +215603,7 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited,
 	}
 }
 
@@ -215634,8 +215613,6 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
-		return []byte(s), nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -215659,6 +215636,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
 	}
@@ -215672,9 +215651,6 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
-		return nil
-	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped:
-		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonGrouped
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
@@ -215708,6 +215684,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -217324,17 +217303,17 @@ type NotifyPostNotifyNoticesIDSendOKNotSent struct {
 	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyPostNotifyNoticesIDSendOKNotSentChannel `json:"channel"`
-	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+	// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+	// was past what the message could hold; unknown = opened before the reason was kept and today's
+	// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+	// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+	// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 	Reason NotifyPostNotifyNoticesIDSendOKNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
 	Text string `json:"text"`
-	// Quiet_hours, grouped: when the held message goes out.
+	// Quiet_hours: when the held message goes out.
 	Until OptDateTime `json:"until"`
 }
 
@@ -217450,18 +217429,17 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentChannel) UnmarshalText(data []byt
 	}
 }
 
-// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
-// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
-// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it;
-// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still
+// go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line
+// was past what the message could hold; unknown = opened before the reason was kept and today's
+// channels would take it; trigger_off = its kind of event is turned off in the alert settings, or
+// below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the
+// wild: it sends no alert and is told in the daily summary (schedule notify.summary).
 type NotifyPostNotifyNoticesIDSendOKNotSentReason string
 
 const (
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonQueued           NotifyPostNotifyNoticesIDSendOKNotSentReason = "queued"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours       NotifyPostNotifyNoticesIDSendOKNotSentReason = "quiet_hours"
-	NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped          NotifyPostNotifyNoticesIDSendOKNotSentReason = "grouped"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel        NotifyPostNotifyNoticesIDSendOKNotSentReason = "no_channel"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelsOff      NotifyPostNotifyNoticesIDSendOKNotSentReason = "channels_off"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelOff       NotifyPostNotifyNoticesIDSendOKNotSentReason = "channel_off"
@@ -217473,6 +217451,7 @@ const (
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut      NotifyPostNotifyNoticesIDSendOKNotSentReason = "line_left_out"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown          NotifyPostNotifyNoticesIDSendOKNotSentReason = "unknown"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff       NotifyPostNotifyNoticesIDSendOKNotSentReason = "trigger_off"
+	NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited     NotifyPostNotifyNoticesIDSendOKNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyPostNotifyNoticesIDSendOKNotSentReason values.
@@ -217480,7 +217459,6 @@ func (NotifyPostNotifyNoticesIDSendOKNotSentReason) AllValues() []NotifyPostNoti
 	return []NotifyPostNotifyNoticesIDSendOKNotSentReason{
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonQueued,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours,
-		NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelsOff,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelOff,
@@ -217492,6 +217470,7 @@ func (NotifyPostNotifyNoticesIDSendOKNotSentReason) AllValues() []NotifyPostNoti
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff,
+		NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited,
 	}
 }
 
@@ -217501,8 +217480,6 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) MarshalText() ([]byte, err
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonQueued:
 		return []byte(s), nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours:
-		return []byte(s), nil
-	case NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped:
 		return []byte(s), nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel:
 		return []byte(s), nil
@@ -217526,6 +217503,8 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) MarshalText() ([]byte, err
 		return []byte(s), nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
 		return []byte(s), nil
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited:
+		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
 	}
@@ -217539,9 +217518,6 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) UnmarshalText(data []byte
 		return nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours
-		return nil
-	case NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped:
-		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped
 		return nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel
@@ -217575,6 +217551,9 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) UnmarshalText(data []byte
 		return nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff
+		return nil
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -219006,13 +218985,7 @@ func (s *NotifyPutNotifyChannelsTypeType) UnmarshalText(data []byte) error {
 }
 
 type NotifyPutNotifyRulesOK struct {
-	Grouping NotifyPutNotifyRulesOKGrouping `json:"grouping"`
-	Quiet    NotifyPutNotifyRulesOKQuiet    `json:"quiet"`
-}
-
-// GetGrouping returns the value of Grouping.
-func (s *NotifyPutNotifyRulesOK) GetGrouping() NotifyPutNotifyRulesOKGrouping {
-	return s.Grouping
+	Quiet NotifyPutNotifyRulesOKQuiet `json:"quiet"`
 }
 
 // GetQuiet returns the value of Quiet.
@@ -219020,56 +218993,9 @@ func (s *NotifyPutNotifyRulesOK) GetQuiet() NotifyPutNotifyRulesOKQuiet {
 	return s.Quiet
 }
 
-// SetGrouping sets the value of Grouping.
-func (s *NotifyPutNotifyRulesOK) SetGrouping(val NotifyPutNotifyRulesOKGrouping) {
-	s.Grouping = val
-}
-
 // SetQuiet sets the value of Quiet.
 func (s *NotifyPutNotifyRulesOK) SetQuiet(val NotifyPutNotifyRulesOKQuiet) {
 	s.Quiet = val
-}
-
-type NotifyPutNotifyRulesOKGrouping struct {
-	Enabled   bool                                    `json:"enabled"`
-	WindowMin NotifyPutNotifyRulesOKGroupingWindowMin `json:"window_min"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *NotifyPutNotifyRulesOKGrouping) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetWindowMin returns the value of WindowMin.
-func (s *NotifyPutNotifyRulesOKGrouping) GetWindowMin() NotifyPutNotifyRulesOKGroupingWindowMin {
-	return s.WindowMin
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *NotifyPutNotifyRulesOKGrouping) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetWindowMin sets the value of WindowMin.
-func (s *NotifyPutNotifyRulesOKGrouping) SetWindowMin(val NotifyPutNotifyRulesOKGroupingWindowMin) {
-	s.WindowMin = val
-}
-
-type NotifyPutNotifyRulesOKGroupingWindowMin float64
-
-const (
-	NotifyPutNotifyRulesOKGroupingWindowMin15  NotifyPutNotifyRulesOKGroupingWindowMin = 15
-	NotifyPutNotifyRulesOKGroupingWindowMin60  NotifyPutNotifyRulesOKGroupingWindowMin = 60
-	NotifyPutNotifyRulesOKGroupingWindowMin240 NotifyPutNotifyRulesOKGroupingWindowMin = 240
-)
-
-// AllValues returns all NotifyPutNotifyRulesOKGroupingWindowMin values.
-func (NotifyPutNotifyRulesOKGroupingWindowMin) AllValues() []NotifyPutNotifyRulesOKGroupingWindowMin {
-	return []NotifyPutNotifyRulesOKGroupingWindowMin{
-		NotifyPutNotifyRulesOKGroupingWindowMin15,
-		NotifyPutNotifyRulesOKGroupingWindowMin60,
-		NotifyPutNotifyRulesOKGroupingWindowMin240,
-	}
 }
 
 type NotifyPutNotifyRulesOKQuiet struct {
@@ -219120,13 +219046,7 @@ func (s *NotifyPutNotifyRulesOKQuiet) SetTo(val string) {
 }
 
 type NotifyPutNotifyRulesReq struct {
-	Grouping NotifyPutNotifyRulesReqGrouping `json:"grouping"`
-	Quiet    NotifyPutNotifyRulesReqQuiet    `json:"quiet"`
-}
-
-// GetGrouping returns the value of Grouping.
-func (s *NotifyPutNotifyRulesReq) GetGrouping() NotifyPutNotifyRulesReqGrouping {
-	return s.Grouping
+	Quiet NotifyPutNotifyRulesReqQuiet `json:"quiet"`
 }
 
 // GetQuiet returns the value of Quiet.
@@ -219134,56 +219054,9 @@ func (s *NotifyPutNotifyRulesReq) GetQuiet() NotifyPutNotifyRulesReqQuiet {
 	return s.Quiet
 }
 
-// SetGrouping sets the value of Grouping.
-func (s *NotifyPutNotifyRulesReq) SetGrouping(val NotifyPutNotifyRulesReqGrouping) {
-	s.Grouping = val
-}
-
 // SetQuiet sets the value of Quiet.
 func (s *NotifyPutNotifyRulesReq) SetQuiet(val NotifyPutNotifyRulesReqQuiet) {
 	s.Quiet = val
-}
-
-type NotifyPutNotifyRulesReqGrouping struct {
-	Enabled   bool                                     `json:"enabled"`
-	WindowMin NotifyPutNotifyRulesReqGroupingWindowMin `json:"window_min"`
-}
-
-// GetEnabled returns the value of Enabled.
-func (s *NotifyPutNotifyRulesReqGrouping) GetEnabled() bool {
-	return s.Enabled
-}
-
-// GetWindowMin returns the value of WindowMin.
-func (s *NotifyPutNotifyRulesReqGrouping) GetWindowMin() NotifyPutNotifyRulesReqGroupingWindowMin {
-	return s.WindowMin
-}
-
-// SetEnabled sets the value of Enabled.
-func (s *NotifyPutNotifyRulesReqGrouping) SetEnabled(val bool) {
-	s.Enabled = val
-}
-
-// SetWindowMin sets the value of WindowMin.
-func (s *NotifyPutNotifyRulesReqGrouping) SetWindowMin(val NotifyPutNotifyRulesReqGroupingWindowMin) {
-	s.WindowMin = val
-}
-
-type NotifyPutNotifyRulesReqGroupingWindowMin float64
-
-const (
-	NotifyPutNotifyRulesReqGroupingWindowMin15  NotifyPutNotifyRulesReqGroupingWindowMin = 15
-	NotifyPutNotifyRulesReqGroupingWindowMin60  NotifyPutNotifyRulesReqGroupingWindowMin = 60
-	NotifyPutNotifyRulesReqGroupingWindowMin240 NotifyPutNotifyRulesReqGroupingWindowMin = 240
-)
-
-// AllValues returns all NotifyPutNotifyRulesReqGroupingWindowMin values.
-func (NotifyPutNotifyRulesReqGroupingWindowMin) AllValues() []NotifyPutNotifyRulesReqGroupingWindowMin {
-	return []NotifyPutNotifyRulesReqGroupingWindowMin{
-		NotifyPutNotifyRulesReqGroupingWindowMin15,
-		NotifyPutNotifyRulesReqGroupingWindowMin60,
-		NotifyPutNotifyRulesReqGroupingWindowMin240,
-	}
 }
 
 type NotifyPutNotifyRulesReqQuiet struct {
@@ -219234,7 +219107,8 @@ func (s *NotifyPutNotifyRulesReqQuiet) SetTo(val string) {
 }
 
 type NotifyPutNotifyTriggersOK struct {
-	Triggers []NotifyPutNotifyTriggersOKTriggersItem `json:"triggers"`
+	Triggers             []NotifyPutNotifyTriggersOKTriggersItem       `json:"triggers"`
+	VulnerabilityTrigger NotifyPutNotifyTriggersOKVulnerabilityTrigger `json:"vulnerability_trigger"`
 }
 
 // GetTriggers returns the value of Triggers.
@@ -219242,15 +219116,26 @@ func (s *NotifyPutNotifyTriggersOK) GetTriggers() []NotifyPutNotifyTriggersOKTri
 	return s.Triggers
 }
 
+// GetVulnerabilityTrigger returns the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersOK) GetVulnerabilityTrigger() NotifyPutNotifyTriggersOKVulnerabilityTrigger {
+	return s.VulnerabilityTrigger
+}
+
 // SetTriggers sets the value of Triggers.
 func (s *NotifyPutNotifyTriggersOK) SetTriggers(val []NotifyPutNotifyTriggersOKTriggersItem) {
 	s.Triggers = val
 }
 
+// SetVulnerabilityTrigger sets the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersOK) SetVulnerabilityTrigger(val NotifyPutNotifyTriggersOKVulnerabilityTrigger) {
+	s.VulnerabilityTrigger = val
+}
+
 type NotifyPutNotifyTriggersOKTriggersItem struct {
 	DefaultMin NotifyPutNotifyTriggersOKTriggersItemDefaultMin `json:"default_min"`
 	DefaultOn  bool                                            `json:"default_on"`
-	ID         NotifyPutNotifyTriggersOKTriggersItemID         `json:"id"`
+	// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
+	ID NotifyPutNotifyTriggersOKTriggersItemID `json:"id"`
 	// The lowest severity of this kind that sends a message.
 	Min NotifyPutNotifyTriggersOKTriggersItemMin `json:"min"`
 	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
@@ -219362,11 +219247,11 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemDefaultMin) UnmarshalText(data []b
 	}
 }
 
+// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 type NotifyPutNotifyTriggersOKTriggersItemID string
 
 const (
 	NotifyPutNotifyTriggersOKTriggersItemIDTrap          NotifyPutNotifyTriggersOKTriggersItemID = "trap"
-	NotifyPutNotifyTriggersOKTriggersItemIDVulnerability NotifyPutNotifyTriggersOKTriggersItemID = "vulnerability"
 	NotifyPutNotifyTriggersOKTriggersItemIDIntrusion     NotifyPutNotifyTriggersOKTriggersItemID = "intrusion"
 	NotifyPutNotifyTriggersOKTriggersItemIDBadAddress    NotifyPutNotifyTriggersOKTriggersItemID = "bad_address"
 	NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly    NotifyPutNotifyTriggersOKTriggersItemID = "log_anomaly"
@@ -219377,7 +219262,6 @@ const (
 func (NotifyPutNotifyTriggersOKTriggersItemID) AllValues() []NotifyPutNotifyTriggersOKTriggersItemID {
 	return []NotifyPutNotifyTriggersOKTriggersItemID{
 		NotifyPutNotifyTriggersOKTriggersItemIDTrap,
-		NotifyPutNotifyTriggersOKTriggersItemIDVulnerability,
 		NotifyPutNotifyTriggersOKTriggersItemIDIntrusion,
 		NotifyPutNotifyTriggersOKTriggersItemIDBadAddress,
 		NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly,
@@ -219389,8 +219273,6 @@ func (NotifyPutNotifyTriggersOKTriggersItemID) AllValues() []NotifyPutNotifyTrig
 func (s NotifyPutNotifyTriggersOKTriggersItemID) MarshalText() ([]byte, error) {
 	switch s {
 	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
-		return []byte(s), nil
-	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
 		return []byte(s), nil
 	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
 		return []byte(s), nil
@@ -219410,9 +219292,6 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemID) UnmarshalText(data []byte) err
 	switch NotifyPutNotifyTriggersOKTriggersItemID(data) {
 	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
 		*s = NotifyPutNotifyTriggersOKTriggersItemIDTrap
-		return nil
-	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
-		*s = NotifyPutNotifyTriggersOKTriggersItemIDVulnerability
 		return nil
 	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
 		*s = NotifyPutNotifyTriggersOKTriggersItemIDIntrusion
@@ -219487,8 +219366,36 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemMin) UnmarshalText(data []byte) er
 	}
 }
 
+type NotifyPutNotifyTriggersOKVulnerabilityTrigger struct {
+	DefaultOn bool `json:"default_on"`
+	// Off: the finding is still recorded, but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetDefaultOn returns the value of DefaultOn.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) GetDefaultOn() bool {
+	return s.DefaultOn
+}
+
+// GetOn returns the value of On.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) GetOn() bool {
+	return s.On
+}
+
+// SetDefaultOn sets the value of DefaultOn.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) SetDefaultOn(val bool) {
+	s.DefaultOn = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) SetOn(val bool) {
+	s.On = val
+}
+
 type NotifyPutNotifyTriggersReq struct {
 	Triggers []NotifyPutNotifyTriggersReqTriggersItem `json:"triggers"`
+	// Left out: keeps its rule.
+	VulnerabilityTrigger OptNotifyPutNotifyTriggersReqVulnerabilityTrigger `json:"vulnerability_trigger"`
 }
 
 // GetTriggers returns the value of Triggers.
@@ -219496,12 +219403,23 @@ func (s *NotifyPutNotifyTriggersReq) GetTriggers() []NotifyPutNotifyTriggersReqT
 	return s.Triggers
 }
 
+// GetVulnerabilityTrigger returns the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersReq) GetVulnerabilityTrigger() OptNotifyPutNotifyTriggersReqVulnerabilityTrigger {
+	return s.VulnerabilityTrigger
+}
+
 // SetTriggers sets the value of Triggers.
 func (s *NotifyPutNotifyTriggersReq) SetTriggers(val []NotifyPutNotifyTriggersReqTriggersItem) {
 	s.Triggers = val
 }
 
+// SetVulnerabilityTrigger sets the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersReq) SetVulnerabilityTrigger(val OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) {
+	s.VulnerabilityTrigger = val
+}
+
 type NotifyPutNotifyTriggersReqTriggersItem struct {
+	// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 	ID NotifyPutNotifyTriggersReqTriggersItemID `json:"id"`
 	// The lowest severity of this kind that sends a message.
 	Min NotifyPutNotifyTriggersReqTriggersItemMin `json:"min"`
@@ -219539,11 +219457,11 @@ func (s *NotifyPutNotifyTriggersReqTriggersItem) SetOn(val bool) {
 	s.On = val
 }
 
+// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 type NotifyPutNotifyTriggersReqTriggersItemID string
 
 const (
 	NotifyPutNotifyTriggersReqTriggersItemIDTrap          NotifyPutNotifyTriggersReqTriggersItemID = "trap"
-	NotifyPutNotifyTriggersReqTriggersItemIDVulnerability NotifyPutNotifyTriggersReqTriggersItemID = "vulnerability"
 	NotifyPutNotifyTriggersReqTriggersItemIDIntrusion     NotifyPutNotifyTriggersReqTriggersItemID = "intrusion"
 	NotifyPutNotifyTriggersReqTriggersItemIDBadAddress    NotifyPutNotifyTriggersReqTriggersItemID = "bad_address"
 	NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly    NotifyPutNotifyTriggersReqTriggersItemID = "log_anomaly"
@@ -219554,7 +219472,6 @@ const (
 func (NotifyPutNotifyTriggersReqTriggersItemID) AllValues() []NotifyPutNotifyTriggersReqTriggersItemID {
 	return []NotifyPutNotifyTriggersReqTriggersItemID{
 		NotifyPutNotifyTriggersReqTriggersItemIDTrap,
-		NotifyPutNotifyTriggersReqTriggersItemIDVulnerability,
 		NotifyPutNotifyTriggersReqTriggersItemIDIntrusion,
 		NotifyPutNotifyTriggersReqTriggersItemIDBadAddress,
 		NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly,
@@ -219566,8 +219483,6 @@ func (NotifyPutNotifyTriggersReqTriggersItemID) AllValues() []NotifyPutNotifyTri
 func (s NotifyPutNotifyTriggersReqTriggersItemID) MarshalText() ([]byte, error) {
 	switch s {
 	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
-		return []byte(s), nil
-	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
 		return []byte(s), nil
 	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
 		return []byte(s), nil
@@ -219587,9 +219502,6 @@ func (s *NotifyPutNotifyTriggersReqTriggersItemID) UnmarshalText(data []byte) er
 	switch NotifyPutNotifyTriggersReqTriggersItemID(data) {
 	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
 		*s = NotifyPutNotifyTriggersReqTriggersItemIDTrap
-		return nil
-	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
-		*s = NotifyPutNotifyTriggersReqTriggersItemIDVulnerability
 		return nil
 	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
 		*s = NotifyPutNotifyTriggersReqTriggersItemIDIntrusion
@@ -219662,6 +219574,22 @@ func (s *NotifyPutNotifyTriggersReqTriggersItemMin) UnmarshalText(data []byte) e
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Left out: keeps its rule.
+type NotifyPutNotifyTriggersReqVulnerabilityTrigger struct {
+	// Off: the finding is still recorded, but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetOn returns the value of On.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) GetOn() bool {
+	return s.On
+}
+
+// SetOn sets the value of On.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) SetOn(val bool) {
+	s.On = val
 }
 
 // NewOptAiGetAiActivityResult returns new OptAiGetAiActivityResult with value set to v.
@@ -225004,6 +224932,52 @@ func (o OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) Get() (v NotifyPostNot
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) Or(d NotifyPostNotifyNoticesIDSendOKNotSentChannel) NotifyPostNotifyNoticesIDSendOKNotSentChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotifyPutNotifyTriggersReqVulnerabilityTrigger returns new OptNotifyPutNotifyTriggersReqVulnerabilityTrigger with value set to v.
+func NewOptNotifyPutNotifyTriggersReqVulnerabilityTrigger(v NotifyPutNotifyTriggersReqVulnerabilityTrigger) OptNotifyPutNotifyTriggersReqVulnerabilityTrigger {
+	return OptNotifyPutNotifyTriggersReqVulnerabilityTrigger{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyPutNotifyTriggersReqVulnerabilityTrigger is optional NotifyPutNotifyTriggersReqVulnerabilityTrigger.
+type OptNotifyPutNotifyTriggersReqVulnerabilityTrigger struct {
+	Value NotifyPutNotifyTriggersReqVulnerabilityTrigger
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyPutNotifyTriggersReqVulnerabilityTrigger was set.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Reset() {
+	var v NotifyPutNotifyTriggersReqVulnerabilityTrigger
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) SetTo(v NotifyPutNotifyTriggersReqVulnerabilityTrigger) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Get() (v NotifyPutNotifyTriggersReqVulnerabilityTrigger, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Or(d NotifyPutNotifyTriggersReqVulnerabilityTrigger) NotifyPutNotifyTriggersReqVulnerabilityTrigger {
 	if v, ok := o.Get(); ok {
 		return v
 	}

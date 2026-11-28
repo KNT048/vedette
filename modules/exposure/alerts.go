@@ -3,14 +3,20 @@ package exposure
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
+
+	"github.com/knt048/vedette/core/store"
 )
 
-// What a scan finds new goes to the alert channels, once: a service open now that was not before (new, or open again after a scan
-// closed it) and an issue open now that was not before (writeScan's opened and newIssues, the OpenVAS step's new issues). A service
+// What a scan finds new is told once: a service open now that was not before (new, or open again after a scan closed it) and an issue
+// open now that was not before (writeScan's opened and newIssues, the OpenVAS step's new issues). Only an issue that carries a CVE
+// exploited in the wild (Config.Exploited, the rule a finding's alert follows) goes to the alert channels at once; every other new row
+// is counted in the daily summary (NewSince). A service
 // missed once and seen again was never closed, a handled issue stays handled, and a row that moved with its name to the target that
 // scans it now is new only when it was new to that target: so nothing is announced twice. The first scan of a target is its baseline and
 // announces nothing.
@@ -86,8 +92,8 @@ func issueHolders(ctx context.Context, tx *sql.Tx, ids []string, again map[strin
 	return out, nil
 }
 
-// alertLine is one line of an alert with its rank (0 medium, 1 high, 2 critical); quiet lines (low and informational issues) are only
-// counted.
+// alertLine is one line of an alert with its rank (0 medium, 1 high, 2 critical); quiet lines (a port, an issue whose CVEs nobody is
+// known to exploit) are only counted: they are in the daily summary.
 type alertLine struct {
 	rank  int
 	quiet bool
@@ -126,15 +132,19 @@ func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step stri
 		if what := strings.TrimPrefix(strings.TrimSuffix(ServiceLabel(p.PortRow)+", "+p.Product, ", "), ", "); what != "" {
 			text += " (" + what + ")"
 		}
-		add(p.TargetID, alertLine{rank: 1, text: text})
+		add(p.TargetID, alertLine{rank: 1, quiet: true, text: text}) // a port carries no CVE: the daily summary counts it
 	}
 	db := s.cfg.DB.Reader()
 	for _, i := range issues {
-		var title, sev, where string
-		err := db.QueryRowContext(ctx, `SELECT i.title, i.severity, coalesce(x.ip || ':' || x.port, '') FROM exp_issue i
-			LEFT JOIN exp_service x ON x.id = i.service_id WHERE i.id = ?`, i.ID).Scan(&title, &sev, &where)
+		var title, sev, where, cves string
+		err := db.QueryRowContext(ctx, `SELECT i.title, i.severity, coalesce(x.ip || ':' || x.port, ''), i.cves FROM exp_issue i
+			LEFT JOIN exp_service x ON x.id = i.service_id WHERE i.id = ?`, i.ID).Scan(&title, &sev, &where, &cves)
 		if err != nil {
 			continue // handled or gone since: nothing to announce
+		}
+		hit, err := s.exploitedOf(ctx, cves)
+		if err != nil {
+			s.cfg.Log.WarnContext(ctx, "exposure: reading whether a CVE is exploited failed; the issue waits for the daily summary", "issue", i.ID, "error", err)
 		}
 		text := "New " + sev + " issue: " + title
 		if i.Again != "" {
@@ -143,9 +153,12 @@ func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step stri
 		if where != "" {
 			text += " on " + where
 		}
-		rank, loud := severityRank[sev]
-		loud = loud || i.Again != "" // a fix that did not take is told whatever its severity
-		add(i.TargetID, alertLine{rank: rank, quiet: !loud, text: text})
+		if hit != "" && !strings.Contains(text, hit) {
+			text += " (" + hit + ", exploited in the wild)"
+		} else if hit != "" {
+			text += " (exploited in the wild)"
+		}
+		add(i.TargetID, alertLine{rank: severityRank[sev], quiet: hit == "", text: text})
 	}
 	var out []Alert
 	for _, target := range order {
@@ -163,14 +176,13 @@ func (s *Service) alertsOf(ctx context.Context, scanned Target, runID, step stri
 // alertOf is the one alert of a target's new lines; ok is false when every line is quiet.
 func alertOf(value, target string, scanned Target, runID, step string, ls []alertLine) (Alert, bool) {
 	slices.SortStableFunc(ls, func(a, b alertLine) int { return b.rank - a.rank })
-	top, quiet := 0, 0
+	quiet := 0
 	var loud []string
 	for _, l := range ls {
 		if l.quiet {
 			quiet++
 			continue
 		}
-		top = max(top, l.rank)
 		loud = append(loud, l.text)
 	}
 	if len(loud) == 0 {
@@ -184,7 +196,7 @@ func alertOf(value, target string, scanned Target, runID, step string, ls []aler
 		shown = append(shown, fmt.Sprintf("- and %d more", n))
 	}
 	if quiet > 0 {
-		shown = append(shown, fmt.Sprintf("- and %s of low or informational severity", plural(quiet, "new issue")))
+		shown = append(shown, fmt.Sprintf("- and %s with no CVE exploited in the wild: they are in the daily summary", plural(quiet, "other new thing")))
 	}
 	by := "A scan of " + value
 	if target != scanned.ID {
@@ -199,8 +211,64 @@ func alertOf(value, target string, scanned Target, runID, step string, ls []aler
 	if step != "" {
 		id += "-" + step
 	}
-	return Alert{ID: id, TargetID: target, Severity: []string{AlertMedium, AlertHigh, AlertCritical}[top], Title: value + ": something new is exposed", Text: text}, true
+	// what is exploited in the wild is critical, as a finding's alert is (an exploited flaw is critical whatever its score)
+	return Alert{ID: id, TargetID: target, Severity: AlertCritical, Title: value + ": an exploited flaw is exposed", Text: text}, true
 }
 
 // stepOpenVAS names the OpenVAS step of a scan in an alert's id.
 const stepOpenVAS = "openvas"
+
+// exploitedOf is the first CVE of an issue's cves (a JSON array) that is exploited in the wild (Config.Exploited); "" for none, or when
+// the rule is not wired.
+func (s *Service) exploitedOf(ctx context.Context, raw string) (string, error) {
+	var cves []string
+	if err := json.Unmarshal([]byte(raw), &cves); err != nil || len(cves) == 0 || s.cfg.Exploited == nil {
+		return "", nil
+	}
+	hit, err := s.cfg.Exploited(ctx, cves)
+	if err != nil {
+		return "", err
+	}
+	for _, c := range cves {
+		if hit[c] {
+			return c, nil
+		}
+	}
+	return "", nil
+}
+
+// NewSince counts what external scans found new in [from, to) that did not alert (the daily summary of notify): the issues first seen
+// then, still open, with no CVE exploited in the wild, and the services first seen then, still open.
+func (s *Service) NewSince(ctx context.Context, from, to time.Time) (issues, ports int, err error) {
+	db := s.cfg.DB.Reader()
+	f, t := store.FormatTS(from), store.FormatTS(to)
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM exp_service WHERE state = 'open' AND first_seen >= ? AND first_seen < ?`, f, t).Scan(&ports); err != nil {
+		return 0, 0, fmt.Errorf("exposure: new since: %w", err)
+	}
+	rows, err := db.QueryContext(ctx, `SELECT cves FROM exp_issue WHERE state = 'open' AND first_seen >= ? AND first_seen < ?`, f, t)
+	if err != nil {
+		return 0, 0, fmt.Errorf("exposure: new since: %w", err)
+	}
+	var all []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			_ = rows.Close()
+			return 0, 0, fmt.Errorf("exposure: new since: %w", err)
+		}
+		all = append(all, c)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return 0, 0, fmt.Errorf("exposure: new since: %w", err)
+	}
+	for _, c := range all {
+		hit, err := s.exploitedOf(ctx, c)
+		if err != nil {
+			return 0, 0, err
+		}
+		if hit == "" {
+			issues++
+		}
+	}
+	return issues, ports, nil
+}

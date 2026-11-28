@@ -240,7 +240,7 @@ func TestWiringQuietHoursFollowTheOrganizationTimeZone(t *testing.T) {
 	s.email(newSMTPSink(t))
 	ctx := t.Context()
 	svc := newNotify(s.d)
-	if _, err := svc.SaveRules(ctx, "admin@acme.example", notify.Rules{Quiet: notify.Quiet{Enabled: true, From: "22:00", To: "06:30"}, Grouping: notify.Grouping{WindowMin: 15}}); err != nil {
+	if _, err := svc.SaveRules(ctx, "admin@acme.example", notify.Rules{Quiet: notify.Quiet{Enabled: true, From: "22:00", To: "06:30"}}); err != nil {
 		t.Fatal(err)
 	}
 	setZone := func(sqlText string) { // the write PUT /core/general does (it needs a signed-in admin row, which this stack's test sessions are not)

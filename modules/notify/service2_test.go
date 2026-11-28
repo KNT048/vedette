@@ -557,22 +557,20 @@ func TestAlertTargetAndEscaping(t *testing.T) {
 func TestRulesValidation(t *testing.T) {
 	e := newEnv(t)
 	v, _ := e.svc.Channels(e.ctx())
-	if v.Quiet.Enabled || !v.Grouping.Enabled || v.Grouping.WindowMin != 60 {
-		t.Fatalf("defaults = %+v %+v", v.Quiet, v.Grouping)
+	if v.Quiet.Enabled {
+		t.Fatalf("defaults = %+v", v.Quiet)
 	}
-	save := func(q notify.Quiet, g notify.Grouping) error {
-		_, err := e.svc.SaveRules(e.ctx(), "admin@acme.example", notify.Rules{Quiet: q, Grouping: g})
+	save := func(q notify.Quiet) error {
+		_, err := e.svc.SaveRules(e.ctx(), "admin@acme.example", notify.Rules{Quiet: q})
 		return err
 	}
-	ok := notify.Grouping{Enabled: true, WindowMin: 15}
-	wantCode(t, save(notify.Quiet{Enabled: true, From: "22:00", To: "22:00"}, ok), 400, "bad_quiet")
-	wantCode(t, save(notify.Quiet{Enabled: true, From: "25:00", To: "06:00"}, ok), 400, "bad_time")
-	wantCode(t, save(notify.Quiet{From: "22:00", To: "06:00"}, notify.Grouping{Enabled: true, WindowMin: 30}), 400, "bad_window")
-	if err := save(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: true}, ok); err != nil {
+	wantCode(t, save(notify.Quiet{Enabled: true, From: "22:00", To: "22:00"}), 400, "bad_quiet")
+	wantCode(t, save(notify.Quiet{Enabled: true, From: "25:00", To: "06:00"}), 400, "bad_time")
+	if err := save(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: true}); err != nil {
 		t.Fatal(err)
 	}
-	if v, _ = e.svc.Channels(e.ctx()); !v.Quiet.Enabled || v.Grouping.WindowMin != 15 {
-		t.Fatalf("rules = %+v %+v", v.Quiet, v.Grouping)
+	if v, _ = e.svc.Channels(e.ctx()); !v.Quiet.Enabled {
+		t.Fatalf("rules = %+v", v.Quiet)
 	}
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.rules_save'`) != 1 {
 		t.Fatal("rules save not audited once")

@@ -31,16 +31,16 @@ func wantCode(t *testing.T, err error, status int, code string) {
 	}
 }
 
-func (e *env) rules(q notify.Quiet, g notify.Grouping) {
+func (e *env) rules(q notify.Quiet) {
 	e.t.Helper()
-	if _, err := e.svc.SaveRules(e.ctx(), "admin@acme.example", notify.Rules{Quiet: q, Grouping: g}); err != nil {
+	if _, err := e.svc.SaveRules(e.ctx(), "admin@acme.example", notify.Rules{Quiet: q}); err != nil {
 		e.t.Fatal(err)
 	}
 }
 
 // plain turns the rules into "send at once, no quiet hours".
 func (e *env) plain() {
-	e.rules(notify.Quiet{From: "22:00", To: "06:30", AllowCritical: true}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{From: "22:00", To: "06:30", AllowCritical: true})
 }
 
 func TestMigrationsUsePrefix(t *testing.T) {
@@ -106,69 +106,6 @@ func TestContract_INV2_NoUnmatchedCVE(t *testing.T) {
 	}
 }
 
-func TestContract_INV3_GroupsSameProductInsideWindow(t *testing.T) {
-	e := newEnv(t)
-	e.telegram(notify.Low)
-	e.rules(notify.Quiet{From: "22:00", To: "06:30", AllowCritical: true}, notify.Grouping{Enabled: true, WindowMin: 15})
-	t0 := e.clock.Now()
-	for i, id := range []string{"a", "b", "c"} {
-		n := e.vulnNotice(id, "QNAP Photo Station", "CVE-2026-"+id, notify.High, "NAS-01")
-		n.At = t0.Add(time.Duration(i*5) * time.Minute)
-		if err := e.svc.Publish(e.ctx(), n); err != nil {
-			t.Fatal(err)
-		}
-	}
-	other := e.vulnNotice("z", "WordPress", "CVE-2026-9", notify.High, "WEB01")
-	other.At = t0.Add(10 * time.Minute) // due in a later run: batches due in the same run become one digest
-	if err := e.svc.Publish(e.ctx(), other); err != nil {
-		t.Fatal(err)
-	}
-	e.flush()
-	if e.net.total() != 0 {
-		t.Fatalf("sent before the window ended: %d", e.net.total())
-	}
-	e.clock.Add(15 * time.Minute)
-	e.flush()
-	if n := len(e.net.to("api.telegram.org")); n != 1 {
-		t.Fatalf("calls = %d after the QNAP window, want the grouped message only", n)
-	}
-	e.clock.Add(10 * time.Minute)
-	e.flush()
-	calls := e.net.to("api.telegram.org")
-	if len(calls) != 2 {
-		t.Fatalf("calls = %d, want one grouped message and one for the other product", len(calls))
-	}
-	var grouped int
-	for _, c := range calls {
-		if strings.Contains(c.Body, "3 vulnerabilities") {
-			grouped++
-		}
-	}
-	if grouped != 1 {
-		t.Fatalf("grouped messages = %d: %+v", grouped, calls)
-	}
-	// The finding page lists the one message for each of the three findings.
-	for _, f := range []string{"f-a", "f-b", "f-c"} {
-		l, err := e.svc.FindingNotices(e.ctx(), f)
-		if err != nil || len(l) != 1 {
-			t.Fatalf("notices of %s = %+v, %v", f, l, err)
-		}
-	}
-}
-
-func TestContract_INV3_CriticalIsNeverHeldByGrouping(t *testing.T) {
-	e := newEnv(t)
-	e.telegram(notify.Low)
-	e.rules(notify.Quiet{From: "22:00", To: "06:30", AllowCritical: true}, notify.Grouping{Enabled: true, WindowMin: 240})
-	if err := e.svc.Publish(e.ctx(), e.vulnNotice("c", "Fortinet FortiOS", "CVE-2026-5", notify.Critical, "FW-01")); err != nil {
-		t.Fatal(err)
-	}
-	e.flush()
-	if len(e.net.to("api.telegram.org")) != 1 {
-		t.Fatalf("a critical notice waited for the grouping window")
-	}
-}
-
 func TestContract_INV4_MinSeverityPerChannel(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.High)
@@ -182,7 +119,7 @@ func TestContract_INV4_MinSeverityPerChannel(t *testing.T) {
 		t.Fatalf("telegram %d, slack %d", len(e.net.to("api.telegram.org")), len(e.net.to("hooks.slack.com")))
 	}
 	// Raising the minimum after queueing drops what is still waiting for that channel.
-	e.rules(notify.Quiet{From: "22:00", To: "06:30", AllowCritical: true}, notify.Grouping{Enabled: true, WindowMin: 60})
+	e.rules(notify.Quiet{From: "22:00", To: "06:30", AllowCritical: true})
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("m2", "WordPress", "CVE-2026-4", notify.Medium, "WEB01")); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +134,7 @@ func TestContract_INV4_MinSeverityPerChannel(t *testing.T) {
 func TestContract_INV5_QuietHoursHoldThenReleaseGrouped(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: true}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: true})
 	e.clock.Add(13 * time.Hour) // 23:00
 	for _, n := range []notify.Notice{
 		e.vulnNotice("h1", "QNAP", "CVE-2026-11", notify.High, "NAS-01"),
@@ -233,7 +170,7 @@ func TestContract_INV5_QuietHoursHoldThenReleaseGrouped(t *testing.T) {
 func TestContract_INV5_QuietHoursCriticalWaitsWhenNotAllowed(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: false}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: false})
 	e.clock.Add(13 * time.Hour)
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("k", "Fortinet", "CVE-2026-13", notify.Critical, "FW-01")); err != nil {
 		t.Fatal(err)

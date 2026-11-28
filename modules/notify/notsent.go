@@ -234,12 +234,6 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 			n.Until = detail
 			n.Text = fmt.Sprintf("Held for quiet hours until %s. It goes out by itself then.", orgtime.Clock(t, loc))
 		}
-	case UnsentGrouped:
-		n.Text = "Waiting to go out with the other alerts about the same product. It goes out by itself."
-		if t, err := time.Parse(time.RFC3339, detail); err == nil {
-			n.Until = detail
-			n.Text = fmt.Sprintf("Waiting to go out at %s with the other alerts about the same product (grouping). It goes out by itself then.", orgtime.Clock(t, loc))
-		}
 	case UnsentNoChannel: // said of the moment it opened: a channel set up later does not make it untrue
 		n.Text = "Not sent: no alert channel was set up when it opened."
 	case UnsentChannelsOff:
@@ -272,6 +266,8 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		if floor.Valid() && sev.Valid() {
 			n.Text = fmt.Sprintf("Not sent: it is %s, and the alert settings send this kind only from %s.", sev, floor)
 		}
+	case UnsentNotExploited:
+		n.Text = "No alert: only findings exploited in the wild send one. It is in the daily summary when that is on (Settings, Alert channels)."
 	case UnsentLineLeftOut:
 		n.Text = "Not named in the message that went out: its line was past what the message could hold."
 	default:
@@ -339,7 +335,7 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		ids[k] = r.id
 	}
 	in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
-	type waiting struct{ now, group, quiet string } // the earliest due time of each kind of queued row
+	type waiting struct{ now, quiet string } // the earliest due time of each kind of queued row
 	queue := map[string]*waiting{}
 	rows, err = q.QueryContext(ctx, `SELECT notice_id, reason, min(due_at) FROM notify_pending WHERE notice_id IN `+in+` GROUP BY notice_id, reason`, ids...)
 	if err != nil {
@@ -359,9 +355,7 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		switch reason {
 		case "quiet":
 			w.quiet = due
-		case "group":
-			w.group = due
-		default:
+		default: // now, or a grouping window of an earlier build (it goes with the next run)
 			w.now = due
 		}
 	}
@@ -387,10 +381,6 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		return nil, fmt.Errorf("notify: read failed notices: %w", err)
 	}
 	loc := s.loc(ctx)
-	rules, err := loadRules(ctx, q)
-	if err != nil {
-		return nil, err
-	}
 	cache := map[string]findingNow{}
 	for _, r := range list {
 		sev := Severity(r.sev)
@@ -423,13 +413,6 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		switch {
 		case w != nil && w.now != "":
 			ns = noticeNotSent(UnsentQueued, sev, "", "", "", loc)
-		case w != nil && w.group != "":
-			// The queue releases no grouped batch during quiet hours: a window that ends inside them waits for their end.
-			if due, err := time.Parse(time.RFC3339, w.group); err == nil && rules.Quiet.Active(due.In(loc)) {
-				ns = noticeNotSent(UnsentQuietHours, sev, "", "", store.FormatTS(rules.Quiet.EndsAt(due.In(loc))), loc)
-				break
-			}
-			ns = noticeNotSent(UnsentGrouped, sev, "", "", w.group, loc)
 		case w != nil:
 			ns = noticeNotSent(UnsentQuietHours, sev, "", "", w.quiet, loc)
 		case f.Channel != "":

@@ -1559,6 +1559,15 @@ CREATE TABLE notify_setting (
     updated_by TEXT NOT NULL CHECK (length(updated_by) > 0)
 );
 
+CREATE TABLE notify_summary (
+    id      TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 64),
+    due_at  TEXT NOT NULL CHECK (due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    state   TEXT NOT NULL CHECK (state IN ('due', 'sending', 'sent', 'empty', 'skipped')),
+    done_at TEXT CHECK (done_at IS NULL OR done_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
+
+CREATE INDEX notify_summary_due_ix ON notify_summary (due_at);
+
 -- module sensor-passive
 
 CREATE TABLE sp_sensor (

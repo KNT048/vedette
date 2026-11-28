@@ -28,6 +28,7 @@ const OWNERS: Record<string, Owner> = {
   'reports.def': { module: 'reports', perSubject: true, limits: { freqs: ['weekly', 'monthly'], reason: 'A report covers a week or a month.' }, defaultOn: false, rule: { freq: 'weekly', at_time: '08:00', weekdays: [1] } },
   'feeds.source': { module: 'feeds', perSubject: true, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 60, windows: ['none'], reason: 'Sources ask clients not to poll more often.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 60 } },
   'exposure.public_ip': { module: 'exposure', perSubject: false, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 5, max_every_minutes: 1440, reason: 'The lookup services rate-limit; a change is found at the next check.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 15 } },
+  'notify.summary': { module: 'notify', perSubject: false, adminOnly: true, limits: { freqs: ['daily'], windows: ['none'], reason: 'The summary covers one day.' }, defaultOn: false, rule: { freq: 'daily', at_time: '08:00' } },
   'agent-intake.wazuh': { module: 'agent-intake', perSubject: false, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 5, reason: 'The Wazuh server answers slowly to frequent pulls.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 15 } },
 }
 

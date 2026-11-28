@@ -44662,9 +44662,9 @@ func (s *Server) handleNotifyPostNotifyIncidentsStatusRequest(args [0]string, ar
 // handleNotifyPostNotifyNoticesIDSendRequest handles notify_post_notify_notices_id_send operation.
 //
 // Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its
-// findings as they are now, queued on every channel that is on whatever its minimum severity, quiet
-// hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent)
-// or channel_not_ready.
+// findings as they are now, queued on every channel that is on whatever its minimum severity or quiet
+// hours; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or
+// channel_not_ready.
 //
 // POST /notify/notices/{id}/send
 func (s *Server) handleNotifyPostNotifyNoticesIDSendRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44743,7 +44743,7 @@ func (s *Server) handleNotifyPostNotifyNoticesIDSendRequest(args [1]string, args
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    NotifyPostNotifyNoticesIDSendOperation,
-			OperationSummary: "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity, quiet hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready",
+			OperationSummary: "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity or quiet hours; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready",
 			OperationID:      "notify_post_notify_notices_id_send",
 			Body:             nil,
 			RawBody:          rawBody,

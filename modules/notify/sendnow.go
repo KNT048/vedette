@@ -56,7 +56,7 @@ func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, 
 	}
 	var n Notice
 	if NoticeEvent(event) == NoticeFirstRun {
-		key := strings.TrimPrefix(id, "nt-first-run-")
+		key := strings.TrimPrefix(strings.TrimPrefix(id, quietPrefix), "nt-first-run-")
 		if k := strings.LastIndex(key, "-"); k > 0 {
 			key = key[:k]
 		}

@@ -78685,35 +78685,6 @@
                       ],
                       "additionalProperties": false
                     },
-                    "grouping": {
-                      "type": "object",
-                      "properties": {
-                        "enabled": {
-                          "type": "boolean"
-                        },
-                        "window_min": {
-                          "anyOf": [
-                            {
-                              "type": "number",
-                              "const": 15
-                            },
-                            {
-                              "type": "number",
-                              "const": 60
-                            },
-                            {
-                              "type": "number",
-                              "const": 240
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "enabled",
-                        "window_min"
-                      ],
-                      "additionalProperties": false
-                    },
                     "triggers": {
                       "type": "array",
                       "items": {
@@ -78723,12 +78694,12 @@
                             "type": "string",
                             "enum": [
                               "trap",
-                              "vulnerability",
                               "intrusion",
                               "bad_address",
                               "log_anomaly",
                               "unknown_device"
-                            ]
+                            ],
+                            "description": "The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger)"
                           },
                           "on": {
                             "type": "boolean",
@@ -78766,7 +78737,24 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Which kinds of event send an alert, and from which severity"
+                      "description": "Which kinds of incident send an alert, and from which severity"
+                    },
+                    "vulnerability_trigger": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean",
+                          "description": "Off: the finding is still recorded, but no message is sent"
+                        },
+                        "default_on": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "default_on"
+                      ],
+                      "additionalProperties": false
                     },
                     "email_code_users": {
                       "type": "integer",
@@ -78778,8 +78766,8 @@
                   "required": [
                     "channels",
                     "quiet",
-                    "grouping",
                     "triggers",
+                    "vulnerability_trigger",
                     "email_code_users"
                   ],
                   "additionalProperties": false
@@ -79686,7 +79674,6 @@
                                 "enum": [
                                   "queued",
                                   "quiet_hours",
-                                  "grouped",
                                   "no_channel",
                                   "channels_off",
                                   "channel_off",
@@ -79697,9 +79684,10 @@
                                   "first_run_summary",
                                   "line_left_out",
                                   "unknown",
-                                  "trigger_off"
+                                  "trigger_off",
+                                  "not_exploited"
                                 ],
-                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                               },
                               "text": {
                                 "type": "string",
@@ -79718,7 +79706,7 @@
                                 ]
                               },
                               "until": {
-                                "description": "quiet_hours, grouped: when the held message goes out",
+                                "description": "quiet_hours: when the held message goes out",
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -79740,7 +79728,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the channels' minimum, no channel or channels off when it was found"
+                      "description": "The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest first, each with why: waiting (within a minute, quiet hours), failed, below the channels' minimum, no channel or channels off when it was found"
                     },
                     "suppressed": {
                       "type": "object",
@@ -80094,7 +80082,6 @@
                                     "enum": [
                                       "queued",
                                       "quiet_hours",
-                                      "grouped",
                                       "no_channel",
                                       "channels_off",
                                       "channel_off",
@@ -80105,9 +80092,10 @@
                                       "first_run_summary",
                                       "line_left_out",
                                       "unknown",
-                                      "trigger_off"
+                                      "trigger_off",
+                                      "not_exploited"
                                     ],
-                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                                   },
                                   "text": {
                                     "type": "string",
@@ -80126,7 +80114,7 @@
                                     ]
                                   },
                                   "until": {
-                                    "description": "quiet_hours, grouped: when the held message goes out",
+                                    "description": "quiet_hours: when the held message goes out",
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -80398,7 +80386,6 @@
                                   "enum": [
                                     "queued",
                                     "quiet_hours",
-                                    "grouped",
                                     "no_channel",
                                     "channels_off",
                                     "channel_off",
@@ -80409,9 +80396,10 @@
                                     "first_run_summary",
                                     "line_left_out",
                                     "unknown",
-                                    "trigger_off"
+                                    "trigger_off",
+                                    "not_exploited"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                                 },
                                 "text": {
                                   "type": "string",
@@ -80430,7 +80418,7 @@
                                   ]
                                 },
                                 "until": {
-                                  "description": "quiet_hours, grouped: when the held message goes out",
+                                  "description": "quiet_hours: when the held message goes out",
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -80758,7 +80746,6 @@
                                   "enum": [
                                     "queued",
                                     "quiet_hours",
-                                    "grouped",
                                     "no_channel",
                                     "channels_off",
                                     "channel_off",
@@ -80769,9 +80756,10 @@
                                     "first_run_summary",
                                     "line_left_out",
                                     "unknown",
-                                    "trigger_off"
+                                    "trigger_off",
+                                    "not_exploited"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                                 },
                                 "text": {
                                   "type": "string",
@@ -80790,7 +80778,7 @@
                                   ]
                                 },
                                 "until": {
-                                  "description": "quiet_hours, grouped: when the held message goes out",
+                                  "description": "quiet_hours: when the held message goes out",
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -80988,7 +80976,7 @@
     "/notify/notices/{id}/send": {
       "post": {
         "operationId": "notify_post_notify_notices_id_send",
-        "summary": "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity, quiet hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready",
+        "summary": "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity or quiet hours; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready",
         "tags": [
           "notify"
         ],
@@ -81040,7 +81028,6 @@
                           "enum": [
                             "queued",
                             "quiet_hours",
-                            "grouped",
                             "no_channel",
                             "channels_off",
                             "channel_off",
@@ -81051,9 +81038,10 @@
                             "first_run_summary",
                             "line_left_out",
                             "unknown",
-                            "trigger_off"
+                            "trigger_off",
+                            "not_exploited"
                           ],
-                          "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                          "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                         },
                         "text": {
                           "type": "string",
@@ -81072,7 +81060,7 @@
                           ]
                         },
                         "until": {
-                          "description": "quiet_hours, grouped: when the held message goes out",
+                          "description": "quiet_hours: when the held message goes out",
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -81153,40 +81141,10 @@
                       "allow_critical"
                     ],
                     "additionalProperties": false
-                  },
-                  "grouping": {
-                    "type": "object",
-                    "properties": {
-                      "enabled": {
-                        "type": "boolean"
-                      },
-                      "window_min": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 15
-                          },
-                          {
-                            "type": "number",
-                            "const": 60
-                          },
-                          {
-                            "type": "number",
-                            "const": 240
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "enabled",
-                      "window_min"
-                    ],
-                    "additionalProperties": false
                   }
                 },
                 "required": [
-                  "quiet",
-                  "grouping"
+                  "quiet"
                 ],
                 "additionalProperties": false
               }
@@ -81226,40 +81184,10 @@
                         "allow_critical"
                       ],
                       "additionalProperties": false
-                    },
-                    "grouping": {
-                      "type": "object",
-                      "properties": {
-                        "enabled": {
-                          "type": "boolean"
-                        },
-                        "window_min": {
-                          "anyOf": [
-                            {
-                              "type": "number",
-                              "const": 15
-                            },
-                            {
-                              "type": "number",
-                              "const": 60
-                            },
-                            {
-                              "type": "number",
-                              "const": 240
-                            }
-                          ]
-                        }
-                      },
-                      "required": [
-                        "enabled",
-                        "window_min"
-                      ],
-                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "quiet",
-                    "grouping"
+                    "quiet"
                   ],
                   "additionalProperties": false
                 }
@@ -81618,12 +81546,12 @@
                           "type": "string",
                           "enum": [
                             "trap",
-                            "vulnerability",
                             "intrusion",
                             "bad_address",
                             "log_anomaly",
                             "unknown_device"
-                          ]
+                          ],
+                          "description": "The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger)"
                         },
                         "on": {
                           "type": "boolean",
@@ -81647,6 +81575,20 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "vulnerability_trigger": {
+                    "description": "Left out: keeps its rule",
+                    "type": "object",
+                    "properties": {
+                      "on": {
+                        "type": "boolean",
+                        "description": "Off: the finding is still recorded, but no message is sent"
+                      }
+                    },
+                    "required": [
+                      "on"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -81674,12 +81616,12 @@
                             "type": "string",
                             "enum": [
                               "trap",
-                              "vulnerability",
                               "intrusion",
                               "bad_address",
                               "log_anomaly",
                               "unknown_device"
-                            ]
+                            ],
+                            "description": "The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger)"
                           },
                           "on": {
                             "type": "boolean",
@@ -81717,10 +81659,28 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "vulnerability_trigger": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean",
+                          "description": "Off: the finding is still recorded, but no message is sent"
+                        },
+                        "default_on": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "default_on"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "triggers"
+                    "triggers",
+                    "vulnerability_trigger"
                   ],
                   "additionalProperties": false
                 }

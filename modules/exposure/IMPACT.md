@@ -42,3 +42,6 @@ in the same commit.
 ## Switching the module off
 
 Routes, detection and scans stop; tables stay. The scan module gets no external targets and response gets no new-port events.
+
+## Modifying: `Config.Exploited`, `alertsOf`, `NewSince`
+- **notify** (INV-32): only an issue with a CVE exploited in the wild alerts at once; `NewSince` is the daily summary's line of external scans (`cmd/vedette/notifyfindings.go` `notifyExposureNews`). The rule of "exploited" is `exploitedCVEs` in `cmd/vedette/urgency.go` (findings' `Urgency`): change it there, never here.

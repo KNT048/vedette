@@ -147,6 +147,7 @@ The read model of a finding is `findings.View`.
 |---|---|
 | `notify_channel`, `notify_approver`, `notify_setting` | The channels (one row per type; secrets in `core_secret`), who may approve on each, the quiet-hours and grouping rules and the alert triggers. |
 | `notify_notice`, `notify_notice_finding` | A vulnerability notice: one finding event (`created`, `urgency_changed`, `reopened`, `acceptance_expired` …) and the findings it covers. |
+| `notify_summary` | One row each time the daily summary came due (schedule `notify.summary`) and what the summary job did: sent, empty, skipped. Kept 1 year. |
 | `notify_incident`, `notify_incident_device` | Incidents (an open vocabulary of kinds) and the devices they concern. |
 | `notify_send`, `notify_send_notice`, `notify_pending` | One row per message sent per channel, which notices it carried, and notices waiting for a channel. |
 | `notify_tg_button`, `notify_slack_button`, `notify_slack_team`, `notify_slack_final` | State of approval buttons in chat messages. |

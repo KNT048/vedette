@@ -445,7 +445,7 @@ FORBID-2 (no typed-in IPs) is retired: typed-in IPs are allowed with proof (INV-
 | `exposure.scan.written` | response (new open port trigger) |
 | `exposure.target.verified` | none today |
 
-New findings of a scan are announced through `Config.Alert`, which `cmd/vedette` sends through notify.
+New findings of a scan are announced through `Config.Alert`, which `cmd/vedette` sends through notify, only when a new issue carries a CVE exploited in the wild (`Config.Exploited`, wired to `exploitedCVEs` in `cmd/vedette/urgency.go`: findings' `Urgency` over feeds' facts, the rule a finding's alert follows); such an alert is critical and counts the other new rows in a line. A new open port, and an issue whose CVEs nobody is known to exploit, send no alert: `NewSince(ctx, from, to)` counts them (issues and services first seen in the span, still open) for notify's daily summary (notify INV-32). Tests: `TestAlerts_OnlyAnIssueWithAnExploitedCVEAlerts`, `TestAlerts_AnExploitedIssueAlertsOnce`.
 
 ## Dependencies
 

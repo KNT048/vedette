@@ -260,18 +260,17 @@ func (h *NotifyHandlers) NotifyPutNotifyTriggers(ctx context.Context, req *oas.N
 		return nil, err
 	}
 	in, err := convert[struct {
-		Triggers []Trigger `json:"triggers"`
+		Triggers      []Trigger    `json:"triggers"`
+		Vulnerability *VulnTrigger `json:"vulnerability_trigger"`
 	}](req)
 	if err != nil {
 		return nil, err
 	}
-	out, err := h.svc.SaveTriggers(ctx, who, in.Triggers)
+	out, err := h.svc.SaveTriggers(ctx, who, in.Triggers, in.Vulnerability)
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.NotifyPutNotifyTriggersOK](struct {
-		Triggers []TriggerView `json:"triggers"`
-	}{out})
+	return convert[oas.NotifyPutNotifyTriggersOK](out)
 }
 
 // NotifyPostNotifyZaloLogin implements POST /notify/zalo/login (admin).

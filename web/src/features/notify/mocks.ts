@@ -13,7 +13,7 @@ import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { MAX_BULK_INCIDENTS } from './contract'
 import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
-import type { AlertTrigger, AlertTriggerView, Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
+import type { AlertTrigger, AlertTriggerView, Approver, Channel, ChannelInput, ChannelType, EmailSignin, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
@@ -31,15 +31,16 @@ const channels = collection<StoredChannel[]>('notify_channels', () => [
   { type: 'email', configured: true, enabled: true, fields: { host: 'smtp.acme.example', port: '587', security: 'starttls', username: 'alerts@acme.example', from: 'alerts@acme.example', to: 'it@acme.example, director@acme.example' }, secret: 'MatKhauMau-m3Tz', min_severity: 'high', approvals: true, approvers: [{ user_id: 'u-admin', address: 'admin@acme.example' }], last_test: { at: daysAgo(6), ok: true, detail: 'Test email sent to it@acme.example, director@acme.example.' } },
   blank('webhook'),
 ], () => CHANNEL_TYPES.map(blank))
-const rules = collection<{ quiet: Quiet; grouping: Grouping }>('notify_rules', () => ({
+const rules = collection<{ quiet: Quiet }>('notify_rules', () => ({
   quiet: { enabled: true, from: '22:00', to: '06:30', allow_critical: true },
-  grouping: { enabled: true, window_min: 60 },
 }))
 // Alert triggers: the box's defaults (modules/notify/triggers.go defaultTriggers), the stored rule over them.
-const TRIGGER_DEFAULTS: AlertTriggerView[] = ([['trap', true, 'low'], ['vulnerability', true, 'low'], ['intrusion', true, 'high'], ['bad_address', true, 'high'], ['log_anomaly', true, 'high'], ['unknown_device', false, 'medium']] as const)
+const TRIGGER_DEFAULTS: AlertTriggerView[] = ([['trap', true, 'low'], ['intrusion', true, 'high'], ['bad_address', true, 'high'], ['log_anomaly', true, 'high'], ['unknown_device', false, 'medium']] as const)
   .map(([id, on, min]) => ({ id, on, min, default_on: on, default_min: min }))
 const triggers = collection<AlertTriggerView[]>('notify_triggers', () => TRIGGER_DEFAULTS.map((t) => ({ ...t })))
-const TRIGGER_NAMES: Record<AlertTrigger['id'], string> = { trap: 'decoy touched', vulnerability: 'exploited or urgent vulnerability', intrusion: 'intrusion alert', bad_address: 'connection to a known-bad address', log_anomaly: 'log anomaly', unknown_device: 'new device seen' }
+// The vulnerability trigger: on or off only (a finding alerts only when exploited in the wild, always Critical).
+const vulnTrigger = collection<{ on: boolean; default_on: boolean }>('notify_vuln_trigger', () => ({ on: true, default_on: true }))
+const TRIGGER_NAMES: Record<AlertTrigger['id'], string> = { trap: 'decoy touched', intrusion: 'intrusion alert', bad_address: 'connection to a known-bad address', log_anomaly: 'log anomaly', unknown_device: 'new device seen' }
 const triggerWords = (t: AlertTrigger) => (!t.on ? 'off' : t.min === 'low' ? 'on' : `on from ${t.min}`)
 
 // Vulnerability notices: messages about a finding. They are not incidents; the finding page shows them (slot finding.panels) and Settings, Alert channels, History lists them.
@@ -666,7 +667,7 @@ export const handlers = [
   http.get(`${API}/notify/channels`, () => {
     const denied = guard('admin'); if (denied) return denied
     const cur = channels.get()
-    return HttpResponse.json({ channels: CHANNEL_TYPES.map((t) => pub(cur.find((c) => c.type === t) ?? blank(t))), ...rules.get(), triggers: triggers.get(), email_code_users: emailCodeUserCount() })
+    return HttpResponse.json({ channels: CHANNEL_TYPES.map((t) => pub(cur.find((c) => c.type === t) ?? blank(t))), ...rules.get(), triggers: triggers.get(), vulnerability_trigger: vulnTrigger.get(), email_code_users: emailCodeUserCount() })
   }),
 
   http.put(`${API}/notify/channels/:type`, async ({ params, request }) => {
@@ -796,20 +797,19 @@ export const handlers = [
 
   http.put(`${API}/notify/rules`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ quiet: Quiet; grouping: Grouping }>(request)
-    const q = b.quiet, g = b.grouping
+    const b = await body<{ quiet: Quiet }>(request)
+    const q = b.quiet
     if (!q || !HM.test(q.from) || !HM.test(q.to)) return fail(400, 'bad_time', 'Enter quiet hours like 22:00.')
     if (q.enabled === true && q.from === q.to) return fail(400, 'bad_quiet', 'The start and end times must not be the same.')
-    if (!g || ![15, 60, 240].includes(g.window_min)) return fail(400, 'bad_window', 'The grouping window must be 15, 60 or 240 minutes.')
-    const next = { quiet: { enabled: q.enabled === true, from: q.from, to: q.to, allow_critical: q.allow_critical === true }, grouping: { enabled: g.enabled === true, window_min: g.window_min } }
+    const next = { quiet: { enabled: q.enabled === true, from: q.from, to: q.to, allow_critical: q.allow_critical === true } }
     rules.set(next)
-    audit('notify.rules_save', 'quiet hours and grouping')
+    audit('notify.rules_save', 'quiet hours')
     return HttpResponse.json(next)
   }),
 
   http.put(`${API}/notify/triggers`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ triggers?: AlertTrigger[] }>(request)
+    const b = await body<{ triggers?: AlertTrigger[]; vulnerability_trigger?: { on: boolean } }>(request)
     const list = b.triggers ?? []
     const seen = new Set<string>()
     for (const t of list) {
@@ -827,11 +827,15 @@ export const handlers = [
       changes.push(`${TRIGGER_NAMES[c.id]}: ${from} -> ${to}`)
       return { ...c, on: t.on === true, min: t.min }
     })
+    const v = vulnTrigger.get()
+    const vNext = b.vulnerability_trigger && b.vulnerability_trigger.on !== v.on ? { ...v, on: b.vulnerability_trigger.on === true } : v
+    if (vNext !== v) changes.push(`vulnerability exploited in the wild: ${v.on ? 'on' : 'off'} -> ${vNext.on ? 'on' : 'off'}`)
     if (changes.length > 0) {
       triggers.set(next)
+      vulnTrigger.set(vNext)
       audit('notify.triggers_save', 'alert triggers', changes.join('; '))
     }
-    return HttpResponse.json({ triggers: next })
+    return HttpResponse.json({ triggers: next, vulnerability_trigger: vNext })
   }),
 ]
 

@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// alertEnv is a box with one Telegram channel on the default minimum (medium) and the default grouping (one hour), the directory and the
+// alertEnv is a box with one Telegram channel on the default minimum (medium), the directory and the
 // bus wired: the set-up a customer has after the first-run wizard.
 func alertEnv(t *testing.T, dir *liveFindings) (*env, func(name string, data any)) {
 	t.Helper()
@@ -79,11 +79,11 @@ func sentMessages(e *env) []channel.Message {
 
 // A pass like the first hour of a new box: a switch whose five matches attackers use (two critical by CVSS, three not), a declared
 // server with two exploited matches and a first-run summary of a third, then a hypervisor with four exploited matches (one of them a
-// CVSS 2.7 "low"), then the same four on a second device record. Every finding that enters layers 1–4 is told exactly once, at once
+// CVSS 2.7 "low"), then the same four on a second device record. Every finding exploited in the wild is told exactly once, at once
 // (an exploited flaw is never held for the grouping window nor dropped by the channel's "medium and above"), and the summary is its own
 // message with its own words. Before: 4 of the 16 notices waited an hour for the grouping window, 2 were dropped silently as "low", and the
 // summary became a nameless line of the server's digest.
-func TestEveryFindingEnteringLayersOneToFourIsToldOnceAndAtOnce(t *testing.T) {
+func TestEveryExploitedFindingIsToldOnceAndAtOnce(t *testing.T) {
 	dir := &liveFindings{}
 	e, pub := alertEnv(t, dir)
 	created := func(id string) {
@@ -103,10 +103,10 @@ func TestEveryFindingEnteringLayersOneToFourIsToldOnceAndAtOnce(t *testing.T) {
 	e.clock.Add(90 * time.Second)
 	dir.at("f-vc1", 2, finding("Example Manager", "CVE-2026-123890", "manager-01", notify.Critical))
 	dir.at("f-vc2", 2, finding("Example Manager", "CVE-2026-59310", "manager-01", notify.High))
-	dir.at("f-vc3", 4, finding("Example Manager", "CVE-2026-59309", "manager-01", notify.Critical))
+	dir.at("f-vc3", 2, finding("Example Manager", "CVE-2026-59309", "manager-01", notify.Critical))
 	created("f-vc1")
 	created("f-vc2")
-	pub(notify.EventFirstRun, findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: 1, Devices: 1, Layer: 4,
+	pub(notify.EventFirstRun, findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: 1, Devices: 1, Layer: 2,
 		FindingIDs: []string{"f-vc3"}, CVEList: []string{"CVE-2026-59309"}})
 	e.flush()
 
@@ -203,21 +203,21 @@ func TestHistoryNamesEveryNoticeNotSentAndWhy(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	dir.at("f-none", 3, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
+	dir.at("f-none", 2, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
 	pub("f-none") // no channel yet
 
 	e.telegram(notify.Critical)
 	e.clock.Add(time.Minute)
 	dir.at("f-low", 3, finding("Example NAS", "CVE-2026-2", "nas-01", notify.High))
-	pub("f-low") // public exploit, high: below "critical only"
+	pub("f-low") // public exploit: not exploited in the wild, no alert (INV-32)
 	dir.at("f-sent", 2, finding("Example NAS", "CVE-2026-3", "nas-01", notify.Medium))
 	pub("f-sent") // exploited: critical, sent at once
 	e.flush()
 
-	e.save(channel.Telegram, notify.ChannelInput{Enabled: true, Fields: map[string]string{"chat_id": "-1002145678901"}, MinSeverity: notify.Medium})
+	e.rules(notify.Quiet{Enabled: true, From: "10:00", To: "07:00"})
 	e.clock.Add(time.Minute)
-	dir.at("f-wait", 3, finding("Example NAS", "CVE-2026-4", "nas-01", notify.High))
-	pub("f-wait") // public exploit: waits for the one-hour grouping window
+	dir.at("f-wait", 2, finding("Example NAS", "CVE-2026-4", "nas-01", notify.High))
+	pub("f-wait") // exploited, but quiet hours hold every alert until 07:00
 	e.flush()
 
 	h, err := e.svc.History(e.ctx())
@@ -239,37 +239,10 @@ func TestHistoryNamesEveryNoticeNotSentAndWhy(t *testing.T) {
 		}
 	}
 	want("f-none", notify.UnsentNoChannel, "no alert channel was set up when it was found")
-	want("f-low", notify.UnsentBelowMin, "it is rated high for alerts, and your channels only send critical and above")
-	want("f-wait", notify.UnsentGrouped, "Waiting to go out at 11:02")
+	want("f-low", notify.UnsentNotExploited, "only findings exploited in the wild send one")
+	want("f-wait", notify.UnsentQuietHours, "Held for quiet hours until 07:00")
 	if w := got["nt-f-wait-created"].NotSent; w.Until == "" || w.Channel != "" {
-		t.Errorf("a grouped notice says until when: %+v", w)
-	}
-}
-
-// A notice waiting for its grouping window whose end falls in quiet hours is held until they end (the queue releases no grouped batch
-// while they last), so History says so and when, not a grouping time that has already passed.
-func TestHistoryGroupedNoticeWhoseWindowEndsInQuietHoursSaysQuietHours(t *testing.T) {
-	dir := &liveFindings{}
-	e, pub := alertEnv(t, dir)
-	e.rules(notify.Quiet{Enabled: true, From: "10:30", To: "07:00"}, notify.Grouping{Enabled: true, WindowMin: 60}) // now is 10:00
-	dir.at("f-eve", 3, finding("Example NAS", "CVE-2026-5", "nas-01", notify.High))
-	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-eve", CVE: "CVE-2026-5", Severity: findings.SeverityHigh})
-	e.flush()
-	e.clock.Add(65 * time.Minute) // the grouping window ended at 11:00, inside quiet hours
-	e.flush()
-	if n := e.count(`SELECT count(*) FROM notify_pending WHERE notice_id = 'nt-f-eve-created'`); n != 1 {
-		t.Fatalf("queued rows = %d, want the notice still held", n)
-	}
-	h, err := e.svc.History(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(h.NotSent) != 1 {
-		t.Fatalf("not sent = %+v, want the held notice", h.NotSent)
-	}
-	ns := h.NotSent[0].NotSent
-	if ns.Reason != notify.UnsentQuietHours || !strings.Contains(ns.Text, "until 07:00") {
-		t.Errorf("not sent = %+v, want held for quiet hours until 07:00", ns)
+		t.Errorf("a held notice says until when: %+v", w)
 	}
 }
 

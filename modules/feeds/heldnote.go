@@ -191,7 +191,8 @@ func heldDistro(id string) func(context.Context, *sql.Tx) (string, error) {
 	return func(ctx context.Context, tx *sql.Tx) (string, error) {
 		var rows, all, kev int
 		if err := counts(ctx, tx, `SELECT coalesce(sum(n), 0), count(*), coalesce(sum(kev), 0)
-FROM (SELECT count(*) AS n, cve IN (`+kevSet+`) AS kev FROM feeds_distro_fix WHERE source_id = ? GROUP BY cve)`, []any{id}, &rows, &all, &kev); err != nil {
+FROM (SELECT count(*) AS n, cve IN (`+kevSet+`) AS kev FROM (SELECT cve FROM feeds_distro_fix WHERE source_id = ?1
+UNION ALL SELECT cve FROM feeds_distro_triage WHERE source_id = ?1) GROUP BY cve)`, []any{id}, &rows, &all, &kev); err != nil {
 			return "", err
 		}
 		if rows == 0 {

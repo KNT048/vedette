@@ -302,7 +302,8 @@ var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, 
 // distroCVEs lists the CVEs of the CISA list a distribution feed has rows for, sorted: the findings it may change (its tier rows
 // decide no finding).
 func distroCVEs(ctx context.Context, tx *sql.Tx, sourceID string) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? AND cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa') ORDER BY cve`, sourceID)
+	rows, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_distro_fix WHERE source_id = ?1 UNION SELECT cve FROM feeds_distro_triage WHERE source_id = ?1
+INTERSECT SELECT cve FROM feeds_kev WHERE list = 'cisa' ORDER BY cve`, sourceID)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro: %w", err)
 	}
@@ -330,7 +331,8 @@ type distroVal struct {
 // baseline: findings it closes or raises send no alert).
 func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []DistroFix) (changed []string, first bool, err error) {
 	old := map[distroKey]distroVal{}
-	q, err := tx.QueryContext(ctx, `SELECT distro, release, package, cve, status, COALESCE(fixed_version, ''), pro, reason FROM feeds_distro_fix WHERE source_id = ?`, sourceID)
+	q, err := tx.QueryContext(ctx, `SELECT distro, release, package, cve, status, COALESCE(fixed_version, ''), pro, reason FROM feeds_distro_fix WHERE source_id = ?1
+UNION ALL SELECT distro, release, package, cve, '`+DistroTriage+`', '', 0, '' FROM feeds_distro_triage WHERE source_id = ?1`, sourceID)
 	if err != nil {
 		return nil, false, fmt.Errorf("feeds: distro: %w", err)
 	}
@@ -348,8 +350,10 @@ func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []Distro
 	}
 	cves := map[string]bool{}
 	seen := map[distroKey]bool{}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_distro_fix WHERE source_id = ?`, sourceID); err != nil {
-		return nil, false, fmt.Errorf("feeds: distro: %w", err)
+	for _, del := range []string{`DELETE FROM feeds_distro_fix WHERE source_id = ?`, `DELETE FROM feeds_distro_triage WHERE source_id = ?`} {
+		if _, err := tx.ExecContext(ctx, del, sourceID); err != nil {
+			return nil, false, fmt.Errorf("feeds: distro: %w", err)
+		}
 	}
 	for _, r := range rows {
 		k := distroKey{r.Distro, r.Release, r.Package, r.CVE}
@@ -358,8 +362,18 @@ func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []Distro
 		}
 		seen[k] = true
 		v := distroVal{r.Status, r.Fixed, r.Reason, r.Pro}
+		if r.Status == DistroTriage { // its own table (a release rolled back never reads it): no fix, reason or channel kept
+			v = distroVal{status: DistroTriage}
+		}
 		if was, ok := old[k]; !ok || was != v {
 			cves[r.CVE] = true
+		}
+		if r.Status == DistroTriage {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_distro_triage (source_id, distro, release, package, cve) VALUES (?, ?, ?, ?, ?)`,
+				sourceID, r.Distro, r.Release, r.Package, r.CVE); err != nil {
+				return nil, false, fmt.Errorf("feeds: distro: %w", err)
+			}
+			continue
 		}
 		var fixed any
 		if r.Status == DistroFixed {
@@ -483,9 +497,9 @@ func (s *Store) DistroFixesFor(ctx context.Context, cves []string) (map[string][
 		if err != nil {
 			return nil, fmt.Errorf("feeds: read distro: %w", err)
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro, d.reason
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1
-AND d.status IN ('fixed', 'not_affected', 'open') AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, string(part))
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, d.fixed, d.pro, d.reason
+FROM (`+distroRowsSQL+`) d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1
+AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, string(part))
 		if err != nil {
 			return nil, fmt.Errorf("feeds: read distro: %w", err)
 		}
@@ -536,10 +550,16 @@ JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('
 	return slices.Sorted(mapsKeys(cves)), nil
 }
 
+// distroRowsSQL is every stored word of the distribution feeds as one row shape: feeds_distro_fix's statuses this release reads, and
+// feeds_distro_triage's rows as the status DistroTriage.
+const distroRowsSQL = `SELECT source_id, distro, release, package, cve, status, COALESCE(fixed_version, '') AS fixed, pro, reason FROM feeds_distro_fix
+WHERE status IN ('fixed', 'not_affected', 'open')
+UNION ALL SELECT source_id, distro, release, package, cve, '` + DistroTriage + `', '', 0, '' FROM feeds_distro_triage`
+
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro, d.reason
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected', 'open') AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, d.fixed, d.pro, d.reason
+FROM (`+distroRowsSQL+`) d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
 AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)

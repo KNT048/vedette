@@ -256,11 +256,14 @@ func TestDistroPull(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixes, err := e.svc.st.DistroFixes(t.Context())
-	if err != nil || len(fixes["CVE-2026-10001"]) != 3 || len(fixes["CVE-2026-10002"]) != 1 || len(fixes) != 2 { // open rows: affected, no fix yet
+	if err != nil || len(fixes["CVE-2026-10001"]) != 3 || len(fixes["CVE-2026-10002"]) != 2 || len(fixes) != 2 { // open rows: affected, no fix yet; forky's undetermined: being triaged
 		t.Fatalf("stored %+v %v", fixes, err)
 	}
-	if f := e.feed(debianTrackerFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 4 {
+	if f := e.feed(debianTrackerFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 5 {
 		t.Fatalf("feed %+v", f)
+	}
+	if n := rowsOf(t, e.db, "feeds_distro_triage"); n != 1 { // the triage row in its own table, never a status of feeds_distro_fix
+		t.Fatalf("%d triage rows", n)
 	}
 	if len(got) != 1 || !got[0].First || !slices.Equal(got[0].CVEs, []string{"CVE-2026-10001", "CVE-2026-10002"}) {
 		t.Fatalf("events %+v", got)

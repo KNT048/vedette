@@ -9,3 +9,7 @@ CREATE TABLE fnd_line_research (
     statement_key TEXT NOT NULL PRIMARY KEY REFERENCES fnd_line_statement (statement_key) ON DELETE CASCADE,
     layer TEXT NOT NULL CHECK (layer IN ('quick', 'strong')), quote_check TEXT NOT NULL CHECK (quote_check IN ('tool', 'digest', 'live', 'not_found', 'none')),
     tokens INTEGER NOT NULL CHECK (tokens >= 0), detail TEXT NOT NULL CHECK (json_valid(detail)));
+-- A line keeps more than one reading of the same CVE record and cited page: a newer answer never overwrites the older one that opened a
+-- finding (findings P-12; a reading's key is what it states, LineStatement.identity). The unique identity index gives way to a plain one.
+DROP INDEX fnd_line_statement_identity_uq;
+CREATE INDEX fnd_line_statement_line_ix ON fnd_line_statement (cve, product_key, line, record_hash, page_hash);

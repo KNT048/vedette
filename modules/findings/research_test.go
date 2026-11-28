@@ -443,17 +443,17 @@ func TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage(t *testing.T) {
 	}
 }
 
-// A person rejects an AI reading once: the rejection covers the line's older readings of the same verdict (one of them may hold the
-// finding open), and a new research of the same verdict from the same record and cited page is stored already rejected.
+// A person rejects an AI reading once: the rejection covers the line's older readings that say the same for the version (one of them
+// would hold the finding open), and a new research saying the same from the same record and cited page is covered too.
 func TestResearch_OneRejectCoversTheSameVerdict(t *testing.T) {
 	t.Parallel()
 	e, fc := quillWorld(t, "115.9.0")
 	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementAffected, QuoteTool, quillAffected, quillSAText)}
 	fc.pages["elsewhere"] = []FetchedPage{{URL: quillSA, Status: "ok", Text: quillSAText}}
 	runCheck(t, e)
-	outside := quillResearch(StatementAffected, QuoteTool, "Quillfeather Mail 115.10 through 115.11 is affected", "QSA-2026-17 (CVE-2026-991001): Quillfeather Mail 115.10 through 115.11 is affected.")
-	outside.Verdict.Introduced, outside.Verdict.FixedIn, outside.Verdict.LastAffected = "115.10", "", "115.11"
-	fc.answers[cveQuill+"|115.9.0"] = outside
+	wider := quillResearch(StatementAffected, QuoteTool, "Quillfeather Mail 115.0 through 115.12 is affected", "QSA-2026-17 (CVE-2026-991001): Quillfeather Mail 115.0 through 115.12 is affected.")
+	wider.Verdict.Introduced, wider.Verdict.FixedIn, wider.Verdict.LastAffected = "115.0", "", "115.12"
+	fc.answers[cveQuill+"|115.9.0"] = wider
 	fc.pages["elsewhere"][0].Text = "QSA-2026-17 was revised."
 	e.feeds.vulns[0].Stamp = "revised"
 	if _, err := e.svc.Reconcile(t.Context()); err != nil {
@@ -461,7 +461,7 @@ func TestResearch_OneRejectCoversTheSameVerdict(t *testing.T) {
 	}
 	runCheck(t, e)
 	if quillFindings(t, e) != 1 || len(fc.research) != 2 {
-		t.Fatalf("findings %d researches %d: want the finding held by the older reading", quillFindings(t, e), len(fc.research))
+		t.Fatalf("findings %d researches %d: want the finding open on two affected readings", quillFindings(t, e), len(fc.research))
 	}
 	var newest string
 	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT statement_key FROM fnd_line_statement WHERE cve = ? ORDER BY rowid DESC LIMIT 1`, cveQuill).Scan(&newest); err != nil {

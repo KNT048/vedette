@@ -435,12 +435,18 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   with a checked quote opens at once (`TestResearch_AnAIFindingStaysOpenWhenTheAINowSaysNotAffected`). Questions the distribution's
   data or the device's own version decides (`distro_silent` reasons, `version_from_network`, `package_unknown`) are never researched,
   whatever key they kept (`checkable` in `checkUnits` and Research deeper; `TestResearch_DistroPendingQuestionsAreNeverResearched`).
-  **One rejection is enough:** rejecting a reading also rejects the line's other readings it covers (`rejectionCovers`: a rejected
-  "affected" covers affected and fixed, a rejected "not affected" the other "not affected", a rejected "fixed" only a "fixed" with the
-  same bounds), and a new reading it covers from the same record and cited page (its text; a page only the AI's tools read: its
-  address) is stored already rejected (`storeStatement`; `TestResearch_OneRejectCoversTheSameVerdict`); a changed record or page is a
-  new statement. Rejecting a "not affected" or a fix the version has never rejects or holds back a later reading that may open a
-  finding, even from the same record and page (the rejected row gives way; `TestResearch_RejectingANotAffectedNeverHidesALaterAffected`). **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
+  **One rejection is enough, decided per version in the resolution:** a person's rejection of a reading covers every reading of the
+  line that says the same for the version (`coveredBy` in `readingFor`): the older ones, and newer ones read from the same record and
+  cited page (its text; a page only the AI's tools read: its address); never one that says the opposite (a "fixed" reading calls one
+  version affected and another not: `TestResearch_RejectingANotAffectedNeverHidesALaterAffected`), and a newer reading from a changed
+  record or page is a new statement (`TestResearch_OneRejectCoversTheSameVerdict`). A reading's key is what it states
+  (`LineStatement.identity`: line, record, page, status, bounds, basis, whether its quote was found), so a newer answer from the same
+  record and page never overwrites an older one (findings 0008 replaced the unique identity index with a plain one). **The life cycle
+  is one set of pure decisions** (`lineStore`, `readingFor` with `coveredBy`, `lineOutcome`), driven by `TestReadingLifeCycle_Matrix`
+  through every sequence of up to four events on one line (AI readings affected / not affected / fixed before or past the version /
+  unsure, quote checked or not; a person's reject, confirm with or without the exploited tick, reopen; record re-read with the quote
+  kept or gone, cited page changed, exploited flag), checking after each step that a finding closes only by a person, an affected
+  reading with a checked quote is never hidden, no AI output answers the line, and no rejection covers another verdict. **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
   record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
   (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **Bulk confirm** reads the exploited lists again inside its write
   transaction (`TestReview_ExploitedIsReadInsideTheConfirmation`). A reading

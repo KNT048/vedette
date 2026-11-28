@@ -1270,7 +1270,7 @@ func readingOfAnswer(cve string, id CheckID, v ProposeVerdict, pages []FetchedPa
 		st.Status = StatementUnsure
 		st.Reason = "The page the AI read names neither " + cve + " nor an advisory the CVE record references, so it decides nothing for this CVE."
 	}
-	st.Key = statementKey(cve, st.Product, st.Line, st.RecordHash, st.PageHash)
+	st.Key = st.identity()
 	return st
 }
 
@@ -1433,6 +1433,7 @@ func (s *Service) storeChecks(ctx context.Context, cs []Check, readings []LineSt
 			}
 		}
 		for _, st := range readings {
+			st.Key = st.identity() // what the reading states, as every check of it last left it
 			if err := storeStatement(ctx, tx, st); err != nil {
 				return err
 			}
@@ -1634,20 +1635,7 @@ func (s *Service) RejectProposal(ctx context.Context, key, user string) error {
 			if err != nil {
 				return fmt.Errorf("findings: reading a reading: %w", err)
 			}
-			// one rejection covers the line's other readings it covers (rejectionCovers): an older one must not hold the finding open (P-12)
-			others, err := statementsWhere(ctx, tx, `cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL`, st.CVE, st.Product, st.Line)
-			if err != nil {
-				return err
-			}
-			for _, o := range others {
-				if !rejectionCovers(st, o) {
-					continue
-				}
-				if _, err := tx.ExecContext(ctx, `UPDATE fnd_line_statement SET rejected_by = ?, rejected_at = ? WHERE statement_key = ?`, user,
-					store.FormatTS(now), o.Key); err != nil {
-					return fmt.Errorf("findings: rejecting the line's readings: %w", err)
-				}
-			}
+			// one rejection covers the line's other readings that say the same for a version (coveredBy, in the resolution)
 			if devices, err = devicesOfCVE(ctx, tx, st.CVE); err != nil {
 				return err
 			}

@@ -127037,7 +127037,8 @@ type FindingsGetFindingsReviewOKItemsItemUndecided struct {
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
 	// compared with. The distribution's silence on its own package (cause distro_silent):
-	// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+	// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+	// the CVE for this package and release), distro_other_packages (rows for other packages only),
 	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
 	// build), distro_no_data (no security data of that distribution).
 	Reason FindingsGetFindingsReviewOKItemsItemUndecidedReason `json:"reason"`
@@ -127090,7 +127091,8 @@ func (s *FindingsGetFindingsReviewOKItemsItemUndecided) SetURL(val OptString) {
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
 // version_from_network: only a version read from the network, which a CVE on no exploited list is not
 // compared with. The distribution's silence on its own package (cause distro_silent):
-// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+// the CVE for this package and release), distro_other_packages (rows for other packages only),
 // distro_other_releases (rows for other releases only), distro_other_build (its row is about another
 // build), distro_no_data (no security data of that distribution).
 type FindingsGetFindingsReviewOKItemsItemUndecidedReason string
@@ -127120,6 +127122,7 @@ const (
 	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases     FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_releases"
 	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild        FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_build"
 	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData            FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_no_data"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage            FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_triage"
 )
 
 // AllValues returns all FindingsGetFindingsReviewOKItemsItemUndecidedReason values.
@@ -127149,6 +127152,7 @@ func (FindingsGetFindingsReviewOKItemsItemUndecidedReason) AllValues() []Finding
 		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases,
 		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild,
 		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage,
 	}
 }
 
@@ -127202,6 +127206,8 @@ func (s FindingsGetFindingsReviewOKItemsItemUndecidedReason) MarshalText() ([]by
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild:
 		return []byte(s), nil
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -127282,6 +127288,9 @@ func (s *FindingsGetFindingsReviewOKItemsItemUndecidedReason) UnmarshalText(data
 		return nil
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

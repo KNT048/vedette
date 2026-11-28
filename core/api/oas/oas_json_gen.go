@@ -224291,6 +224291,8 @@ func (s *FindingsGetFindingsReviewOKItemsItemUndecidedReason) Decode(d *jx.Decod
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild
 	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage
 	default:
 		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReason(v)
 	}

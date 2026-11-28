@@ -821,7 +821,7 @@ describe('ai: settings, token level and global cap (S-AI-4)', () => {
     moved.unmount()
     const op = renderUi(<AiSettings />, 'operator')
     await op.ready
-    await screen.findByRole('form', { name: 'Reading vendor advisories' })
+    await screen.findByRole('form', { name: 'Research CVEs Vedette cannot decide' })
     expect(screen.queryByRole('heading', { name: 'Connections outside your network in Ask' })).toBeNull()
   })
 })

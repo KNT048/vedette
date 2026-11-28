@@ -617,6 +617,8 @@
     "colProduct": "Software",
     "countLink_one": "{{count}} possible",
     "countLink_other": "{{count}} possible",
+    "countLinkOlder_one": "{{count}} older build",
+    "countLinkOlder_other": "{{count}} older build",
     "summary_one": "{{count}} possible CVE on {{devices}}: Vedette cannot decide it, so it is not counted as open",
     "summary_other": "{{count}} possible CVEs on {{devices}}: Vedette cannot decide them, so they are not counted as open",
     "summaryProposals_one": "{{count}} AI proposal waits for you",
@@ -816,6 +818,17 @@
       "done": "Check finished: {{advisory}} decided from vendor advisories, {{undecided}} still undecided.",
       "doneProposals": "Check finished: {{proposals}} AI proposals wait for you ({{advisory}} decided from vendor advisories).",
       "review": "Review"
+    },
+    "olderBuild": {
+      "toggle_one": "Reported only for an older build: {{count}} CVE",
+      "toggle_other": "Reported only for an older build: {{count}} CVEs",
+      "summary_one": "{{count}} reported only for an older build",
+      "summary_other": "{{count}} reported only for an older build",
+      "body": "A third party, not the vendor, tested an older build and reported these. The release each device runs is newer than every build tested, none is on an exploited list, and the CVE record gives no fix, workaround or advisory from the vendor. Vedette keeps them possible and never closes them by itself; answer one when you know more.",
+      "caption": "CVEs reported only for an older build",
+      "tested": "A third party tested {{builds}} (reported {{year}}); this device runs {{version}}.",
+      "testedNoVersion": "A third party tested {{builds}} (reported {{year}}).",
+      "vendor": "No fix or statement from the vendor in the CVE record."
     },
     "settled": {
       "toggle_one": "Checked, not affected: {{count}} CVE",

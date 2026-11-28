@@ -145,7 +145,9 @@ export function ByFix({ status }: { status: string }) {
   const pairs = usePossibleSame().data?.items // decoration only: without it (module off, no right) no device says "possibly the same"
   const offset = list.page * size
   // the possible findings are not searched or filtered by status here: their count is said only with the whole list
-  const possible = usePossibleCounts(undefined, !filtered).data?.possible ?? 0
+  const possibleCounts = usePossibleCounts(undefined, !filtered).data
+  const possible = possibleCounts?.possible ?? 0
+  const older = possibleCounts?.older_build ?? 0
   const gotRows = useMemo(() => (h: Handling) => { setWant(null); setHandling(h) }, [])
   const failed = useMemo(() => () => setWant(null), [])
   // a list of cards: the column only names it (the server searches and orders it)
@@ -159,7 +161,7 @@ export function ByFix({ status }: { status: string }) {
         {(d) => d.total === 0 && !filtered ? <EmptyState art="no-findings" title={t('byDevice.empty')}>{t('byDevice.emptyBody')}</EmptyState> : (
           <>
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-              summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}<PossibleLink count={filtered ? 0 : possible} />{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
+              summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}<PossibleLink count={filtered ? 0 : possible} older={filtered ? 0 : older} />{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
               list={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} />} />
           </>

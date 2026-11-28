@@ -422,6 +422,8 @@
     "openNone": "open findings",
     "possible_one": "{{count}} possible CVE to check",
     "possible_other": "{{count}} possible CVEs to check",
+    "olderBuild_one": "{{count}} reported only for an older build",
+    "olderBuild_other": "{{count}} reported only for an older build",
     "proposals_one": "{{count}} AI proposal waits for you",
     "proposals_other": "{{count}} AI proposals wait for you",
     "notAdded_one": "{{count}} not added yet",

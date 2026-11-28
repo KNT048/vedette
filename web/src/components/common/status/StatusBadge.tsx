@@ -42,11 +42,16 @@ export function useStatusLabel() {
  * The one badge for a status (finding or device), everywhere: lists, the device page, Home, the finding page and reports. Its
  * meaning is the hover text; `to` makes it a link (a device's badge leads to that device's findings with that status).
  */
-export function StatusBadge({ code, count, until, to, className }: {
+export function StatusBadge({ code, count, older, until, to, className }: {
   code: BadgeCode; count?: number; until?: string | null; to?: string; className?: string
+  /** A possible badge: how many of `count` are reported only for an older build, said apart ("3 possible · 2 older build"). */
+  older?: number
 }) {
   const { t } = useTranslation()
-  const label = useStatusLabel()(code, { count, until })
+  const words = useStatusLabel()
+  const main = code === 'possible' && older && count !== undefined ? count - older : null
+  const label = main === null ? words(code, { count, until })
+    : main > 0 ? `${words(code, { count: main })} · ${t('olderBuildCount', { count: older })}` : t('olderBuildCount', { count: older })
   const { cls, Icon } = LOOK[code]
   const badge = (
     <span data-status={code} title={t(`findingStatus.meaning.${code}`)}

@@ -95,6 +95,8 @@ export interface QuestionRecord {
   answered?: { by: string; at: string }
   /** Why the CVE is undecided (a possible finding's reason); absent: the usual reason of its kind. */
   undecided?: { reason: UndecidedReason; ranges?: string[]; text?: string; url?: string }
+  /** third_party_tested_build: the CVE record gives a fix, a workaround or the vendor's advisory (absent: it gives nothing from the vendor). */
+  vendor_word?: boolean
 }
 
 const day = (days: number) => D(days).slice(0, 10)
@@ -234,6 +236,28 @@ export function seedQuestions(): QuestionRecord[] {
       asked_at: D(1), url: null, command: 'get system status', choices: [], cve_list: ['CVE-2026-124401', 'CVE-2026-124402', 'CVE-2026-124403'] },
     ...routerQuestions(),
     ...sqlQuestions(),
+    ...olderBuildQuestions(),
+  ]
+}
+
+/** CVEs a third party reported for an older build it tested, on two lines of the accounting server: three the vendor never spoke
+ *  about (reported only for an older build) and one whose record gives the vendor's fix (it stays in the main list); and one on the
+ *  recorder, its only possible CVE. */
+function olderBuildQuestions(): QuestionRecord[] {
+  const remote = { id: 's-srvacc-remote', name: 'Remote Support Client', version: '6.4.2' }
+  const ftp = { id: 's-srvacc-ftp', name: 'FTP Client', version: '2.18.0' }
+  const q = (n: number, software: typeof remote, cve: string, builds: string[], extra: Partial<QuestionRecord> = {}): QuestionRecord => ({
+    id: `fq-srvacc-old-${n}`, kind: 'no_range_data', asset_id: 'a-srvacc', software, cve, cves: 1, asked_at: D(4), url: null, command: null, choices: [],
+    versions_listed: true, undecided: { reason: 'third_party_tested_build', ranges: builds.map((b) => `cpe:2.3:a:example:${software.id.slice(9)}:${b}:*:*:*:*:*:*:*`) }, ...extra,
+  })
+  return [
+    q(1, remote, 'CVE-2016-900101', ['1.2.0']),
+    q(2, remote, 'CVE-2019-900102', ['3.1.0']),
+    q(3, remote, 'CVE-2025-900103', ['4.0.3', '5.9.1']),
+    q(4, ftp, 'CVE-2019-900104', ['1.40.0']),
+    q(5, ftp, 'CVE-2026-900105', ['2.11.0'], { vendor_word: true }),
+    // a recorder whose only possible CVE is one of these: its badge and links still say so
+    { ...q(6, { id: 's-nvr01-fw', name: 'Video Recorder Firmware', version: '4.2.0' }, 'CVE-2020-900106', ['2.0.1']), id: 'fq-nvr01-old-1', asset_id: 'a-nvr01' },
   ]
 }
 

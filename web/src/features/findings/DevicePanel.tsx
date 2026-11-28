@@ -31,6 +31,8 @@ export type DeviceFindingsSummary = {
   counts: Record<OpenFindingStatus, number> | null
   /** Possible CVEs of this device (0 when not known): counted apart from the open findings. */
   possible: number
+  /** Possible CVEs reported only for an older build (0 when none or not known): counted apart from possible. */
+  olderBuild: number
 }
 
 /** The device's findings summary; undefined while loading or when the findings module is off. */
@@ -42,11 +44,14 @@ export function useDeviceFindingsSummary(assetId: string): DeviceFindingsSummary
   if (!cards.data) return undefined
   const card = cards.data.items.find((c) => c.device.id === assetId) ?? null
   const possible = counts.data?.possible ?? 0
+  const olderBuild = counts.data?.older_build ?? 0
   return {
-    badge: card?.status ?? (possible ? { code: 'possible', count: possible } : null),
+    // never hidden: a device whose only possible CVEs are reported for an older build keeps a badge that says so
+    badge: card?.status ?? (possible + olderBuild ? { code: 'possible', count: possible + olderBuild, ...(olderBuild ? { older_build: olderBuild } : {}) } : null),
     open: card?.findings ?? 0,
     counts: card?.counts ?? Object.fromEntries(OPEN_FINDING_STATUSES.map((s) => [s, 0])) as Record<OpenFindingStatus, number>,
     possible,
+    olderBuild,
   }
 }
 
@@ -62,6 +67,7 @@ export function DeviceFindingsLine({ summary }: { summary: DeviceFindingsSummary
       {statuses.map((s) => <StatusBadge key={s} code={s} count={summary.counts![s]} />)}
       {summary.open ? <Link to={keep('?tab=findings')} className="text-sm text-accent underline-offset-4 hover:underline">{t('device.view')}</Link> : null}
       {summary.possible ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLink', { count: summary.possible })}</Link> : null}
+      {summary.olderBuild ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLinkOlder', { count: summary.olderBuild })}</Link> : null}
     </div>
   )
 }

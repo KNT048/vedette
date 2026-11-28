@@ -69,6 +69,16 @@ function causeOf(it: Item): PossibleCause | null {
   if (!aiReady()) return 'needs_reading'
   return autoReadReached() ? 'ai_budget' : 'needs_reading'
 }
+/** Reported only for an older build (the server's markOlderBuilds, in short): a third party's tested builds, the CVE on no exploited
+ *  list, undecided by the record or a reading of it, and the record gives nothing from the vendor. */
+const OLDER_CAUSES: PossibleCause[] = ['vendor_silent', 'ai_unsure', 'needs_reading', 'ai_budget']
+function olderBuildOf(it: Item): PossibleRow['older_build'] {
+  const u = undecidedOf(it.q)
+  const cause = causeOf(it)
+  if (u.reason !== 'third_party_tested_build' || it.state !== 'possible' || POSSIBLE_EXPLOITED.has(it.cve) || it.q.vendor_word || !cause || !OLDER_CAUSES.includes(cause)) return null
+  const tested = [...new Set((u.ranges ?? []).map((r) => r.split(':').slice(5, 7).filter((x) => x !== '*' && x !== '-').join(' ')))]
+  return tested.length ? { tested, year: Number(it.cve.split('-')[1]) } : null
+}
 const CAUSES: PossibleCause[] = ['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget', 'identity_unproven', 'version_needed', 'pending_nvd', 'needs_person']
 
 /** The check of a question about one CVE stored by the time of its answer (the Answered list names a confirmed AI proposal by it);
@@ -80,14 +90,15 @@ export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
 }
 
 export function possibleCounts(device?: string): PossibleCounts {
-  const c = { possible: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
+  const c = { possible: 0, older_build: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
   for (const it of items(device)) {
     if (it.state === 'settled') { c.settled++; continue }
+    if (it.state === 'proposal') c.proposals++
+    if (checkable(it)) c.unchecked++
+    if (olderBuildOf(it)) { c.older_build++; continue }
     c.possible++
     const cause = causeOf(it)
     if (cause) c.causes[cause]++
-    if (it.state === 'proposal') c.proposals++
-    if (checkable(it)) c.unchecked++
   }
   return c
 }
@@ -115,6 +126,7 @@ function row(it: Item): PossibleRow {
     bulk: it.state === 'proposal' && !(exploited && it.check?.verdict === 'not_affected'),
     cause: causeOf(it),
     held: heldOf(it),
+    older_build: olderBuildOf(it),
   }
 }
 

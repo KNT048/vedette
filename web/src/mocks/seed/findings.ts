@@ -203,9 +203,9 @@ export function seedFindingRecords(): FindingRecord[] {
       verified: 'no', basis: 'device_version', fix: fixOf('cisco:packet_tracer', 'Cisco Packet Tracer', 'update', '8.2.2'), layer: 5, reasons: [] }, 2),
       identity: { method: 'ai', title: 'Cisco Packet Tracer', vendor: 'cisco', product: 'packet_tracer', reason: 'The publisher is Cisco and the display name is Packet Tracer with its version.', model: 'gpt-5-mini' } },
 
-    // RT-BACKUP: findings the customer's AI opened from the vendor's statement for the release line; one names the fix, one does not.
-    ...AI_FOUND.map((f) => ({ ...open({ id: `fv-rt02-ai-${f.n}`, asset_id: 'a-rt02', cve: `CVE-2026-2401${String(f.n).padStart(2, '0')}`, software: { id: 's-rt02', name: 'MikroTik RouterOS', version: '7.14' }, verified: 'no', basis: 'device_version',
-      fix: { key: `mikrotik routeros|update|${f.fixed ?? ''}`, kind: 'update' as const, product: 'MikroTik RouterOS', version: f.fixed, ref: null, url: ADVISORY }, layer: 5, reasons: [] }, 1),
+    // PC-ACCOUNTS-01: findings the customer's AI opened from the vendor's statement for the release line; one names the fix, one does not.
+    ...AI_FOUND.map((f) => ({ ...open({ id: `fv-pc01-ai-${f.n}`, asset_id: 'a-pc01', cve: pcCve(f.n), software: JAVA, verified: 'no', basis: 'device_version',
+      fix: { key: `temurin:jdk-21|update|${f.fixed ?? ''}`, kind: 'update' as const, product: 'Eclipse Temurin JDK 21', version: f.fixed, ref: null, url: ADVISORY }, layer: 5, reasons: [] }, 1),
       ai_check: aiFoundCheck(f.n) })),
 
     // Handled, each with who and how.
@@ -240,6 +240,7 @@ export function seedQuestions(): QuestionRecord[] {
     { id: 'fq-unk02-fgt', kind: 'not_comparable', asset_id: 'a-unk02', software: { id: 's-unk02-fgt', name: 'FortiGate', version: 'latest' }, cve: null, cves: 3,
       asked_at: D(1), url: null, command: 'get system status', choices: [], cve_list: ['CVE-2026-124401', 'CVE-2026-124402', 'CVE-2026-124403'] },
     ...routerQuestions(),
+    ...researchQuestions(),
     ...sqlQuestions(),
     ...olderBuildQuestions(),
     ...distroQuestions(),
@@ -279,7 +280,7 @@ function olderBuildQuestions(): QuestionRecord[] {
 }
 
 /** CVEs of the possible findings that are on an exploited list. */
-export const POSSIBLE_EXPLOITED = new Set(['CVE-2026-240101', 'CVE-2026-240104', 'CVE-2026-240107', 'CVE-2026-240111', 'CVE-2026-240118', 'CVE-2026-240125', 'CVE-2026-240131',
+export const POSSIBLE_EXPLOITED = new Set(['CVE-2026-250211', 'CVE-2026-250218', 'CVE-2026-250219', 'CVE-2026-240101', 'CVE-2026-240104', 'CVE-2026-240107', 'CVE-2026-240111', 'CVE-2026-240118', 'CVE-2026-240125', 'CVE-2026-240131',
   'CVE-2026-240133', 'CVE-2026-118204', 'CVE-2026-245502', 'CVE-2023-900203'])
 
 /** The reasons the router's 30 possible CVEs are undecided, in turn: what a real record of a network OS often looks like. */
@@ -352,21 +353,31 @@ function researchOf(o: { tokens: number; pages: string[]; quote?: Research['quot
   }
 }
 const ADVISORY = 'https://mikrotik.example.com/security/advisories/routeros-2026-07'
-const rtq = (i: number) => ({ id: `fq-rt02-${i}`, kind: 'no_range_data' as const, software: { id: 's-rt02', name: 'MikroTik RouterOS', version: '7.14' }, undecided: ROUTER_REASONS[(i - 1) % ROUTER_REASONS.length] })
+const JAVA = { id: 's-pc01-java21', name: 'Eclipse Temurin JDK 21', version: '21.0.7' }
+const SUITE = { id: 's-pc01-suite', name: 'Microsoft 365 Apps for enterprise - en-us (Click-to-Run, Current Channel, 64-bit)', version: '16.0.18227.20162' }
+/** The question about CVE n of the researched lines of PC-ACCOUNTS-01 (1 to 16 on the JDK, 17 and up on the long-named suite). */
+const pcCve = (n: number) => `CVE-2026-2502${String(n).padStart(2, '0')}`
+const pcq = (n: number) => ({ id: `fq-pc01-r-${n}`, kind: 'no_range_data' as const, software: n >= 17 ? SUITE : JAVA, undecided: { reason: 'no_ranges' as const } })
+function researchQuestions(): QuestionRecord[] {
+  return Array.from({ length: 22 }, (_, i): QuestionRecord => {
+    const q = pcq(i + 1)
+    return { id: q.id, kind: q.kind, asset_id: 'a-pc01', software: q.software, cve: pcCve(i + 1), cves: 1, asked_at: D(2), url: null, command: null, choices: [], undecided: q.undecided }
+  })
+}
 
 /** The CVEs of the router the AI's reading opened a finding for: one names the release that fixes it, one (inferred) names none. */
 const AI_FOUND = [
-  { n: 15, fixed: '7.16.3', inferred: false, quote: 'RouterOS 7.10 through 7.16.2 are affected; fixed in 7.16.3.' },
+  { n: 15, fixed: '21.0.9', inferred: false, quote: 'JDK 21 releases through 21.0.8 are affected; fixed in 21.0.9.' },
   { n: 16, fixed: null, inferred: true, quote: 'The container package shares this code; every release of the package is affected.' },
 ] as const
 export function aiFoundCheck(n: number): CheckRecord {
   const f = AI_FOUND.find((x) => x.n === n)!
-  const cve = `CVE-2026-2401${String(n).padStart(2, '0')}`
-  const key = checkKeyOf(rtq(n), cve)
+  const cve = pcCve(n)
+  const key = checkKeyOf(pcq(n), cve)
   return {
     key, decided_by: 'ai', verdict: 'affected', confidence: 'confident', reason: 'The vendor states that this release line is affected.', quote: f.quote,
     sources: [{ url: ADVISORY, title: 'MikroTik security advisory: RouterOS WinBox and WebFig', status: 'ok', cited: true }], model: 'qwen3:8b', checked_by: 'it@example.com', checked_at: D(0, 3), rejected: false,
-    reading: { status: f.fixed ? 'fixed' : 'affected', line: '7.14', stated_line: '7.14', introduced: null, fixed_in: f.fixed, last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: true,
+    reading: { status: f.fixed ? 'fixed' : 'affected', line: '21', stated_line: '21', introduced: null, fixed_in: f.fixed, last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: true,
       research: researchOf({ tokens: f.inferred ? 21_800 : 9_400, pages: [ADVISORY], verdict: 'affected', inferred: f.inferred, fixedIn: f.fixed ?? '', strong: f.inferred, confidence: f.inferred ? 'medium' : 'high' }) },
   }
 }
@@ -400,33 +411,32 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
   // the AI's "not affected" answers from its research of a release line, which wait for a person: varied confidence, pages, tokens and
   // evidence (one inferred, one whose quote was not found, one with no quote, one exploited, one from two layers)
   type Answer = { pages?: string[]; tokens: number; quote: string; confidence?: 'high' | 'medium' | 'low'; found?: boolean; inferred?: boolean; strong?: boolean; reason?: string }
-  const answer = (q: ReturnType<typeof rt> | typeof sql, cve: string, o: Answer): [string, CheckRecord] => {
+  const answer = (q: ReturnType<typeof pcq>, cve: string, o: Answer): [string, CheckRecord] => {
     const found = o.found ?? o.quote !== ''
     const quote = !o.quote ? 'none' as const : found ? 'digest' as const : 'not_found' as const
     return ai(q, cve, 'not_affected', found ? 'confident' : 'likely', o.quote, o.reason ?? 'The vendor names the releases this affects; this version is not among them.',
-      { reading: { status: 'not_affected', line: '7.14', stated_line: '7.14', introduced: null, fixed_in: null, last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: found,
+      { reading: { status: 'not_affected', line: '21', stated_line: '21', introduced: null, fixed_in: null, last_affected: null, host: 'vendor.example.com', vendor_page: true, quote_found: found,
         research: researchOf({ tokens: o.tokens, pages: o.pages ?? [ADVISORY], quote, confidence: o.confidence, inferred: o.inferred, strong: o.strong }) } })
   }
   const PAGES = [ADVISORY, 'https://mikrotik.example.com/security/advisories', 'https://nvd.example.org/vuln/detail', 'https://cve.example.org/record']
   const answers: [string, CheckRecord][] = [
-    answer(rt(3), 'CVE-2026-240103', { tokens: 8_200, quote: 'Only RouterOS 7.15 and later are affected; 7.14 is not.' }),
-    answer(rt(11), 'CVE-2026-240111', { tokens: 11_900, pages: PAGES.slice(0, 2), quote: 'The flaw is in the 7.16 WebFig rewrite; earlier releases do not contain it.' }),
-    answer(rt(12), 'CVE-2026-240112', { tokens: 7_400, confidence: 'medium', quote: 'Releases before 7.15 do not ship the affected parser.' }),
-    answer(rt(14), 'CVE-2026-240114', { tokens: 9_100, pages: PAGES.slice(0, 3), quote: 'The long-term branch 7.14 is not affected by this issue.' }),
-    answer(rt(17), 'CVE-2026-240117', { tokens: 6_300, confidence: 'low', found: false, quote: 'We could not reproduce the issue on 7.14.' }),
-    answer(rt(18), 'CVE-2026-240118', { tokens: 14_600, pages: PAGES, confidence: 'medium', strong: true, quote: 'RouterOS 7.14 is outside the affected range 7.16 to 7.16.2.' }),
-    answer(rt(20), 'CVE-2026-240120', { tokens: 18_300, pages: PAGES.slice(0, 2), confidence: 'medium', inferred: true, strong: true, quote: 'The container package shares this code and is not affected on 7.14.' }),
-    answer(rt(21), 'CVE-2026-240121', { tokens: 5_200, confidence: 'low', quote: '', reason: 'No page names this release line; the AI concluded it from the release notes.' }),
-    answer(rt(22), 'CVE-2026-240122', { tokens: 9_800, quote: 'This issue was introduced in 7.15.' }),
-    answer(rt(23), 'CVE-2026-240123', { tokens: 8_800, quote: 'Not affected: RouterOS v7.14 and earlier.' }),
-    answer(rt(24), 'CVE-2026-240124', { tokens: 7_700, quote: 'RouterOS versions below 7.15 are unaffected.' }),
-    answer(rt(25), 'CVE-2026-240125', { tokens: 12_300, pages: PAGES.slice(0, 3), quote: 'Only the CHR image of 7.16 is affected.' }),
-    answer(rt(26), 'CVE-2026-240126', { tokens: 6_900, confidence: 'medium', quote: 'The vulnerable module is not built into 7.14.' }),
-    answer(rt(27), 'CVE-2026-240127', { tokens: 8_100, quote: 'Only 7.16 and 7.17 are affected.' }),
-    answer(rt(28), 'CVE-2026-240128', { tokens: 7_000, quote: 'The 7.14 long-term line is not affected.' }),
-    answer(rt(29), 'CVE-2026-240129', { tokens: 9_500, quote: 'No release before 7.15 contains the feature.' }),
-    answer(rt(30), 'CVE-2026-240130', { tokens: 8_600, confidence: 'medium', quote: 'Affected versions: 7.15 to 7.16.2.' }),
-    answer(sql, 'CVE-2026-245503', { tokens: 13_700, pages: PAGES.slice(0, 3), quote: 'SQL Server 2019 is not affected; the issue is limited to SQL Server 2022.' }),
+    answer(pcq(1), pcCve(1), { tokens: 8_200, quote: 'Only JDK 21.0.9 and later contain the affected parser; 21.0.7 is not affected.' }),
+    answer(pcq(2), pcCve(2), { tokens: 11_900, pages: PAGES.slice(0, 2), quote: 'The flaw is in the new HTTP client added in 21.0.9; earlier updates do not contain it.' }),
+    answer(pcq(3), pcCve(3), { tokens: 7_400, confidence: 'medium', quote: 'Updates before 21.0.9 do not ship the affected module.' }),
+    answer(pcq(4), pcCve(4), { tokens: 9_100, pages: PAGES.slice(0, 3), quote: 'The long-term line 21 is not affected by this issue.' }),
+    answer(pcq(5), pcCve(5), { tokens: 6_300, confidence: 'low', found: false, quote: 'We could not reproduce the issue on JDK 21.' }),
+    answer(pcq(6), pcCve(6), { tokens: 14_600, pages: PAGES, confidence: 'medium', strong: true, quote: 'JDK 21.0.7 is outside the affected range 21.0.9 to 21.0.10.' }),
+    answer(pcq(7), pcCve(7), { tokens: 18_300, pages: PAGES.slice(0, 2), confidence: 'medium', inferred: true, strong: true, quote: 'The same code ships in JDK 17 and is not affected below 17.0.15; JDK 21.0.7 predates it.' }),
+    answer(pcq(8), pcCve(8), { tokens: 5_200, confidence: 'low', quote: '', reason: 'No page names this release line; the AI concluded it from the release notes.' }),
+    answer(pcq(9), pcCve(9), { tokens: 9_800, quote: 'This issue was introduced in 21.0.9.' }),
+    answer(pcq(10), pcCve(10), { tokens: 8_800, quote: 'Not affected: JDK 21.0.8 and earlier.' }),
+    answer(pcq(12), pcCve(12), { tokens: 7_700, quote: 'Releases below 21.0.9 are unaffected.' }),
+    answer(pcq(13), pcCve(13), { tokens: 12_300, pages: PAGES.slice(0, 3), quote: 'Only the Windows installer of 21.0.10 is affected.' }),
+    answer(pcq(14), pcCve(14), { tokens: 6_900, confidence: 'medium', quote: 'The vulnerable module is not built into this update.' }),
+    answer(pcq(17), pcCve(17), { tokens: 8_100, quote: 'Only builds from 16.0.18400 are affected.' }),
+    answer(pcq(18), pcCve(18), { tokens: 10_200, pages: PAGES.slice(0, 2), quote: 'The Current Channel build 16.0.18227 is not affected.' }),
+    answer(pcq(19), pcCve(19), { tokens: 9_600, quote: 'Builds before 16.0.18300 do not include the component.' }),
+    answer(pcq(22), pcCve(22), { tokens: 13_700, pages: PAGES.slice(0, 3), quote: 'Current Channel builds before 16.0.18300 do not include the affected component.' }),
     [aiFoundCheck(15).key, aiFoundCheck(15)], [aiFoundCheck(16).key, aiFoundCheck(16)],
   ]
   return Object.fromEntries([
@@ -437,8 +447,11 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
     ai(rt(8), 'CVE-2026-240108', 'unsure', null, 'RouterOS 7.14 is not affected by this issue.', 'A third-party analysis says 7.14 is not affected; the vendor\'s page says nothing about it.',
       { ...reading('blog.example.net', 'not_affected', false, true, '7.14'), sources: [{ url: 'https://blog.example.net/routeros-analysis', status: 'ok' as const, cited: true }] }),
     ai(rt(7), 'CVE-2026-240107', 'not_affected', 'confident', 'This issue affects RouterOS 7.15 and later releases only; 7.14 is not affected.', 'The vendor names 7.15 and later; 7.14 is older.',
-      reading('mikrotik.example.com', 'not_affected', true, true, '7.14')),
-    ai(rt(9), 'CVE-2026-240109', 'unsure', null, '', 'The pages do not name RouterOS versions.', reading('mikrotik.example.com', 'unsure', true, false, null)),
+      { reading: { ...reading('mikrotik.example.com', 'not_affected', true, true, '7.14').reading, research: researchOf({ tokens: 10_400, pages: PAGES.slice(0, 2), quote: 'digest' }) } }),
+    // unsure after both layers: what the AI tried is said on the Not decided row
+    ai(rt(9), 'CVE-2026-240109', 'unsure', null, '', 'The pages do not name RouterOS versions.', {
+      reading: { ...reading('mikrotik.example.com', 'unsure', true, false, null).reading, research: researchOf({ tokens: 15_200, pages: PAGES.slice(0, 3), verdict: 'unsure', confidence: 'low', quote: 'none', strong: true }) },
+    }),
     ai(rt(10), 'CVE-2026-240110', 'unsure', null, 'All RouterOS v7 releases before 7.16 are affected.', 'The advisory says all v7 releases before 7.16.',
       { rejected: true, ...reading('mikrotik.example.com', 'fixed', true) }),
     [checkKeyOf(rt(19), 'CVE-2026-240119'), { key: checkKeyOf(rt(19), 'CVE-2026-240119'), decided_by: 'structured' as const, verdict: 'unsure' as const, confidence: null,

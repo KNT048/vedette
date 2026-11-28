@@ -167,6 +167,9 @@ export const useReview = (enabled = true) =>
     queryKey: model('review', 'all'), enabled,
     queryFn: () => allPages<ReviewList>((p) => `/findings/review${qs({ offset: p.offset, limit: p.limit })}`),
   })
+/** How many AI answers wait for review (one small request): the count Not decided leaves out and Review AI answers lists. */
+export const useReviewTotal = (enabled = true) =>
+  useQuery({ queryKey: model('review', 'total'), enabled, queryFn: () => api.get<ReviewList>('/findings/review?limit=1'), select: (d) => d.total })
 /** Confirm AI answers at once: an exploited CVE is confirmed only when `include_exploited` names it. */
 export const useConfirmReview = () => useModelWrite((v: { ids: string[]; include_exploited?: string[] }) => api.post<ReviewConfirmed>('/findings/review/confirm', v))
 /** Research deeper: the AI researches the release line of one possible CVE again now with its strong profile. */

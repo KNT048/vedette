@@ -1126,7 +1126,7 @@
     "noQuote": "The AI gave no quote.",
     "source": "Source page",
     "wouldClose": "Closes the finding it replaces",
-    "confirm": "Confirm",
+    "confirm": "Confirm not affected",
     "confirmOf": "Confirm: {{cve}} does not affect {{device}}",
     "notRight": "Not right?",
     "notRightOf": "Not right: {{cve}} on {{device}}",

@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { RequireModule } from '@/components/common/States'
-import { useOverview } from './api'
+import { useOverview, useReviewTotal } from './api'
 import { ByDevice } from './ByDevice'
 import { ByFix } from './ByFix'
 import { HandledTab } from './HandledTab'
@@ -30,7 +30,8 @@ export function newQuery(p: URLSearchParams): URLSearchParams | null {
   const put = (k: string, v: string | null) => { changed = true; if (v === null) n.delete(k); else n.set(k, v) }
   if (p.get('by') === 'fix') { put('by', null); put('tab', 'fix') }
   else if (tab === 'fix' && p.get('device')) put('tab', 'device')
-  else if (tab === 'open' || tab === 'input') put('tab', 'device')
+  else if (tab === 'open') put('tab', 'device')
+  else if (tab === 'input') put('tab', 'possible')
   else if (tab === 'proposals') put('tab', 'review')
   else if (tab === 'accepted') { put('tab', 'handled'); put('resolution', 'accepted') }
   if (p.get('cve')) { put('by-device.q', p.get('cve')!.toUpperCase()); put('cve', null); if (!n.get('tab') || n.get('tab') === 'handled') put('tab', 'device') }
@@ -49,7 +50,7 @@ function Screen() {
   const setDevice = (id: string) => setParams((prev) => { const p = new URLSearchParams(prev); if (id) p.set('device', id); else p.delete('device'); return p }, { replace: true, preventScrollReset: true })
   const o = overview.data
   usePossibleCheckWatch() // a check of possible findings runs in the background: its end is said here, whatever the tab
-  const proposals = o?.possible.proposals ?? 0
+  const proposals = useReviewTotal().data ?? 0
   const fixed = newQuery(params)
   if (fixed) return <Navigate replace to={{ search: `?${fixed}`, hash: params.get('tab') === 'input' ? '#possible' : undefined }} />
   return (

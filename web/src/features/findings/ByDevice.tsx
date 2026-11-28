@@ -13,7 +13,7 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { CveList, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
-import { useDeviceCards, usePossibleCounts } from './api'
+import { useDeviceCards, usePossibleCounts, useReviewTotal } from './api'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { HandleDialog, type HandleRow } from './HandleDialog'
 import { NotAdded } from './NotAdded'
@@ -104,7 +104,8 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
   const named = q.data?.items.find((c) => c.device.id === device)?.device.name
   // the possible findings are not searched or filtered by status here: their count is said only with the whole list
   const possibleCounts = usePossibleCounts(device || undefined, !narrowed).data
-  const possible = possibleCounts?.possible ?? 0
+  // AI answers that wait for review are listed in Review AI answers, not in Not decided
+  const possible = Math.max(0, (possibleCounts?.possible ?? 0) - (useReviewTotal(!device && !narrowed).data ?? 0))
   const older = possibleCounts?.older_build ?? 0
   const distro = possibleCounts?.distro_pending ?? 0
   return (

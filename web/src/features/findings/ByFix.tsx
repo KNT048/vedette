@@ -16,7 +16,7 @@ import { StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { usePossibleSame } from '@/features/inventory/api'
-import { useDeviceCards, useFixCards, usePossibleCounts } from './api'
+import { useDeviceCards, useFixCards, usePossibleCounts, useReviewTotal } from './api'
 import { PossibleLink } from './Possible'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
@@ -146,7 +146,7 @@ export function ByFix({ status }: { status: string }) {
   const offset = list.page * size
   // the possible findings are not searched or filtered by status here: their count is said only with the whole list
   const possibleCounts = usePossibleCounts(undefined, !filtered).data
-  const possible = possibleCounts?.possible ?? 0
+  const possible = Math.max(0, (possibleCounts?.possible ?? 0) - (useReviewTotal(!filtered).data ?? 0))
   const older = possibleCounts?.older_build ?? 0
   const distro = possibleCounts?.distro_pending ?? 0
   const gotRows = useMemo(() => (h: Handling) => { setWant(null); setHandling(h) }, [])

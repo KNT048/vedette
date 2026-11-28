@@ -459,7 +459,7 @@ describe('findings: the device page\'s Findings tab', () => {
     renderApp('/devices/a-srvfile?tab=findings')
     expect(await screen.findByText('No open findings on this device.')).toBeInTheDocument()
     // only possible findings wait (the version of SQL Server decides 4 CVEs): they are on this tab, after the open findings
-    const section = await screen.findByRole('region', { name: 'Possible findings' })
+    const section = await screen.findByRole('region', { name: 'Not decided' })
     expect(await within(section).findByText('4 possible CVEs', { selector: '[role="status"]' })).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Add the version of Microsoft SQL Server on SRV-FILE' })).toBeInTheDocument()
   })

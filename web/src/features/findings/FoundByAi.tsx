@@ -27,7 +27,7 @@ export function FoundByAi({ check, cve }: { check: PossibleCheck; cve: string })
         <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center gap-1 text-meta text-accent underline-offset-4 hover:underline">{t('review.source')}<ExternalLink aria-hidden className="size-3" /></a>
       ) : null}
-      <Button size="sm" variant="ghost" className="h-7" disabled={!operator || reject.isPending} title={operator ? t('foundByAi.notRightHow') : t('common:needRole', { role: t('common:role.operator') })}
+      <Button size="sm" variant="ghost" className="h-7" disabled={!operator} busy={reject.isPending} busyLabel={t('common:busy.saving')} title={operator ? t('foundByAi.notRightHow') : t('common:needRole', { role: t('common:role.operator') })}
         aria-label={t('foundByAi.notRightOf', { cve })}
         onClick={(e) => { e.stopPropagation(); reject.mutate({ key: check.key }, { onSuccess: () => toast.success(t('possible.aiReadRejected')), onError: (er) => toast.error(errMsg(er)) }) }}>
         {t('foundByAi.notRight')}

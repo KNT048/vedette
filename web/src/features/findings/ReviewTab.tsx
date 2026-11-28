@@ -94,6 +94,7 @@ function ConfirmDialog({ rows, includeExploited, onClose, onDone }: { rows: Poss
         {exploited.length ? <p className="text-sm text-muted">{t('review.dialogExploited', { count: exploited.length })}</p> : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
+          {/* empty-guard: the dialog opens only for at least one answer */}
           <Button variant="primary" busy={confirm.isPending} busyLabel={t('common:busy.saving')} onClick={send}>{t('review.submit', { count: rows.length })}</Button>
         </DialogFooter>
       </DialogContent>

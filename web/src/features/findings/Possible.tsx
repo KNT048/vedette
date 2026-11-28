@@ -651,12 +651,13 @@ export function PossibleSection({ device = '' }: { device?: string }) {
   const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const devices = useMemo(() => devicesOf(rows), [rows])
   useScrollHere(!!q.data)
-  const counts = q.data?.counts
+  const reviewed = (q.data?.items ?? []).filter(inReview).length
+  const counts = q.data?.counts ? { ...q.data.counts, possible: q.data.counts.possible - reviewed, proposals: q.data.counts.proposals - reviewed } : undefined
   const show = !!counts?.possible || !!counts?.older_build || !!counts?.distro_pending
   return (
     <section id="possible" aria-label={t('possible.title')} className="grid scroll-mt-4 gap-3">
       <QueryState query={q}>
-        {(d) => (
+        {(data) => { const d = { ...data, counts: counts ?? data.counts }; return (
           <>
             <NoAiLine />
             <CheckRunLine />
@@ -670,7 +671,7 @@ export function PossibleSection({ device = '' }: { device?: string }) {
             <OlderBuilds rows={older} withDevice={!device} />
             <DistroPending rows={distro} exploited={d.counts.distro_pending_exploited} withDevice={!device} />
           </>
-        )}
+        ) }}
       </QueryState>
       {device ? <Settled device={device} /> : null}
     </section>
@@ -685,7 +686,8 @@ export function DevicePossible({ assetId }: { assetId: string }) {
   const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const lines = useMemo(() => linesOf(rows), [rows])
   useScrollHere(!!q.data)
-  const counts = q.data?.counts
+  const reviewed = (q.data?.items ?? []).filter(inReview).length
+  const counts = q.data?.counts ? { ...q.data.counts, possible: q.data.counts.possible - reviewed, proposals: q.data.counts.proposals - reviewed } : undefined
   if (!counts) return null
   const summary = [t('possible.summaryDevice', { count: counts.possible })]
   if (counts.older_build) summary.push(t('possible.olderBuild.summary', { count: counts.older_build }))
@@ -796,7 +798,11 @@ export function usePossibleCheckWatch() {
 // ---- settled and answered
 
 /** The rows of a possible list, those reported only for an older build and those waiting for the distribution, each listed apart. */
-function splitOlder(rows: PossibleRow[]): [PossibleRow[], PossibleRow[], PossibleRow[]] {
+/** An AI "not affected" answer waits in Review AI answers, not here: one status, one place. */
+const inReview = (r: PossibleRow) => r.state === 'proposal' && r.check?.verdict === 'not_affected'
+
+function splitOlder(all: PossibleRow[]): [PossibleRow[], PossibleRow[], PossibleRow[]] {
+  const rows = all.filter((r) => !inReview(r))
   const distro = (r: PossibleRow) => r.distro_pending
   return [rows.filter((r) => !r.older_build && !distro(r)), rows.filter((r) => r.older_build && !distro(r)), rows.filter(distro)]
 }

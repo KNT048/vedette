@@ -93,6 +93,9 @@ export function checkOfQuestion(q: QuestionRecord): CheckRecord | null {
   return c && (!q.answered || Date.parse(c.checked_at) <= Date.parse(q.answered.at)) ? c : null
 }
 
+/** The AI's "not affected" answers waiting in Review AI answers (of one device when set): proposals, but not listed in Not decided. */
+export const reviewCount = (device?: string) => items(device).filter((it) => it.state === 'proposal' && it.check?.verdict === 'not_affected').length
+
 export function possibleCounts(device?: string): PossibleCounts {
   const c = { possible: 0, older_build: 0, distro_pending: 0, distro_pending_exploited: 0, proposals: 0, unchecked: 0, settled: 0, causes: Object.fromEntries(CAUSES.map((k) => [k, 0])) as PossibleCounts['causes'] }
   for (const it of items(device)) {

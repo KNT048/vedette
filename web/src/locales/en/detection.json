@@ -67,6 +67,8 @@
   "alerts": {
     "title": "Intrusion alerts",
     "caption": "Intrusion alerts",
+    "summary_one": "{{count}} alert",
+    "summary_other": "{{count}} alerts",
     "search": "Search alerts",
     "window": "Time range",
     "w24h": "24 hours",

@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { Card } from '@/components/common/Card'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { ErrorState, Loading } from '@/components/common/States'
@@ -46,19 +47,17 @@ function Body({ a, crumbs }: { a: Alert; crumbs: { label: string; to: string }[]
       <Section id="cves" title={t('alert.cves')}>
         {a.cves.length === 0 ? <p className="text-meta text-muted">{t('alert.noCve')}</p> : (
           <Card flush>
-            <ul className="divide-y divide-rule">
+            <RowList flush label={t('alert.cves')}>
               {a.cves.map((cve) => {
                 const fs = findingOf(cve)
                 return (
-                  <li key={cve} className="grid gap-0.5 px-4 py-3">
-                    <p className="font-medium">{cve}</p>
-                    {fs.length ? fs.map((f) => (
-                      <p key={f.id} className="text-meta"><Link to={`/findings/${f.id}`} className={link}>{t('alert.finding', { device: f.device.name })}</Link>{`, ${t(`findingStatus.${f.status}`)}`}</p>
-                    )) : <p className="text-meta text-muted">{a.dst_device ? t('alert.notAffected', { device: a.dst_device.name }) : t('alert.noDevice')}</p>}
-                  </li>
+                  <ListRow key={cve} title={cve}
+                    meta={[fs.length
+                      ? <>{fs.map((f) => <span key={f.id}><Link to={`/findings/${f.id}`} className={link}>{t('alert.finding', { device: f.device.name })}</Link>{`, ${t(`findingStatus.${f.status}`)}`}</span>)}</>
+                      : a.dst_device ? t('alert.notAffected', { device: a.dst_device.name }) : t('alert.noDevice')]} />
                 )
               })}
-            </ul>
+            </RowList>
           </Card>
         )}
       </Section>

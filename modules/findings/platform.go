@@ -248,7 +248,7 @@ func evidenceOf(in swInfo) platformEvidence {
 	if t := clean(strings.TrimSpace(in.ver + " " + in.banner)); t != "" {
 		e.add(platformsIn(t), "the software reports "+t)
 	}
-	if in.packaged {
+	if in.packaged || in.upstreamBuild {
 		if _, t := apkRelease(in.pkgVer); t != "" {
 			e.add([]string{"alpine"}, "an agent read the release "+clean(t)+" from the device's Alpine apk database")
 		} else {

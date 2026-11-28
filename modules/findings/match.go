@@ -358,7 +358,11 @@ type Reading struct {
 
 // readingOf is the reading of row s as the matcher compares it.
 func readingOf(s Software, in swInfo) *Reading {
-	return &Reading{Software: softwareName(s.Display, s.Version), Source: s.Source, Version: clean(in.ver), Pkg: clean(strings.TrimSpace(s.PkgVersion)), At: s.SeenAt}
+	pkg := clean(strings.TrimSpace(s.PkgVersion))
+	if in.upstreamBuild { // compared as its upstream release
+		pkg = ""
+	}
+	return &Reading{Software: softwareName(s.Display, s.Version), Source: s.Source, Version: clean(in.ver), Pkg: pkg, At: s.SeenAt}
 }
 
 // The device-stated sources of Evidence.Source.
@@ -1800,8 +1804,12 @@ type swInfo struct {
 	// os and osVer: the device's operating system as an NVD product ("canonical:ubuntu_linux", "26.04.1"), when known.
 	os    identity
 	osVer string
-	// packaged: an agent read the software from the device's package database (Software.Packaged).
+	// packaged: an agent read the software from the device's package database (Software.Packaged), as a package of the device's
+	// distribution: false for upstreamBuild.
 	packaged bool
+	// upstreamBuild: an agent read the software from the device's deb database, and its version carries none of the distribution's
+	// packaging marks (distroData.upstream): the upstream product, matched like a program.
+	upstreamBuild bool
 	// pkgVer and pkgSrc: the full Debian version and source package of a packaged row, "" otherwise.
 	pkgVer, pkgSrc string
 	// pkgDistro and pkgRel: the distribution whose security data judges a packaged row (nil when the feeds supply none for the OS) and
@@ -1862,6 +1870,11 @@ func newSWInfo(s Software, osName string) swInfo {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
 		if in.pkgDistro = distroOfOS(osName); in.pkgDistro != nil {
 			in.pkgRel = in.pkgDistro.rel(osName)
+		}
+		if d := in.pkgDistro; d != nil && d.upstream != nil && in.pkgSrc != "" && d.upstream(d.source(in.pkgSrc), in.pkgVer) {
+			// a package the distribution did not build (a vendor's or PPA's .deb, a native package): its upstream product, judged by the
+			// upstream ranges like a program, never by the distribution's word on its own build of the same source
+			in.packaged, in.pkgVer, in.pkgSrc, in.pkgDistro, in.pkgRel, in.upstreamBuild = false, "", "", nil, "", true
 		}
 	}
 	if n := (identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}); n.ok() {

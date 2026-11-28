@@ -32,7 +32,7 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 	ubuntu := Asset{ID: "u-1", Name: "app-01", OS: "Ubuntu 26.04.1 LTS", Software: []Software{
 		pkg("s-wid", "Acmesoft", "Widget", "2.4.1", "2.4.1-1ubuntu0.2", "acme-widget"),
 		pkg("s-ppa", "Acmesoft", "Gizmo", "3.2.0", "3.2.0-3~ubuntu26.04.1", "acme-gizmo"), // the distribution's mark, another build than its row's
-		pkg("s-norel", "Acmesoft", "Sprocket", "1.8", "", ""), // the agent gave no package release or source
+		pkg("s-norel", "Acmesoft", "Sprocket", "1.8", "", ""),                             // the agent gave no package release or source
 		// one line read from two packages: the distribution decides one, and has no word on the other
 		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool"),
 		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool-extras"),

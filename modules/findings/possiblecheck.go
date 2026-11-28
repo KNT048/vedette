@@ -946,13 +946,14 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 			id.Record = recordHash(rec.Stamp) // the record as it is now, what the research reads
 		}
 		st := l.last
-		unsureAgain := st != nil && st.RejectedBy == "" && st.Status == StatementUnsure && now.Sub(st.AskedAt) >= statementRecheck
-		if st != nil && !unsureAgain && !l.units[0].deeper {
+		unsureAgain := st != nil && st.RejectedBy == "" && st.Status == StatementUnsure && st.Research == nil && now.Sub(st.AskedAt) >= statementRecheck
+		if st != nil && !unsureAgain && !l.units[0].deeper && !st.toResearch() {
 			sameRecord := st.RecordHash == cmpNonEmpty(id.Record, recordHash(""))
 			switch {
 			case sameRecord && st.Research != nil && !onPages(st, okPages):
-				// a page only the AI's tools read: the box never had its text to compare, so the quote must still be on it (no tokens)
-				if now.Sub(st.SeenAt) < statementRecheck || stillQuoted(st, okPages, recText, fetchOne) {
+				// a page only the AI's tools read: the box never had its text to compare, so a quote it found must still be on it (no
+				// tokens); an answer no found quote backs has nothing on the page to change, and is researched again only on a new record
+				if now.Sub(st.SeenAt) < statementRecheck || !st.QuoteFound || stillQuoted(st, okPages, recText, fetchOne) {
 					res.seen = append(res.seen, st.Key)
 					continue
 				}

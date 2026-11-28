@@ -446,7 +446,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   through every sequence of up to four events on one line (AI readings affected / not affected / fixed before or past the version /
   unsure, quote checked or not; a person's reject, confirm with or without the exploited tick, reopen; record re-read with the quote
   kept or gone, cited page changed, exploited flag), checking after each step that a finding closes only by a person, an affected
-  reading with a checked quote is never hidden, no AI output answers the line, and no rejection covers another verdict. **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
+  reading with a checked quote is never hidden, no AI output answers the line, and no rejection covers another verdict. **A previous reading is researched once:** a reading the previous reader made from the record's first references (no research
+  behind it) that decides nothing (unsure, or its quote was not found) makes its line due once, by itself, within the research share
+  (`LineStatement.toResearch`); a previous reading that decides stays; a line with a research reading is researched again only when the
+  record changes or a quote it found leaves its page, never by age alone (`TestResearch_APreviousReadersUnsureReadingIsResearchedOnce`).
+  **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
   record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
   (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **Bulk confirm** reads the exploited lists again inside its write
   transaction (`TestReview_ExploitedIsReadInsideTheConfirmation`). A reading

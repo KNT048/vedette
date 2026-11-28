@@ -619,7 +619,10 @@ func (r lineReading) due(id CheckID, now time.Time) bool {
 	if id.Record != "" && last.RecordHash != id.Record && last.Line == id.Line {
 		return true
 	}
-	if last.RejectedBy == "" && last.Status == StatementUnsure && now.Sub(last.AskedAt) >= statementRecheck {
+	if last.Line == id.Line && last.toResearch() {
+		return true
+	}
+	if last.RejectedBy == "" && last.Status == StatementUnsure && last.Research == nil && now.Sub(last.AskedAt) >= statementRecheck {
 		return true
 	}
 	return now.Sub(last.SeenAt) >= statementRecheck
@@ -791,4 +794,12 @@ func lineOutcome(r lineReading, id CheckID) (by *LineStatement, review bool) {
 		return r.held, true
 	}
 	return nil, false
+}
+
+// toResearch says the reading is one the previous reader made from the record's first references (no research behind it) that decides
+// nothing: unsure, or its quote was not found. The research engine researches such a line once, by itself (P-12); a previous reading
+// that decides is kept, and a line with a research reading is researched again only when the record or a cited page changes (an unsure
+// research is not asked again by age alone).
+func (st LineStatement) toResearch() bool {
+	return st.Research == nil && st.RejectedBy == "" && (st.Status == StatementUnsure || !st.QuoteFound)
 }

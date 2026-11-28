@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 	"testing"
 )
 
@@ -539,6 +540,59 @@ func TestResearch_RejectingANotAffectedNeverHidesALaterAffected(t *testing.T) {
 			}
 			if quillFindings(t, e) != 1 {
 				t.Error("a rejected not-affected answer held back a later affected one")
+			}
+		})
+	}
+}
+
+// A reading the previous reader made (no research behind it) that is unsure or whose quote was not found is researched once by the
+// research engine, by itself; once researched, the line is not researched again while the record and the cited page stay. A previous
+// reading that decides (affected with a found quote) is kept as it is.
+func TestResearch_APreviousReadersUnsureReadingIsResearchedOnce(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		status   string
+		found    bool
+		research int
+	}{
+		{"unsure", StatementUnsure, false, 1},
+		{"quote not found", StatementAffected, false, 1},
+		{"affected with a found quote", StatementAffected, true, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorld(t, "115.9.0")
+			id := *quillItem(t, e).Question.Detail.Check
+			old := LineStatement{CVE: cveQuill, Product: id.Product, Line: id.Line, RecordHash: id.Record, PageHash: pageHash(""), Status: tc.status,
+				Quote: "Quillfeather Mail 115.9.0 is affected.", QuoteFound: tc.found, Reason: "read from the first references", Basis: BasisStated,
+				Model: "old", Profile: "old", AskedBy: SystemUser, AskedAt: *e.clock, SeenAt: *e.clock}
+			old.Key = old.identity()
+			if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { return storeStatement(t.Context(), tx, old) }); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.svc.Reconcile(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementUnsure, QuoteNone, "", "")}
+			runCheck(t, e)
+			if len(fc.research) != tc.research {
+				t.Fatalf("%d researches, want %d", len(fc.research), tc.research)
+			}
+			runCheck(t, e)
+			if len(fc.research) != tc.research {
+				t.Errorf("a second run researched again (%d)", len(fc.research))
+			}
+			if tc.research == 0 {
+				return
+			}
+			e.advance(31 * 24 * time.Hour) // an unsure research is not asked again by age alone
+			if _, err := e.svc.Reconcile(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			runCheck(t, e)
+			if len(fc.research) != tc.research {
+				t.Errorf("an unsure research was researched again after 31 days (%d)", len(fc.research))
 			}
 		})
 	}

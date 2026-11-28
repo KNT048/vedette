@@ -382,6 +382,10 @@ func storedHosts(ctx context.Context, q querier, target string) ([]HostRow, erro
 // writeServices upserts the services a scan reported open and closes the open ones it no longer finds on an address it checked. It
 // returns the services open now that were not before, the ones it closed, and the ones it no longer lists (closeVanished).
 func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, vanished, error) {
+	opened0, err := openedAt(at)
+	if err != nil {
+		return nil, vanished{}, err
+	}
 	svc := map[string]ServiceRow{}
 	for _, r := range w.c.Services {
 		svc[portKey(r.IP, r.Port)] = r
@@ -406,7 +410,7 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 			_, err = tx.ExecContext(ctx, `INSERT INTO exp_service (id, target_id, ip, port, proto, name, product, version, cpe, title, cert, is_web, ident, state,
 				first_seen, last_seen, last_run_id, opened_at) VALUES (?, ?, ?, ?, 'tcp', ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`,
 				store.NewID("xs"), w.target.ID, row.IP, row.Port, row.Name, row.Product, row.Version, row.CPE, row.Title, certDoc(row.Cert), boolInt(row.IsWeb), row.Ident,
-				at, at, w.runID, at)
+				at, at, w.runID, opened0)
 			if err != nil {
 				return nil, vanished{}, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 			}
@@ -426,7 +430,7 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 		_, err = tx.ExecContext(ctx, `UPDATE exp_service SET name = ?, product = ?, version = ?, cpe = ?, title = ?, cert = ?, is_web = ?, ident = ?,
 			opened_at = CASE WHEN state = 'closed' THEN ? ELSE coalesce(opened_at, first_seen) END, state = 'open', last_seen = max(last_seen, ?), last_run_id = ? WHERE id = ?`,
 			firstOf(row.Name, prevName), firstOf(row.Product, prevProduct), firstOf(row.Version, prevVersion), firstOf(row.CPE, prevCPE), firstOf(row.Title, prevTitle),
-			cert, boolInt(web), ident, at, at, w.runID, id)
+			cert, boolInt(web), ident, opened0, at, w.runID, id)
 		if err != nil {
 			return nil, vanished{}, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 		}
@@ -868,6 +872,14 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 	if err != nil {
 		return nil, nil, err
 	}
+	opened0, err := openedAt(at)
+	if err != nil {
+		return nil, nil, err
+	}
+	checked, err := exploitedMark(markChecked)
+	if err != nil {
+		return nil, nil, err
+	}
 	// A mark made after this run started is newer than what the run saw: only a mark from before it can be proved wrong by it.
 	since := at
 	if err := tx.QueryRowContext(ctx, `SELECT coalesce(started_at, ?) FROM core_run WHERE id = ?`, at, runID).Scan(&since); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -905,8 +917,8 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		case errors.Is(err, sql.ErrNoRows):
 			id = store.NewID("xi")
 			_, err = tx.ExecContext(ctx, `INSERT INTO exp_issue (id, target_id, service_id, engine, key, title, severity, cves, detail, state, first_seen, last_seen, last_run_id,
-				opened_at, exploited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, 0)`, id, target, svc, string(in.engine), clipText(in.key, 600), in.title, in.severity,
-				string(cves), string(detail), at, at, runID, at)
+				opened_at, exploited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)`, id, target, svc, string(in.engine), clipText(in.key, 600), in.title, in.severity,
+				string(cves), string(detail), at, at, runID, opened0, checked)
 			fresh = append(fresh, id)
 		case err == nil && in.reused && (state == IssueGone || state == IssueHandled && (res == string(ResolvedPatched) || res == string(ResolvedMitigated))):
 			reported[id] = true // a reuse never opens again what a scan closed or a person marked fixed (INV-47)
@@ -927,8 +939,8 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 			}
 			// an issue open again is news of this scan (the daily summary's span) and is told as exploited again if it is (once per re-open)
 			_, err = tx.ExecContext(ctx, `UPDATE exp_issue SET title = ?, severity = ?, cves = ?, detail = ?, state = ?, last_seen = max(last_seen, ?), last_run_id = ?,
-				opened_at = CASE WHEN ? THEN ? ELSE coalesce(opened_at, first_seen) END, exploited = CASE WHEN ? THEN 0 ELSE exploited END WHERE id = ?`,
-				in.title, in.severity, string(cves), string(detail), state, at, runID, reopened, at, reopened, id)
+				opened_at = CASE WHEN ? THEN ? ELSE coalesce(opened_at, first_seen) END, exploited = CASE WHEN ? THEN ? ELSE exploited END WHERE id = ?`,
+				in.title, in.severity, string(cves), string(detail), state, at, runID, reopened, opened0, reopened, checked, id)
 		}
 		if err != nil {
 			return nil, nil, fmt.Errorf("writing the issue %s %s: %w", in.engine, in.key, err)

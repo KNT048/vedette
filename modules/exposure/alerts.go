@@ -147,7 +147,11 @@ func (s *Service) markTold(ctx context.Context, ids []string) {
 	}
 	raw, _ := json.Marshal(ids)
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE exp_issue SET exploited = 1 WHERE id IN (SELECT value FROM json_each(?))`, string(raw))
+		told, err := exploitedMark(markTold)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE exp_issue SET exploited = ? WHERE id IN (SELECT value FROM json_each(?))`, told, string(raw))
 		return err
 	}); err != nil {
 		s.cfg.Log.WarnContext(ctx, "exposure: marking issues told as exploited failed", "error", err)
@@ -344,7 +348,11 @@ func (s *Service) RunExploitedCheck(ctx context.Context) error {
 	if len(unchecked) > 0 {
 		raw, _ := json.Marshal(unchecked)
 		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(ctx, `UPDATE exp_issue SET exploited = 0 WHERE exploited IS NULL AND id IN (SELECT value FROM json_each(?))`, string(raw))
+			checked, err := exploitedMark(markChecked)
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(ctx, `UPDATE exp_issue SET exploited = ? WHERE exploited IS NULL AND id IN (SELECT value FROM json_each(?))`, checked, string(raw))
 			return err
 		}); err != nil {
 			return fmt.Errorf("exposure: exploited check: %w", err)

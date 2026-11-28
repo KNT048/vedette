@@ -154,7 +154,8 @@ func recordRowText(r feeds.BriefRange, others map[int][]string) string {
 func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.FetchedPage {
 	var out []findings.FetchedPage
 	for _, p := range c.ai.FetchReferences(ctx, urls) {
-		out = append(out, findings.FetchedPage{URL: p.URL, Title: p.Title, Status: p.Status, Note: p.Note, Text: p.Text, JSON: p.JSON, Empty: p.Empty})
+		out = append(out, findings.FetchedPage{URL: p.URL, Title: p.Title, Status: p.Status, Note: p.Note, Text: p.Text, JSON: p.JSON, Empty: p.Empty,
+			Blocks: p.Blocks, Bytes: p.Bytes})
 	}
 	return out
 }
@@ -163,9 +164,12 @@ func (c possibleChecker) Fetch(ctx context.Context, urls []string) []findings.Fe
 // reads its answer for findings.
 func (c possibleChecker) Research(ctx context.Context, actor string, req findings.ResearchRequest) (findings.ResearchAnswer, error) {
 	r := ai.ResearchRequest{CVE: req.CVE, Vendor: req.Item.Vendor, Product: req.Item.Product, Line: req.Item.Line, Versions: req.Item.Version,
-		Edition: req.Item.Edition, Platforms: req.Platforms, Digest: req.Digest, Deeper: req.Deeper}
+		Edition: req.Item.Edition, Platforms: req.Platforms, Digest: req.Digest, Deeper: req.Deeper, VendorRows: req.VendorRows, VendorPage: req.VendorPage}
 	for _, p := range req.Pages {
 		r.Pages = append(r.Pages, ai.RefPage{URL: p.URL, Title: p.Title, Status: p.Status, Text: p.Text, JSON: p.JSON})
+	}
+	for _, e := range req.Excerpts {
+		r.Excerpts = append(r.Excerpts, ai.RefExcerpt{Source: e.Source, URL: e.URL, Text: e.Text})
 	}
 	ans, err := c.ai.Research(ctx, actor, r)
 	if err != nil {
@@ -174,10 +178,11 @@ func (c possibleChecker) Research(ctx context.Context, actor string, req finding
 	out := findings.ResearchAnswer{Verdict: findings.ProposeVerdict{Status: ans.Verdict, Introduced: ans.Introduced, FixedIn: ans.FixedIn, LastAffected: ans.LastAffected,
 		Line: ans.Line, Reason: ans.Reason, Quote: ans.Quote}, Confidence: ans.Confidence, Basis: ans.Basis, Trap: ans.Trap, URL: ans.URL,
 		QuoteCheck: ans.QuoteCheck, QuotedText: ans.QuotedText, Mode: ans.Mode, Layer: ans.Layer, Note: ans.Note, Model: ans.Model, Profile: ans.Profile,
-		ActivityID: ans.ActivityID, TokensIn: ans.TokensIn, TokensOut: ans.TokensOut}
+		ActivityID: ans.ActivityID, TokensIn: ans.TokensIn, TokensOut: ans.TokensOut, Fallback: ans.Fallback}
 	for _, st := range ans.Steps {
 		out.Steps = append(out.Steps, findings.ResearchStep{Layer: st.Layer, Model: st.Model, Profile: st.Profile, Web: st.Web, TokensIn: st.TokensIn,
-			TokensOut: st.TokensOut, Searches: st.Searches, Pages: st.Pages, Verdict: st.Verdict, Confidence: st.Confidence, QuoteCheck: st.QuoteCheck, Error: st.Error})
+			TokensOut: st.TokensOut, Searches: st.Searches, Pages: st.Pages, Verdict: st.Verdict, Confidence: st.Confidence, QuoteCheck: st.QuoteCheck, Error: st.Error,
+			ExcerptChars: st.ExcerptChars})
 	}
 	return out, nil
 }

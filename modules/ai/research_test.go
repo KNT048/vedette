@@ -307,6 +307,7 @@ func TestResearch_PublicTextOnlyAndTheCustomersHooks(t *testing.T) {
 	page := "Vulnerability Note VU#644655. Widget 4.1 is affected. Contact cert@cert.org.\n\n412-268-5800\n\n324\n\n324\n\nRelease songs and movies."
 	req := researchReq
 	req.Pages = []ai.RefPage{{URL: "https://www.kb.cert.org/vuls/id/644655", Status: "ok", Text: page}}
+	req.Excerpts = []ai.RefExcerpt{{Source: 1, URL: req.Pages[0].URL, Text: page}}
 	if _, err := a.svc.Research(a.ctx(), "system", req); err != nil {
 		t.Fatalf("a public page was refused: %v", err)
 	}
@@ -524,7 +525,7 @@ func TestResearch_TheWebToolsAndTheTaskAsTheModelSeesThem(t *testing.T) {
 			if req.Web == nil || req.Web.Searches != tc.searches || req.Web.Fetches != tc.fetches || req.Effort != "high" {
 				t.Errorf("web %+v effort %q, want %d searches and %d fetches, high", req.Web, req.Effort, tc.searches, tc.fetches)
 			}
-			for _, want := range []string{"VERIFY with primary sources", "later train than every stated fix", "Research freely"} {
+			for _, want := range []string{"VERIFY with primary sources", "later train than every stated fix", "failure to research", "never copy a label"} {
 				if !strings.Contains(req.System, want) {
 					t.Errorf("the task lacks %q", want)
 				}
@@ -590,5 +591,62 @@ func TestResearch_ASettingsChangeRunsTheHook(t *testing.T) {
 	a.addProfile(strongBody("Strong", keyB))
 	if n := calls.Load(); n != 2 {
 		t.Errorf("a new profile ran the hook %d times in all, want 2", n)
+	}
+}
+
+// The excerpts first: one call with the digest and the excerpts and no tools, for every kind of profile; the quote is checked against
+// the box's full copy of the page (a row far past any cap on the page's start); the web is a fallback, once, only when that answer is
+// unsure and no vendor page was read.
+func TestResearch_ExcerptsFirstThenTheWebOnlyWhenNeeded(t *testing.T) {
+	row := "CVE-2099-81001 | Widget | Widget 3.9, Widget 4.2.0"
+	full := strings.Repeat("Another product's row of the quarterly advisory.\n", 1200) + row + "\n"
+	base := researchReq
+	base.Pages = []ai.RefPage{{URL: "https://acme.example/security/cpu-2099", Status: "ok", Text: full}}
+	base.Excerpts = []ai.RefExcerpt{{Source: 1, URL: base.Pages[0].URL, Text: "[table header] CVE# | Product | Affected\n[row] " + row}}
+	for _, c := range []struct {
+		name       string
+		answer     string
+		vendorPage bool
+		wantCalls  int
+		fallback   bool
+	}{
+		{"an answer from the excerpts stands", verdict("affected", "high", "[row] "+row), true, 1, false},
+		{"unsure with a vendor page read stays", verdict("unsure", "low", ""), true, 1, false},
+		{"unsure with no vendor page goes to the web once", verdict("unsure", "low", ""), false, 2, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			a := researchSetup(t, ai.ResearchEconomy, false)
+			var reqs []provider.Request
+			a.fake.research = func(_ context.Context, _ ai.Profile, r provider.Request) (provider.Response, error) {
+				reqs = append(reqs, r)
+				return provider.Response{Text: c.answer, Usage: provider.Usage{InputTokens: 900, OutputTokens: 90}, Stop: provider.StopEnd}, nil
+			}
+			req := base
+			req.VendorPage = c.vendorPage
+			ans, err := a.svc.Research(a.ctx(), "it@acme.example", req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(reqs) != c.wantCalls || ans.Fallback != c.fallback {
+				t.Fatalf("%d calls fallback %v, want %d and %v", len(reqs), ans.Fallback, c.wantCalls, c.fallback)
+			}
+			first := reqs[0]
+			if first.Web != nil || len(first.Tools) != 0 || first.Schema == nil {
+				t.Errorf("the first call offered tools (web %+v, tools %d) or no schema", first.Web, len(first.Tools))
+			}
+			sent := first.System + first.Messages[0].Text
+			if !strings.Contains(sent, row) || strings.Contains(sent, "Another product's row") || !strings.Contains(sent, "never copy a label") {
+				t.Error("the first call does not carry the excerpt alone, or the task lacks the labels rule")
+			}
+			if ans.Steps[0].Web != "none" || ans.Steps[0].ExcerptChars == 0 {
+				t.Errorf("first step %+v", ans.Steps[0])
+			}
+			if c.fallback && (reqs[1].Web == nil || ans.Steps[1].Web != "provider") {
+				t.Errorf("the fallback call offered no web tools: %+v", reqs[1].Web)
+			}
+			if c.wantCalls == 1 && ans.Verdict == "affected" && (ans.QuoteCheck != ai.QuoteDigest || !strings.Contains(ans.QuotedText, row)) {
+				t.Errorf("quote %s in %d chars: want found in the full copy, the label dropped", ans.QuoteCheck, len(ans.QuotedText))
+			}
+		})
 	}
 }

@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/pagetext"
 )
 
 // The research of a synthetic product the catalogue does not know (Quillfeather Mail, quillWorld): the vendor's page the AI's tools
@@ -595,5 +598,78 @@ func TestResearch_APreviousReadersUnsureReadingIsResearchedOnce(t *testing.T) {
 				t.Errorf("an unsure research was researched again after 31 days (%d)", len(fc.research))
 			}
 		})
+	}
+}
+
+// The box cuts what the AI reads from the full pages it fetched: the CVE's row of a long quarterly advisory (far past any cap on the
+// page's start) with its table's header row, nothing of the other rows; the research detail records the pages, their bytes and the
+// excerpts; the reading is by the current research version, so it is not researched again.
+func TestResearch_TheBoxCutsExcerptsFromTheFullPages(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	var b strings.Builder
+	b.WriteString(`<html><head><title>Quillfeather Security Update, July 2026</title></head><body><h2>Mail risk matrix</h2>
+<table><tr><th>CVE#</th><th>Product</th><th>Versions affected</th></tr>`)
+	for i := range 1100 {
+		fmt.Fprintf(&b, "<tr><td>CVE-2026-8%05d</td><td>Quillfeather Chat</td><td>9.0 to 9.4</td></tr>", i)
+	}
+	b.WriteString("<tr><td>" + cveQuill + "</td><td>Quillfeather Mail</td><td>115.0 through 115.11</td></tr></table></body></html>")
+	blocks, title := pagetext.HTML(b.String())
+	full := pagetext.Text(blocks)
+	if strings.Index(full, cveQuill) < 49_000 {
+		t.Fatalf("the row is at %d", strings.Index(full, cveQuill))
+	}
+	fc.pages[cveQuill] = []FetchedPage{{URL: quillSA, Title: title, Status: "ok", Text: full, Blocks: blocks, Bytes: b.Len()}}
+	row := cveQuill + " | Quillfeather Mail | 115.0 through 115.11"
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementAffected, QuoteDigest, row, full)}
+	runCheck(t, e)
+	if len(fc.research) != 1 {
+		t.Fatalf("%d researches", len(fc.research))
+	}
+	req := fc.research[0]
+	if len(req.Excerpts) != 1 || req.Excerpts[0].Source != 1 || !strings.Contains(req.Excerpts[0].Text, "[table header] CVE# | Product | Versions affected") ||
+		!strings.Contains(req.Excerpts[0].Text, "[row] "+row) || strings.Contains(req.Excerpts[0].Text, "Quillfeather Chat") || !req.VendorPage {
+		t.Fatalf("excerpts %+v vendor page %v", req.Excerpts, req.VendorPage)
+	}
+	if req.Pages[0].Text != full {
+		t.Error("the research lost the full copy of the page its quote is checked against")
+	}
+	var detail string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT r.detail FROM fnd_line_research r JOIN fnd_line_statement s USING (statement_key) WHERE s.cve = ?`, cveQuill).Scan(&detail); err != nil {
+		t.Fatal(err)
+	}
+	var d ResearchDetail
+	if err := json.Unmarshal([]byte(detail), &d); err != nil {
+		t.Fatal(err)
+	}
+	if d.Reader != researchReader || d.Fetch.Pages != 1 || d.Fetch.Bytes != b.Len() || d.Fetch.ExcerptChars != len(req.Excerpts[0].Text) {
+		t.Errorf("detail %+v", d)
+	}
+	runCheck(t, e)
+	if len(fc.research) != 1 {
+		t.Errorf("a line read by the current research was researched again (%d)", len(fc.research))
+	}
+}
+
+// A line read by an older research (before the excerpts) is researched once again by the current one, then stands.
+func TestResearch_AnOlderResearchIsRedoneOnce(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementNotAffected, QuoteTool, "the 115 line is fixed in Quillfeather Mail 115.12", quillSAText)}
+	runCheck(t, e)
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_line_research SET detail = json_remove(json_remove(detail, '$.reader'), '$.fetch')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 { // the hourly match notes the line of the finding the reading opened as due, then the check reads it
+		if _, err := e.svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		runCheck(t, e)
+	}
+	if len(fc.research) != 2 {
+		t.Errorf("%d researches, want the older one redone once", len(fc.research))
 	}
 }

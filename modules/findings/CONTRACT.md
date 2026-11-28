@@ -453,7 +453,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   record changes or a quote it found leaves its page, never by age alone (`TestResearch_APreviousReadersUnsureReadingIsResearchedOnce`).
   **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
   record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
-  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **The research worker** (`ResearchWorker`, the module's `research` job, runs while the module is
+  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **What the AI reads** (`researchExcerpts`, `core/pagetext`): the box reads up to 8 of the record's references (16
+  candidates, vendor's first, at most 2 per site) and cuts from their full text the passages naming the CVE or an advisory the record
+  cites (a table row with its header rows and section, a heading's section, a paragraph with its heading, a short page whole, the head of
+  a page about the CVE and its rows naming the product), each once, at most 24,000 characters, each with its page's number; the request
+  says whether the record has rows its vendor wrote (`VendorRows`) and whether a vendor page was read (`VendorPage`). The research detail
+  records `reader` (2), `fallback` and `fetch` (pages, bytes, excerpt characters); a line read by an older research version is researched
+  once again (`toResearch`; `TestResearch_TheBoxCutsExcerptsFromTheFullPages`, `TestResearch_AnOlderResearchIsRedoneOnce`). **The research worker** (`ResearchWorker`, the module's `research` job, runs while the module is
   on): it works through the possible CVEs as soon as they are due, not once an hour: `researchParallel` (2) CVEs at once, each CVE's
   lines in turn, the longest-waiting line first (no standing answer, then the oldest look; `byLineAge`), every CVE stored and its
   devices matched again as soon as it ends. Its queue is the database's state, read again after each pass, so a restart loses nothing.

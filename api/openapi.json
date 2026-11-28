@@ -51702,10 +51702,17 @@
                                                       "web": {
                                                         "type": "string",
                                                         "enum": [
+                                                          "none",
                                                           "provider",
                                                           "box"
                                                         ],
-                                                        "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                        "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                      },
+                                                      "excerpt_chars": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "Characters of excerpts the call carried"
                                                       },
                                                       "tokens_in": {
                                                         "type": "integer",
@@ -51753,6 +51760,7 @@
                                                       "model",
                                                       "profile",
                                                       "web",
+                                                      "excerpt_chars",
                                                       "tokens_in",
                                                       "tokens_out",
                                                       "searches",
@@ -51764,6 +51772,45 @@
                                                     "additionalProperties": false,
                                                     "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                   }
+                                                },
+                                                "reader": {
+                                                  "type": "integer",
+                                                  "minimum": 0,
+                                                  "maximum": 9007199254740991,
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                },
+                                                "fallback": {
+                                                  "type": "boolean",
+                                                  "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                },
+                                                "fetch": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "pages": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Reference pages the box read for the research"
+                                                    },
+                                                    "bytes": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Their bytes as received"
+                                                    },
+                                                    "excerpt_chars": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Characters of excerpts the box cut from them"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "pages",
+                                                    "bytes",
+                                                    "excerpt_chars"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               },
                                               "required": [
@@ -51774,7 +51821,10 @@
                                                 "fixed_in",
                                                 "trap",
                                                 "note",
-                                                "steps"
+                                                "steps",
+                                                "reader",
+                                                "fallback",
+                                                "fetch"
                                               ],
                                               "additionalProperties": false
                                             }
@@ -53000,10 +53050,17 @@
                                                       "web": {
                                                         "type": "string",
                                                         "enum": [
+                                                          "none",
                                                           "provider",
                                                           "box"
                                                         ],
-                                                        "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                        "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                      },
+                                                      "excerpt_chars": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "Characters of excerpts the call carried"
                                                       },
                                                       "tokens_in": {
                                                         "type": "integer",
@@ -53051,6 +53108,7 @@
                                                       "model",
                                                       "profile",
                                                       "web",
+                                                      "excerpt_chars",
                                                       "tokens_in",
                                                       "tokens_out",
                                                       "searches",
@@ -53062,6 +53120,45 @@
                                                     "additionalProperties": false,
                                                     "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                   }
+                                                },
+                                                "reader": {
+                                                  "type": "integer",
+                                                  "minimum": 0,
+                                                  "maximum": 9007199254740991,
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                },
+                                                "fallback": {
+                                                  "type": "boolean",
+                                                  "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                },
+                                                "fetch": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "pages": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Reference pages the box read for the research"
+                                                    },
+                                                    "bytes": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Their bytes as received"
+                                                    },
+                                                    "excerpt_chars": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Characters of excerpts the box cut from them"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "pages",
+                                                    "bytes",
+                                                    "excerpt_chars"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               },
                                               "required": [
@@ -53072,7 +53169,10 @@
                                                 "fixed_in",
                                                 "trap",
                                                 "note",
-                                                "steps"
+                                                "steps",
+                                                "reader",
+                                                "fallback",
+                                                "fetch"
                                               ],
                                               "additionalProperties": false
                                             }
@@ -54319,10 +54419,17 @@
                                                       "web": {
                                                         "type": "string",
                                                         "enum": [
+                                                          "none",
                                                           "provider",
                                                           "box"
                                                         ],
-                                                        "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                        "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                      },
+                                                      "excerpt_chars": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "Characters of excerpts the call carried"
                                                       },
                                                       "tokens_in": {
                                                         "type": "integer",
@@ -54370,6 +54477,7 @@
                                                       "model",
                                                       "profile",
                                                       "web",
+                                                      "excerpt_chars",
                                                       "tokens_in",
                                                       "tokens_out",
                                                       "searches",
@@ -54381,6 +54489,45 @@
                                                     "additionalProperties": false,
                                                     "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                   }
+                                                },
+                                                "reader": {
+                                                  "type": "integer",
+                                                  "minimum": 0,
+                                                  "maximum": 9007199254740991,
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                },
+                                                "fallback": {
+                                                  "type": "boolean",
+                                                  "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                },
+                                                "fetch": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "pages": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Reference pages the box read for the research"
+                                                    },
+                                                    "bytes": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Their bytes as received"
+                                                    },
+                                                    "excerpt_chars": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Characters of excerpts the box cut from them"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "pages",
+                                                    "bytes",
+                                                    "excerpt_chars"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               },
                                               "required": [
@@ -54391,7 +54538,10 @@
                                                 "fixed_in",
                                                 "trap",
                                                 "note",
-                                                "steps"
+                                                "steps",
+                                                "reader",
+                                                "fallback",
+                                                "fetch"
                                               ],
                                               "additionalProperties": false
                                             }
@@ -55618,10 +55768,17 @@
                                                       "web": {
                                                         "type": "string",
                                                         "enum": [
+                                                          "none",
                                                           "provider",
                                                           "box"
                                                         ],
-                                                        "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                        "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                      },
+                                                      "excerpt_chars": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "Characters of excerpts the call carried"
                                                       },
                                                       "tokens_in": {
                                                         "type": "integer",
@@ -55669,6 +55826,7 @@
                                                       "model",
                                                       "profile",
                                                       "web",
+                                                      "excerpt_chars",
                                                       "tokens_in",
                                                       "tokens_out",
                                                       "searches",
@@ -55680,6 +55838,45 @@
                                                     "additionalProperties": false,
                                                     "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                   }
+                                                },
+                                                "reader": {
+                                                  "type": "integer",
+                                                  "minimum": 0,
+                                                  "maximum": 9007199254740991,
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                },
+                                                "fallback": {
+                                                  "type": "boolean",
+                                                  "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                },
+                                                "fetch": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "pages": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Reference pages the box read for the research"
+                                                    },
+                                                    "bytes": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Their bytes as received"
+                                                    },
+                                                    "excerpt_chars": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 9007199254740991,
+                                                      "description": "Characters of excerpts the box cut from them"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "pages",
+                                                    "bytes",
+                                                    "excerpt_chars"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               },
                                               "required": [
@@ -55690,7 +55887,10 @@
                                                 "fixed_in",
                                                 "trap",
                                                 "note",
-                                                "steps"
+                                                "steps",
+                                                "reader",
+                                                "fallback",
+                                                "fetch"
                                               ],
                                               "additionalProperties": false
                                             }
@@ -56353,10 +56553,17 @@
                                                             "web": {
                                                               "type": "string",
                                                               "enum": [
+                                                                "none",
                                                                 "provider",
                                                                 "box"
                                                               ],
-                                                              "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                              "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                            },
+                                                            "excerpt_chars": {
+                                                              "type": "integer",
+                                                              "minimum": 0,
+                                                              "maximum": 9007199254740991,
+                                                              "description": "Characters of excerpts the call carried"
                                                             },
                                                             "tokens_in": {
                                                               "type": "integer",
@@ -56404,6 +56611,7 @@
                                                             "model",
                                                             "profile",
                                                             "web",
+                                                            "excerpt_chars",
                                                             "tokens_in",
                                                             "tokens_out",
                                                             "searches",
@@ -56415,6 +56623,45 @@
                                                           "additionalProperties": false,
                                                           "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                         }
+                                                      },
+                                                      "reader": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                      },
+                                                      "fallback": {
+                                                        "type": "boolean",
+                                                        "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                      },
+                                                      "fetch": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "pages": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Reference pages the box read for the research"
+                                                          },
+                                                          "bytes": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Their bytes as received"
+                                                          },
+                                                          "excerpt_chars": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Characters of excerpts the box cut from them"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "pages",
+                                                          "bytes",
+                                                          "excerpt_chars"
+                                                        ],
+                                                        "additionalProperties": false
                                                       }
                                                     },
                                                     "required": [
@@ -56425,7 +56672,10 @@
                                                       "fixed_in",
                                                       "trap",
                                                       "note",
-                                                      "steps"
+                                                      "steps",
+                                                      "reader",
+                                                      "fallback",
+                                                      "fetch"
                                                     ],
                                                     "additionalProperties": false
                                                   }
@@ -61876,10 +62126,17 @@
                                                             "web": {
                                                               "type": "string",
                                                               "enum": [
+                                                                "none",
                                                                 "provider",
                                                                 "box"
                                                               ],
-                                                              "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                              "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                            },
+                                                            "excerpt_chars": {
+                                                              "type": "integer",
+                                                              "minimum": 0,
+                                                              "maximum": 9007199254740991,
+                                                              "description": "Characters of excerpts the call carried"
                                                             },
                                                             "tokens_in": {
                                                               "type": "integer",
@@ -61927,6 +62184,7 @@
                                                             "model",
                                                             "profile",
                                                             "web",
+                                                            "excerpt_chars",
                                                             "tokens_in",
                                                             "tokens_out",
                                                             "searches",
@@ -61938,6 +62196,45 @@
                                                           "additionalProperties": false,
                                                           "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                         }
+                                                      },
+                                                      "reader": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                      },
+                                                      "fallback": {
+                                                        "type": "boolean",
+                                                        "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                      },
+                                                      "fetch": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "pages": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Reference pages the box read for the research"
+                                                          },
+                                                          "bytes": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Their bytes as received"
+                                                          },
+                                                          "excerpt_chars": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Characters of excerpts the box cut from them"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "pages",
+                                                          "bytes",
+                                                          "excerpt_chars"
+                                                        ],
+                                                        "additionalProperties": false
                                                       }
                                                     },
                                                     "required": [
@@ -61948,7 +62245,10 @@
                                                       "fixed_in",
                                                       "trap",
                                                       "note",
-                                                      "steps"
+                                                      "steps",
+                                                      "reader",
+                                                      "fallback",
+                                                      "fetch"
                                                     ],
                                                     "additionalProperties": false
                                                   }
@@ -64049,10 +64349,17 @@
                                                             "web": {
                                                               "type": "string",
                                                               "enum": [
+                                                                "none",
                                                                 "provider",
                                                                 "box"
                                                               ],
-                                                              "description": "provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                              "description": "none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider's own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search"
+                                                            },
+                                                            "excerpt_chars": {
+                                                              "type": "integer",
+                                                              "minimum": 0,
+                                                              "maximum": 9007199254740991,
+                                                              "description": "Characters of excerpts the call carried"
                                                             },
                                                             "tokens_in": {
                                                               "type": "integer",
@@ -64100,6 +64407,7 @@
                                                             "model",
                                                             "profile",
                                                             "web",
+                                                            "excerpt_chars",
                                                             "tokens_in",
                                                             "tokens_out",
                                                             "searches",
@@ -64111,6 +64419,45 @@
                                                           "additionalProperties": false,
                                                           "description": "One layer of a research: how it ran, what it read, what it answered, its tokens (never money)"
                                                         }
+                                                      },
+                                                      "reader": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 9007199254740991,
+                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                      },
+                                                      "fallback": {
+                                                        "type": "boolean",
+                                                        "description": "A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read"
+                                                      },
+                                                      "fetch": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "pages": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Reference pages the box read for the research"
+                                                          },
+                                                          "bytes": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Their bytes as received"
+                                                          },
+                                                          "excerpt_chars": {
+                                                            "type": "integer",
+                                                            "minimum": 0,
+                                                            "maximum": 9007199254740991,
+                                                            "description": "Characters of excerpts the box cut from them"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "pages",
+                                                          "bytes",
+                                                          "excerpt_chars"
+                                                        ],
+                                                        "additionalProperties": false
                                                       }
                                                     },
                                                     "required": [
@@ -64121,7 +64468,10 @@
                                                       "fixed_in",
                                                       "trap",
                                                       "note",
-                                                      "steps"
+                                                      "steps",
+                                                      "reader",
+                                                      "fallback",
+                                                      "fetch"
                                                     ],
                                                     "additionalProperties": false
                                                   }

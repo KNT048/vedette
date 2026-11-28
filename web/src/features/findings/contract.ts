@@ -422,7 +422,8 @@ export const CheckSource = z.object({
 export const AiResearchStep = z.object({
   layer: z.enum(['quick', 'strong']).describe('quick: the research job\'s first profile; strong: its second profile, which the quick answer escalated to (or the only layer in thorough mode and for Research deeper)'),
   model: z.string(), profile: z.string(),
-  web: z.enum(['provider', 'box']).describe('provider: the AI provider\'s own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search'),
+  web: z.enum(['none', 'provider', 'box']).describe('none: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI provider\'s own web search and page fetch (the queries went to the provider); box: the box fetched the pages the AI named itself, public addresses only, no search'),
+  excerpt_chars: z.number().int().min(0).describe('Characters of excerpts the call carried'),
   tokens_in: z.number().int().min(0), tokens_out: z.number().int().min(0),
   searches: z.number().int().min(0).describe('Web searches the provider ran'),
   pages: z.array(z.string()).max(20).describe('The pages the layer read'),
@@ -443,6 +444,13 @@ export const AiResearch = z.object({
     fixed_in: z.string(), trap: z.string().describe('The trap of the checklist the AI says it checked'),
     note: z.string().describe('What the research could not do ("" when nothing): escalation needs a second AI profile'),
     steps: z.array(AiResearchStep),
+    reader: z.number().int().min(0).describe('The research version: 2 reads the box\'s excerpts first and the web only as a fallback; a line read by an older version is researched again once'),
+    fallback: z.boolean().describe('A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read'),
+    fetch: z.object({
+      pages: z.number().int().min(0).describe('Reference pages the box read for the research'),
+      bytes: z.number().int().min(0).describe('Their bytes as received'),
+      excerpt_chars: z.number().int().min(0).describe('Characters of excerpts the box cut from them'),
+    }),
   }),
 }).describe('How the customer\'s AI researched a CVE Vedette cannot decide for one release line, shared by every device and version on the line')
 export const AiReading = z.object({

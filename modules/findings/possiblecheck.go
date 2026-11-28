@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/pagetext"
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
@@ -87,6 +88,15 @@ func (e *ItemRefused) Error() string { return e.Reason }
 // answers that could not be used (ItemRefused Systemic), with no answer between, mean the AI is not answering at all: the run stops
 // there instead of failing every item that is left. The identification of software keeps the same streak.
 const aiFailStreak = 3
+
+// pageBytes is the bytes of the pages as received.
+func pageBytes(pages []FetchedPage) int {
+	n := 0
+	for _, p := range pages {
+		n += p.Bytes
+	}
+	return n
+}
 
 // unitsOf is how many units the lines hold.
 func unitsOf(lines []lineAsk) int {
@@ -358,6 +368,9 @@ type RefLink struct {
 type FetchedPage struct {
 	URL, Title, Status, Note, Text string
 	JSON                           bool
+	// Blocks is the page as headings, paragraphs and table rows (pagetext): what excerpts are cut from. Bytes: its body as received.
+	Blocks []pagetext.Block
+	Bytes  int
 	// Vendor says the page is the vendor's own advisory: its reference is tagged vendor-advisory or it is on the vendor's host
 	// (vendorHost). Only such a page may settle "not affected"; findings sets it from the CVE record.
 	Vendor bool
@@ -1162,7 +1175,9 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		}
 		item := ProposeItem{Vendor: vendor, Product: catalogueName(id.Product, product), Version: strings.Join(versions, ", "), Line: id.Line, Edition: edition(l.units[0].q)}
 		req := ResearchRequest{CVE: cve, Description: recordText(CVERecordText{Description: rec.Description, Solution: rec.Solution}, nil), Rows: rows, Item: item,
-			Pages: okPages, Digest: researchDigest(cve, rec, rows), Platforms: s.platformsOf(ctx, l.units), Deeper: l.units[0].deeper}
+			Pages: okPages, Digest: researchDigest(cve, rec, rows), Platforms: s.platformsOf(ctx, l.units), Deeper: l.units[0].deeper,
+			Excerpts: researchExcerpts(cve, rec, okPages, id.Product), VendorRows: slices.ContainsFunc(rec.Rows, func(r RecordRow) bool { return r.VendorCNA }),
+			VendorPage: slices.ContainsFunc(okPages, func(p FetchedPage) bool { return p.Vendor })}
 		ans, err := s.cfg.Checker.Research(ctx, actor, req)
 		if err != nil {
 			n := 0
@@ -1223,6 +1238,10 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		}
 		if st.Basis == BasisStated && !namedWithThisProduct(st.Quote, ownNames(rec, id.Product), ownEditions(rec, id.Product, edition(l.units[0].q)), ownVendors(id.Product)) {
 			st.Basis = BasisUnpaired // a version the quote does not pair with this product's own name: it may open, never settle or fix
+		}
+		ans.Fetch = ResearchFetch{Pages: len(okPages), Bytes: pageBytes(okPages)}
+		for _, e := range req.Excerpts {
+			ans.Fetch.ExcerptChars += len(e.Text)
 		}
 		r := lineResearchOf(ans)
 		st.Research = &r
@@ -1565,7 +1584,8 @@ var refTagOrder = []string{"vendor-advisory", "release-notes", "patch", "mitigat
 func refTag(t string) string { return strings.ToLower(strings.Join(strings.Fields(t), "-")) }
 
 // chooseRefs picks the references a check reads, best first: https only, by tag (refTagOrder; untagged after them), a host that names
-// the product's vendor first among equals; never one tagged Exploit. At most five, of which the fetcher reads three.
+// the product's vendor first among equals; never one tagged Exploit. At most refCandidates, refsPerHost of one site; the fetcher
+// reads up to 8 of them.
 func chooseRefs(refs []RefLink, product string) []string {
 	vendor, _, _ := strings.Cut(strings.ToLower(product), "|")
 	vendor = strings.Fields(vendor + " x")[0]
@@ -1595,14 +1615,28 @@ func chooseRefs(refs []RefLink, product string) []string {
 	}
 	slices.SortStableFunc(cs, func(a, b cand) int { return a.rank - b.rank })
 	var out []string
+	perHost := map[string]int{}
 	for _, c := range cs {
-		if len(out) == 5 {
+		if len(out) == refCandidates {
 			break
 		}
+		host := strings.ToLower(strings.TrimPrefix(c.url, "https://"))
+		host, _, _ = strings.Cut(host, "/")
+		if perHost[host] == refsPerHost { // copies of one list (a mailing-list archive) leave room for other sites
+			continue
+		}
+		perHost[host]++
 		out = append(out, c.url)
 	}
 	return out
 }
+
+// refCandidates is the most references a check hands the box's fetcher, which reads up to 8 usable ones (vendor's first);
+// refsPerHost the most of one site.
+const (
+	refCandidates = 16
+	refsPerHost   = 2
+)
 
 // storeChecks stores the checks and readings of one CVE in one write: a key checked meanwhile keeps its first check; a reading found
 // unchanged by a new fetch (seen) is touched.

@@ -801,5 +801,11 @@ func lineOutcome(r lineReading, id CheckID) (by *LineStatement, review bool) {
 // that decides is kept, and a line with a research reading is researched again only when the record or a cited page changes (an unsure
 // research is not asked again by age alone).
 func (st LineStatement) toResearch() bool {
-	return st.Research == nil && st.RejectedBy == "" && (st.Status == StatementUnsure || !st.QuoteFound)
+	if st.RejectedBy != "" {
+		return false
+	}
+	if st.Research != nil { // a research by an older version is researched once again (researchReader)
+		return st.Research.Detail.Reader < researchReader
+	}
+	return st.Status == StatementUnsure || !st.QuoteFound
 }

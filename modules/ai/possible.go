@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +15,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/pagetext"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -29,13 +32,14 @@ import (
 
 // The limits of the reference fetch.
 const (
-	refMaxPages     = 3
+	refMaxPages     = 8 // usable pages read per CVE (a failed, empty, duplicate or non-text one leaves its place)
 	refFetchTimeout = 20 * time.Second
-	refTotalTimeout = 45 * time.Second
+	refTotalTimeout = 90 * time.Second
 	refMaxBody      = 2 << 20
 	refMaxRedirects = 3
-	refTextBytes    = 8000 // per page into the prompt (findings' extraction reads up to refScanBytes)
-	refScanBytes    = 200 << 10
+	refScanBytes    = 1 << 20 // the page's text the box keeps: its full copy for the excerpts and the quote check
+	refCacheTTL     = 6 * time.Hour
+	refCacheBytes   = 48 << 20
 )
 
 // RefPage is one reference page as the box read it.
@@ -44,9 +48,14 @@ type RefPage struct {
 	Title  string `json:"title,omitempty"`
 	Status string `json:"status"` // ok, failed, skipped
 	Note   string `json:"note,omitempty"`
-	Text   string `json:"-"` // the page's text (HTML reduced to text, JSON as sent), at most refScanBytes; "" unless ok
+	Text   string `json:"-"` // the page's full text (its blocks one per line; JSON as sent), at most refScanBytes; "" unless ok
 	JSON   bool   `json:"-"` // the page is a JSON document (a CSAF advisory)
 	Empty  bool   `json:"-"` // the page answered with no advisory text (an empty page, a script-rendered shell): fetching it again gives the same
+	// Blocks is the page as headings, paragraphs and table rows with their header rows (pagetext), what excerpts are cut from.
+	Blocks []pagetext.Block `json:"-"`
+	Bytes  int              `json:"-"` // bytes of the body as received
+	final  string           // the address the page was read from, after redirects
+	hash   [32]byte         // the body's hash: two references to one page are read once
 }
 
 var errRefRedirect = errors.New("ai refs: redirect refused")
@@ -55,9 +64,19 @@ var errRefRedirect = errors.New("ai refs: redirect refused")
 var reAdvisoryContent = regexp.MustCompile(`(?i)\bCVE-[0-9]{4}-[0-9]{4,}\b|\b[0-9]+\.[0-9]+`)
 
 // refFetcher reads public reference pages over HTTPS: only global unicast addresses on port 443, checked on the resolved address and
-// again in the socket's Control hook (and so on every redirect, at most refMaxRedirects), no proxy, no cookies, no credentials.
+// again in the socket's Control hook (and so on every redirect, at most refMaxRedirects), no proxy, no cookies, no credentials. Pages
+// are kept for refCacheTTL by address (refCacheBytes in all), so a page many CVEs cite (a quarterly advisory) is read once.
 type refFetcher struct {
 	client *http.Client
+	now    func() time.Time
+	mu     sync.Mutex
+	cache  map[string]refCached
+	bytes  int
+}
+
+type refCached struct {
+	page RefPage
+	at   time.Time
 }
 
 func newRefFetcher(resolve func(context.Context, string) ([]netip.Addr, error), connect dialFunc) *refFetcher {
@@ -88,7 +107,7 @@ func newRefFetcher(resolve func(context.Context, string) ([]netip.Addr, error), 
 	}
 	tr := &http.Transport{Proxy: nil, DialContext: dial, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 10 * time.Second,
 		ResponseHeaderTimeout: refFetchTimeout, MaxResponseHeaderBytes: 64 << 10, MaxIdleConns: 8, IdleConnTimeout: 30 * time.Second}
-	return &refFetcher{client: &http.Client{Transport: tr, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	return &refFetcher{now: time.Now, cache: map[string]refCached{}, client: &http.Client{Transport: tr, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= refMaxRedirects || req.URL.Scheme != "https" || req.URL.User != nil || (req.URL.Port() != "" && req.URL.Port() != "443") {
 			return errRefRedirect
 		}
@@ -96,24 +115,77 @@ func newRefFetcher(resolve func(context.Context, string) ([]netip.Addr, error), 
 	}}}
 }
 
-// fetch reads the pages of urls, in order, until refMaxPages are read (a failed one does not count), within refTotalTimeout.
+// fetch reads the pages of urls, in order, until refMaxPages are read (a failed, empty, non-text or duplicate one does not count),
+// within refTotalTimeout. A reference that redirects to a page read already, or whose body is one read already, is skipped as the same.
 func (f *refFetcher) fetch(ctx context.Context, urls []string) []RefPage {
 	ctx, cancel := context.WithTimeout(ctx, refTotalTimeout)
 	defer cancel()
 	out := []RefPage{}
 	read := 0
+	finals, bodies := map[string]string{}, map[[32]byte]string{}
 	for _, raw := range urls {
 		if read == refMaxPages {
 			out = append(out, RefPage{URL: raw, Status: "skipped", Note: fmt.Sprintf("only %d pages are read per CVE", refMaxPages)})
 			continue
 		}
-		p := f.one(ctx, raw) // a page that fails leaves its place to the next one
+		p := f.cached(ctx, raw) // a page that fails leaves its place to the next one
 		if p.Status == "ok" {
+			first, seen := finals[p.final]
+			if !seen {
+				first, seen = bodies[p.hash]
+			}
+			if seen {
+				out = append(out, RefPage{URL: raw, Status: "skipped", Note: "the same page as " + clipRunes(first, 200)})
+				continue
+			}
+			finals[p.final], bodies[p.hash] = raw, raw
 			read++
 		}
 		out = append(out, p)
 	}
 	return out
+}
+
+// cached is one, kept for refCacheTTL when it was read or answered for good (no text, not a text page); a failure that may pass is
+// asked again.
+func (f *refFetcher) cached(ctx context.Context, raw string) RefPage {
+	now := f.now()
+	f.mu.Lock()
+	c, ok := f.cache[raw]
+	f.mu.Unlock()
+	if ok && now.Sub(c.at) < refCacheTTL {
+		return c.page
+	}
+	p := f.one(ctx, raw)
+	if p.Status != "ok" && !p.Empty {
+		return p
+	}
+	size := len(p.Text) * 2 // the text and its blocks
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if old, ok := f.cache[raw]; ok {
+		f.bytes -= len(old.page.Text) * 2
+	}
+	for f.bytes+size > refCacheBytes && len(f.cache) > 0 { // the oldest go first
+		oldest := ""
+		for k, e := range f.cache {
+			if oldest == "" || e.at.Before(f.cache[oldest].at) {
+				oldest = k
+			}
+		}
+		f.bytes -= len(f.cache[oldest].page.Text) * 2
+		delete(f.cache, oldest)
+	}
+	f.cache[raw] = refCached{page: p, at: now}
+	f.bytes += size
+	return p
+}
+
+// refTextType says a Content-Type is a text page the box reads (HTML, plain text, JSON, XML); "" (none given) is read and sniffed.
+func refTextType(ct string) bool {
+	ct = strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0]))
+	return ct == "" || strings.HasPrefix(ct, "text/") || ct == "application/xhtml+xml" || ct == "application/json" || strings.HasSuffix(ct, "+json") ||
+		ct == "application/xml" || strings.HasSuffix(ct, "+xml")
 }
 
 func (f *refFetcher) one(ctx context.Context, raw string) RefPage {
@@ -152,6 +224,15 @@ func (f *refFetcher) one(ctx context.Context, raw string) RefPage {
 		p.Note = "the site answered " + strconv.Itoa(resp.StatusCode)
 		return p
 	}
+	ct := resp.Header.Get("Content-Type")
+	if !refTextType(ct) { // a download (a ZIP, an installer, a PDF) is not read at all
+		p.Empty, p.Note = true, "the reference is not a text page ("+clipRunes(strings.Split(ct, ";")[0], 80)+")"
+		return p
+	}
+	if resp.ContentLength > refMaxBody {
+		p.Note = "the page is larger than 2 MiB"
+		return p
+	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, refMaxBody+1))
 	if err != nil {
 		p.Note = "the page could not be read"
@@ -161,20 +242,26 @@ func (f *refFetcher) one(ctx context.Context, raw string) RefPage {
 		p.Note = "the page is larger than 2 MiB"
 		return p
 	}
-	ct := strings.ToLower(resp.Header.Get("Content-Type"))
+	p.Bytes, p.hash, p.final = len(body), sha256.Sum256(body), resp.Request.URL.String()
+	ct = strings.ToLower(ct)
 	switch {
 	case strings.Contains(ct, "json") || json.Valid(body) && len(body) > 0 && (body[0] == '{' || body[0] == '['):
 		p.JSON, p.Text = true, clipBytes(string(body), refScanBytes)
+		p.Blocks = pagetext.Plain(p.Text, true)
 	case strings.Contains(ct, "html") || strings.Contains(strings.ToLower(string(body[:min(len(body), 512)])), "<html"):
-		p.Text = htmlToText(string(body), refScanBytes)
+		var title string
+		p.Blocks, title = pagetext.HTML(sanitizeWeb(string(body)))
+		p.Blocks = pagetext.Clip(p.Blocks, refScanBytes)
+		p.Text, p.Title = pagetext.Text(p.Blocks), clipRunes(title, 200)
 	default:
 		p.Text = clipBytes(sanitizeWeb(string(body)), refScanBytes)
+		p.Blocks = pagetext.Plain(p.Text, false)
 	}
 	// A page with no CVE id and no version number in its text states nothing a check can use: a script-rendered portal answers a
 	// shell ("Loading", "Refresh") the box cannot run. It is not read (it leaves its place to the next page) and is marked empty:
 	// fetching it again gives the same.
 	if strings.TrimSpace(p.Text) == "" || !reAdvisoryContent.MatchString(p.Text) {
-		p.Text, p.Empty = "", true
+		p.Text, p.Blocks, p.Empty = "", nil, true
 		p.Note = "the page has no advisory text the box can read (it may need a browser)"
 		return p
 	}

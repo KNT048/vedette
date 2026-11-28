@@ -95462,12 +95462,19 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                                  `json:"fallback"`
+	Fetch    FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                                `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                                      `json:"note"`
-	Steps []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                         `json:"reader"`
+	Steps  []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -95484,6 +95491,16 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetCo
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetFetch() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -95497,6 +95514,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetMo
 // GetNote returns the value of Note.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -95524,6 +95546,16 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetCo
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -95537,6 +95569,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetMo
 // SetNote sets the value of Note.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -95554,12 +95591,53 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetVe
 	s.Verdict = val
 }
 
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -95575,8 +95653,9 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem s
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -95588,6 +95667,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 // GetError returns the value of Error.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -95648,6 +95732,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 // SetError sets the value of Error.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -95743,11 +95832,13 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -95755,6 +95846,7 @@ const (
 // AllValues returns all FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone,
 		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -95763,6 +95855,8 @@ func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemW
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
@@ -95775,6 +95869,9 @@ func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIte
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
 		return nil
@@ -107594,12 +107691,19 @@ type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                         `json:"fallback"`
+	Fetch    FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                       `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                             `json:"note"`
-	Steps []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                `json:"reader"`
+	Steps  []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -107616,6 +107720,16 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetConfidence(
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetFetch() FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -107629,6 +107743,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetMode() stri
 // GetNote returns the value of Note.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -107656,6 +107775,16 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetConfidence(
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -107669,6 +107798,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetMode(val st
 // SetNote sets the value of Note.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -107686,12 +107820,53 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetVerdict(val
 	s.Verdict = val
 }
 
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -107707,8 +107882,9 @@ type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem struct {
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -107720,6 +107896,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetCo
 // GetError returns the value of Error.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -107780,6 +107961,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetCo
 // SetError sets the value of Error.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -107875,11 +108061,13 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer) 
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -107887,6 +108075,7 @@ const (
 // AllValues returns all FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone,
 		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -107895,6 +108084,8 @@ func (FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) AllVa
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -107907,6 +108098,9 @@ func (s FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) Mar
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider
 		return nil
@@ -122206,12 +122400,19 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                                  `json:"fallback"`
+	Fetch    FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                                `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                                      `json:"note"`
-	Steps []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                         `json:"reader"`
+	Steps  []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -122228,6 +122429,16 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetCo
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetFetch() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -122241,6 +122452,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetMo
 // GetNote returns the value of Note.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -122268,6 +122484,16 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetCo
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -122281,6 +122507,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetMo
 // SetNote sets the value of Note.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -122298,12 +122529,53 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetVe
 	s.Verdict = val
 }
 
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -122319,8 +122591,9 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem s
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -122332,6 +122605,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 // GetError returns the value of Error.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -122392,6 +122670,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 // SetError sets the value of Error.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -122487,11 +122770,13 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -122499,6 +122784,7 @@ const (
 // AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone,
 		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -122507,6 +122793,8 @@ func (FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemW
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
@@ -122519,6 +122807,9 @@ func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIte
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
 		return nil
@@ -125242,12 +125533,19 @@ type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                                `json:"fallback"`
+	Fetch    FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                              `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                                    `json:"note"`
-	Steps []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                       `json:"reader"`
+	Steps  []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -125264,6 +125562,16 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetConf
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetFetch() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -125277,6 +125585,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetMode
 // GetNote returns the value of Note.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -125304,6 +125617,16 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetConf
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -125317,6 +125640,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetMode
 // SetNote sets the value of Note.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -125334,12 +125662,53 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetVerd
 	s.Verdict = val
 }
 
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -125355,8 +125724,9 @@ type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem str
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -125368,6 +125738,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 // GetError returns the value of Error.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -125428,6 +125803,11 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 // SetError sets the value of Error.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -125523,11 +125903,13 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -125535,6 +125917,7 @@ const (
 // AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone,
 		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -125543,6 +125926,8 @@ func (FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
@@ -125555,6 +125940,9 @@ func (s FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemW
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
 		return nil
@@ -136841,12 +137229,19 @@ type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                            `json:"fallback"`
+	Fetch    FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                          `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                                `json:"note"`
-	Steps []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                   `json:"reader"`
+	Steps  []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -136863,6 +137258,16 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetConfiden
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetFetch() FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -136876,6 +137281,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetMode() s
 // GetNote returns the value of Note.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -136903,6 +137313,16 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetConfiden
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetFetch(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -136916,6 +137336,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetMode(val
 // SetNote sets the value of Note.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -136933,12 +137358,53 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetVerdict(
 	s.Verdict = val
 }
 
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -136954,8 +137420,9 @@ type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem struct 
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -136967,6 +137434,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Ge
 // GetError returns the value of Error.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -137027,6 +137499,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Se
 // SetError sets the value of Error.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -137122,11 +137599,13 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLaye
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -137134,6 +137613,7 @@ const (
 // AllValues returns all FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone,
 		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -137142,6 +137622,8 @@ func (FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) Al
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -137154,6 +137636,9 @@ func (s FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider
 		return nil
@@ -140697,12 +141182,19 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                              `json:"fallback"`
+	Fetch    FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                            `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                                  `json:"note"`
-	Steps []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                     `json:"reader"`
+	Steps  []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -140719,6 +141211,16 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetConfid
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetFetch() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -140732,6 +141234,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetMode()
 // GetNote returns the value of Note.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -140759,6 +141266,16 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetConfid
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetFetch(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -140772,6 +141289,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetMode(v
 // SetNote sets the value of Note.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -140789,12 +141311,53 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetVerdic
 	s.Verdict = val
 }
 
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -140810,8 +141373,9 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem struc
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -140823,6 +141387,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 // GetError returns the value of Error.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -140883,6 +141452,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 // SetError sets the value of Error.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -140978,11 +141552,13 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLa
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -140990,6 +141566,7 @@ const (
 // AllValues returns all FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone,
 		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -140998,6 +141575,8 @@ func (FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) 
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -141010,6 +141589,9 @@ func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider
 		return nil
@@ -144539,12 +145121,19 @@ type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail struct {
 	Basis string `json:"basis"`
 	// The AI's own confidence: high, medium or low.
 	Confidence string `json:"confidence"`
-	FixedIn    string `json:"fixed_in"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                            `json:"fallback"`
+	Fetch    FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                          `json:"fixed_in"`
 	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
-	Note  string                                                                `json:"note"`
-	Steps []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
+	// by an older version is researched again once.
+	Reader int                                                                   `json:"reader"`
+	Steps  []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
 	Trap string `json:"trap"`
 	// The AI's own answer before the box's checks of the reading.
@@ -144561,6 +145150,16 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetConfiden
 	return s.Confidence
 }
 
+// GetFallback returns the value of Fallback.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetFetch() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
 // GetFixedIn returns the value of FixedIn.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetFixedIn() string {
 	return s.FixedIn
@@ -144574,6 +145173,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetMode() s
 // GetNote returns the value of Note.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetNote() string {
 	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
 }
 
 // GetSteps returns the value of Steps.
@@ -144601,6 +145205,16 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetConfiden
 	s.Confidence = val
 }
 
+// SetFallback sets the value of Fallback.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetFetch(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
 // SetFixedIn sets the value of FixedIn.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
 	s.FixedIn = val
@@ -144614,6 +145228,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetMode(val
 // SetNote sets the value of Note.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetNote(val string) {
 	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
 }
 
 // SetSteps sets the value of Steps.
@@ -144631,12 +145250,53 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetVerdict(
 	s.Verdict = val
 }
 
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
 // One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
 type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem struct {
 	// The layer's own confidence: high, medium, low, or "".
 	Confidence string `json:"confidence"`
 	// Why the layer gave no answer, in the box's words.
 	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
 	// Quick: the research job's first profile; strong: its second profile, which the quick answer
 	// escalated to (or the only layer in thorough mode and for Research deeper).
 	Layer FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
@@ -144652,8 +145312,9 @@ type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem struct 
 	TokensOut int `json:"tokens_out"`
 	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
 	Verdict string `json:"verdict"`
-	// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-	// the box fetched the pages the AI named itself, public addresses only, no search.
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
 	Web FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
 }
 
@@ -144665,6 +145326,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Ge
 // GetError returns the value of Error.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
 	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
 }
 
 // GetLayer returns the value of Layer.
@@ -144725,6 +145391,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Se
 // SetError sets the value of Error.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
 	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
 }
 
 // SetLayer sets the value of Layer.
@@ -144820,11 +145491,13 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLaye
 	}
 }
 
-// Provider: the AI provider's own web search and page fetch (the queries went to the provider); box:
-// the box fetched the pages the AI named itself, public addresses only, no search.
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
 type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb string
 
 const (
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb = "none"
 	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
 	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb = "box"
 )
@@ -144832,6 +145505,7 @@ const (
 // AllValues returns all FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb values.
 func (FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb {
 	return []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone,
 		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider,
 		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox,
 	}
@@ -144840,6 +145514,8 @@ func (FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) Al
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
 	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		return []byte(s), nil
 	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -144852,6 +145528,9 @@ func (s FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
 	switch FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
 	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider
 		return nil

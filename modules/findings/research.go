@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/pagetext"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -38,6 +39,55 @@ type ResearchRequest struct {
 	Digest           string
 	Platforms        []string // the kinds of devices the line runs on ("workstation, Microsoft Windows 11 Pro"), no names or addresses
 	Deeper           bool
+	// Excerpts are what the AI reads of the pages (researchExcerpts); Pages stay whole for the quote check. VendorRows: the record has
+	// rows its writer, the vendor, states; VendorPage: a page of the vendor was read.
+	Excerpts               []Excerpt
+	VendorRows, VendorPage bool
+}
+
+// Excerpt is one passage cut from a page the box read: Source is the page's number in ResearchRequest.Pages (1-based).
+type Excerpt struct {
+	Source int
+	URL    string
+	Text   string
+}
+
+// excerptBudget is the most characters of excerpts one research carries.
+const excerptBudget = 24000
+
+// researchExcerpts cuts from the pages the box read (in their order: the vendor's first) the passages that name the CVE or an advisory
+// the record cites (pagetext.Cut: a table row with its header rows, a heading's section, a paragraph with its heading, a short page
+// whole, the head of a page about the CVE and its rows naming the product), each passage once, at most excerptBudget characters.
+func researchExcerpts(cve string, rec CVERecordText, pages []FetchedPage, product string) []Excerpt {
+	refs := make([]string, 0, len(rec.Refs))
+	for _, r := range rec.Refs {
+		refs = append(refs, r.URL)
+	}
+	advs := pagetext.AdvisoryIDs(rec.Description+"\n"+rec.Solution, refs)
+	ids := pagetext.IDPattern(cve, advs)
+	vendor, name, _ := strings.Cut(product, "|")
+	prx := pagetext.ProductPattern(vendor, strings.ReplaceAll(name, "_", " "))
+	seen := map[string]bool{}
+	var out []Excerpt
+	total := 0
+	for i, p := range pages {
+		if p.Status != "ok" {
+			continue
+		}
+		for _, ps := range pagetext.Cut(p.Blocks, ids, prx, pagetext.Dedicated(p.URL, p.Title, cve, advs, p.Vendor)) {
+			key := strings.ToLower(strings.Join(strings.Fields(ps.Text), " "))
+			if seen[key] {
+				continue // the same passage twice (mirrored errata, a page and its copy)
+			}
+			if total+len(ps.Text) > excerptBudget {
+				return out
+			}
+			seen[key] = true
+			total += len(ps.Text)
+			out = append(out, Excerpt{Source: i + 1, URL: p.URL, Text: ps.Text})
+		}
+	}
+	return out
 }
 
 // ResearchStep is one layer of a research as it ran (contract.ts AiResearchStep).
@@ -54,6 +104,8 @@ type ResearchStep struct {
 	Confidence string   `json:"confidence"`
 	QuoteCheck string   `json:"quote_check"`
 	Error      string   `json:"error,omitempty"`
+	// ExcerptChars is the characters of excerpts the call carried (Web none: the excerpts only; provider or box: the web fallback).
+	ExcerptChars int `json:"excerpt_chars"`
 }
 
 // ResearchAnswer is the answer of a research as findings reads it: Verdict is the answer as a reading of the line (Status affected,
@@ -69,7 +121,21 @@ type ResearchAnswer struct {
 	Model, Profile, ActivityID string
 	Steps                      []ResearchStep
 	TokensIn, TokensOut        int
+	Fallback                   bool // a call with web tools ran
+	// Fetch is what the box read for the research (set by findings): the pages, their bytes, and the excerpts' characters.
+	Fetch ResearchFetch
 }
+
+// ResearchFetch is what the box read for one research: the reference pages read, their bytes as received, and the excerpts cut.
+type ResearchFetch struct {
+	Pages        int `json:"pages"`
+	Bytes        int `json:"bytes"`
+	ExcerptChars int `json:"excerpt_chars"`
+}
+
+// researchReader is the version of the research: a line read by an older one is researched again once (toResearch). 2: the box's
+// excerpts first, the web only as a fallback.
+const researchReader = 2
 
 // The quote checks of a research (fnd_line_research.quote_check).
 const (
@@ -101,6 +167,10 @@ type ResearchDetail struct {
 	Trap       string         `json:"trap"`
 	Note       string         `json:"note"`
 	Steps      []ResearchStep `json:"steps"`
+	// Reader is the research's version (researchReader); 0 for one before the excerpts.
+	Reader   int           `json:"reader"`
+	Fallback bool          `json:"fallback"`
+	Fetch    ResearchFetch `json:"fetch"`
 }
 
 func lineResearchOf(a ResearchAnswer) LineResearch {
@@ -123,7 +193,7 @@ func lineResearchOf(a ResearchAnswer) LineResearch {
 	}
 	return LineResearch{Layer: layer, QuoteCheck: qc, Tokens: max(0, a.TokensIn+a.TokensOut), Detail: ResearchDetail{Mode: oneLine(a.Mode, 20),
 		Verdict: oneLine(a.Verdict.Status, 20), Confidence: oneLine(a.Confidence, 10), Basis: oneLine(a.Basis, 10), FixedIn: oneLine(a.Verdict.FixedIn, 100),
-		Trap: oneLine(a.Trap, 300), Note: oneLine(a.Note, 300), Steps: steps}}
+		Trap: oneLine(a.Trap, 300), Note: oneLine(a.Note, 300), Steps: steps, Reader: researchReader, Fallback: a.Fallback, Fetch: a.Fetch}}
 }
 
 func storeResearch(ctx context.Context, tx *sql.Tx, key string, r LineResearch) error {

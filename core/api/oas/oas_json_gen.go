@@ -182009,6 +182009,14 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) encod
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -182019,6 +182027,10 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) encod
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -182038,15 +182050,18 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) encod
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail from json.
@@ -182054,7 +182069,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -182082,8 +182097,30 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -182095,7 +182132,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -182107,7 +182144,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -182118,8 +182155,20 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -182137,7 +182186,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -182149,7 +182198,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -182169,8 +182218,9 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Decod
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -182217,6 +182267,136 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) Unmar
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch from json.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -182234,6 +182414,10 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -182281,19 +182465,20 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem from json.
@@ -182327,8 +182512,20 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -182338,7 +182535,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -182350,7 +182547,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -182370,7 +182567,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -182382,7 +182579,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -182394,7 +182591,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -182406,7 +182603,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -182418,7 +182615,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -182430,7 +182627,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -182442,7 +182639,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -182462,7 +182659,7 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -182564,6 +182761,8 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 	// Try to use constant string.
 	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone
 	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
@@ -200263,6 +200462,14 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) encodeFields(e
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -200273,6 +200480,10 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) encodeFields(e
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -200292,15 +200503,18 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail from json.
@@ -200308,7 +200522,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -200336,8 +200550,30 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -200349,7 +200585,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -200361,7 +200597,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -200372,8 +200608,20 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -200391,7 +200639,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -200403,7 +200651,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -200423,8 +200671,9 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) Decode(d *jx.D
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -200471,6 +200720,136 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) UnmarshalJSON(
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch from json.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -200488,6 +200867,10 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) encod
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -200535,19 +200918,20 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) encod
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem from json.
@@ -200581,8 +200965,20 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -200592,7 +200988,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -200604,7 +201000,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -200624,7 +201020,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -200636,7 +201032,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -200648,7 +201044,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -200660,7 +201056,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -200672,7 +201068,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -200684,7 +201080,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -200696,7 +201092,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -200716,7 +201112,7 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) Decod
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -200818,6 +201214,8 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) De
 	}
 	// Try to use constant string.
 	switch FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone
 	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -218358,6 +218756,14 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) encod
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -218368,6 +218774,10 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) encod
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -218387,15 +218797,18 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) encod
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail from json.
@@ -218403,7 +218816,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -218431,8 +218844,30 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -218444,7 +218879,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -218456,7 +218891,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -218467,8 +218902,20 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -218486,7 +218933,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -218498,7 +218945,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -218518,8 +218965,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Decod
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -218566,6 +219014,136 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) Unmar
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch from json.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -218583,6 +219161,10 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -218630,19 +219212,20 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem from json.
@@ -218676,8 +219259,20 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -218687,7 +219282,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -218699,7 +219294,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -218719,7 +219314,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -218731,7 +219326,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -218743,7 +219338,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -218755,7 +219350,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -218767,7 +219362,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -218779,7 +219374,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -218791,7 +219386,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -218811,7 +219406,7 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -218913,6 +219508,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsIt
 	}
 	// Try to use constant string.
 	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone
 	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
@@ -222028,6 +222625,14 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) encodeF
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -222038,6 +222643,10 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) encodeF
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -222057,15 +222666,18 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) encodeF
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail from json.
@@ -222073,7 +222685,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -222101,8 +222713,30 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -222114,7 +222748,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -222126,7 +222760,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -222137,8 +222771,20 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -222156,7 +222802,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -222168,7 +222814,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -222188,8 +222834,9 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Decode(
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -222236,6 +222883,136 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) Unmarsh
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch from json.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -222253,6 +223030,10 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -222300,19 +223081,20 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem from json.
@@ -222346,8 +223128,20 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -222357,7 +223151,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -222369,7 +223163,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -222389,7 +223183,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -222401,7 +223195,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -222413,7 +223207,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -222425,7 +223219,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -222437,7 +223231,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -222449,7 +223243,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -222461,7 +223255,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -222481,7 +223275,7 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -222583,6 +223377,8 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem
 	}
 	// Try to use constant string.
 	switch FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone
 	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
@@ -242883,6 +243679,14 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) encodeField
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -242893,6 +243697,10 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) encodeField
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -242912,15 +243720,18 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) encodeField
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail from json.
@@ -242928,7 +243739,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -242956,8 +243767,30 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -242969,7 +243802,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -242981,7 +243814,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -242992,8 +243825,20 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -243011,7 +243856,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -243023,7 +243868,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -243043,8 +243888,9 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) Decode(d *j
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -243091,6 +243937,136 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) UnmarshalJS
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch from json.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -243108,6 +244084,10 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) en
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -243155,19 +244135,20 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) en
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem from json.
@@ -243201,8 +244182,20 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -243212,7 +244205,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -243224,7 +244217,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -243244,7 +244237,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -243256,7 +244249,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -243268,7 +244261,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -243280,7 +244273,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -243292,7 +244285,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -243304,7 +244297,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -243316,7 +244309,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -243336,7 +244329,7 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) De
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -243438,6 +244431,8 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb)
 	}
 	// Try to use constant string.
 	switch FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone
 	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -248048,6 +249043,14 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) encodeFie
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -248058,6 +249061,10 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) encodeFie
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -248077,15 +249084,18 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) encodeFie
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail from json.
@@ -248093,7 +249103,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -248121,8 +249131,30 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -248134,7 +249166,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -248146,7 +249178,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -248157,8 +249189,20 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -248176,7 +249220,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -248188,7 +249232,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -248208,8 +249252,9 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Decode(d 
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -248256,6 +249301,136 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) Unmarshal
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch from json.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -248273,6 +249448,10 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -248320,19 +249499,20 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem from json.
@@ -248366,8 +249546,20 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -248377,7 +249569,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -248389,7 +249581,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -248409,7 +249601,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -248421,7 +249613,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -248433,7 +249625,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -248445,7 +249637,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -248457,7 +249649,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -248469,7 +249661,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -248481,7 +249673,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -248501,7 +249693,7 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) 
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -248603,6 +249795,8 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWe
 	}
 	// Try to use constant string.
 	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone
 	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox:
@@ -253117,6 +254311,14 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) encodeField
 		e.Str(s.Confidence)
 	}
 	{
+		e.FieldStart("fallback")
+		e.Bool(s.Fallback)
+	}
+	{
+		e.FieldStart("fetch")
+		s.Fetch.Encode(e)
+	}
+	{
 		e.FieldStart("fixed_in")
 		e.Str(s.FixedIn)
 	}
@@ -253127,6 +254329,10 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) encodeField
 	{
 		e.FieldStart("note")
 		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reader")
+		e.Int(s.Reader)
 	}
 	{
 		e.FieldStart("steps")
@@ -253146,15 +254352,18 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) encodeField
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail = [8]string{
-	0: "basis",
-	1: "confidence",
-	2: "fixed_in",
-	3: "mode",
-	4: "note",
-	5: "steps",
-	6: "trap",
-	7: "verdict",
+var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail = [11]string{
+	0:  "basis",
+	1:  "confidence",
+	2:  "fallback",
+	3:  "fetch",
+	4:  "fixed_in",
+	5:  "mode",
+	6:  "note",
+	7:  "reader",
+	8:  "steps",
+	9:  "trap",
+	10: "verdict",
 }
 
 // Decode decodes FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail from json.
@@ -253162,7 +254371,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -253190,8 +254399,30 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
-		case "fixed_in":
+		case "fallback":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fallback = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fallback\"")
+			}
+		case "fetch":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Fetch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fetch\"")
+			}
+		case "fixed_in":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.FixedIn = string(v)
@@ -253203,7 +254434,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"fixed_in\"")
 			}
 		case "mode":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Mode = string(v)
@@ -253215,7 +254446,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "note":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -253226,8 +254457,20 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "reader":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Int()
+				s.Reader = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reader\"")
+			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -253245,7 +254488,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "trap":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Trap = string(v)
@@ -253257,7 +254500,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 				return errors.Wrap(err, "decode field \"trap\"")
 			}
 		case "verdict":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -253277,8 +254520,9 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) Decode(d *j
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -253325,6 +254569,136 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) UnmarshalJS
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("bytes")
+		e.Int(s.Bytes)
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
+	}
+	{
+		e.FieldStart("pages")
+		e.Int(s.Pages)
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch = [3]string{
+	0: "bytes",
+	1: "excerpt_chars",
+	2: "pages",
+}
+
+// Decode decodes FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch from json.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bytes":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Bytes = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bytes\"")
+			}
+		case "excerpt_chars":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "pages":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Pages = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pages\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) {
+					name = jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -253342,6 +254716,10 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) en
 			e.FieldStart("error")
 			s.Error.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("excerpt_chars")
+		e.Int(s.ExcerptChars)
 	}
 	{
 		e.FieldStart("layer")
@@ -253389,19 +254767,20 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) en
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem = [12]string{
+var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem = [13]string{
 	0:  "confidence",
 	1:  "error",
-	2:  "layer",
-	3:  "model",
-	4:  "pages",
-	5:  "profile",
-	6:  "quote_check",
-	7:  "searches",
-	8:  "tokens_in",
-	9:  "tokens_out",
-	10: "verdict",
-	11: "web",
+	2:  "excerpt_chars",
+	3:  "layer",
+	4:  "model",
+	5:  "pages",
+	6:  "profile",
+	7:  "quote_check",
+	8:  "searches",
+	9:  "tokens_in",
+	10: "tokens_out",
+	11: "verdict",
+	12: "web",
 }
 
 // Decode decodes FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem from json.
@@ -253435,8 +254814,20 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
-		case "layer":
+		case "excerpt_chars":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.ExcerptChars = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"excerpt_chars\"")
+			}
+		case "layer":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Layer.Decode(d); err != nil {
 					return err
@@ -253446,7 +254837,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"layer\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -253458,7 +254849,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "pages":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Pages = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -253478,7 +254869,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"pages\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -253490,7 +254881,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "quote_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.QuoteCheck = string(v)
@@ -253502,7 +254893,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"quote_check\"")
 			}
 		case "searches":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Searches = int(v)
@@ -253514,7 +254905,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"searches\"")
 			}
 		case "tokens_in":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensIn = int(v)
@@ -253526,7 +254917,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_in\"")
 			}
 		case "tokens_out":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.TokensOut = int(v)
@@ -253538,7 +254929,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"tokens_out\"")
 			}
 		case "verdict":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Verdict = string(v)
@@ -253550,7 +254941,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 				return errors.Wrap(err, "decode field \"verdict\"")
 			}
 		case "web":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Web.Decode(d); err != nil {
 					return err
@@ -253570,7 +254961,7 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) De
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111101,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -253672,6 +255063,8 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb)
 	}
 	// Try to use constant string.
 	switch FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb(v) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone
 	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
 		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider
 	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox:

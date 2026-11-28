@@ -988,6 +988,9 @@ func (s *Service) handle(ctx context.Context, ids []string, res Resolution, note
 	if err != nil {
 		return 0, 0, err
 	}
+	if handled > 0 {
+		s.wakeResearch() // a handled finding is no anchor: the possible CVEs it covered are researched now (deferred.go)
+	}
 	return handled, skipped, nil
 }
 

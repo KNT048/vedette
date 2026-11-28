@@ -26,6 +26,7 @@ type MatchScope struct {
 	prefix  []identity      // aliases that match every product starting with them
 	windows bool            // a Windows release row: every Microsoft Windows product
 	records map[string]bool // the lines' names as a CVE record writes them (recordIdentity)
+	devices bool            // the scope is the match of one or more devices, even ones whose lines name no product
 	// Pinned are the CVEs of the findings the devices have (any state).
 	Pinned []string
 	// Packages are the devices' distribution packages as the distributions' security data names them (DevicePackages): a CVE a
@@ -38,7 +39,7 @@ type DistroPackage struct{ Distro, Release, Package string }
 
 // NewMatchScope collects the products of every software line of assets, the network OS they state included.
 func NewMatchScope(assets []Asset, pinned []string) MatchScope {
-	sc := MatchScope{keys: map[string]bool{}, records: map[string]bool{}, Pinned: pinned}
+	sc := MatchScope{keys: map[string]bool{}, records: map[string]bool{}, Pinned: pinned, devices: len(assets) > 0}
 	seenPkg := map[DistroPackage]bool{}
 	for _, a := range assets {
 		if d, rel, pkgs := DevicePackages(a); d != "" {
@@ -95,6 +96,12 @@ func (sc MatchScope) Keep(vendor, product string, record bool) bool {
 		}
 	}
 	return false
+}
+
+// PinnedOnly says the scope is pinned CVEs alone, of no device (NewMatchScope(nil, pinned)): a reader of a few CVEs' entries. A device
+// whose lines name no product is still a device: its match reads the reporting window and the whole exploited list.
+func (sc MatchScope) PinnedOnly() bool {
+	return !sc.devices && sc.Empty() && len(sc.records) == 0 && len(sc.Pinned) > 0
 }
 
 // Empty says the devices run nothing a range or a distribution's data could name.

@@ -373,6 +373,17 @@ type vulnCache struct {
 	products      []feeds.RangeProduct
 }
 
+// Exploited is feeds' reading of every exploitation signal of any age (findings.Feeds.Exploited): findings never groups such a CVE under
+// a fix its line already needs, it researches it.
+func (a findingsFeeds) Exploited(ctx context.Context, cves []string) (map[string]bool, error) {
+	return a.st.ExploitationSignalled(ctx, cves)
+}
+
+// Unsupported is feeds' reading of the CVE Program's unsupported-when-assigned tag (findings.Feeds.Unsupported).
+func (a findingsFeeds) Unsupported(ctx context.Context, cves []string) (map[string]bool, error) {
+	return a.st.UnsupportedWhenAssigned(ctx, cves)
+}
+
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
 	rows, err := a.st.KevVulnsByCVE(ctx, cves)
 	if err != nil {
@@ -519,6 +530,13 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 		return nil, err
 	}
 	out := slices.Clone(kev) // the cached list is never written: Schemed is added to the copy
+	if scope.PinnedOnly() {  // a reader of a few CVEs (findings.Feeds.MatchSet): their entries alone, the vendor rows of those alone
+		pinned := make(map[string]bool, len(scope.Pinned))
+		for _, c := range scope.Pinned {
+			pinned[c] = true
+		}
+		out = slices.DeleteFunc(out, func(v findings.Vuln) bool { return !pinned[v.CVE] })
+	}
 	listed := make(map[string]bool, len(kev))
 	for _, v := range kev {
 		listed[v.CVE] = true
@@ -528,17 +546,20 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 		return nil, err
 	}
 	// the reporting window: a catalogue CVE outside it (old, not exploited, no new exploit) is marked, and findings sets it aside; an
-	// exploited list's entry never is
-	cves := make([]string, len(more))
-	for i, v := range more {
-		cves[i] = v.CVE
-	}
-	outside, err := a.st.OutsideWindow(ctx, cves, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	for i := range more {
-		more[i].OutsideWindow = outside[more[i].CVE]
+	// exploited list's entry never is. A reader of pinned CVEs alone matches no device (a fix's target, a CVE's page): it reads their
+	// ranges, not the mark, whose reading of every signal costs more than the rest of its set
+	if !scope.PinnedOnly() {
+		cves := make([]string, len(more))
+		for i, v := range more {
+			cves[i] = v.CVE
+		}
+		outside, err := a.st.OutsideWindow(ctx, cves, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range more {
+			more[i].OutsideWindow = outside[more[i].CVE]
+		}
 	}
 	out = append(out, more...)
 	if err := a.withSchemed(ctx, out); err != nil {
@@ -586,11 +607,16 @@ func (a findingsFeeds) withLines(ctx context.Context, vulns []findings.Vuln) err
 	return nil
 }
 
-// catalogueEntries is MatchSet's part beyond the exploited lists (listed): the catalogue CVEs the scope reaches, each once.
-func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.MatchScope, listed map[string]bool) ([]findings.Vuln, error) {
+// reachedCVEs are the catalogue CVEs the scope's products reach: by a generic range (named) and by a vendor's own rows, a distribution's
+// word or a line source (reached). None for a scope of pinned CVEs alone (PinnedOnly): it reaches no product.
+func (a findingsFeeds) reachedCVEs(ctx context.Context, scope findings.MatchScope) ([]string, map[string]bool, error) {
+	reached := map[string]bool{}
+	if scope.PinnedOnly() {
+		return nil, reached, nil
+	}
 	products, err := a.rangeProducts(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var keys []feeds.ProductKey
 	for _, k := range products {
@@ -601,12 +627,11 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	}
 	named, err := a.st.RangeCVEs(ctx, keys)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	reached := map[string]bool{} // CVEs found by a vendor's own rows or a distribution's word, beside the generic ranges
 	schemeCVEs, err := a.st.SchemeCVEs(ctx, keys)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pkgs := make([]feeds.DistroPackage, len(scope.Packages))
 	for i, p := range scope.Packages {
@@ -614,7 +639,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	}
 	distroCVEs, err := a.st.DistroCVEs(ctx, pkgs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var lineProducts []string // the catalogue products of the scope a vendor line source may speak about
 	for _, key := range feeds.LineProducts() {
@@ -624,10 +649,19 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	}
 	lineCVEs, err := a.st.LineCVEs(ctx, lineProducts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, c := range slices.Concat(schemeCVEs, distroCVEs, lineCVEs) {
 		reached[c] = true
+	}
+	return named, reached, nil
+}
+
+// catalogueEntries is MatchSet's part beyond the exploited lists (listed): the catalogue CVEs the scope reaches, each once.
+func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.MatchScope, listed map[string]bool) ([]findings.Vuln, error) {
+	named, reached, err := a.reachedCVEs(ctx, scope)
+	if err != nil {
+		return nil, err
 	}
 	// Every CVE the scope reaches (a range of its products, a finding's pin, a vendor's or a distribution's word) carries every range of
 	// it, as an exploited list's entry does: the rows of a CVE never depend on which devices one pass matches or which findings they

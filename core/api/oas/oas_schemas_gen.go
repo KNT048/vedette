@@ -121601,6 +121601,9 @@ func (s *FindingsGetFindingsOverviewOKOpenByStatus) SetUpdateRecommended(val int
 type FindingsGetFindingsOverviewOKPossible struct {
 	// The possible CVEs of possible by cause; every cause of the list is present.
 	Causes FindingsGetFindingsOverviewOKPossibleCauses `json:"causes"`
+	// Possible CVEs an update their line already needs covers (PossibleRow.deferred), counted apart from
+	// possible and its causes: Home's "still unknown" leaves them out. Never exploited.
+	Deferred int `json:"deferred"`
 	// Possible CVEs waiting for the distribution's word on its own package (PossibleRow.cause
 	// distro_silent), counted apart from possible and its causes and left out of the device badge.
 	DistroPending int `json:"distro_pending"`
@@ -121610,20 +121613,27 @@ type FindingsGetFindingsOverviewOKPossible struct {
 	// possible.
 	OlderBuild int `json:"older_build"`
 	// Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an
-	// older build and those waiting for the distribution.
+	// older build, those waiting for the distribution and those an update their line needs covers
+	// (deferred).
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
 	Proposals int `json:"proposals"`
 	// Settled not affected by the box from a vendor's advisory.
 	Settled int `json:"settled"`
-	// Possible CVEs a check can still look at, those reported only for an older build included: what the
-	// "Check possible with AI" button counts.
+	// Possible CVEs a check can still look at, those reported only for an older build included, the
+	// deferred ones not (a check leaves a line every device's row of which is deferred): what the "Check
+	// possible with AI" button counts.
 	Unchecked int `json:"unchecked"`
 }
 
 // GetCauses returns the value of Causes.
 func (s *FindingsGetFindingsOverviewOKPossible) GetCauses() FindingsGetFindingsOverviewOKPossibleCauses {
 	return s.Causes
+}
+
+// GetDeferred returns the value of Deferred.
+func (s *FindingsGetFindingsOverviewOKPossible) GetDeferred() int {
+	return s.Deferred
 }
 
 // GetDistroPending returns the value of DistroPending.
@@ -121664,6 +121674,11 @@ func (s *FindingsGetFindingsOverviewOKPossible) GetUnchecked() int {
 // SetCauses sets the value of Causes.
 func (s *FindingsGetFindingsOverviewOKPossible) SetCauses(val FindingsGetFindingsOverviewOKPossibleCauses) {
 	s.Causes = val
+}
+
+// SetDeferred sets the value of Deferred.
+func (s *FindingsGetFindingsOverviewOKPossible) SetDeferred(val int) {
+	s.Deferred = val
 }
 
 // SetDistroPending sets the value of DistroPending.
@@ -122329,6 +122344,9 @@ func (s *FindingsGetFindingsPossibleOK) SetTotal(val int) {
 type FindingsGetFindingsPossibleOKCounts struct {
 	// The possible CVEs of possible by cause; every cause of the list is present.
 	Causes FindingsGetFindingsPossibleOKCountsCauses `json:"causes"`
+	// Possible CVEs an update their line already needs covers (PossibleRow.deferred), counted apart from
+	// possible and its causes: Home's "still unknown" leaves them out. Never exploited.
+	Deferred int `json:"deferred"`
 	// Possible CVEs waiting for the distribution's word on its own package (PossibleRow.cause
 	// distro_silent), counted apart from possible and its causes and left out of the device badge.
 	DistroPending int `json:"distro_pending"`
@@ -122338,20 +122356,27 @@ type FindingsGetFindingsPossibleOKCounts struct {
 	// possible.
 	OlderBuild int `json:"older_build"`
 	// Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an
-	// older build and those waiting for the distribution.
+	// older build, those waiting for the distribution and those an update their line needs covers
+	// (deferred).
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
 	Proposals int `json:"proposals"`
 	// Settled not affected by the box from a vendor's advisory.
 	Settled int `json:"settled"`
-	// Possible CVEs a check can still look at, those reported only for an older build included: what the
-	// "Check possible with AI" button counts.
+	// Possible CVEs a check can still look at, those reported only for an older build included, the
+	// deferred ones not (a check leaves a line every device's row of which is deferred): what the "Check
+	// possible with AI" button counts.
 	Unchecked int `json:"unchecked"`
 }
 
 // GetCauses returns the value of Causes.
 func (s *FindingsGetFindingsPossibleOKCounts) GetCauses() FindingsGetFindingsPossibleOKCountsCauses {
 	return s.Causes
+}
+
+// GetDeferred returns the value of Deferred.
+func (s *FindingsGetFindingsPossibleOKCounts) GetDeferred() int {
+	return s.Deferred
 }
 
 // GetDistroPending returns the value of DistroPending.
@@ -122392,6 +122417,11 @@ func (s *FindingsGetFindingsPossibleOKCounts) GetUnchecked() int {
 // SetCauses sets the value of Causes.
 func (s *FindingsGetFindingsPossibleOKCounts) SetCauses(val FindingsGetFindingsPossibleOKCountsCauses) {
 	s.Causes = val
+}
+
+// SetDeferred sets the value of Deferred.
+func (s *FindingsGetFindingsPossibleOKCounts) SetDeferred(val int) {
+	s.Deferred = val
 }
 
 // SetDistroPending sets the value of DistroPending.
@@ -122552,9 +122582,13 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	Cause NilFindingsGetFindingsPossibleOKItemsItemCause `json:"cause"`
 	Check NilFindingsGetFindingsPossibleOKItemsItemCheck `json:"check"`
 	// A check of its advisories can still run for it.
-	Checkable bool                                         `json:"checkable"`
-	Cve       string                                       `json:"cve"`
-	Device    FindingsGetFindingsPossibleOKItemsItemDevice `json:"device"`
+	Checkable bool   `json:"checkable"`
+	Cve       string `json:"cve"`
+	// Covered by an update its line already needs: grouped under that action, counted in counts.deferred,
+	// not in counts.possible, its causes or the device badge; null otherwise. Never set on an exploited
+	// CVE.
+	Deferred NilFindingsGetFindingsPossibleOKItemsItemDeferred `json:"deferred"`
+	Device   FindingsGetFindingsPossibleOKItemsItemDevice      `json:"device"`
 	// Waiting for the distribution's word on its own package: listed apart in its own group, counted in
 	// counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's
 	// one definition of the group).
@@ -122619,6 +122653,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) GetCheckable() bool {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetCve() string {
 	return s.Cve
+}
+
+// GetDeferred returns the value of Deferred.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetDeferred() NilFindingsGetFindingsPossibleOKItemsItemDeferred {
+	return s.Deferred
 }
 
 // GetDevice returns the value of Device.
@@ -122714,6 +122753,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetCheckable(val bool) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetDeferred sets the value of Deferred.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetDeferred(val NilFindingsGetFindingsPossibleOKItemsItemDeferred) {
+	s.Deferred = val
 }
 
 // SetDevice sets the value of Device.
@@ -124070,6 +124114,230 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckVerdict) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure:
 		*s = FindingsGetFindingsPossibleOKItemsItemCheckVerdictUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// An update the line already needs covers this CVE: it is on no exploited list, no exploitation signal
+// of any age names it, and no range it states for the line holds the target, so it is grouped under
+// that action instead of being checked one by one. It stays undecided (never closed or proved not
+// affected) and is not researched by the automatic AI research; "Research deeper" still runs on it.
+// Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again
+// and research resumes by itself.
+type FindingsGetFindingsPossibleOKItemsItemDeferred struct {
+	// Anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible
+	// CVE (PossibleRow.id) whose record states the line unsupported.
+	Anchor string `json:"anchor"`
+	// The CVE of the anchor.
+	AnchorCve string `json:"anchor_cve"`
+	// Finding: an open finding of the same line Vedette decided from data or a person decided (never the
+	// AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
+	// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+	// product, edition and line strictly: move to a supported release.
+	AnchorKind FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind `json:"anchor_kind"`
+	// Finding: the anchor's fix key, the "By fix" group the row is listed under; null for unsupported_line.
+	FixKey NilString `json:"fix_key"`
+	// The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when
+	// the line has no fix); feature_update for unsupported_line.
+	Kind FindingsGetFindingsPossibleOKItemsItemDeferredKind `json:"kind"`
+	// The anchor's fix does not leave every grouped CVE's stated range: version is the lowest later
+	// release the data names that leaves them, computed by the box. A CVE whose stated range the target
+	// still holds is never grouped.
+	Raised bool `json:"raised"`
+	// The release to install, when the action names one: the anchor's fix, or a later release (raised);
+	// null otherwise.
+	Version NilString `json:"version"`
+}
+
+// GetAnchor returns the value of Anchor.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetAnchor() string {
+	return s.Anchor
+}
+
+// GetAnchorCve returns the value of AnchorCve.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetAnchorCve() string {
+	return s.AnchorCve
+}
+
+// GetAnchorKind returns the value of AnchorKind.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetAnchorKind() FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind {
+	return s.AnchorKind
+}
+
+// GetFixKey returns the value of FixKey.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetFixKey() NilString {
+	return s.FixKey
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetKind() FindingsGetFindingsPossibleOKItemsItemDeferredKind {
+	return s.Kind
+}
+
+// GetRaised returns the value of Raised.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetRaised() bool {
+	return s.Raised
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAnchor sets the value of Anchor.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetAnchor(val string) {
+	s.Anchor = val
+}
+
+// SetAnchorCve sets the value of AnchorCve.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetAnchorCve(val string) {
+	s.AnchorCve = val
+}
+
+// SetAnchorKind sets the value of AnchorKind.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetAnchorKind(val FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind) {
+	s.AnchorKind = val
+}
+
+// SetFixKey sets the value of FixKey.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetFixKey(val NilString) {
+	s.FixKey = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetKind(val FindingsGetFindingsPossibleOKItemsItemDeferredKind) {
+	s.Kind = val
+}
+
+// SetRaised sets the value of Raised.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetRaised(val bool) {
+	s.Raised = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferred) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Finding: an open finding of the same line Vedette decided from data or a person decided (never the
+// AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
+// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+// product, edition and line strictly: move to a supported release.
+type FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindFinding         FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind = "finding"
+	FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindUnsupportedLine FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind = "unsupported_line"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind values.
+func (FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind) AllValues() []FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind {
+	return []FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind{
+		FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindFinding,
+		FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindUnsupportedLine,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindFinding:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindUnsupportedLine:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKind(data) {
+	case FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindFinding:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindFinding
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindUnsupportedLine:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredAnchorKindUnsupportedLine
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when
+// the line has no fix); feature_update for unsupported_line.
+type FindingsGetFindingsPossibleOKItemsItemDeferredKind string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindUpdate        FindingsGetFindingsPossibleOKItemsItemDeferredKind = "update"
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindDistroUpdate  FindingsGetFindingsPossibleOKItemsItemDeferredKind = "distro_update"
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindOsUpdate      FindingsGetFindingsPossibleOKItemsItemDeferredKind = "os_update"
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindFeatureUpdate FindingsGetFindingsPossibleOKItemsItemDeferredKind = "feature_update"
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindRestart       FindingsGetFindingsPossibleOKItemsItemDeferredKind = "restart"
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindNoneYet       FindingsGetFindingsPossibleOKItemsItemDeferredKind = "none_yet"
+	FindingsGetFindingsPossibleOKItemsItemDeferredKindUnknown       FindingsGetFindingsPossibleOKItemsItemDeferredKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemDeferredKind values.
+func (FindingsGetFindingsPossibleOKItemsItemDeferredKind) AllValues() []FindingsGetFindingsPossibleOKItemsItemDeferredKind {
+	return []FindingsGetFindingsPossibleOKItemsItemDeferredKind{
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindUpdate,
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindDistroUpdate,
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindOsUpdate,
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindFeatureUpdate,
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindRestart,
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindNoneYet,
+		FindingsGetFindingsPossibleOKItemsItemDeferredKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemDeferredKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindDistroUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindOsUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindRestart:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindNoneYet:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemDeferredKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemDeferredKind(data) {
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindUpdate:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindUpdate
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindDistroUpdate:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindDistroUpdate
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindOsUpdate:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindOsUpdate
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindFeatureUpdate:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindRestart:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindRestart
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindNoneYet:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindNoneYet
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemDeferredKindUnknown:
+		*s = FindingsGetFindingsPossibleOKItemsItemDeferredKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -125699,9 +125967,13 @@ type FindingsGetFindingsReviewOKItemsItem struct {
 	Cause NilFindingsGetFindingsReviewOKItemsItemCause `json:"cause"`
 	Check NilFindingsGetFindingsReviewOKItemsItemCheck `json:"check"`
 	// A check of its advisories can still run for it.
-	Checkable bool                                       `json:"checkable"`
-	Cve       string                                     `json:"cve"`
-	Device    FindingsGetFindingsReviewOKItemsItemDevice `json:"device"`
+	Checkable bool   `json:"checkable"`
+	Cve       string `json:"cve"`
+	// Covered by an update its line already needs: grouped under that action, counted in counts.deferred,
+	// not in counts.possible, its causes or the device badge; null otherwise. Never set on an exploited
+	// CVE.
+	Deferred NilFindingsGetFindingsReviewOKItemsItemDeferred `json:"deferred"`
+	Device   FindingsGetFindingsReviewOKItemsItemDevice      `json:"device"`
 	// Waiting for the distribution's word on its own package: listed apart in its own group, counted in
 	// counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's
 	// one definition of the group).
@@ -125766,6 +126038,11 @@ func (s *FindingsGetFindingsReviewOKItemsItem) GetCheckable() bool {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsReviewOKItemsItem) GetCve() string {
 	return s.Cve
+}
+
+// GetDeferred returns the value of Deferred.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetDeferred() NilFindingsGetFindingsReviewOKItemsItemDeferred {
+	return s.Deferred
 }
 
 // GetDevice returns the value of Device.
@@ -125861,6 +126138,11 @@ func (s *FindingsGetFindingsReviewOKItemsItem) SetCheckable(val bool) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsReviewOKItemsItem) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetDeferred sets the value of Deferred.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetDeferred(val NilFindingsGetFindingsReviewOKItemsItemDeferred) {
+	s.Deferred = val
 }
 
 // SetDevice sets the value of Device.
@@ -127217,6 +127499,230 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckVerdict) UnmarshalText(data []
 		return nil
 	case FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure:
 		*s = FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// An update the line already needs covers this CVE: it is on no exploited list, no exploitation signal
+// of any age names it, and no range it states for the line holds the target, so it is grouped under
+// that action instead of being checked one by one. It stays undecided (never closed or proved not
+// affected) and is not researched by the automatic AI research; "Research deeper" still runs on it.
+// Once the anchor closes (the version moved, a person handled it) it is an ordinary possible CVE again
+// and research resumes by itself.
+type FindingsGetFindingsReviewOKItemsItemDeferred struct {
+	// Anchor_kind finding: the open finding whose fix the row waits behind; unsupported_line: the possible
+	// CVE (PossibleRow.id) whose record states the line unsupported.
+	Anchor string `json:"anchor"`
+	// The CVE of the anchor.
+	AnchorCve string `json:"anchor_cve"`
+	// Finding: an open finding of the same line Vedette decided from data or a person decided (never the
+	// AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
+	// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+	// product, edition and line strictly: move to a supported release.
+	AnchorKind FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind `json:"anchor_kind"`
+	// Finding: the anchor's fix key, the "By fix" group the row is listed under; null for unsupported_line.
+	FixKey NilString `json:"fix_key"`
+	// The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when
+	// the line has no fix); feature_update for unsupported_line.
+	Kind FindingsGetFindingsReviewOKItemsItemDeferredKind `json:"kind"`
+	// The anchor's fix does not leave every grouped CVE's stated range: version is the lowest later
+	// release the data names that leaves them, computed by the box. A CVE whose stated range the target
+	// still holds is never grouped.
+	Raised bool `json:"raised"`
+	// The release to install, when the action names one: the anchor's fix, or a later release (raised);
+	// null otherwise.
+	Version NilString `json:"version"`
+}
+
+// GetAnchor returns the value of Anchor.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetAnchor() string {
+	return s.Anchor
+}
+
+// GetAnchorCve returns the value of AnchorCve.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetAnchorCve() string {
+	return s.AnchorCve
+}
+
+// GetAnchorKind returns the value of AnchorKind.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetAnchorKind() FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind {
+	return s.AnchorKind
+}
+
+// GetFixKey returns the value of FixKey.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetFixKey() NilString {
+	return s.FixKey
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetKind() FindingsGetFindingsReviewOKItemsItemDeferredKind {
+	return s.Kind
+}
+
+// GetRaised returns the value of Raised.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetRaised() bool {
+	return s.Raised
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAnchor sets the value of Anchor.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetAnchor(val string) {
+	s.Anchor = val
+}
+
+// SetAnchorCve sets the value of AnchorCve.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetAnchorCve(val string) {
+	s.AnchorCve = val
+}
+
+// SetAnchorKind sets the value of AnchorKind.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetAnchorKind(val FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind) {
+	s.AnchorKind = val
+}
+
+// SetFixKey sets the value of FixKey.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetFixKey(val NilString) {
+	s.FixKey = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetKind(val FindingsGetFindingsReviewOKItemsItemDeferredKind) {
+	s.Kind = val
+}
+
+// SetRaised sets the value of Raised.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetRaised(val bool) {
+	s.Raised = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferred) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Finding: an open finding of the same line Vedette decided from data or a person decided (never the
+// AI's), whose fix is the action; unsupported_line: no such finding, and the CVE record of another
+// possible CVE of the line is tagged unsupported when assigned with a row that matches the installed
+// product, edition and line strictly: move to a supported release.
+type FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindFinding         FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind = "finding"
+	FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindUnsupportedLine FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind = "unsupported_line"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind values.
+func (FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind) AllValues() []FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind {
+	return []FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind{
+		FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindFinding,
+		FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindUnsupportedLine,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindFinding:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindUnsupportedLine:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemDeferredAnchorKind(data) {
+	case FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindFinding:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindFinding
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindUnsupportedLine:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredAnchorKindUnsupportedLine
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The action for the line: the anchor's fix kind (update, distro_update, ...; unknown or none_yet when
+// the line has no fix); feature_update for unsupported_line.
+type FindingsGetFindingsReviewOKItemsItemDeferredKind string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemDeferredKindUpdate        FindingsGetFindingsReviewOKItemsItemDeferredKind = "update"
+	FindingsGetFindingsReviewOKItemsItemDeferredKindDistroUpdate  FindingsGetFindingsReviewOKItemsItemDeferredKind = "distro_update"
+	FindingsGetFindingsReviewOKItemsItemDeferredKindOsUpdate      FindingsGetFindingsReviewOKItemsItemDeferredKind = "os_update"
+	FindingsGetFindingsReviewOKItemsItemDeferredKindFeatureUpdate FindingsGetFindingsReviewOKItemsItemDeferredKind = "feature_update"
+	FindingsGetFindingsReviewOKItemsItemDeferredKindRestart       FindingsGetFindingsReviewOKItemsItemDeferredKind = "restart"
+	FindingsGetFindingsReviewOKItemsItemDeferredKindNoneYet       FindingsGetFindingsReviewOKItemsItemDeferredKind = "none_yet"
+	FindingsGetFindingsReviewOKItemsItemDeferredKindUnknown       FindingsGetFindingsReviewOKItemsItemDeferredKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemDeferredKind values.
+func (FindingsGetFindingsReviewOKItemsItemDeferredKind) AllValues() []FindingsGetFindingsReviewOKItemsItemDeferredKind {
+	return []FindingsGetFindingsReviewOKItemsItemDeferredKind{
+		FindingsGetFindingsReviewOKItemsItemDeferredKindUpdate,
+		FindingsGetFindingsReviewOKItemsItemDeferredKindDistroUpdate,
+		FindingsGetFindingsReviewOKItemsItemDeferredKindOsUpdate,
+		FindingsGetFindingsReviewOKItemsItemDeferredKindFeatureUpdate,
+		FindingsGetFindingsReviewOKItemsItemDeferredKindRestart,
+		FindingsGetFindingsReviewOKItemsItemDeferredKindNoneYet,
+		FindingsGetFindingsReviewOKItemsItemDeferredKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemDeferredKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindDistroUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindOsUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindRestart:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindNoneYet:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemDeferredKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemDeferredKind(data) {
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindUpdate:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindUpdate
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindDistroUpdate:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindDistroUpdate
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindOsUpdate:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindOsUpdate
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindFeatureUpdate:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindRestart:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindRestart
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindNoneYet:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindNoneYet
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeferredKindUnknown:
+		*s = FindingsGetFindingsReviewOKItemsItemDeferredKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -208431,6 +208937,51 @@ func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) Or(d Find
 	return d
 }
 
+// NewNilFindingsGetFindingsPossibleOKItemsItemDeferred returns new NilFindingsGetFindingsPossibleOKItemsItemDeferred with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemDeferred(v FindingsGetFindingsPossibleOKItemsItemDeferred) NilFindingsGetFindingsPossibleOKItemsItemDeferred {
+	return NilFindingsGetFindingsPossibleOKItemsItemDeferred{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemDeferred is nullable FindingsGetFindingsPossibleOKItemsItemDeferred.
+type NilFindingsGetFindingsPossibleOKItemsItemDeferred struct {
+	Value FindingsGetFindingsPossibleOKItemsItemDeferred
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemDeferred) SetTo(v FindingsGetFindingsPossibleOKItemsItemDeferred) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemDeferred) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemDeferred) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemDeferred
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemDeferred) Get() (v FindingsGetFindingsPossibleOKItemsItemDeferred, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemDeferred) Or(d FindingsGetFindingsPossibleOKItemsItemDeferred) FindingsGetFindingsPossibleOKItemsItemDeferred {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsPossibleOKItemsItemHeld returns new NilFindingsGetFindingsPossibleOKItemsItemHeld with value set to v.
 func NewNilFindingsGetFindingsPossibleOKItemsItemHeld(v FindingsGetFindingsPossibleOKItemsItemHeld) NilFindingsGetFindingsPossibleOKItemsItemHeld {
 	return NilFindingsGetFindingsPossibleOKItemsItemHeld{
@@ -208830,6 +209381,51 @@ func (o NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) Get() (v Fi
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) Or(d FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) FindingsGetFindingsReviewOKItemsItemCheckReadingResearch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemDeferred returns new NilFindingsGetFindingsReviewOKItemsItemDeferred with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemDeferred(v FindingsGetFindingsReviewOKItemsItemDeferred) NilFindingsGetFindingsReviewOKItemsItemDeferred {
+	return NilFindingsGetFindingsReviewOKItemsItemDeferred{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemDeferred is nullable FindingsGetFindingsReviewOKItemsItemDeferred.
+type NilFindingsGetFindingsReviewOKItemsItemDeferred struct {
+	Value FindingsGetFindingsReviewOKItemsItemDeferred
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemDeferred) SetTo(v FindingsGetFindingsReviewOKItemsItemDeferred) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemDeferred) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemDeferred) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemDeferred
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemDeferred) Get() (v FindingsGetFindingsReviewOKItemsItemDeferred, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemDeferred) Or(d FindingsGetFindingsReviewOKItemsItemDeferred) FindingsGetFindingsReviewOKItemsItemDeferred {
 	if v, ok := o.Get(); ok {
 		return v
 	}

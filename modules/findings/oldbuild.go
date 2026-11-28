@@ -68,7 +68,7 @@ func (s *Service) markOlderBuilds(ctx context.Context, items []PossibleItem, rs 
 func olderBuildOf(it PossibleItem, rs ReadState) *OlderBuild {
 	q := it.Question
 	u := q.Detail.Undecided
-	if it.State != PossibleOpen || it.Exploited || u == nil || u.Reason != UndecidedThirdPartyBuild || q.CVE != it.CVE ||
+	if it.State != PossibleOpen || it.Exploited || it.Deferred != nil || u == nil || u.Reason != UndecidedThirdPartyBuild || q.CVE != it.CVE ||
 		len(q.Detail.Fixes) > 0 || !slices.Contains(olderBuildCauses, PossibleCause(it, rs)) {
 		return nil
 	}

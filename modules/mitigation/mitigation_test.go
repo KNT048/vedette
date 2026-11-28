@@ -86,6 +86,8 @@ func (fakeFeeds) Vulns(context.Context) ([]findings.Vuln, error) { return nil, n
 func (fakeFeeds) MatchSet(context.Context, findings.MatchScope) ([]findings.Vuln, error) {
 	return nil, nil
 }
+func (fakeFeeds) Exploited(context.Context, []string) (map[string]bool, error)   { return nil, nil }
+func (fakeFeeds) Unsupported(context.Context, []string) (map[string]bool, error) { return nil, nil }
 
 type fakeVendors map[string]bool
 

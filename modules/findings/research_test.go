@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"time"
 	"testing"
+	"time"
 )
 
 // The research of a synthetic product the catalogue does not know (Quillfeather Mail, quillWorld): the vendor's page the AI's tools

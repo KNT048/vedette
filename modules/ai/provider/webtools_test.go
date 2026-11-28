@@ -75,3 +75,18 @@ func TestOtherProvidersRefuseWebTools(t *testing.T) {
 		}
 	}
 }
+
+// A research asks for high effort beside its answer's format: both go in output_config.
+func TestAnthropicEffortGoesWithTheFormat(t *testing.T) {
+	var got captured
+	reply := `{"type":"message","model":"m-1","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1},"content":[{"type":"text","text":"{}"}]}`
+	req := simpleReq
+	req.Effort, req.Schema = "high", &Schema{Name: "x", JSON: []byte(`{"type":"object"}`)}
+	if _, err := must(t, cfg(StyleAnthropic, serve(t, 200, reply, &got).URL)).Complete(t.Context(), req); err != nil {
+		t.Fatal(err)
+	}
+	oc, _ := got.body["output_config"].(map[string]any)
+	if oc["effort"] != "high" || oc["format"] == nil {
+		t.Fatalf("output_config %v", got.body["output_config"])
+	}
+}

@@ -95,6 +95,9 @@ type Request struct {
 	Schema    *Schema
 	MaxTokens int
 	Web       *WebTools // nil: no provider-side web tools
+	// Effort asks a model that weighs how much to think and use tools for that much: "high" (Messages API output_config.effort; the
+	// other adapters ignore it); "" leaves the provider's default.
+	Effort string
 }
 
 // WebUse is what the provider's own web tools did in one response: the searches it counted, the queries and the addresses it fetched,

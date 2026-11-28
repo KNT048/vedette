@@ -3,6 +3,7 @@ package ai_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -493,5 +494,49 @@ func TestResearch_FetchPageSendsAPlainGET(t *testing.T) {
 	if r.Method != http.MethodGet || r.UserAgent() != "Vedette" || r.Header.Get("Cookie") != "" || r.Header.Get("Authorization") != "" ||
 		r.Header.Get("x-api-key") != "" || r.URL.RequestURI() != "/sa?product=widget" {
 		t.Errorf("request %s %s ua %q headers %v", r.Method, r.URL.RequestURI(), r.UserAgent(), r.Header)
+	}
+}
+
+// What a layer offers an Anthropic profile: the provider's web search and fetch with the layer's caps, high effort, a task that asks
+// the model to verify with vendor sources when the digest does not state the installed line, the later-train trap; and the activity
+// row records what was offered and used.
+func TestResearch_TheWebToolsAndTheTaskAsTheModelSeesThem(t *testing.T) {
+	for _, tc := range []struct {
+		mode              string
+		searches, fetches int
+		strong            bool
+		wantLayers        int
+	}{
+		{ai.ResearchEconomy, 2, 3, false, 1},
+		{ai.ResearchBalanced, 3, 4, false, 1},
+		{ai.ResearchThorough, 5, 6, true, 1},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			a := researchSetup(t, tc.mode, tc.strong)
+			la := &layerAnswers{by: map[string]string{"Quick": verdict("affected", "high", vendorSentence), "Strong": verdict("affected", "high", vendorSentence)},
+				texts: map[string][]string{"Quick": {vendorSentence}, "Strong": {vendorSentence}}}
+			a.fake.research = la.answer
+			if _, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq); err != nil {
+				t.Fatal(err)
+			}
+			req := a.fake.reqs[len(a.fake.reqs)-1]
+			if req.Web == nil || req.Web.Searches != tc.searches || req.Web.Fetches != tc.fetches || req.Effort != "high" {
+				t.Errorf("web %+v effort %q, want %d searches and %d fetches, high", req.Web, req.Effort, tc.searches, tc.fetches)
+			}
+			for _, want := range []string{"VERIFY with primary sources", "later train than every stated fix", "Research freely"} {
+				if !strings.Contains(req.System, want) {
+					t.Errorf("the task lacks %q", want)
+				}
+			}
+			rows := a.activity()
+			last := rows[len(rows)-1]
+			var names []string
+			for _, tl := range last.Tools {
+				names = append(names, tl.Name+" "+tl.Args)
+			}
+			if j := strings.Join(names, "; "); !strings.Contains(j, "web_search") || !strings.Contains(j, "web_fetch") || !strings.Contains(j, fmt.Sprint(tc.searches)) {
+				t.Errorf("activity tools %q", j)
+			}
+		})
 	}
 }

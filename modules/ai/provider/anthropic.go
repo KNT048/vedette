@@ -125,8 +125,15 @@ func (a *anthropic) encode(r Request) (map[string]any, error) {
 		}
 		body["tools"] = ts
 	}
-	if r.Schema != nil {
-		body["output_config"] = map[string]any{"format": map[string]any{"type": "json_schema", "schema": r.Schema.JSON}}
+	if r.Schema != nil || r.Effort != "" {
+		oc := map[string]any{}
+		if r.Schema != nil {
+			oc["format"] = map[string]any{"type": "json_schema", "schema": r.Schema.JSON}
+		}
+		if r.Effort != "" {
+			oc["effort"] = r.Effort
+		}
+		body["output_config"] = oc
 	}
 	return body, nil
 }

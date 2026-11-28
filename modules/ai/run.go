@@ -41,6 +41,8 @@ type JobSpec struct {
 	// box's page fetch tool, research.go). Each request it sends goes through the router (privacy rule, caps, meter); it returns the
 	// last response with the usage of every turn, its Text the answer to check. The prompt has a fence for tool results.
 	call func(ctx context.Context, hooks *HookRunner, prompt Prompt, req provider.Request) (CallResult, error)
+	// callTools, with call, says which tools the conversation offered and used, for the activity row (INV-17).
+	callTools func() []ActivityTool
 	// publicOnly is a call on public text only that runs under a job carrying internal data (a check of possible findings runs as
 	// explain-finding): it gets neither the memory nor knowledge documents, like the public jobs.
 	publicOnly bool
@@ -358,6 +360,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	var res CallResult
 	if spec.call != nil {
 		res, err = spec.call(ctx, hooks, prompt, req)
+		if spec.callTools != nil {
+			entry.Tools = spec.callTools()
+		}
 		if err != nil && res.Profile != "" { // a turn answered before the failure: its tokens are spent and its profile is known
 			entry.Profile, entry.ProfileID, entry.Model = res.Profile, res.ProfileID, res.Model
 			entry.TokensIn, entry.TokensOut = res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens

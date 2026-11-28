@@ -91,6 +91,9 @@ func (v View) FixText() string {
 		r := []rune(w)
 		return strings.ToUpper(string(r[0])) + string(r[1:]) + "."
 	}
+	if fx.Kind == FixNoneYet && fx.Chan() == ChannelUbuntuPro { // tracked in an Ubuntu Pro pocket only: never a free fix
+		return "No fixed package yet. Ubuntu tracks this package for this release in Ubuntu Pro (ESM) only, so a fix would come through Ubuntu Pro (free for personal use on a few machines; sudo pro attach); otherwise accept the risk or remove the package."
+	}
 	if fx.Kind == FixNoneYet && v.Finding.Basis == DetectPackage { // the distribution's word "affected, no fix yet"
 		return "No fixed package yet: watch for the distribution's update or accept the risk."
 	}

@@ -104,7 +104,7 @@ function FixLine({ f, view, product, links }: { f: FindingDetail; view: View | u
       </div>
     )
   }
-  if (stored?.kind === 'none_yet') return <p className="text-sm font-medium">{t(view?.verification.basis === 'package' ? 'todo.fixNoneYetDistro' : 'todo.fixNoneYet', { product: stored.product || product })}</p>
+  if (stored?.kind === 'none_yet') return <p className="text-sm font-medium">{t(stored.channel === 'ubuntu_pro' ? 'todo.fixNoneYetPro' : view?.verification.basis === 'package' ? 'todo.fixNoneYetDistro' : 'todo.fixNoneYet', { product: stored.product || product })}</p>
   if (fi) return <FixedInNote finding={f} />
   return <p className="text-sm">{links ? t('brief.fix') : t(f.kev ? 'rec.noVendorLink' : 'rec.noAdvisoryLink', { cve: f.cve, product })}</p>
 }

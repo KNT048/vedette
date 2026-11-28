@@ -59,6 +59,9 @@ func FixOf(a Asset, s Software, v Vuln) Fix {
 	}
 	if d, ok := distroVerdict(in, v); ok {
 		if d.kind == distroNeeded { // the distribution's word "affected, no fix yet": no fixed package to install
+			if d.pro { // tracked in an Ubuntu Pro pocket only: the fix, when it comes, is Ubuntu Pro's
+				return Fix{Kind: FixNoneYet, Channel: ChannelUbuntuPro}
+			}
 			return Fix{Kind: FixNoneYet}
 		}
 		return Fix{Kind: FixUnknown} // the distribution says it is fixed or not affected here: nothing to install

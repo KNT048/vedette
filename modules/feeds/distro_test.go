@@ -109,10 +109,18 @@ func TestParseUbuntuVEX(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []DistroFix{{Distro: "ubuntu", Release: "26.04", Package: "openssh", CVE: "CVE-2026-10001", Status: "not_affected"}}
+	// the plain release's and the esm-infra pocket's not affected (Pro), the affected package (open); the binary product and "fixed" keep
+	// no row
+	slices.SortFunc(res.Rows, func(a, b DistroFix) int {
+		return cmp.Or(strings.Compare(a.Package, b.Package), strings.Compare(a.Release, b.Release))
+	})
+	want := []DistroFix{{Distro: "ubuntu", Release: "20.04", Package: "openssh", CVE: "CVE-2026-10001", Status: "not_affected", Pro: true},
+		{Distro: "ubuntu", Release: "26.04", Package: "openssh", CVE: "CVE-2026-10001", Status: "not_affected"},
+		{Distro: "ubuntu", Release: "26.04", Package: "openssh-ssh1", CVE: "CVE-2026-10001", Status: "open"}}
 	if !slices.Equal(res.Rows, want) {
 		t.Fatalf("rows %+v", res.Rows)
 	}
+	want = want[1:2]
 	// the unknown codename is said once (with its name); the CVE whose product is not a deb package is rejected whole
 	if res.Accepted != 1 || res.Rejected != 2 || !strings.Contains(res.Reasons[0].Example+res.Reasons[1].Example, "zealous") {
 		t.Fatalf("stats %+v", res.Stats)
@@ -155,11 +163,12 @@ func TestParseDebianTracker(t *testing.T) {
 		{Distro: "debian", Release: "12", Package: "openssh", CVE: "CVE-2026-10002", Status: "open"},
 		{Distro: "debian", Release: "12", Package: "sudo", CVE: "CVE-2026-10001", Status: "not_affected"},
 		{Distro: "debian", Release: "13", Package: "sudo", CVE: "CVE-2026-10001", Status: "fixed", Fixed: "1.9.16p2-3"},
+		{Distro: "debian", Release: "14", Package: "openssh", CVE: "CVE-2026-10002", Status: DistroTriage},
 	}
 	if !slices.Equal(res.Rows, want) {
 		t.Fatalf("rows %+v", res.Rows)
 	}
-	// openssh: affected with no fix yet, an open row; glibc: one bad version drops the whole entry
+	// openssh: affected with no fix yet, an open row, and undetermined (being triaged) in forky; glibc: one bad version drops the whole entry
 	if res.Accepted != 2 || res.Rejected != 1 {
 		t.Fatalf("stats %+v", res.Stats)
 	}
@@ -247,11 +256,14 @@ func TestDistroPull(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixes, err := e.svc.st.DistroFixes(t.Context())
-	if err != nil || len(fixes["CVE-2026-10001"]) != 3 || len(fixes["CVE-2026-10002"]) != 1 || len(fixes) != 2 { // open rows: affected, no fix yet
+	if err != nil || len(fixes["CVE-2026-10001"]) != 3 || len(fixes["CVE-2026-10002"]) != 2 || len(fixes) != 2 { // open rows: affected, no fix yet; forky's undetermined: being triaged
 		t.Fatalf("stored %+v %v", fixes, err)
 	}
-	if f := e.feed(debianTrackerFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 4 {
+	if f := e.feed(debianTrackerFeedID); f.Status != "ok" || f.Records == nil || *f.Records != 5 {
 		t.Fatalf("feed %+v", f)
+	}
+	if n := rowsOf(t, e.db, "feeds_distro_triage"); n != 1 { // the triage row in its own table, never a status of feeds_distro_fix
+		t.Fatalf("%d triage rows", n)
 	}
 	if len(got) != 1 || !got[0].First || !slices.Equal(got[0].CVEs, []string{"CVE-2026-10001", "CVE-2026-10002"}) {
 		t.Fatalf("events %+v", got)
@@ -421,7 +433,7 @@ func checkDistroRows(t *testing.T, res DistroResult) {
 	for _, r := range res.Rows {
 		if !wantKEV.KEV[r.CVE] || (r.Distro != DistroUbuntu && r.Distro != DistroDebian) || !debPackageRE.MatchString(r.Package) ||
 			r.Release == "" || len(r.Release) > 8 || strings.Trim(r.Release, "0123456789.") != "" ||
-			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected && r.Status != DistroOpen) ||
+			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected && r.Status != DistroOpen && r.Status != DistroTriage) ||
 			r.Reason != "" && (r.Status != DistroOpen || !slices.Contains(DistroReasons, r.Reason)) {
 			t.Fatalf("row %+v", r)
 		}
@@ -481,10 +493,10 @@ func TestDistroParsersPassBodyErrorsThrough(t *testing.T) {
 // Review L4 of #732: a purl percent-encodes its package name.
 func TestSourcePurlUnescapesTheName(t *testing.T) {
 	t.Parallel()
-	if name, code, ok, bad := sourcePurl("pkg:deb/ubuntu/libsigc%2B%2B-2.0@2.12.1-2?arch=source&distro=noble"); name != "libsigc++-2.0" || code != "noble" || !ok || bad {
+	if name, code, _, ok, bad := sourcePurl("pkg:deb/ubuntu/libsigc%2B%2B-2.0@2.12.1-2?arch=source&distro=noble"); name != "libsigc++-2.0" || code != "noble" || !ok || bad {
 		t.Fatalf("%q %q %v %v", name, code, ok, bad)
 	}
-	if _, _, _, bad := sourcePurl("pkg:deb/ubuntu/a%2Fb@1?arch=source&distro=noble"); !bad {
+	if _, _, _, _, bad := sourcePurl("pkg:deb/ubuntu/a%2Fb@1?arch=source&distro=noble"); !bad {
 		t.Fatal("a name with a slash after unescaping is accepted")
 	}
 }

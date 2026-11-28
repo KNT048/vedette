@@ -29,7 +29,7 @@ export function useFixTitle() {
       }
       case 'feature_update': return to ? t('fixLine.feature', { product: fix.product, to }) : t('fixLine.featureAny', { product: fix.product })
       case 'restart': return to ? t('fixLine.restart', { product: fix.product, to }) : t('fixLine.restartAny', { product: fix.product })
-      case 'none_yet': return t('fixLine.noneYet', { product: fix.product })
+      case 'none_yet': return fix.channel === 'ubuntu_pro' ? t('fixLine.noneYetPro', { product: fix.product }) : t('fixLine.noneYet', { product: fix.product })
       default: return t('fixLine.unknown', { product: fix.product })
     }
   }

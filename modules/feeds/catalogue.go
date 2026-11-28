@@ -638,6 +638,29 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 	return out, nil
 }
 
+// UnlistedUnaffected returns, per CVE, the products whose own CNA states in the CVE record that every version it does not list is
+// unaffected (Range.UnlistedUnaffectedCPE), as the matcher's CPE names, each once. Findings reads it before it calls a version of a
+// release line the rows do not list undecided: the vendor's own word decides that line.
+func (s *Store) UnlistedUnaffected(ctx context.Context, cves []string) (map[string][]string, error) {
+	out := map[string][]string{}
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: unlisted unaffected: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.origin = 'cna' AND r.default_status = 'unaffected' AND r.cve IN (SELECT value FROM json_each(?))`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			if c, ok := r.UnlistedUnaffectedCPE(); ok && !slices.Contains(out[r.CVE], c) {
+				out[r.CVE] = append(out[r.CVE], c)
+			}
+		}
+	}
+	return out, nil
+}
+
 // SchemeRangesOf returns the ranges of these CVEs a product's version scheme reads (RangeScheme): the rows kept in their vendor's
 // notation (Range.Generic false), the CVE records' rows of a product that has a scheme (SchemeProduct: the vendor's own word, read per
 // release train, never by the generic comparison), and for a product whose vendor states its releases in the description (Described)
@@ -867,6 +890,18 @@ func (r Range) MatchRow() (AffectedRow, bool) {
 		}
 	}
 	return row, true
+}
+
+// UnlistedUnaffectedCPE is the product of a CVE record row whose own CNA states every version the record does not list unaffected (CVE
+// JSON 5 defaultStatus "unaffected" from the product's own CNA, as trustRow reads it: a third party's is unknown), as the matcher's CPE
+// name of the product ("cpe:2.3:*:<vendor>:<product>:*:…", the names MatchRow gives a record row). ok is false for any other row, a
+// lost row and a row limited to one operating system (its word is about that system's builds only).
+func (r Range) UnlistedUnaffectedCPE() (string, bool) {
+	if r.Origin != OriginCNA || !r.VendorCNA || r.DefaultStatus != DefaultUnaffected || r.Lost() || r.Vendor == "" || r.Product == "" || recordSystem(r) != "" {
+		return "", false
+	}
+	v, p := MatchName(r.Vendor, r.Product, true)
+	return "cpe:2.3:*:" + cpeEscape(v) + ":" + cpeEscape(p) + ":*:*:*:*:*:*:*:*", true
 }
 
 // recordEvery says a row is the CNA's statement that every version of the product is affected: a row without a bound (entryRows) of

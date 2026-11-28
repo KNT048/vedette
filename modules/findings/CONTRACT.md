@@ -191,8 +191,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   release, the evidence naming the vendor and its advisory); a row whose fix the version is at or past, or one stating the line
   unaffected, is "not affected" unless an NVD row covering the version names the line itself (starts or ends on it, or lists one
   of its releases); a line the source does not list is "not affected" by the convention `unaffected_if_supported` only when the vendor supported
-  the line on the day the CVE was published (line support), the source is fresh and its statement not older than the CVE, and no NVD row
-  covers the version; a convention row of the source (`explicit` false: Oracle's "a line the document assessed and does not list") holds
+  the line on the day the CVE was published (line support) and still supports it when the match runs (a line out of support now is
+  never closed this way: support data is no statement about a CVE, so the vendor's row for the line or the record's own ranges decide),
+  the source is fresh and its statement not older than the CVE, and no NVD row covers the version; a convention row of the source (`explicit` false: Oracle's "a line the document assessed and does not list") holds
   under the same freshness, date and NVD conditions. A version past the vendor's affected releases of the line is fixed only for the builds
   the source numbers (`LineCover.Builds`: Oracle's own Java, not Temurin's 8u492); for another build it decides nothing. A statement
   limited to some builds (`LineCover.OnlyBuilds`: a CVE in Oracle's installer or JavaFX in Java 8) says nothing about another build. A version the
@@ -201,7 +202,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   or an earlier build, before 8u521; a bound with no build is the whole release). A line the vendor no longer assessed, a status that is
   not public yet, and a row limited to some platforms decide nothing: the CVE record's own statement decides as before. A distribution's
   package is never read here. `TestLineJudge_EveryVerdict`, `TestLineJudge_EvidenceFixAndOrigin`, `TestLineJudge_OracleJava`,
-  `TestLineJudge_OracleTexts`, `TestLineJudge_OracleOwnBuildPart`.
+  `TestLineJudge_OracleTexts`, `TestLineJudge_OracleOwnBuildPart`, `TestConventionClears_NeverALineOutOfSupport`.
 - **M-14 Decision coverage.** Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched
   (a row of the line reached by the entry's key or rows, as the matcher reads the rows that name a line: `rowEntries`, so an entry about
   another line of the product, such as Edge Legacy's on a Chromium Edge, relates nothing; or a finding or question of the pair), what decided it: the source (the
@@ -434,6 +435,14 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
   version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  The same holds for NVD's rows and a CNA's list: a record that lists only the release lines its vendor still supports says nothing
+  about an older line it does not list, so a version outside every row, below a range that starts at the first release of a later
+  line, and past no fix of its own line (a range from its line's start or ending on its train, a range from 0 ending on its line as
+  the record's other ranges name lines, those of its own major first; a range on one line speaks for that line alone, a stated `LineFix`) is no proof of "not affected": undecided `ranges_start_at_branch_only`, asked as `no_range_data` (listed), never a
+  finding on that basis (`unlistedLine`). The vendor's complete list (`VendorList`, a complete CVE.org record), the product's own CNA
+  stating in the record every version it does not list unaffected (feeds `UnlistedUnaffected`), a line newer than every
+  listed one, and a start inside a line (where the flaw came in) still decide. Windows releases and the vendor's own schemes keep
+  their rules. `TestUnlistedLine_OlderLineIsNotClosed`.
   A row limited to an operating system whose builds do not run on the device's (`otherSystem`) states that system's fix and is not
   read here; only `systemReadings` may rule the line out by such rows. `TestPlatformRows_AnotherSystemsFixProvesNothing`.
   A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that

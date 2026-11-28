@@ -204,7 +204,8 @@ type Feeds interface {
 	// CVE whose ranges name a product of scope (MatchScope.Keep) or that scope pins, each with its ranges as the catalogue's precedence
 	// gives them (NVD's when NVD has any, else the CVE record's; Vuln.Origin), its publication day, EPSS and the distributions' word on
 	// the scope's packages. None while the feeds module is off. A scope of no device (NewMatchScope(nil, pinned)) gives the pinned CVEs'
-	// entries only, exploited-list entries among them: a reader of a few CVEs pays for those alone.
+	// entries only, exploited-list entries among them, without the reporting window's mark (OutsideWindow false): a reader of a few CVEs
+	// matches no device and pays for those alone.
 	MatchSet(ctx context.Context, scope MatchScope) ([]Vuln, error)
 	// Exploited says which of cves any exploitation signal names, whatever its age or the reporting window (feeds
 	// Store.ExploitationSignalled): an exploited-list entry, an exploited statement, a public exploit or scan template, an intrusion alert

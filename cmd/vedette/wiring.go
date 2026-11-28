@@ -546,17 +546,20 @@ func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) 
 		return nil, err
 	}
 	// the reporting window: a catalogue CVE outside it (old, not exploited, no new exploit) is marked, and findings sets it aside; an
-	// exploited list's entry never is
-	cves := make([]string, len(more))
-	for i, v := range more {
-		cves[i] = v.CVE
-	}
-	outside, err := a.st.OutsideWindow(ctx, cves, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	for i := range more {
-		more[i].OutsideWindow = outside[more[i].CVE]
+	// exploited list's entry never is. A reader of pinned CVEs alone matches no device (a fix's target, a CVE's page): it reads their
+	// ranges, not the mark, whose reading of every signal costs more than the rest of its set
+	if !scope.PinnedOnly() {
+		cves := make([]string, len(more))
+		for i, v := range more {
+			cves[i] = v.CVE
+		}
+		outside, err := a.st.OutsideWindow(ctx, cves, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range more {
+			more[i].OutsideWindow = outside[more[i].CVE]
+		}
 	}
 	out = append(out, more...)
 	if err := a.withSchemed(ctx, out); err != nil {

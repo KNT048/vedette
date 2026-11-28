@@ -284,7 +284,7 @@ func (e *env) write(fn func(tx *sql.Tx) error) {
 
 // vulnNotice is a matched vulnerability notice.
 func (e *env) vulnNotice(id, product, cve string, sev notify.Severity, devices ...string) notify.Notice {
-	return notify.Notice{ID: id, Kind: notify.KindVuln, Severity: sev, Product: product, CVEs: []string{cve}, FindingIDs: []string{"f-" + id}, Devices: devices,
+	return notify.Notice{ID: id, Kind: notify.KindVuln, Exploited: true, Severity: sev, Product: product, CVEs: []string{cve}, FindingIDs: []string{"f-" + id}, Devices: devices,
 		Title: product + " is being exploited (" + cve + ")", What: "Attackers are using " + cve + " right now.", Action: "Install the update.",
 		Link: "https://box.example:8443/findings/f-" + id, At: e.clock.Now()}
 }

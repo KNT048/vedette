@@ -45,3 +45,4 @@ Routes, detection and scans stop; tables stay. The scan module gets no external 
 
 ## Modifying: `Config.Exploited`, `alertsOf`, `NewSince`
 - **notify** (INV-32): only an issue with a CVE exploited in the wild alerts at once; `NewSince` is the daily summary's line of external scans (`cmd/vedette/notifyfindings.go` `notifyExposureNews`). The rule of "exploited" is `exploitedCVEs` in `cmd/vedette/urgency.go` (findings' `Urgency`): change it there, never here.
+- `exp_issue.exploited`, `opened_at` (migration 0003): the writer, the tree hand-over copies (`tree.go`) and the accept-expiry job keep them; a new path that opens an issue again must set `opened_at` and reset `exploited` to 0, or a re-open is neither told nor counted.

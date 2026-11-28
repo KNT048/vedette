@@ -61,7 +61,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 			}
 		}
 	}
-	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency,
+	info := notify.FindingInfo{CVE: plainText(f.CVE, 40), Severity: noticeSeverity(v), Open: f.Open(), Layer: f.Urgency, Exploited: f.Exploited(),
 		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
 		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax), Verification: plainText(v.VerificationLine(), noticeReasonsMax)}
 	info.Product = cmp.Or(plainText(product, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")

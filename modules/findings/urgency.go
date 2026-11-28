@@ -305,11 +305,14 @@ func LayerCode(layer int) string {
 	return CodeUpdateRecommended
 }
 
+// ExploitedLayer says whether an urgency layer means the CVE is exploited: under attack here, or exploited in the wild (1 or 2); 0 (not
+// rated) and 3 to 5 are not. The one cutoff of "exploited": a finding's (Finding.Exploited), an alert's (notify reads it through
+// FindingInfo.Exploited) and an exposure issue's (cmd/vedette exploitedCVEs) all ask it.
+func ExploitedLayer(layer int) bool { return layer >= UrgencyUnderAttack && layer <= UrgencyExploited }
+
 // Exploited says whether the finding's CVE is exploited: under attack here, or exploited in the wild (urgency 1 or 2). Every reader
 // that calls a finding exploited, counts exploited findings or names an exploited list asks this, never "is it a finding".
-func (f Finding) Exploited() bool {
-	return f.Urgency >= UrgencyUnderAttack && f.Urgency <= UrgencyExploited
-}
+func (f Finding) Exploited() bool { return ExploitedLayer(f.Urgency) }
 
 // ---- the urgency pass ----
 
@@ -519,6 +522,9 @@ func (e *FirstRunEvent) add(f Finding, devices map[string]bool) {
 	}
 	if e.Layer == 0 || f.Urgency < e.Layer {
 		e.Layer = f.Urgency
+	}
+	if f.Exploited() {
+		e.Exploited++
 	}
 }
 

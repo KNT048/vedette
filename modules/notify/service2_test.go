@@ -427,8 +427,8 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
 		c.Modules = gateFunc(func(string) bool { return on })
 		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.High, Action: "a", Open: true, Layer: 2, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2), Devices: []string{"NAS-01"}},
-			"f-2": {CVE: "CVE-2026-101", Product: "WordPress", Severity: notify.High, Action: "a", Open: true, Layer: 2, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2)},
+			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.High, Action: "a", Open: true, Layer: 2, Exploited: true, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2), Devices: []string{"NAS-01"}},
+			"f-2": {CVE: "CVE-2026-101", Product: "WordPress", Severity: notify.High, Action: "a", Open: true, Layer: 2, Exploited: true, Status: findings.StatusName(2), Meaning: findings.StatusMeaning(2)},
 		}}
 		c.Devices = fakeDevices{"a-new": "192.168.10.157"}
 	})

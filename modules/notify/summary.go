@@ -45,8 +45,9 @@ type SummarySources struct {
 	// Updates counts the findings first seen in [from, to) that are open now with no sign of exploitation (update recommended), and the
 	// devices they are on.
 	Updates func(ctx context.Context, from, to time.Time) (findings, devices int, err error)
-	// AIReview counts the answers of the customer's AI that wait for a person's review now.
-	AIReview func(ctx context.Context) (int, error)
+	// AIReview counts the answers of the customer's AI that came in [from, to) and still wait for a person's review: only what is new
+	// since the previous summary, so answers left waiting do not make a summary every day ("nothing new, no message").
+	AIReview func(ctx context.Context, from, to time.Time) (int, error)
 	// AITokens is how many tokens the AI's research of CVEs used in [from, to).
 	AITokens func(ctx context.Context, from, to time.Time) (int, error)
 	// Exposure counts what external scans found new in [from, to) that did not alert (no CVE exploited in the wild): the issues and
@@ -89,7 +90,7 @@ type summaryOf struct {
 	notices  map[string][]string // finding id → the not_exploited notices that told it
 	updates  int                 // new findings with no sign of exploitation
 	devices  int                 // the devices of updates
-	review   int                 // AI answers waiting for review
+	review   int                 // AI answers that came in since the previous summary and wait for review
 	tokens   int                 // tokens of the AI's research
 	exIssues int                 // new exposure issues with no CVE exploited in the wild
 	exPorts  int                 // new open ports found by external scans
@@ -293,7 +294,7 @@ func (s *Service) buildSummary(ctx context.Context, from, to time.Time) (summary
 			if err != nil {
 				return m, err
 			}
-			if ok && f.Open && !exploitedLayer(f.Layer) && f.Layer < layerUpdate {
+			if ok && f.Open && !f.Exploited && f.Layer >= 1 && f.Layer < layerUpdate {
 				m.ids, m.infos[id] = append(m.ids, id), f
 			}
 		}
@@ -306,7 +307,7 @@ func (s *Service) buildSummary(ctx context.Context, from, to time.Time) (summary
 		}
 	}
 	if src.AIReview != nil {
-		if m.review, err = src.AIReview(ctx); err != nil {
+		if m.review, err = src.AIReview(ctx, from, to); err != nil {
 			return m, fmt.Errorf("notify: daily summary, AI answers: %w", err)
 		}
 	}
@@ -361,7 +362,7 @@ func (s *Service) summaryMessage(ctx context.Context, id string, m summaryOf) (m
 			plural(m.exIssues, "new issue", "new issues"), plural(m.exPorts, "new open port", "new open ports")))
 	}
 	if m.review > 0 {
-		what = append(what, plural(m.review, "answer of your AI waits", "answers of your AI wait")+" for your review in Findings.")
+		what = append(what, plural(m.review, "new answer of your AI waits", "new answers of your AI wait")+" for your review in Findings.")
 	}
 	if m.tokens > 0 {
 		what = append(what, fmt.Sprintf("Your AI used %s tokens researching CVEs.", groupDigits(m.tokens)))

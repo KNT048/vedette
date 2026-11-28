@@ -22,7 +22,7 @@ import (
 var exploitedWords = regexp.MustCompile(`(?i)exploited|CISA lists|VulnCheck KEV lists|under attack`)
 
 func withLayer(n notify.Notice, info notify.FindingInfo) notify.Notice {
-	n.Layer = info.Layer
+	n.Layer, n.Exploited = info.Layer, info.Exploited
 	return n
 }
 func reportsExploited(f reports.FindingView) bool {

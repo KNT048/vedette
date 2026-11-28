@@ -32,7 +32,7 @@ func (l *liveFindings) Finding(_ context.Context, id string) (notify.FindingInfo
 func (l *liveFindings) at(id string, layer int, f notify.FindingInfo) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	f.Open, f.Layer = true, layer
+	f.Open, f.Layer, f.Exploited = true, layer, findings.ExploitedLayer(layer)
 	f.Status, f.Meaning = findings.StatusName(layer), findings.StatusMeaning(layer)
 	if l.m == nil {
 		l.m = map[string]notify.FindingInfo{}

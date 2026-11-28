@@ -148,7 +148,7 @@ func TestAlertTriggersHoldVulnerabilityNoticesButNotSendNow(t *testing.T) {
 	if v := e.count(`SELECT COUNT(*) FROM notify_setting WHERE key = 'triggers' AND value = '[{"id":"vulnerability","on":false}]'`); v != 1 {
 		t.Fatal("the vulnerability trigger was stored with a minimum")
 	}
-	n := notify.Notice{ID: "nt-f1-created", Kind: notify.KindVuln, Severity: notify.High, Product: "Photo Station", CVEs: []string{"CVE-2024-0001"},
+	n := notify.Notice{ID: "nt-f1-created", Kind: notify.KindVuln, Exploited: true, Severity: notify.High, Product: "Photo Station", CVEs: []string{"CVE-2024-0001"},
 		Devices: []string{"nas"}, Title: "Photo Station on nas: exploited", Layer: 2, Link: "https://vedette.example/findings/f1"}
 	if err := e.svc.Publish(e.ctx(), n); err != nil {
 		t.Fatal(err)

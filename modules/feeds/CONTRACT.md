@@ -78,9 +78,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   holds no usable entry, or holds fewer than half the CNAs stored is refused and the stored list kept. A record's CNA is the vendor's
   own by the list when one form of its organization name (`cnaOrgForms`: case, punctuation, a leading "The", parts in parentheses and
   trailing legal-form words set aside) is the row's vendor; no name of a vendor or CNA is written in code or data. The list is read only
-  while its feed's last good pull is under 30 days before the box's newest pull of any feed; else the rules of INV-35 stand alone. A
-  list that changes what is read emits `RangesUpdatedEvent` (`Catalogue`), so findings matches again without the records being read
-  again. `TestOwnCNA_TheCNAListNamesTheOrganization`, `TestParseCNAList_RefusesWhatIsNotTheList`,
+  while its feed is on and its last good pull is under 30 days before the box's newest pull of any feed; else the rules of INV-35
+  stand alone. A list that changes what is read emits `RangesUpdatedEvent` (`Catalogue`), and the feed's pulls move `MatchStamp`, so
+  findings matches again without the records being read again. `TestOwnCNA_TheCNAListNamesTheOrganization`, `TestParseCNAList_RefusesWhatIsNotTheList`,
   `TestCNAList_PullDecidesWhoseUnaffectedCounts`, `TestCNAList_ArrivingLaterDecidesOnlyTheVendorsOwnRecord` (cmd/vedette).
 
 **Feeds and pulls**

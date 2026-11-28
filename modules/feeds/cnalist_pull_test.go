@@ -146,6 +146,18 @@ VALUES (?, 'cisa', 'cisa-kev', ?, 'Beacon', 'x', '2026-11-01', '2026-11-01T00:00
 		t.Errorf("stamps %v, then %v: only the record whose word now counts changes", stamps0, stamps1)
 	}
 
+	// a list whose feed a person turned off is not read
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET enabled = 0 WHERE id = ?`, cnaFeedID)
+		return err
+	})
+	off, _ := read()
+	check("with the list's feed off", off, third)
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET enabled = 1 WHERE id = ?`, cnaFeedID)
+		return err
+	})
+
 	// the same list again: nothing changes, nothing is announced
 	e.setNow(e.clock().Add(8 * 24 * time.Hour))
 	o.body("/cnas.json", `"c2"`, full)

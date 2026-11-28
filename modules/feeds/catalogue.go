@@ -366,10 +366,11 @@ const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_
 	ifnull((SELECT c.assigner FROM feeds_cve c WHERE c.cve = r.cve), ''), ` + cnaOrgSQL
 
 // cnaOrgSQL is the organization of the record's CNA (alias r: a feeds_cve_range row) from the CNA list when the list holds the CNA as a
-// possible vendor, else empty (ownCNA). A list is read only while it is recent: its feed's last good pull is less than cnaListFreshDays
-// before the newest pull of any feed (the box's own sense of now, as its data shows it: a box that pulls nothing ages nothing).
+// possible vendor, else empty (ownCNA). A list is read only while its feed is on and the list is recent: its feed's last good pull is
+// less than cnaListFreshDays before the newest pull of any feed (the box's own sense of now, as its data shows it: a box that pulls
+// nothing ages nothing).
 const cnaOrgSQL = `ifnull((SELECT n.organization FROM feeds_cve c JOIN feeds_cna n ON n.short_name = lower(c.assigner) AND n.may_be_vendor = 1
-	JOIN feeds_source s ON s.id = n.source_id
+	JOIN feeds_source s ON s.id = n.source_id AND s.enabled = 1
 	AND s.last_success >= strftime('%Y-%m-%dT%H:%M:%fZ', (SELECT max(f.last_fetch) FROM feeds_source f), '-` + cnaListFreshDays + ` days')
 	WHERE c.cve = r.cve), '')`
 

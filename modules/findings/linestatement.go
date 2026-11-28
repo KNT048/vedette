@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -160,23 +159,31 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 		return fmt.Errorf("findings: replacing a reading: %w", err)
 	}
 	at := store.FormatTS(st.AskedAt)
-	// a person who rejected a reading of the same verdict for the line, from the same CVE record and the same cited page (its text, or
-	// for a page only the AI's tools read, its address), is not asked twice: the new reading is stored rejected (P-12)
+	// a person who rejected a reading for the line that covers this one (rejectionCovers), from the same CVE record and the same cited
+	// page (its text, or for a page only the AI's tools read, its address), is not asked twice: the new reading is stored rejected (P-12).
+	// A rejection that does not cover it never holds back a reading that may open a finding, even on the very same record and page (the
+	// same key): the rejected row gives way, the audit log keeps the rejection
 	var rejBy, rejAt any
-	if side := statusSide(st.Status); side != "" {
-		byURL := st.Research != nil && (st.Research.QuoteCheck == QuoteTool || st.Research.QuoteCheck == QuoteLive)
-		var by string
-		err := tx.QueryRowContext(ctx, `SELECT rejected_by FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NOT NULL
-			AND statement_key <> ? AND record_hash = ? AND url = ? AND (page_hash = ? OR ?) AND `+statusSideSQL+` = ? ORDER BY rejected_at DESC LIMIT 1`,
-			st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key, st.RecordHash, clipBytes(st.URL, 2000), st.PageHash, byURL, side).Scan(&by)
+	byURL := st.Research != nil && (st.Research.QuoteCheck == QuoteTool || st.Research.QuoteCheck == QuoteLive)
+	rejected, err := statementsWhere(ctx, tx, `cve = ? AND product_key = ? AND line = ? AND rejected_by IS NOT NULL AND record_hash = ? AND url = ?
+		AND (page_hash = ? OR ? OR statement_key = ?) ORDER BY rejected_at DESC`,
+		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.RecordHash, clipBytes(st.URL, 2000), st.PageHash, byURL, st.Key)
+	if err != nil {
+		return err
+	}
+	for _, r := range rejected {
 		switch {
-		case err == nil:
-			rejBy, rejAt = by, at
-		case !errors.Is(err, sql.ErrNoRows):
-			return fmt.Errorf("findings: reading the line's rejections: %w", err)
+		case rejectionCovers(r, st):
+			if rejBy == nil {
+				rejBy, rejAt = r.RejectedBy, at
+			}
+		case r.Key == st.Key && statusSide(st.Status) == StatementAffected:
+			if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE statement_key = ?`, st.Key); err != nil {
+				return fmt.Errorf("findings: replacing a rejected reading: %w", err)
+			}
 		}
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO fnd_line_statement (statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, introduced,
+	_, err = tx.ExecContext(ctx, `INSERT INTO fnd_line_statement (statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, introduced,
 		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at, basis, rejected_by, rejected_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (statement_key) DO UPDATE SET status = excluded.status, introduced = excluded.introduced, fixed_in = excluded.fixed_in,
@@ -670,8 +677,8 @@ func aiReadNote(q Question, st LineStatement) string {
 	return clipBytes(note+". A person can reject this reading.", 1000)
 }
 
-// statusSide is the side a reading's status takes for a person's rejection: affected (affected, or fixed in a release: it may open a
-// finding), not_affected, or "" for unsure.
+// statusSide is the side a reading's status takes: affected (affected, or fixed in a release: it may open a finding), not_affected, or ""
+// for unsure.
 func statusSide(status string) string {
 	switch status {
 	case StatementAffected, StatementFixed:
@@ -682,5 +689,36 @@ func statusSide(status string) string {
 	return ""
 }
 
-// statusSideSQL is statusSide of fnd_line_statement.status.
-const statusSideSQL = `(CASE WHEN status IN ('affected', 'fixed') THEN 'affected' WHEN status = 'not_affected' THEN 'not_affected' ELSE '' END)`
+// rejectionCovers says a person's rejection of reading r also covers reading n of the same line (P-12): a rejected "affected" covers
+// every reading that may open a finding (affected, fixed), a rejected "not affected" the other "not affected" readings, and a rejected
+// "fixed", which a person may reject for the versions it calls not affected, only a "fixed" stating the same bounds. So rejecting a
+// "not affected" (or a fix the version has) never rejects or holds back a reading that calls the version affected.
+func rejectionCovers(r, n LineStatement) bool {
+	switch r.Status {
+	case StatementAffected:
+		return statusSide(n.Status) == StatementAffected
+	case StatementNotAffected:
+		return n.Status == StatementNotAffected
+	case StatementFixed:
+		return n.Status == StatementFixed && n.Introduced == r.Introduced && n.FixedIn == r.FixedIn && n.Last == r.Last
+	}
+	return false
+}
+
+// statementsWhere is the readings matching the condition on fnd_line_statement.
+func statementsWhere(ctx context.Context, q querier, where string, args ...any) ([]LineStatement, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+statementColumns+` FROM fnd_line_statement WHERE `+where, args...)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading the line's readings: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []LineStatement
+	for rows.Next() {
+		st, err := scanStatement(rows)
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading the line's readings: %w", err)
+		}
+		out = append(out, st)
+	}
+	return out, rows.Err()
+}

@@ -503,3 +503,43 @@ func TestResearch_OneRejectCoversTheSameVerdict(t *testing.T) {
 		t.Error("an answer on a changed record was held by an older rejection")
 	}
 }
+
+// Rejecting the AI's "not affected" (a line fixed in a release the installed version has) never holds back a later "affected": not one
+// from another text of the same cited page, and not one from the very same record and page.
+func TestResearch_RejectingANotAffectedNeverHidesALaterAffected(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, first, later string }{
+		{"another text of the cited page", quillSAText, "QSA-2026-17 (CVE-2026-991001), revised: Quillfeather Mail 115.12.0 is affected."},
+		{"the same record and page", quillSAText + " Quillfeather Mail 115.12.0 is affected.", quillSAText + " Quillfeather Mail 115.12.0 is affected."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorld(t, "115.12.0")
+			na := quillResearch(StatementNotAffected, QuoteTool, "the 115 line is fixed in Quillfeather Mail 115.12", tc.first)
+			fc.answers = map[string]ResearchAnswer{cveQuill + "|115.12.0": na}
+			runCheck(t, e)
+			it := quillItem(t, e)
+			if it.State != PossibleProposal || it.Check == nil || it.Check.Verdict != VerdictNotAffected {
+				t.Fatalf("item %+v: want a not-affected proposal", it)
+			}
+			if err := e.svc.RejectProposal(t.Context(), it.Check.Key, "ana@example.com"); err != nil {
+				t.Fatal(err)
+			}
+			aff := quillResearch(StatementAffected, QuoteTool, "Quillfeather Mail 115.12.0 is affected", tc.later)
+			aff.Verdict.FixedIn, aff.Verdict.Introduced = "", ""
+			fc.answers[cveQuill+"|115.12.0"] = aff
+			u, err := e.svc.deeperUnit(t.Context(), it.Question.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e.svc.check.run = &CheckRun{Running: true}
+			e.svc.runPossibleCheck(t.Context(), []checkUnit{*u}, "ana@example.com")
+			if len(fc.research) != 2 {
+				t.Fatalf("%d researches", len(fc.research))
+			}
+			if quillFindings(t, e) != 1 {
+				t.Error("a rejected not-affected answer held back a later affected one")
+			}
+		})
+	}
+}

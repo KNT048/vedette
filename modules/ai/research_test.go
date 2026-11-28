@@ -392,6 +392,29 @@ func TestResearch_QuoteWithAMadeUpEndIsNotChecked(t *testing.T) {
 	}
 }
 
+// Folding markup out of the quote never hides words in it: a quote carrying a release inside a tag the page does not have is not
+// checked, while a page's own "<" and ">" in a quote still match.
+func TestResearch_QuoteCannotHideWordsInMarkup(t *testing.T) {
+	a := researchSetup(t, ai.ResearchEconomy, false)
+	pageServer(t, a)
+	const realSentence = "Widget releases 4.0 through 4.2.0 are affected by this issue"
+	la := &layerAnswers{by: map[string]string{"Quick": verdict("affected", "high", "Widget releases <i 4.1.3 > 4.0 through 4.2.0 are affected by this issue")},
+		texts: map[string][]string{"Quick": {"Advisory for CVE-2099-81001. " + realSentence + ". Update to 4.2.1."}}}
+	a.fake.research = la.answer
+	ans, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ai.QuoteChecked(ans.QuoteCheck) {
+		t.Errorf("quote check %s: a release hidden in markup was taken as checked", ans.QuoteCheck)
+	}
+	la.by["Quick"] = verdict("affected", "high", "Widget releases <4.2.1 and >=4.0 are affected by this issue")
+	la.texts["Quick"] = []string{"Advisory for CVE-2099-81001. Widget releases <4.2.1 and >=4.0 are affected by this issue."}
+	if ans, _ = a.svc.Research(a.ctx(), "it@acme.example", researchReq); ans.QuoteCheck != ai.QuoteTool {
+		t.Errorf("the page's own signs: %s", ans.QuoteCheck)
+	}
+}
+
 // A turn the provider pauses is sent again with the whole assistant content so far (earlier searches and results kept), and the
 // layer's caps hold across the continuations: each resend offers only the searches and fetches left, none once a cap is used up.
 func TestResearch_PausedTurnKeepsResultsAndCaps(t *testing.T) {

@@ -2,22 +2,22 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
 import { Section } from '@/components/common/PageHeader'
-import { fmtNumber } from '@/lib/format'
+import { dayOf, fmtDayMonth, fmtNumber } from '@/lib/format'
 import { useRuns } from './api'
 
 const DAYS = 14
-const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const DAY_MS = 86_400_000
 
 /** Usage tab: the tokens the research of CVEs used on each of the last 14 days (every layer), from the run log. Tokens only. */
 export default function ResearchUsage() {
   const { t } = useTranslation('ai')
   const runs = useRuns()
-  const [today] = useState(() => new Date())
+  const [now] = useState(() => Date.now())
   if (!runs.data) return null
-  const days = Array.from({ length: DAYS }, (_, i) => { const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (DAYS - 1 - i)); return { key: dayKey(d), label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), tokens: 0 } })
+  const days = Array.from({ length: DAYS }, (_, i) => { const key = dayOf(new Date(now - (DAYS - 1 - i) * DAY_MS).toISOString()); return { key, label: fmtDayMonth(key), tokens: 0 } })
   for (const r of runs.data.items) {
     if (r.skill !== 'research-cves') continue
-    const day = days.find((d) => d.key === dayKey(new Date(r.ts)))
+    const day = days.find((d) => d.key === dayOf(r.ts))
     if (day) day.tokens += r.tokens_in + r.tokens_out
   }
   const max = Math.max(...days.map((d) => d.tokens))

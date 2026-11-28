@@ -248,13 +248,15 @@ func researchDigest(cve string, rec CVERecordText, rows []string) string {
 	if !rec.Read {
 		b.WriteString("Only NVD's copy of the record is held (the CNA's record was not read).\n")
 	}
-	if d := strings.TrimSpace(rec.Description); d != "" {
+	// each on one line: a quote is checked inside one line of the digest (it never joins two)
+	flat := func(s string) string { return strings.Join(strings.Fields(s), " ") }
+	if d := flat(rec.Description); d != "" {
 		b.WriteString("Description: " + clipBytes(d, 1500) + "\n")
 	}
-	if s := strings.TrimSpace(rec.Solution); s != "" {
+	if s := flat(rec.Solution); s != "" {
 		b.WriteString("Vendor's solution: " + clipBytes(s, 600) + "\n")
 	}
-	if w := strings.TrimSpace(rec.Workaround); w != "" {
+	if w := flat(rec.Workaround); w != "" {
 		b.WriteString("Workaround: " + clipBytes(w, 400) + "\n")
 	}
 	for _, r := range rows {

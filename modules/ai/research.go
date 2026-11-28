@@ -712,15 +712,15 @@ func (s *Service) checkQuote(ctx context.Context, v ResearchVerdict, tools, dige
 	if reQuoteTags.MatchString(v.Quote) {
 		q.keep = foldQuote(v.Quote, false)
 	}
-	if t, ok := quoteIn(q, tools); ok {
+	if t, ok := quoteIn(q, tools, false); ok {
 		return QuoteTool, t
 	}
-	if t, ok := quoteIn(q, digest); ok {
+	if t, ok := quoteIn(q, digest, true); ok {
 		return QuoteDigest, t
 	}
 	if u, err := url.Parse(v.URL); err == nil && u.Scheme == "https" && u.Host != "" {
 		if pg := s.refs.one(ctx, v.URL); pg.Status == "ok" {
-			if t, ok := quoteIn(q, []string{pg.Text}); ok {
+			if t, ok := quoteIn(q, []string{pg.Text}, true); ok {
 				return QuoteLive, t
 			}
 		}
@@ -756,10 +756,24 @@ type quoteFolds struct{ norm, keep string }
 
 // quoteIn finds the folded quote q, whole, in one of texts. A quote of which only a part is found is not checked: the part the model
 // wrote itself may be the very release that decides the verdict. A quote with a tag is found only where the text has that tag too.
-func quoteIn(q quoteFolds, texts []string) (string, bool) {
+// byLine is set for the box's own copies (the digest, the pages it read: one block or table row per line): the quote must then be
+// inside one line, so it never joins the end of one row or block to the start of the next (the cells of one row may be quoted
+// together). The texts the provider's tools returned have no such lines and are searched whole.
+func quoteIn(q quoteFolds, texts []string, byLine bool) (string, bool) {
+	has := func(t string) bool {
+		return strings.Contains(normQuote(t), q.norm) && (q.keep == "" || strings.Contains(foldQuote(t, false), q.keep))
+	}
 	for _, t := range texts {
-		if strings.Contains(normQuote(t), q.norm) && (q.keep == "" || strings.Contains(foldQuote(t, false), q.keep)) {
-			return t, true
+		if !byLine {
+			if has(t) {
+				return t, true
+			}
+			continue
+		}
+		for line := range strings.SplitSeq(t, "\n") {
+			if len(line) >= len(q.norm)/2 && has(line) { // a line under half the quote's length cannot hold it once folded
+				return t, true
+			}
 		}
 	}
 	return "", false

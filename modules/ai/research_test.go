@@ -679,3 +679,34 @@ func TestResearch_VendorRowsKeepTheResearchOffTheWeb(t *testing.T) {
 		}
 	}
 }
+
+// A checked quote stays inside one block or one table row of the box's copy: cells of one row may be quoted together, but a quote that
+// matches only by joining the end of one row to the start of the next (a status from one row, the product of the next) is not found.
+func TestResearch_AQuoteNeverSpansTwoRows(t *testing.T) {
+	page := "NimbusPad security notice NP-2099-04\nProduct | Status\nNimbusPad Editor 3.1 | Not affected\nNimbusPad Server 2.0 | Affected through 2.0.4\n"
+	for _, c := range []struct {
+		name, quote, want string
+	}{
+		{"cells of one row", "NimbusPad Server 2.0 | Affected through 2.0.4", ai.QuoteDigest},
+		{"the end of one row and the start of the next", "Not affected NimbusPad Server 2.0", ai.QuoteNotFound},
+		{"one row's status with the next row's product", "Not affected | NimbusPad Server", ai.QuoteNotFound},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			a := researchSetup(t, ai.ResearchEconomy, false)
+			a.fake.research = func(context.Context, ai.Profile, provider.Request) (provider.Response, error) {
+				return provider.Response{Text: verdict("not_affected", "high", c.quote), Usage: provider.Usage{InputTokens: 900, OutputTokens: 90}, Stop: provider.StopEnd}, nil
+			}
+			req := researchReq
+			req.Pages = []ai.RefPage{{URL: "https://nimbuspad.example/security/np-2099-04", Status: "ok", Text: page}}
+			req.Excerpts = []ai.RefExcerpt{{Source: 1, URL: req.Pages[0].URL, Text: page}}
+			req.VendorPage = true
+			ans, err := a.svc.Research(a.ctx(), "it@acme.example", req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ans.QuoteCheck != c.want {
+				t.Errorf("quote %q: %s, want %s", c.quote, ans.QuoteCheck, c.want)
+			}
+		})
+	}
+}

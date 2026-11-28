@@ -398,6 +398,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
   version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  A row limited to an operating system whose builds do not run on the device's (`otherSystem`) states that system's fix and is not
+  read here; only `systemReadings` may rule the line out by such rows. `TestPlatformRows_AnotherSystemsFixProvesNothing`.
   A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
   train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
   so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an

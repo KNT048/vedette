@@ -157,15 +157,11 @@ func systemReadings(in swInfo, v Vuln, key []identity, name string) (agreement, 
 	}
 	// other is the family name of the system row c is limited to when the device does not run it, "" otherwise
 	other := func(c CPE) string {
-		lit, ok := c.TargetSW.Literal()
-		if !ok || c.TargetSW.Kind != Value {
+		if !otherSystem(in, c) {
 			return ""
 		}
-		w := osFamilies[strings.ToLower(lit)]
-		if w == "" || platformsMeet(have, w) {
-			return ""
-		}
-		return osFamilyNames[w]
+		lit, _ := c.TargetSW.Literal()
+		return osFamilyNames[osFamilies[strings.ToLower(lit)]]
 	}
 	var systems []string
 	third := false // a row of the line is a third party's

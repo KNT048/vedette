@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -133,6 +134,13 @@ func TestRecordSystems_ADroppedEntryLiftsTheSystemLimit(t *testing.T) {
 			`"defaultStatus":"unaffected","versions":[{"version":"6.0","status":"unaffected"}]},` + ios), true},
 		{"beside another product's dropped entry", record(`{"vendor":"Acme","product":"Meeting SDK","versions":[{"version":"n/a","status":"affected"}]},` + ios), true},
 		{"an ADP's dropped entry of the product", adp(`{"vendor":"Acme","product":"Meeting App","versions":[{"version":"unspecified","status":"affected"}]}`), false},
+		{"a dropped entry naming the product by its CPE", record(`{"vendor":"Acme","product":"Meeting App","platforms":["Windows"],` +
+			`"cpes":["cpe:2.3:a:acme:meeting_app:*:*:*:*:*:*:*:*"],"versions":[{"version":"unspecified","status":"affected"}]},` + ios), false},
+		{"an ADP's dropped entry naming the product by its CPE", adp(`{"vendor":"Acme","product":"Meeting App",` +
+			`"cpes":["cpe:2.3:a:acme:meeting_app:*:*:*:*:*:*:*:*"],"versions":[{"version":"unspecified","status":"affected"}]}`), false},
+		{"an ADP's dropped entry beside a list the vendor states complete", []byte(strings.Replace(string(adp(
+			`{"vendor":"Acme","product":"Meeting App","versions":[{"version":"n/a","status":"affected"}]}`)),
+			`"platforms":["iOS"],`, `"platforms":["iOS"],"defaultStatus":"unaffected",`, 1)), false},
 	} {
 		got, err := ParseCVERecord(tc.rec, "CVE-2026-1000")
 		if err != nil {
@@ -150,6 +158,10 @@ func TestRecordSystems_ADroppedEntryLiftsTheSystemLimit(t *testing.T) {
 		}
 		if limited := len(rows[0].Platforms) > 0; limited != tc.limited {
 			t.Errorf("%s: platforms %v, limited %v, want %v", tc.name, rows[0].Platforms, limited, tc.limited)
+		}
+		// a row whose system limit is lifted is no complete list: the dropped entry did not say what an unlisted version is
+		if !tc.limited && rows[0].DefaultStatus != DefaultUnknown {
+			t.Errorf("%s: default status %q, want %q", tc.name, rows[0].DefaultStatus, DefaultUnknown)
 		}
 	}
 }

@@ -73,10 +73,10 @@ type recordGroup struct {
 // and no defaultStatus; or a product whose entries cannot be read, unusable) is a statement about the product the rows do not keep: it
 // may name a system, or every one, the rows left do not. Then no row of that product, in any container of the record, keeps its system
 // limit (liftSystems): a system the rows left name is no proof that another one is not affected. A version inside them still reads
-// affected, so this only ever opens.
+// affected.
 func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) (rows []Range, skipped, statedDropped int) {
-	stated := 0                    // the rows kept as the vendor states them, at most recordMaxStated a record
-	lifted := map[[2]string]bool{} // vendor, product of the products an entry of which gave no row
+	stated := 0                     // the rows kept as the vendor states them, at most recordMaxStated a record
+	lifted := map[ProductKey]bool{} // the products an entry of which gave no row (liftKey)
 	conv := func(origin string, list []cnaAffected, fallback string) {
 		if len(list) == 0 {
 			return
@@ -144,7 +144,7 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 		}
 		for _, g := range groups {
 			if g.unusable || g.noRowPart {
-				lifted[[2]string{g.key[1], g.key[2]}] = true
+				lifted[liftKey(g.key[1], g.key[2])] = true
 			}
 			schemed := SchemeProduct(Range{Part: g.key[0], Vendor: g.key[1], Product: g.key[2]})
 			vendors := origin == OriginCNA && !slices.ContainsFunc(g.entries, func(a cnaAffected) bool { return !ownCNA(assigner, a.Vendor) })
@@ -208,17 +208,22 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 	return liftSystems(rows, lifted), skipped, statedDropped
 }
 
+// liftKey names a product the same way whether an entry names it by its CPE ("acme", "meeting_app") or by its own words ("Acme",
+// "Meeting App"): a dropped entry of either form lifts the rows of both (liftSystems).
+func liftKey(vendor, product string) ProductKey { return RecordProductKey(vendor, product) }
+
 // liftSystems drops the system limit of the generic rows of the lifted products (recordRanges), and the rows that then repeat another
-// (one per system of an entry) once each, the repeat's weaker defaultStatus kept. A row limited to models keeps them.
-func liftSystems(rows []Range, lifted map[[2]string]bool) []Range {
+// (one per system of an entry) once each, the repeat's weaker defaultStatus kept. A row limited to models keeps them. A lifted row's
+// defaultStatus is unknown: the dropped entry did not say what a version the rows do not list is, so the list is not complete.
+func liftSystems(rows []Range, lifted map[ProductKey]bool) []Range {
 	if len(lifted) == 0 {
 		return rows
 	}
 	out := rows[:0]
 	for _, r := range rows {
-		if lifted[[2]string{r.Vendor, r.Product}] && r.Generic() && len(r.Platforms) > 0 &&
+		if lifted[liftKey(r.Vendor, r.Product)] && r.Generic() && len(r.Platforms) > 0 &&
 			!slices.ContainsFunc(r.Platforms, func(p string) bool { return !systemTargets[p] }) {
-			r.Platforms = nil
+			r.Platforms, r.DefaultStatus = nil, DefaultUnknown
 			if j := slices.IndexFunc(out, func(h Range) bool {
 				return len(h.Platforms) == 0 && h.Origin == r.Origin && h.Part == r.Part && h.Vendor == r.Vendor && h.Product == r.Product &&
 					h.CPE == r.CPE && h.VersionType == r.VersionType && sameSpan(h, r)

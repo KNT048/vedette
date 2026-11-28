@@ -112,3 +112,36 @@ func TestPlatformRows_SystemsThatMeetNeverRuleOut(t *testing.T) {
 		}
 	}
 }
+
+// The fix a partial list states for a row limited to another system (target_sw) is that system's build: a version past it says nothing
+// about the build the device runs. Only the system rule (vendor's own rows, or NVD's rows of the line agreeing) may rule the line out.
+func TestPlatformRows_AnotherSystemsFixProvesNothing(t *testing.T) {
+	t.Parallel()
+	line := Software{ID: "z", Display: "Example Meeting App", Vendor: "Example", Product: "Meeting App", Version: "7.1.9", Source: "agent"}
+	row := func(sys string, vendor bool) Affected {
+		return Affected{CPE: "cpe:2.3:*:example:meeting_app:*:*:*:*:*:" + sys + ":*:*", Range: VersionRange{EndExcl: "7.0.0"}, VendorCNA: vendor}
+	}
+	for _, tc := range []struct {
+		name, os string
+		row      Affected
+		closes   bool
+		says     string
+	}{
+		{"a third party's row for a mobile system, on Windows", "Microsoft Windows 11 Pro", row("iphone_os", false), false, ""},
+		{"the vendor's row for a mobile system, on Windows", "Microsoft Windows 11 Pro", row("iphone_os", true), true, "on iOS or iPadOS only"},
+		{"a third party's row for the device's own system", "Microsoft Windows 11 Pro", row("windows", false), true, "outside every version range"},
+		{"a third party's row for every system", "Microsoft Windows 11 Pro", row("*", false), true, "outside every version range"},
+	} {
+		v := Vuln{CVE: "CVE-2099-7306", NVDAnswered: true, Published: uncNew, RangesFrom: RangesCVEOrgPartial, Origin: RangeCNA, Affected: []Affected{tc.row}}
+		a := Asset{ID: "pc", Name: "pc-01", OS: tc.os, AgentOS: tc.os, Software: []Software{line}}
+		res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, uncNow)
+		closed := len(res.NotAffected) == 1
+		if closed != tc.closes {
+			t.Errorf("%s: closed %v, want %v (not affected %+v, unchecked %+v)", tc.name, closed, tc.closes, res.NotAffected, res.Unchecked)
+			continue
+		}
+		if closed && !strings.Contains(res.NotAffected[0].Evidence.Summary, tc.says) {
+			t.Errorf("%s: evidence %q, want it to say %q", tc.name, res.NotAffected[0].Evidence.Summary, tc.says)
+		}
+	}
+}

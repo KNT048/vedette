@@ -38,6 +38,18 @@ function Steps({ steps, caution }: { steps: CodeStep[]; caution?: string }) {
         <div key={`${i}:${s.title}`} className="grid gap-1.5">
           {caution ? <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta">{caution}</p> : null}
           {s.check?.length ? <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta"><span className="font-medium">{t('ai.checkAddresses')}</span> {s.check.join(', ')}</p> : null}
+          {s.warnings?.length ? (
+            <div className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-meta" role="note" aria-label={t('ai.riskyLines')}>
+              <p className="font-medium">{t('ai.riskyLines')}</p>
+              <ul className="mt-1 grid gap-1">
+                {s.warnings.map((w) => (
+                  <li key={`${w.line}:${w.kind}`}>
+                    {t('ai.riskyLine', { line: w.line })} <code className="break-all font-mono">{s.code.split('\n')[w.line - 1]?.trim()}</code> {w.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {s.code ? <CodeBlock code={s.code} label={s.title} wrapOnPhone /> : <p className="text-meta font-medium">{s.title}</p>}
           {s.note ? <p className="text-meta text-muted">{s.note}</p> : null}
           {s.side_effect ? <SideEffect text={s.side_effect} /> : null}

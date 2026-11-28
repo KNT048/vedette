@@ -244,6 +244,18 @@ describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
     expect(screen.queryByText(/^Vedette shortened/)).not.toBeInTheDocument()
   })
 
+  // a line the box reads as risky (here a FortiOS policy that accepts any source to any destination) is marked on its line; the block
+  // stays whole, so the person sees exactly what the AI wrote
+  it('Ask my AI: risky lines of a config block are marked on their line', async () => {
+    const base = { skill: 'mitigation-config' as const, ts: '2026-11-16T00:00:00Z', model: 'm', tokens: { input: 1, output: 1 }, paragraphs: [], steps: [], citations: [], no_config_reason: '' }
+    render(<AiOutput r={{ ...base, configs: [{ title: 'FortiGate 60F', code: 'config firewall policy\n edit 0\n  set srcaddr "all"\n  set dstaddr "all"\n  set action accept\n next\nend',
+      warnings: [{ line: 5, kind: 'broad_allow', text: 'Allows traffic from any source to any destination.' }] }, { title: 'Narrow', code: 'set b' }] }} />)
+    const note = screen.getByRole('note', { name: 'Risky lines: review them before you apply this block.' })
+    expect(note).toHaveTextContent('Line 5: set action accept Allows traffic from any source to any destination.')
+    expect(screen.getAllByRole('note', { name: /^Risky lines/ })).toHaveLength(1)
+    await expectNoA11yViolations()
+  })
+
   it('f-3 is the same, with the MSRC link', async () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()

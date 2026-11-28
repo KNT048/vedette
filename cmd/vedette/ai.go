@@ -255,7 +255,11 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 		if c.BasedOn != "" {
 			note = "Based on: " + c.BasedOn
 		}
-		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check})
+		var warns []findings.CodeWarning
+		for _, w := range c.Warnings {
+			warns = append(warns, findings.CodeWarning{Line: w.Line, Kind: w.Kind, Text: w.Text})
+		}
+		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check, Warnings: warns})
 	}
 	aiMarkAssumed(out.Configs, walls, aiDeviceNames(row, dev))
 	for _, l := range links[:min(len(links), 2)] { // the box builds the sources from the brief's own references; a model never supplies a link

@@ -46351,6 +46351,42 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
+                                          }
                                         }
                                       },
                                       "required": [
@@ -46393,6 +46429,42 @@
                                               "items": {
                                                 "type": "string"
                                               }
+                                            },
+                                            "warnings": {
+                                              "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "line": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                    "maximum": 9007199254740991,
+                                                    "description": "The line of the block, 1 for the first"
+                                                  },
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "broad_allow",
+                                                      "new_credential",
+                                                      "logging_off",
+                                                      "auth_off",
+                                                      "protection_off",
+                                                      "management_exposed"
+                                                    ]
+                                                  },
+                                                  "text": {
+                                                    "type": "string",
+                                                    "description": "What the line does, in the box's own words"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "line",
+                                                  "kind",
+                                                  "text"
+                                                ],
+                                                "additionalProperties": false
+                                              }
                                             }
                                           },
                                           "required": [
@@ -46434,6 +46506,42 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
+                                          }
                                         }
                                       },
                                       "required": [
@@ -46466,6 +46574,42 @@
                                           "type": "array",
                                           "items": {
                                             "type": "string"
+                                          }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         }
                                       },
@@ -46712,6 +46856,42 @@
                                         "items": {
                                           "type": "string"
                                         }
+                                      },
+                                      "warnings": {
+                                        "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "line": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991,
+                                              "description": "The line of the block, 1 for the first"
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "broad_allow",
+                                                "new_credential",
+                                                "logging_off",
+                                                "auth_off",
+                                                "protection_off",
+                                                "management_exposed"
+                                              ]
+                                            },
+                                            "text": {
+                                              "type": "string",
+                                              "description": "What the line does, in the box's own words"
+                                            }
+                                          },
+                                          "required": [
+                                            "line",
+                                            "kind",
+                                            "text"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
                                     },
                                     "required": [
@@ -46894,6 +47074,42 @@
                                         "type": "array",
                                         "items": {
                                           "type": "string"
+                                        }
+                                      },
+                                      "warnings": {
+                                        "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "line": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991,
+                                              "description": "The line of the block, 1 for the first"
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "broad_allow",
+                                                "new_credential",
+                                                "logging_off",
+                                                "auth_off",
+                                                "protection_off",
+                                                "management_exposed"
+                                              ]
+                                            },
+                                            "text": {
+                                              "type": "string",
+                                              "description": "What the line does, in the box's own words"
+                                            }
+                                          },
+                                          "required": [
+                                            "line",
+                                            "kind",
+                                            "text"
+                                          ],
+                                          "additionalProperties": false
                                         }
                                       }
                                     },
@@ -48034,6 +48250,42 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
+                                          }
                                         }
                                       },
                                       "required": [
@@ -48076,6 +48328,42 @@
                                               "items": {
                                                 "type": "string"
                                               }
+                                            },
+                                            "warnings": {
+                                              "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "line": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                    "maximum": 9007199254740991,
+                                                    "description": "The line of the block, 1 for the first"
+                                                  },
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "broad_allow",
+                                                      "new_credential",
+                                                      "logging_off",
+                                                      "auth_off",
+                                                      "protection_off",
+                                                      "management_exposed"
+                                                    ]
+                                                  },
+                                                  "text": {
+                                                    "type": "string",
+                                                    "description": "What the line does, in the box's own words"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "line",
+                                                  "kind",
+                                                  "text"
+                                                ],
+                                                "additionalProperties": false
+                                              }
                                             }
                                           },
                                           "required": [
@@ -48117,6 +48405,42 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
+                                          }
                                         }
                                       },
                                       "required": [
@@ -48149,6 +48473,42 @@
                                           "type": "array",
                                           "items": {
                                             "type": "string"
+                                          }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         }
                                       },
@@ -48395,6 +48755,42 @@
                                         "items": {
                                           "type": "string"
                                         }
+                                      },
+                                      "warnings": {
+                                        "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "line": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991,
+                                              "description": "The line of the block, 1 for the first"
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "broad_allow",
+                                                "new_credential",
+                                                "logging_off",
+                                                "auth_off",
+                                                "protection_off",
+                                                "management_exposed"
+                                              ]
+                                            },
+                                            "text": {
+                                              "type": "string",
+                                              "description": "What the line does, in the box's own words"
+                                            }
+                                          },
+                                          "required": [
+                                            "line",
+                                            "kind",
+                                            "text"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
                                     },
                                     "required": [
@@ -48577,6 +48973,42 @@
                                         "type": "array",
                                         "items": {
                                           "type": "string"
+                                        }
+                                      },
+                                      "warnings": {
+                                        "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "line": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991,
+                                              "description": "The line of the block, 1 for the first"
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "broad_allow",
+                                                "new_credential",
+                                                "logging_off",
+                                                "auth_off",
+                                                "protection_off",
+                                                "management_exposed"
+                                              ]
+                                            },
+                                            "text": {
+                                              "type": "string",
+                                              "description": "What the line does, in the box's own words"
+                                            }
+                                          },
+                                          "required": [
+                                            "line",
+                                            "kind",
+                                            "text"
+                                          ],
+                                          "additionalProperties": false
                                         }
                                       }
                                     },
@@ -49719,6 +50151,42 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
+                                          }
                                         }
                                       },
                                       "required": [
@@ -49761,6 +50229,42 @@
                                               "items": {
                                                 "type": "string"
                                               }
+                                            },
+                                            "warnings": {
+                                              "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "line": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                    "maximum": 9007199254740991,
+                                                    "description": "The line of the block, 1 for the first"
+                                                  },
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "broad_allow",
+                                                      "new_credential",
+                                                      "logging_off",
+                                                      "auth_off",
+                                                      "protection_off",
+                                                      "management_exposed"
+                                                    ]
+                                                  },
+                                                  "text": {
+                                                    "type": "string",
+                                                    "description": "What the line does, in the box's own words"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "line",
+                                                  "kind",
+                                                  "text"
+                                                ],
+                                                "additionalProperties": false
+                                              }
                                             }
                                           },
                                           "required": [
@@ -49802,6 +50306,42 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
+                                          }
                                         }
                                       },
                                       "required": [
@@ -49834,6 +50374,42 @@
                                           "type": "array",
                                           "items": {
                                             "type": "string"
+                                          }
+                                        },
+                                        "warnings": {
+                                          "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "line": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "The line of the block, 1 for the first"
+                                              },
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "broad_allow",
+                                                  "new_credential",
+                                                  "logging_off",
+                                                  "auth_off",
+                                                  "protection_off",
+                                                  "management_exposed"
+                                                ]
+                                              },
+                                              "text": {
+                                                "type": "string",
+                                                "description": "What the line does, in the box's own words"
+                                              }
+                                            },
+                                            "required": [
+                                              "line",
+                                              "kind",
+                                              "text"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         }
                                       },
@@ -50080,6 +50656,42 @@
                                         "items": {
                                           "type": "string"
                                         }
+                                      },
+                                      "warnings": {
+                                        "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "line": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991,
+                                              "description": "The line of the block, 1 for the first"
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "broad_allow",
+                                                "new_credential",
+                                                "logging_off",
+                                                "auth_off",
+                                                "protection_off",
+                                                "management_exposed"
+                                              ]
+                                            },
+                                            "text": {
+                                              "type": "string",
+                                              "description": "What the line does, in the box's own words"
+                                            }
+                                          },
+                                          "required": [
+                                            "line",
+                                            "kind",
+                                            "text"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
                                     },
                                     "required": [
@@ -50262,6 +50874,42 @@
                                         "type": "array",
                                         "items": {
                                           "type": "string"
+                                        }
+                                      },
+                                      "warnings": {
+                                        "description": "AI config blocks only: the risky lines as the box read them by the syntax of the device (a broad allow, a new user or credential, logging or sign-in checks off, a protection off, management opened to any address or the internet side); the page marks each line. Nothing is removed for a warning",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "line": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991,
+                                              "description": "The line of the block, 1 for the first"
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "broad_allow",
+                                                "new_credential",
+                                                "logging_off",
+                                                "auth_off",
+                                                "protection_off",
+                                                "management_exposed"
+                                              ]
+                                            },
+                                            "text": {
+                                              "type": "string",
+                                              "description": "What the line does, in the box's own words"
+                                            }
+                                          },
+                                          "required": [
+                                            "line",
+                                            "kind",
+                                            "text"
+                                          ],
+                                          "additionalProperties": false
                                         }
                                       }
                                     },

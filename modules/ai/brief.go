@@ -90,6 +90,9 @@ type BriefConfig struct {
 	// Check lists the addresses the block names that are not Trusted (netmasks, wildcards and 0.0.0.0 / :: aside), as written: the page
 	// asks the person to check them before pasting. Nothing is dropped for an address (#897 r2).
 	Check []string
+	// Warnings are the risky lines of the block (CheckConfig: a broad allow, a new credential, logging or sign-in checks off, a
+	// protection off, management opened to the internet side), each shown on its line. Nothing is dropped for a warning either.
+	Warnings []ConfigWarning
 }
 
 type briefBody struct {
@@ -261,7 +264,7 @@ func keptBrief(b briefBody, refs []BriefRef, trusted []netip.Addr) (a BriefAnswe
 		if title == "" {
 			title = "Configuration"
 		}
-		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis, Check: untrustedAddrs(code, trusted)})
+		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis, Check: untrustedAddrs(code, trusted), Warnings: CheckConfig(code)})
 	}
 	var c4 bool
 	a.NoConfigReason, c4 = clipSentence(cleanText(b.NoConfig), briefSideRunes)

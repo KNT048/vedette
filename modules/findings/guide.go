@@ -25,6 +25,16 @@ type CodeStep struct {
 	// Check (an AI config block only, #897 r2): the addresses the block names that are not addresses the box knows for the finding;
 	// the page asks the person to check them before pasting.
 	Check []string `json:"check,omitempty"`
+	// Warnings (an AI config block only): its risky lines as the box read them (a broad allow, a new credential, logging or sign-in
+	// checks off, a protection off, management opened to the internet side); the page shows each on its line.
+	Warnings []CodeWarning `json:"warnings,omitempty"`
+}
+
+// CodeWarning is one risky line of an AI config block: its number (1 = the first line), its kind and the box's words for it.
+type CodeWarning struct {
+	Line int    `json:"line"`
+	Kind string `json:"kind"`
+	Text string `json:"text"`
 }
 
 // Alternative is the second way of a firewall guide.

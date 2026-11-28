@@ -490,9 +490,11 @@ type MatchResult struct {
 	// Unchecked like any row Vedette could not compare, and the service closes an open suspected product finding of that pair with
 	// Evidence.Summary (NameOnlyNote first) as its note. A later match that compares a version reopens it.
 	NameOnly []Match
-	// Unchecked lists, per software row, the exploited CVEs of software the device has that gave no finding, no NeedVersion
-	// item and no proof (#910 phase 1, uncheckedRow): a row CISA's key or NVD's list names that Vedette could not compare, a
-	// product match the age rule drops, and NotComparable. Independent of have.
+	// Unchecked lists, per software row, the CVEs of software the device has that gave no finding, no NeedVersion item and no proof
+	// on that row's line (#910 phase 1, uncheckedRow, askRow): a row CISA's key or NVD's list names that Vedette could not compare,
+	// a distribution's package its distribution's data has no word on, a version only the device or a person may state, a product
+	// match the age rule drops, and NotComparable. A finding or an item of the CVE on another line does not take a row's place
+	// (apart). Independent of have.
 	Unchecked []Unchecked
 	// Asked lists, whatever the device already has, the platform-limited CVEs no row decides until a person answers: the
 	// platform is not known, or it is the distribution of the fixed list and the package release is not. No finding; each is in

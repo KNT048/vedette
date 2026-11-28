@@ -641,6 +641,17 @@ CREATE TABLE feeds_cna (
     may_be_vendor INTEGER NOT NULL CHECK (may_be_vendor IN (0, 1))
 ) WITHOUT ROWID;
 
+CREATE TABLE feeds_distro_triage (
+    source_id TEXT NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
+    distro    TEXT NOT NULL CHECK (distro IN ('ubuntu', 'debian', 'alpine')),
+    release   TEXT NOT NULL CHECK (length(release) BETWEEN 1 AND 8 AND release NOT GLOB '*[^0-9.]*'),
+    package   TEXT NOT NULL CHECK (length(package) BETWEEN 1 AND 100),
+    cve       TEXT NOT NULL CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
+    PRIMARY KEY (source_id, distro, release, package, cve)
+);
+
+CREATE INDEX feeds_distro_triage_cve_idx ON feeds_distro_triage (cve);
+
 -- module inventory
 
 CREATE TABLE inv_observation (

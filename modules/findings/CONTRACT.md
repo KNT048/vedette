@@ -214,7 +214,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
   its undecided reason as the cause and no details), for a distribution's package its distribution's data has no word on and no
   question asks about (the matcher asks about each, `askRow`, so the target is none), why (`DistroSilences`:
-  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_no_data`,
+  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_triage`, `distro_no_data`,
   `version_needed` for an agent's package row without its release; `TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed`), or an
   unnamed class (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor
   asked, so nobody is told why; the target is none). Beside it, the software lines by identity method (`stated`, `catalogue`, `record`, `none`). A device the
@@ -583,11 +583,20 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
   Grype's apk matcher; such a package whose upstream rows decide nothing is asked like any line). Ubuntu's and Debian's silence decides
   nothing: the pair is a possible question with cause `distro_silent` and `distroSilence`'s reason (`distro_not_listed`,
-  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_no_data`; an agent's package row without its release or
+  `distro_triage` when the distribution states it is still triaging the CVE for the package and release, `distro_other_packages`,
+  `distro_other_releases`, `distro_other_build`, `distro_no_data`; an agent's package row without its release or
   source asks for it, `package_unknown`), which no check of the vendor's advisory reads (`checkable`: the vendor does not speak for the
   distribution's build); `TestCoverage_EveryRelatedPairIsDecidedOrAsked`. The distribution's "affected, no fix yet" of a CVE on no exploited
   list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts
-  it decided affected (`distro_no_fix`).
+  it decided affected (`distro_no_fix`). The rows of a package's release rank fixed, then not affected, then being triaged, then
+  "affected, no fix yet" (`chooseInRelease`): a stated triage outranks an OSV record without a fixed event, which mixes "needed" and
+  "needs triage"; a "not affected" stated only for an Ubuntu Pro pocket never outranks the public release's own "affected, no fix
+  yet" (`TestDistroStatus_ProPocketNotAffectedNeverOutranksThePublicReleasesAffected`). An exploited CVE being triaged is the suspected upstream finding of a package the distribution has not answered for
+  (`awaitingDistro`, its evidence names the triage), never the distribution's confirmed "affected"; where the upstream range does not
+  cover the version and the release's package is also stated "affected, no fix yet", it is still a suspected finding by that word
+  (`triagedAffected`): a triage, stale or not, never weakens a finding of an exploited CVE to nothing. "Affected, no fix yet" of a package
+  Ubuntu tracks for the release only in an Ubuntu Pro pocket carries the fix channel `ubuntu_pro` (`none_yet`): its fix would come
+  through Ubuntu Pro only, never a free update (`TestDistroStatus_*`).
   `TestMatchAsset_AlpineRowsDecideCatalogueCVEs`, `TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs`. A package the
   distribution built (its revision carries the distribution's mark, or it is the distribution's kernel) is judged by that data alone
   while the distribution's feeds are on (`Vuln.DistroOn`, `distroDecides`): its word "affected, no fix yet" (status `open`) is a

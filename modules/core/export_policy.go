@@ -100,6 +100,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_nvd_cursor":       {skipAll: true, skip: "selector url mode win_from win_to until next_index total"},        // Where an unfinished pull goes on
 	"feeds_signal":           {export: "cve kind source first_seen stored_at last_seen qualifies url", json: "detail"}, // Why a CVE is urgent and since when: the box's own first sightings
 	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro reason"},         // Public Ubuntu/Debian data
+	"feeds_distro_triage":    {export: "source_id distro release package cve"},                                         // Public Ubuntu/Debian data: a CVE still being triaged
 	"feeds_epss":             {skipAll: true, skip: "cve epss percentile gen"},                                         // FIRST's public scores of every CVE (400,000 rows), pulled again daily
 	"feeds_epss_baseline":    {skipAll: true, skip: "id url count score_date"},                                         // The yardstick of the next EPSS file and FIRST's day of the scores
 	"feeds_winrel":           {export: "build server product display line ga ga_rev"},                                  // The Windows releases Microsoft lists; kept so a restore reads the same builds

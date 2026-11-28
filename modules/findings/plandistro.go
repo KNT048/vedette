@@ -183,9 +183,11 @@ func apkPkgOf(s Software, _ string) (string, string, bool) {
 }
 
 // chooseInRelease is the row of the device's release: a fixed release (a public fix over one only Ubuntu Pro has), else "not affected",
-// else "open" (no fix yet).
+// else "being triaged", else "open" (no fix yet). A stated triage outranks "open": Ubuntu's OSV file writes a release with no fixed
+// event for "needed", "deferred" and "needs triage" alike, while its VEX file names the triage, and Debian never states both. A "not
+// affected" stated only for an Ubuntu Pro pocket never outranks the public release's own "open": the two differ, so it stays affected.
 func chooseInRelease(rows []DistroFix, release, _ string) (DistroFix, bool) {
-	var fix, na, open *DistroFix
+	var fix, na, triage, open *DistroFix
 	for i := range rows {
 		f := &rows[i]
 		if f.Release != release {
@@ -197,12 +199,21 @@ func chooseInRelease(rows []DistroFix, release, _ string) (DistroFix, bool) {
 				fix = f
 			}
 		case "not_affected":
-			na = f
+			if na == nil || na.Pro && !f.Pro { // a public release's word over a Pro pocket's
+				na = f
+			}
+		case distroTriage:
+			triage = f
 		case "open":
-			open = f
+			if open == nil || open.Pro && !f.Pro { // a public release's word over a Pro pocket's
+				open = f
+			}
 		}
 	}
-	for _, f := range []*DistroFix{fix, na, open} {
+	if na != nil && na.Pro && open != nil && !open.Pro { // the pocket's word differs from the public release's own: the cautious one stands
+		na = nil
+	}
+	for _, f := range []*DistroFix{fix, na, triage, open} {
 		if f != nil {
 			return *f, true
 		}

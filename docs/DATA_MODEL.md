@@ -91,6 +91,7 @@ One vulnerability catalogue, the signals that make a CVE urgent, and the indicat
 | `feeds_signal` | Why a CVE is urgent and since when: one row per (CVE, kind, source); `qualifies` says whether it passes the quality rule of its kind. An exploited-list entry is also an `exploited` signal. |
 | `feeds_epss`, `feeds_epss_baseline`, `feeds_epss_hist` | EPSS scores of every CVE; a short daily history for CVEs that have an entry or a signal (the "rising" display). |
 | `feeds_distro_fix` | Distribution fix status per (release, package, CVE): Ubuntu, Debian, Alpine. |
+| `feeds_distro_triage` | A distribution's stated "still triaging" per (release, package, CVE): Ubuntu VEX under_investigation, Debian undetermined. |
 | `feeds_winrel`, `feeds_winrel_update` | Windows releases and their cumulative updates. |
 | `feeds_nvd_cursor` | Where each paged NVD pull stands. |
 | `feeds_source`, `feeds_fetch_log` | Built-in and custom feeds, and one row per pull attempt. |

@@ -66079,6 +66079,8 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) Validate() error {
 		return nil
 	case "distro_no_data":
 		return nil
+	case "distro_triage":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -67953,6 +67955,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Validate() error 
 	case "distro_other_build":
 		return nil
 	case "distro_no_data":
+		return nil
+	case "distro_triage":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

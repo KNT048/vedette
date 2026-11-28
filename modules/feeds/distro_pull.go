@@ -147,6 +147,30 @@ func (s *Service) distroPartial(ctx context.Context, src sourceRow) bool {
 	return ok
 }
 
+// distroWindowWaits says whether distribution feed src's last good pull came while nvd-recent was not loaded (or is off): it kept the
+// distribution's word for the CVEs the catalogue held then (tierCVEs, never fewer than the match pass reads) and no record of what it
+// kept them for, so it runs again in full once the window is there (distroPartial, distroBehind).
+func (s *Service) distroWindowWaits(ctx context.Context, src sourceRow) bool {
+	if src.LastSuccess == nil || !src.Enabled {
+		return false
+	}
+	kept, err := s.st.distroKept(ctx, src.ID)
+	if err != nil || kept != nil {
+		return false
+	}
+	st, err := s.st.TierStatus(ctx, s.now())
+	if err != nil || st.Recent == TierReady {
+		return false
+	}
+	var tier bool // the pull kept rows of CVEs on no exploited list (tier rows) with no record of what for: it came before the window
+	err = s.st.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_distro_fix WHERE source_id = ? AND cve NOT IN (SELECT cve FROM feeds_kev WHERE list = 'cisa'))`,
+		src.ID).Scan(&tier)
+	return err == nil && tier
+}
+
+// distroWindowNote is the Feeds page line of a distribution feed distroWindowWaits is true of.
+const distroWindowNote = "Partly loaded: the CVEs of the last 12 months are not loaded (their feed is still loading, or off), so the last pull kept the distribution's word for the CVEs Vedette holds now. Vedette pulls it again in full once they are loaded."
+
 // distroPartialNote is the Feeds page line of a distribution feed distroPartial is true of.
 const distroPartialNote = "Partly loaded: the last pull came before the CVEs of the last 12 months and the devices' packages were known, so it holds the exploited-list CVEs only and Vedette cannot judge the devices' packages for the others yet. Vedette pulls it again at the next check."
 
@@ -245,8 +269,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	// release's package is not affected (Ubuntu's OSV file lists affected packages only). Only the devices' releases' rows are kept:
 	// the not-affected statements of every release cost 561,161 rows and 485 MB of peak RSS on 2026-11-15.
 	keep := distroKeep(dev) // the packages and releases the tier rows are kept for, stored with them
+	ready := true           // nvd-recent is loaded: the stored record of what the tier rows were kept for is complete
 	if keep != nil {
-		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
+		if want.Tier, ready, err = s.st.tierCVEs(ctx, s.now()); err != nil {
 			return p, err
 		}
 	}
@@ -290,6 +315,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	p.out = outcome{OK: true, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Rows))
 	p.distro, p.hasDistro, p.distroKEV, p.distroKeep = res.Rows, true, want.KEV, keep
+	if !ready { // kept for the catalogue as it is now: no record, so the pull after nvd-recent loads runs in full (distroWindowWaits)
+		p.distroKeep = nil
+	}
 	var ms runtime.MemStats // The heap with the parsed rows still held, logged to measure peak memory (once a day a feed)
 	runtime.ReadMemStats(&ms)
 	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages), "releases", len(want.Releases), "heap_mb", ms.HeapInuse>>20)
@@ -302,7 +330,8 @@ var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, 
 // distroCVEs lists the CVEs of the CISA list a distribution feed has rows for, sorted: the findings it may change (its tier rows
 // decide no finding).
 func distroCVEs(ctx context.Context, tx *sql.Tx, sourceID string) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? AND cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa') ORDER BY cve`, sourceID)
+	rows, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_distro_fix WHERE source_id = ?1 UNION SELECT cve FROM feeds_distro_triage WHERE source_id = ?1
+INTERSECT SELECT cve FROM feeds_kev WHERE list = 'cisa' ORDER BY cve`, sourceID)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: distro: %w", err)
 	}
@@ -330,7 +359,8 @@ type distroVal struct {
 // baseline: findings it closes or raises send no alert).
 func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []DistroFix) (changed []string, first bool, err error) {
 	old := map[distroKey]distroVal{}
-	q, err := tx.QueryContext(ctx, `SELECT distro, release, package, cve, status, COALESCE(fixed_version, ''), pro, reason FROM feeds_distro_fix WHERE source_id = ?`, sourceID)
+	q, err := tx.QueryContext(ctx, `SELECT distro, release, package, cve, status, COALESCE(fixed_version, ''), pro, reason FROM feeds_distro_fix WHERE source_id = ?1
+UNION ALL SELECT distro, release, package, cve, '`+DistroTriage+`', '', 0, '' FROM feeds_distro_triage WHERE source_id = ?1`, sourceID)
 	if err != nil {
 		return nil, false, fmt.Errorf("feeds: distro: %w", err)
 	}
@@ -348,8 +378,10 @@ func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []Distro
 	}
 	cves := map[string]bool{}
 	seen := map[distroKey]bool{}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_distro_fix WHERE source_id = ?`, sourceID); err != nil {
-		return nil, false, fmt.Errorf("feeds: distro: %w", err)
+	for _, del := range []string{`DELETE FROM feeds_distro_fix WHERE source_id = ?`, `DELETE FROM feeds_distro_triage WHERE source_id = ?`} {
+		if _, err := tx.ExecContext(ctx, del, sourceID); err != nil {
+			return nil, false, fmt.Errorf("feeds: distro: %w", err)
+		}
 	}
 	for _, r := range rows {
 		k := distroKey{r.Distro, r.Release, r.Package, r.CVE}
@@ -358,8 +390,18 @@ func applyDistro(ctx context.Context, tx *sql.Tx, sourceID string, rows []Distro
 		}
 		seen[k] = true
 		v := distroVal{r.Status, r.Fixed, r.Reason, r.Pro}
+		if r.Status == DistroTriage { // its own table (a release rolled back never reads it): no fix, reason or channel kept
+			v = distroVal{status: DistroTriage}
+		}
 		if was, ok := old[k]; !ok || was != v {
 			cves[r.CVE] = true
+		}
+		if r.Status == DistroTriage {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_distro_triage (source_id, distro, release, package, cve) VALUES (?, ?, ?, ?, ?)`,
+				sourceID, r.Distro, r.Release, r.Package, r.CVE); err != nil {
+				return nil, false, fmt.Errorf("feeds: distro: %w", err)
+			}
+			continue
 		}
 		var fixed any
 		if r.Status == DistroFixed {
@@ -414,8 +456,8 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s
 // DistroOn lists the distributions ("ubuntu", "debian") whose security data decides their own packages: the feed that says which
 // packages are affected and fixed (debian-tracker, ubuntu-osv) is on and has rows or a completed pull, or is loading (as DistroLoading
 // counts it). findings judges a package such a distribution built by its word alone; a distribution whose feeds are off, or were given
-// up after failing, falls back to NVD's ranges. ubuntu-vex does not count: it keeps only "not affected", so with ubuntu-osv off no row
-// could ever say an Ubuntu package is affected.
+// up after failing, falls back to NVD's ranges. ubuntu-vex does not count: it never gives a fixed version, so with ubuntu-osv off no row
+// could ever say an Ubuntu package is fixed.
 func (s *Store) DistroOn(ctx context.Context) (map[string]bool, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('debian-tracker', 'ubuntu-osv')
 AND (s.last_success IS NOT NULL OR EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) OR s.failures < ? AND `+kevCanArrive+`)`,
@@ -483,9 +525,9 @@ func (s *Store) DistroFixesFor(ctx context.Context, cves []string) (map[string][
 		if err != nil {
 			return nil, fmt.Errorf("feeds: read distro: %w", err)
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro, d.reason
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1
-AND d.status IN ('fixed', 'not_affected', 'open') AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, string(part))
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, d.fixed, d.pro, d.reason
+FROM (`+distroRowsSQL+`) d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1
+AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, string(part))
 		if err != nil {
 			return nil, fmt.Errorf("feeds: read distro: %w", err)
 		}
@@ -536,10 +578,16 @@ JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('
 	return slices.Sorted(mapsKeys(cves)), nil
 }
 
+// distroRowsSQL is every stored word of the distribution feeds as one row shape: feeds_distro_fix's statuses this release reads, and
+// feeds_distro_triage's rows as the status DistroTriage.
+const distroRowsSQL = `SELECT source_id, distro, release, package, cve, status, COALESCE(fixed_version, '') AS fixed, pro, reason FROM feeds_distro_fix
+WHERE status IN ('fixed', 'not_affected', 'open')
+UNION ALL SELECT source_id, distro, release, package, cve, '` + DistroTriage + `', '', 0, '' FROM feeds_distro_triage`
+
 // distroFixes reads DistroFixes, of one CVE when cve is not "".
 func (s *Store) distroFixes(ctx context.Context, cve string) (map[string][]DistroFix, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, COALESCE(d.fixed_version, ''), d.pro, d.reason
-FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.status IN ('fixed', 'not_affected', 'open') AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT d.distro, d.release, d.package, d.cve, d.status, d.fixed, d.pro, d.reason
+FROM (`+distroRowsSQL+`) d JOIN feeds_source s ON s.id = d.source_id WHERE s.enabled = 1 AND d.cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa')
 AND (? = '' OR d.cve = ?) ORDER BY d.cve, d.distro, d.release, d.package, d.source_id`, cve, cve)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read distro: %w", err)

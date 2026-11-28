@@ -159,7 +159,8 @@ func snippetAround(text string, id CheckID) string {
 }
 
 // judgeTextRanges decides one version against the ranges a page states: affected inside one (the first that contains it is quoted); not
-// affected only when a range of the version's own release train ends at or before it and none contains it; else nothing.
+// affected only when a range of the version's own release train ends at or before it, none contains it and no exact release of the
+// train the page lists is later (trainCleared); else nothing.
 func judgeTextRanges(rs []textRange, version, build string, scheme *versionscheme.Scheme) (verdict, quote string, ok bool) {
 	if scheme != nil {
 		installed, okI := scheme.Installed(version, build)
@@ -188,9 +189,10 @@ func judgeTextRanges(rs []textRange, version, build string, scheme *versionschem
 				return VerdictAffected, quotes[i], true
 			}
 		}
-		if len(spans) > 0 && endsInTrain(spans, installed) && versionscheme.Judge(installed, spans).State == versionscheme.NotAffected {
+		// a page's list of exact releases (a CSAF known_affected version) says nothing of a release it does not list (trainCleared)
+		if len(spans) > 0 && trainCleared(installed, spans, nil) {
 			for i, sp := range spans {
-				if sp.End != nil && sp.End.Train == installed.Train && sp.End.Variant == installed.Variant {
+				if sp.End != nil && sp.End.Train == installed.Train && sp.End.Variant == installed.Variant && !oneRelease(sp) {
 					return VerdictNotAffected, quotes[i], true
 				}
 			}

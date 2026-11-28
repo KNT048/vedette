@@ -251,7 +251,8 @@ type SchemedRange struct {
 	Unaffected, ModelOnly bool
 	// Platforms are the hardware a ModelOnly row holds on, as the record names it ("QRX Series", "ZX4100"); nil when not known.
 	// Complete says the row is the vendor's own record stating every version it does not list unaffected (defaultStatus unaffected from
-	// the product's own CNA): with Platforms, the vendor's word that the product is affected on that hardware only (otherHardware).
+	// the product's own CNA): with Platforms, the vendor's word that the product is affected on that hardware only (otherHardware); on a
+	// row that is one release, what lets a release the list does not name be closed (trainCleared).
 	Platforms []string
 	Complete  bool
 	// Unread is a vendor's affected row of the product that does not read in its scheme (Juniper's "22.2" lessThan "22.2*"): no
@@ -2151,6 +2152,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	// every entry of the OS (beyond, dottedAfter) is a proof, as with Junos (junosListed)
 	trainOnly, beyond := false, true
 	var jl junosList
+	var nos []Affected // the rows of the line's own that said No: a list of exact releases among them proves only as exactListProves says
 	sib := siblingsOf(&v)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
@@ -2223,6 +2225,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			result = Unknown
 		case No:
 			decided = true
+			if own {
+				nos = append(nos, af)
+			}
 			past = past || own && pastEnd(af.Range, in.ver)
 			trainOnly = trainOnly || dottedListGuess(c, af.Range, in.ver)
 			beyond = beyond && (osScheme(c) != schemeDotted || dottedAfter(c, af.Range, in.ver))
@@ -2256,13 +2261,16 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		switch {
 		case t != No:
 			return t, w, every, proofNone
-		case proved:
+		case proved && exactListProves(in.ver, nos):
 			return No, VersionRange{}, every, proofRange
 		}
 		return No, VersionRange{}, every, proofNone
 	}
 	if pv, ok := parseVersion(in.ver); result == No && ok && !isPlaceholder(in.ver) && pv.q.class >= 0 {
 		if trainOnly && !beyond { // an enumeration read partly by its trains, which leaves releases out: no finding, no proof
+			return No, VersionRange{}, every, proofNone
+		}
+		if !exactListProves(in.ver, nos) { // a list of exact releases that does not say what this release is: no finding, no proof
 			return No, VersionRange{}, every, proofNone
 		}
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing

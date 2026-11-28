@@ -164,7 +164,8 @@ func countLines(m map[string]int) string {
 // The open questions of a fixture network, by kind and cause: a question stays only when a person's answer can change the verdict.
 // A version read from a network banner is never compared with a CVE on no exploited list, so no answer about comparability changes
 // it (no question); the release a device states over LLDP is its own word and is compared; an exact older release with an update or
-// build qualifier is not a candidate; a version inside a bounded range is a finding with that range's fix. The "kept" questions stay.
+// build qualifier stays a question (a list of exact releases does not say a later release is not affected); a version inside a
+// bounded range is a finding with that range's fix. The "kept" questions stay.
 func TestQuestions_OnlyAnswerableOnes_Count(t *testing.T) {
 	t.Parallel()
 	questions, findings, proofs := answerableCounts(t)
@@ -172,7 +173,7 @@ func TestQuestions_OnlyAnswerableOnes_Count(t *testing.T) {
 	t.Logf("findings by cause:%s", countLines(findings))
 	t.Logf("proofs (not affected) by cause:%s", countLines(proofs))
 	// Before: 22 questions (10 banner x CVE on no list, 4 older exact releases, 2 LLDP-stated releases, 1 open-ended range, 5 kept).
-	wantQ := map[string]int{"no_range_data / " + causeKept: 5}
+	wantQ := map[string]int{"no_range_data / " + causeKept: 5, "no_range_data / " + causeOlder: 4}
 	if !maps.Equal(questions, wantQ) {
 		t.Errorf("questions %v, want %v", questions, wantQ)
 	}

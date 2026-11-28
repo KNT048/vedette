@@ -68,10 +68,10 @@ func newerListedOutcome(t *testing.T, s Software, vulns []Vuln) map[string]strin
 	return out
 }
 
-// A test box's DESKTOP-55UKKFV, 2026-11-17: Java 8 Update 491, SQL Server 2022's RsFx Driver and Edge 157 were "could not be checked" for
-// CVEs NVD lists only at older exact versions (Java "1.8.0 update401", SQL Server 2000 to 2008, Edge 116 and 117). NVD's list does
-// not name them: not a candidate, and no verdict either (no finding, nothing "not affected"). The same CVEs stay on the list for a
-// version NVD lists, or an older one (an exact list is often the last affected update: Oracle's "8u77 and earlier").
+// A test box's DESKTOP-55UKKFV, 2026-11-17: Java 8 Update 491, SQL Server 2022's RsFx Driver and Edge 157 for CVEs NVD lists only at
+// older exact versions (Java "1.8.0 update401", SQL Server 2000 to 2008, Edge 116 and 117). A list of exact releases without the
+// vendor's word on unlisted versions does not say a later release is not affected: every one stays "could not be checked", never
+// silent, and no verdict either (no finding, nothing "not affected").
 func TestUnchecked_NewerThanListed_LabBuild(t *testing.T) {
 	t.Parallel()
 	vulns := newerListedVulns()
@@ -88,15 +88,15 @@ func TestUnchecked_NewerThanListed_LabBuild(t *testing.T) {
 		row  Software
 		want map[string]string
 	}{
-		{"Java 8 Update 491", java("8.0.4910.10"), map[string]string{"CVE-2023-41993": "-", "CVE-2016-3427": "-", "CVE-2010-0840": "-", "CVE-2013-0422": "-"}},
-		{"Java 8 Update 401", java("8.0.4010.7"), map[string]string{"CVE-2023-41993": listed, "CVE-2016-3427": "-", "CVE-2010-0840": "-"}},
+		{"Java 8 Update 491", java("8.0.4910.10"), map[string]string{"CVE-2023-41993": listed, "CVE-2016-3427": listed, "CVE-2010-0840": listed, "CVE-2013-0422": listed}},
+		{"Java 8 Update 401", java("8.0.4010.7"), map[string]string{"CVE-2023-41993": listed, "CVE-2016-3427": listed, "CVE-2010-0840": listed}},
 		{"Java 8 Update 391", java("8.0.3910.13"), map[string]string{"CVE-2023-41993": listed}},
 		// 8u60 is older than NVD's 8u77, 7u99's line is older than 8: as numbers "8.0.600" is after "1.8.0", which says nothing
-		{"Java 8 Update 60", java("8.0.600.27"), map[string]string{"CVE-2016-3427": listed, "CVE-2023-41993": listed, "CVE-2010-0840": "-", "CVE-2013-0422": "-"}},
-		{"Java 1.8.0_491", java("1.8.0_491"), map[string]string{"CVE-2023-41993": "-", "CVE-2016-3427": "-"}},
-		{"SQL Server 2022 RsFx Driver", rsfx("16.0.1000.6"), map[string]string{"CVE-2012-1856": "-"}},
+		{"Java 8 Update 60", java("8.0.600.27"), map[string]string{"CVE-2016-3427": listed, "CVE-2023-41993": listed, "CVE-2010-0840": listed, "CVE-2013-0422": listed}},
+		{"Java 1.8.0_491", java("1.8.0_491"), map[string]string{"CVE-2023-41993": listed, "CVE-2016-3427": listed}},
+		{"SQL Server 2022 RsFx Driver", rsfx("16.0.1000.6"), map[string]string{"CVE-2012-1856": listed}},
 		{"SQL Server 2008 R2", rsfx("10.50.6000.34"), map[string]string{"CVE-2012-1856": listed}}, // its major is listed: which service pack is not known
-		{"Edge 157", edgeRow("157.0.4341.60"), map[string]string{"CVE-2023-5217": "-"}},
+		{"Edge 157", edgeRow("157.0.4341.60"), map[string]string{"CVE-2023-5217": listed}},
 		{"Edge 117.0.2045.47", edgeRow("117.0.2045.47"), map[string]string{"CVE-2023-5217": listed}}, // a version NVD lists
 		{"Edge 110", edgeRow("110.0.1587.41"), map[string]string{"CVE-2023-5217": listed}},
 	} {
@@ -175,13 +175,14 @@ func TestUnchecked_NewerThanListed_Class(t *testing.T) {
 		keyed bool
 		want  bool // listed
 	}{
-		{"older only, keyed", exact("1.0", "1.1"), "2.0", true, false},
-		{"older only, NVD's list", exact("1.0", "1.1"), "2.0", false, false},
+		// the vendor's enumeration without its word on unlisted versions: listed, never silent
+		{"older only, keyed", exact("1.0", "1.1"), "2.0", true, true},
+		{"older only, NVD's list", exact("1.0", "1.1"), "2.0", false, true},
 		{"one newer, NVD's list", exact("1.0", "3.0"), "2.0", false, true},
 		{"one equal, NVD's list", exact("1.0", "2.0"), "2.0", false, true},
 		// NA ("-") beside a version of the same product is about no version (CPE name matching: DISJOINT), so it does not keep the row
-		{"older and NA, keyed", exact("1.0", "-"), "2.0", true, false},
-		{"older and NA, NVD's list", exact("1.0", "-"), "2.0", false, false},
+		{"older and NA, keyed", exact("1.0", "-"), "2.0", true, true},
+		{"older and NA, NVD's list", exact("1.0", "-"), "2.0", false, true},
 		// NA alone may be a product whose release is in its name: it keeps the row
 		{"NA only, keyed", exact("-"), "2.0", true, true},
 		{"NA only, NVD's list", exact("-"), "2.0", false, true},
@@ -210,8 +211,12 @@ func TestUnchecked_NewerThanListed_Class(t *testing.T) {
 			t.Errorf("%s: newer than listed", name)
 		}
 	}
-	if !newerThanListed(exact("1.0", "1.1"), "2.0") || newerThanListed(exact("1.0"), "") || newerThanListed(exact("1.0"), "0.0") {
-		t.Error("newerThanListed: older exact versions, or no version")
+	complete := exact("1.0", "1.1") // the vendor's own complete record: every unlisted version unaffected
+	for i := range complete {
+		complete[i].VendorList = true
+	}
+	if newerThanListed(exact("1.0", "1.1"), "2.0") || !newerThanListed(complete, "2.0") || newerThanListed(complete, "") || newerThanListed(complete, "0.0") {
+		t.Error("newerThanListed: only the vendor's complete record says a later release is not listed, never one with no version")
 	}
 }
 

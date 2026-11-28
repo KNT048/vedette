@@ -215,13 +215,12 @@ func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
 	}
 }
 
-// NVD's exact list is an enumeration: a row of a release line it does not list, newer than or between the listed lines, is no
-// candidate, so it is never asked (Junos 25.4R1 for CVE-2026-21913, listed at 24.4 and 25.2 releases only; Java 8 Update 491 for
-// CVE-2025-21587, listed at 8u441 and at Java 11, 17 and 21). A line older than every listed one stays a question (Junos 15.1R7.9:
-// end-of-life lines are often not evaluated; the vendor's own record decides it when it says so), and so does a row of a listed line
-// when nothing decides it (an older update than the listed one: Oracle's "8u77 and earlier") and a listed release (it is never taken
-// off as "not listed").
-func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
+// NVD's exact list names releases and never says what an unlisted one is: a row of a release line it does not list stays a question,
+// newer than, between or older than the listed lines (Junos 25.4R1 for CVE-2026-21913, listed at 24.4 and 25.2 releases only; Java 8
+// Update 491 for CVE-2025-21587, listed at 8u441 and at Java 11, 17 and 21; Junos 15.1R7.9), and so does a row of a listed line when
+// nothing decides it (an older update than the listed one: Oracle's "8u77 and earlier") and a listed release (it is never taken off
+// as "not listed"). Only the vendor's own complete record decides an unlisted release.
+func TestUnchecked_OtherReleaseLinesStayAsked(t *testing.T) {
 	t.Parallel()
 	junosRows := func(rels ...string) []Affected {
 		var out []Affected
@@ -250,9 +249,10 @@ func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
 		want string // "none", "question", or "kept" (a finding or a question: not taken off)
 	}{
 		{"Junos 15.1R7.9 (older than every listed line)", junosRow("15.1R7.9"), junos, "question"},
-		{"Junos 25.4R1 (newer than every listed line)", junosRow("25.4R1"), junos, "none"},
+		// a list of exact releases does not say a newer line is not affected: asked, never silent
+		{"Junos 25.4R1 (newer than every listed line)", junosRow("25.4R1"), junos, "question"},
 		{"Junos 24.4R1-S2 (listed)", junosRow("24.4R1-S2"), junos, "kept"},
-		{"Java 8u491", javaRow("8.0.4910.10"), java, "none"},
+		{"Java 8u491", javaRow("8.0.4910.10"), java, "question"},
 		{"Java 8u401 (an older update of the listed line)", javaRow("8.0.4010.7"), java, "question"},
 		{"Java 17.0.14 (listed)", javaRow("17.0.14"), java, "kept"},
 	} {
@@ -271,8 +271,8 @@ func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
 }
 
 // A release line older than every line an exact NVD list names is still asked: vendors often do not evaluate end-of-life lines
-// (Juniper's advisories say so; Oracle lists supported releases only), so their absence from the list is no statement about them.
-// Only a line newer than or between the listed lines is no candidate.
+// (Juniper's advisories say so; Oracle lists supported releases only), so their absence from the list is no statement about them. A
+// line newer than or between the listed lines is asked too: the list does not say what an unlisted release is.
 func TestUnchecked_OlderLineThanEveryListedStaysAsked(t *testing.T) {
 	t.Parallel()
 	junosRows := func(rels ...string) []Affected {
@@ -305,8 +305,8 @@ func TestUnchecked_OlderLineThanEveryListedStaysAsked(t *testing.T) {
 		{"exploited, Junos 15.1R7.9 (older than every listed line)", junosRow("15.1R7.9"), exploited, true},
 		{"Junos 15.1R7.9 (older than every listed line)", junosRow("15.1R7.9"), plain, true},
 		{"Java 7u401 (older than every listed line)", javaRow("7.0.4010.10"), java, true},
-		{"Junos 21.3R3 (between listed lines)", junosRow("21.3R3"), plain, false},
-		{"Junos 23.4R1 (newer than every listed line)", junosRow("23.4R1"), plain, false},
+		{"Junos 21.3R3 (between listed lines)", junosRow("21.3R3"), plain, true},
+		{"Junos 23.4R1 (newer than every listed line)", junosRow("23.4R1"), plain, true},
 	} {
 		r := MatchAsset(tc.a, []Vuln{tc.v}, nil, t0)
 		if asked := len(r.Unchecked) > 0; asked != tc.asked || len(r.New) != 0 {

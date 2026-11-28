@@ -118,8 +118,14 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			}
 		case u.undecided.Reason == UndecidedExactOnly && olderThanEveryExact(own, in.ver):
 			u.undecided.Reason = UndecidedEOLUnlisted
-		case u.undecided.Reason == UndecidedExactOnly && laterThanEveryListed(own, in.ver):
-			u.undecided.Reason = UndecidedThirdPartyBuild // the vendor's own list would have decided it (newerThanListed)
+		case u.undecided.Reason == UndecidedExactOnly && laterThanEveryListed(own, in.ver) &&
+			slices.ContainsFunc(own, func(af Affected) bool { return !af.VendorCNA }):
+			// a third party's list (its tested build); the vendor's own enumeration stays exact_releases_only, since without its word
+			// on unlisted versions it does not say a later release is not affected either (newerThanListed)
+			u.undecided.Reason = UndecidedThirdPartyBuild
+		case (u.undecided.Reason == UndecidedSchemeMismatch || u.undecided.Reason == UndecidedRangesDoNotCover) && laterExactInTrain(own, in.ver):
+			// a release of the version's own train is listed exactly above it: the list, not the version's notation, leaves it open
+			u.undecided.Reason = UndecidedExactOnly
 		case u.undecided.Reason == UndecidedSchemeMismatch && !notationDiffers(own, in.ver) && !winVersionRE.MatchString(strings.TrimSpace(in.ver)):
 			// the version reads and is written as the rows are: a row that does not compare is the record's, and typing the version
 			// again changes nothing (a Windows build keeps its label: its release, not its notation, is read there)
@@ -383,8 +389,10 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 // (VendorList). A third party (a lab, a CNA of last resort) lists the build it tested, which says nothing of a later release: the row
 // stays a candidate, undecided as third_party_tested_build (explainUnchecked).
 func newerThanListed(own []Affected, ver string) bool {
-	if slices.ContainsFunc(own, func(af Affected) bool { return !af.VendorList && !af.VendorCNA }) {
-		return false // a third party's list (a lab's tested build, NVD's rows of its record) says nothing past its rows
+	if slices.ContainsFunc(own, func(af Affected) bool { return !af.VendorList || !af.VendorCNA }) {
+		// only the vendor's own complete record says what an unlisted release is; any other list (a lab's tested build, NVD's rows,
+		// the vendor's own enumeration without that word) says nothing past its rows, and the row stays could-not-be-checked
+		return false
 	}
 	return laterThanEveryListed(own, ver)
 }
@@ -459,8 +467,36 @@ func uncheckedReason(s Software, in swInfo, v Vuln, scheme bool) (UncheckedReaso
 		return UncheckedNoNVDVersions, true
 	case schemeReads(s, in): // a range with an end did not decide a release the product's scheme reads: none of the entries decides it
 		return UncheckedNoNVDVersions, true
+	case exactBesideComparableRanges(own, in.ver): // a list of exact releases left it open (exactListProves), not the notation
+		return UncheckedNoNVDVersions, true
 	}
 	return UncheckedNotComparable, true
+}
+
+// exactBesideComparableRanges says own has a row that is one release (exactRow) of ver's own train and every bound of its other rows
+// compares with ver:
+// what left the version undecided is the list of exact releases, not a notation typing the version again could fix. Not when the
+// version is a listed release with more after it (a rebuild, a qualifier).
+func exactBesideComparableRanges(own []Affected, ver string) bool {
+	exact := false
+	for _, af := range own {
+		if rel, _, ok := exactRow(af); ok {
+			if len(ver) > len(rel) && strings.HasPrefix(strings.ToLower(ver), strings.ToLower(rel)) {
+				return false // a rebuild or a qualifier of the listed release ("17.9.4a" of "17.9.4"): its notation decides
+			}
+			if rt, vt := majorMinor(rel), majorMinor(ver); rt != nil && vt != nil && *rt == *vt {
+				exact = true // a release of the version's own train: what leaves it open (another train's says nothing here)
+			}
+			continue
+		}
+		r := af.Range
+		for _, b := range []string{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl} {
+			if _, ok := compareBound(ver, b); b != "" && !ok {
+				return false
+			}
+		}
+	}
+	return exact
 }
 
 // schemeReads says the version scheme the catalogue declares for the row's product reads its version as the vendor writes it.

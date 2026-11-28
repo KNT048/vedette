@@ -104,14 +104,16 @@ func TestNetworkOS_TrainBoundsClass(t *testing.T) {
 		{"o:cisco:ios", "Cisco", "IOS", "Cisco IOS %s", []string{"15.2(4)M3"}},
 	}
 	// Per stated OS: the findings (basis version) it must get, and the most not_comparable outcomes it may have. Before train
-	// bounds were decided the same versions had 106 not_comparable (Junos 13, IOS XE 56, IOS 37) and 119 no_nvd_versions.
+	// bounds were decided the same versions had 106 not_comparable (Junos 13, IOS XE 56, IOS 37) and 119 no_nvd_versions. IOS XE
+	// counts CVE-2018-0173 too: NVD lists "denali-16.3.4", a release written in a notation the comparison does not read, so a list of
+	// exact releases no longer proves a later one outside it.
 	want := map[string]struct{ affected, notComparable int }{
 		"JUNOS 12.1R11": {6, 0}, "JUNOS 12.3X48-D10": {7, 1}, "JUNOS 15.1R7.9": {6, 1}, "JUNOS 18.4R3-S1": {5, 0},
 		"JUNOS 20.4R3-S8": {3, 2}, "JUNOS 21.2R3": {6, 0}, "JUNOS 22.4R2-S1": {2, 4}, "JUNOS 23.2R1": {4, 0},
 		"FortiOS 6.0.4": {11, 0}, "FortiOS 6.4.9": {7, 0}, "FortiOS 7.0.12": {9, 0}, "FortiOS 7.2.13": {2, 0}, "FortiOS 7.4.3": {5, 0},
-		"Cisco IOS XE 16.9.4": {4, 0}, "Cisco IOS XE 17.3.1": {5, 0}, "Cisco IOS XE 17.9.4a": {2, 1}, "Cisco IOS XE 3.6.4e": {13, 6},
-		"Cisco IOS XE 17.5.1c": {3, 0}, "Cisco IOS XE 17.5.1b": {2, 0}, "Cisco IOS XE 16.5.1c": {1, 1}, "Cisco IOS XE 16.9.4a": {1, 1},
-		"Cisco IOS XE 17.12.1w": {2, 1}, "Cisco IOS XE 17.6.6b": {1, 1}, "Cisco IOS XE 17.9.5c": {1, 1}, "Cisco IOS XE 16.12.3b": {3, 0},
+		"Cisco IOS XE 16.9.4": {4, 1}, "Cisco IOS XE 17.3.1": {5, 1}, "Cisco IOS XE 17.9.4a": {2, 2}, "Cisco IOS XE 3.6.4e": {13, 6},
+		"Cisco IOS XE 17.5.1c": {3, 1}, "Cisco IOS XE 17.5.1b": {2, 1}, "Cisco IOS XE 16.5.1c": {1, 2}, "Cisco IOS XE 16.9.4a": {1, 2},
+		"Cisco IOS XE 17.12.1w": {2, 2}, "Cisco IOS XE 17.6.6b": {1, 2}, "Cisco IOS XE 17.9.5c": {1, 2}, "Cisco IOS XE 16.12.3b": {3, 1},
 		"RouterOS 6.48": {3, 0}, "RouterOS 7.12.1": {3, 0},
 		"Cisco IOS 15.2(4)M3": {0, 37}, // not orderable: every CVE that gives a version, by design
 	}
@@ -213,7 +215,8 @@ func TestJunos_UnreadableFormOfAnotherRelease(t *testing.T) {
 			t.Errorf("%s %v on %s: %v, want %v", tc.cpe, tc.r, tc.ver, got, tc.want)
 		}
 	}
-	// A row of another release that does not read counts as listed: before it and after every other row is not proved outside.
+	// A row of another release that does not read counts as listed: before it and after every other row is not proved outside, and
+	// after every row neither (a list of exact releases does not say what an unlisted release is).
 	row := func(rel, upd string) Affected {
 		return Affected{CPE: "cpe:2.3:o:juniper:junos:" + rel + ":" + upd + ":*:*:*:*:*:*"}
 	}
@@ -223,7 +226,7 @@ func TestJunos_UnreadableFormOfAnotherRelease(t *testing.T) {
 		want  Tri
 		proof proofKind
 	}{
-		{"15.1R7", []Affected{row("12.1r", "*"), row("13.2", "r1")}, No, proofRange},
+		{"15.1R7", []Affected{row("12.1r", "*"), row("13.2", "r1")}, No, proofNone},
 		{"11.4R1", []Affected{row("12.1r", "*")}, No, proofNone},
 		{"13.1R1", []Affected{row("12.1r", "*"), row("14.1", "r1")}, Unknown, proofNone},
 	} {

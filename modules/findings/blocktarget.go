@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-
-	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // The release a block names must clear every CVE the block lists. The newest of the findings' own fixes does not always: a CVE fixed
@@ -271,18 +269,19 @@ func rangeParts(a Asset, s Software, v Vuln) *fixedParts {
 }
 
 // schemeParts reads the vendor's rows of v for line s the way the matcher does (schemeJudge): a release clears the CVE when the vendor's
-// word on it is "not affected" from a row that ends in the release's own train (a train the vendor is silent on proves nothing), and
+// word on it is "not affected" from a row that ends in the release's own train (a train the vendor is silent on proves nothing, and so
+// does a list of exact releases that leaves the release open: trainCleared), and
 // the rows' fixed releases are candidates for the block's release. So a block of ESXi 8.0 Update 2 CVEs whose fixes are U2d, U2e and
 // the U3 releases of CVEs that only Update 3 fixes names the one release that clears them all (8.0 U3k), and DSM's updates of one build
 // combine into the newest one the CVEs need.
 func schemeParts(a Asset, s Software, in swInfo, v Vuln) *fixedParts {
-	scheme, spans, _, _ := schemedSpans(a, s, in, v)
+	scheme, spans, _, _, st := vendorRows(a, s, in, v)
 	if scheme == nil {
 		return nil
 	}
 	p := fixedParts{outside: func(x string) bool {
 		rel, ok := scheme.Release(x)
-		return ok && endsInTrain(spans, rel) && versionscheme.Judge(rel, spans).State == versionscheme.NotAffected
+		return ok && !st.listedOnly && trainCleared(rel, spans, st.spansTold)
 	}}
 	for _, sp := range spans {
 		if sp.End != nil && !sp.EndIncl && !sp.End.LineStart {

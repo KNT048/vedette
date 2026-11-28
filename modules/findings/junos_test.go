@@ -108,9 +108,11 @@ func TestJunos_VersionForms(t *testing.T) {
 		{"15.1R7-S7", "CVE-2020-1631", No, proofNone},
 		{"21.3R1", "CVE-2025-21590", Unknown, proofNone}, // a release NVD skips, between 21.2 and 21.4
 		{"22.1R3-S2", "CVE-2025-21590", Unknown, proofNone},
-		{"21.4R3-S5", "CVE-2020-1631", No, proofRange}, // after every release NVD lists (up to 20.1): proved
-		{"20.4R3-S9", "CVE-2020-1631", No, proofRange},
-		{"23.4R1", "CVE-2023-36845", No, proofRange},
+		// after every release NVD lists (up to 20.1): no finding, but NVD's list of exact releases never says what an unlisted
+		// release is, so it proves nothing (the vendor's own record decides such a release when it says so)
+		{"21.4R3-S5", "CVE-2020-1631", No, proofNone},
+		{"20.4R3-S9", "CVE-2020-1631", No, proofNone},
+		{"23.4R1", "CVE-2023-36845", No, proofRange},      // NVD's ranges of the CVE end before it (a train no exact release names)
 		{"15.1R7.9", "CVE-2023-36851", No, proofNone},     // before every listed release (21.2 on): no proof
 		{"12.3X48-D100", "CVE-2020-1631", Yes, proofNone}, // X train, listed as 12.3x48:d100
 		{"12.3X48-D105", "CVE-2020-1631", No, proofNone},  // after the last listed D100

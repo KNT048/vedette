@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { ListRow, RowList } from '@/components/common/ListParts'
 import { fmtDateTime } from '@/lib/format'
 import { useCveCached, useExplain, useNews } from './api'
+import ResearchPanel from './ResearchPanel'
 import { ActionError, ToSettings, useAiGate } from './parts'
 import type { ExplainResult, FetchedSource, NewsResult } from './types'
 
@@ -20,7 +21,7 @@ export default function CvePanels({ cve }: Record<string, unknown>) {
   const gate = useAiGate('operator')
   if (gate.state === 'loading') return null
   if (gate.state === 'off') return <Section title="AI"><ModuleOff module="ai" /></Section>
-  return <Panels id={id} />
+  return <><ResearchPanel cve={id} /><Panels id={id} /></>
 }
 
 function Panels({ id }: { id: string }) {

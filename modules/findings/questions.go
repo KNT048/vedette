@@ -54,6 +54,9 @@ type Unchecked struct {
 	// state (olderLine). Such rows of one line are one question (QuestionOlderLine). "" otherwise.
 	Line  string
 	fixes []versionscheme.Version
+	// at is the reading of the device it is about, as its index in the matcher's rows plus one; 0 when not known. A line holds several
+	// readings, and only those of the same installation share their evidence (sameInstallation).
+	at int
 	// lineUnlisted: no_nvd_versions of a version on a release line the rows do not speak for, while they start later lines above it
 	// (unlistedLine): undecided as ranges_start_at_branch_only.
 	lineUnlisted bool

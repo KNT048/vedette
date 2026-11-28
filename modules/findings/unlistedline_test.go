@@ -108,9 +108,10 @@ func TestUnlistedLine_QuestionSaysTheLineIsNotListed(t *testing.T) {
 	}
 }
 
-// A line holds several readings: when another reading of it decides the CVE (a distribution's word on its package, a version the rows
-// prove), a reading on an unlisted older line asks nothing more and takes nothing away from that decision.
-func TestUnlistedLine_AnotherReadingOfTheLineDecides(t *testing.T) {
+// A line holds several readings: a reading of another installation of the line (an older release installed beside the decided one) has
+// no evidence of its own when the record does not list its release line, so the line stays undecided and asked about; the decided
+// installation's proof never closes it.
+func TestUnlistedLine_AnotherInstallationOfTheLineIsNotClosedByItsSibling(t *testing.T) {
 	t.Parallel()
 	const gw = "cpe:2.3:a:example:gateway:*:*:*:*:*:*:*:*"
 	v := uncVuln("CVE-2026-91003", "Example", "Gateway", uncNew,
@@ -118,7 +119,7 @@ func TestUnlistedLine_AnotherReadingOfTheLineDecides(t *testing.T) {
 	decided, unlisted := shapeRow("Gateway", "8.0.25", true), shapeRow("Gateway", "3.1.32", true)
 	a := Asset{ID: "srv", Name: "srv-01", OS: "Windows Server 2022", Software: []Software{decided, unlisted}}
 	res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, uncNow)
-	if len(res.NotAffected) != 1 || len(res.Unchecked) != 0 || len(res.New)+len(res.Existing) != 0 {
-		t.Fatalf("not affected %d, unchecked %+v, findings %d: want the decided reading's proof alone", len(res.NotAffected), res.Unchecked, len(res.New)+len(res.Existing))
+	if len(res.NotAffected) != 0 || len(res.Unchecked) != 1 || len(res.New)+len(res.Existing) != 0 {
+		t.Fatalf("not affected %d, unchecked %+v, findings %d: want the line asked about, not closed", len(res.NotAffected), res.Unchecked, len(res.New)+len(res.Existing))
 	}
 }

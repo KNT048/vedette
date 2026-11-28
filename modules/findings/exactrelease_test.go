@@ -217,7 +217,7 @@ func TestMatch_ExactOnlyListClosesNothing(t *testing.T) {
 		{"schemed, past the listed release", "Oracle", "Java SE", "21.0.13", runtime("21.0.12", "17.0.20"), false, false},
 	} {
 		s := Software{ID: "w", Display: tc.product + " " + tc.ver, Vendor: tc.vendor, Product: tc.product, Version: tc.ver, Source: "agent",
-			KevKeys: []string{productid.Norm(tc.vendor) + "|" + productid.Norm(tc.product)}}
+			KevKeys: []string{productid.NormKey(tc.vendor, tc.product)}}
 		aff := slices.Clone(tc.aff)
 		for i := range aff {
 			aff[i].VendorCNA = aff[i].VendorCNA || tc.vendorCNA

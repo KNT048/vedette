@@ -39,6 +39,12 @@ export function Label({ className, ...props }: ComponentProps<'label'>) {
   return <label className={cn('text-sm font-medium text-ink', className)} {...props} />
 }
 
+/** The one line of help or state under a control or a group of controls (a hint, a limit, a zone note): `text-meta`, muted unless
+ *  `tone` says otherwise, wrapping anywhere. Field draws its hint with it; a page puts it under the control row instead of a bare <p>. */
+export function FieldHint({ tone = 'muted', className, ...props }: ComponentProps<'p'> & { tone?: 'muted' | 'warn' | 'danger' }) {
+  return <p className={cn('text-meta [overflow-wrap:anywhere]', tone === 'muted' ? 'text-muted' : tone === 'warn' ? 'text-warn' : 'text-danger', className)} {...props} />
+}
+
 /** An input with a label, hint and error, used for every form. `hint` is only a one-line example/format; explanation goes into `info` (ⓘ next to the label, #824).
  *  The Input, Select or Textarea whose id is `htmlFor` gets aria-describedby (the error, else the hint) and aria-invalid (WCAG 1.3.1, 3.3.1). */
 export function Field({ label, hint, info, error, htmlFor, children, className }: { label: string; hint?: string; info?: React.ReactNode; error?: string; htmlFor: string; children: React.ReactNode; className?: string }) {
@@ -52,7 +58,7 @@ export function Field({ label, hint, info, error, htmlFor, children, className }
         </div>
       ) : <Label htmlFor={htmlFor}>{label}</Label>}
       <FieldCtx.Provider value={{ htmlFor, describedBy, invalid: !!error }}>{children}</FieldCtx.Provider>
-      {error ? <p className="text-meta text-danger [overflow-wrap:anywhere]" id={`${htmlFor}-error`}>{error}</p> : hint ? <p className="text-meta text-muted [overflow-wrap:anywhere]" id={`${htmlFor}-hint`}>{hint}</p> : null}
+      {error ? <FieldHint tone="danger" id={`${htmlFor}-error`}>{error}</FieldHint> : hint ? <FieldHint id={`${htmlFor}-hint`}>{hint}</FieldHint> : null}
     </div>
   )
 }

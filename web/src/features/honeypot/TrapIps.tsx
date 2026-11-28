@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react'
+import { FlaskConical, Plus } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
@@ -120,9 +120,9 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
               actions={<>
                   <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={needAdmin} aria-label={t('trapIp.switchLabel', { name: d.name })}
                     onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
-                  <Button size="sm" variant="ghost" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}><Pencil /></Button>
-                  <Button size="sm" variant="ghost" disabled={!admin || del.isPending} busy={del.isPending && del.variables === d.id} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
-                    onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
+                  <Button size="sm" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}>{t('common:edit')}</Button>
+                  <Button size="sm" disabled={!admin || del.isPending} busy={del.isPending && del.variables === d.id} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
+                    onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
               </>}>
               <TrapIpDetails d={d} />
             </ListRow>

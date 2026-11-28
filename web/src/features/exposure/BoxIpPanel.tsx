@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
-import { Field, Label, Select } from '@/components/ui/input'
+import { Field, FieldHint, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { InfoTip } from '@/components/common/InfoTip'
 import { BusyNote } from '@/components/common/BusyNote'
@@ -50,6 +50,7 @@ export function BoxIpPanel({ settings, ignored }: { settings: BoxIpSettings; ign
       <div className="grid gap-4">
         <Panel className="grid gap-4 p-4">
           <p className="text-sm font-medium">{settings.auto ? t('boxIp.state.on', { every: every(settings.interval_min) }) : t('boxIp.state.off')}</p>
+          <div className="grid gap-2">
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
             <div className="flex min-h-10 items-center gap-3">
               <Switch id="box-auto" checked={settings.auto} disabled={!can || save.isPending} onCheckedChange={setAuto} title={locked} />
@@ -66,11 +67,12 @@ export function BoxIpPanel({ settings, ignored }: { settings: BoxIpSettings; ign
               <RefreshCw />{t('boxIp.detect')}
             </Button>
           </div>
-          {settings.auto ? <p className="max-w-3xl text-meta text-muted">{t('boxIp.limit')}</p> : null}
+          {settings.auto ? <FieldHint>{t('boxIp.limit')}</FieldHint> : null}
+          </div>
           {/* A full check asks three public services over 5 rounds (5 s each at most) */}
           <BusyNote busy={detect.isPending}>{t('boxIp.detectWaiting')}</BusyNote>
-          {waitText ? <p className="max-w-3xl text-meta text-warn">{waitText}</p> : null}
-          {!can ? <p className="text-meta text-muted">{locked}</p> : null}
+          {waitText ? <FieldHint tone="warn">{waitText}</FieldHint> : null}
+          {!can ? <FieldHint>{locked}</FieldHint> : null}
           {run ? (
             <div role="status" className={`rounded-md border px-3 py-2 text-sm ${run.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
               <p className="mb-1 flex flex-wrap items-center gap-2">
@@ -107,7 +109,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
         mobileRow={(r) => (
           <div className="grid gap-1.5">
             <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.value}</span>{btn(r)}</div>
-            <p className="text-meta text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {fmtDate(r.ignored_at)}.</p>
+            <FieldHint>{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {fmtDate(r.ignored_at)}.</FieldHint>
           </div>
         )}
         empty={<EmptyState title={t('boxIp.ignored.emptyTitle')}>{t('boxIp.ignored.emptyBody')}</EmptyState>} />

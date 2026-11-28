@@ -9,7 +9,6 @@ export type Channel = z.infer<typeof C.Channel>
 export type ChannelInput = z.infer<typeof C.ChannelInput>
 export type Approver = z.infer<typeof C.Approver>
 export type Quiet = z.infer<typeof C.Quiet>
-export type Grouping = z.infer<typeof C.Grouping>
 export type ChannelsResponse = z.infer<typeof C.ChannelsResponse>
 export type AlertTrigger = z.infer<typeof C.AlertTrigger>
 export type AlertTriggerView = z.infer<typeof C.AlertTriggerView>

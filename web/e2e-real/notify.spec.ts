@@ -30,7 +30,7 @@ test.describe('Alert channels with what the box really holds (S-NOT-1, S-NOT-2)'
     await expect(h1(page)).toHaveText('Alert channels')
     // the one-line texts are shown; the longer explanation is behind each ⓘ and is that button's accessible description
     await expect(page.getByText('Choose where Vedette sends alerts.', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'About Alert channels' })).toHaveAccessibleDescription('With no channel on, alerts only appear in the app. Each channel has its own minimum severity, and quiet hours and grouping below apply to all of them.')
+    await expect(page.getByRole('button', { name: 'About Alert channels' })).toHaveAccessibleDescription('With no channel on, alerts only appear in the app. A finding sends an alert only when it is exploited in the wild, on every channel that is on. Each channel has its own minimum level for incidents and system notices; quiet hours, on the Settings tab, apply to all of them.')
     await expect(page.getByText('Alert content leaves the box only through channels you turn on.', { exact: true })).toBeVisible()
     await expect(page.getByText('Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.', { exact: true })).toHaveCount(1) // behind its ⓘ
     await expect(page.getByRole('table', { name: 'Alert channels' })).toBeVisible()
@@ -53,8 +53,6 @@ test.describe('Alert channels with what the box really holds (S-NOT-1, S-NOT-2)'
     await expect(page.getByLabel('Until', { exact: true })).toHaveValue(d.quiet.to)
     await expect(page.getByRole('switch', { name: 'Turn on quiet hours' })).toBeChecked({ checked: d.quiet.enabled })
     await expect(page.getByLabel('Still send Critical right away', { exact: true })).toBeChecked({ checked: d.quiet.allow_critical })
-    await expect(page.getByRole('switch', { name: 'Group messages for the same product' })).toBeChecked({ checked: d.grouping.enabled })
-    await expect(page.getByLabel('Grouping window', { exact: true })).toHaveValue(String(d.grouping.window_min))
     const summary = quietSummary(d.quiet)
     if (summary) await expect(page.getByText(summary, { exact: true })).toBeVisible()
     else await expect(page.getByText(/^Quiet from /)).toHaveCount(0)
@@ -182,7 +180,7 @@ test.describe('roles (notify: Endpoints owned)', () => {
         for (const [method, path, body] of [
           ['GET', '/notify/channels', undefined], ['GET', '/notify/history', undefined],
           ['PUT', '/notify/channels/email', PUT_EMAIL], ['DELETE', '/notify/channels/email', undefined], ['POST', '/notify/channels/email/test', undefined],
-          ['PUT', '/notify/rules', { quiet: { enabled: true, from: '01:00', to: '02:00', allow_critical: false }, grouping: { enabled: false, window_min: 15 } }],
+          ['PUT', '/notify/rules', { quiet: { enabled: true, from: '01:00', to: '02:00', allow_critical: false } }],
         ] as const) {
           expect(await api(c, method, path, body), `${role}: ${method} ${path}`).toMatchObject({ status: 403, body: FORBIDDEN })
         }

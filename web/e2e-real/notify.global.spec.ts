@@ -39,8 +39,8 @@ async function call<T = any>(...a: Parameters<typeof api>) {
   return r
 }
 
-/** What the box says by default (CONTRACT: defaultQuiet, defaultGrouping), checked once before the tests and put back after every one. */
-const DEFAULT_RULES: Rules = { quiet: { enabled: false, from: '22:00', to: '06:30', allow_critical: true }, grouping: { enabled: true, window_min: 60 } }
+/** What the box says by default (CONTRACT: defaultQuiet), checked once before the tests and put back after every one. */
+const DEFAULT_RULES: Rules = { quiet: { enabled: false, from: '22:00', to: '06:30', allow_critical: true } }
 
 test.beforeAll(async () => {
   const c = await as('admin')
@@ -55,7 +55,7 @@ test.beforeAll(async () => {
     }
     const d = await getChannels(c)
     expect(d.channels.filter((x) => x.configured).map((x) => x.type), 'this file needs a box with no channel saved').toEqual([])
-    expect({ quiet: d.quiet, grouping: d.grouping }, 'this file needs the default quiet hours and grouping').toEqual(DEFAULT_RULES)
+    expect({ quiet: d.quiet }, 'this file needs the default quiet hours').toEqual(DEFAULT_RULES)
     expect(d.email_code_users, 'this file needs a box where nobody signs in with email codes').toBe(0)
   } finally { await c.dispose() }
 })
@@ -69,7 +69,7 @@ test.afterEach(async () => {
     expect((await call(c, 'PUT', '/notify/rules', DEFAULT_RULES)).status, 'cleanup of the rules').toBe(200)
     const after = await getChannels(c)
     expect(after.channels.filter((x) => x.configured), 'channels left behind').toEqual([])
-    expect({ quiet: after.quiet, grouping: after.grouping }, 'rules left behind').toEqual(DEFAULT_RULES)
+    expect({ quiet: after.quiet }, 'rules left behind').toEqual(DEFAULT_RULES)
   } finally { await c.dispose() }
 })
 
@@ -652,7 +652,7 @@ test.describe('approver lists (INV-7 validation)', () => {
   })
 })
 
-test.describe('quiet hours and grouping (S-NOT-1, INV-3, INV-5)', () => {
+test.describe('quiet hours (S-NOT-1, INV-5)', () => {
   test('the form explains the hours, refuses equal times, saves, keeps the values after a reload, and writes an audit row', async ({ page }) => {
     const errors = collectErrors(page)
     const server = watch5xx(page)
@@ -662,9 +662,8 @@ test.describe('quiet hours and grouping (S-NOT-1, INV-3, INV-5)', () => {
       await page.goto('/settings/channels')
       const from = page.getByLabel('From', { exact: true }), until = page.getByLabel('Until', { exact: true })
       const on = page.getByRole('switch', { name: 'Turn on quiet hours' })
-      const group = page.getByRole('switch', { name: 'Group messages for the same product' })
       const crit = page.getByLabel('Still send Critical right away', { exact: true })
-      const saveRules = page.getByRole('button', { name: 'Save quiet hours and grouping', exact: true })
+      const saveRules = page.getByRole('button', { name: 'Save quiet hours', exact: true })
       await expect(on).not.toBeChecked() // the defaults
       await from.fill('23:00'); await until.fill('06:15')
       await expect(page.getByText(/^Quiet from /)).toHaveCount(0) // off: no summary yet
@@ -679,24 +678,20 @@ test.describe('quiet hours and grouping (S-NOT-1, INV-3, INV-5)', () => {
       await until.fill('23:30')
       await expect(page.getByText(quietSummary({ enabled: true, from: '23:00', to: '23:30', allow_critical: true })!, { exact: true })).toBeVisible()
       await crit.click()
-      await group.click()
-      await page.getByLabel('Grouping window', { exact: true }).selectOption('240')
       const [ok] = await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/v1/notify/rules') && r.request().method() === 'PUT'), saveRules.click()])
       expect(ok.status()).toBe(200)
-      await toast(page, 'Quiet hours and grouping saved.')
-      const want: Rules = { quiet: { enabled: true, from: '23:00', to: '23:30', allow_critical: false }, grouping: { enabled: false, window_min: 240 } }
+      await toast(page, 'Quiet hours saved.')
+      const want: Rules = { quiet: { enabled: true, from: '23:00', to: '23:30', allow_critical: false } }
       expect(await ok.json()).toEqual(want)
       const d = await getChannels(c)
-      expect({ quiet: d.quiet, grouping: d.grouping }).toEqual(want)
+      expect({ quiet: d.quiet }).toEqual(want)
 
       await page.reload()
       await expect(from).toHaveValue('23:00')
       await expect(until).toHaveValue('23:30')
       await expect(on).toBeChecked()
       await expect(crit).not.toBeChecked()
-      await expect(group).not.toBeChecked()
-      await expect(page.getByLabel('Grouping window', { exact: true })).toHaveValue('240')
-      expect(await newAudit(c, before)).toEqual([`notify.rules_save|quiet hours and grouping||${ACCOUNTS.admin.email}`])
+      expect(await newAudit(c, before)).toEqual([`notify.rules_save|quiet hours||${ACCOUNTS.admin.email}`])
       await noVietnamese(page, 'rules')
     } finally { await c.dispose() }
     expect(server).toEqual([])
@@ -706,10 +701,10 @@ test.describe('quiet hours and grouping (S-NOT-1, INV-3, INV-5)', () => {
   test('the API refuses equal times (400 bad_quiet) and keeps what was saved', async () => {
     const c = await as('admin')
     try {
-      const rules: Rules = { quiet: { enabled: true, from: '08:00', to: '08:00', allow_critical: true }, grouping: { enabled: true, window_min: 15 } }
+      const rules: Rules = { quiet: { enabled: true, from: '08:00', to: '08:00', allow_critical: true } }
       expect(await call(c, 'PUT', '/notify/rules', rules)).toMatchObject(refused(400, 'bad_quiet', 'The start and end times must not be the same.'))
       const d = await getChannels(c)
-      expect({ quiet: d.quiet, grouping: d.grouping }, 'a refused save changed the rules').toEqual(DEFAULT_RULES)
+      expect({ quiet: d.quiet }, 'a refused save changed the rules').toEqual(DEFAULT_RULES)
     } finally { await c.dispose() }
   })
 })
@@ -726,8 +721,8 @@ test.describe('a real send that fails: the record in History, the finding and th
     const port = await closedPort()
     const c = await as('admin'), op = await as('operator'), viewer = await as('viewer')
     try {
-      // nothing held back: quiet hours are off and grouping would wait an hour for a vulnerability that is not Critical
-      const noGroup: Rules = { quiet: DEFAULT_RULES.quiet, grouping: { enabled: false, window_min: 60 } }
+      // nothing held back: quiet hours are off
+      const noGroup: Rules = { quiet: DEFAULT_RULES.quiet }
       expect((await call(c, 'PUT', '/notify/rules', noGroup)).status).toBe(200)
       const mail = await call<Ch>(c, 'PUT', '/notify/channels/email', { enabled: true, fields: { host: '127.0.0.1', port: String(port), security: 'none', username: '', from: 'alerts@e2e.test', to: 'it@e2e.test' }, min_severity: 'low' })
       expect(mail.status, JSON.stringify(mail.body)).toBe(200)
@@ -785,7 +780,7 @@ test.describe('a real send that fails: the record in History, the finding and th
     const port = await closedPort()
     const c = await as('admin')
     try {
-      expect((await call(c, 'PUT', '/notify/rules', { quiet: DEFAULT_RULES.quiet, grouping: { enabled: false, window_min: 60 } })).status).toBe(200)
+      expect((await call(c, 'PUT', '/notify/rules', { quiet: DEFAULT_RULES.quiet })).status).toBe(200)
       expect((await call(c, 'PUT', '/notify/channels/email', { enabled: true, fields: { host: '127.0.0.1', port: String(port), security: 'none', username: '', from: 'alerts@e2e.test', to: 'it@e2e.test' }, min_severity: 'low' })).status).toBe(200)
       const s = await seed()
       let row: Hist | undefined

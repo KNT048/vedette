@@ -205,7 +205,7 @@ describe('notify: incidents (S-ALERT-3)', () => {
 
   it('no open incidents: the empty state shows what to do, and the channel link only while no channel is on', async () => {
     // a whole channel (the create dialog opens its form), as the box sends it
-    const channels = (enabled: boolean) => http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: enabled, enabled, fields: {}, secret_last4: null, min_severity: 'high', last_test: null, approvals: false, approvers: [], approval_last4: { app_token: null, bot_token: null } }], quiet: { enabled: false, from: '22:00', to: '07:00', allow_critical: true }, grouping: { enabled: false, window_min: 15 }, email_code_users: 0 }))
+    const channels = (enabled: boolean) => http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: enabled, enabled, fields: {}, secret_last4: null, min_severity: 'high', last_test: null, approvals: false, approvers: [], approval_last4: { app_token: null, bot_token: null } }], quiet: { enabled: false, from: '22:00', to: '07:00', allow_critical: true }, email_code_users: 0 }))
     server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })), channels(false))
     const view = renderApp('/incidents')
     expect(await screen.findByText('No new incidents')).toBeInTheDocument()
@@ -345,26 +345,26 @@ describe('notify: delivery history (S-NOT-1)', () => {
 })
 
 describe('notify: Alert channels tabs and the History page', () => {
-  it('Channels is the first tab; Settings holds quiet hours and grouping, in the URL; no history table on the page', async () => {
+  it('Channels is the first tab; Settings holds quiet hours, in the URL; no history table on the page', async () => {
     renderApp('/settings/channels')
     const main = await screen.findByRole('main')
     expect(await within(main).findByRole('table', { name: 'Alert channels' })).toBeInTheDocument()
     expect(within(main).getByRole('tab', { name: 'Channels' })).toHaveAttribute('aria-selected', 'true')
-    expect(within(main).queryByRole('button', { name: 'Save quiet hours and grouping' })).toBeNull()
+    expect(within(main).queryByRole('button', { name: 'Save quiet hours' })).toBeNull()
     expect(within(main).queryByRole('table', { name: 'Sent messages' })).toBeNull()
     await userEvent.click(within(main).getByRole('tab', { name: 'Settings' }))
-    expect(await within(main).findByRole('button', { name: 'Save quiet hours and grouping' })).toBeInTheDocument()
+    expect(await within(main).findByRole('button', { name: 'Save quiet hours' })).toBeInTheDocument()
     expect(within(main).getByRole('heading', { name: 'When alerts go out' })).toBeInTheDocument()
     expect(within(main).queryByRole('table', { name: 'Alert channels' })).toBeNull()
   })
 
   it('?tab=settings opens the Settings tab; an old #quiet-hours link opens it too', async () => {
     const view = renderApp('/settings/channels?tab=settings')
-    expect(await screen.findByRole('button', { name: 'Save quiet hours and grouping' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Save quiet hours' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
     view.unmount()
     renderApp('/settings/channels#quiet-hours')
-    expect(await screen.findByRole('button', { name: 'Save quiet hours and grouping' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Save quiet hours' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
   })
 
@@ -434,7 +434,7 @@ describe('notify: History names every vulnerability alert that was not sent', ()
   it('lists each one with the box\'s sentence, a Waiting or Not sent chip, its finding and, for an admin, where to fix it', async () => {
     const notSent = [
       { id: 'nt-f-1-created', at: '2026-11-23T16:47:19.219Z', what: 'Example Hypervisor on hypervisor-01: exploited in the wild (CVE-2025-22224)', link: '/findings/f-1',
-        not_sent: { reason: 'grouped', text: 'Waiting to go out at 17:47 with the other alerts about the same product (grouping). It goes out by itself then.', until: '2026-11-23T17:47:19.219Z' } },
+        not_sent: { reason: 'quiet_hours', text: 'Held for quiet hours until 17:47. It goes out by itself then.', until: '2026-11-23T17:47:19.219Z' } },
       { id: 'nt-f-2-created', at: '2026-11-23T16:47:19.238Z', what: 'Example Hypervisor on hypervisor-01: public exploit available (CVE-2026-41709)', link: '/findings/f-2',
         not_sent: { reason: 'below_min_severity', text: 'Not sent: it is rated high for alerts, and your channels only send critical and above.', channel: 'email' } },
     ]
@@ -443,8 +443,8 @@ describe('notify: History names every vulnerability alert that was not sent', ()
     const table = await screen.findByRole('table', { name: 'Vulnerability alerts not sent' })
     const waiting = within(table).getByText(/CVE-2025-22224/).closest('tr')!
     expect(within(waiting).getByText('Waiting')).toBeInTheDocument()
-    expect(within(waiting).getByText(/Waiting to go out at 17:47/)).toBeInTheDocument()
-    expect(within(waiting).getByRole('link', { name: 'Grouping settings' })).toHaveAttribute('href', '/settings/channels?tab=settings#grouping')
+    expect(within(waiting).getByText(/Held for quiet hours until 17:47/)).toBeInTheDocument()
+    expect(within(waiting).getByRole('link', { name: 'Quiet hours settings' })).toHaveAttribute('href', '/settings/channels?tab=settings#quiet-hours')
     expect(within(waiting).getByRole('link', { name: /CVE-2025-22224/ })).toHaveAttribute('href', '/findings/f-1')
     const skipped = within(table).getByText(/CVE-2026-41709/).closest('tr')!
     expect(within(skipped).getByText('Not sent')).toBeInTheDocument()
@@ -493,7 +493,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
     const real = await getJsonAfterLogin('/notify/incidents') as unknown as { incidents: { id: string; status: string; sends: unknown[]; not_sent: unknown }[] }
     const open = real.incidents.filter((i) => i.status !== 'resolved')
     const body = { incidents: real.incidents.map((i, n) => (i.status === 'resolved' ? i : { ...i, sends: [], not_sent: n === 0 ? { reason: 'below_min_severity', text: 'Not sent: this incident is low, and your channels only send medium and above.' } : { reason: 'no_channel', text: 'Not sent: no alert channel is set up.' } })) }
-    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json(body)), http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: false, enabled: false, fields: {} }], quiet: {}, grouping: {}, email_code_users: 0 })))
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json(body)), http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: false, enabled: false, fields: {} }], quiet: {}, email_code_users: 0 })))
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
     expect(screen.getByRole('tab', { name: new RegExp(`Open ${open.length} open`) })).toBeInTheDocument()
@@ -646,17 +646,17 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(screen.queryByRole('dialog', { name: 'Channel Zalo OA' })).toBeNull()
   })
 
-  it('what a channel sends is said in the statuses every screen uses, for the choice made and in the list', async () => {
+  it('a channel\'s minimum level says it is for incidents and system notices: findings exploited in the wild always go', async () => {
     renderChannels()
     await press('Edit Telegram')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
-    const pick = within(dlg).getByLabelText('What to send')
-    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Only the most urgent', 'Every urgent finding, High and Critical incidents', 'Every urgent finding, incidents from Medium (recommended)', 'Everything Vedette alerts for'])
+    const pick = within(dlg).getByLabelText('Minimum level for incidents and system notices')
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Critical only', 'High and above', 'Medium and above (recommended)', 'Every level'])
+    expect(pick).toHaveAccessibleDescription(/Findings exploited in the wild are always sent, whatever this level/)
     await userEvent.selectOptions(pick, 'critical')
-    expect(pick).toHaveAccessibleDescription(/Findings: Under attack here, Exploited in the wild, and any other urgent one with a critical score/)
+    expect(pick).toHaveAccessibleDescription(/Incidents and system notices: Critical only/)
     await userEvent.selectOptions(pick, 'medium')
-    expect(pick).toHaveAccessibleDescription(/Public exploit available, Critical on an edge device\. Incidents: Medium and above/)
-    expect(within(dlg).queryByText(/and above$/)).toBeNull()
+    expect(pick).toHaveAccessibleDescription(/Incidents and system notices: Medium and above/)
   })
 
   it.skip('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
@@ -955,7 +955,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).getByRole('alert')).toHaveTextContent('1 user signs in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.')
   })
 
-  it('save quiet hours and grouping; identical times are refused', async () => {
+  it('save quiet hours; identical times are refused; there is no grouping setting any more', async () => {
     renderChannels()
     await screen.findByRole('table', { name: 'Alert channels' })
     await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
@@ -963,16 +963,16 @@ describe('notify: alert channels (S-NOT-1)', () => {
     const to = screen.getByLabelText('Until')
     await userEvent.clear(to)
     await userEvent.type(to, '22:00')
-    await userEvent.click(screen.getByRole('button', { name: 'Save quiet hours and grouping' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save quiet hours' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('The start and end times must not be the same')
     await userEvent.clear(to)
     await userEvent.type(to, '07:00')
-    await userEvent.selectOptions(screen.getByLabelText('Grouping window'), '240')
-    await userEvent.click(screen.getByRole('button', { name: 'Save quiet hours and grouping' }))
-    expect((await screen.findAllByText('Quiet hours and grouping saved.')).length).toBeGreaterThan(0)
+    expect(screen.queryByLabelText('Grouping window')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Save quiet hours' }))
+    expect((await screen.findAllByText('Quiet hours saved.')).length).toBeGreaterThan(0)
     const res = await getJson('/notify/channels')
     expect(res.quiet).toMatchObject({ from: '22:00', to: '07:00', allow_critical: true })
-    expect(res.grouping).toMatchObject({ window_min: 240 })
+    expect(res.grouping).toBeUndefined()
   })
 
   it('an operator cannot read channel settings (admins only)', async () => {

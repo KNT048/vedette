@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// alertEnv is a box with one Telegram channel on the default minimum (medium) and the default grouping (one hour), the directory and the
+// alertEnv is a box with one Telegram channel on the default minimum (medium), the directory and the
 // bus wired: the set-up a customer has after the first-run wizard.
 func alertEnv(t *testing.T, dir *liveFindings) (*env, func(name string, data any)) {
 	t.Helper()
@@ -214,7 +214,7 @@ func TestHistoryNamesEveryNoticeNotSentAndWhy(t *testing.T) {
 	pub("f-sent") // exploited: critical, sent at once
 	e.flush()
 
-	e.rules(notify.Quiet{Enabled: true, From: "10:00", To: "07:00"}, notify.Grouping{Enabled: true, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "10:00", To: "07:00"})
 	e.clock.Add(time.Minute)
 	dir.at("f-wait", 2, finding("Example NAS", "CVE-2026-4", "nas-01", notify.High))
 	pub("f-wait") // exploited, but quiet hours hold every alert until 07:00
@@ -243,38 +243,6 @@ func TestHistoryNamesEveryNoticeNotSentAndWhy(t *testing.T) {
 	want("f-wait", notify.UnsentQuietHours, "Held for quiet hours until 07:00")
 	if w := got["nt-f-wait-created"].NotSent; w.Until == "" || w.Channel != "" {
 		t.Errorf("a held notice says until when: %+v", w)
-	}
-}
-
-// A notice waiting for its grouping window whose end falls in quiet hours is held until they end (the queue releases no grouped batch
-// while they last), so History says so and when, not a grouping time that has already passed.
-func TestHistoryGroupedNoticeWhoseWindowEndsInQuietHoursSaysQuietHours(t *testing.T) {
-	dir := &liveFindings{}
-	e, pub := alertEnv(t, dir)
-	e.rules(notify.Quiet{Enabled: true, From: "10:30", To: "07:00"}, notify.Grouping{Enabled: true, WindowMin: 60}) // now is 10:00
-	// A finding exploited in the wild is critical and never grouped (INV-32, INV-4): a notice whose layer is not stated, as a producer
-	// outside the finding events publishes it, at high, still is.
-	dir.at("f-eve", 2, finding("Example NAS", "CVE-2026-5", "nas-01", notify.High))
-	if err := e.svc.Publish(e.ctx(), e.vulnNotice("eve", "Example NAS", "CVE-2026-5", notify.High, "nas-01")); err != nil {
-		t.Fatal(err)
-	}
-	_ = pub
-	e.flush()
-	e.clock.Add(65 * time.Minute) // the grouping window ended at 11:00, inside quiet hours
-	e.flush()
-	if n := e.count(`SELECT count(*) FROM notify_pending WHERE notice_id = 'eve'`); n != 1 {
-		t.Fatalf("queued rows = %d, want the notice still held", n)
-	}
-	h, err := e.svc.History(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(h.NotSent) != 1 {
-		t.Fatalf("not sent = %+v, want the held notice", h.NotSent)
-	}
-	ns := h.NotSent[0].NotSent
-	if ns.Reason != notify.UnsentQuietHours || !strings.Contains(ns.Text, "until 07:00") {
-		t.Errorf("not sent = %+v, want held for quiet hours until 07:00", ns)
 	}
 }
 

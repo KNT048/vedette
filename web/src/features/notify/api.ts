@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { AlertTrigger, AlertTriggerView, EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, LinkApprover, LinkApprovers, ZaloContacts, ZaloFound, ZaloLogin, TelegramChat, UnsentNotice } from './types'
+import type { AlertTrigger, AlertTriggerView, EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Quiet, TestResult, LinkApprover, LinkApprovers, ZaloContacts, ZaloFound, ZaloLogin, TelegramChat, UnsentNotice } from './types'
 
 export const useIncidents = () => useQuery({ queryKey: ['notify', 'incidents'], queryFn: () => api.get<IncidentsResponse>('/notify/incidents') })
 export const useIncident = (id: string) => useQuery({ queryKey: ['notify', 'incident', id], queryFn: () => api.get<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`), retry: false })
@@ -30,7 +30,7 @@ export const useTestChannel = () => useInvalidating((type: ChannelType) => api.p
 // A user sign-in of the email channel; nothing is cached (each answer is the state of that sign-in)
 export const useStartEmailSignin = () => useMutation({ mutationFn: (v: EmailSigninStart) => api.post<EmailSignin>('/notify/email-signin', v) })
 export const useCheckEmailSignin = () => useMutation({ mutationFn: ({ id, url }: { id: string; url?: string }) => api.post<EmailSignin>(`/notify/email-signin/${encodeURIComponent(id)}`, url === undefined ? {} : { url }) })
-export const useSaveRules = () => useInvalidating((v: { quiet: Quiet; grouping: Grouping }) => api.put<{ quiet: Quiet; grouping: Grouping }>('/notify/rules', v))
+export const useSaveRules = () => useInvalidating((v: { quiet: Quiet }) => api.put<{ quiet: Quiet }>('/notify/rules', v))
 export const useSaveTriggers = () => useInvalidating((v: { triggers: AlertTrigger[] }) => api.put<{ triggers: AlertTriggerView[] }>('/notify/triggers', v))
 
 

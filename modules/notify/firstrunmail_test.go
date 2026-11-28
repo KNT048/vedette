@@ -441,7 +441,7 @@ func TestSendNowOfASummaryIsNotTakenBackByTheNextPass(t *testing.T) {
 	dir := &liveFindings{}
 	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
 	e.telegram(notify.Medium)
-	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "07:00"}, notify.Grouping{WindowMin: 60}) // now is 10:00: quiet hours hold every alert
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "07:00"}) // now is 10:00: quiet hours hold every alert
 	e.svc.Subscribe(e.bus)
 	pub := func(data any) {
 		t.Helper()

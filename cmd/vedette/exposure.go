@@ -73,6 +73,7 @@ func exposureService(d deps) *exposure.Service {
 	// send time.
 	cfg.Schedules = d.Schedules
 	cfg.Alert = exposureAlert(d)
+	cfg.Exploited = exploitedCVEs(d) // only an issue that carries a CVE exploited in the wild alerts at once; the rest is in the daily summary
 	// S-EXP-2 (INV-19, INV-20): identified services are compared with exploited CVEs when a snapshot is read. cfg.Services is
 	// the scan container's nmap -sV on the box's own verified public IP (sensor-active ScanExternal). The commitment sentence of
 	// NoticeVersion 2026-11-14 (K-4) already names service identification, so wiring it leaves NoticeVersion alone (a second bump

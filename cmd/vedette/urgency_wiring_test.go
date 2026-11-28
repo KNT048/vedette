@@ -330,3 +330,19 @@ func TestUrgencyWiring_AJoinIsOneResponseEvent(t *testing.T) {
 		}
 	}
 }
+
+// Exposure's alerts follow the rule of a finding's alert: a CVE on an exploited list (or with a vendor's or researcher's exploited claim)
+// is exploited in the wild; a public exploit alone, or nothing, is not.
+func TestUrgencyWiring_ExposureUsesTheFindingsRuleOfExploited(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	seedUrgencyCatalogue(t, s) // CVE-2026-50002 has a public exploit only
+	s.kevAdded("CVE-2026-50001", "Fortinet", "FortiOS", time.Now().AddDate(0, 0, -3))
+	got, err := exploitedCVEs(*s.d)(t.Context(), []string{"CVE-2026-50001", "CVE-2026-50002", "CVE-2026-50003"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got["CVE-2026-50001"] || got["CVE-2026-50002"] || got["CVE-2026-50003"] {
+		t.Fatalf("exploited = %v, want only the listed CVE", got)
+	}
+}

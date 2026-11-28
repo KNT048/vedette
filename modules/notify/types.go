@@ -67,17 +67,15 @@ type ChannelInput struct {
 	ZaloLogin bool
 }
 
-// Rules is the quiet-hours and grouping rule pair.
+// Rules are the delivery rules of every channel: quiet hours.
 type Rules struct {
-	Quiet    Quiet    `json:"quiet"`
-	Grouping Grouping `json:"grouping"`
+	Quiet Quiet `json:"quiet"`
 }
 
 // ChannelsView is the answer of GET /notify/channels.
 type ChannelsView struct {
 	Channels       []Channel     `json:"channels"`
 	Quiet          Quiet         `json:"quiet"`
-	Grouping       Grouping      `json:"grouping"`
 	Triggers       []TriggerView `json:"triggers"`
 	EmailCodeUsers int           `json:"email_code_users"`
 }
@@ -201,7 +199,6 @@ type NotSentReason string
 const (
 	UnsentQueued       NotSentReason = "queued"             // a channel took it; the deliver job sends it within a minute
 	UnsentQuietHours   NotSentReason = "quiet_hours"        // held until quiet hours end (INV-5), then sent
-	UnsentGrouped      NotSentReason = "grouped"            // a vulnerability notice waiting for its grouping window (INV-3), then sent
 	UnsentNoChannel    NotSentReason = "no_channel"         // no channel was set up
 	UnsentChannelsOff  NotSentReason = "channels_off"       // channels were set up, none was on
 	UnsentChannelOff   NotSentReason = "channel_off"        // the one channel it waited for (quiet hours, rate limit) was turned off before it went

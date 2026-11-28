@@ -55,25 +55,24 @@ export const EmailSignin = z.object({
   mailbox: z.string().optional().describe('The account that signed in'),
 })
 export const Quiet = z.object({ enabled: z.boolean(), from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), allow_critical: z.boolean() })
-export const Grouping = z.object({ enabled: z.boolean(), window_min: z.union([z.literal(15), z.literal(60), z.literal(240)]) })
-export const Rules = z.object({ quiet: Quiet, grouping: Grouping })
+export const Rules = z.object({ quiet: Quiet })
 export const AlertTriggerId = z.enum(['trap', 'vulnerability', 'intrusion', 'bad_address', 'log_anomaly', 'unknown_device'])
 export const AlertTrigger = z.object({ id: AlertTriggerId, on: z.boolean().describe('Off: the event is still recorded (Incidents, the finding), but no message is sent'), min: RouteSeverity.describe('The lowest severity of this kind that sends a message') })
 export const AlertTriggerView = AlertTrigger.extend({ default_on: z.boolean(), default_min: RouteSeverity })
 export const AlertTriggers = z.object({ triggers: z.array(AlertTrigger).max(20) })
 export const AlertTriggersResponse = z.object({ triggers: z.array(AlertTriggerView) })
-export const ChannelsResponse = z.object({ channels: z.array(Channel), quiet: Quiet, grouping: Grouping, triggers: z.array(AlertTriggerView).describe('Which kinds of event send an alert, and from which severity'), email_code_users: z.number().int().describe('Users who sign in with two-step email codes: they cannot sign in while the email channel is off or removed') })
+export const ChannelsResponse = z.object({ channels: z.array(Channel), quiet: Quiet, triggers: z.array(AlertTriggerView).describe('Which kinds of event send an alert, and from which severity'), email_code_users: z.number().int().describe('Users who sign in with two-step email codes: they cannot sign in while the email channel is off or removed') })
 
 export const IncidentKind = z.string().regex(/^[a-z0-9_]{1,40}$/).describe('What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device, intrusion are the ones with their own labels); a kind the app does not know is shown with a generic label')
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend') })
-export const NotSentReason = z.enum(['queued', 'quiet_hours', 'grouped', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'line_left_out', 'unknown', 'trigger_off', 'not_exploited'])
+export const NotSentReason = z.enum(['queued', 'quiet_hours', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'line_left_out', 'unknown', 'trigger_off', 'not_exploited'])
 export const NotSent = z.object({
-  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today\'s channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)'),
+  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued and quiet_hours still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today\'s channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)'),
   text: z.string().describe('One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only send high and above."'),
   channel: ChannelType.optional().describe('The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)'),
-  until: iso.optional().describe('quiet_hours, grouped: when the held message goes out'),
+  until: iso.optional().describe('quiet_hours: when the held message goes out'),
 })
 /** Most incidents one bulk change may name (INV-25): the page shows at most 500. */
 export const MAX_BULK_INCIDENTS = 500
@@ -114,7 +113,7 @@ export const UnsentNotice = z.object({
 })
 export const HistoryResponse = z.object({
   items: z.array(HistoryItem),
-  not_sent: z.array(UnsentNotice).describe('The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest first, each with why: waiting (within a minute, its grouping window, quiet hours), failed, below the channels\' minimum, no channel or channels off when it was found'),
+  not_sent: z.array(UnsentNotice).describe('The vulnerability notices of the last `suppressed.days` days that no channel delivered, newest first, each with why: waiting (within a minute, quiet hours), failed, below the channels\' minimum, no channel or channels off when it was found'),
   suppressed: z.object({ count: z.number().int(), days: z.number().int() }),
 })
 export const FindingNotices = z.object({ sends: z.array(SendRecord) })
@@ -158,7 +157,7 @@ export const endpoints = defineEndpoints([
     response: z.object({ updated: z.number().int().describe('Incidents changed'), already_resolved: z.number().int().describe('Resolved incidents, left as they were'), already_acknowledged: z.number().int().describe('Acknowledge only: incidents already acknowledged, left as they were') }) },
   { method: 'get', path: '/notify/history', summary: 'Every message sent (incidents, vulnerability notices, approval requests) and the count of new vulnerabilities matching no device (not sent)', stories: ['S-ALERT-1', 'S-NOT-1'], role: 'admin', response: HistoryResponse },
   { method: 'post', path: '/notify/history/{id}/resend', summary: 'Send a message again through the same channel', stories: ['S-NOT-1'], role: 'operator', params: id, response: HistoryItem },
-  { method: 'post', path: '/notify/notices/{id}/send', summary: 'Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity, quiet hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready', stories: ['S-ALERT-1', 'S-NOT-1'], role: 'operator', params: id, response: UnsentNotice },
+  { method: 'post', path: '/notify/notices/{id}/send', summary: 'Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity or quiet hours; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready', stories: ['S-ALERT-1', 'S-NOT-1'], role: 'operator', params: id, response: UnsentNotice },
   { method: 'get', path: '/notify/findings/{id}/notices', summary: 'Who was notified about this finding, on which channel, and whether it arrived', stories: ['S-ALERT-1'], role: 'viewer', params: id, response: FindingNotices, example: { params: { id: 'f-1' } } },
   { method: 'get', path: '/notify/alerts/{id}/target', summary: 'Old alert link: the incident or the finding it became', stories: ['S-ALERT-3'], role: 'viewer', params: id, response: LegacyTarget, example: { params: { id: 'al-1' } } },
   { method: 'get', path: '/notify/channels', summary: 'Alert channels, quiet hours, batching rules (without secrets), and how many users sign in with email codes', stories: ['S-NOT-1'], role: 'admin', response: ChannelsResponse },

@@ -13,7 +13,7 @@ import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { MAX_BULK_INCIDENTS } from './contract'
 import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
-import type { AlertTrigger, AlertTriggerView, Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
+import type { AlertTrigger, AlertTriggerView, Approver, Channel, ChannelInput, ChannelType, EmailSignin, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
@@ -31,9 +31,8 @@ const channels = collection<StoredChannel[]>('notify_channels', () => [
   { type: 'email', configured: true, enabled: true, fields: { host: 'smtp.acme.example', port: '587', security: 'starttls', username: 'alerts@acme.example', from: 'alerts@acme.example', to: 'it@acme.example, director@acme.example' }, secret: 'MatKhauMau-m3Tz', min_severity: 'high', approvals: true, approvers: [{ user_id: 'u-admin', address: 'admin@acme.example' }], last_test: { at: daysAgo(6), ok: true, detail: 'Test email sent to it@acme.example, director@acme.example.' } },
   blank('webhook'),
 ], () => CHANNEL_TYPES.map(blank))
-const rules = collection<{ quiet: Quiet; grouping: Grouping }>('notify_rules', () => ({
+const rules = collection<{ quiet: Quiet }>('notify_rules', () => ({
   quiet: { enabled: true, from: '22:00', to: '06:30', allow_critical: true },
-  grouping: { enabled: true, window_min: 60 },
 }))
 // Alert triggers: the box's defaults (modules/notify/triggers.go defaultTriggers), the stored rule over them.
 const TRIGGER_DEFAULTS: AlertTriggerView[] = ([['trap', true, 'low'], ['vulnerability', true, 'low'], ['intrusion', true, 'high'], ['bad_address', true, 'high'], ['log_anomaly', true, 'high'], ['unknown_device', false, 'medium']] as const)
@@ -796,14 +795,13 @@ export const handlers = [
 
   http.put(`${API}/notify/rules`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ quiet: Quiet; grouping: Grouping }>(request)
-    const q = b.quiet, g = b.grouping
+    const b = await body<{ quiet: Quiet }>(request)
+    const q = b.quiet
     if (!q || !HM.test(q.from) || !HM.test(q.to)) return fail(400, 'bad_time', 'Enter quiet hours like 22:00.')
     if (q.enabled === true && q.from === q.to) return fail(400, 'bad_quiet', 'The start and end times must not be the same.')
-    if (!g || ![15, 60, 240].includes(g.window_min)) return fail(400, 'bad_window', 'The grouping window must be 15, 60 or 240 minutes.')
-    const next = { quiet: { enabled: q.enabled === true, from: q.from, to: q.to, allow_critical: q.allow_critical === true }, grouping: { enabled: g.enabled === true, window_min: g.window_min } }
+    const next = { quiet: { enabled: q.enabled === true, from: q.from, to: q.to, allow_critical: q.allow_critical === true } }
     rules.set(next)
-    audit('notify.rules_save', 'quiet hours and grouping')
+    audit('notify.rules_save', 'quiet hours')
     return HttpResponse.json(next)
   }),
 

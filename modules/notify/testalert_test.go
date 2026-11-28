@@ -49,7 +49,7 @@ func TestTrapTestAlertTakesThePathOfTheRealOne(t *testing.T) {
 	}
 	// quiet hours that hold critical alerts: the test still goes, and says when the real one would
 	e.net.failTelegram(200)
-	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00", AllowCritical: false}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00", AllowCritical: false})
 	if _, err = e.svc.SendTrapTest(e.ctx(), trap); err != nil {
 		t.Fatal(err)
 	}

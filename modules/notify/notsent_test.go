@@ -100,7 +100,7 @@ func TestContract_INV24_NotSentSaysWhyFromTheDecision(t *testing.T) {
 func TestContract_INV24_QuietHoursSayUntilWhenAndThenSend(t *testing.T) {
 	e := newEnv(t)
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "07:00"}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "07:00"})
 	e.clock.Add(13 * time.Hour) // 23:00
 	id := e.open("a", notify.High)
 	e.flush()

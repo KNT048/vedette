@@ -18,7 +18,7 @@ import (
 
 // The daily summary (INV-32). Only a finding exploited in the wild sends an alert; everything else a person should still hear about
 // goes into one optional message a day on every alert channel that is on: the findings of the day that are not exploited (their notices
-// were recorded as not_exploited), the new findings with no sign of exploitation, the answers of the customer's AI waiting for review,
+// were recorded as not_exploited), the new findings with no sign of exploitation, what external scans found that is not exploited, the answers of the customer's AI waiting for review,
 // and the tokens its research of CVEs used. Its time is a core/schedule owner (notify.summary), off until an administrator turns it on,
 // like the periodic report. When it comes due, the schedule's transaction only writes a notify_summary row; the summary job builds and
 // sends it, because sending talks to the channels. A summary with nothing to tell is not sent.
@@ -49,6 +49,9 @@ type SummarySources struct {
 	AIReview func(ctx context.Context) (int, error)
 	// AITokens is how many tokens the AI's research of CVEs used in [from, to).
 	AITokens func(ctx context.Context, from, to time.Time) (int, error)
+	// Exposure counts what external scans found new in [from, to) that did not alert (no CVE exploited in the wild): the issues and
+	// the open ports (exposure NewSince).
+	Exposure func(ctx context.Context, from, to time.Time) (issues, ports int, err error)
 }
 
 // ScheduleOwner is what notify registers with core/schedule: the daily summary, off until an administrator turns it on, 08:00 in the
@@ -88,10 +91,12 @@ type summaryOf struct {
 	devices  int                 // the devices of updates
 	review   int                 // AI answers waiting for review
 	tokens   int                 // tokens of the AI's research
+	exIssues int                 // new exposure issues with no CVE exploited in the wild
+	exPorts  int                 // new open ports found by external scans
 }
 
 func (m summaryOf) empty() bool {
-	return len(m.ids) == 0 && m.updates == 0 && m.review == 0 && m.tokens == 0
+	return len(m.ids) == 0 && m.updates == 0 && m.review == 0 && m.tokens == 0 && m.exIssues == 0 && m.exPorts == 0
 }
 
 // RunSummary is the body of the summary job: each summary the schedule marked is taken (sending, so a crash cannot send it twice),
@@ -302,6 +307,11 @@ func (s *Service) buildSummary(ctx context.Context, from, to time.Time) (summary
 			return m, fmt.Errorf("notify: daily summary, AI answers: %w", err)
 		}
 	}
+	if src.Exposure != nil {
+		if m.exIssues, m.exPorts, err = src.Exposure(ctx, from, to); err != nil {
+			return m, fmt.Errorf("notify: daily summary, external scans: %w", err)
+		}
+	}
 	if src.AITokens != nil {
 		if m.tokens, err = src.AITokens(ctx, from, to); err != nil {
 			return m, fmt.Errorf("notify: daily summary, AI tokens: %w", err)
@@ -330,6 +340,8 @@ func (s *Service) summaryMessage(ctx context.Context, id string, m summaryOf) (m
 	switch {
 	case found > 0:
 		title += ": " + plural(found, "finding", "findings") + " not exploited in the wild"
+	case m.exIssues+m.exPorts > 0:
+		title += ": what external scans found, nothing exploited in the wild"
 	case m.review > 0:
 		title += ": " + plural(m.review, "AI answer waits", "AI answers wait") + " for your review"
 	}
@@ -340,6 +352,10 @@ func (s *Service) summaryMessage(ctx context.Context, id string, m summaryOf) (m
 	}
 	if m.updates > 0 {
 		what = append(what, fmt.Sprintf("%s on %s with no sign of exploitation: update when you can.", plural(m.updates, "new finding", "new findings"), plural(max(m.devices, 1), "device", "devices")))
+	}
+	if m.exIssues+m.exPorts > 0 {
+		what = append(what, fmt.Sprintf("External scans found %s and %s, none with a CVE exploited in the wild: see External exposure.",
+			plural(m.exIssues, "new issue", "new issues"), plural(m.exPorts, "new open port", "new open ports")))
 	}
 	if m.review > 0 {
 		what = append(what, plural(m.review, "answer of your AI waits", "answers of your AI wait")+" for your review in Findings.")

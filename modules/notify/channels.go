@@ -226,7 +226,7 @@ func (s *Service) Channels(ctx context.Context) (ChannelsView, error) {
 	if err != nil {
 		return out, err
 	}
-	out.Quiet, out.Grouping = r.Quiet, r.Grouping
+	out.Quiet = r.Quiet
 	ts, err := loadTriggers(ctx, db)
 	if err != nil {
 		return out, err
@@ -989,13 +989,13 @@ func (s *Service) TestChannel(ctx context.Context, actor string, t channel.Type)
 
 // ---- rules ----
 
-var (
-	defaultQuiet    = Quiet{Enabled: false, From: "22:00", To: "06:30", AllowCritical: true}
-	defaultGrouping = Grouping{Enabled: true, WindowMin: 60}
-)
+var defaultQuiet = Quiet{Enabled: false, From: "22:00", To: "06:30", AllowCritical: true}
+
+// A stored "grouping" row of an earlier build is ignored: since only findings exploited in the wild alert (INV-32), every finding's alert
+// is critical, which grouping never held, so the rule changed nothing and is gone.
 
 func loadRules(ctx context.Context, q dbtx) (Rules, error) {
-	r := Rules{Quiet: defaultQuiet, Grouping: defaultGrouping}
+	r := Rules{Quiet: defaultQuiet}
 	rows, err := q.QueryContext(ctx, `SELECT key, value FROM notify_setting`)
 	if err != nil {
 		return r, fmt.Errorf("notify: load rules: %w", err)
@@ -1009,8 +1009,6 @@ func loadRules(ctx context.Context, q dbtx) (Rules, error) {
 		switch k {
 		case "quiet":
 			err = json.Unmarshal([]byte(v), &r.Quiet)
-		case "grouping":
-			err = json.Unmarshal([]byte(v), &r.Grouping)
 		}
 		if err != nil {
 			return r, fmt.Errorf("notify: stored rule %s: %w", k, err)
@@ -1019,7 +1017,7 @@ func loadRules(ctx context.Context, q dbtx) (Rules, error) {
 	return r, rows.Err()
 }
 
-// SaveRules stores quiet hours and grouping (PUT /notify/rules, INV-3, INV-5).
+// SaveRules stores quiet hours (PUT /notify/rules, INV-5).
 func (s *Service) SaveRules(ctx context.Context, actor string, r Rules) (Rules, error) {
 	if _, err := minutes(r.Quiet.From); err != nil {
 		return r, badRequest("bad_time", "Enter quiet hours like 22:00.")
@@ -1030,11 +1028,8 @@ func (s *Service) SaveRules(ctx context.Context, actor string, r Rules) (Rules, 
 	if r.Quiet.Validate() != nil {
 		return r, badRequest("bad_quiet", "The start and end times must not be the same.")
 	}
-	if r.Grouping.Validate() != nil {
-		return r, badRequest("bad_window", "The grouping window must be 15, 60 or 240 minutes.")
-	}
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		for k, v := range map[string]any{"quiet": r.Quiet, "grouping": r.Grouping} {
+		for k, v := range map[string]any{"quiet": r.Quiet} {
 			j, err := json.Marshal(v)
 			if err != nil {
 				return fmt.Errorf("notify: encode rule %s: %w", k, err)
@@ -1045,7 +1040,7 @@ func (s *Service) SaveRules(ctx context.Context, actor string, r Rules) (Rules, 
 				return fmt.Errorf("notify: save rule %s: %w", k, err)
 			}
 		}
-		return s.record(ctx, tx, actor, "notify.rules_save", "quiet hours and grouping", "")
+		return s.record(ctx, tx, actor, "notify.rules_save", "quiet hours", "")
 	})
 	return r, err
 }

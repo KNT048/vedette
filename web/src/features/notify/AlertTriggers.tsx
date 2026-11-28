@@ -49,10 +49,13 @@ export function AlertTriggers({ init }: { init: AlertTriggerView[] }) {
                   <Switch id={`${sw}-on`} checked={r.on} disabled={!isAdmin} onCheckedChange={(v) => set(r.id, { on: v })} />
                   <span className="text-meta" aria-hidden>{r.on ? t('triggers.send') : t('triggers.dontSend')}</span>
                 </div>
-                <Label htmlFor={`${sw}-min`} className="sr-only">{t('triggers.fromFor', { what: t(`triggers.kind.${r.id}.label`) })}</Label>
-                <Select id={`${sw}-min`} value={r.min} disabled={!isAdmin || !r.on} className="w-auto" onChange={(e) => set(r.id, { min: e.target.value as RouteSeverity })}>
-                  {MINS.map((m) => <option key={m} value={m}>{t(`triggers.min.${m}`)}</option>)}
-                </Select>
+                {/* a finding alerts only when exploited in the wild, and that is always Critical: a lowest severity would change nothing */}
+                {r.id === 'vulnerability' ? <span className="text-meta">{t('triggers.alwaysCritical')}</span> : (<>
+                  <Label htmlFor={`${sw}-min`} className="sr-only">{t('triggers.fromFor', { what: t(`triggers.kind.${r.id}.label`) })}</Label>
+                  <Select id={`${sw}-min`} value={r.min} disabled={!isAdmin || !r.on} className="w-auto" onChange={(e) => set(r.id, { min: e.target.value as RouteSeverity })}>
+                    {MINS.map((m) => <option key={m} value={m}>{t(`triggers.min.${m}`)}</option>)}
+                  </Select>
+                </>)}
               </div>
             </li>
           )

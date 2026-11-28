@@ -103,6 +103,30 @@ func urgencyOnAlerts(d *deps) events.Handler {
 	}
 }
 
+// exploitedCVEs says which CVEs are exploited in the wild, by the rule a finding's alert follows: findings' Urgency over the facts feeds'
+// urgency reader holds (an exploited list's entry, CISA KEV and VulnCheck KEV included, or a vendor's or researcher's exploited signal:
+// layer 2). Exposure's alerts use it (exposure Config.Exploited), so one rule decides what alerts at once.
+func exploitedCVEs(d deps) func(ctx context.Context, cves []string) (map[string]bool, error) {
+	return func(ctx context.Context, cves []string) (map[string]bool, error) {
+		out := map[string]bool{}
+		if d.DB == nil || len(cves) == 0 {
+			return out, nil
+		}
+		facts, err := urgencyFacts(ctx, feeds.NewUrgencyReader(d.DB.Reader()), cves)
+		if err != nil {
+			return nil, err
+		}
+		now := time.Now()
+		if d.Clock != nil {
+			now = d.Clock()
+		}
+		for _, c := range cves {
+			out[c] = findings.Urgency(c, facts[c], findings.Target{}, nil, now).Layer <= findings.UrgencyExploited
+		}
+		return out, nil
+	}
+}
+
 // urgencyFacts converts feeds' urgency facts of the CVEs into findings' (findings.CVEFacts).
 func urgencyFacts(ctx context.Context, r *feeds.UrgencyReader, cves []string) (map[string]findings.CVEFacts, error) {
 	got, err := r.Facts(ctx, cves)

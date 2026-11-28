@@ -500,8 +500,8 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   )
 }
 
-/** Where an anchor of this page lives: the quiet hours and grouping are on the Settings tab, the channels on the Channels tab. */
-const tabOfAnchor = (id: string): Tab | null => (id === 'quiet-hours' || id === 'grouping' || id === 'alert-rules' || id === 'triggers' || id === 'daily-summary' || id.startsWith('trigger-') ? 'settings' : id === 'channels' || id.startsWith('channel-') ? 'channels' : null)
+/** Where an anchor of this page lives: the quiet hours, triggers and daily summary are on the Settings tab, the channels on the Channels tab. */
+const tabOfAnchor = (id: string): Tab | null => (id === 'quiet-hours' || id === 'alert-rules' || id === 'triggers' || id === 'daily-summary' || id.startsWith('trigger-') ? 'settings' : id === 'channels' || id.startsWith('channel-') ? 'channels' : null)
 type Tab = 'channels' | 'settings'
 
 /** A link to an anchor of the other tab (an old bookmark, /settings/channels#quiet-hours) opens that tab and keeps the anchor, so the
@@ -539,7 +539,7 @@ export default function ChannelsSettings() {
           {(d) => (
             <PageTabs label={t('channels.tabs.label')} tabs={[
               { id: 'channels', label: t('channels.tabs.channels'), panel: <Channels channels={d.channels} codeUsers={d.email_code_users} /> },
-              { id: 'settings', label: t('channels.tabs.settings'), panel: <AlertSettings quiet={d.quiet} grouping={d.grouping} triggers={d.triggers} /> },
+              { id: 'settings', label: t('channels.tabs.settings'), panel: <AlertSettings quiet={d.quiet} triggers={d.triggers} /> },
             ]} />
           )}
         </QueryState>

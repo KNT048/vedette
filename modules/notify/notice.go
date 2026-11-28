@@ -94,23 +94,6 @@ func SplitSendable(ns []Notice) (send []Notice, suppressed int) {
 	return send, suppressed
 }
 
-// Grouping is the batching rule (contract.ts Grouping).
-type Grouping struct {
-	Enabled   bool `json:"enabled"`
-	WindowMin int  `json:"window_min"` // 15, 60 or 240
-}
-
-// ErrBadGrouping means the batching rule is malformed.
-var ErrBadGrouping = errors.New("notify: invalid grouping window")
-
-// Validate checks that the window is one of the allowed values.
-func (g Grouping) Validate() error {
-	if g.WindowMin != 15 && g.WindowMin != 60 && g.WindowMin != 240 {
-		return fmt.Errorf("%w: %d (use 15, 60 or 240 minutes)", ErrBadGrouping, g.WindowMin)
-	}
-	return nil
-}
-
 // Batch is a set of notices that go out as one message on one channel. Build it
 // with Group or GroupHeld: they filter by the channel's min_severity and by
 // sendability, and Message refuses a batch that was not built that way.
@@ -126,20 +109,10 @@ var ErrUnsendable = errors.New("notify: batch holds a notice that must not be se
 // held is the window used when quiet hours end: everything held for one product goes out together.
 const held = 366 * 24 * time.Hour
 
-// Group implements INV-3 for one channel (floor is its min_severity). Notices
-// that are not sendable (FORBID-1) or below floor (INV-4) are dropped first, so
-// a low notice can never ride in a batch to a high-only channel. Then, with
-// grouping enabled, vulnerability notices for the same product whose time is
-// within WindowMin of the first notice of the batch become one batch;
-// everything else is a batch of its own. A critical notice is never grouped: it
-// is always its own batch, due at its own time (INV-6). Batches come out
-// in the order of their first notice. An invalid window groups nothing.
-func Group(ns []Notice, g Grouping, floor Severity) []Batch {
-	if !g.Enabled || g.Validate() != nil {
-		return group(ns, 0, floor)
-	}
-	return group(ns, time.Duration(g.WindowMin)*time.Minute, floor)
-}
+// Group makes the batches of the notices due now on one channel (floor is its min_severity): notices that are not sendable (FORBID-1)
+// or below floor (INV-4) are dropped first, so a low notice can never ride in a batch to a high-only channel; each other notice is a
+// batch of its own, in the order of their times (digest then merges the vulnerability batches of one run, INV-3).
+func Group(ns []Notice, floor Severity) []Batch { return group(ns, 0, floor) }
 
 // GroupHeld groups the notices kept during quiet hours: one batch
 // per product, whatever the window setting, so people get one message when the
@@ -221,18 +194,6 @@ func (b Batch) Told(t channel.Type, msg channel.Message) []Notice {
 		return l
 	}
 	return l[:min(len(l), channel.Listed(t, msg))]
-}
-
-// DueAt is when a batch opened by its first notice must be sent at the latest
-// under the grouping rule: the first notice time plus the window. A critical or
-// non-vulnerability notice is due at its own time. Callers compare it with the
-// 60-minute bound of INV-6.
-func (b Batch) DueAt(g Grouping) time.Time {
-	first := b.Notices[0]
-	if !g.Enabled || g.Validate() != nil || first.Kind != KindVuln || first.Severity == Critical {
-		return first.At
-	}
-	return first.At.Add(time.Duration(g.WindowMin) * time.Minute)
 }
 
 // Severity is the highest severity in the batch.

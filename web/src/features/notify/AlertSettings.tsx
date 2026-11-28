@@ -6,32 +6,31 @@ import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, Input, Label, Select } from '@/components/ui/input'
+import { Field, Input, Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import { AlertTriggers } from './AlertTriggers'
 import { useSaveRules } from './api'
-import type { ChannelsResponse, Grouping } from './types'
+import type { ChannelsResponse } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 
 /** What the Settings tab reads from GET /notify/channels. */
-type Rules = Pick<ChannelsResponse, 'quiet' | 'grouping'>
-type Settings = Pick<ChannelsResponse, 'quiet' | 'grouping' | 'triggers'>
+type Rules = Pick<ChannelsResponse, 'quiet'>
+type Settings = Pick<ChannelsResponse, 'quiet' | 'triggers'>
 
-/** Quiet hours and grouping: one form, saved together, for every channel. */
+/** Quiet hours: one form, for every channel. */
 function RulesForm({ init }: { init: Rules }) {
   const { t } = useTranslation('notify')
   const isAdmin = useCan('admin')
   const save = useSaveRules()
   const [quiet, setQuiet] = useState(init.quiet)
-  const [grouping, setGrouping] = useState(init.grouping)
   const [error, setError] = useState<string | null>(null)
   function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    save.mutate({ quiet, grouping }, { onSuccess: () => toast.success(t('rules.saved')), onError: (er) => setError(errMsg(er)) })
+    save.mutate({ quiet }, { onSuccess: () => toast.success(t('rules.saved')), onError: (er) => setError(errMsg(er)) })
   }
   return (
     <form onSubmit={submit} className="grid max-w-2xl gap-8" noValidate>
@@ -48,17 +47,6 @@ function RulesForm({ init }: { init: Rules }) {
         {quiet.enabled && quiet.from && quiet.to && quiet.from !== quiet.to ? <p className="text-meta" role="status">{quiet.from > quiet.to ? t('rules.quiet.overnight', { from: quiet.from, to: quiet.to }) : t('rules.quiet.sameDay', { from: quiet.from, to: quiet.to })}</p> : null}
         <div className="flex items-center gap-2"><Checkbox id="q-crit" checked={quiet.allow_critical} onCheckedChange={(c) => setQuiet({ ...quiet, allow_critical: c === true })} /><Label htmlFor="q-crit" className="font-normal">{t('rules.quiet.allowCritical')}</Label></div>
       </fieldset>
-      {/* /settings/channels?tab=settings#grouping (NotSentFix of an alert waiting for its grouping window) lands here */}
-      <fieldset id="grouping" disabled={!isAdmin} className="grid gap-3 border-0 p-0">
-        <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.grouping.title')}<InfoTip topic={t('rules.grouping.title')}>{t('rules.grouping.descriptionInfo')}</InfoTip></legend>
-        <p className="text-meta text-muted">{t('rules.grouping.description')}</p>
-        <div className="flex items-center gap-3"><Switch id="g-on" checked={grouping.enabled} onCheckedChange={(v) => setGrouping({ ...grouping, enabled: v })} /><Label htmlFor="g-on">{t('rules.grouping.enabled')}</Label></div>
-        <Field label={t('rules.grouping.window')} htmlFor="g-win" className="max-w-xs">
-          <Select id="g-win" value={grouping.window_min} onChange={(e) => setGrouping({ ...grouping, window_min: Number(e.target.value) as Grouping['window_min'] })}>
-            {([15, 60, 240] as const).map((m) => <option key={m} value={m}>{t(`rules.grouping.w${m}`)}</option>)}
-          </Select>
-        </Field>
-      </fieldset>
       <div><Button type="submit" variant="primary" disabled={!isAdmin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={isAdmin ? undefined : t('channels.needRole')}>{t('rules.save')}</Button></div>
     </form>
   )
@@ -68,9 +56,8 @@ function RulesForm({ init }: { init: Rules }) {
 export const SUMMARY_SCHEDULE = 'notify.summary'
 
 /** Settings › Alert channels › Settings: how alerts go out on every channel. Each block is a Section of its own: first what sends an
- *  alert at all (only findings exploited in the wild) and the daily summary of the rest, then the delivery rules (quiet hours,
- *  grouping), then the triggers. */
-export function AlertSettings({ quiet, grouping, triggers }: Settings) {
+ *  alert at all (only findings exploited in the wild) and the daily summary of the rest, then quiet hours, then the triggers. */
+export function AlertSettings({ quiet, triggers }: Settings) {
   const { t } = useTranslation('notify')
   return (
     <>
@@ -79,7 +66,7 @@ export function AlertSettings({ quiet, grouping, triggers }: Settings) {
         <ScheduleEditor ownerKey={SUMMARY_SCHEDULE} name={t('summary.scheduleName')} runNow={false} />
       </Section>
       <Section id="alert-rules" title={t('alertSettings.rules.title')} description={t('alertSettings.rules.description')}>
-        <RulesForm init={{ quiet, grouping }} />
+        <RulesForm init={{ quiet }} />
       </Section>
       {/* /settings/channels?tab=settings#triggers (NotSentFix of an alert its trigger held back) lands here */}
       <Section id="triggers" title={t('triggers.title')} description={t('triggers.description')} info={t('triggers.descriptionInfo')}>

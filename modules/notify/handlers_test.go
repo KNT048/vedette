@@ -137,10 +137,9 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	}
 
 	// rules
-	a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"22:00","allow_critical":true},"grouping":{"enabled":true,"window_min":60}}`, 400, "bad_quiet")
-	a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"23:00","allow_critical":true},"grouping":{"enabled":true,"window_min":30}}`, 400, "invalid")
-	r := a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"06:30","allow_critical":true},"grouping":{"enabled":false,"window_min":240}}`, 200, "")
-	if r["grouping"].(map[string]any)["window_min"] != float64(240) || r["quiet"].(map[string]any)["enabled"] != true {
+	a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"22:00","allow_critical":true}}`, 400, "bad_quiet")
+	r := a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"06:30","allow_critical":true}}`, 200, "")
+	if _, ok := r["grouping"]; ok || r["quiet"].(map[string]any)["enabled"] != true {
 		t.Fatalf("rules = %v", r)
 	}
 

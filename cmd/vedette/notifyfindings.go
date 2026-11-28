@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify"
@@ -197,6 +198,17 @@ func notifyUpdates(d *deps) func(ctx context.Context, from, to time.Time) (int, 
 		err = d.DB.Reader().QueryRowContext(ctx, `SELECT count(*), count(DISTINCT asset_id) FROM fnd_finding
 WHERE state = 'open' AND urgency = ? AND first_seen >= ? AND first_seen < ?`, findings.UrgencyUpdate, store.FormatTS(from), store.FormatTS(to)).Scan(&found, &devices)
 		return found, devices, err
+	}
+}
+
+// notifyExposureNews is the daily summary's count of what external scans found new that did not alert (notify SummarySources.Exposure,
+// exposure NewSince); nothing while the exposure module is off. The exposure service is read when asked (it is built after notify).
+func notifyExposureNews(d *deps) func(ctx context.Context, from, to time.Time) (int, int, error) {
+	return func(ctx context.Context, from, to time.Time) (int, int, error) {
+		if d.DB == nil || d.Reg != nil && !d.Reg.Enabled(exposure.ModuleID) {
+			return 0, 0, nil
+		}
+		return exposureService(*d).NewSince(ctx, from, to)
 	}
 }
 

@@ -298,7 +298,7 @@ func newNotify(d *deps) *notify.Service {
 	c.Signals = notifySignals{d}
 	// The daily summary's count of new findings with no sign of exploitation; the AI answers waiting for review and the tokens of the
 	// AI's research of CVEs are wired by the module that keeps them (SummarySources.AIReview, AITokens).
-	c.Summary = notify.SummarySources{Updates: notifyUpdates(d)}
+	c.Summary = notify.SummarySources{Updates: notifyUpdates(d), Exposure: notifyExposureNews(d)}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
 		c.Modules = d.Reg
 	}

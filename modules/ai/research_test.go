@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -573,5 +574,21 @@ func TestResearch_ACallMayTakeMinutes(t *testing.T) {
 		if left[i] > 5*time.Minute {
 			t.Errorf("request %d: %v left, beyond one research call's cap", i+1, left[i])
 		}
+	}
+}
+
+// A change of the AI settings (the budget or research share, the automatic reading, a profile, the job routing) runs the hook the
+// binary sets, which resumes the research worker at once.
+func TestResearch_ASettingsChangeRunsTheHook(t *testing.T) {
+	a := researchSetup(t, ai.ResearchBalanced, false)
+	var calls atomic.Int32
+	a.svc.OnSettingsChanged(func() { calls.Add(1) })
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":9000000,"redact_pii":true,"research_mode":"balanced","research_share":80}`, 200, "")
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("a raised budget ran the hook %d times, want 1", n)
+	}
+	a.addProfile(strongBody("Strong", keyB))
+	if n := calls.Load(); n != 2 {
+		t.Errorf("a new profile ran the hook %d times in all, want 2", n)
 	}
 }

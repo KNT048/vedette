@@ -932,8 +932,8 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 		defer s.check.mu.Unlock()
 		for _, u := range group {
 			delete(s.check.rq.inflight, u.key)
-			if res.left > 0 {
-				delete(s.check.rq.tried, u.key) // cut short by the box stopping: due again at once
+			if res.left > 0 || res.stop != "" {
+				delete(s.check.rq.tried, u.key) // cut short by the box stopping or a stop: due again once the worker goes on
 			}
 		}
 		newly := 0 // the lines this CVE's check answered for the first time

@@ -460,7 +460,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   once; a person's check or "Research deeper" goes in front of the queue (`push`), never queued twice for one key nor while that key is
   being checked, and no two calls of one CVE run together (`drain`). It rests (nothing taken) while the AI is not ready (module off, no
   profile routed), the automatic reading is off, today's reads or the research share of the month are used up (the possible CVEs show
-  `ai_budget`), and for `researchPause` (1 h) after a pass that stopped; a key it took is left for `researchSettle` (15 min), so nothing
+  `ai_budget`), and for `researchPause` (1 h) after a pass that stopped, unless a person's request arrives or the AI settings change
+  (a budget raised, the research share, the automatic reading turned on, a profile or routing: `ResumeResearch`, run by the ai
+  module's `OnSettingsChanged`; the next pass rests again only if it would still stop, `TestResearchWorker_ARaisedBudgetResumesAtOnce`); a key it took is left for `researchSettle` (15 min), so nothing
   loops. A line whose call failed or timed out stores nothing, keeps its error and waits `retryBackoff` (1 h, 6 h, then a day). On
   shutdown no new call starts, every answer received is stored, and a call cut short leaves its line due, neither failed nor held.
   `PossibleCheckRun` (one pass) has `lines_total` (the release lines of the possible CVEs the AI may research) and `lines_done` (those

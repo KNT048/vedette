@@ -233,3 +233,13 @@ func drain(take func(busy map[string]bool) (groupJob, bool), check func(groupJob
 		}()
 	}
 }
+
+// ResumeResearch ends the worker's rest after a stop and wakes it: the AI settings changed (a budget raised, the research share, the
+// automatic research turned on, a profile routed). The next pass rests again only when it would still stop: dueUnits takes nothing
+// while the budget says so, and a profile still at its cap sends nothing (the router refuses it before a request).
+func (s *Service) ResumeResearch() {
+	s.check.mu.Lock()
+	s.check.rq.pause = time.Time{}
+	s.check.mu.Unlock()
+	s.wakeResearch()
+}

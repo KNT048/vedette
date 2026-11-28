@@ -304,3 +304,36 @@ func TestResearchWorker_ATimedOutLineBacksOff(t *testing.T) {
 		}
 	})
 }
+
+// A stop for a budget rests the worker, but an admin raising a budget or turning the automatic research on resumes it at once: the
+// rest ends and the lines left are researched with no time passing. A resume while the stop still holds makes no call.
+func TestResearchWorker_ARaisedBudgetResumesAtOnce(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e, fc, cves := manyQuill(t, 4)
+		fc.stop = &CheckStop{Reason: "The monthly budget of the AI profile Quick is used up."}
+		stop := startWorker(t, e)
+		defer stop()
+		synctest.Wait()
+		calls := len(researchedCVEs(fc))
+		fc.mu.Lock()
+		fc.budget.ResearchReached = true // the research share is still used up
+		fc.mu.Unlock()
+		e.svc.ResumeResearch()
+		synctest.Wait()
+		if n := len(researchedCVEs(fc)); n != calls {
+			t.Errorf("%d calls after a resume while the share is still used up, want %d", n, calls)
+		}
+		fc.mu.Lock()
+		fc.stop, fc.research, fc.budget.ResearchReached = nil, nil, false
+		fc.mu.Unlock()
+		start := time.Now()
+		e.svc.ResumeResearch()
+		synctest.Wait()
+		if n := e.count(`SELECT count(*) FROM fnd_line_statement`); n != len(cves) {
+			t.Errorf("%d lines read after the budget was raised, want %d", n, len(cves))
+		}
+		if waited := time.Since(start); waited != 0 {
+			t.Errorf("the worker waited %v after the budget was raised, want no wait", waited)
+		}
+	})
+}

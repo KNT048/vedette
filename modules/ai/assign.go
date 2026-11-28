@@ -244,5 +244,6 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 	}
 	s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: in})
 	s.harness.Store(hnext)
+	s.settingsChanged()
 	return s.Config(ctx), nil
 }

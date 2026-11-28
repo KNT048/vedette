@@ -211,31 +211,33 @@ func cloneAssign(a Assignments) Assignments {
 // Every change is validated against the router's rules first, then written with its audit row in one transaction, and only then
 // handed to the router, so the router never runs a state the rules forbid (INV-3).
 type Service struct {
-	modelsMu   sync.Mutex             // guards modelsAt (the rate limit of ListModels)
-	modelsAt   map[string][]time.Time // per admin: when the last model-list calls started
-	cfg        Config
-	router     *Router
-	meter      *Meter
-	loc        *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
-	harness    atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
-	skillsOff  atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
-	degraded   string                          // why the saved settings could not be loaded; "" = loaded
-	mu         sync.Mutex                      // serialises changes
-	testSlot   chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
-	indexSlot  chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
-	digestSlot chan struct{}                   // one place: a log digest is made by one caller at a time, the next one finds it stored (no tokens twice)
-	queued     atomic.Int64                    // uploads that hold their bytes in memory until they are read
-	indexing   sync.WaitGroup                  // the readers in flight: a test waits for them
-	snap       atomic.Pointer[snapshot]
-	drafts     map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them; under mu
-	alerted    atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
-	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
-	refs       *refFetcher            // the box's own fetcher of a possible CVE's reference pages
-	fuseMu     sync.Mutex             // guards fuse
-	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse)
-	pauseMonth string                 // the month the reasons in pauseNoted belong to (fuseMu)
-	pauseNoted map[string]bool        // the reasons of scheduled-job stops already logged this month (fuseMu): one line a month per reason
-	autoNext   time.Time              // the earliest start of the next automatic reading or identification call (fuseMu, paceAuto)
+	// settingsHook is run after the settings changed (OnSettingsChanged); nil = none
+	settingsHook atomic.Pointer[func()]
+	modelsMu     sync.Mutex             // guards modelsAt (the rate limit of ListModels)
+	modelsAt     map[string][]time.Time // per admin: when the last model-list calls started
+	cfg          Config
+	router       *Router
+	meter        *Meter
+	loc          *time.Location                  // the box time zone: the day of the meter and of "today" in the usage view
+	harness      atomic.Pointer[harness]         // the rules, the hooks and the switches of the built-in hooks in force (slice 4a)
+	skillsOff    atomic.Pointer[map[string]bool] // the skills switched off (slice 4b); never nil after New
+	degraded     string                          // why the saved settings could not be loaded; "" = loaded
+	mu           sync.Mutex                      // serialises changes
+	testSlot     chan struct{}                   // one place: a hook test runs while it holds it, so tests cannot pile up work
+	indexSlot    chan struct{}                   // one place: the documents of the knowledge base are read one at a time (slice 4c)
+	digestSlot   chan struct{}                   // one place: a log digest is made by one caller at a time, the next one finds it stored (no tokens twice)
+	queued       atomic.Int64                    // uploads that hold their bytes in memory until they are read
+	indexing     sync.WaitGroup                  // the readers in flight: a test waits for them
+	snap         atomic.Pointer[snapshot]
+	drafts       map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them; under mu
+	alerted      atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
+	news         *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
+	refs         *refFetcher            // the box's own fetcher of a possible CVE's reference pages
+	fuseMu       sync.Mutex             // guards fuse
+	fuse         map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse)
+	pauseMonth   string                 // the month the reasons in pauseNoted belong to (fuseMu)
+	pauseNoted   map[string]bool        // the reasons of scheduled-job stops already logged this month (fuseMu): one line a month per reason
+	autoNext     time.Time              // the earliest start of the next automatic reading or identification call (fuseMu, paceAuto)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -474,7 +476,18 @@ func (s *Service) apply(ctx context.Context, next *snapshot) error {
 		return fmt.Errorf("ai: apply settings: %w", err)
 	}
 	s.snap.Store(next)
+	s.settingsChanged()
 	return nil
+}
+
+// OnSettingsChanged sets what runs after the AI settings changed (the budget, the research share or mode, the automatic reading, a
+// profile or the job routing): the binary resumes the research worker of findings with it, so a raised budget goes on at once.
+func (s *Service) OnSettingsChanged(fn func()) { s.settingsHook.Store(&fn) }
+
+func (s *Service) settingsChanged() {
+	if fn := s.settingsHook.Load(); fn != nil && *fn != nil {
+		(*fn)()
+	}
 }
 
 func nullable(s string) any {

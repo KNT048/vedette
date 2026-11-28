@@ -619,8 +619,9 @@ const (
 	// device's release came out, which the distribution never lists for it).
 	DistroOtherReleases = "distro_other_releases"
 	// DistroOtherBuild: the distribution's row for the package is about another build than the installed one (a build with the
-	// distribution's mark outside its own revision form, whose builder is not known; an earlier upstream release than its fix). A
-	// build with none of the distribution's marks is its upstream product (debBuildOf) and never gets here.
+	// distribution's mark outside its own revision form, whose builder is not known; a kernel of another series than its fix). A
+	// build with none of the distribution's marks is its upstream product (debBuildOf) and never gets here; the distribution's own
+	// build below its fix is affected whatever its upstream release (debApplies).
 	DistroOtherBuild = "distro_other_build"
 	// DistroNotListed: the distribution's data has no row of the CVE at all (not triaged yet, or its feed holds no row of it yet).
 	DistroNotListed = "distro_not_listed"

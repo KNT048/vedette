@@ -50,7 +50,7 @@ type distroData struct {
 	// distribution's (Alpine's apk releases).
 	upstream func(pkg, ver string) bool
 	// applies says a fixed release of the data is about the installed build, so the two compare (the same upstream release of a
-	// backport, a later one the distribution built, Debian's kernel moving inside its series).
+	// backport, a later one the distribution built, an own build below the fix, Debian's kernel moving inside its series).
 	applies func(pkg, installed, fixed string) bool
 	// compare orders two releases; ok is false when either cannot be read.
 	compare func(a, b string) (int, bool)
@@ -123,9 +123,12 @@ func debReleaseOf(v string) string {
 // build) and either has the fix's upstream release (the backport), or Debian's kernel moved to a later point release of the same
 // series (debianKernelMoves), or the installed release is the distribution's own build of a later upstream release than the fix (the
 // release took a new upstream version after the fix: Ubuntu 26.04 fixed CVE-2025-15281 in glibc 2.42-2ubuntu5 and ships
-// 2.43-2ubuntu2.7); never a kernel's, whose other upstream release is another kernel series. An installed release of an earlier
-// upstream than the fix is not compared: the data names the first fixed build of the release, so an own build below it of another
-// upstream is one the data does not speak of.
+// 2.43-2ubuntu2.7), or the installed release is the distribution's own build below the fix, whatever its upstream release: the data
+// states the release's first fixed build, and every earlier build of the release's package is inside the stated range (the
+// distribution's OSV records read "introduced 0, fixed F" per release; Grype and Trivy compare installed < fixed the same way), so
+// Debian 13's ruby3.3 3.3.8-2 is below its fix 3.3.14-0+deb13u1; of the fix's epoch only ("9.2p1-2+deb12u9" is not below
+// "1:9.2p1-2+deb12u5": a release read without its epoch is another numbering). Never a kernel's of another upstream release, which is another
+// kernel series. Comparing an earlier build only opens: it can never reach or pass the fix.
 func debApplies(distro string) func(pkg, installed, fixed string) bool {
 	return func(pkg, installed, fixed string) bool {
 		if !ownBuild(distro, pkg, installed, false) {
@@ -138,7 +141,15 @@ func debApplies(distro string) func(pkg, installed, fixed string) bool {
 			return false
 		}
 		c, err := debver.Compare(installed, fixed)
-		return err == nil && c > 0 && laterUpstream(installed, fixed)
+		if err != nil {
+			return false
+		}
+		if c < 0 { // below the fix: of the same epoch only, another epoch is another numbering (a release read without its epoch)
+			_, ei := debUpstream(installed)
+			_, ef := debUpstream(fixed)
+			return ei == ef
+		}
+		return c > 0 && laterUpstream(installed, fixed)
 	}
 }
 

@@ -217,7 +217,7 @@ func nullWord(s string) any {
 // whether the rows a matcher reads did (Range.Generic, or a product's version scheme: SchemeProduct; the other rows kept in a
 // vendor's notation are display-only).
 func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVERecord) (changed, matched bool, err error) {
-	have, err := readRanges(ctx, tx, `WHERE r.cve = ? AND r.origin IN ('cna', 'adp')`, r.CVE)
+	have, err := readStoredRanges(ctx, tx, `WHERE r.cve = ? AND r.origin IN ('cna', 'adp')`, r.CVE)
 	if err != nil {
 		return false, false, err
 	}

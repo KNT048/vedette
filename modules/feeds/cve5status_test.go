@@ -40,7 +40,7 @@ func TestCVE5Status_DefaultStatusByAssigner(t *testing.T) {
 		if err != nil || len(rec.Ranges) != 1 {
 			t.Fatalf("%s: %+v %v", c.name, rec.Ranges, err)
 		}
-		r := rec.Ranges[0]
+		r := asRead(rec).Ranges[0]
 		if r.DefaultStatus != c.def {
 			t.Errorf("%s: default_status %q, want %q", c.name, r.DefaultStatus, c.def)
 		}

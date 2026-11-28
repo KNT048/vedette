@@ -1,13 +1,19 @@
 package feeds
 
 import (
+	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/productid"
 )
@@ -23,41 +29,37 @@ const (
 	cnaMaxOrg   = 200
 )
 
-// cnaList is the CNAs of the list by short name (lower case). A short name two CNAs share, whatever its case, is left out: it does
-// not say which organization a record's assigner is.
-type cnaList struct {
-	entries map[string]cnaEntry
+// cnaRow is what is kept of a CNA of the list (feeds_cna): its short name in lower case, its organization name as the list writes it,
+// and whether it may be the vendor of what it assigns (cnaMayBeVendor).
+type cnaRow struct {
+	Short, Org string
+	Vendor     bool
 }
 
-// cnaEntry is what is kept of a CNA: the forms of its organization name (cnaOrgForms) and whether it may be the vendor of what it
-// assigns (cnaMayBeVendor).
-type cnaEntry struct {
-	orgs   []string
-	vendor bool
-}
-
-func (l *cnaList) len() int {
-	if l == nil {
-		return 0
-	}
-	return len(l.entries)
-}
-
-// orgIsVendor says the list holds the assigner as a CNA that may be a vendor and one form of its organization name is the vendor's.
-func (l *cnaList) orgIsVendor(assigner, vendor string) bool {
-	if l == nil {
+// orgNamesVendor says one form of a CNA's organization name (cnaOrgForms) is the vendor's name.
+func orgNamesVendor(org, vendor string) bool {
+	if org == "" {
 		return false
 	}
-	e, ok := l.entries[strings.ToLower(strings.TrimSpace(assigner))]
-	if !ok || !e.vendor {
-		return false
-	}
+	forms := orgFormsOf(org)
 	for _, v := range []string{productid.Norm(vendor), productid.NormVendor(vendor)} {
-		if v != "" && slices.Contains(e.orgs, v) {
+		if v != "" && slices.Contains(forms, v) {
 			return true
 		}
 	}
 	return false
+}
+
+// orgForms keeps cnaOrgForms of each organization read: a few hundred names, asked once per range row.
+var orgForms sync.Map
+
+func orgFormsOf(org string) []string {
+	if f, ok := orgForms.Load(org); ok {
+		return f.([]string)
+	}
+	f := cnaOrgForms(org)
+	orgForms.Store(org, f)
+	return f
 }
 
 // rawCNA is the part of a list entry that is read.
@@ -71,8 +73,9 @@ type rawCNA struct {
 }
 
 // parseCNAList reads the list, at most maxBytes. It is refused whole when it is longer, is not one JSON array, or holds no usable
-// entry; an entry without a short name or organization, or with one over its bound, is passed over.
-func parseCNAList(r io.Reader, maxBytes int64) (*cnaList, error) {
+// entry; an entry without a short name or organization, or with one over its bound, is passed over, and so is a short name two
+// entries share whatever its case (it does not say which organization a record's assigner is). The rows come sorted by short name.
+func parseCNAList(r io.Reader, maxBytes int64) ([]cnaRow, error) {
 	lr := &io.LimitedReader{R: r, N: maxBytes + 1}
 	dec := json.NewDecoder(lr)
 	var raw []rawCNA
@@ -88,24 +91,28 @@ func parseCNAList(r io.Reader, maxBytes int64) (*cnaList, error) {
 	if lr.N <= 0 {
 		return nil, fmt.Errorf("feeds: CNA list over %d bytes", maxBytes)
 	}
-	l := &cnaList{entries: map[string]cnaEntry{}}
+	byShort := map[string]cnaRow{}
 	shared := map[string]bool{}
 	for _, c := range raw {
 		short, org := strings.ToLower(strings.TrimSpace(c.ShortName)), strings.TrimSpace(c.OrganizationName)
-		if short == "" || org == "" || len(short) > cnaMaxShort || len(org) > cnaMaxOrg {
+		if short == "" || org == "" || len(short) > cnaMaxShort || len(org) > cnaMaxOrg || !utf8.ValidString(short+org) {
 			continue
 		}
-		if _, dup := l.entries[short]; dup || shared[short] {
-			delete(l.entries, short)
+		if _, dup := byShort[short]; dup || shared[short] {
+			delete(byShort, short)
 			shared[short] = true
 			continue
 		}
-		l.entries[short] = cnaEntry{orgs: cnaOrgForms(org), vendor: cnaMayBeVendor(c.CNA.Type, c.Scope)}
+		byShort[short] = cnaRow{Short: short, Org: org, Vendor: cnaMayBeVendor(c.CNA.Type, c.Scope)}
 	}
-	if len(l.entries) == 0 {
+	if len(byShort) == 0 {
 		return nil, errors.New("feeds: CNA list holds no usable entry")
 	}
-	return l, nil
+	out := make([]cnaRow, 0, len(byShort))
+	for _, k := range slices.Sorted(maps.Keys(byShort)) {
+		out = append(out, byShort[k])
+	}
+	return out, nil
 }
 
 // cnaCoordinator is a scope that takes the reports no other CNA covers: "vulnerabilities discovered by X that are not in another CNA's
@@ -180,4 +187,91 @@ func orgWords(s string) []string {
 		single = len(w) == 1
 	}
 	return out
+}
+
+// The feed of the CNA list.
+const (
+	cnaFeedID = "cve-cna-list"
+	// DecoderCNAList is the decoder of the CVE Program's CNA list (parseCNAList).
+	DecoderCNAList Decoder = "cve-cna-list"
+	// cnaListURL is the list as the CVE Program's website (cve.org, Partner Information) publishes it, from the branch the site runs.
+	cnaListURL = "https://raw.githubusercontent.com/CVEProject/cve-website/main/src/assets/data/CNAsList.json"
+	// cnaMaxBytes caps the list (about 0.8 MB with 570 CNAs in 2026).
+	cnaMaxBytes = 2_000_000
+	// cnaListFreshDays is how long after the feed's last good pull the list is still read (ownCNA); the feed pulls every 7 days.
+	cnaListFreshDays = "30"
+	// cnaNotice is the licence line of the feed.
+	cnaNotice = "CVE Program Terms of Use (cve.org). Facts only: each CNA's short name, organization name and whether it may be a vendor; no contact data."
+)
+
+// buildCNAList pulls the CNA list, conditional on the last good pull's ETag and Last-Modified. A list with fewer than half the CNAs
+// of the list stored is refused (a cut or broken file), and the stored list stays.
+func (s *Service) buildCNAList(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
+	req := Request{URL: src.URL, MaxBytes: cnaMaxBytes}
+	if src.Status == "ok" {
+		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
+	}
+	resp, err := s.get(ctx, req)
+	if err != nil {
+		return p, err
+	}
+	if resp.NotModified {
+		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified}
+		return p, nil
+	}
+	rows, err := parseCNAList(bytes.NewReader(resp.Body), cnaMaxBytes)
+	if err != nil {
+		return p, fail(ErrBadSample, "The CVE Program's CNA list could not be read; the stored list was kept.")
+	}
+	var have int
+	if err := s.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_cna WHERE source_id = ?`, src.ID).Scan(&have); err != nil {
+		return p, fmt.Errorf("feeds: count CNAs: %w", err)
+	}
+	if len(rows)*2 < have {
+		return p, fail(ErrBadSample, "The CVE Program's CNA list holds %d CNAs, fewer than half of the %d stored; the stored list was kept.", len(rows), have)
+	}
+	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, Records: len(rows), Accepted: len(rows)}
+	p.cnas, p.hasCNAs = rows, true
+	return p, nil
+}
+
+// applyCNAList replaces the stored CNA list with rows; changed says whether what ownCNA reads changed (a CNA added, removed, renamed,
+// or typed otherwise), so findings matches again.
+func applyCNAList(ctx context.Context, tx *sql.Tx, sourceID string, rows []cnaRow) (changed bool, err error) {
+	sig := func(rs []cnaRow) string {
+		var b strings.Builder
+		for _, r := range rs {
+			fmt.Fprintf(&b, "%s\x1f%s\x1f%t\x1e", r.Short, r.Org, r.Vendor)
+		}
+		return b.String()
+	}
+	var before []cnaRow
+	q, err := tx.QueryContext(ctx, `SELECT short_name, organization, may_be_vendor FROM feeds_cna WHERE source_id = ? ORDER BY short_name`, sourceID)
+	if err != nil {
+		return false, fmt.Errorf("feeds: read CNAs: %w", err)
+	}
+	for q.Next() {
+		var r cnaRow
+		if err := q.Scan(&r.Short, &r.Org, &r.Vendor); err != nil {
+			_ = q.Close()
+			return false, fmt.Errorf("feeds: read CNAs: %w", err)
+		}
+		before = append(before, r)
+	}
+	if err := errors.Join(q.Err(), q.Close()); err != nil {
+		return false, fmt.Errorf("feeds: read CNAs: %w", err)
+	}
+	if sig(before) == sig(rows) {
+		return false, nil
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cna WHERE source_id = ?`, sourceID); err != nil {
+		return false, fmt.Errorf("feeds: clear CNAs: %w", err)
+	}
+	for _, r := range rows {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cna (short_name, source_id, organization, may_be_vendor) VALUES (?, ?, ?, ?)`,
+			r.Short, sourceID, r.Org, boolInt(r.Vendor)); err != nil {
+			return false, fmt.Errorf("feeds: store CNA: %w", err)
+		}
+	}
+	return true, nil
 }

@@ -15,7 +15,7 @@ func TestRecordSystems_EntryLimitedToSystems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows := genericRows(got.Ranges)
+	rows := genericRows(asRead(got).Ranges)
 	var plats []string
 	for _, r := range rows {
 		if r.EndExcl != "8.9.4" || r.StartIncl != "" || len(r.Platforms) != 1 {

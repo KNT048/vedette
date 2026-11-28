@@ -32,6 +32,7 @@ const DEFS: Def[] = [
   // Vendor statements per release line (which lines a CVE affects), and release-line support dates (never a CVE verdict)
   { id: 'oracle-cpu-csaf', name: 'Oracle release lines', kind: 'vulnerabilities', format: 'json', url: 'https://www.oracle.com/a/tech/docs/security-alerts/oracle-cpu-csaf-rss.xml', license: 'Oracle Critical Patch Update, Critical Security Patch Update and Security Alert CSAF documents (TLP:WHITE), Oracle Terms of Use. Facts only: CVE ids, release lines and the newest affected release; no text is kept.', records: 348 },
   { id: 'nodejs-security-wg', name: 'Node.js release lines', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/nodejs/security-wg/main/vuln/core/index.json', license: 'MIT, Node.js security working group (nodejs/security-wg). Facts only: CVE ids and the affected and patched release lines.', records: 186 },
+  { id: 'cve-cna-list', name: 'CVE Program CNA list', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/CVEProject/cve-website/main/src/assets/data/CNAsList.json', license: "CVE Program Terms of Use (cve.org). Facts only: each CNA's short name, organization name and whether it may be a vendor; no contact data.", records: 568 },
   { id: 'endoflife-date', name: 'endoflife.date release support', kind: 'vulnerabilities', format: 'json', url: 'https://endoflife.date/api/v1/products/full', license: 'MIT, endoflife.date. Facts only: release lines and their support dates; never a CVE verdict.', records: 23 },
   { id: 'nuclei-templates', name: 'nuclei-templates', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json', license: 'MIT', records: 3920 },
   // Public-exploit indexes: facts only (CVE id, date, link, star and author counts), never exploit code
@@ -83,7 +84,7 @@ const HELD: Record<string, string> = {
   'windows-releases': "6 Windows releases on Microsoft's release information pages, with 412 monthly updates, the newest of 11 Nov 2026.",
 }
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
-  enabled: d.id !== BYOK && d.id !== DEFAULT_OFF, interval_hours: d.id === DEFAULT_OFF ? 24 : d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
+  enabled: d.id !== BYOK && d.id !== DEFAULT_OFF, interval_hours: d.id === DEFAULT_OFF ? 24 : d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : d.id === 'cve-cna-list' ? 168 : 24, url: d.url,
   ...(clean || d.id === BYOK || d.id === DEFAULT_OFF
     ? { last_fetch: null, records: null, status: 'never' as const, error: null }
     : { last_fetch: ago(d.id === IDLE ? 9 * 24 : 1 + i * 0.7), records: d.records, status: 'ok' as const, error: d.id === IDLE ? NO_DEBIAN : HELD[d.id] ?? null }),

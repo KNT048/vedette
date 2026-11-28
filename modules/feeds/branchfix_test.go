@@ -72,6 +72,7 @@ func TestParseCVERecord_VendorUnaffectedAndModelRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	got = asRead(got)
 	// the record's assigner ("acme") is not the vendor: its model-limited rows do not say the other models are unaffected
 	want := []vspan{{span{ee: "24.4R1", def: u}, UnaffectedNotation},
 		{span{si: "24.4", ee: "24.4R2", fixed: "24.4R2", def: DefaultUnknown}, "vendor:semver"},

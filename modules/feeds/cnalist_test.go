@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,17 @@ func cnaListOf(t *testing.T, entries ...[4]string) []byte {
 	return b
 }
 
+// orgsOf is what readRanges reads of a list: the organization of each CNA that may be a vendor.
+func orgsOf(rows []cnaRow) map[string]string {
+	out := map[string]string{}
+	for _, r := range rows {
+		if r.Vendor {
+			out[r.Short] = r.Org
+		}
+	}
+	return out
+}
+
 // The CNA list says which organization each CNA is. A record's CNA is the vendor's own when its organization name and the vendor the
 // entry names (or the row's CPE vendor) are one name once case, punctuation, a leading "The", a part in parentheses and the trailing
 // legal-form words of a company are set aside: the CNA "zz" of "Zenith Widgets, Inc." is the vendor "Zenith Widgets", which its short
@@ -35,7 +47,7 @@ func cnaListOf(t *testing.T, entries ...[4]string) []byte {
 // list, the rules of before stand.
 func TestOwnCNA_TheCNAListNamesTheOrganization(t *testing.T) {
 	t.Parallel()
-	list, err := parseCNAList(strings.NewReader(string(cnaListOf(t,
+	rows, err := parseCNAList(strings.NewReader(string(cnaListOf(t,
 		[4]string{"zz", "Zenith Widgets, Inc.", "Zenith Widgets products only.", "Vendor"},
 		[4]string{"orbit", "The Orbit Group S.A.", "All Orbit products.", "Vendor,Open Source"},
 		[4]string{"hx", "Helix Robotics AB (HXR)", "Helix issues only.", "Vendor"},
@@ -49,9 +61,10 @@ func TestOwnCNA_TheCNAListNamesTheOrganization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if list.len() != 7 {
-		t.Errorf("list holds %d short names, want 7 (a short name two CNAs share is left out)", list.len())
+	if len(rows) != 7 {
+		t.Errorf("list holds %d short names, want 7 (a short name two CNAs share is left out)", len(rows))
 	}
+	list := orgsOf(rows)
 	names := productVendors(nil)
 	for _, c := range []struct {
 		assigner, vendor string
@@ -79,7 +92,7 @@ func TestOwnCNA_TheCNAListNamesTheOrganization(t *testing.T) {
 		{"nobody", "Zenith Widgets", false},       // a CNA the list does not hold
 		{"", "Zenith Widgets", false},             //
 	} {
-		if got := ownCNAIn(names, list, c.assigner, c.vendor); got != c.want {
+		if got := ownCNAIn(names, c.assigner, c.vendor, list[strings.ToLower(c.assigner)]); got != c.want {
 			t.Errorf("ownCNA(%q, %q) = %v, want %v", c.assigner, c.vendor, got, c.want)
 		}
 	}
@@ -90,11 +103,11 @@ func TestOwnCNA_TheCNAListNamesTheOrganization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ownCNAIn(names, coordinator, "kitecna", "Kite Corporation") {
+	if ownCNAIn(names, "kitecna", "Kite Corporation", orgsOf(coordinator)["kitecna"]) {
 		t.Error("a CNA whose scope takes the reports of no other CNA was read as the vendor by its organization name")
 	}
 	// without the list (missing, stale): the rules of before
-	if ownCNAIn(names, nil, "zz", "Zenith Widgets") || !ownCNAIn(names, nil, "zz", "ZZ Inc") {
+	if ownCNAIn(names, "zz", "Zenith Widgets", "") || !ownCNAIn(names, "zz", "ZZ Inc", "") {
 		t.Error("without a CNA list the short-name rule must stand alone")
 	}
 }
@@ -125,11 +138,20 @@ func TestParseCNAList_RefusesWhatIsNotTheList(t *testing.T) {
 		[4]string{"", "Nameless", "x", "Vendor"},
 		[4]string{"long", strings.Repeat("o", 201), "x", "Vendor"},
 	))), 1<<20)
-	if err != nil || l.len() != 1 {
+	if err != nil || len(l) != 1 {
 		t.Fatalf("list %v %v, want the one usable entry", l, err)
 	}
-	e := l.entries["zz"]
-	if !e.vendor || !strings.Contains(strings.Join(e.orgs, " "), "zenithwidgets") {
-		t.Errorf("entry %+v", e)
+	if want := (cnaRow{Short: "zz", Org: "Zenith Widgets, Inc.", Vendor: true}); l[0] != want {
+		t.Errorf("entry %+v, want %+v", l[0], want)
 	}
+}
+
+// asRead is a parsed record's ranges as a reader of the stored rows sees them (trustRow, without a CNA list): what the conversion
+// stores keeps the record's word, the reader weighs it by who wrote it.
+func asRead(rec CVERecord) CVERecord {
+	rec.Ranges = slices.Clone(rec.Ranges)
+	for i := range rec.Ranges {
+		trustRow(&rec.Ranges[i], rec.Assigner, "")
+	}
+	return rec
 }

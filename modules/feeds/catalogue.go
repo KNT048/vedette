@@ -363,9 +363,27 @@ func (r Range) LineFix() string {
 }
 
 const rangeCols = `r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type, r.default_status, r.platforms,
-	ifnull((SELECT c.assigner FROM feeds_cve c WHERE c.cve = r.cve), '')`
+	ifnull((SELECT c.assigner FROM feeds_cve c WHERE c.cve = r.cve), ''), ` + cnaOrgSQL
 
+// cnaOrgSQL is the organization of the record's CNA (alias r: a feeds_cve_range row) from the CNA list when the list holds the CNA as a
+// possible vendor, else '' (ownCNA). A list is read only while it is recent: its feed's last good pull is less than cnaListFreshDays
+// before the newest pull of any feed (the box's own sense of now, as its data shows it: a box that pulls nothing ages nothing).
+const cnaOrgSQL = `ifnull((SELECT n.organization FROM feeds_cve c JOIN feeds_cna n ON n.short_name = lower(c.assigner) AND n.may_be_vendor = 1
+	JOIN feeds_source s ON s.id = n.source_id
+	AND s.last_success >= strftime('%Y-%m-%dT%H:%M:%fZ', (SELECT max(f.last_fetch) FROM feeds_source f), '-` + cnaListFreshDays + ` days')
+	WHERE c.cve = r.cve), '')`
+
+// readRanges reads stored ranges as every matcher and page sees them: through trustRow.
 func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Range, error) {
+	return scanRanges(ctx, q, true, where, args...)
+}
+
+// readStoredRanges reads stored ranges as they are stored, for a writer that compares them with what it would store.
+func readStoredRanges(ctx context.Context, q queryer, where string, args ...any) ([]Range, error) {
+	return scanRanges(ctx, q, false, where, args...)
+}
+
+func scanRanges(ctx context.Context, q queryer, trusted bool, where string, args ...any) ([]Range, error) {
 	rows, err := q.QueryContext(ctx, `SELECT `+rangeCols+` FROM feeds_cve_range r `+where+` ORDER BY r.cve, r.id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read ranges: %w", err)
@@ -374,18 +392,20 @@ func readRanges(ctx context.Context, q queryer, where string, args ...any) ([]Ra
 	var out []Range
 	for rows.Next() {
 		var (
-			r        Range
-			pl       sql.NullString
-			assigner string
+			r             Range
+			pl            sql.NullString
+			assigner, org string
 		)
 		if err := rows.Scan(&r.CVE, &r.Origin, &r.Part, &r.Vendor, &r.Product, &r.CPE, &r.StartIncl, &r.StartExcl, &r.EndIncl, &r.EndExcl, &r.Fixed, &r.VersionType, &r.DefaultStatus, &pl,
-			&assigner); err != nil {
+			&assigner, &org); err != nil {
 			return nil, fmt.Errorf("feeds: read ranges: %w", err)
 		}
-		r.VendorCNA = r.Origin != OriginADP && ownCNA(assigner, r.Vendor)
 		r.Platforms = []string{}
 		if pl.Valid && json.Unmarshal([]byte(pl.String), &r.Platforms) != nil {
 			r.Platforms = []string{}
+		}
+		if trusted {
+			trustRow(&r, assigner, org)
 		}
 		out = append(out, r)
 	}
@@ -949,6 +969,40 @@ type CatalogueEntry struct {
 	RangesComplete bool
 }
 
+// rangesComplete sets RangesComplete of the entries whose ranges are the CVE record's: every generic row of the record says affected or
+// unaffected for the versions it does not list, as the rows are read (trustRow: a third party's "unaffected" is unknown).
+func (s *Store) rangesComplete(ctx context.Context, out map[string]CatalogueEntry) error {
+	var cves []string
+	for c, e := range out {
+		if e.RangesFrom != "" && e.RangesFrom != OriginNVD {
+			cves = append(cves, c)
+		}
+	}
+	slices.Sort(cves)
+	for chunk := range slices.Chunk(cves, 500) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return fmt.Errorf("feeds: catalogue: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND r.origin <> 'nvd' AND `+genericRowSQL, string(part))
+		if err != nil {
+			return err
+		}
+		open := map[string]bool{}
+		for _, r := range rows {
+			if r.DefaultStatus != DefaultAffected && r.DefaultStatus != DefaultUnaffected {
+				open[r.CVE] = true
+			}
+		}
+		for _, c := range chunk {
+			e := out[c]
+			e.RangesComplete = !open[c]
+			out[c] = e
+		}
+	}
+	return nil
+}
+
 // Catalogue returns the catalogue entries of these CVEs; a CVE the catalogue does not hold is absent.
 func (s *Store) Catalogue(ctx context.Context, cves []string) (map[string]CatalogueEntry, error) {
 	out := map[string]CatalogueEntry{}
@@ -960,8 +1014,7 @@ func (s *Store) Catalogue(ctx context.Context, cves []string) (map[string]Catalo
 		}
 		rows, err := db.QueryContext(ctx, `SELECT c.cve, c.published, c.modified, c.nvd_status, c.nvd_at, c.record_at, c.title, c.description, e.epss, e.percentile,
 (SELECT CASE WHEN EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin = 'nvd') THEN 'nvd'
-             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve AND `+genericRowSQL+`) END),
-NOT EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = c.cve AND r.origin <> 'nvd' AND `+genericRowSQL+` AND r.default_status NOT IN ('affected', 'unaffected'))
+             ELSE (SELECT min(r.origin) FROM feeds_cve_range r WHERE r.cve = c.cve AND `+genericRowSQL+`) END)
 FROM feeds_cve c LEFT JOIN feeds_epss e ON e.cve = c.cve WHERE c.cve IN (SELECT value FROM json_each(?))`, string(part))
 		if err != nil {
 			return nil, fmt.Errorf("feeds: catalogue: %w", err)
@@ -972,19 +1025,20 @@ FROM feeds_cve c LEFT JOIN feeds_epss e ON e.cve = c.cve WHERE c.cve IN (SELECT 
 				pub, mod, status, nvdAt, recordAt sql.NullString
 				origin                            sql.NullString
 			)
-			var complete bool
-			if err := rows.Scan(&e.CVE, &pub, &mod, &status, &nvdAt, &recordAt, &e.Title, &e.Description, &e.EPSS, &e.Percentile, &origin, &complete); err != nil {
+			if err := rows.Scan(&e.CVE, &pub, &mod, &status, &nvdAt, &recordAt, &e.Title, &e.Description, &e.EPSS, &e.Percentile, &origin); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("feeds: catalogue: %w", err)
 			}
 			e.Published, e.Modified, e.NVDAt, e.RecordAt = optTime(pub), optTime(mod), optTime(nvdAt), optTime(recordAt)
 			e.NVDStatus, e.RangesFrom = status.String, origin.String
-			e.RangesComplete = complete && e.RangesFrom != "" && e.RangesFrom != OriginNVD
 			out[e.CVE] = e
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return nil, fmt.Errorf("feeds: catalogue: %w", err)
 		}
+	}
+	if err := s.rangesComplete(ctx, out); err != nil {
+		return nil, err
 	}
 	scores, err := s.metricsOf(ctx, slices.Collect(mapsKeys(boolKeys(out))))
 	if err != nil {
@@ -1231,6 +1285,38 @@ func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {
 	return nil, nil
 }
 
+// rangeStamps puts the stamp fields of the ranges of the CVEs of part (a JSON array): every stored column, the defaultStatus as the row
+// is read (trustRow).
+func (s *Store) rangeStamps(ctx context.Context, part string, put func(cve string, fields ...string)) error {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.cve, 'range', r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl,
+	r.end_excl, r.fixed, r.version_type, r.default_status, ifnull(r.platforms, ''), ifnull((SELECT c.assigner FROM feeds_cve c WHERE c.cve = r.cve), ''), `+cnaOrgSQL+`
+	FROM json_each(?) j JOIN feeds_cve_range r ON r.cve = j.value
+	ORDER BY r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type,
+	r.default_status, ifnull(r.platforms, '')`, part)
+	if err != nil {
+		return err
+	}
+	vals := make([]string, 17)
+	ptrs := make([]any, len(vals))
+	for i := range vals {
+		ptrs[i] = &vals[i]
+	}
+	for rows.Next() {
+		if err := rows.Scan(ptrs...); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		r := Range{Origin: vals[2], Vendor: vals[4], VersionType: vals[12], DefaultStatus: vals[13], Platforms: []string{}}
+		if vals[14] != "" && json.Unmarshal([]byte(vals[14]), &r.Platforms) != nil {
+			r.Platforms = []string{}
+		}
+		trustRow(&r, vals[15], vals[16])
+		vals[13] = r.DefaultStatus
+		put(vals[0], vals[1:15]...)
+	}
+	return errors.Join(rows.Err(), rows.Close())
+}
+
 // RecordStamps returns, for each CVE asked for that the catalogue holds, a stamp that changes whenever its record says something new: a
 // hash of what the catalogue holds of it (NVD's change time and status, the description, every reference with its tags and every
 // affected range of every origin). It never moves when the box only reads the same record again (nvd_at and record_at are read times:
@@ -1284,10 +1370,9 @@ func (s *Store) RecordStamps(ctx context.Context, cves []string) (map[string]str
 			ORDER BY r.cve, r.url`, string(part), 4, false); err != nil {
 			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
 		}
-		if err := read(`SELECT r.cve, 'range', r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed,
-			r.version_type, r.default_status, ifnull(r.platforms, '') FROM json_each(?) j JOIN feeds_cve_range r ON r.cve = j.value
-			ORDER BY r.cve, r.origin, r.part, r.vendor, r.product, r.cpe, r.start_incl, r.start_excl, r.end_incl, r.end_excl, r.fixed, r.version_type,
-			r.default_status, ifnull(r.platforms, '')`, string(part), 15, false); err != nil {
+		// a range's defaultStatus as it is read (trustRow): a CNA list that changes what a record's word is worth changes the stamp,
+		// and a record read again into the same rows does not
+		if err := s.rangeStamps(ctx, string(part), put); err != nil {
 			return nil, fmt.Errorf("feeds: read record stamps: %w", err)
 		}
 	}

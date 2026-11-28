@@ -242,7 +242,7 @@ func TestCatalogue_RangesSignalsAndEntries(t *testing.T) {
 		}
 		// the CVE record's rows of both: NVD's win for the first, the second has only these
 		recs := []CVERecord{
-			{CVE: "CVE-2026-0101", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0101", Origin: OriginCNA, Vendor: "acme", Product: "box", EndExcl: "1.9", DefaultStatus: DefaultUnaffected}}},
+			{CVE: "CVE-2026-0101", State: RecordPublished, Assigner: "acme", Ranges: []Range{{CVE: "CVE-2026-0101", Origin: OriginCNA, Vendor: "acme", Product: "box", EndExcl: "1.9", DefaultStatus: DefaultUnaffected}}},
 			{CVE: "CVE-2026-0102", State: RecordPublished, Ranges: []Range{{CVE: "CVE-2026-0102", Origin: OriginCNA, Vendor: "acme", Product: "box", StartIncl: "3.0", EndExcl: "3.4", DefaultStatus: DefaultUnknown}}},
 		}
 		k, err := recordKeepOf(t.Context(), tx, now, nil)

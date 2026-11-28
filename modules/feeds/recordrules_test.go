@@ -102,6 +102,7 @@ func TestParseCVERecord_ModelRowsKeepTheDefaultOnlyFromTheVendor(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		got = asRead(got)
 		n := 0
 		for _, r := range got.Ranges {
 			if !r.ModelLimited() {

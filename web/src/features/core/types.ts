@@ -26,6 +26,8 @@ export type AdminUser = z.infer<typeof C.AdminUser>
 export type OidcConfig = z.infer<typeof C.OidcConfig>
 export type OidcSave = z.infer<typeof C.OidcSave>
 export type OidcStart = z.infer<typeof C.OidcStart>
+/** The answer of POST /auth/login; preview_code exists only in the sample build (the mock shows the emailed code on screen). */
+export type LoginResult = z.infer<typeof C.LoginResult> & { twofa?: { preview_code?: string } }
 
 export type AuditRow = z.infer<typeof C.AuditRow>
 export type AuditResult = z.infer<typeof C.AuditResult>

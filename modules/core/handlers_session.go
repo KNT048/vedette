@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -22,7 +23,9 @@ func deviceCookieValue(x server.Exchange) string {
 }
 
 // CorePostAuthLogin implements POST /auth/login (public): core INV-8. On success it sets the session, CSRF
-// and device cookies; the body only says ok.
+// and device cookies and answers ok true. A right password of a two-step account sent without its code is
+// a normal step of the sign-in, not a failure: 200 with ok false and the method, no cookie (an error status
+// here would be logged by the browser on every two-step sign-in).
 func (h *APIHandlers) CorePostAuthLogin(ctx context.Context, req *oas.CorePostAuthLoginReq) (*oas.CorePostAuthLoginOK, error) {
 	x, ip, err := exchange(ctx)
 	if err != nil {
@@ -32,11 +35,37 @@ func (h *APIHandlers) CorePostAuthLogin(ctx context.Context, req *oas.CorePostAu
 		Email: req.Email, Password: req.Password, Code: req.Code.Or(""),
 		IP: ip, UserAgent: x.R.UserAgent(), DeviceCookie: deviceCookieValue(x),
 	})
+	if step, ok := codeStep(err); ok {
+		return &oas.CorePostAuthLoginOK{Ok: false, Twofa: oas.NewOptCorePostAuthLoginOKTwofa(step)}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 	setSession(x, res.Session, res.Device)
 	return &oas.CorePostAuthLoginOK{Ok: true}, nil
+}
+
+// codeStep reads the "enter your code" answer of auth.Login (twofa_required with method, and for the email method
+// sent_to and resend_after) into the body of the sign-in's code step. Any other error is not one.
+func codeStep(err error) (oas.CorePostAuthLoginOKTwofa, bool) {
+	e, ok := apierr.As(err)
+	if !ok || e.Status != http.StatusUnauthorized || e.Code != auth.CodeTwofaRequired {
+		return oas.CorePostAuthLoginOKTwofa{}, false
+	}
+	step := oas.CorePostAuthLoginOKTwofa{Method: oas.CorePostAuthLoginOKTwofaMethodApp}
+	if m, _ := e.Extra["method"].(string); m == string(oas.CorePostAuthLoginOKTwofaMethodEmail) {
+		step.Method = oas.CorePostAuthLoginOKTwofaMethodEmail
+	}
+	if to, ok := e.Extra["sent_to"].(string); ok {
+		step.SentTo = oas.NewOptString(to)
+	}
+	switch n := e.Extra["resend_after"].(type) {
+	case int:
+		step.ResendAfter = oas.NewOptInt(n)
+	case int64:
+		step.ResendAfter = oas.NewOptInt(int(n))
+	}
+	return step, true
 }
 
 // CorePostAuthLoginResendCode implements POST /auth/login/resend-code (public): the password is needed again.

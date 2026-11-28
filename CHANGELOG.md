@@ -81,6 +81,9 @@ First release of the 0.1 line, for testing on a lab or spare box. Install on Ubu
 ### Upgrade notes
 - Boxes on 0.1.0-beta.1 cannot update to this release in place because the database format changed: uninstall with `sh install.sh --uninstall --yes`, then install this release.
 
+### Changed
+- `POST /auth/login`: the right password of a two-step account sent without its code now answers 200 `{"ok": false, "twofa": {"method": ...}}` (for the email method also `sent_to` and `resend_after`) instead of 401 `twofa_required`, so a normal two-step sign-in no longer logs an error in the browser console. A script that signs in with two-step should read `ok` and send the code when it is false. A successful sign-in answers `{"ok": true}` as before.
+
 ### Added
 - SNMP credentials take an optional UDP port (1 to 65535; empty means 161) for devices that answer SNMP on another port; Test, Read now and the scan window's reads use it, and the answer names the port tried.
 

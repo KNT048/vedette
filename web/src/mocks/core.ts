@@ -50,7 +50,7 @@ export const coreHandlers = [
       audit('auth.login_failed', u.email, 'temporary password expired')
       return fail(400, 'temp_password_expired', 'This temporary password has expired. Ask an administrator for a new one.')
     }
-    // Two-step authentication: the right password but no code → 401 so the sign-in page asks for a code; a wrong code → 400.
+    // Two-step authentication: the right password but no code → 200 ok false with the method, so the sign-in page asks for a code; a wrong code → 400.
     if (u.twofa) {
       const code = String(b.code ?? '').replace(/\s/g, '')
       if (twofaMethodOf(u) === 'email') {
@@ -62,12 +62,12 @@ export const coreHandlers = [
         if (!code) {
           const sent = issueCode(u.id, true)
           if ('error' in sent) return sent.error
-          return HttpResponse.json({ error: { code: 'twofa_required', message: 'We sent a 6-digit code to your sign-in email. Enter it to finish signing in.', method: 'email', sent_to: sentBody(u.email, sent).sent_to, resend_after: sent.resend_after, preview_code: sent.code } }, { status: 401 })
+          return HttpResponse.json({ ok: false, twofa: { method: 'email', sent_to: sentBody(u.email, sent).sent_to, resend_after: sent.resend_after, preview_code: sent.code } })
         }
         const bad = checkCode(u.id, code)
         if (bad) { audit('auth.login_failed', u.email, 'wrong two-step code'); return bad }
       } else {
-        if (!code) return HttpResponse.json({ error: { code: 'twofa_required', message: 'This account has two-step sign-in on. Enter the 6-digit code from your authenticator app.', method: 'app' } }, { status: 401 })
+        if (!code) return HttpResponse.json({ ok: false, twofa: { method: 'app' } })
         const secret = totpSecrets.get()[u.id]
         if (!/^\d{6}$/.test(code) || !secret || !(await verifyTotp(secret, code))) {
           audit('auth.login_failed', u.email, 'wrong two-step code')

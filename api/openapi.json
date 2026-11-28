@@ -6644,7 +6644,7 @@
     "/auth/login": {
       "post": {
         "operationId": "core_post_auth_login",
-        "summary": "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired",
+        "summary": "Sign in with email and password (plus the two-step code when on: without it the answer is 200 with ok false and twofa, and email-code users get a code sent). An expired temporary password is 400 temp_password_expired",
         "tags": [
           "core"
         ],
@@ -6667,7 +6667,7 @@
                     "type": "string"
                   },
                   "code": {
-                    "description": "6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only",
+                    "description": "6-digit code when the account has two-step sign-in; a right password without it is 200 with ok false and twofa (method; for email also sent_to and resend_after). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only",
                     "type": "string"
                   }
                 },
@@ -6690,7 +6690,35 @@
                   "properties": {
                     "ok": {
                       "type": "boolean",
-                      "const": true
+                      "description": "true: signed in, the session cookies are set. false: the password was right and the account has two-step sign-in; send the same body again with code"
+                    },
+                    "twofa": {
+                      "description": "Present when ok is false: the code the sign-in needs",
+                      "type": "object",
+                      "properties": {
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "app",
+                            "email"
+                          ],
+                          "description": "app = authenticator app (TOTP), email = 6-digit code sent to the sign-in email"
+                        },
+                        "sent_to": {
+                          "description": "email method: the masked sign-in email the code was just sent to, like a•••@acme.example",
+                          "type": "string"
+                        },
+                        "resend_after": {
+                          "description": "email method: seconds before another code can be sent (60)",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "method"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

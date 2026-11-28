@@ -121,7 +121,8 @@ func TestLogin_DisabledAccount(t *testing.T) {
 	wantStatus(t, ac.get("/me"), 401, "unauthenticated")
 }
 
-// INV-8 over HTTP: no code gives 401 twofa_required with the method; wrong, expired, used-up and missing codes
+// INV-8 over HTTP: a right password without the code is 200 {ok: false, twofa: {method, ...}}, a normal step of the
+// sign-in and not an error status (a browser logs every 4xx in the console); wrong, expired, used-up and missing codes
 // create no session; email-method accounts whose channel cannot send are 503, never password-only.
 func TestContract_INV8_HTTPLoginFlows(t *testing.T) {
 	t.Parallel()
@@ -141,9 +142,9 @@ func TestContract_INV8_HTTPLoginFlows(t *testing.T) {
 
 	// app method
 	r := c.login("app@acme.example")
-	wantStatus(t, r, 401, "twofa_required")
-	if r.str("error", "method") != "app" || c.signedIn() {
-		t.Fatalf("twofa_required = %s", r.Raw)
+	wantOK(t, r, 200)
+	if r.JSON["ok"] != false || r.str("twofa", "method") != "app" || c.signedIn() {
+		t.Fatalf("the code step = %s", r.Raw)
 	}
 	bad := c.post("/auth/login", map[string]any{"email": "app@acme.example", "password": authtest.Password, "code": authtest.WrongTOTP(secret, w.env.Clock.Now())})
 	wantStatus(t, bad, 400, "invalid_code")
@@ -151,9 +152,10 @@ func TestContract_INV8_HTTPLoginFlows(t *testing.T) {
 		t.Fatal("a wrong code created a session")
 	}
 	good := auth.TOTPCode(secret, auth.TOTPStep(w.env.Clock.Now()))
-	wantOK(t, c.post("/auth/login", map[string]any{"email": "app@acme.example", "password": authtest.Password, "code": good}), 200)
-	if !c.signedIn() {
-		t.Fatal("the right code did not sign in")
+	in := c.post("/auth/login", map[string]any{"email": "app@acme.example", "password": authtest.Password, "code": good})
+	wantOK(t, in, 200)
+	if !c.signedIn() || in.JSON["ok"] != true || in.JSON["twofa"] != nil {
+		t.Fatalf("the right code did not sign in: %s", in.Raw)
 	}
 	// a code is used once
 	c2 := w.client()
@@ -168,9 +170,9 @@ func TestContract_INV8_HTTPLoginFlows(t *testing.T) {
 	w.env.Clock.Advance(2 * time.Minute)
 	c3 := w.client()
 	r = c3.login(e.Email)
-	wantStatus(t, r, 401, "twofa_required")
-	if r.str("error", "method") != "email" || r.str("error", "sent_to") != "m•••@acme.example" || r.JSON["error"].(map[string]any)["resend_after"] != float64(60) {
-		t.Fatalf("email twofa_required = %s", r.Raw)
+	wantOK(t, r, 200)
+	if r.JSON["ok"] != false || r.str("twofa", "method") != "email" || r.str("twofa", "sent_to") != "m•••@acme.example" || r.JSON["twofa"].(map[string]any)["resend_after"] != float64(60) || c3.signedIn() {
+		t.Fatalf("email code step = %s", r.Raw)
 	}
 	code := w.env.Mailer.LastCode()
 	if strings.Contains(r.Raw, code) || strings.Contains(r.Raw, "preview_code") {

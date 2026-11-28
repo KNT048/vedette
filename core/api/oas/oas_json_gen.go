@@ -47832,12 +47832,19 @@ func (s *CorePostAuthLoginOK) Encode(e *jx.Encoder) {
 func (s *CorePostAuthLoginOK) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("ok")
-		e.Bool(true)
+		e.Bool(s.Ok)
+	}
+	{
+		if s.Twofa.Set {
+			e.FieldStart("twofa")
+			s.Twofa.Encode(e)
+		}
 	}
 }
 
-var jsonFieldsNameOfCorePostAuthLoginOK = [1]string{
+var jsonFieldsNameOfCorePostAuthLoginOK = [2]string{
 	0: "ok",
+	1: "twofa",
 }
 
 // Decode decodes CorePostAuthLoginOK from json.
@@ -47860,6 +47867,16 @@ func (s *CorePostAuthLoginOK) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		case "twofa":
+			if err := func() error {
+				s.Twofa.Reset()
+				if err := s.Twofa.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"twofa\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -47913,6 +47930,174 @@ func (s *CorePostAuthLoginOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostAuthLoginOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostAuthLoginOKTwofa) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostAuthLoginOKTwofa) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("method")
+		s.Method.Encode(e)
+	}
+	{
+		if s.ResendAfter.Set {
+			e.FieldStart("resend_after")
+			s.ResendAfter.Encode(e)
+		}
+	}
+	{
+		if s.SentTo.Set {
+			e.FieldStart("sent_to")
+			s.SentTo.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfCorePostAuthLoginOKTwofa = [3]string{
+	0: "method",
+	1: "resend_after",
+	2: "sent_to",
+}
+
+// Decode decodes CorePostAuthLoginOKTwofa from json.
+func (s *CorePostAuthLoginOKTwofa) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostAuthLoginOKTwofa to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "method":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Method.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "resend_after":
+			if err := func() error {
+				s.ResendAfter.Reset()
+				if err := s.ResendAfter.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resend_after\"")
+			}
+		case "sent_to":
+			if err := func() error {
+				s.SentTo.Reset()
+				if err := s.SentTo.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sent_to\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostAuthLoginOKTwofa")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostAuthLoginOKTwofa) {
+					name = jsonFieldsNameOfCorePostAuthLoginOKTwofa[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostAuthLoginOKTwofa) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostAuthLoginOKTwofa) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostAuthLoginOKTwofaMethod as json.
+func (s CorePostAuthLoginOKTwofaMethod) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostAuthLoginOKTwofaMethod from json.
+func (s *CorePostAuthLoginOKTwofaMethod) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostAuthLoginOKTwofaMethod to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostAuthLoginOKTwofaMethod(v) {
+	case CorePostAuthLoginOKTwofaMethodApp:
+		*s = CorePostAuthLoginOKTwofaMethodApp
+	case CorePostAuthLoginOKTwofaMethodEmail:
+		*s = CorePostAuthLoginOKTwofaMethodEmail
+	default:
+		*s = CorePostAuthLoginOKTwofaMethod(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostAuthLoginOKTwofaMethod) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostAuthLoginOKTwofaMethod) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -345929,6 +346114,39 @@ func (s OptCorePatchCoreUsersIDReqRole) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptCorePatchCoreUsersIDReqRole) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostAuthLoginOKTwofa as json.
+func (o OptCorePostAuthLoginOKTwofa) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostAuthLoginOKTwofa from json.
+func (o *OptCorePostAuthLoginOKTwofa) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptCorePostAuthLoginOKTwofa to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptCorePostAuthLoginOKTwofa) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptCorePostAuthLoginOKTwofa) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

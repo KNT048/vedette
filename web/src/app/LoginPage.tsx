@@ -13,7 +13,7 @@ import { useAuthOptions } from '@/features/core/api'
 import { PreviewCode } from '@/features/core/parts'
 import { useCountdown } from '@/features/core/useCountdown'
 import { saveSsoFlow, safeNext } from '@/features/core/ssoFlow'
-import type { OidcStart } from '@/features/core/types'
+import type { LoginResult, OidcStart } from '@/features/core/types'
 
 export default function LoginPage() {
   const { t } = useTranslation()
@@ -51,17 +51,20 @@ export default function LoginPage() {
     setWait('signIn')
     setError(null)
     try {
-      await api.post('/auth/login', needCode ? { email, password, code } : { email, password })
+      const r = await api.post<LoginResult>('/auth/login', needCode ? { email, password, code } : { email, password })
+      // The password was right and the account has two-step sign-in: a normal step (200, no session yet), not an error.
+      if (!r.ok && r.twofa) {
+        const d = r.twofa
+        setNeedCode(true)
+        setSecond({ method: d.method, sentTo: d.sent_to, preview: d.preview_code })
+        if (d.method === 'email') cooldown.start(d.resend_after ?? 60)
+        return
+      }
       qc.removeQueries({ queryKey: ['me'] }) // /me was cached as "not signed in"; drop it entirely so the target page waits for fresh data instead of bouncing back to /login
       await qc.invalidateQueries()
       navigate(safeNext(params.get('next')), { replace: true })
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'twofa_required') {
-        const d = err.details
-        setNeedCode(true); setError(null)
-        setSecond({ method: d.method === 'email' ? 'email' : 'app', sentTo: d.sent_to as string | undefined, preview: d.preview_code as string | undefined })
-        if (d.method === 'email') cooldown.start(Number(d.resend_after ?? 60))
-      } else setError(err instanceof ApiError ? err.message : t('error.unknown'))
+      setError(err instanceof ApiError ? err.message : t('error.unknown'))
     } finally {
       setWait(null)
     }

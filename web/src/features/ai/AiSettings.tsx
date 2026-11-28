@@ -64,6 +64,7 @@ const TIERS: AiTier[] = ['min', 'med', 'max']
 const JOBS: { id: AiJob; data: 'internal' | 'public' }[] = [
   { id: 'explain-finding', data: 'internal' }, { id: 'mitigation-config', data: 'internal' }, { id: 'ask-my-data', data: 'internal' }, { id: 'log-digest', data: 'internal' }, { id: 'log-investigate', data: 'internal' },
   { id: 'weekly-report', data: 'internal' }, { id: 'pdpl-assessment', data: 'internal' }, { id: 'cve-news', data: 'public' }, { id: 'translate-advisory', data: 'public' }, { id: 'response-plan', data: 'internal' },
+  { id: 'research-cves', data: 'internal' },
 ]
 // The response plan is set on the response module's own page; no row for it while this build does not offer that module
 const shownJobs = () => (notOffered('response') ? JOBS.filter((j) => j.id !== 'response-plan') : JOBS)

@@ -2,6 +2,7 @@ package findings
 
 import (
 	"cmp"
+	"regexp"
 	"strings"
 
 	"github.com/knt048/vedette/core/debver"
@@ -50,8 +51,8 @@ type distroData struct {
 	// distribution's (Alpine's apk releases).
 	upstream func(pkg, ver string) bool
 	// applies says a fixed release of the data is about the installed build, so the two compare (the same upstream release of a
-	// backport, a later one the distribution built, Debian's kernel moving inside its series).
-	applies func(pkg, installed, fixed string) bool
+	// backport, a later one the distribution built, an own build below the fix, Debian's kernel moving inside its series).
+	applies func(pkg, release, installed, fixed string) bool
 	// compare orders two releases; ok is false when either cannot be read.
 	compare func(a, b string) (int, bool)
 	// choose is the row of a CVE (among its rows of the package) that decides the installed release on the device's release; ok is
@@ -100,7 +101,7 @@ var (
 	alpineData = &distroData{id: DistroAlpine, name: "Alpine Linux", is: func(o string) bool { return linuxDistro(o) == DistroAlpine },
 		os: func(a Asset) string { return cmp.Or(a.ManualOS, a.AgentOS, a.SNMPOS, a.OS) }, rel: alpineBranch, anyRelease: true, fixedOnly: true,
 		pkgOf: apkPkgOf, release: func(v string) string { _, t := apkRelease(v); return t }, source: func(src string) string { return src },
-		own: func(string, string, bool) bool { return true }, applies: func(string, string, string) bool { return true }, compare: apkCompare,
+		own: func(string, string, bool) bool { return true }, applies: func(string, string, string, string) bool { return true }, compare: apkCompare,
 		choose: chooseAlpine}
 	distroAdapters = []*distroData{ubuntuData, debianData, alpineData}
 )
@@ -123,11 +124,16 @@ func debReleaseOf(v string) string {
 // build) and either has the fix's upstream release (the backport), or Debian's kernel moved to a later point release of the same
 // series (debianKernelMoves), or the installed release is the distribution's own build of a later upstream release than the fix (the
 // release took a new upstream version after the fix: Ubuntu 26.04 fixed CVE-2025-15281 in glibc 2.42-2ubuntu5 and ships
-// 2.43-2ubuntu2.7); never a kernel's, whose other upstream release is another kernel series. An installed release of an earlier
-// upstream than the fix is not compared: the data names the first fixed build of the release, so an own build below it of another
-// upstream is one the data does not speak of.
-func debApplies(distro string) func(pkg, installed, fixed string) bool {
-	return func(pkg, installed, fixed string) bool {
+// 2.43-2ubuntu2.7), or the installed release is the distribution's own build below the fix, whatever its upstream release: the data
+// states the release's first fixed build, and every earlier build of the release's package is inside the stated range (the
+// distribution's OSV records read "introduced 0, fixed F" per release; Grype and Trivy compare installed < fixed the same way), so
+// Debian 13's ruby3.3 3.3.8-2 is below its fix 3.3.14-0+deb13u1; of the fix's epoch only ("9.2p1-2+deb12u9" is not below
+// "1:9.2p1-2+deb12u5": a release read without its epoch is another numbering), and never of a build marked for another release
+// (otherReleaseBuild: Debian 12's libssl3 3.0.17-1~deb12u3 left on a box upgraded to Debian 13 is not below Debian 13's fix
+// 3.5.1-1+deb13u1, its own release's fix may be in it). Never a kernel's of another upstream release, which is another kernel series.
+// Comparing an earlier build only opens: it can never reach or pass the fix.
+func debApplies(distro string) func(pkg, release, installed, fixed string) bool {
+	return func(pkg, release, installed, fixed string) bool {
 		if !ownBuild(distro, pkg, installed, false) {
 			return false
 		}
@@ -138,8 +144,41 @@ func debApplies(distro string) func(pkg, installed, fixed string) bool {
 			return false
 		}
 		c, err := debver.Compare(installed, fixed)
-		return err == nil && c > 0 && laterUpstream(installed, fixed)
+		if err != nil {
+			return false
+		}
+		if c < 0 { // below the fix: of the same epoch only, another epoch is another numbering (a release read without its epoch)
+			_, ei := debUpstream(installed)
+			_, ef := debUpstream(fixed)
+			return ei == ef && !otherReleaseBuild(distro, release, installed)
+		}
+		return c > 0 && laterUpstream(installed, fixed)
 	}
+}
+
+// The release a Debian or Ubuntu revision names, by the distributions' version conventions: Debian's stable and security updates
+// ("+deb12u3", "~deb12u1") and its builds for a release ("~deb12"); Ubuntu's updates for a release, after its mark ("0ubuntu0.22.04.1",
+// "3ubuntu5.24.04.1") or after a tilde ("1~24.04.1", "1ubuntu0.1~22.04.1", "~ubuntu22.04"). An Ubuntu release is YY.MM with the month
+// 04 or 10.
+var (
+	debianReleaseMarkRE = regexp.MustCompile(`[+~]deb([0-9]+)(?:u[0-9]+)?`)
+	ubuntuReleaseMarkRE = regexp.MustCompile(`(?:(?:ubuntu|build)[0-9]+\.|~(?:ubuntu)?(?:0\.)?)([0-9]{2}\.(?:04|10))(?:[.~+]|$)`)
+)
+
+// otherReleaseBuild says the installed build carries the mark of another release than the device's (release, as the feeds name it:
+// "13", "24.04"): a package left from the release the device was upgraded from. Such a build is not below the device's release's fix
+// in the sense the data states; its own release's fix may be in it.
+func otherReleaseBuild(distro, release, version string) bool {
+	re := ubuntuReleaseMarkRE
+	if distro == "debian" {
+		re = debianReleaseMarkRE
+	}
+	for _, m := range re.FindAllStringSubmatch(debver.Revision(version), -1) {
+		if m[1] != release {
+			return true
+		}
+	}
+	return false
 }
 
 // distroOfDevice is the adapter of the device's distribution, nil when the feeds supply no data for it.

@@ -45,7 +45,7 @@ describe('Read by AI', () => {
       key, decided_by: 'ai', verdict: 'affected', confidence: 'confident', reason: 'The vendor states the fix of the 7 line.', quote: 'All RouterOS 7 releases before 7.15.3 are affected.',
       sources: [{ url: 'https://mikrotik.example.com/security/advisories/routeros-2026-07', status: 'ok', cited: true }], model: 'qwen3:8b', checked_by: 'system',
       checked_at: new Date().toISOString(), rejected: false,
-      reading: { status: 'fixed', line: '7.14', stated_line: '7', introduced: null, fixed_in: '7.15.3', last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: true },
+      reading: { status: 'fixed', line: '7.14', stated_line: '7', introduced: null, fixed_in: '7.15.3', last_affected: null, host: 'mikrotik.example.com', vendor_page: true, quote_found: true, research: null },
     }
     checks.update((m) => ({ ...m, [key]: check }))
     openByReading(key, check)

@@ -153,14 +153,14 @@ type httpClient struct {
 	c       *http.Client
 }
 
-// post sends a JSON body to base+path and returns the (size-capped) body of a 2xx answer.
-// Every other outcome is an error whose message never contains the key or the URL.
-func (h *httpClient) post(ctx context.Context, path string, headers map[string]string, body any) ([]byte, error) {
+// post sends a JSON body to base+path and returns the (size-capped) body of a 2xx answer, within the client's timeout or the request's
+// own when longer (Request.Timeout). Every other outcome is an error whose message never contains the key or the URL.
+func (h *httpClient) post(ctx context.Context, timeout time.Duration, path string, headers map[string]string, body any) ([]byte, error) {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("ai provider: encode request: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(ctx, h.timeout)
+	ctx, cancel := context.WithTimeout(ctx, max(h.timeout, timeout))
 	defer cancel()
 	u := *h.base
 	u.Path += path

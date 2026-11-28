@@ -453,7 +453,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	}
 	switch f.Status {
 	case "fixed":
-		if !d.applies(pkg, ver, f.Fixed) {
+		if !d.applies(pkg, in.pkgRel, ver, f.Fixed) {
 			return distroAnswer{}, false
 		}
 		c, ok := d.compare(ver, f.Fixed)
@@ -559,7 +559,8 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 			note = fmt.Sprintf("Not affected: %s says its %s package of %s %s is not affected by %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
 				d.name, clean(d.pkg), d.name, d.release, v.CVE, src)
 		}
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, provedOn: provedOn}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, provedOn: provedOn,
+			gate: shadowDistro(in, v, d)}, outNotAffected
 	}
 	m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Basis: BasisVersion, Confidence: ConfVersion, Severity: SeverityHigh, bounded: true}
 	if v.Ransomware || v.EPSS >= 0.5 {
@@ -618,8 +619,9 @@ const (
 	// device's release came out, which the distribution never lists for it).
 	DistroOtherReleases = "distro_other_releases"
 	// DistroOtherBuild: the distribution's row for the package is about another build than the installed one (a build with the
-	// distribution's mark outside its own revision form, whose builder is not known; an earlier upstream release than its fix). A
-	// build with none of the distribution's marks is its upstream product (debBuildOf) and never gets here.
+	// distribution's mark outside its own revision form, whose builder is not known; a kernel of another series than its fix). A
+	// build with none of the distribution's marks is its upstream product (debBuildOf) and never gets here; the distribution's own
+	// build below its fix is affected whatever its upstream release (debApplies).
 	DistroOtherBuild = "distro_other_build"
 	// DistroNotListed: the distribution's data has no row of the CVE at all (not triaged yet, or its feed holds no row of it yet).
 	DistroNotListed = "distro_not_listed"

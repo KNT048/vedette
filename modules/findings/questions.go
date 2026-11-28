@@ -54,6 +54,12 @@ type Unchecked struct {
 	// state (olderLine). Such rows of one line are one question (QuestionOlderLine). "" otherwise.
 	Line  string
 	fixes []versionscheme.Version
+	// at is the reading of the device it is about, as its index in the matcher's rows plus one; 0 when not known. A line holds several
+	// readings, and only those of the same installation share their evidence (sameInstallation).
+	at int
+	// lineUnlisted: no_nvd_versions of a version on a release line the rows do not speak for, while they start later lines above it
+	// (unlistedLine): undecided as ranges_start_at_branch_only.
+	lineUnlisted bool
 	// Attribute: not_comparable only, the build attribute NVD pins that decides it and the box could not derive (blockingAttribute):
 	// AttrEdition, AttrArchitecture or AttrPlatform, or AttrUnlistedLine for a Mozilla ESR line the CVE's ESR rows do not list. The
 	// question then asks for it, not for the version. "" otherwise.
@@ -189,7 +195,7 @@ func undecidedOf(u Unchecked, own []Affected) *Undecided {
 		out.Reason = UndecidedSchemeMismatch
 	case u.NVDPending:
 		out.Reason = UndecidedNVDPending
-	case u.Line != "":
+	case u.Line != "" || u.lineUnlisted:
 		out.Reason = UndecidedBranchOnly
 	case u.Reason == UncheckedNotNamed:
 		out.Reason = UndecidedNotNamed
@@ -387,6 +393,9 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 	}
 	if newerThanListed(rowEntries(s, in, v), in.ver) {
 		return "", false
+	}
+	if m.lineUnlisted { // the rows list versions, only of later release lines than the row's (unlistedLine)
+		return UncheckedNoNVDVersions, true
 	}
 	return uncheckedReason(s, in, v, false)
 }

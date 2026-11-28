@@ -9,14 +9,17 @@ import (
 // tool that sends its arguments out of the box (a connection) to one job only: Ask, where a person asks and an administrator allows
 // each connection outside the network. Every tool of the box a row names exists.
 func TestJobPowersCoverEveryJobAndGiveSendingToolsToAskOnly(t *testing.T) {
-	known := []string{"device_updates", "events_around", "get_finding", "list_findings", "lookup_cve", "lookup_ioc", "search_assets"}
+	known := []string{"device_updates", "events_around", "fetch_page", "get_finding", "list_findings", "lookup_cve", "lookup_ioc", "search_assets"}
 	for _, j := range Jobs() {
 		p, ok := jobPowers[j]
 		if !ok || p.writes == "" || p.egress == "" {
 			t.Errorf("%s: no row, or a row that does not say what it writes and where it sends", j)
 		}
 		for _, c := range p.classes {
-			if c != toolBox && c != toolConnLAN && c != toolConnOut {
+			if c == toolPage && j != JobResearchCVEs {
+				t.Errorf("%s may fetch pages", j)
+			}
+			if c != toolBox && c != toolConnLAN && c != toolConnOut && c != toolPage {
 				t.Errorf("%s: unknown tool class %q", j, c)
 			}
 			if (c == toolConnLAN || c == toolConnOut) && j != JobAskMyData {

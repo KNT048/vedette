@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,8 +23,8 @@ import (
 //
 //   - affected (the version inside the stated bounds, or the line named as affected): a finding, range origin ai_read, labelled as read
 //     by AI from the page's host, which a person can reject in one click;
-//   - not affected (past the stated fix on the same line, or the line named as not affected): settled only when the page is the vendor's
-//     own; an exploited CVE waits for a person; a third-party page settles nothing;
+//   - not affected (past the stated fix on the same line, or the line named as not affected): never settles anything, whatever the page;
+//     it is a proposal a person confirms or rejects in the review queue, and a finding an earlier reading opened stays open meanwhile;
 //   - anything else decides nothing and the CVE stays possible, with its cause.
 //
 // A fix release becomes the finding's fix only when the quote names it.
@@ -68,10 +69,21 @@ type LineStatement struct {
 	AskedAt, SeenAt           time.Time
 	RejectedBy                string
 	RejectedAt                time.Time
+	// Research is the research behind the reading (fnd_line_research, P-12); nil for a reading of the pages the box fetched.
+	Research *LineResearch
 }
 
 func statementKey(cve, product, line, record, page string) string {
 	return hashHex("ls1\x1f" + cve + "\x1f" + product + "\x1f" + line + "\x1f" + record + "\x1f" + page)
+}
+
+// identity is the key a reading is stored under: its line, the CVE record and the cited page (statementKey), and what it states (its
+// status, bounds and basis, and whether the box found its quote). Two different answers read from the same record and page are two readings, so a newer answer never
+// overwrites the older one that opened a finding (lineStore decides which older ones stay); the same answer again is the same reading,
+// which keeps a person's rejection.
+func (st LineStatement) identity() string {
+	return hashHex("ls2\x1f" + statementKey(st.CVE, st.Product, st.Line, st.RecordHash, st.PageHash) + "\x1f" + st.Status + "\x1f" + st.Introduced + "\x1f" +
+		st.FixedIn + "\x1f" + st.Last + "\x1f" + cmpNonEmpty(st.Basis, BasisStated) + "\x1f" + strconv.FormatBool(st.QuoteFound))
 }
 
 // recordHash is the identity of a CVE record's stamp (Vuln.Stamp) as a reading is keyed by it, and of what the reading reads of the
@@ -84,16 +96,17 @@ func pageHash(text string) string { return hashHex("page1\x1f" + text) }
 
 const statementColumns = `statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, ifnull(introduced, ''), ifnull(fixed_in, ''),
 	ifnull(last_affected, ''), reason, quote, url, host, vendor_page, quote_found, model, profile, ifnull(activity_id, ''), asked_by, asked_at, seen_at,
-	ifnull(rejected_by, ''), ifnull(rejected_at, ''), basis`
+	ifnull(rejected_by, ''), ifnull(rejected_at, ''), basis, ` + researchColumn
 
 func scanStatement(sc scanner) (LineStatement, error) {
 	var st LineStatement
-	var asked, seen, rejAt string
+	var asked, seen, rejAt, research string
 	if err := sc.Scan(&st.Key, &st.CVE, &st.Product, &st.Line, &st.StatedLine, &st.RecordHash, &st.PageHash, &st.Status, &st.Introduced, &st.FixedIn,
 		&st.Last, &st.Reason, &st.Quote, &st.URL, &st.Host, &st.VendorPage, &st.QuoteFound, &st.Model, &st.Profile, &st.Activity, &st.AskedBy, &asked, &seen,
-		&st.RejectedBy, &rejAt, &st.Basis); err != nil {
+		&st.RejectedBy, &rejAt, &st.Basis, &research); err != nil {
 		return LineStatement{}, err
 	}
+	st.Research = parseResearch(research)
 	var err error
 	if st.AskedAt, err = parseTS(asked); err != nil {
 		return LineStatement{}, err
@@ -145,14 +158,19 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 	if st.Basis != "" && st.Basis != BasisStated && st.Basis != BasisUnpaired && st.Basis != BasisInferred {
 		return fmt.Errorf("findings: bad reading basis %q", st.Basis)
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL AND statement_key <> ?`,
-		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key); err != nil {
-		return fmt.Errorf("findings: replacing a reading: %w", err)
+	line, err := statementsWhere(ctx, tx, `cve = ? AND product_key = ? AND line = ?`, st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200))
+	if err != nil {
+		return err
+	}
+	for _, k := range lineStore(line, st) {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE statement_key = ?`, k); err != nil {
+			return fmt.Errorf("findings: replacing a reading: %w", err)
+		}
 	}
 	at := store.FormatTS(st.AskedAt)
-	_, err := tx.ExecContext(ctx, `INSERT INTO fnd_line_statement (statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, introduced,
-		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at, basis)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err = tx.ExecContext(ctx, `INSERT INTO fnd_line_statement (statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, introduced,
+		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at, basis, rejected_by, rejected_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
 		ON CONFLICT (statement_key) DO UPDATE SET status = excluded.status, introduced = excluded.introduced, fixed_in = excluded.fixed_in,
 			last_affected = excluded.last_affected, stated_line = excluded.stated_line, reason = excluded.reason, quote = excluded.quote,
 			url = excluded.url, host = excluded.host, vendor_page = excluded.vendor_page, quote_found = excluded.quote_found, model = excluded.model,
@@ -182,6 +200,9 @@ func touchStatement(ctx context.Context, tx *sql.Tx, key string, now time.Time) 
 type lineReading struct {
 	applied  *LineStatement
 	rejected *LineStatement
+	// held is an older reading of the line that called the version affected while the newer applied one does not: the AI never closes
+	// its own finding, so the finding stands on it until a person confirms the newer answer (P-12).
+	held *LineStatement
 }
 
 // newest is the newest of the two.
@@ -199,8 +220,19 @@ func (r lineReading) newest() *LineStatement {
 // another key whose release line, as the quote names it, contains id's version ("8.6" for 8.6.5).
 func readingFor(sts []LineStatement, cve string, id CheckID) lineReading {
 	var r lineReading
+	view := make([]*LineStatement, len(sts)) // each reading as the resolution sees it: rejected by a person, or covered by one's rejection
+	says := lineSays(sts, cve, id)
 	for i := range sts {
-		st := &sts[i]
+		view[i] = &sts[i]
+		if sts[i].RejectedBy == "" {
+			if by := coveredBy(sts, says, i); by != nil {
+				c := sts[i]
+				c.RejectedBy, c.RejectedAt = by.RejectedBy, by.RejectedAt
+				view[i] = &c
+			}
+		}
+	}
+	for _, st := range view {
 		if st.CVE != cve || st.Product != id.Product {
 			continue
 		}
@@ -220,7 +252,63 @@ func readingFor(sts []LineStatement, cve string, id CheckID) lineReading {
 	if a := r.applied; a != nil && r.rejected != nil && a.Line != id.Line && !a.AskedAt.After(r.rejected.AskedAt) {
 		r.applied = nil // a person rejected the reading of this very line since: another line's older reading does not stand in for it
 	}
+	if a := r.applied; a != nil && a.Line == id.Line && a.verdictFor(id) != VerdictAffected {
+		older := false // newest first: only a reading stored before the applied one
+		for _, st := range view {
+			if st == a {
+				older = true
+				continue
+			}
+			if older && st.CVE == cve && st.Product == id.Product && st.Line == id.Line && st.RejectedBy == "" && st.verdictFor(id) == VerdictAffected {
+				r.held = st
+				break
+			}
+		}
+	}
 	return r
+}
+
+// says is what a reading says for id's version whatever a person did about it: VerdictAffected, VerdictNotAffected or "" (verdictFor of a
+// rejected reading is "").
+func (st LineStatement) says(id CheckID) string {
+	st.RejectedBy = ""
+	return st.verdictFor(id)
+}
+
+// lineSays is what each reading of id's own line says for its version ("" for a reading of another CVE, product or line).
+func lineSays(sts []LineStatement, cve string, id CheckID) []string {
+	out := make([]string, len(sts))
+	for i, st := range sts {
+		if st.CVE == cve && st.Product == id.Product && st.Line == id.Line {
+			out[i] = st.says(id)
+		}
+	}
+	return out
+}
+
+// coveredBy is the person's rejection that covers reading sts[i] for a version (nil when none; says is what each reading says for it), so one rejection is enough (P-12):
+// a rejected reading of the same line that says the same for the version, and either was stored after it (sts is newest first: an
+// older reading must not hold a finding open after the person said no to a newer one) or was read from the same CVE record and cited page
+// (its text, or for a page only the AI's tools read, its address: the same answer again is not asked twice). Decided per version: a
+// "fixed" reading calls one version affected and another not, so a rejection never covers a reading that says the opposite for the
+// version, and a newer reading from a changed record or page is a new statement.
+func coveredBy(sts []LineStatement, says []string, i int) *LineStatement {
+	n := &sts[i]
+	v := says[i]
+	if v == "" {
+		return nil
+	}
+	byURL := n.Research != nil && (n.Research.QuoteCheck == QuoteTool || n.Research.QuoteCheck == QuoteLive)
+	for j := range sts {
+		r := &sts[j]
+		if j == i || r.RejectedBy == "" || r.CVE != n.CVE || r.Product != n.Product || r.Line != n.Line || says[j] != v {
+			continue
+		}
+		if j < i || r.RecordHash == n.RecordHash && r.URL == n.URL && (r.PageHash == n.PageHash || byURL) {
+			return r
+		}
+	}
+	return nil
 }
 
 // coversLine says the reading's release line, as its quote names it, contains id's version: "8.6" contains 8.6.5, never 8.60.
@@ -249,8 +337,23 @@ func namesToken(text, tok string) bool {
 	if tok == "" {
 		return false
 	}
-	re := regexp.MustCompile(`(?:^|[^0-9a-z.])` + regexp.QuoteMeta(strings.ToLower(tok)) + `(?:$|[^0-9a-z.]|\.(?:$|[^0-9a-z]))`)
-	return re.MatchString(strings.ToLower(text))
+	t, k := strings.ToLower(text), strings.ToLower(tok)
+	word := func(c byte) bool { return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' }
+	for i := 0; i <= len(t)-len(k); {
+		j := strings.Index(t[i:], k)
+		if j < 0 {
+			return false
+		}
+		j += i
+		end := j + len(k)
+		before := j == 0 || !word(t[j-1]) && t[j-1] != '.'
+		after := end == len(t) || !word(t[end]) && t[end] != '.' || t[end] == '.' && (end+1 == len(t) || !word(t[end+1]))
+		if before && after {
+			return true
+		}
+		i = j + 1
+	}
+	return false
 }
 
 // reBefore is a bound written as "before X", "prior to X" or "earlier than X" (all versions before X).
@@ -310,6 +413,70 @@ func (st LineStatement) verdictFor(id CheckID) string {
 		}
 	}
 	return ""
+}
+
+// boxStated says the reading's quote, as the box found it, names the installed product itself with a release or line that covers id's
+// version: the version or its line, the stated line when it contains the version, a quoted fix the version is at or past, or quoted
+// bounds the version is inside; and every release the quote names follows one of the product's own names (namedWithThisProduct), so a
+// quote about another edition or product of the vendor, with a release it does not pair with this product, or with no version, is not
+// the vendor stating it for this product.
+func (st LineStatement) boxStated(id CheckID, names, editions, vendors []string) bool {
+	if !st.QuoteFound || st.Quote == "" || !namedWithThisProduct(st.Quote, names, editions, vendors) {
+		return false
+	}
+	cands := []string{id.Version, id.Line}
+	if st.coversLine(id) {
+		cands = append(cands, st.StatedLine)
+	}
+	if st.pastFix(id) {
+		cands = append(cands, st.FixedIn, st.Last)
+	}
+	if st.insideQuoted(id) {
+		cands = append(cands, st.Introduced, st.FixedIn, st.Last)
+	}
+	for _, c := range cands {
+		if c != "" && pairedInQuote(st.Quote, c, names, editions, vendors) {
+			return true
+		}
+	}
+	return false
+}
+
+// insideQuoted says id's version is inside the bounds the quote itself names (a bound found only beside the quote does not count).
+func (st LineStatement) insideQuoted(id CheckID) bool {
+	q := func(b string) string {
+		if namesToken(st.Quote, b) {
+			return b
+		}
+		return ""
+	}
+	r := textRange{start: q(st.Introduced), end: q(st.FixedIn), quote: st.Quote}
+	if r.end == "" {
+		r.end, r.endIncl = q(st.Last), true
+	}
+	if r.end == "" {
+		return false
+	}
+	v, _, ok := judgeTextRanges([]textRange{r}, id.Version, id.Build, productScheme(id.Product))
+	return ok && v == VerdictAffected
+}
+
+// pairedInQuote says one occurrence of the release tok in quote follows one of the product's own names: namedWithThisProduct on the
+// stretch of the quote from the previous release to this one.
+func pairedInQuote(quote, tok string, names, editions, vendors []string) bool {
+	q, t := strings.ToLower(quote), strings.ToLower(strings.TrimSpace(tok))
+	if len(q) != len(quote) || t == "" {
+		return false
+	}
+	prev := 0
+	for _, m := range reVersionLike.FindAllStringSubmatchIndex(q, -1) {
+		s, e := m[2], m[3]
+		if q[s:e] == t && namedWithThisProduct(quote[prev:e], names, editions, vendors) {
+			return true
+		}
+		prev = e
+	}
+	return false
 }
 
 // pastFix says id's version is at or past the stated fix (or past the last affected release) on the same line: the vendor's own scheme
@@ -516,7 +683,10 @@ func (r lineReading) due(id CheckID, now time.Time) bool {
 	if id.Record != "" && last.RecordHash != id.Record && last.Line == id.Line {
 		return true
 	}
-	if last.RejectedBy == "" && last.Status == StatementUnsure && now.Sub(last.AskedAt) >= statementRecheck {
+	if last.Line == id.Line && last.toResearch() {
+		return true
+	}
+	if last.RejectedBy == "" && last.Status == StatementUnsure && last.Research == nil && now.Sub(last.AskedAt) >= statementRecheck {
 		return true
 	}
 	return now.Sub(last.SeenAt) >= statementRecheck
@@ -625,4 +795,81 @@ func aiReadNote(q Question, st LineStatement) string {
 		note += " (" + st.URL + ")"
 	}
 	return clipBytes(note+". A person can reject this reading.", 1000)
+}
+
+// statusSide is the side a reading's status takes: affected (affected, or fixed in a release: it may open a finding), not_affected, or ""
+// for unsure.
+func statusSide(status string) string {
+	switch status {
+	case StatementAffected, StatementFixed:
+		return StatementAffected
+	case StatementNotAffected:
+		return StatementNotAffected
+	}
+	return ""
+}
+
+// statementsWhere is the readings matching the condition on fnd_line_statement.
+func statementsWhere(ctx context.Context, q querier, where string, args ...any) ([]LineStatement, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+statementColumns+` FROM fnd_line_statement WHERE `+where, args...)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading the line's readings: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []LineStatement
+	for rows.Next() {
+		st, err := scanStatement(rows)
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading the line's readings: %w", err)
+		}
+		out = append(out, st)
+	}
+	return out, rows.Err()
+}
+
+// ---- the life cycle of a line's AI readings (P-6, P-12), in pure functions: storing, a person's rejection and the outcome. Every rule
+// that decides whether an AI reading opens, holds or hides a finding is here; TestReadingLifeCycle_Matrix drives them through every
+// sequence of events up to length 4 and checks the invariants after each step; a person's rejection is resolved per version in
+// readingFor (coveredBy). ----
+
+// lineStore is what storing reading st does to the line's readings (every one, rejected ones included, newest first): the keys deleted
+// before st is written. A newer reading keeps the older ones that called the line affected with a found quote (the finding they opened
+// stays until a person confirms the newer answer: lineReading.held), also behind a newer "affected" whose bounds may leave a version
+// out; only a newer one stating the same status and bounds with a quote the box found replaces them. Rejected readings stay: a person's
+// rejection covers the readings that say the same (coveredBy).
+func lineStore(line []LineStatement, st LineStatement) (drop []string) {
+	for _, o := range line {
+		keep := o.RejectedBy != "" || o.Key == st.Key || statusSide(o.Status) == StatementAffected && o.QuoteFound &&
+			(!st.QuoteFound || o.Status != st.Status || o.FixedIn != st.FixedIn || o.Last != st.Last || o.Introduced != st.Introduced)
+		if !keep {
+			drop = append(drop, o.Key)
+		}
+	}
+	return drop
+}
+
+// lineOutcome is what the line's readings decide for the version id: the reading a finding stands on (nil when none), and whether the
+// newest reading no longer calls it affected, so the question waits for a person in Review AI answers beside that finding (review).
+func lineOutcome(r lineReading, id CheckID) (by *LineStatement, review bool) {
+	if r.applied != nil && r.applied.verdictFor(id) == VerdictAffected {
+		return r.applied, false
+	}
+	if r.held != nil {
+		return r.held, true
+	}
+	return nil, false
+}
+
+// toResearch says the reading is one the previous reader made from the record's first references (no research behind it) that decides
+// nothing: unsure, or its quote was not found. The research engine researches such a line once, by itself (P-12); a previous reading
+// that decides is kept, and a line with a research reading is researched again only when the record or a cited page changes (an unsure
+// research is not asked again by age alone).
+func (st LineStatement) toResearch() bool {
+	if st.RejectedBy != "" {
+		return false
+	}
+	if st.Research != nil { // a research by an older version is researched once again (researchReader)
+		return st.Research.Detail.Reader < researchReader
+	}
+	return st.Status == StatementUnsure || !st.QuoteFound
 }

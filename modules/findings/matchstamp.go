@@ -86,6 +86,8 @@ type passInput struct {
 	set   *matchSet
 	since map[string]Have
 	ok    bool
+	// shadow: the pass records the closing gate's shadow (Service.ShadowGate, read once when the pass starts).
+	shadow bool
 }
 
 // matchStamp hashes everything the match pass reads for device a against the entries idx of the pass's set, with the device's rows
@@ -99,7 +101,7 @@ func (s *Service) matchStamp(a Asset, in passInput, idx []int, rows deviceRows, 
 		return stamp, false
 	}
 	backlog, recent := s.judgedParts(in.set)
-	_, _ = fmt.Fprintf(h, "winrel %d day %s rates %t backlog %t\n", gen, now.UTC().Format(time.DateOnly), s.rates(), s.cfg.Backlog != nil)
+	_, _ = fmt.Fprintf(h, "winrel %d day %s rates %t backlog %t shadow %t\n", gen, now.UTC().Format(time.DateOnly), s.rates(), s.cfg.Backlog != nil, in.shadow)
 	cut := in.set.splitAt.Add(-RecentKEV) // the pass splits news from backlog at one time (judgedParts)
 	for _, i := range idx {
 		e, ok := in.set.entryHash(i)

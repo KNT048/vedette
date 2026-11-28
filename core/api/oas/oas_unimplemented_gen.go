@@ -2165,6 +2165,17 @@ func (UnimplementedHandler) FindingsGetFindingsPossibleCheck(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsGetFindingsReview implements findings_get_findings_review operation.
+//
+// Review AI answers: the AI's "not affected" answers for possible CVEs, which never close anything by
+// themselves and wait for a person (ignored devices left out), exploited first, with how the AI
+// researched each.
+//
+// GET /findings/review
+func (UnimplementedHandler) FindingsGetFindingsReview(ctx context.Context, params FindingsGetFindingsReviewParams) (r *FindingsGetFindingsReviewOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FindingsPostFindingsHandle implements findings_post_findings_handle operation.
 //
 // Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -2240,10 +2251,10 @@ func (UnimplementedHandler) FindingsPostFindingsIDVerify(ctx context.Context, re
 
 // FindingsPostFindingsPossibleCheck implements findings_post_findings_possible_check operation.
 //
-// Check possible findings (of one device, or all): in the background, each possible CVE with no check
-// yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages
-// itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are
-// proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit
+// Check possible findings (of one device, or all): queued in front of the research worker, which
+// checks them at once beside what is due, each possible CVE with no check yet (at most 40 evidence
+// identities), once per evidence: the box reads the CVE's reference pages itself and decides when the
+// vendor's ranges do; only the rest goes to the AI. 409 ai_unavailable, nothing_to_check. Audit
 // findings.possible_checked.
 //
 // POST /findings/possible/check
@@ -2282,6 +2293,19 @@ func (UnimplementedHandler) FindingsPostFindingsPossibleConfirm(ctx context.Cont
 //
 // POST /findings/possible/{id}/confirm
 func (UnimplementedHandler) FindingsPostFindingsPossibleIDConfirm(ctx context.Context, params FindingsPostFindingsPossibleIDConfirmParams) (r *FindingsPostFindingsPossibleIDConfirmOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsPossibleIDResearch implements findings_post_findings_possible_id_research operation.
+//
+// Research deeper: the customer's AI researches the release line of this possible CVE again now with
+// its strong profile (the research job's second profile; the first when there is none), queued in
+// front of the research worker (never twice for a line queued or being researched); the answer
+// replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money.
+// 409 ai_unavailable; 404 not_found when the CVE cannot be researched.
+//
+// POST /findings/possible/{id}/research
+func (UnimplementedHandler) FindingsPostFindingsPossibleIDResearch(ctx context.Context, params FindingsPostFindingsPossibleIDResearchParams) (r *FindingsPostFindingsPossibleIDResearchOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2329,6 +2353,18 @@ func (UnimplementedHandler) FindingsPostFindingsQuestionsIDUnanswer(ctx context.
 //
 // POST /findings/questions/ignore
 func (UnimplementedHandler) FindingsPostFindingsQuestionsIgnore(ctx context.Context, req *FindingsPostFindingsQuestionsIgnoreReq) (r *FindingsPostFindingsQuestionsIgnoreOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsReviewConfirm implements findings_post_findings_review_confirm operation.
+//
+// Confirm AI "not affected" answers at once, at most 500, in one transaction: each question is
+// answered not affected (Handled, reopenable). A row whose CVE is exploited is confirmed only when
+// include_exploited names its CVE; an exploited list that cannot be read confirms nothing. Audit
+// findings.proposal_confirmed.
+//
+// POST /findings/review/confirm
+func (UnimplementedHandler) FindingsPostFindingsReviewConfirm(ctx context.Context, req *FindingsPostFindingsReviewConfirmReq) (r *FindingsPostFindingsReviewConfirmOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

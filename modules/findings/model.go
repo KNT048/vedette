@@ -424,13 +424,16 @@ type Question struct {
 
 // QuestionDetail is the JSON of fnd_question.detail, for display.
 type QuestionDetail struct {
-	Software   string   `json:"software,omitempty"`    // the software line's name as the device page shows it
-	Version    string   `json:"version,omitempty"`     // the version read, when there is one
-	Source     string   `json:"source,omitempty"`      // who read it
-	Reason     string   `json:"reason,omitempty"`      // the matcher's reason (UncheckedReason)
-	NVDPending bool     `json:"nvd_pending,omitempty"` // no range data while NVD has not answered yet
-	Choice     string   `json:"choice,omitempty"`      // a package release a person gave that is no release of the distribution
-	CVEList    []string `json:"cve_list,omitempty"`    // version_needed: the CVEs that wait, worst first; older_line: the CVEs, by id
+	Software   string `json:"software,omitempty"`    // the software line's name as the device page shows it
+	Version    string `json:"version,omitempty"`     // the version read, when there is one
+	Source     string `json:"source,omitempty"`      // who read it
+	Reason     string `json:"reason,omitempty"`      // the matcher's reason (UncheckedReason)
+	NVDPending bool   `json:"nvd_pending,omitempty"` // no range data while NVD has not answered yet
+	// Review: an older AI reading of the line keeps its finding open while a newer one says not affected; the question waits only in
+	// Review AI answers (P-12), never in Needs your input or the possible list, until a person confirms it.
+	Review  bool     `json:"review,omitempty"`
+	Choice  string   `json:"choice,omitempty"`   // a package release a person gave that is no release of the distribution
+	CVEList []string `json:"cve_list,omitempty"` // version_needed: the CVEs that wait, worst first; older_line: the CVEs, by id
 	// Listed: no_range_data, the CVE lists versions of the software, just none that decides this one (Unchecked.Listed)
 	Listed bool     `json:"listed,omitempty"`
 	Line   string   `json:"line,omitempty"`  // older_line: the device's release line ("7.2.1")

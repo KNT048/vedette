@@ -475,10 +475,14 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	unaffected, err := a.st.UnlistedUnaffected(ctx, ids) // the vendor's own word on the versions its record does not list
+	if err != nil {
+		return nil, err
+	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
-			DistroLoading: loading, DistroOn: on, Stamp: stamps[v.CVE]}
+			DistroLoading: loading, DistroOn: on, Stamp: stamps[v.CVE], UnlistedUnaffected: unaffected[v.CVE]}
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
@@ -556,13 +560,15 @@ func (a findingsFeeds) withLines(ctx context.Context, vulns []findings.Vuln) err
 		cves[i], at[v.CVE] = v.CVE, i
 		vulns[i].Lines, vulns[i].LineCovers, vulns[i].LineSupport = nil, nil, nil // a copy of a cached entry shares its slices
 	}
-	rows, covers, support, err := a.st.LineData(ctx, cves, time.Now())
+	now := time.Now()
+	rows, covers, support, err := a.st.LineData(ctx, cves, now)
 	if err != nil {
 		return err
 	}
 	sup := map[string][]findings.LineSupport{}
 	for _, l := range support {
-		sup[l.Product] = append(sup[l.Product], findings.LineSupport{Source: l.Source, Product: l.Product, Line: l.Line, Released: l.Released, AssessedUntil: l.AssessedUntil})
+		sup[l.Product] = append(sup[l.Product], findings.LineSupport{Source: l.Source, Product: l.Product, Line: l.Line, Released: l.Released, AssessedUntil: l.AssessedUntil,
+			Ended: !l.AssessedUntil.IsZero() && !l.AssessedUntil.After(now)})
 	}
 	for _, c := range covers {
 		i := at[c.CVE]
@@ -656,6 +662,10 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	if err != nil {
 		return nil, err
 	}
+	unaffected, err := a.st.UnlistedUnaffected(ctx, cves) // the vendor's own word on the versions its record does not list
+	if err != nil {
+		return nil, err
+	}
 	distro, err := a.st.DistroFixesFor(ctx, cves)
 	if err != nil {
 		return nil, err
@@ -675,7 +685,8 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		if len(rows) == 0 && !inCatalogue {
 			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
 		}
-		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows), Stamp: stamps[cve]}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows), Stamp: stamps[cve],
+			UnlistedUnaffected: unaffected[cve]}
 		complete := true
 		for _, r := range rows {
 			// the list is complete when its author's every row says what is not listed (the CNA's, as an exploited-list entry reads
@@ -979,6 +990,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	// a check of possible findings reads a CVE's references and asks the AI through this door (findings imports neither)
 	d.Findings.SetChecker(possibleChecker{feeds: fs.Store(), ai: d.AI, reg: d.Reg})
+	d.AI.OnSettingsChanged(d.Findings.ResumeResearch) // a raised budget or the research turned on goes on at once
 	// software no standard data names is identified by the AI among the catalogue's products through this door (aiidentity.go)
 	ident := softwareIdentifier{feeds: fs.Store(), ai: d.AI, inv: inv}
 	if d.Auth != nil {

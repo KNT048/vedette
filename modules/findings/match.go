@@ -213,6 +213,10 @@ type Vuln struct {
 	Lines       []LineRow
 	LineCovers  []LineCover
 	LineSupport []LineSupport
+	// UnlistedUnaffected are the products whose own CNA states in the CVE record that every version it does not list is unaffected
+	// (CVE JSON 5 defaultStatus, feeds UnlistedUnaffected), as CPE names: a release line the rows do not list is then decided by the
+	// vendor's word, not left undecided (unlistedLine).
+	UnlistedUnaffected []string
 	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom): NVD's when NVD has any, the CVE record's
 	// rows read beside them marked (Affected.AffectedOnly, VendorList); the finding stores it (range_origin), RangeCNA when the record's
 	// rows beside NVD's are what call it affected (recordDecided).
@@ -397,6 +401,9 @@ type Match struct {
 	// upstreamJudges for data of fixed releases only): the version compared is the upstream one, never the package release
 	upstream bool
 	every    bool // NVD lists every version of the product as affected: the version cannot change it (#803)
+	// lineUnlisted: a "no proof" whose version is on a release line the rows do not speak for (unlistedLine): undecided, asked about
+	// with ranges_start_at_branch_only, never a finding and never closed on it.
+	lineUnlisted bool
 	// agreed: the verdict rests on every reading of the record giving it (everyReading); the sentence names them. "" otherwise.
 	agreed string
 	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
@@ -431,6 +438,9 @@ type Match struct {
 	// Lines are the matches of the same entry on the device's other software lines (another ID than SoftwareID) that stand on their
 	// own (version evidence, or a CVE a safe check reads), the best match of each line: a CVE on Java 8 and Java 21 is two findings.
 	Lines []Match
+	// gate: on a "not affected" or "ruled out", what the closing gate reads from the step that decided it (gateshadow.go); recorded
+	// beside the outcome, never read to decide it.
+	gate *gateShadow
 }
 
 // otherLines is Match.Lines of best: of the other matches of the entry, the best one of each other software line that would stand
@@ -697,6 +707,8 @@ type devMatch struct {
 	reads     []*entryRead  // per entry, its reading of the rows; nil until asked
 	// own is, per row the AI identified (Software.AIProduct), the row read by its own names alone; nil for every other row.
 	own []*ownRow
+	// shadow: its rows record the closing gate's shadow (shadowGate).
+	shadow bool
 }
 
 // ownRow is a row the AI identified as its own names alone read it: its reading, its KEV keys and the entries NVD's list may name it in.
@@ -810,8 +822,21 @@ func (d *devMatch) read(vi int) *entryRead {
 				info, nm = d.own[i].info, d.own[i].named[vi]
 			}
 		}
+		if out == outNone && !v.listed() && info.pkgBuilt() && distroSilence(info, v) == DistroNoFixYet {
+			// the distribution's "affected, no fix yet" on its package: no other installation's proof closes the line (unspoken)
+			e.unproved = true
+		}
+		if m.lineUnlisted { // no outcome: asked about only on a line no other reading decides (unspoken), as a row askRow lists
+			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
+				u := uncheckedOf(s, v, r)
+				u.lineUnlisted = true
+				u.at = i + 1
+				asks = append(asks, u)
+			}
+			continue
+		}
 		if out != outNone {
-			e.outs = append(e.outs, rowOut{row: i, out: out})
+			e.outs = append(e.outs, rowOut{row: i, out: out, gate: m.gate})
 		}
 		if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
 			// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
@@ -834,6 +859,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			} else if r, silence, ok := askRow(a, s, info, v, keyed, nm); ok && out == outNone {
 				u := uncheckedOf(s, v, r)
 				u.silence = silence
+				u.at = i + 1
 				asks = append(asks, u)
 			}
 		}
@@ -887,33 +913,87 @@ func (d *devMatch) read(vi int) *entryRead {
 	return e
 }
 
-// unspoken is the rows of asks (askRow's) on a line no other row of it has a word on for v: an outcome (a finding, a proof, a version
-// or a person's answer it needs, a question), a row already listed as unchecked, or its distribution's "affected, no fix yet". A line
-// holds several rows (its readings); one that is decided or asked about is not asked about again for another of its rows.
+// unspoken is the rows of asks (askRow's, and readings on a release line the record does not list) whose installation no row of their
+// line has a word on for v: an outcome (a finding, a proof, a version or a person's answer it needs, a question). A row already listed
+// as unchecked keeps its line asked about, and a distribution's "affected, no fix yet" on any of its packages decides the line. A line holds several readings: two readings of
+// one installation share their evidence, so one decided or asked about is not asked about again for the other; another installation of
+// the line (a distribution's package beside a third-party build of another release) is decided on its own evidence, so it is asked
+// about, one question per line, and the line's proof does not close it (unproved).
 func (d *devMatch) unspoken(asks []Unchecked, e *entryRead, v Vuln) []Unchecked {
-	spoken, asked := map[string]bool{}, map[string]bool{}
+	words := map[string][]int{} // line -> its rows that have a word on v; -1: a word about the whole line
+	asked := map[string]bool{}
 	for _, u := range asks {
 		asked[storedLine(u.SoftwareID)] = true
 	}
 	for _, o := range e.outs {
-		spoken[storedLine(d.sws[o.row].ID)] = true
+		words[storedLine(d.sws[o.row].ID)] = append(words[storedLine(d.sws[o.row].ID)], o.row)
 	}
 	for _, u := range e.unchecked {
-		spoken[storedLine(u.SoftwareID)] = true
+		words[storedLine(u.SoftwareID)] = append(words[storedLine(u.SoftwareID)], -1)
 	}
 	for i, s := range d.sws {
 		if in := d.infos[i]; asked[storedLine(s.ID)] && in.pkgBuilt() && distroSilence(in, v) == DistroNoFixYet {
-			spoken[storedLine(s.ID)] = true
+			// affected evidence about one installation decides the line, as a finding does: nothing more to ask
+			words[storedLine(s.ID)] = append(words[storedLine(s.ID)], -1)
 		}
 	}
 	var out []Unchecked
+	done := map[string]bool{}
 	for _, u := range asks {
-		if line := storedLine(u.SoftwareID); !spoken[line] {
-			spoken[line] = true // one question per line
-			out = append(out, u)
+		line := storedLine(u.SoftwareID)
+		spoken := slices.ContainsFunc(words[line], func(r int) bool { return r < 0 || u.at == 0 || d.sameInstallation(r, u.at-1) })
+		if done[line] || spoken {
+			continue
 		}
+		done[line] = true // one question per line
+		if len(words[line]) > 0 {
+			e.unproved = true // another installation's proof is not this one's
+		}
+		out = append(out, u)
 	}
 	return out
+}
+
+// vagueOf says version vague names fewer release numbers than precise and every one of them is precise's ("8.3" of "8.3.6", whatever
+// follows the numbers: "8.3+93ubuntu2"): it names the train precise is a release of, not another release.
+func vagueOf(vague, precise string) bool {
+	v, okV := parseVersion(vague)
+	p, okP := parseVersion(precise)
+	return okV && okP && len(v.rel) > 0 && len(v.rel) < len(p.rel) && slices.Equal(v.rel, p.rel[:len(v.rel)])
+}
+
+// sameInstallation says rows i and j of the device's readings are one installation of their line: the same upstream version (or one of
+// them gives none; a version given that does not read is the same only as the same text) and, when both name a source package, the same one or the same package release (two packages one upload of the
+// release builds: "5.1-2ubuntu0.4" of the product and of its extras). Two readings of the device's package database where one version
+// is a less precise prefix of the other ("8.3" of a package that names only the release train, "8.3.6" of the package that installs it)
+// are one installation too: the precise reading's evidence decides it. Two releases of a product installed side by side, or the
+// distribution's package beside a build of another release, are two installations, each decided on its own evidence.
+func (d *devMatch) sameInstallation(i, j int) bool {
+	if i == j {
+		return true
+	}
+	a, b := d.infos[i], d.infos[j]
+	// none: the reading gives no version at all; a version that does not read ("20230101.git1a2b3c") or reads as a placeholder on a
+	// package with its own release ("0.0~git20230101") still names one installation, the same only as the same text
+	none := func(k int, ver string) bool {
+		return !versionGiven(ver) && strings.TrimSpace(d.sws[k].PkgVersion) == ""
+	}
+	unread := func(k int, ver string) bool { return !versionKnown(ver) && !none(k, ver) }
+	switch {
+	case unread(i, a.ver) || unread(j, b.ver):
+		if strings.TrimSpace(a.ver) != strings.TrimSpace(b.ver) {
+			return false
+		}
+	case none(i, a.ver) || none(j, b.ver):
+		return true
+	default:
+		if c, ok := compareBound(a.ver, b.ver); !ok || c != 0 {
+			return d.sws[i].Packaged && d.sws[j].Packaged && (vagueOf(a.ver, b.ver) || vagueOf(b.ver, a.ver))
+		}
+	}
+	pa, pb := strings.TrimSpace(d.sws[i].PkgSource), strings.TrimSpace(d.sws[j].PkgSource)
+	ra, rb := strings.TrimSpace(d.sws[i].PkgVersion), strings.TrimSpace(d.sws[j].PkgVersion)
+	return pa == "" || pb == "" || pa == pb || ra != "" && ra == rb
 }
 
 // aiGuard is row i's reading of entry vi (and whether the AI's choice made it) when the AI chose the row's product (Software.AIProduct), from its reading m, out with that
@@ -930,7 +1010,7 @@ func (d *devMatch) aiGuard(i, vi int, ek entryKey, key []identity, m Match, out 
 		key = keyIDs(v)
 	}
 	m0, out0 := matchOne(d.a, s, r.info, v, keyed, key, r.named[vi], d.now)
-	if out == outMatch && versionBacked(m) && out0 != outNotAffected && (out0 != outMatch || !versionBacked(m0)) {
+	if out == outMatch && versionBacked(m) && out0 != outNotAffected && !m0.lineUnlisted && (out0 != outMatch || !versionBacked(m0)) {
 		if !d.aiNumbering(i) {
 			return m0, out0, false, true
 		}
@@ -1344,10 +1424,13 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
-	if out == outNotAffected && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
+	if (out == outNotAffected || out == outRuledOut && m.lineUnlisted) && m.agreed == "" && !nvdNames(in, v, false) && !schemeNames(a, s, in, v) && !lineJudge(a, s, in, v).decides() {
 		if _, ok := distroVerdict(in, v); !ok {
 			return Match{}, outNone // reached only by a record row that says "affected" alone: its "outside" proves nothing
 		}
+	}
+	if out == outRuledOut && m.lineUnlisted { // no proof and no finding: the row is asked about (uncheckedRow)
+		return Match{lineUnlisted: true}, outNone
 	}
 	if out == outNotAffected || (out == outMatch || out == outQuestion) && m.bounded {
 		return m, out
@@ -1591,7 +1674,7 @@ func keyIDs(v Vuln) []identity {
 func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time) (Match, outcome) {
 	if named, out := otherSeries(a.Model, v); out { // CISA names other Juniper series than the device's model; no proof about the version
 		note := fmt.Sprintf("%s lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.listName(), v.CVE, orList(named), clean(a.Model))
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, gate: shadowStop(in, prodOtherSeries)}, outRuledOut
 	}
 	if d, ok := distroVerdict(in, v); ok { // The distribution's own word on its package comes before NVD's upstream ranges
 		return distroMatch(a, s, in, v, d, now)
@@ -1634,6 +1717,10 @@ func awaitingDistro(a Asset, s Software, in swInfo, v Vuln, m Match, out outcome
 		return m, out
 	case outNotAffected:
 		return Match{}, outNone
+	case outRuledOut:
+		if m.lineUnlisted { // NVD's upstream range would have proved nothing here either: only the distribution may close it
+			return Match{}, outNone
+		}
 	}
 	return m, out
 }
@@ -1669,16 +1756,17 @@ func triagedAffected(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Mat
 func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time) (Match, outcome) {
 	if why, out := platformRuledOut(in, v.CVE); out { // The platform it runs on is not one the CVE affects; after the distribution's own word, which may contradict the hand list
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why, gate: shadowStop(in, prodPlatformList)}, outNotAffected
 	}
 	ps := platformCheck(a, s, in, v.CVE, v.Distro, v.DistroLoading) // what a platform-limited CVE still needs on this row
 	if ps.fixed {
 		note := "Not affected: " + ps.note + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true, provedOn: strings.TrimSpace(s.PkgVersion)}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: ps.note, pkgFixed: true, provedOn: strings.TrimSpace(s.PkgVersion), gate: shadowPlatformFixed(v, in)}, outNotAffected
 	}
 	if why, out := edgeLegacyOnly(s, in, v); out { // An Edge Legacy (EdgeHTML) CVE on the Chromium-based Edge
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now},
+			gate: shadowIdentity(in, prodEdgeLegacy)}, outNotAffected
 	}
 	multi := isMultiProduct(v.Product)
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // A Windows release row by its monthly update
@@ -1686,12 +1774,14 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	pinned := ""     // #939: the version is inside whatever the edition or target the row does not state
 	vendorNote := "" // the proof note of the vendor's rows (schemeJudge)
 	schemed := false
-	var lined lineRead // a vendor's release-line statement decided (M-13)
+	var lined lineRead      // a vendor's release-line statement decided (M-13)
+	var schemeRd schemeRead // the vendor's rows read in its scheme decided (schemeJudge)
 	if lr := lineJudge(a, s, in, v); !isWin && ps.ask == askNone && !ps.below && lr.decides() {
 		tri, within, vendorNote = lineDecision(s, v, lr)
 		proof, schemed, lined = proofRange, true, lr
 	} else if !isWin {
 		if r, ok := schemeJudge(a, s, in, v); ok { // the vendor's own rows, read in the product's version scheme, decide first
+			schemeRd = r
 			tri, within, vendorNote = schemeDecision(a, v, r)
 			proof, schemed = proofRange, true
 		} else {
@@ -1721,16 +1811,20 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	if tri == No && lostRow(in, v, key) { // the record reader dropped a statement about the product: nothing proves it is not affected
 		tri, proof, agreed, schemed = Unknown, proofNone, "", false
 	}
+	unlisted := false // a record that lists only later release lines says nothing about the version's own (unlistedLine)
+	if tri == No && proof == proofRange && !schemed && !isWin && agreed == "" && unlistedLine(in, v, key) {
+		proof, unlisted = proofNone, true
+	}
 	switch {
 	case tri == No && schemed:
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
-			provedOn: strings.TrimSpace(in.ver)}, outNotAffected
+			provedOn: strings.TrimSpace(in.ver), gate: shadowSchemed(v, in, lined, schemeRd)}, outNotAffected
 	case tri == No && proof == proofNone:
 		if multi && listsOthersOnly(in, v) { // No proof (NVD's list can lag the advisory); the person reads why
 			note := fmt.Sprintf("NVD lists %s for %s, not %s; check the vendor advisory and close it if it does not apply.", nvdProducts(v.Vendor, v.Affected), v.CVE, clean(s.Display))
-			return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
+			return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, gate: shadowStop(in, prodOthersOnly)}, outRuledOut
 		}
-		return Match{}, outRuledOut
+		return Match{lineUnlisted: unlisted, gate: shadowStop(in, prodRuledOutNoProof)}, outRuledOut
 	case tri == No:
 		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range %s lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.rangesBy(false), v.CVE)
 		switch {
@@ -1750,7 +1844,8 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		if agreed != "" {
 			note = "Not affected: " + agreed + ". Vedette closed this by itself and reopens it if a later match says the device is affected."
 		}
-		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed}
+		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed,
+			gate: shadowRanges(in, v, key, proof, w.via != "", agreed != "")}
 		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
 			m.provedOn = strings.TrimSpace(in.ver)
 		}
@@ -1979,6 +2074,9 @@ type swInfo struct {
 	personPkg string
 	// install: the build attributes the box derives for the row (installOf: edition, platform, architecture); zero when not derived.
 	install installAttrs
+	// shadow: the closing steps record what the closing gate would read from them (Match.gate, Service.ShadowGate); off by default,
+	// and then they build nothing.
+	shadow bool
 }
 
 // pkgBuilt says the row is a distribution's package: an agent read it from the package database (packaged), or a person gave a

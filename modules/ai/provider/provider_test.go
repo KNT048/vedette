@@ -368,7 +368,7 @@ func TestStopReasons(t *testing.T) {
 		}
 		return r.Stop
 	}
-	if a("end_turn") != StopEnd || a("stop_sequence") != StopEnd || a("max_tokens") != StopMaxTokens || a("pause_turn") != StopOther {
+	if a("end_turn") != StopEnd || a("stop_sequence") != StopEnd || a("max_tokens") != StopMaxTokens || a("pause_turn") != StopPause || a("model_context_window_exceeded") != StopOther {
 		t.Fatal("anthropic stop reasons")
 	}
 	o := func(s string) StopReason {

@@ -828,6 +828,7 @@
       "setUp": "Set up the AI assistant",
       "started": "Checking in the background. You can leave this page.",
       "running": "Checking: {{done}} of {{total}}",
+      "lines": "{{done}} of {{total}} release lines answered",
       "last": "Last check ({{date}}, {{by}}): {{advisory}} decided from vendor advisories, {{proposals}} AI proposals, {{undecided}} still undecided.",
       "failed": "{{failed}} could not be checked and will be asked again next time.",
       "stopped": "Stopped early: {{why}}",

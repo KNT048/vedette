@@ -321,16 +321,22 @@ func (s *Service) checkedDetections(ctx context.Context, tx *sql.Tx, a Asset, li
 				continue // a finding now, no longer a question
 			}
 		}
-		// the AI's reading of the vendor's statement for the line: affected opens the finding (a person can reject the reading)
-		if r, ok := readings[q.CheckKey]; ok && r.applied != nil && q.Detail.Check != nil && (!c.Settled() || c.Stale) &&
-			r.applied.verdictFor(*q.Detail.Check) == VerdictAffected {
-			if d, ok := lineDetection(a, lines, q.SoftwareID, v, RangeAIRead, Evidence{Summary: aiReadNote(q, *r.applied), CheckedAt: now}); ok {
-				d.Fix = r.applied.fix(*q.Detail.Check) // the fix the quote names, never one the AI only proposed
-				dets[k] = d
-				if r.due(*q.Detail.Check, now) {
-					s.noteReadingDue(q) // the finding stands on it until a new reading replaces it
+		// the AI's reading of the vendor's statement for the line, decided in one place (lineOutcome): affected opens the finding (a person
+		// can reject the reading); a newer reading that no longer calls it affected leaves the finding on the older one while the question
+		// waits for a person in Review AI answers (P-12)
+		if r, ok := readings[q.CheckKey]; ok && q.Detail.Check != nil && (!c.Settled() || c.Stale) {
+			if by, review := lineOutcome(r, *q.Detail.Check); by != nil {
+				if d, ok := lineDetection(a, lines, q.SoftwareID, v, RangeAIRead, Evidence{Summary: aiReadNote(q, *by), CheckedAt: now}); ok {
+					d.Fix = by.fix(*q.Detail.Check) // the fix the quote names, never one the AI only proposed
+					dets[k] = d
+					if review {
+						q.Detail.Review = true
+						keep = append(keep, q)
+					} else if r.due(*q.Detail.Check, now) {
+						s.noteReadingDue(q) // the finding stands on it until a new reading replaces it
+					}
+					continue
 				}
-				continue
 			}
 		}
 		keep = append(keep, q)

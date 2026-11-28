@@ -28677,6 +28677,173 @@ func (s *Server) handleFindingsGetFindingsPossibleCheckRequest(args [0]string, a
 	}
 }
 
+// handleFindingsGetFindingsReviewRequest handles findings_get_findings_review operation.
+//
+// Review AI answers: the AI's "not affected" answers for possible CVEs, which never close anything by
+// themselves and wait for a person (ignored devices left out), exploited first, with how the AI
+// researched each.
+//
+// GET /findings/review
+func (s *Server) handleFindingsGetFindingsReviewRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FindingsGetFindingsReviewOperation,
+			ID:   "findings_get_findings_review",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, FindingsGetFindingsReviewOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeFindingsGetFindingsReviewParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *FindingsGetFindingsReviewOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FindingsGetFindingsReviewOperation,
+			OperationSummary: "Review AI answers: the AI's \"not affected\" answers for possible CVEs, which never close anything by themselves and wait for a person (ignored devices left out), exploited first, with how the AI researched each",
+			OperationID:      "findings_get_findings_review",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "device",
+					In:   "query",
+				}: params.Device,
+				{
+					Name: "software",
+					In:   "query",
+				}: params.Software,
+				{
+					Name: "confidence",
+					In:   "query",
+				}: params.Confidence,
+				{
+					Name: "evidence",
+					In:   "query",
+				}: params.Evidence,
+				{
+					Name: "offset",
+					In:   "query",
+				}: params.Offset,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = FindingsGetFindingsReviewParams
+			Response = *FindingsGetFindingsReviewOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackFindingsGetFindingsReviewParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FindingsGetFindingsReview(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FindingsGetFindingsReview(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeFindingsGetFindingsReviewResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleFindingsPostFindingsHandleRequest handles findings_post_findings_handle operation.
 //
 // Mark findings of one device as handled, with one note: by ids (at most 500) or every open finding of
@@ -29736,10 +29903,10 @@ func (s *Server) handleFindingsPostFindingsIDVerifyRequest(args [1]string, argsE
 
 // handleFindingsPostFindingsPossibleCheckRequest handles findings_post_findings_possible_check operation.
 //
-// Check possible findings (of one device, or all): in the background, each possible CVE with no check
-// yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages
-// itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are
-// proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit
+// Check possible findings (of one device, or all): queued in front of the research worker, which
+// checks them at once beside what is due, each possible CVE with no check yet (at most 40 evidence
+// identities), once per evidence: the box reads the CVE's reference pages itself and decides when the
+// vendor's ranges do; only the rest goes to the AI. 409 ai_unavailable, nothing_to_check. Audit
 // findings.possible_checked.
 //
 // POST /findings/possible/check
@@ -29824,7 +29991,7 @@ func (s *Server) handleFindingsPostFindingsPossibleCheckRequest(args [0]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsPossibleCheckOperation,
-			OperationSummary: "Check possible findings (of one device, or all): in the background, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages itself and decides when the vendor's ranges do; only the rest goes to the AI, whose verdicts are proposals a person confirms. 409 ai_unavailable, check_running, nothing_to_check. Audit findings.possible_checked",
+			OperationSummary: "Check possible findings (of one device, or all): queued in front of the research worker, which checks them at once beside what is due, each possible CVE with no check yet (at most 40 evidence identities), once per evidence: the box reads the CVE's reference pages itself and decides when the vendor's ranges do; only the rest goes to the AI. 409 ai_unavailable, nothing_to_check. Audit findings.possible_checked",
 			OperationID:      "findings_post_findings_possible_check",
 			Body:             request,
 			RawBody:          rawBody,
@@ -30301,6 +30468,151 @@ func (s *Server) handleFindingsPostFindingsPossibleIDConfirmRequest(args [1]stri
 	}
 
 	if err := encodeFindingsPostFindingsPossibleIDConfirmResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleFindingsPostFindingsPossibleIDResearchRequest handles findings_post_findings_possible_id_research operation.
+//
+// Research deeper: the customer's AI researches the release line of this possible CVE again now with
+// its strong profile (the research job's second profile; the first when there is none), queued in
+// front of the research worker (never twice for a line queued or being researched); the answer
+// replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money.
+// 409 ai_unavailable; 404 not_found when the CVE cannot be researched.
+//
+// POST /findings/possible/{id}/research
+func (s *Server) handleFindingsPostFindingsPossibleIDResearchRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FindingsPostFindingsPossibleIDResearchOperation,
+			ID:   "findings_post_findings_possible_id_research",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, FindingsPostFindingsPossibleIDResearchOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeFindingsPostFindingsPossibleIDResearchParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *FindingsPostFindingsPossibleIDResearchOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FindingsPostFindingsPossibleIDResearchOperation,
+			OperationSummary: "Research deeper: the customer's AI researches the release line of this possible CVE again now with its strong profile (the research job's second profile; the first when there is none), queued in front of the research worker (never twice for a line queued or being researched); the answer replaces the line's reading. Costs tokens (GET /ai/config research_estimates.thorough), never money. 409 ai_unavailable; 404 not_found when the CVE cannot be researched",
+			OperationID:      "findings_post_findings_possible_id_research",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = FindingsPostFindingsPossibleIDResearchParams
+			Response = *FindingsPostFindingsPossibleIDResearchOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackFindingsPostFindingsPossibleIDResearchParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FindingsPostFindingsPossibleIDResearch(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FindingsPostFindingsPossibleIDResearch(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeFindingsPostFindingsPossibleIDResearchResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -30891,6 +31203,150 @@ func (s *Server) handleFindingsPostFindingsQuestionsIgnoreRequest(args [0]string
 	}
 
 	if err := encodeFindingsPostFindingsQuestionsIgnoreResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleFindingsPostFindingsReviewConfirmRequest handles findings_post_findings_review_confirm operation.
+//
+// Confirm AI "not affected" answers at once, at most 500, in one transaction: each question is
+// answered not affected (Handled, reopenable). A row whose CVE is exploited is confirmed only when
+// include_exploited names its CVE; an exploited list that cannot be read confirms nothing. Audit
+// findings.proposal_confirmed.
+//
+// POST /findings/review/confirm
+func (s *Server) handleFindingsPostFindingsReviewConfirmRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FindingsPostFindingsReviewConfirmOperation,
+			ID:   "findings_post_findings_review_confirm",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, FindingsPostFindingsReviewConfirmOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeFindingsPostFindingsReviewConfirmRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *FindingsPostFindingsReviewConfirmOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FindingsPostFindingsReviewConfirmOperation,
+			OperationSummary: "Confirm AI \"not affected\" answers at once, at most 500, in one transaction: each question is answered not affected (Handled, reopenable). A row whose CVE is exploited is confirmed only when include_exploited names its CVE; an exploited list that cannot be read confirms nothing. Audit findings.proposal_confirmed",
+			OperationID:      "findings_post_findings_review_confirm",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *FindingsPostFindingsReviewConfirmReq
+			Params   = struct{}
+			Response = *FindingsPostFindingsReviewConfirmOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FindingsPostFindingsReviewConfirm(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FindingsPostFindingsReviewConfirm(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeFindingsPostFindingsReviewConfirmResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

@@ -27,6 +27,7 @@ const (
 	toolBox     toolClass = "box"      // reads the box's own data; nothing leaves the box
 	toolConnLAN toolClass = "conn-lan" // sends its arguments to a connection inside the network (a literal private address)
 	toolConnOut toolClass = "conn-out" // sends them to a connection outside the network: only one an administrator allowed for Ask
+	toolPage    toolClass = "page"     // the box fetches the public HTTPS page the model names (GET, no cookies, public hosts only)
 )
 
 // power is the row of one job.
@@ -70,6 +71,14 @@ var jobPowers = map[Job]power{
 	JobTranslateAdvisory: {writes: "a translation shown as text", egress: "none"},
 	JobResponsePlan: {writes: "a plan whose actions response turns into approval requests a person decides, never run by the AI",
 		egress: "none"},
+	JobResearchCVEs: {
+		classes:  []toolClass{toolPage},
+		boxTools: []string{"fetch_page"},
+		writes: "a reading of the line that findings keeps only as far as the box checks it: its quote looked up in what the research read, " +
+			"its basis decided by the box, its address only a page the research read; affected opens a finding a person can reject, not " +
+			"affected waits for a person in the review queue",
+		egress: "public HTTPS pages the model names, fetched by the box (or the provider's own web tools on a profile that has them)",
+	},
 }
 
 // permits says whether the job may call a tool of this class and name.
@@ -77,7 +86,7 @@ func (p power) permits(class toolClass, name string) bool {
 	if !slices.Contains(p.classes, class) {
 		return false
 	}
-	return class != toolBox || slices.Contains(p.boxTools, name)
+	return class != toolBox && class != toolPage || slices.Contains(p.boxTools, name)
 }
 
 // ---- connections outside the network in Ask

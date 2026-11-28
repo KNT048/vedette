@@ -42,7 +42,9 @@ func storedLine(id string) string {
 //   - every finding of the device that was detected until now, whose CVE is in vulns and that this match no longer detects, goes
 //     away the way the data says (goneVia): a safe check's proof or a person's confirmation holds against data alone (Transition);
 //   - the device's questions become those of qm (the match of the whole list).
-func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any)) (UpsertResult, error) {
+//
+// shadow: m is a match that recorded the closing gate's shadow; each finding it closes as gone then records the gate's answer too.
+func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any), shadow bool) (UpsertResult, error) {
 	var res UpsertResult
 	byKey := make(map[string]Finding, len(existing))
 	for _, f := range existing {
@@ -175,6 +177,10 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		}
 		if slices.ContainsFunc(evs, func(e Event) bool { return e.Kind == EvHandled }) {
 			res.Closed++
+			if shadow { // the closing gate's answer in shadow: recorded, never read here
+				p, hasProof := proofs[lineKey(f.CVE, f.SoftwareID)]
+				s.covers.recordGone(gateGoneOf(a, lines, vulns, f, via, via == ViaDataCorrected && corrected && by != "", p, hasProof))
+			}
 		}
 	}
 	if err := replaceQuestions(ctx, tx, a.ID, qs, now); err != nil {
@@ -541,7 +547,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	} else {
 		res.Closed += n
 	}
-	in := passInput{set: newMatchSet(vulns), ok: true}
+	in := passInput{set: newMatchSet(vulns), ok: true, shadow: s.gateShadow.Load()}
 	if s.cfg.HaveSince != nil {
 		if in.since, err = s.cfg.HaveSince(ctx); err != nil {
 			in.ok = false // every device is matched; its write reports the error
@@ -576,7 +582,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	}
 	s.stamps.keepOnly(matched)
 	if len(vulns) > 0 {
-		s.covers.pass(matched, s.now().UTC(), len(outside))
+		s.covers.pass(matched, s.now().UTC(), len(outside), in.shadow)
 		if err := s.storeCoverage(ctx); err != nil { // counts only: the pass's writes stand
 			if ctx.Err() != nil {
 				return res, ctx.Err()
@@ -742,6 +748,9 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, in passInput) (Upser
 	// The device's rows are read once and each entry once: the whole match (its questions: which findings exist does not change them)
 	// and each write's match of its part are assembled from the same readings (devMatch).
 	dm := newDevMatch(a, dev, now)
+	if in.shadow {
+		dm.shadowGate()
+	}
 	whole := dm.result(nil, nil)
 	allBacklog, allRecent := s.judgedParts(set)
 	// Split at the time the parts' judged CVEs were split (judgedParts), not at the device's own time.
@@ -819,16 +828,17 @@ func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]str
 
 // Jobs returns the jobs of the module (core runs one only while the module is on): reconcile runs when the module
 // starts, then every ReconcileEvery, and starts the identification of unidentified software (AutoIdentify) and the automatic reading of
-// possible findings after its pass (AutoRead); urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
+// possible findings after its pass (AutoRead, which wakes the research worker); the research worker (ResearchJob), which runs while
+// the module is on and works through the possible CVEs as they become due; urgency (UrgencyJob) when the module starts, then every UrgencyEvery.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{{Module: "findings", Name: "reconcile", Every: ReconcileEvery, Run: func(ctx context.Context) error {
 		_, err := svc.Reconcile(ctx)
 		svc.AutoIdentify(ctx) // after the match pass: the AI identifies the software it left without a product, in the background
-		svc.AutoRead(ctx)     // after the match pass: the AI reads what the pass left undecided, in the background, within its budget
+		svc.AutoRead(ctx)     // after the match pass: wakes the research worker for what the pass left undecided
 		return err
 	}}, {Module: "findings", Name: UrgencyJob, Every: UrgencyEvery, Run: func(ctx context.Context) error {
 		r, err := svc.RateUrgency(ctx, "")
 		svc.cfg.Log.InfoContext(ctx, "findings: urgency pass done", "rated", r.Rated, "raised", r.Raised, "lowered", r.Lowered, "announced", r.Announced)
 		return err
-	}}}
+	}}, {Module: "findings", Name: ResearchJob, Every: time.Minute, Run: svc.ResearchWorker}}
 }

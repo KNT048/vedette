@@ -204,6 +204,29 @@ func sourceLabel(s string) string {
 	return b.String()
 }
 
+// errHeldBack is a tool result a hook stopped.
+var errHeldBack = errors.New("ai: a hook held the result back")
+
+// WrapPublicToolResult is WrapToolResult for public text the box fetched itself for a call of public text only (a page a research
+// read): cleaned like every untrusted text, then the customer's own hooks (DataBlock.public), then the same per-call markers, kind web.
+// sent is the text as it went between the markers (what a quote is checked against).
+func WrapPublicToolResult(ctx context.Context, h *HookRunner, p Prompt, label, content string) (wrapped, sent string, err error) {
+	if p.Fence == "" {
+		return "", "", errors.New("ai: the prompt has no fence; set PromptInput.WithTools")
+	}
+	res, err := h.runPublic(ctx, cleanUntrusted(content))
+	if err != nil {
+		return "", "", err
+	}
+	if res.Outcome == OutcomeBlocked || res.Outcome == OutcomeHeld {
+		return "", "", errHeldBack
+	}
+	if strings.Contains(res.Text, p.Fence) {
+		return "", "", errors.New("ai: the tool result contains the fence token")
+	}
+	return fmt.Sprintf("<<<DATA-%s kind=%s source=%q>>>\n%s\n<<<END-DATA-%s>>>", p.Fence, SourceWeb, sourceLabel(label), res.Text, p.Fence), res.Text, nil
+}
+
 // WrapToolResult prepares the result of a tool call for the next turn (INV-12, INV-21): the personal-data hook
 // runs on it, as it does on the user's question, and the text that is left goes between the same per-call
 // markers as other untrusted data. If the hook blocks it, the model gets the hook's message instead of the data.

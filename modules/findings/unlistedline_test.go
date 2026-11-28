@@ -52,6 +52,10 @@ func TestUnlistedLine_OlderLineIsNotClosed(t *testing.T) {
 		{"an older line between the ranges of a record of major lines", "28.11.0", []Affected{rng("15.0", "15.42.0"), rng("40.0", "40.17.0"), rng("54.0.0", "57.0.0")}, undecided},
 		{"past the fix of a range spanning major lines, on its end's major line", "53.8.0", []Affected{upTo("15.42.0"), rng("16.0.0", "40.17.0"), rng("41.0.0", "53.4.0"), rng("54.0.0", "57.0.0")}, closed},
 		{"past the fix of a spanning range, on another line than its end's", "7.5.1", []Affected{rng("6.4.0", "7.4.7"), rng("7.6.0", "7.6.2")}, undecided},
+		// a range whose start and end share their line speaks for that line only, whatever line other ranges of the record name
+		{"between two minor lines of its major, beside a range spanning a later major's minor lines", "3.1.10", []Affected{rng("3.0.0", "3.0.5"), rng("3.2.0", "3.2.4"), rng("8.0.0", "8.3.1")}, undecided},
+		// a range with no start reads the line the ranges of the version's own major name, before those of other majors
+		{"past a range with no start ending on another minor line of its major", "3.1.10", []Affected{upTo("3.0.5"), rng("3.2.0", "3.2.4"), rng("8.0.0", "8.3.1")}, undecided},
 		{"a newer line past every fix", "10.0.1", supported, closed},
 		{"the vendor's complete list states every unlisted version", "7.0.5", []Affected{complete(rng("8.0.0", "8.0.21")), complete(rng("9.0.0", "9.0.10"))}, closed},
 		{"a fixed release the record states on its line", "3.1.32", []Affected{lineFix(rng("3.0.0", "3.0.5"), "3.1.0"), rng("8.0.0", "8.0.21")}, closed},

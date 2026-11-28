@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { EmptyState, QueryState, RequireModule } from '@/components/common/State
 import { Chip } from '@/components/common/StatusChip'
 import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Textarea } from '@/components/ui/input'
 import { PageTabs } from '@/components/common/PageFrame'
 import { ApiError } from '@/lib/api'
@@ -21,43 +22,70 @@ import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
 import { knownKind } from './types'
 import { useNewChannel } from './NewChannel'
-import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
+import type { IncidentDetail, SendRecord } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 const link = 'text-accent underline-offset-4 hover:underline'
 
-/** Acknowledge, resolve or reopen; Respond (the response module) is one more way to handle an open incident, so it sits here too. */
-function Handle({ d, respond }: { d: IncidentDetail; respond: boolean }) {
+/** The header's actions on an incident: Respond (the response module) and Acknowledge / Resolve, each of which asks for an optional
+ *  note in a dialog, or Reopen. The state they led to is written in the Summary. */
+function HandleActions({ d, respond }: { d: IncidentDetail; respond: boolean }) {
   const { t } = useTranslation('notify')
   const can = useCan('operator')
   const set = useSetStatus()
-  const [note, setNote] = useState('')
+  const [asking, setAsking] = useState<'acknowledged' | 'resolved' | null>(null)
+  const opener = useRef<HTMLButtonElement | null>(null)
   const a = d.incident
   const need = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  const go = (status: IncidentStatus) => set.mutate({ id: a.id, status, note }, { onSuccess: () => { setNote(''); toast.success(t('detail.updated')) }, onError: (e) => toast.error(errMsg(e)) })
+  const ask = (s: 'acknowledged' | 'resolved') => (e: MouseEvent<HTMLButtonElement>) => { opener.current = e.currentTarget; setAsking(s) }
+  const reopen = () => set.mutate({ id: a.id, status: 'new', note: '' }, { onSuccess: () => toast.success(t('detail.updated')), onError: (e) => toast.error(errMsg(e)) })
+  const reopenButton = <Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'new'} busyLabel={t('detail.reopening')} title={need} onClick={reopen}><RotateCcw />{t('detail.reopen')}</Button>
   return (
-    <Section id="handle" title={t('detail.handleTitle')}
-      actions={respond && a.status !== 'resolved' ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined}>
-      <div className="grid max-w-xl gap-3">
-        {a.status !== 'resolved' ? (
-          <>
-            {a.status === 'acknowledged' ? <p className="text-sm">{t('detail.handledBy', { status: t('incidents.status.acknowledged'), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })} {a.note ? t('detail.noteShown', { note: a.note }) : null}</p> : null}
-            <Field label={t('detail.note')} htmlFor="al-note"><Textarea id="al-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder={t('detail.notePlaceholder')} disabled={!can} /></Field>
-            <div className="flex flex-wrap gap-2">
-              {a.status === 'new' ? <Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'acknowledged'} busyLabel={t('detail.acknowledging')} title={need} onClick={() => go('acknowledged')}>{t('detail.acknowledge')}</Button> : null}
-              <Button variant="primary" disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'resolved'} busyLabel={t('detail.resolving')} title={need} onClick={() => go('resolved')}>{t('detail.resolve')}</Button>
-              {a.status === 'acknowledged' ? <Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'new'} busyLabel={t('detail.reopening')} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button> : null}
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-sm">{a.resolved_reason ? t('detail.closedBy', { reason: a.resolved_reason, time: fmtDateTime(a.handled_at) }) : t('detail.handledBy', { status: t('incidents.status.resolved'), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })} {a.note ? t('detail.noteShown', { note: a.note }) : null}</p>
-            <div><Button disabled={!can || set.isPending} busy={set.isPending && set.variables?.status === 'new'} busyLabel={t('detail.reopening')} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button></div>
-          </>
-        )}
-      </div>
-    </Section>
+    <>
+      {a.status === 'resolved' ? reopenButton : (
+        <>
+          {respond ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : null}
+          {a.status === 'acknowledged' ? reopenButton : null}
+          {a.status === 'new' ? <Button disabled={!can} title={need} onClick={ask('acknowledged')}>{t('detail.acknowledge')}</Button> : null}
+          <Button variant="primary" disabled={!can} title={need} onClick={ask('resolved')}>{t('detail.resolve')}</Button>
+        </>
+      )}
+      <HandleDialog id={a.id} status={asking} onClose={() => setAsking(null)} opener={opener} />
+    </>
   )
+}
+
+/** The note of an acknowledge or a resolve, asked in a dialog: the note is optional, the audit line is always written. */
+function HandleDialog({ id, status, onClose, opener }: { id: string; status: 'acknowledged' | 'resolved' | null; onClose: () => void; opener: RefObject<HTMLButtonElement | null> }) {
+  const { t } = useTranslation('notify')
+  const set = useSetStatus()
+  const [note, setNote] = useState('')
+  const [was, setWas] = useState(status)
+  if (status !== was) { setWas(status); if (status) setNote('') }
+  const go = () => {
+    if (!status) return
+    set.mutate({ id, status, note }, { onSuccess: () => { onClose(); toast.success(t('detail.updated')) }, onError: (e) => toast.error(errMsg(e)) })
+  }
+  return (
+    <Dialog open={status !== null} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent title={status ? t(`detail.dialog.${status}`) : ''} description={t('detail.dialog.description')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
+        <Field label={t('detail.note')} htmlFor="al-note"><Textarea id="al-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder={t('detail.notePlaceholder')} /></Field>
+        <DialogFooter>
+          <Button onClick={onClose}>{t('common:cancel')}</Button>
+          <Button variant="primary" busy={set.isPending} busyLabel={t(status === 'resolved' ? 'detail.resolving' : 'detail.acknowledging')} onClick={go}>{status ? t(status === 'resolved' ? 'detail.resolve' : 'detail.acknowledge') : null}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Who handled the incident and when, with the note: one line of the Summary. */
+function HandledLine({ a }: { a: IncidentDetail['incident'] }) {
+  const { t } = useTranslation('notify')
+  const who = a.status === 'resolved' && a.resolved_reason
+    ? t('detail.closedBy', { reason: a.resolved_reason, time: fmtDateTime(a.handled_at) })
+    : t('detail.handledBy', { status: t(`incidents.status.${a.status}`), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })
+  return <span>{who}{a.note ? ` ${t('detail.noteShown', { note: a.note })}` : ''}</span>
 }
 
 function Content() {
@@ -85,13 +113,14 @@ function Content() {
         ]
         return (
           <>
-            <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']} />
+            <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']} actions={<HandleActions d={d} respond={respond} />} />
             <Section id="summary" title={t('detail.summary')}>
               <Card>
               <KeyValue items={[
                 { label: t('detail.kind'), value: t(kindKey(a)) },
                 { label: t('detail.severity'), value: <SeverityBadge severity={a.severity} /> },
                 { label: t('detail.status'), value: <IncidentStatusChip status={a.status} /> },
+                ...(a.status === 'new' ? [] : [{ label: t('detail.handled'), value: <HandledLine a={a} /> }]),
                 { label: t('detail.devices'), value: <span className="flex flex-wrap gap-x-3">{a.devices.map((x) => <Link key={x.id} to={`/devices/${x.id}`} className={link}>{x.name}</Link>)}</span> },
                 { label: t('detail.firstSeen'), value: fmtDateTime(a.first_seen) },
                 { label: t('detail.lastSeen'), value: fmtDateTime(a.last_seen) },
@@ -114,9 +143,8 @@ function Content() {
             </Section>
             <Section id="log" title={t('detail.logTitle')}>
               {a.not_sent?.reason === 'failed' ? <Notice tone="warn" title={a.not_sent.text} actions={<NotSentFix notSent={a.not_sent} admin={admin} />} /> : null}
-              {a.sends.length ? <DataTable urlKey="incident-sends" caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} /> : <EmptyState title={t('detail.noSendsTitle')} />}
+              {a.sends.length ? <DataTable urlKey="incident-sends" caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} summary={t('history.summary', { count: a.sends.length })} /> : <EmptyState title={t('detail.noSendsTitle')} />}
             </Section>
-            <Handle d={d} respond={respond} />
           </>
         )
       }}

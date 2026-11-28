@@ -26,7 +26,7 @@ describe('Possible findings in By device and By fix', () => {
     // never hidden: the older-build group's count is a link beside it
     expect(within(line as HTMLElement).getByRole('link', { name: `${older} older build` })).toHaveAttribute('href', '#possible')
     const s = await section()
-    expect(await within(s).findByText(new RegExp(`^${n} possible CVEs on \\d+ devices: Vedette cannot decide them`), {}, T)).toBeInTheDocument()
+    expect(await within(s).findByText(new RegExp(`^${n} possible CVEs on \\d+ devices`), {}, T)).toBeInTheDocument()
     // every device row counts its CVEs; together they are the total
     const rows = within(s).getAllByRole('article')
     const sum = rows.reduce((t, a) => t + Number(/^(\d+)/.exec(within(a).getByText(/^\d+ possible CVEs?$/).textContent ?? '')?.[1]), 0)
@@ -138,7 +138,7 @@ describe('Possible findings in By device and By fix', () => {
     renderApp('/findings?tab=device')
     const s = await section()
     // both numbers on the summary line; the causes add up to the main number only
-    expect(await within(s).findByText(new RegExp(`^${c.possible} possible CVEs on \\d+ devices: .+ · 5 reported only for an older build`), {}, T)).toBeInTheDocument()
+    expect(await within(s).findByText(new RegExp(`^${c.possible} possible CVEs on \\d+ devices · 5 reported only for an older build`), {}, T)).toBeInTheDocument()
     expect(Object.values(c.causes).reduce((a, b) => a + b, 0)).toBe(c.possible)
     // not in the main list: the device row counts only its main possible CVEs
     const group = within(s).getByTestId('older-builds')

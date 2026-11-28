@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // A vendor's list of exact affected releases with no range is read as OSV's last_affected: each listed release is the last affected
@@ -97,7 +99,7 @@ func TestMatch_ExactListIsTheLastAffectedReleaseOfItsLine(t *testing.T) {
 		v := Vuln{CVE: "CVE-2099-0201", Name: "flaw", DateAdded: uncNew, Published: uncNew, NVDAnswered: true, Affected: slices.Clone(tc.aff), RangesFrom: tc.from}
 		if tc.exploited {
 			v.Vendor, v.Product = vendor, tc.product
-			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(tc.product)}
+			s.KevKeys = []string{productid.NormKey(vendor, tc.product)}
 		}
 		a := Asset{ID: "pc", Name: "pc.example.com", Software: []Software{s}}
 		in := swInfoOn(s, a)

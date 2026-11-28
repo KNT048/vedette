@@ -51777,7 +51777,7 @@
                                                   "type": "integer",
                                                   "minimum": 0,
                                                   "maximum": 9007199254740991,
-                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                 },
                                                 "fallback": {
                                                   "type": "boolean",
@@ -53125,7 +53125,7 @@
                                                   "type": "integer",
                                                   "minimum": 0,
                                                   "maximum": 9007199254740991,
-                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                 },
                                                 "fallback": {
                                                   "type": "boolean",
@@ -54494,7 +54494,7 @@
                                                   "type": "integer",
                                                   "minimum": 0,
                                                   "maximum": 9007199254740991,
-                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                 },
                                                 "fallback": {
                                                   "type": "boolean",
@@ -55843,7 +55843,7 @@
                                                   "type": "integer",
                                                   "minimum": 0,
                                                   "maximum": 9007199254740991,
-                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                  "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                 },
                                                 "fallback": {
                                                   "type": "boolean",
@@ -56628,7 +56628,7 @@
                                                         "type": "integer",
                                                         "minimum": 0,
                                                         "maximum": 9007199254740991,
-                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                       },
                                                       "fallback": {
                                                         "type": "boolean",
@@ -62201,7 +62201,7 @@
                                                         "type": "integer",
                                                         "minimum": 0,
                                                         "maximum": 9007199254740991,
-                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                       },
                                                       "fallback": {
                                                         "type": "boolean",
@@ -64424,7 +64424,7 @@
                                                         "type": "integer",
                                                         "minimum": 0,
                                                         "maximum": 9007199254740991,
-                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read by an older version is researched again once"
+                                                        "description": "The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once"
                                                       },
                                                       "fallback": {
                                                         "type": "boolean",

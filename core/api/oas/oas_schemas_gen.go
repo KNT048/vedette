@@ -95471,8 +95471,9 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                         `json:"reader"`
 	Steps  []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
@@ -107700,8 +107701,9 @@ type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                `json:"reader"`
 	Steps  []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
@@ -122409,8 +122411,9 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                         `json:"reader"`
 	Steps  []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
@@ -125542,8 +125545,9 @@ type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                       `json:"reader"`
 	Steps  []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
@@ -137238,8 +137242,9 @@ type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                   `json:"reader"`
 	Steps  []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
@@ -141191,8 +141196,9 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                     `json:"reader"`
 	Steps  []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.
@@ -145130,8 +145136,9 @@ type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail struct {
 	Mode string `json:"mode"`
 	// What the research could not do ("" when nothing): escalation needs a second AI profile.
 	Note string `json:"note"`
-	// The research version: 2 reads the box's excerpts first and the web only as a fallback; a line read
-	// by an older version is researched again once.
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
 	Reader int                                                                   `json:"reader"`
 	Steps  []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
 	// The trap of the checklist the AI says it checked.

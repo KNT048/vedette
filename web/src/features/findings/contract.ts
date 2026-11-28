@@ -444,7 +444,7 @@ export const AiResearch = z.object({
     fixed_in: z.string(), trap: z.string().describe('The trap of the checklist the AI says it checked'),
     note: z.string().describe('What the research could not do ("" when nothing): escalation needs a second AI profile'),
     steps: z.array(AiResearchStep),
-    reader: z.number().int().min(0).describe('The research version: 2 reads the box\'s excerpts first and the web only as a fallback; a line read by an older version is researched again once'),
+    reader: z.number().int().min(0).describe('The research version: 2 reads the box\'s excerpts first and the web only as a fallback; 3 also reads http references as https and keeps a record the vendor wrote off the web; a line read by an older version is researched again once'),
     fallback: z.boolean().describe('A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or the answer was unsure and no vendor page was read'),
     fetch: z.object({
       pages: z.number().int().min(0).describe('Reference pages the box read for the research'),

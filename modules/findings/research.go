@@ -136,7 +136,8 @@ type ResearchFetch struct {
 
 // researchReader is the version of the research: a line read by an older one is researched again once (toResearch). 2: the box's
 // excerpts first, the web only as a fallback.
-const researchReader = 2
+// 3: http references read as https, no web for a vendor-written record, the shown name with the version.
+const researchReader = 3
 
 // The quote checks of a research (fnd_line_research.quote_check).
 const (

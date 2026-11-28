@@ -121,7 +121,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
                   <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={needAdmin} aria-label={t('trapIp.switchLabel', { name: d.name })}
                     onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
                   <Button size="sm" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}>{t('common:edit')}</Button>
-                  <Button size="sm" disabled={!admin || del.isPending} busy={del.isPending && del.variables === d.id} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
+                  <Button size="sm" disabled={!admin || del.isPending} busy={del.isPending && del.variables === d.id} busyLabel={t('common:busy.deleting')} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
                     onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
               </>}>
               <TrapIpDetails d={d} />

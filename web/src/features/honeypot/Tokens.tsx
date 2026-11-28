@@ -75,7 +75,7 @@ function Inner({ items }: { items: Token[] }) {
               actions={<>
                   <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === k.id} busyLabel={t('common:busy.testing')} title={operator ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('token.testLabel', { name: k.name })}
                     onClick={() => test.mutate(k.id, { onSuccess: (hit) => testAlertToast(t, t('token.testToast', { name: k.name }), hit), onError: (e) => toast.error(errMsg(e)) })}><FlaskConical />{t('token.test')}</Button>
-                  <Button size="sm" disabled={!admin || del.isPending} busy={del.isPending && del.variables === k.id} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('token.deleteLabel', { name: k.name })}
+                  <Button size="sm" disabled={!admin || del.isPending} busy={del.isPending && del.variables === k.id} busyLabel={t('common:busy.deleting')} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('token.deleteLabel', { name: k.name })}
                     onClick={() => del.mutate(k.id, { onSuccess: () => toast.success(t('token.deleted', { name: k.name })), onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
                 </>}>
               <div className="grid gap-3 md:grid-cols-2">

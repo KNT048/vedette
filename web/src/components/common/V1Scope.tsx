@@ -9,10 +9,11 @@ import { cn } from '@/lib/utils'
 // The Preview badge, and the "not in this release" badge with its one line (detail behind ⓘ, #824). A preview module says so with
 // its badge only: how a release is planned is not the customer's business.
 
-export function ScopeBadge({ scope, className }: { scope: Scope; className?: string }) {
+/** `short`: the narrow form for the sidebar, where the full words would run over the entry's name; the full words stay in `title`. */
+export function ScopeBadge({ scope, className, short }: { scope: Scope; className?: string; short?: boolean }) {
   const { t } = useTranslation()
   if (scope === 'preview') return <Chip tone="accent" className={className}>{t('scope.preview')}</Chip>
-  if (scope === 'leaving') return <Chip tone="warn" className={className}>{t('scope.leaving')}</Chip>
+  if (scope === 'leaving') return <Chip tone="warn" className={className} title={short ? t('scope.leaving') : undefined}>{t(short ? 'scope.leavingShort' : 'scope.leaving')}</Chip>
   return null
 }
 

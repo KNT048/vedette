@@ -72,9 +72,9 @@ function EntryLink({ e, rail, drawer, onNavigate, here = false }: { e: Entry; ra
   }
   return (
     <NavLink to={e.item.to} end={e.item.end} onClick={onNavigate} className={entryClass(false, drawer, here)}>
-      <e.item.icon aria-hidden /><span className="min-w-0">{label}</span>{' '}
-      {counter ?? <ScopeBadge scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-caption" />}
-      {counter && preview ? <ScopeBadge scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 h-5 shrink-0 px-1.5 text-caption" /> : null}
+      <e.item.icon aria-hidden /><span className="shrink-0">{label}</span>{' '}
+      {counter ?? <ScopeBadge short scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-caption" />}
+      {counter && preview ? <ScopeBadge short scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 h-5 shrink-0 px-1.5 text-caption" /> : null}
     </NavLink>
   )
 }

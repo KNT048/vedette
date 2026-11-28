@@ -6,7 +6,7 @@ import { Notice, PageHeader, Section, KeyValue } from '@/components/common/PageH
 import { Card } from '@/components/common/Card'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
-import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
@@ -56,13 +56,14 @@ function HoneypotBody() {
     : o.trap_ips.enabled === 0 ? t('title.noTraps')
     : o.problem ? t('title.failed')
     : o.trap_ips.listening === 0 && o.traps.some((x) => x.state === 'starting') ? t('title.starting')
-    : o.summary.today > 0 ? t('title.today', { count: o.summary.today })
+    // Today's hit count is a figure of the KPI strip under the header: the header says what the traps do, once.
+    : o.summary.today > 0 ? t('meta')
     : o.summary.week > 0 ? t('title.week', { count: o.summary.week, when: fmtRelative(o.summary.last_hit_at), src: o.summary.last_src ?? '' })
     : t('title.quiet')
   return (
     <>
-      <PageHeader title={t('common:shell.honeypot')} stories={['S-HP-1', 'S-HP-2']} info={t('metaInfo')}
-        meta={<span className="flex flex-wrap items-center gap-2">{status}<SampleDataNote />{o ? t('meta', { time: fmtDateTime(o.updated_at) }) : null}</span>} />
+      <PageHeader title={t('common:shell.honeypot')} stories={['S-HP-1', 'S-HP-2']} info={<><p>{t('metaInfo')}</p>{o ? <p>{t('updated', { time: fmtDateTime(o.updated_at) })}</p> : null}</>}
+        meta={status} />
       <QueryState query={overview}>
         {(data) => {
           const lan = data.lan ?? t('lanUnknown')

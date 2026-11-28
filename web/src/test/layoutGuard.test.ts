@@ -15,6 +15,7 @@
 //  - a detail page goes back with breadcrumbs (PageHeader `breadcrumbs`), not a "Back to …" arrow link;
 //  - a page title is the short noun of the page's sidebar entry or settings menu entry ("Findings", "Devices", "Logs", "Updates"), never a
 //    sentence or a count: those go in the header's `meta` line under it (see PAGE_TITLES);
+//  - the "Sample data" label is PageHeader's (right of the header, before the page's actions), never a chip inside a page's `meta`;
 //  - a list with a search says how many rows it holds: every DataTable of the SUMMARY_LISTS files passes `summary` (its count line);
 //  - the pages of an incident, an intrusion alert and a trap hit hold no form of their own: a note is asked in a dialog opened from
 //    the header's actions, and their rows are ListRows, not an <li> with padding of its own (NO_INLINE_FORM);
@@ -122,6 +123,10 @@ function ownCardRows(text: string): number {
 const handRows = (t: string) => count(t, /<li\b[^>]*className="[^"]*(?:\bjustify-between\b|grid-cols-\[[^\]"]*_auto\])/g)
 
 const RULES: Rule[] = [
+  {
+    id: 'sample-label', why: 'the "Sample data" label is drawn by PageHeader, on the right of the header: a page does not place it in its meta or actions',
+    owners: ['components/common/PageHeader.tsx', 'components/common/SampleDataNote.tsx'], hits: (t) => count(t, /<SampleDataNote\b/g),
+  },
   {
     id: 'private-tabs', why: 'tabs are PageTabs (panels) or UnderlineNav (links): components/ui/tabs is private to PageTabs',
     owners: ['components/common/PageFrame.tsx'], hits: (t) => count(t, /from '@\/components\/ui\/tabs'/g),
@@ -266,6 +271,7 @@ const TITLE_EXEMPT: { entry: string; why: string }[] = [
 const SUMMARY_LISTS = [
   'features/notify/IncidentsPage.tsx', 'features/notify/History.tsx', 'features/notify/ChannelsSettings.tsx', 'features/notify/IncidentDetailPage.tsx',
   'features/reports/HistoryTab.tsx', 'features/exposure/BoxIpPanel.tsx', 'features/findings/Possible.tsx', 'features/detection/DetectionPage.tsx',
+  'features/scanning/RunsTab.tsx',
 ]
 
 /** The detail pages that hold no inline form and draw no <li> row of their own. */

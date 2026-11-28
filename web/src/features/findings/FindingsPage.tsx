@@ -7,7 +7,7 @@ import { useSearchParams, Navigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
-import { RequireModule, SampleDataNote } from '@/components/common/States'
+import { RequireModule } from '@/components/common/States'
 import { useOverview } from './api'
 import { ByDevice } from './ByDevice'
 import { ByFix } from './ByFix'
@@ -57,7 +57,6 @@ function Screen() {
         meta={!o ? null : o.open.findings === 0 ? t('titleNone') : t('page.title', { count: o.open.findings })}
         stories={['S-MIT-1', 'S-TIER-1']}
         info={<><p>{t('page.info')}</p><p>{t('page.infoStatus')}</p></>}
-        actions={<SampleDataNote />}
       />
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'device', label: t('tabs.device'), panel: <ByDevice status={status} device={device} onDevice={setDevice} /> },

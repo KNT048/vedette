@@ -375,6 +375,7 @@
   "scope": {
     "preview": "Preview",
     "leaving": "Not in this release",
+    "leavingShort": "Not in release",
     "leavingLine": "This feature is not part of this release. Its settings are kept and shown read-only.",
     "leavingInfo": "This box turned it on before this release left it out. It keeps working as set and its data is kept. You can turn it off; once off it is hidden and cannot be turned on again here. A later release brings it back.",
     "turnOff": "Turn off in Settings, Modules"

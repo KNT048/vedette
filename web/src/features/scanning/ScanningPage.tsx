@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
-import { QueryState, SampleDataNote } from '@/components/common/States'
+import { QueryState } from '@/components/common/States'
 import { CredentialedTab } from '@/features/scan/CredentialedTab'
 import { RescanLog } from '@/features/scan/RescanLog'
 import { ProbesTab } from '@/features/scan/ProbesTab'
@@ -63,12 +63,12 @@ function Page({ d }: { d: Scanning }) {
   const meta = d.running.length ? t('page.metaRunning', { what: runningLabel(t, d.running) }) : next ? t('page.meta', { on, total: d.engines.length, time: fmtDateTime(next) }) : t('page.metaNoNext', { on, total: d.engines.length })
   return (
     <>
-      <PageHeader title={t('common:shell.scanning')} meta={<span className="inline-flex flex-wrap items-center gap-2">{meta}<SampleDataNote /></span>} info={<><p>{t('page.info')}</p><p>{t('page.infoContext')}</p></>} stories={['S-SCAN-1', 'S-SCAN-2', 'S-SCAN-3', 'S-SCAN-4', 'S-INV-1']} />
+      <PageHeader title={t('common:shell.scanning')} meta={meta} info={<><p>{t('page.info')}</p><p>{t('page.infoContext')}</p></>} stories={['S-SCAN-1', 'S-SCAN-2', 'S-SCAN-3', 'S-SCAN-4', 'S-INV-1']} />
       <PageTabs label={t('page.tabs')} tabs={[
         { id: 'engines', label: t('page.tab.engines'), panel: <EnginesTab d={d} /> },
         { id: 'safety', label: t('page.tab.safety'), panel: <SafetyTab s={d.safety} /> },
         // Every run of every engine, vulnerability checks included (core lists them whatever module is on); under it the log of the automatic rescans
-        { id: 'runs', label: t('page.tab.runs'), panel: <><RunsTab /><NucleiOnly><RescanLog /></NucleiOnly></> },
+        { id: 'runs', label: t('page.tab.runs'), panel: <div className="grid gap-8"><RunsTab /><NucleiOnly><RescanLog /></NucleiOnly></div> },
         { id: 'probes', label: t('page.tab.probes'), panel: <NucleiOnly><ProbesTab /></NucleiOnly> },
         // Not offered in v1 (no backend); kept for after v1
         ...(CREDENTIALED_IN_UI ? [{ id: 'credentialed', label: t('page.tab.credentialed'), panel: <CredentialedTab /> }] : []),

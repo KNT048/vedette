@@ -36,17 +36,19 @@ export default function CvePage() {
   // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page. Breadcrumbs show where
   // the page sits, not the path taken (Primer, Atlassian page header): Home and Findings link here too, the browser's Back returns there.
   const crumbs = <Breadcrumbs items={[{ label: t('common:shell.lookup'), to: '/lookup' }]} />
+  // Every state has the page's one h1: a loading, an error or a not-an-id page names the CVE asked for; the brief and the tier page name it themselves.
+  const head = <PageHeader title={raw.trim().slice(0, 40) || t('common:shell.lookup')} breadcrumbs={[{ label: t('common:shell.lookup'), to: '/lookup' }]} />
   if (missing && !(tier.error instanceof ApiError && tier.error.code === 'not_in_data')) {
     return (
       <>
-        {crumbs}
+        {tier.data ? crumbs : head}
         <QueryState query={tier}>{(v) => <TierCvePage v={v} />}</QueryState>
       </>
     )
   }
   return (
     <>
-      {crumbs}
+      {CVE_ID.test(id) && cve.data ? crumbs : head}
       {!CVE_ID.test(id) ? <EmptyState title={t('cve.notAnId', { id: raw.trim().slice(0, 80) })}>{t('cve.notAnIdBody')}<p className="mt-2"><Link to={`/lookup?q=${encodeURIComponent(raw.trim().slice(0, 200))}`} className={link}>{t('cve.tryLookup')}</Link></p></EmptyState> : null}
       {CVE_ID.test(id) ? <QueryState query={cve}>{(b) => <Brief b={b} />}</QueryState> : null}
       {CVE_ID.test(id) && cve.error ? <p className="mt-4 text-sm"><Link to={`/lookup?q=${encodeURIComponent(id)}`} className={link}>{t('cve.tryLookup')}</Link></p> : null}

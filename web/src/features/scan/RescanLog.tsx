@@ -4,7 +4,7 @@ import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { fmtDateTime } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtTime } from '@/lib/format'
 import { useEvents } from './api'
 import { runHref } from '@/features/scanning/places'
 import type { RescanEvent } from './types'
@@ -12,6 +12,8 @@ import { RowTitle } from '@/components/common/ListParts'
 
 // clear is only "no match reported": neutral, never green; pick_only and stopped are neutral too
 const tone = { matched: 'danger', clear: 'off', skipped_off: 'off', no_match: 'off', pick_only: 'off', stopped: 'off', expired_no_template: 'off', expired_scanner: 'off', expired_zone: 'off' } as const
+// a result is a sentence ("Not scanned automatically: 2 devices need a hand pick"): it wraps in its cell, never runs out of the table
+const wrap = 'h-auto max-w-44 whitespace-normal py-0.5 text-left leading-snug'
 const linkClass = 'font-medium text-accent underline underline-offset-4'
 
 // The result of a rescan. pick_only says how many devices need a hand pick and links to Scan now (the device column names
@@ -19,13 +21,13 @@ const linkClass = 'font-medium text-accent underline underline-offset-4'
 function ResultCell({ r }: { r: RescanEvent }) {
   const { t } = useTranslation('scan')
   if (r.result === 'pick_only') {
-    return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ nav: <Link to="/devices" className={linkClass} /> }} /></Chip>
+    return <Chip tone={tone.pick_only} className={wrap}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ nav: <Link to="/devices" className={linkClass} /> }} /></Chip>
   }
   if (r.result === 'stopped') {
     const link = r.run_id ? <Link to={runHref(r.run_id, 'settings')} className={linkClass} /> : <span />
-    return <Chip tone={tone.stopped}><Trans t={t} i18nKey="auto.result.stopped" components={{ nav: link }} /></Chip>
+    return <Chip tone={tone.stopped} className={wrap}><Trans t={t} i18nKey="auto.result.stopped" components={{ nav: link }} /></Chip>
   }
-  return <Chip tone={tone[r.result]}>{t(`auto.result.${r.result}`)}</Chip>
+  return <Chip tone={tone[r.result]} className={wrap}>{t(`auto.result.${r.result}`)}</Chip>
 }
 
 /** S-SCAN-2: the log of automatic rescans when a new KEV entry has a template. Its switch is on the Nuclei engine card (#850). */
@@ -33,7 +35,7 @@ export function RescanLog() {
   const { t } = useTranslation('scan')
   const q = useEvents()
   const columns: ColumnDef<RescanEvent>[] = [
-    { id: 'ts', header: t('auto.col.when'), accessorFn: (r) => r.ts, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap">{fmtDateTime(r.ts)}</span> },
+    { id: 'ts', header: t('auto.col.when'), accessorFn: (r) => r.ts, cell: ({ row: { original: r } }) => <span className="grid whitespace-nowrap" title={fmtDateTime(r.ts)}><span>{fmtDate(r.ts)}</span><span className="text-meta text-muted">{fmtTime(r.ts)}</span></span> },
     { id: 'cve', header: t('auto.col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <RowTitle to={`/cve/${r.cve}`} className="whitespace-nowrap">{r.cve}</RowTitle> },
     { id: 'product', header: t('auto.col.product'), accessorFn: (r) => r.product, cell: ({ row: { original: r } }) => <span>{r.product}</span> },
     { id: 'devices', header: t('auto.col.devices'), accessorFn: (r) => r.devices.join(', '), cell: ({ row: { original: r } }) => (r.devices.length ? <span>{r.devices.join(', ')}</span> : r.result.startsWith('expired') ? <span className="text-muted">–</span> : <span className="text-muted">{t('auto.noDevices')}</span>) },

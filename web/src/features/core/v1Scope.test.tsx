@@ -13,6 +13,7 @@ const mainNav = () => screen.getByRole('navigation', { name: 'Main navigation' }
 const settingsNav = () => screen.getByRole('navigation', { name: 'Settings sections' })
 const LEAVING = 'This feature is not part of this release. Its settings are kept and shown read-only.'
 const BADGE = 'Not in this release'
+const NAV_BADGE = 'Not in release' // the sidebar shows the short form; the full text is its tooltip
 
 describe('preview modules (#818)', () => {
   it('a preview module that is on has a Preview badge on its Settings → Modules row only, none in the nav or its page header; a v1 module has none', async () => {
@@ -77,7 +78,7 @@ describe('modules that are not part of this release', () => {
     const row = (await screen.findByRole('switch', { name: 'Turn off module AI response' })).closest('tr')!
     expect(within(row).getByText(BADGE)).toBeInTheDocument()
     expect(within(row).getByText(LEAVING)).toBeInTheDocument()
-    const nav = await mainNavLink(`Response ${BADGE}`)
+    const nav = await mainNavLink(`Response ${NAV_BADGE}`)
     expect(nav).toHaveAttribute('href', '/response')
     expect(within(settingsNav()).getByRole('link', { name: 'AI response (high risk)' })).toBeInTheDocument()
 
@@ -210,7 +211,7 @@ describe('every entry point is gone, and old links land on a plain page', () => 
     await waitFor(() => expect(screen.getAllByRole('columnheader').length).toBeGreaterThan(2))
     expect(screen.queryByRole('columnheader', { name: 'Respond' })).toBeNull()
     expect(screen.queryByRole('link', { name: /^Respond/ })).toBeNull()
-    expect(await mainNavLink(`Response ${BADGE}`)).toHaveAttribute('href', '/response')
+    expect(await mainNavLink(`Response ${NAV_BADGE}`)).toHaveAttribute('href', '/response')
   })
 
   it('a box with AI response on: the incident page has no Respond button', async () => {

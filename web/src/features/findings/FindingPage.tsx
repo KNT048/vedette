@@ -6,7 +6,7 @@ import { ExternalLink, ScanSearch } from 'lucide-react'
 import { PageHeader, Section, KeyValue, Notice } from '@/components/common/PageHeader'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
-import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -264,7 +264,6 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
         }
         actions={
           <>
-            <SampleDataNote />
             <IUpdatedFinding f={f} />
             {view.data?.ai_check ? <AiReadReject check={view.data.ai_check} /> : null}
             {view.data?.identity && open_ ? <AiIdentityReject findingId={f.id} identity={view.data.identity} /> : null}

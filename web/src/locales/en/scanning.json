@@ -448,6 +448,8 @@
   "runs": {
     "pageTitle": "Run",
     "caption": "Runs of every engine",
+    "summary_one": "{{count}} run",
+    "summary_other": "{{count}} runs",
     "filters": "Filter the runs",
     "search": "Search runs",
     "kindFilter": "Kind of run",

@@ -87,15 +87,15 @@ export function RunsTab() {
   return (
     <div className="grid gap-3">
       <ListToolbar label={t('runs.filters')} search={{ value: list.q, onChange: (v) => list.set({ q: v, page: 0 }), label: t('runs.search') }}>
-        <Select className="w-full sm:w-auto" aria-label={t('runs.kindFilter')} value={kind} onChange={(e) => setFilter('kind', e.target.value)}>
+        <Select className="w-full sm:w-40" aria-label={t('runs.kindFilter')} value={kind} onChange={(e) => setFilter('kind', e.target.value)}>
           <option value="">{t('runs.anyKind')}</option>
           {[...new Set([...KINDS, ...(kind ? [kind] : [])])].map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
         </Select>
-        <Select className="w-full sm:w-auto" aria-label={t('runs.stateFilter')} value={status} onChange={(e) => setFilter('status', e.target.value)}>
+        <Select className="w-full sm:w-36" aria-label={t('runs.stateFilter')} value={status} onChange={(e) => setFilter('status', e.target.value)}>
           <option value="">{t('runs.anyState')}</option>
           {RUN_STATUSES.map((s) => <option key={s} value={s}>{t(`runs.status.${s}`)}</option>)}
         </Select>
-        <Select className="w-full sm:w-auto sm:max-w-72" aria-label={t('runs.deviceFilter')} value={device} onChange={(e) => setFilter('device', e.target.value)}>
+        <Select className="w-full sm:w-52" aria-label={t('runs.deviceFilter')} value={device} onChange={(e) => setFilter('device', e.target.value)}>
           <option value="">{t('runs.anyDevice')}</option>
           {deviceOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </Select>
@@ -103,7 +103,7 @@ export function RunsTab() {
       <QueryState query={q}>
         {(d) => (
           <DataTable urlKey="runs" caption={t('runs.caption')} data={d.items} columns={columns} pageSize={PAGE} server={{ total: d.total, list }}
-            filtered={filtered} onClearFilters={clear} empty={t('runs.empty')}
+            summary={d.total ? t('runs.summary', { count: d.total }) : null} filtered={filtered} onClearFilters={clear} empty={t('runs.empty')}
             mobileRow={(r) => (
               <div className="grid gap-1.5">
                 <Link to={runHref(r.id, 'settings')} className={link}>{r.title}</Link>

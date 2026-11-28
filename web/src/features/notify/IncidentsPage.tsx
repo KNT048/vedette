@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { PageHeader, Notice } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -232,7 +232,7 @@ function Content() {
   )
   return (
     <>
-      <PageHeader title={t('common:shell.incidents')} stories={['S-ALERT-3', 'S-UI-1']} info={<><p>{t('incidents.meta')}</p><p>{t('incidents.retention')}</p></>} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{status}<SampleDataNote /></span> : null} />
+      <PageHeader title={t('common:shell.incidents')} stories={['S-ALERT-3', 'S-UI-1']} info={<><p>{t('incidents.meta')}</p><p>{t('incidents.retention')}</p></>} meta={q.data ? status : null} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'open', label: t('tabs.open'), panel, badge: { count: openRows.length, label: t('tabs.openBadge') } },

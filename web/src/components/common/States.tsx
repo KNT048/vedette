@@ -4,10 +4,9 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useModuleEnabled, useModules, type ModuleId } from '@/lib/modules'
 import { notOffered } from '@/lib/v1'
-import { ApiError, api } from '@/lib/api'
+import { ApiError } from '@/lib/api'
 import { InfoTip } from './InfoTip'
 import { PageHeader } from './PageHeader'
-import { useQuery } from '@tanstack/react-query'
 import { Illustration, type IllustrationName } from './Illustration'
 
 /** An empty screen is guidance for an action (FRONTEND §3). `children` is one short line; a long explanation goes into `info` (ⓘ next to the heading, #824). */
@@ -131,11 +130,3 @@ export function RequireModule({ module, children, fallback, page }: { module: Mo
   return <>{children}</>
 }
 
-/** The "Sample data" label when running on the mock API (risk: testers trusting fake data, ROADMAP). */
-export function SampleDataNote() {
-  const { t } = useTranslation()
-  // Same queryKey as useSetup (src/app/RequireSession.tsx). A clean install → no sample data to label.
-  const setup = useQuery({ queryKey: ['setup'], queryFn: () => api.get<{ complete: boolean; org: string; data_mode?: 'sample' | 'clean' }>('/setup'), staleTime: 60_000 })
-  if (import.meta.env.VITE_API_MOCK === 'off' || setup.data?.data_mode !== 'sample') return null
-  return <span className="inline-flex h-6 items-center rounded-sm border border-rule bg-sunken px-2 text-caption text-muted">{t('sampleData')}</span>
-}

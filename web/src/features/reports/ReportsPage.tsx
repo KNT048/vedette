@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
-import { Loading, RequireModule, SampleDataNote } from '@/components/common/States'
+import { Loading, RequireModule } from '@/components/common/States'
 import { useReportDocument } from './api'
 import { emptyReport } from './ReportTab'
 
@@ -23,7 +23,7 @@ export default function ReportsPage() {
   const tab = (panel: React.ReactNode) => <Suspense fallback={<Loading />}>{panel}</Suspense>
   return (
     <>
-      <PageHeader title={t('common:shell.reports')} meta={<span className="inline-flex flex-wrap items-center gap-2">{status}<SampleDataNote /></span>} stories={['S-REP-1', 'S-REP-2']} />
+      <PageHeader title={t('common:shell.reports')} meta={status} stories={['S-REP-1', 'S-REP-2']} />
       <RequireModule module="reports">
         <PageTabs label={t('page.tabs')} tabs={[
           { id: 'report', label: t('page.report'), panel: tab(<ReportTab />) },

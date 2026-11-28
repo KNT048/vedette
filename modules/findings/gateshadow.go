@@ -29,6 +29,7 @@ const (
 	prodSchemeStated     = "scheme_stated"         // the vendor's statements of unaffected releases
 	prodSchemeElsewhere  = "scheme_elsewhere"      // listed only on other hardware
 	prodRanges           = "ranges"                // NVD's or the CVE record's ranges, row by row
+	prodLastAffected     = "last_affected"         // a list of exact releases: past the last affected release of the line
 	prodPastRecordFix    = "past_record_fix"       // past a fix a partial record states for the train
 	prodOSList           = "os_list"               // NVD lists only other releases of the device's OS
 	prodWindowsRelease   = "windows_release"       // the Windows release's own monthly update data
@@ -255,17 +256,19 @@ func shadowRanges(in swInfo, v Vuln, key []identity, proof proofKind, via, agree
 		return &gateShadow{producer: prodWindowsRelease, proofs: []Proof{asRead(prodWindowsRelease, ProofFixedAt, FormatMSRelease, v, in, in.ver)}}
 	case via:
 		return shadowStop(in, prodWindowsSibling)
-	case v.RangesFrom == RangesCVEOrgPartial:
+	case v.RangesFrom == RangesCVEOrgPartial && !pastLastAffected(in, v, key):
 		return &gateShadow{producer: prodPastRecordFix, proofs: []Proof{asRead(prodPastRecordFix, ProofFixedAt, FormatCVE5, v, in, in.ver)}}
 	}
 	return rangeProofs(in, v, key)
 }
 
 // rangeProofs reads v's rows that name the line (its own names, or the exploited list's key) one by one. Each row's affected span is
-// an affected statement; a row's end is a fix (an excluded end) or a last affected release (an included end) on its line: the fix holds
-// up to the next row's start, and past the last row only when the rows are one line of releases (no two rows start on different
-// release lines); a record that lists every affected version (VendorList) states every other version not affected. A row of a product
-// only the exploited list's key names is a statement about that product, not about the line's. A row the reader lost blocks.
+// an affected statement; a range's end is a fix (an excluded end) or a last affected release (an included end) on its line: the fix
+// holds up to the next row's start, and past the last row only when the rows are one line of releases (no two rows start on different
+// release lines); a record that lists every affected version (VendorList) states every other version not affected. A row that is one
+// release is an affected statement only: a list of exact releases states a later release of the line not affected only as
+// afterLastAffected reads it (ProofAfterLastAffected, scoped to the line). A row of a product only the exploited list's key names is a
+// statement about that product, not about the line's. A row the reader lost blocks.
 func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 	g := &gateShadow{producer: prodRanges}
 	f := FormatNVDCPE
@@ -351,12 +354,21 @@ func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 			listed[ref].Ranges = append(listed[ref].Ranges, aff.Scope.Versions.Ranges...)
 			listed[ref].Exact = append(listed[ref].Exact, aff.Scope.Versions.Exact...)
 		}
-		if span == nil || span.To == "" || x.af.AffectedOnly {
+		if _, _, one := exactRow(x.af); span == nil || span.To == "" || x.af.AffectedOnly || one {
 			continue
 		}
 		fix := Proof{Kind: ProofFixedAt, CVE: v.CVE, Src: src, Says: SaysNotAffected, Producer: prodRanges, Scope: base}
 		fix.Scope.Versions = VersionSet{Scheme: SchemeGeneric, Ranges: []Span{{From: span.To, FromExcl: span.ToIncl, To: nextStart(span.To, starts[ref], len(lines[ref]) > 1)}}}
 		g.proofs = append(g.proofs, fix)
+	}
+	if las, ok := afterLastAffected(in, v, key); ok {
+		g.producer, g.line, g.ver = prodLastAffected, las[0].line, las[0].installed
+		for _, la := range las {
+			g.proofs = append(g.proofs, Proof{Kind: ProofAfterLastAffected, CVE: v.CVE, Says: SaysNotAffected, Producer: prodLastAffected,
+				Src: ProofSource{Format: la.format, Publisher: cmp.Or(v.rangeOrigin(), RangeNVD), OwnCNA: true, Ref: la.ref},
+				Scope: Scope{Product: la.product, Origin: OriginSet{Upstream: true}, Platform: PlatformSet{Any: true},
+					Versions: VersionSet{Scheme: SchemeGeneric, Lines: []string{la.line}, Ranges: []Span{{From: la.last, FromExcl: true}}}}})
+		}
 	}
 	for ref, l := range listed {
 		if everyListed[ref] {
@@ -367,6 +379,13 @@ func rangeProofs(in swInfo, v Vuln, key []identity) *gateShadow {
 			Scope: Scope{Product: ref, Origin: OriginSet{Upstream: true}, Versions: *l, Platform: PlatformSet{Any: true}}})
 	}
 	return g
+}
+
+// pastLastAffected says the installation is past the last affected release of its line a list of exact releases states
+// (afterLastAffected).
+func pastLastAffected(in swInfo, v Vuln, key []identity) bool {
+	_, ok := afterLastAffected(in, v, key)
+	return ok
 }
 
 // nextStart is where a fix at end stops holding: the lowest start or listed version of the product's rows above it; past every row,

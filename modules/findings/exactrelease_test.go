@@ -169,8 +169,9 @@ func TestSchemeJudge_NVDTrainListClosesNothing(t *testing.T) {
 
 // The same rule through the whole matcher, for NVD's lists: a CVE whose rows naming the line are only exact releases (NVD writes one
 // CPE per release and never says what an unlisted release is) closes no release of the line unless a range of its train ends at or
-// before it, or the vendor's own complete record states the rest unaffected. The CVE stays visible as could-not-be-checked, its
-// undecided reason exact_releases_only. Synthetic product; the schemed case reads a product with a version scheme.
+// before it, the vendor's own complete record states the rest unaffected, or the vendor's own list places the release past the last
+// affected release of its line (afterLastAffected). The CVE stays visible as could-not-be-checked, its undecided reason
+// exact_releases_only. Synthetic product; the schemed case reads a product with a version scheme.
 func TestMatch_ExactOnlyListClosesNothing(t *testing.T) {
 	t.Parallel()
 	widget := func(vs ...string) []Affected {
@@ -202,7 +203,10 @@ func TestMatch_ExactOnlyListClosesNothing(t *testing.T) {
 	}{
 		{"unschemed, below the listed release", "Examplecorp", "Widget", "3.0.7", widget("3.0.12", "4.0.8"), false, false},
 		{"unschemed, past the listed release", "Examplecorp", "Widget", "3.0.13", widget("3.0.12", "4.0.8"), false, false},
-		{"unschemed, past the listed release, the vendor's CNA", "Examplecorp", "Widget", "3.0.13", widget("3.0.12", "4.0.8"), true, false},
+		// the vendor's own list: the last affected release of its line (TestMatch_ExactListIsTheLastAffectedReleaseOfItsLine)
+		{"unschemed, past the listed release of its line, the vendor's CNA", "Examplecorp", "Widget", "3.0.13", widget("3.0.12", "4.0.8"), true, true},
+		{"unschemed, below the listed release, the vendor's CNA", "Examplecorp", "Widget", "3.0.7", widget("3.0.12", "4.0.8"), true, false},
+		{"unschemed, a train not listed, the vendor's CNA", "Examplecorp", "Widget", "5.0.1", widget("3.0.12", "4.0.8"), true, false},
 		{"unschemed, a train not listed", "Examplecorp", "Widget", "5.0.1", widget("3.0.12", "4.0.8"), false, false},
 		{"unschemed, past a stated fixed release, an exact release above", "Examplecorp", "Widget", "3.0.11", ranged, false, false},
 		{"unschemed, past a stated fixed release", "Examplecorp", "Widget", "3.0.11",

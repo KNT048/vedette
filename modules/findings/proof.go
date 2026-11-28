@@ -25,9 +25,10 @@ const (
 	ProofOtherPlatform                          // the source states the flaw only on other platforms (OS, architecture)
 	ProofOtherHardware                          // the source states the flaw only on other hardware models
 	ProofPersonNotAffected                      // a person answered not affected for this line and CVE
+	ProofAfterLastAffected                      // the version is later than the last affected release the source lists on its line
 )
 
-var proofKindNames = [...]string{"", "fixed_at", "stated_unaffected", "before_introduced", "other_platform", "other_hardware", "person_not_affected"}
+var proofKindNames = [...]string{"", "fixed_at", "stated_unaffected", "before_introduced", "other_platform", "other_hardware", "person_not_affected", "after_last_affected"}
 
 func (k ProofKind) String() string {
 	if int(k) < len(proofKindNames) {

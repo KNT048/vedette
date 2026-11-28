@@ -162,6 +162,17 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   list past its rows, `eol_line_unlisted` for an older line). A release past every exact release is no candidate only on the vendor's
   complete record (`newerThanListed`). `TestMatch_ExactOnlyListClosesNothing`, `TestExactList_AThirdPartysTestedBuildDecidesNothingPastIt`,
   `TestCVE5Status_StoredBeforeTheReRead`.
+- **The last affected release of a line.** The vendor's own list of exact releases with no range (every row of the product the line is
+  identified by is one release, `VendorCNA`, none lost, none with `LineFix` or `VendorList`) is read as OSV's `last_affected` and as
+  Grype and Tenable read it: each listed release is the last affected release of its own line, and a release of that line strictly
+  later than every listed one is not affected (`afterLastAffected`). Lines are read without a guess: dotted numbers on their first two
+  ("2.4" of "2.4.49"; a row that only names a line, "2.1" or "21.0.0", reads nothing for it), a release with its update on the
+  release's own numbers (a CPE update "update45" or "-", a record's "8u45", a name's "Java 8 Update 491" beside "8.0.4910.10"); a
+  row neither form reads, an update ANY beside updates, or another numbering ("1.8.0" against "8") leaves the CVE as it was. Each
+  format that lists the product (the CVE record, NVD) must list the installation's line and place it past its newest release; a line
+  no row is on stays undecided (`unlistedLine`), a release at or below a listed one is never closed by it. The closing note names the
+  line and the release; the gate's proof is `after_last_affected`, scoped to the product, that line and the releases above it.
+  `TestMatch_ExactListIsTheLastAffectedReleaseOfItsLine`, `TestGate_AfterLastAffected`, `TestGateShadow_ExactRowIsNoFixOnItsOwn`.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen

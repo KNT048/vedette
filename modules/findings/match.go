@@ -1796,7 +1796,11 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 	if tri == Yes && !schemed && v.RangesFrom == "" && recordDecided(in, v) { // the record's rows beside NVD's call it affected: the texts name the record
 		v.RangesFrom = RangesCVEOrgPartial
 	}
-	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed && !pastRecordFix(in, v, key) {
+	var lastAff []lastAffected // the installation is past the last affected release of its line the list states (afterLastAffected)
+	if tri == No && proof == proofRange && !schemed && !isWin {
+		lastAff, _ = afterLastAffected(in, v, key)
+	}
+	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed && len(lastAff) == 0 && !pastRecordFix(in, v, key) {
 		tri, proof = Unknown, proofNone // the CNA's list may skip branches: outside it proves nothing, unless past a fix of a train it covers
 	}
 	agreed := "" // the readings every one of which gave the verdict (everyReading)
@@ -1843,6 +1847,14 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 		}
 		if agreed != "" {
 			note = "Not affected: " + agreed + ". Vedette closed this by itself and reopens it if a later match says the device is affected."
+		}
+		if len(lastAff) > 0 && agreed == "" && proof == proofRange {
+			la, by := lastAff[0], "NVD"
+			if la.format == FormatCVE5 {
+				by = "The vendor's CVE record"
+			}
+			note = fmt.Sprintf("Not affected: %s lists only exact affected releases of %s for %s, with no range. The newest it lists on the %s line is %s, read as the last affected release of that line (as OSV's last_affected); version %s is later. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+				by, clean(s.Display), v.CVE, strings.TrimSuffix(la.line, " update"), la.last, clean(in.ver))
 		}
 		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, agreed: agreed,
 			gate: shadowRanges(in, v, key, proof, w.via != "", agreed != "")}
@@ -2074,6 +2086,9 @@ type swInfo struct {
 	personPkg string
 	// install: the build attributes the box derives for the row (installOf: edition, platform, architecture); zero when not derived.
 	install installAttrs
+	// display: Software.Display; a name may state the release's update beside a version that does not ("Java 8 Update 491" of
+	// "8.0.4910.10"), which afterLastAffected reads.
+	display string
 	// shadow: the closing steps record what the closing gate would read from them (Match.gate, Service.ShadowGate); off by default,
 	// and then they build nothing.
 	shadow bool
@@ -2104,6 +2119,7 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	in.given = versionGiven(in.ver)
 	in.banner = s.Banner
+	in.display = s.Display
 	if s.Source == "manual" {
 		in.personPkg = strings.TrimSpace(s.PkgVersion)
 	}
@@ -2513,7 +2529,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			return No, VersionRange{}, every, proofNone
 		}
 		if !exactListProves(in.ver, nos) { // a list of exact releases that does not say what this release is: no finding, no proof
-			return No, VersionRange{}, every, proofNone
+			if _, ok := afterLastAffected(in, v, key); !ok { // unless past the last affected release of its own line
+				return No, VersionRange{}, every, proofNone
+			}
 		}
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing
 	}

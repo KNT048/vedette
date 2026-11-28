@@ -103,6 +103,7 @@ var kindFormats = map[ProofKind][]Format{
 	ProofOtherPlatform:     {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatLineSource},
 	ProofOtherHardware:     {FormatCVE5, FormatCSAF, FormatOpenVEX, FormatLineSource},
 	ProofPersonNotAffected: {FormatPerson},
+	ProofAfterLastAffected: {FormatCVE5, FormatNVDCPE, FormatOSV},
 }
 
 // allowedProof says whether not-affected proof p may close a pair: its format is a declared one that can state its kind, its version
@@ -138,6 +139,13 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 			if r.From != "" || r.To == "" {
 				return false, CauseKindNotAllowed
 			}
+		}
+	case ProofAfterLastAffected: // a list of exact affected releases: past the newest one of one line, within that line
+		if len(vs.Lines) != 1 || vs.Every || vs.AllExceptListed || len(vs.Exact) > 0 || len(vs.Ranges) != 1 {
+			return false, CauseKindNotAllowed
+		}
+		if r := vs.Ranges[0]; r.From == "" || !r.FromExcl || r.To != "" {
+			return false, CauseKindNotAllowed
 		}
 	case ProofOtherPlatform:
 		if pl := p.Scope.Platform; pl.Any || len(pl.OS)+len(pl.Arch) == 0 {

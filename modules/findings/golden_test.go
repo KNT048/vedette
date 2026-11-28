@@ -178,7 +178,10 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 		t.Fatalf("findings %v, items %+v; want %v", got, res.NeedVersion, want)
 	}
 	// The box already has the old flood (every KEV CVE of these products, by product). The four stay; every
-	// other one is proved outside its ranges (or, CVE-2021-3493, outside the OS releases it lists) and closes by itself.
+	// other one is proved outside its ranges (or, CVE-2021-3493, outside the OS releases it lists) and closes by itself, except where
+	// the only rows of the version's line are a list of exact releases, which never says what an unlisted release is: CVE-2014-6278
+	// (NVD enumerates bash 1.14.0 to 4.3, nothing of 5.x) and CVE-2026-31431 (NVD lists 7.0 rc1 to rc6 of the kernel's 7.0 line) stay
+	// open, neither kept as a finding nor closed.
 	srv01 := Asset{ID: "a", Name: "srv01", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
 	flood := map[string]bool{}
 	for _, v := range vulns {
@@ -197,7 +200,13 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 		closed = append(closed, m.CVE)
 	}
 	slices.Sort(kept)
-	if !slices.Equal(kept, want) || len(res.New) != 0 || len(kept)+len(closed) != len(flood) {
+	open := 0
+	for _, c := range cves("CVE-2014-6278 CVE-2026-31431") {
+		if flood[c] && !slices.Contains(closed, c) {
+			open++
+		}
+	}
+	if !slices.Equal(kept, want) || len(res.New) != 0 || len(kept)+len(closed)+open != len(flood) {
 		t.Fatalf("kept %v, closed %d of %d flood findings; want %v kept, the rest closed", kept, len(closed), len(flood), want)
 	}
 	for _, c := range cves("CVE-2014-0160 CVE-2014-6271 CVE-2021-4034 CVE-2021-3156 CVE-2023-4911 CVE-2016-5195 CVE-2022-0847 CVE-2021-3493 CVE-2026-123158") {

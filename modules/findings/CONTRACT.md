@@ -152,12 +152,16 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`oracleTrains`) only say "affected". Otherwise the vendor's rows decide nothing and the CVE stays undecided (`exact_releases_only`
   when its rows give no other reason). `TestTrainCleared_ExactReleases`, `TestSchemeJudge_ExactReleasesDoNotClose`. A distribution's
   fix for a package the device runs is compared before NVD's product ranges.
-- **A list of exact releases only.** A version later than every exact release the rows naming the line list (no range, no fix, no
-  unaffected word) is no candidate only when the list is the vendor's own enumeration: every row is of a record the product's vendor
-  assigned (`Affected.VendorCNA`, feeds `Range.VendorCNA` from `feeds_cve.assigner`: its CNA's rows and NVD's rows of the CVE) or of
-  a complete vendor list (`VendorList`) (`newerThanListed`). A third party's list (a lab's tested build, NVD's exact CPEs copied from
-  it) says nothing past its rows: the CVE stays possible, undecided `third_party_tested_build`; so does every list while the record's
-  assigner is not known yet. `TestExactList_AThirdPartysTestedBuildDecidesNothingPastIt`, `TestCVE5Status_StoredBeforeTheReRead`.
+- **A list of exact releases only.** NVD's generic comparison reads a row that is one release (an exact CPE, or a record row from a
+  release to the same release) as `trainCleared` reads a vendor's: it never says what an unlisted release is, so a "not affected"
+  that rests on it proves nothing (`exactListProves`) unless a range of the version's own train ends at or before it, the record
+  states a fix above its rows (`LineFix`), or the vendor's own complete record (`VendorList` and `VendorCNA`; NVD's copy of a release
+  it lists is read with it) states every unlisted version unaffected; a release of the train listed above the version (or one whose
+  place is not told: another notation, an update) needs that record and an exact list (two releases, or a range of the train). The
+  CVE then stays could-not-be-checked, never silent: undecided `exact_releases_only` (`third_party_tested_build` for a third party's
+  list past its rows, `eol_line_unlisted` for an older line). A release past every exact release is no candidate only on the vendor's
+  complete record (`newerThanListed`). `TestMatch_ExactOnlyListClosesNothing`, `TestExactList_AThirdPartysTestedBuildDecidesNothingPastIt`,
+  `TestCVE5Status_StoredBeforeTheReRead`.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen

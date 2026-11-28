@@ -231,3 +231,132 @@ func majorMinor(s string) *[2]uint64 {
 	}
 	return &out
 }
+
+// exactRow is the release a row names when it is one release: an NVD configuration with no range and a version (and no update, which
+// the generic order does not read: "1.8.0" with "update471" is not release 1.8.0), or a record row from a release to the same release
+// included. upd says the row has an update the release cannot be told without; ok is false for any other row.
+func exactRow(af Affected) (rel string, upd, ok bool) {
+	r := af.Range
+	if r.StartIncl != "" && r.StartIncl == r.EndIncl && r.StartExcl == "" && r.EndExcl == "" {
+		return r.StartIncl, false, true
+	}
+	if !r.IsZero() {
+		return "", false, false
+	}
+	c, err := af.cpe()
+	if err != nil {
+		return "", false, false
+	}
+	lit, okV := c.Version.Literal()
+	if !okV {
+		return "", false, false
+	}
+	return lit, c.Update.Kind != Any && c.Update.Kind != NA, true
+}
+
+// exactListProves says the rows of the line's own that said "not affected" (nos) prove it, as trainCleared reads a vendor's rows: a
+// row that is one release is read two ways (the exact releases affected, or the newest affected release of its train: every earlier
+// release of the train is affected too), and NVD's lists never say which, nor what an unlisted release is. Only the vendor's own
+// complete record (VendorList from the product's own CNA: every unlisted version unaffected; NVD's copy of a release it lists is read
+// with it) says that. So, by the exact rows of the
+// version's own train (major.minor, majorMinor):
+//   - one later than the version (or one whose place cannot be told: another notation, an update in the train, unless the version is
+//     past a range of its own train that ends at or before it): only the vendor's complete record that also shows it is an exact
+//     list (two releases of the train, or a range of it) proves;
+//   - only earlier ones: a range of the train that ends at or before the version (a stated fix), the fix the record states above its
+//     rows (LineFix) at or before the version, or the vendor's complete record;
+//   - none, only rows of other trains: the ranges, as before, or the vendor's complete record.
+//
+// Rows with no exact release decide as they always did.
+func exactListProves(ver string, nos []Affected) bool {
+	vt := majorMinor(ver)
+	type exact struct {
+		rel   string
+		place int // 1 earlier than the version, -1 later, -2 not told (another notation, an update in the train), 0 another train
+	}
+	var exacts []exact
+	// the releases the vendor's own complete record lists: NVD's copy of the same release is covered by the record's word
+	stated := map[string]bool{}
+	for _, af := range nos {
+		if rel, _, ok := exactRow(af); ok && af.VendorList && af.VendorCNA {
+			stated[strings.ToLower(rel)] = true
+		}
+	}
+	told, ranges, rangeInTrain, endedInTrain, lineFixed := true, false, false, false, false
+	for _, af := range nos {
+		if af.LineFix != "" { // the fix the record states above its rows, which bounds the line: the version is at or past it
+			if c, ok := compareBound(ver, af.LineFix); ok && c >= 0 {
+				lineFixed = true
+			}
+		}
+		rel, upd, ok := exactRow(af)
+		if !ok {
+			ranges = true
+			end := cmpOr(af.Range.EndExcl, af.Range.EndIncl)
+			for _, b := range []string{af.Range.StartIncl, af.Range.StartExcl, end} {
+				if t := majorMinor(b); b != "" && vt != nil && t != nil && *t == *vt {
+					rangeInTrain = true
+				}
+			}
+			if t := majorMinor(end); end != "" && vt != nil && t != nil && *t == *vt && pastEnd(af.Range, ver) {
+				endedInTrain = true
+			}
+			continue
+		}
+		told = told && (af.VendorList && af.VendorCNA || stated[strings.ToLower(rel)])
+		e := exact{rel: rel, place: -2}
+		switch rt := majorMinor(rel); {
+		case vt == nil || rt == nil:
+		case *rt != *vt:
+			e.place = 0
+		case upd: // a release of the train told apart by its update, which the generic order does not read
+		default:
+			if c, ok := compareBound(ver, rel); ok {
+				e.place = map[bool]int{true: 1, false: -1}[c > 0]
+			}
+		}
+		exacts = append(exacts, e)
+	}
+	if len(exacts) == 0 {
+		return true
+	}
+	later, earlier := false, false
+	distinct := map[string]bool{}
+	for _, e := range exacts {
+		switch e.place {
+		case -1:
+			later = true
+		case -2: // a release whose place is not told: later, unless the version is past a stated fix of its own train
+			later = later || !endedInTrain
+		case 1:
+			earlier = true
+		}
+		if e.place != 0 {
+			distinct[e.rel] = true
+		}
+	}
+	switch {
+	case later:
+		return told && (len(distinct) >= 2 || rangeInTrain)
+	case lineFixed:
+		return true
+	case earlier:
+		return told || endedInTrain
+	}
+	return told || ranges
+}
+
+// laterExactInTrain says a row of own is one release of the version's own train later than it (exactRow, majorMinor): the newest
+// affected release of the train, perhaps, which is why a range beside it does not decide the version (exactListProves).
+func laterExactInTrain(own []Affected, ver string) bool {
+	vt := majorMinor(ver)
+	return vt != nil && slices.ContainsFunc(own, func(af Affected) bool {
+		rel, upd, ok := exactRow(af)
+		rt := majorMinor(rel)
+		if !ok || upd || rt == nil || *rt != *vt {
+			return false
+		}
+		c, okC := compareBound(ver, rel)
+		return okC && c < 0
+	})
+}

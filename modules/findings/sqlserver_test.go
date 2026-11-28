@@ -110,8 +110,10 @@ func sqlVerdicts(t *testing.T, vulns []Vuln, ver, source string) map[string]stri
 // every release, at RTM and at an update. NVD lists CVE-2019-1068 for 2016 and 2017 under their own products with build ranges
 // (sql_server_2016, sql_server_2017): those builds are findings by version, never "not affected" from the 2014 release rows
 // (the year rule answers sql_server:2014 alone). 2019 and 2022 are outside both CISA entries; 2014 cannot be told (the build does
-// not say the service pack); a service pack's 13.2.x form is not compared with NVD's 13.0.x ranges. Typed releases: "2016" and
-// "2017" are not "not affected" for CVE-2019-1068 (on main they were, review r1), "2022" is.
+// not say the service pack); a service pack's 13.2.x form is not compared with NVD's 13.0.x ranges. A release NVD's lists do not name
+// (2019, 2022, or a release beside exact rows of other releases written by year) is not proved "not affected" by them: a list of
+// exact releases does not say what an unlisted release is, so it stays "could not be checked"; a 2017 build past the stated fix of
+// its own train is proved. Typed releases stay "could not be checked".
 func TestSQLServer_EveryReleaseAgainstNVD(t *testing.T) {
 	// the aliases are NVD's per-release products by exact name: no sql_server* prefix (Reporting Services, Management Studio)
 	ids := cpeAliases[identity{vendor: "microsoft", product: "sqlserver"}]
@@ -126,23 +128,23 @@ func TestSQLServer_EveryReleaseAgainstNVD(t *testing.T) {
 		ver, source  string
 		v1068, v0618 string
 	}{
-		{"16.0.1000.6", "agent", "not affected", "not affected"},      // 2022 RTM
-		{"16.0.4135.4", "agent", "not affected", "not affected"},      // 2022 CU14
-		{"15.0.2000.5", "agent", "not affected", "not affected"},      // 2019 RTM
-		{"15.0.4385.2", "agent", "not affected", "not affected"},      // 2019 CU
-		{"14.0.1000.169", "agent", "finding version", "not affected"}, // 2017 RTM: inside 14.0.1000.169–14.0.2027.2
-		{"14.0.3045.24", "agent", "finding version", "not affected"},  // 2017 CU12: inside 14.0.3006.16–14.0.3192.2
-		{"14.0.3460.9", "agent", "not affected", "not affected"},      // 2017, a later CU
-		{"13.0.5026.0", "agent", "finding version", "unchecked"},      // 2016 SP2: inside 13.0.5026.0–13.0.5101.9
-		{"13.0.5292.0", "agent", "finding version", "unchecked"},      // 2016 SP2 CU: inside 13.0.5149.0–13.0.5366.0
-		{"13.2.5026.0", "agent", "unchecked", "unchecked"},            // 2016 SP2 as its programs read it
+		{"16.0.1000.6", "agent", "unchecked", "unchecked"},         // 2022 RTM
+		{"16.0.4135.4", "agent", "unchecked", "unchecked"},         // 2022 CU14
+		{"15.0.2000.5", "agent", "unchecked", "unchecked"},         // 2019 RTM
+		{"15.0.4385.2", "agent", "unchecked", "unchecked"},         // 2019 CU
+		{"14.0.1000.169", "agent", "finding version", "unchecked"}, // 2017 RTM: inside 14.0.1000.169–14.0.2027.2
+		{"14.0.3045.24", "agent", "finding version", "unchecked"},  // 2017 CU12: inside 14.0.3006.16–14.0.3192.2
+		{"14.0.3460.9", "agent", "not affected", "unchecked"},      // 2017, a later CU: past the train's stated fix
+		{"13.0.5026.0", "agent", "finding version", "unchecked"},   // 2016 SP2: inside 13.0.5026.0–13.0.5101.9
+		{"13.0.5292.0", "agent", "finding version", "unchecked"},   // 2016 SP2 CU: inside 13.0.5149.0–13.0.5366.0
+		{"13.2.5026.0", "agent", "unchecked", "unchecked"},         // 2016 SP2 as its programs read it
 		{"12.0.6024.0", "agent", "unchecked", "unchecked"},
-		{"13.0.1601.5", "agent", "not affected", "unchecked"},      // 2016 RTM: NVD lists SP1 and SP2 builds only
-		{"11.0.7001.0", "agent", "not affected", "unchecked"},      // 2012 SP4
-		{"10.50.6000.34", "agent", "not affected", "not affected"}, // 2008 R2 SP3            // 2014 SP3: the build does not say the service pack
+		{"13.0.1601.5", "agent", "unchecked", "unchecked"},   // 2016 RTM: NVD lists SP1 and SP2 builds only
+		{"11.0.7001.0", "agent", "unchecked", "unchecked"},   // 2012 SP4
+		{"10.50.6000.34", "agent", "unchecked", "unchecked"}, // 2008 R2 SP3            // 2014 SP3: the build does not say the service pack
 		{"2016", "manual", "unchecked", "unchecked"},
-		{"2017", "manual", "unchecked", "not affected"},
-		{"2022", "manual", "not affected", "not affected"},
+		{"2017", "manual", "unchecked", "unchecked"},
+		{"2022", "manual", "unchecked", "unchecked"},
 	} {
 		got := sqlVerdicts(t, vulns, tc.ver, tc.source)
 		if got[c1068] != tc.v1068 || got[c0618] != tc.v0618 {

@@ -2,10 +2,10 @@ package findings
 
 import "testing"
 
-// A list of exact affected releases only (no range, no fix, no unaffected word) says which releases its writer found affected. From
-// the product's own vendor (its CNA, or NVD's rows of a record the vendor assigned) it is the vendor's enumeration: a later release it
-// does not list is not affected. From a third party (a lab that tested one build) it says nothing about a later release: the CVE stays
-// possible, undecided as third_party_tested_build.
+// A list of exact affected releases only (no range, no fix, no unaffected word) says which releases its writer found affected, never
+// what an unlisted release is. From a third party (a lab that tested one build) the CVE stays possible, undecided as
+// third_party_tested_build; from the product's own vendor without its word on unlisted versions it stays possible too, undecided as
+// exact_releases_only.
 func TestExactList_AThirdPartysTestedBuildDecidesNothingPastIt(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "pc", Name: "pc-01", OS: "Microsoft Windows 11 Pro", Software: []Software{{ID: "s-1", Display: "Acme Desk", Vendor: "Acme",
@@ -25,8 +25,8 @@ func TestExactList_AThirdPartysTestedBuildDecidesNothingPastIt(t *testing.T) {
 			t.Errorf("%s: unchecked %+v, want possible as a third party's tested build", cve, u)
 		}
 	}
-	if u, ok := got["s-1 CVE-2026-90022"]; ok {
-		t.Errorf("the vendor's own list of exact releases: unchecked %+v, want decided (not affected)", u)
+	if u, ok := got["s-1 CVE-2026-90022"]; !ok || u.undecided == nil || u.undecided.Reason != UndecidedExactOnly {
+		t.Errorf("the vendor's own list of exact releases: unchecked %+v, want possible, exact_releases_only", u)
 	}
 	if len(res.New) != 0 || len(res.NeedVersion) != 0 {
 		t.Errorf("new %+v, need version %+v", res.New, res.NeedVersion)

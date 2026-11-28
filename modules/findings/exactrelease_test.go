@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/knt048/vedette/core/productid"
@@ -162,6 +163,84 @@ func TestSchemeJudge_NVDTrainListClosesNothing(t *testing.T) {
 		r, ok := schemeJudge(a, s, swInfoOn(s, a), v)
 		if ok != tc.ok || ok && r.verdict.State != tc.want {
 			t.Errorf("%s: %+v %v, want %v %v", tc.installed, r.verdict, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// The same rule through the whole matcher, for NVD's lists: a CVE whose rows naming the line are only exact releases (NVD writes one
+// CPE per release and never says what an unlisted release is) closes no release of the line unless a range of its train ends at or
+// before it, or the vendor's own complete record states the rest unaffected. The CVE stays visible as could-not-be-checked, its
+// undecided reason exact_releases_only. Synthetic product; the schemed case reads a product with a version scheme.
+func TestMatch_ExactOnlyListClosesNothing(t *testing.T) {
+	t.Parallel()
+	widget := func(vs ...string) []Affected {
+		var out []Affected
+		for _, v := range vs {
+			out = append(out, Affected{CPE: "cpe:2.3:a:examplecorp:widget:" + v + ":*:*:*:*:*:*:*"})
+		}
+		return out
+	}
+	runtime := func(vs ...string) []Affected {
+		var out []Affected
+		for _, v := range vs {
+			out = append(out, Affected{CPE: "cpe:2.3:a:oracle:jdk:" + v + ":*:*:*:*:*:*:*"})
+		}
+		return out
+	}
+	vendorOwn := func(aff []Affected) []Affected { // the vendor's own record, every unlisted version unaffected
+		for i := range aff {
+			aff[i].VendorCNA, aff[i].VendorList = true, true
+		}
+		return aff
+	}
+	ranged := append(widget("3.0.12"), Affected{CPE: "cpe:2.3:a:examplecorp:widget:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "3.0.0", EndExcl: "3.0.10"}})
+	for _, tc := range []struct {
+		name, vendor, product, ver string
+		aff                        []Affected
+		vendorCNA                  bool
+		closes                     bool
+	}{
+		{"unschemed, below the listed release", "Examplecorp", "Widget", "3.0.7", widget("3.0.12", "4.0.8"), false, false},
+		{"unschemed, past the listed release", "Examplecorp", "Widget", "3.0.13", widget("3.0.12", "4.0.8"), false, false},
+		{"unschemed, past the listed release, the vendor's CNA", "Examplecorp", "Widget", "3.0.13", widget("3.0.12", "4.0.8"), true, false},
+		{"unschemed, a train not listed", "Examplecorp", "Widget", "5.0.1", widget("3.0.12", "4.0.8"), false, false},
+		{"unschemed, past a stated fixed release, an exact release above", "Examplecorp", "Widget", "3.0.11", ranged, false, false},
+		{"unschemed, past a stated fixed release", "Examplecorp", "Widget", "3.0.11",
+			[]Affected{{CPE: "cpe:2.3:a:examplecorp:widget:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "3.0.0", EndExcl: "3.0.10"}}}, false, true},
+		{"unschemed, the vendor's complete record, past the listed release", "Examplecorp", "Widget", "3.0.13", vendorOwn(widget("3.0.12")), false, true},
+		{"unschemed, the vendor's complete record, below the only listed release", "Examplecorp", "Widget", "3.0.7", vendorOwn(widget("3.0.12")), false, false},
+		{"unschemed, the vendor's complete record and NVD's copy of it, past the listed release", "Examplecorp", "Widget", "3.0.13",
+			append(vendorOwn(widget("3.0.12")), widget("3.0.12")...), false, true},
+		{"unschemed, the vendor's complete record and a later release only NVD lists", "Examplecorp", "Widget", "3.0.13",
+			append(vendorOwn(widget("3.0.12")), widget("3.0.15")...), false, false},
+		{"schemed, below the listed release", "Oracle", "Java SE", "21.0.7", runtime("21.0.12", "17.0.20"), false, false},
+		{"schemed, past the listed release", "Oracle", "Java SE", "21.0.13", runtime("21.0.12", "17.0.20"), false, false},
+	} {
+		s := Software{ID: "w", Display: tc.product + " " + tc.ver, Vendor: tc.vendor, Product: tc.product, Version: tc.ver, Source: "agent",
+			KevKeys: []string{productid.Norm(tc.vendor) + "|" + productid.Norm(tc.product)}}
+		aff := slices.Clone(tc.aff)
+		for i := range aff {
+			aff[i].VendorCNA = aff[i].VendorCNA || tc.vendorCNA
+		}
+		v := Vuln{CVE: "CVE-2099-0103", Vendor: tc.vendor, Product: tc.product, Name: "flaw", DateAdded: uncNew, Published: uncNew, NVDAnswered: true, Affected: aff}
+		a := Asset{ID: "pc", Name: "pc.example.com", Software: []Software{s}}
+		if _, out := matchOne(a, s, swInfoOn(s, a), v, true, keyIDs(v), true, uncNow); (out == outNotAffected) != tc.closes {
+			t.Errorf("%s: outcome %v, closes want %v", tc.name, out, tc.closes)
+		}
+		res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, uncNow)
+		if closed := len(res.NotAffected) == 1; closed != tc.closes {
+			t.Errorf("%s: closed %v, want %v", tc.name, closed, tc.closes)
+		}
+		if tc.closes {
+			continue
+		}
+		if len(res.Unchecked) != 1 || res.Unchecked[0].undecided == nil {
+			t.Errorf("%s: not visible as could-not-be-checked (%d unchecked)", tc.name, len(res.Unchecked))
+			continue
+		}
+		// exact_releases_only, or its finer readings: a third party's list (its tested build), releases of later lines only
+		if got := res.Unchecked[0].undecided.Reason; got != UndecidedExactOnly && got != UndecidedThirdPartyBuild && got != UndecidedEOLUnlisted {
+			t.Errorf("%s: undecided %s", tc.name, got)
 		}
 	}
 }

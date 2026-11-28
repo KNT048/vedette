@@ -2139,6 +2139,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	// every entry of the OS (beyond, dottedAfter) is a proof, as with Junos (junosListed)
 	trainOnly, beyond := false, true
 	var jl junosList
+	var nos []Affected // the rows of the line's own that said No: a list of exact releases among them proves only as exactListProves says
 	sib := siblingsOf(&v)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
@@ -2211,6 +2212,9 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 			result = Unknown
 		case No:
 			decided = true
+			if own {
+				nos = append(nos, af)
+			}
 			past = past || own && pastEnd(af.Range, in.ver)
 			trainOnly = trainOnly || dottedListGuess(c, af.Range, in.ver)
 			beyond = beyond && (osScheme(c) != schemeDotted || dottedAfter(c, af.Range, in.ver))
@@ -2244,13 +2248,16 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		switch {
 		case t != No:
 			return t, w, every, proofNone
-		case proved:
+		case proved && exactListProves(in.ver, nos):
 			return No, VersionRange{}, every, proofRange
 		}
 		return No, VersionRange{}, every, proofNone
 	}
 	if pv, ok := parseVersion(in.ver); result == No && ok && !isPlaceholder(in.ver) && pv.q.class >= 0 {
 		if trainOnly && !beyond { // an enumeration read partly by its trains, which leaves releases out: no finding, no proof
+			return No, VersionRange{}, every, proofNone
+		}
+		if !exactListProves(in.ver, nos) { // a list of exact releases that does not say what this release is: no finding, no proof
 			return No, VersionRange{}, every, proofNone
 		}
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing

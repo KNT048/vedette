@@ -242,8 +242,9 @@ func namesDevice(text string, v AssetView) bool {
 	return v.Hostname != nil && *v.Hostname != "" && strings.Contains(low, strings.ToLower(*v.Hostname))
 }
 
-// researchVerdict is the research's answer as a reading of the line: its cited page among the pages the box read (Source), else the
-// record (Source 0) when the quote is from the digest, else a page of the research's own appended to pages; a "not affected" whose fix
+// researchVerdict is the research's answer as a reading of the line: a quote found in what the box read itself is credited to where it
+// was found (the reference page the box fetched, else the CVE record: Source 0), never to the page the AI cited; a quote its tools or a
+// live fetch found is the cited page among the pages the box read, else a page of the research's own appended to pages; a "not affected" whose fix
 // the quote or the text it was found in names is a fixed line.
 func researchVerdict(a ResearchAnswer, pages []FetchedPage, record string) (ProposeVerdict, []FetchedPage) {
 	v := a.Verdict
@@ -259,7 +260,17 @@ func researchVerdict(a ResearchAnswer, pages []FetchedPage, record string) (Prop
 		v.InferredFrom = "a product sharing its code (the AI's inference)"
 	}
 	switch {
-	case a.URL == "" || a.QuoteCheck == QuoteDigest && a.QuotedText == record:
+	case a.QuoteCheck == QuoteDigest:
+		// found in what the box read itself: one of the reference pages it fetched (that page, whatever the AI cited), else the CVE
+		// record as the box digested it, never the page the AI named
+		for i, p := range pages {
+			if p.Text != "" && p.Text == a.QuotedText {
+				v.Source = i + 1
+				return v, pages
+			}
+		}
+		v.Source = 0
+	case a.URL == "":
 		v.Source = 0
 	default:
 		for i, p := range pages {

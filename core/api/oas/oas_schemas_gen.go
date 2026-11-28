@@ -95409,8 +95409,9 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -95828,8 +95829,9 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer) Unmars
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck string
 
 const (
@@ -107538,8 +107540,9 @@ type FindingsGetFindingsIDViewOKAiCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -107957,8 +107960,9 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer) UnmarshalText(d
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck string
 
 const (
@@ -122100,8 +122104,9 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -122519,8 +122524,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer) Unmars
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck string
 
 const (
@@ -125111,8 +125117,9 @@ type FindingsGetFindingsReviewOKItemsItemCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -125530,8 +125537,9 @@ func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer) Unmarsha
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck string
 
 const (
@@ -136699,8 +136707,9 @@ type FindingsPostFindingsIDReopenOKAiCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -137118,8 +137127,9 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer) UnmarshalTex
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck string
 
 const (
@@ -140553,8 +140563,9 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -140972,8 +140983,9 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer) UnmarshalT
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck string
 
 const (
@@ -144393,8 +144405,9 @@ type FindingsPostFindingsIDVerifyOKAiCheckReadingResearch struct {
 	// The layer whose answer stands.
 	Layer FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer `json:"layer"`
 	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-	// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-	// not_found (nowhere: it decides nothing), none (no quote).
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 	QuoteCheck FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
 	// Tokens of every layer of the research.
 	Tokens int `json:"tokens"`
@@ -144812,8 +144825,9 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer) UnmarshalTex
 }
 
 // Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
-// itself: the CVE record or a reference page), live (on the box's own fetch of the cited page),
-// not_found (nowhere: it decides nothing), none (no quote).
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
 type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck string
 
 const (

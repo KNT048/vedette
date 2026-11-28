@@ -423,3 +423,22 @@ func TestReview_ExploitedIsReadInsideTheConfirmation(t *testing.T) {
 		t.Fatalf("named: %+v %v", got, err)
 	}
 }
+
+// A quote the box found only in its own digest of the CVE record is the record's sentence, never the page the AI cited: the reading
+// names no host and is not the vendor's page.
+func TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	digest := "CVE-2026-991001\nRow: " + quillRowESR
+	a := quillResearch(StatementAffected, QuoteDigest, quillRowESR, digest)
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": a}
+	runCheck(t, e)
+	var host, url string
+	var vendor bool
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT host, url, vendor_page FROM fnd_line_statement WHERE cve = ?`, cveQuill).Scan(&host, &url, &vendor); err != nil {
+		t.Fatal(err)
+	}
+	if host != "" || url != "" || vendor {
+		t.Errorf("a digest quote credited to %q (%q, vendor page %v), want the CVE record", host, url, vendor)
+	}
+}

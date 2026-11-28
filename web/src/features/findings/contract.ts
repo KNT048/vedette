@@ -433,7 +433,7 @@ export const AiResearchStep = z.object({
 }).describe('One layer of a research: how it ran, what it read, what it answered, its tokens (never money)')
 export const AiResearch = z.object({
   layer: z.enum(['quick', 'strong']).describe('The layer whose answer stands'),
-  quote_check: z.enum(['tool', 'digest', 'live', 'not_found', 'none']).describe('Where the box found the quote: tool (in text the AI\'s tools returned), digest (in what the box read itself: the CVE record or a reference page), live (on the box\'s own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote)'),
+  quote_check: z.enum(['tool', 'digest', 'live', 'not_found', 'none']).describe('Where the box found the quote: tool (in text the AI\'s tools returned), digest (in what the box read itself: a reference page it fetched, then the reading\'s host is that page, else the CVE record, then the host is null and the quote reads "found in the CVE record", never the page the AI cited), live (on the box\'s own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote)'),
   tokens: z.number().int().min(0).describe('Tokens of every layer of the research'),
   detail: z.object({
     mode: z.string().describe('economy, balanced, thorough, or deeper (a person asked the strong layer)'),

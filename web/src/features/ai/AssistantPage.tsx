@@ -15,6 +15,7 @@ import { fmtDate, fmtDateTime, fmtNumber } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAiConfig, useAsk, useAsks, useRuns, useUsage } from './api'
 import ActivityPanel from './ActivityPanel'
+import ResearchUsage from './ResearchUsage'
 import { ActionError, ToSettings, useAiGate } from './parts'
 import { budgetPct } from './Budget'
 import type { AiRun, AskResult, Usage } from './types'
@@ -40,7 +41,7 @@ export default function AssistantPage() {
   // AI not connected and never run: a 0/cap gauge and an empty log only add noise; the empty screen in the Ask tab already says what to do.
   // While loading the Usage tab is still there: the tab count changing 1 → 2 would rebuild the Ask tab and lose what the user is typing.
   if (gate.state !== 'off' && !(gate.state === 'unconfigured' && u && u.month.total === 0)) {
-    tabs.push({ id: 'usage', label: t('page.tabUsage'), panel: <><Meter query={usage} renews={cfg.data?.renews_on} /><RunLog /><ActivityPanel /></> })
+    tabs.push({ id: 'usage', label: t('page.tabUsage'), panel: <><Meter query={usage} renews={cfg.data?.renews_on} /><ResearchUsage /><RunLog /><ActivityPanel /></> })
   }
   return (
     <>

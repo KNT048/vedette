@@ -755,9 +755,12 @@ func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) e
 			continue
 		}
 		i := at[r.CVE]
-		sr := findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin, Unaffected: unaffected, ModelOnly: modelOnly}
-		if modelOnly { // the hardware it holds on, and whether the vendor's own record states the rest unaffected (feeds ownCNA)
-			sr.Platforms, sr.Complete = r.Platforms, r.DefaultStatus == feeds.DefaultUnaffected
+		// Complete: the vendor's own record states the rest unaffected (feeds keeps defaultStatus "unaffected" only from the product's
+		// own CNA, ownCNA); NVD's rows never say what an unlisted version is
+		sr := findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin, Unaffected: unaffected, ModelOnly: modelOnly,
+			Complete: r.Origin != feeds.OriginNVD && r.DefaultStatus == feeds.DefaultUnaffected}
+		if modelOnly { // the hardware it holds on
+			sr.Platforms = r.Platforms
 		}
 		vulns[i].Schemed = append(vulns[i].Schemed, sr)
 	}

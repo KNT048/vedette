@@ -69,6 +69,13 @@ type statements struct {
 	elsewhere []string
 	// modelsTold: every row in models is the vendor's own record that states its unlisted versions unaffected (SchemedRange.Complete).
 	modelsTold bool
+	// spansTold and modelTold say, for each affected span vendorRows returns and each span of models, that its row is the vendor's own
+	// record stating every version it does not list unaffected (SchemedRange.Complete): what lets a list of exact releases close
+	// (trainCleared).
+	spansTold, modelTold []bool
+	// listedOnly: the spans are NVD's exact releases of a train read as "every release of the train up to it" (oracleTrains): they say
+	// a release up to it is affected, never that a later one is not (the list does not say which of the two readings it means).
+	listedOnly bool
 }
 
 // vendorRows is schemedSpans with the vendor's statements of the same product (statements).
@@ -114,7 +121,7 @@ func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, 
 			if r.Unaffected {
 				st.unaffected = append(st.unaffected, r.Span)
 			} else {
-				st.models = append(st.models, r.Span)
+				st.models, st.modelTold = append(st.models, r.Span), append(st.modelTold, r.Complete)
 				st.modelsTold = st.modelsTold && r.Complete
 			}
 			if st.scheme = r.Scheme; st.origin == "" || r.Origin == RangeCNA {
@@ -122,7 +129,7 @@ func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, 
 			}
 			continue
 		}
-		spans, scheme = append(spans, r.Span), r.Scheme
+		spans, scheme, st.spansTold = append(spans, r.Span), r.Scheme, append(st.spansTold, r.Complete)
 		if origin == "" || r.Origin == RangeCNA {
 			origin = r.Origin
 		}
@@ -130,6 +137,7 @@ func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, 
 	if p.Scheme == versionscheme.Java.Name {
 		if tr := oracleTrains(v); len(tr) > 0 && scheme == nil {
 			spans, scheme, origin = tr, versionscheme.Java, v.rangeOrigin()
+			st.spansTold, st.listedOnly = make([]bool, len(tr)), true
 		}
 	}
 	return scheme, spans, origin, p, st
@@ -154,7 +162,8 @@ func oracleNamed(v Vuln) bool {
 // oracleTrains reads Oracle's way of stating Java SE's affected versions: its critical patch update lists the newest affected release
 // of each supported train ("Oracle Java SE: 8u411, 17.0.11, 21.0.3"), which NVD writes as exact versions
 // (cpe:2.3:a:oracle:jdk:17.0.11, cpe:2.3:a:oracle:jre:1.8.0:update411). Every earlier release of a listed train is affected too, so
-// each listed release is the span from the start of its train to it, included; a train Oracle does not list is not read here.
+// each listed release is the span from the start of its train to it, included; a train Oracle does not list is not read here. The
+// spans only ever say "affected" (statements.listedOnly): NVD's exact rows do not say a later release of the train is not affected.
 func oracleTrains(v Vuln) []versionscheme.Span {
 	var out []versionscheme.Span
 	for _, af := range v.Affected {
@@ -215,13 +224,14 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 		case verdict.State == versionscheme.Affected:
 			out.verdict = verdict
 			return out, true
-		case verdict.State == versionscheme.NotAffected && endsInTrain(spans, installed) && !inside(installed, st.models):
+		case verdict.State == versionscheme.NotAffected && !st.listedOnly && trainCleared(installed, spans, st.spansTold) && !inside(installed, st.models):
 			out.verdict = verdict
 			return out, true
 		}
 		// not comparable, or "not affected" by release order only (the vendor's rows are silent on the device's own train: VMware's
-		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or inside a
-		// model-limited range: only the vendor's statements below may still say "not affected"
+		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or only by a
+		// list of exact releases that does not say what an unlisted release is (trainCleared), or inside a model-limited range: only
+		// the vendor's statements below may still say "not affected"
 	}
 	// only Junos OS's numbering is read for where a branch starts (branchStart): another scheme's first release of a line is a build
 	// number that reads as a release inside it, so the rule would close an older line the rows say nothing about
@@ -265,7 +275,8 @@ func notAffectedByStatements(installed versionscheme.Version, spans []versionsch
 		return false
 	}
 	all := append(slices.Clone(spans), st.models...)
-	return namesLine(all, installed) && endsInTrain(all, installed) && versionscheme.Judge(installed, all).State == versionscheme.NotAffected
+	told := append(slices.Clone(st.spansTold), st.modelTold...)
+	return namesLine(all, installed) && trainCleared(installed, all, told)
 }
 
 // olderThanEveryStart says the version is older than the first release every one of the vendor's affected ranges starts at, and that
@@ -283,10 +294,8 @@ func olderThanEveryStart(installed versionscheme.Version, spans []versionscheme.
 		if sp.Start == nil {
 			return nil, false
 		}
-		if sp.End != nil && sp.EndIncl {
-			if c, ok := versionscheme.Compare(*sp.Start, *sp.End); ok && c == 0 {
-				return nil, false // one release ("8u503": Oracle's newest affected update of a train), not where the flaw came in
-			}
+		if oneRelease(sp) {
+			return nil, false // one release (perhaps the newest affected update of a train), not where the flaw came in
 		}
 		c, ok := versionscheme.Compare(installed, *sp.Start)
 		if !ok || c >= 0 {
@@ -347,6 +356,56 @@ func fipsWithoutTheWord(r SchemedRange) bool {
 	e := r.Span.End
 	return r.Scheme.Name == versionscheme.NetScaler.Name && e != nil && e.Variant == "" && len(e.Line) == 2 && e.Line[0] == 13 && e.Line[1] == 1 &&
 		len(e.Build) > 0 && e.Build[0] == 37
+}
+
+// trainCleared says the vendor's rows prove installed not affected by their word on its own release train: no span contains it, a
+// span ends in its train (endsInTrain), and the proof does not rest on a list of exact releases the record leaves open. A row that is
+// one release (oneRelease: "21.0.12", "8u501") is read two ways by vendors, and the record does not say which: the exact releases
+// affected, or the newest affected release of the train (every earlier release of the train is affected too). A release of the train
+// is closed only where both readings say "not affected":
+//   - below a listed release of its train: only when the record states every unlisted version unaffected (told: defaultStatus
+//     "unaffected" from the product's own CNA, SchemedRange.Complete) and shows it is an exact list, by listing two releases of the
+//     train or a range of it beside the release;
+//   - past every listed release of its train: when a range of the train ends at or before it (the vendor's stated fixed release), or
+//     the record states every unlisted version unaffected;
+//   - a train with only ranges: as their ends say (the vendor's fixed release of the train).
+//
+// told[i] is the word of spans[i]'s row on unlisted versions; a missing entry is false.
+func trainCleared(installed versionscheme.Version, spans []versionscheme.Span, told []bool) bool {
+	if !endsInTrain(spans, installed) || versionscheme.Judge(installed, spans).State != versionscheme.NotAffected {
+		return false
+	}
+	exact, bounded, above, allTold := 0, false, false, true
+	for i, sp := range spans {
+		if sp.End == nil || sp.End.LineStart || sp.End.Variant != installed.Variant || sp.End.Train != installed.Train {
+			continue
+		}
+		if !oneRelease(sp) {
+			bounded = true
+			continue
+		}
+		exact++
+		allTold = allTold && i < len(told) && told[i]
+		if c, ok := versionscheme.Compare(*sp.End, installed); !ok || c > 0 {
+			above = true
+		}
+	}
+	switch {
+	case above:
+		return allTold && (exact >= 2 || bounded)
+	case bounded:
+		return true
+	}
+	return allTold
+}
+
+// oneRelease says a span is one release: its start and its included end are the same release.
+func oneRelease(sp versionscheme.Span) bool {
+	if sp.Start == nil || sp.End == nil || !sp.EndIncl {
+		return false
+	}
+	c, ok := versionscheme.Compare(*sp.Start, *sp.End)
+	return ok && c == 0
 }
 
 // endsInTrain says a span ends in v's own release train: the vendor states the fixed release of that very train, so a release past it

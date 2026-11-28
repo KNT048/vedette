@@ -251,7 +251,8 @@ type SchemedRange struct {
 	Unaffected, ModelOnly bool
 	// Platforms are the hardware a ModelOnly row holds on, as the record names it ("QRX Series", "ZX4100"); nil when not known.
 	// Complete says the row is the vendor's own record stating every version it does not list unaffected (defaultStatus unaffected from
-	// the product's own CNA): with Platforms, the vendor's word that the product is affected on that hardware only (otherHardware).
+	// the product's own CNA): with Platforms, the vendor's word that the product is affected on that hardware only (otherHardware); on a
+	// row that is one release, what lets a release the list does not name be closed (trainCleared).
 	Platforms []string
 	Complete  bool
 	// Unread is a vendor's affected row of the product that does not read in its scheme (Juniper's "22.2" lessThan "22.2*"): no

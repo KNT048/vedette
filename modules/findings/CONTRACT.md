@@ -143,8 +143,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version still wins (`nvdCovers`). Nor when one of the product's affected rows did not read in the scheme (Juniper's "22.2" lessThan
   "22.2*", kept as `SchemedRange.Unread`), or a row is one exact release (Oracle's "8u503", the newest affected update of a train):
   the starts are then not the vendor's whole word on where the flaw came in. `TestVendorRangeStartMatrix`,
-  `TestVendorRangeStartNeedsEveryRowRead` (cmd/vedette). A distribution's fix for a package the device runs is compared before
-  NVD's product ranges.
+  `TestVendorRangeStartNeedsEveryRowRead` (cmd/vedette). A row that is one release ("21.0.12") is read two ways by vendors and the
+  record does not say which: the exact releases affected, or the newest affected release of each train. Every reader of the vendor's
+  rows in a scheme (the match, the vendor's statements, the block's release, an advisory's exact list) closes a release of the train
+  only where both readings say "not affected" (`trainCleared`): below a listed release only when the record states every unlisted
+  version unaffected (`SchemedRange.Complete`) and lists two releases or a range of the train; past every listed release when a range
+  of the train ends at or before it or the record states every unlisted version unaffected. NVD's exact releases read as trains
+  (`oracleTrains`) only say "affected". Otherwise the vendor's rows decide nothing and the CVE stays undecided (`exact_releases_only`
+  when its rows give no other reason). `TestTrainCleared_ExactReleases`, `TestSchemeJudge_ExactReleasesDoNotClose`. A distribution's
+  fix for a package the device runs is compared before NVD's product ranges.
 - **A list of exact releases only.** A version later than every exact release the rows naming the line list (no range, no fix, no
   unaffected word) is no candidate only when the list is the vendor's own enumeration: every row is of a record the product's vendor
   assigned (`Affected.VendorCNA`, feeds `Range.VendorCNA` from `feeds_cve.assigner`: its CNA's rows and NVD's rows of the CVE) or of

@@ -73,7 +73,7 @@ func TestTrapTestAlertFollowsTheTrapTrigger(t *testing.T) {
 	touch := notify.TrapHit{ID: "hit-1", Kind: "service", Service: "ssh", SrcIP: "192.0.2.2", Label: "SSH", Decoy: "FILES-SRV-02"}
 	scan := notify.TrapHit{ID: "hit-2", Kind: "scan", SrcIP: "192.0.2.2", Label: "Port scan across 2 decoy IPs", Decoy: "A, B"}
 
-	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: false, Min: notify.Low}}); err != nil {
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: false, Min: notify.Low}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	got, err := e.svc.SendTrapTest(e.ctx(), touch)
@@ -84,7 +84,7 @@ func TestTrapTestAlertFollowsTheTrapTrigger(t *testing.T) {
 		t.Fatalf("a test alert was sent while the real one is turned off: %d calls", n)
 	}
 
-	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: true, Min: notify.Critical}}); err != nil {
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: true, Min: notify.Critical}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	got, err = e.svc.SendTrapTest(e.ctx(), scan) // a scan alone is high

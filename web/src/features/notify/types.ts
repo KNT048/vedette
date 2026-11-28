@@ -12,6 +12,7 @@ export type Quiet = z.infer<typeof C.Quiet>
 export type ChannelsResponse = z.infer<typeof C.ChannelsResponse>
 export type AlertTrigger = z.infer<typeof C.AlertTrigger>
 export type AlertTriggerView = z.infer<typeof C.AlertTriggerView>
+export type VulnerabilityTriggerView = z.infer<typeof C.VulnerabilityTriggerView>
 export type IncidentKind = z.infer<typeof C.IncidentKind>
 export type IncidentStatus = z.infer<typeof C.IncidentStatus>
 export type SendRecord = z.infer<typeof C.SendRecord>

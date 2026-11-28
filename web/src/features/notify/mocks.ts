@@ -35,10 +35,12 @@ const rules = collection<{ quiet: Quiet }>('notify_rules', () => ({
   quiet: { enabled: true, from: '22:00', to: '06:30', allow_critical: true },
 }))
 // Alert triggers: the box's defaults (modules/notify/triggers.go defaultTriggers), the stored rule over them.
-const TRIGGER_DEFAULTS: AlertTriggerView[] = ([['trap', true, 'low'], ['vulnerability', true, 'low'], ['intrusion', true, 'high'], ['bad_address', true, 'high'], ['log_anomaly', true, 'high'], ['unknown_device', false, 'medium']] as const)
+const TRIGGER_DEFAULTS: AlertTriggerView[] = ([['trap', true, 'low'], ['intrusion', true, 'high'], ['bad_address', true, 'high'], ['log_anomaly', true, 'high'], ['unknown_device', false, 'medium']] as const)
   .map(([id, on, min]) => ({ id, on, min, default_on: on, default_min: min }))
 const triggers = collection<AlertTriggerView[]>('notify_triggers', () => TRIGGER_DEFAULTS.map((t) => ({ ...t })))
-const TRIGGER_NAMES: Record<AlertTrigger['id'], string> = { trap: 'decoy touched', vulnerability: 'exploited or urgent vulnerability', intrusion: 'intrusion alert', bad_address: 'connection to a known-bad address', log_anomaly: 'log anomaly', unknown_device: 'new device seen' }
+// The vulnerability trigger: on or off only (a finding alerts only when exploited in the wild, always Critical).
+const vulnTrigger = collection<{ on: boolean; default_on: boolean }>('notify_vuln_trigger', () => ({ on: true, default_on: true }))
+const TRIGGER_NAMES: Record<AlertTrigger['id'], string> = { trap: 'decoy touched', intrusion: 'intrusion alert', bad_address: 'connection to a known-bad address', log_anomaly: 'log anomaly', unknown_device: 'new device seen' }
 const triggerWords = (t: AlertTrigger) => (!t.on ? 'off' : t.min === 'low' ? 'on' : `on from ${t.min}`)
 
 // Vulnerability notices: messages about a finding. They are not incidents; the finding page shows them (slot finding.panels) and Settings, Alert channels, History lists them.
@@ -665,7 +667,7 @@ export const handlers = [
   http.get(`${API}/notify/channels`, () => {
     const denied = guard('admin'); if (denied) return denied
     const cur = channels.get()
-    return HttpResponse.json({ channels: CHANNEL_TYPES.map((t) => pub(cur.find((c) => c.type === t) ?? blank(t))), ...rules.get(), triggers: triggers.get(), email_code_users: emailCodeUserCount() })
+    return HttpResponse.json({ channels: CHANNEL_TYPES.map((t) => pub(cur.find((c) => c.type === t) ?? blank(t))), ...rules.get(), triggers: triggers.get(), vulnerability_trigger: vulnTrigger.get(), email_code_users: emailCodeUserCount() })
   }),
 
   http.put(`${API}/notify/channels/:type`, async ({ params, request }) => {
@@ -807,7 +809,7 @@ export const handlers = [
 
   http.put(`${API}/notify/triggers`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ triggers?: AlertTrigger[] }>(request)
+    const b = await body<{ triggers?: AlertTrigger[]; vulnerability_trigger?: { on: boolean } }>(request)
     const list = b.triggers ?? []
     const seen = new Set<string>()
     for (const t of list) {
@@ -825,11 +827,15 @@ export const handlers = [
       changes.push(`${TRIGGER_NAMES[c.id]}: ${from} -> ${to}`)
       return { ...c, on: t.on === true, min: t.min }
     })
+    const v = vulnTrigger.get()
+    const vNext = b.vulnerability_trigger && b.vulnerability_trigger.on !== v.on ? { ...v, on: b.vulnerability_trigger.on === true } : v
+    if (vNext !== v) changes.push(`vulnerability exploited in the wild: ${v.on ? 'on' : 'off'} -> ${vNext.on ? 'on' : 'off'}`)
     if (changes.length > 0) {
       triggers.set(next)
+      vulnTrigger.set(vNext)
       audit('notify.triggers_save', 'alert triggers', changes.join('; '))
     }
-    return HttpResponse.json({ triggers: next })
+    return HttpResponse.json({ triggers: next, vulnerability_trigger: vNext })
   }),
 ]
 

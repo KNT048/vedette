@@ -539,7 +539,7 @@ export default function ChannelsSettings() {
           {(d) => (
             <PageTabs label={t('channels.tabs.label')} tabs={[
               { id: 'channels', label: t('channels.tabs.channels'), panel: <Channels channels={d.channels} codeUsers={d.email_code_users} /> },
-              { id: 'settings', label: t('channels.tabs.settings'), panel: <AlertSettings quiet={d.quiet} triggers={d.triggers} /> },
+              { id: 'settings', label: t('channels.tabs.settings'), panel: <AlertSettings quiet={d.quiet} triggers={d.triggers} vulnerability_trigger={d.vulnerability_trigger} /> },
             ]} />
           )}
         </QueryState>

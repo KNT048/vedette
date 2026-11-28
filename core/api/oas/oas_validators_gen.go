@@ -95991,8 +95991,6 @@ func (s NotifyGetNotifyChannelsOKTriggersItemID) Validate() error {
 	switch s {
 	case "trap":
 		return nil
-	case "vulnerability":
-		return nil
 	case "intrusion":
 		return nil
 	case "bad_address":
@@ -99456,8 +99454,6 @@ func (s NotifyPutNotifyTriggersOKTriggersItemID) Validate() error {
 	switch s {
 	case "trap":
 		return nil
-	case "vulnerability":
-		return nil
 	case "intrusion":
 		return nil
 	case "bad_address":
@@ -99571,8 +99567,6 @@ func (s *NotifyPutNotifyTriggersReqTriggersItem) Validate() error {
 func (s NotifyPutNotifyTriggersReqTriggersItemID) Validate() error {
 	switch s {
 	case "trap":
-		return nil
-	case "vulnerability":
 		return nil
 	case "intrusion":
 		return nil

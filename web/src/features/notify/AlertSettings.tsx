@@ -18,7 +18,7 @@ const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 
 /** What the Settings tab reads from GET /notify/channels. */
 type Rules = Pick<ChannelsResponse, 'quiet'>
-type Settings = Pick<ChannelsResponse, 'quiet' | 'triggers'>
+type Settings = Pick<ChannelsResponse, 'quiet' | 'triggers' | 'vulnerability_trigger'>
 
 /** Quiet hours: one form, for every channel. */
 function RulesForm({ init }: { init: Rules }) {
@@ -57,7 +57,7 @@ export const SUMMARY_SCHEDULE = 'notify.summary'
 
 /** Settings › Alert channels › Settings: how alerts go out on every channel. Each block is a Section of its own: first what sends an
  *  alert at all (only findings exploited in the wild) and the daily summary of the rest, then quiet hours, then the triggers. */
-export function AlertSettings({ quiet, triggers }: Settings) {
+export function AlertSettings({ quiet, triggers, vulnerability_trigger }: Settings) {
   const { t } = useTranslation('notify')
   return (
     <>
@@ -70,7 +70,7 @@ export function AlertSettings({ quiet, triggers }: Settings) {
       </Section>
       {/* /settings/channels?tab=settings#triggers (NotSentFix of an alert its trigger held back) lands here */}
       <Section id="triggers" title={t('triggers.title')} description={t('triggers.description')} info={t('triggers.descriptionInfo')}>
-        <AlertTriggers init={triggers} />
+        <AlertTriggers init={triggers} vuln={vulnerability_trigger} />
       </Section>
     </>
   )

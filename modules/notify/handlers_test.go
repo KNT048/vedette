@@ -138,6 +138,12 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 
 	// rules
 	a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"22:00","allow_critical":true}}`, 400, "bad_quiet")
+	// the vulnerability trigger has its own type with no minimum: a minimum, or the trigger in the incident list, is refused
+	a.want("PUT", "/notify/triggers", "admin", `{"triggers":[],"vulnerability_trigger":{"on":true,"min":"low"}}`, 400, "invalid")
+	a.want("PUT", "/notify/triggers", "admin", `{"triggers":[{"id":"vulnerability","on":true,"min":"low"}]}`, 400, "invalid")
+	if v := a.want("PUT", "/notify/triggers", "admin", `{"triggers":[],"vulnerability_trigger":{"on":false}}`, 200, "")["vulnerability_trigger"].(map[string]any); v["on"] != false || v["default_on"] != true || v["min"] != nil {
+		t.Fatalf("vulnerability trigger = %v", v)
+	}
 	r := a.want("PUT", "/notify/rules", "admin", `{"quiet":{"enabled":true,"from":"22:00","to":"06:30","allow_critical":true}}`, 200, "")
 	if _, ok := r["grouping"]; ok || r["quiet"].(map[string]any)["enabled"] != true {
 		t.Fatalf("rules = %v", r)

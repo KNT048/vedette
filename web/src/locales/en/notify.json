@@ -876,7 +876,8 @@
         "why": "Phones use private, random hardware addresses, so a busy office sees many new devices a day. Review them on Devices instead."
       }
     },
-    "alwaysCritical": "Always Critical"
+    "alwaysCritical": "Always Critical",
+    "on": "on"
   },
   "summary": {
     "title": "Daily summary",

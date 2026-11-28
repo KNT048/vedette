@@ -1544,6 +1544,10 @@ describe('notify: alert triggers', () => {
     const main = await screen.findByRole('main')
     const form = await within(main).findByRole('form', { name: 'Alert triggers' })
     expect(within(form).getByRole('switch', { name: 'Decoy touched' })).toBeChecked()
+    // the vulnerability trigger is on or off only: a finding alerts only when exploited in the wild, always Critical
+    expect(within(form).getByRole('switch', { name: 'Vulnerability exploited in the wild on a device' })).toBeChecked()
+    expect(within(form).queryByRole('combobox', { name: /Vulnerability exploited/ })).toBeNull()
+    expect(within(form).getByText('Always Critical')).toBeInTheDocument()
     const device = within(form).getByRole('switch', { name: 'New device seen' })
     expect(device).not.toBeChecked()
     expect(within(form).getByText(/busy office sees many new devices a day/)).toBeInTheDocument()

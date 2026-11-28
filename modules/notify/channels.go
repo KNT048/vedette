@@ -231,7 +231,7 @@ func (s *Service) Channels(ctx context.Context) (ChannelsView, error) {
 	if err != nil {
 		return out, err
 	}
-	out.Triggers = triggerViews(ts)
+	out.Triggers, out.Vulnerability = triggerViews(ts), vulnView(ts)
 	if out.EmailCodeUsers, err = s.cfg.Users.EmailCodeUsers(ctx); err != nil {
 		return out, fmt.Errorf("notify: count email code users: %w", err)
 	}

@@ -211235,8 +211235,9 @@ type NotifyGetNotifyChannelsOK struct {
 	// removed.
 	EmailCodeUsers int                            `json:"email_code_users"`
 	Quiet          NotifyGetNotifyChannelsOKQuiet `json:"quiet"`
-	// Which kinds of event send an alert, and from which severity.
-	Triggers []NotifyGetNotifyChannelsOKTriggersItem `json:"triggers"`
+	// Which kinds of incident send an alert, and from which severity.
+	Triggers             []NotifyGetNotifyChannelsOKTriggersItem       `json:"triggers"`
+	VulnerabilityTrigger NotifyGetNotifyChannelsOKVulnerabilityTrigger `json:"vulnerability_trigger"`
 }
 
 // GetChannels returns the value of Channels.
@@ -211259,6 +211260,11 @@ func (s *NotifyGetNotifyChannelsOK) GetTriggers() []NotifyGetNotifyChannelsOKTri
 	return s.Triggers
 }
 
+// GetVulnerabilityTrigger returns the value of VulnerabilityTrigger.
+func (s *NotifyGetNotifyChannelsOK) GetVulnerabilityTrigger() NotifyGetNotifyChannelsOKVulnerabilityTrigger {
+	return s.VulnerabilityTrigger
+}
+
 // SetChannels sets the value of Channels.
 func (s *NotifyGetNotifyChannelsOK) SetChannels(val []NotifyGetNotifyChannelsOKChannelsItem) {
 	s.Channels = val
@@ -211277,6 +211283,11 @@ func (s *NotifyGetNotifyChannelsOK) SetQuiet(val NotifyGetNotifyChannelsOKQuiet)
 // SetTriggers sets the value of Triggers.
 func (s *NotifyGetNotifyChannelsOK) SetTriggers(val []NotifyGetNotifyChannelsOKTriggersItem) {
 	s.Triggers = val
+}
+
+// SetVulnerabilityTrigger sets the value of VulnerabilityTrigger.
+func (s *NotifyGetNotifyChannelsOK) SetVulnerabilityTrigger(val NotifyGetNotifyChannelsOKVulnerabilityTrigger) {
+	s.VulnerabilityTrigger = val
 }
 
 type NotifyGetNotifyChannelsOKChannelsItem struct {
@@ -211715,7 +211726,8 @@ func (s *NotifyGetNotifyChannelsOKQuiet) SetTo(val string) {
 type NotifyGetNotifyChannelsOKTriggersItem struct {
 	DefaultMin NotifyGetNotifyChannelsOKTriggersItemDefaultMin `json:"default_min"`
 	DefaultOn  bool                                            `json:"default_on"`
-	ID         NotifyGetNotifyChannelsOKTriggersItemID         `json:"id"`
+	// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
+	ID NotifyGetNotifyChannelsOKTriggersItemID `json:"id"`
 	// The lowest severity of this kind that sends a message.
 	Min NotifyGetNotifyChannelsOKTriggersItemMin `json:"min"`
 	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
@@ -211827,11 +211839,11 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemDefaultMin) UnmarshalText(data []b
 	}
 }
 
+// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 type NotifyGetNotifyChannelsOKTriggersItemID string
 
 const (
 	NotifyGetNotifyChannelsOKTriggersItemIDTrap          NotifyGetNotifyChannelsOKTriggersItemID = "trap"
-	NotifyGetNotifyChannelsOKTriggersItemIDVulnerability NotifyGetNotifyChannelsOKTriggersItemID = "vulnerability"
 	NotifyGetNotifyChannelsOKTriggersItemIDIntrusion     NotifyGetNotifyChannelsOKTriggersItemID = "intrusion"
 	NotifyGetNotifyChannelsOKTriggersItemIDBadAddress    NotifyGetNotifyChannelsOKTriggersItemID = "bad_address"
 	NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly    NotifyGetNotifyChannelsOKTriggersItemID = "log_anomaly"
@@ -211842,7 +211854,6 @@ const (
 func (NotifyGetNotifyChannelsOKTriggersItemID) AllValues() []NotifyGetNotifyChannelsOKTriggersItemID {
 	return []NotifyGetNotifyChannelsOKTriggersItemID{
 		NotifyGetNotifyChannelsOKTriggersItemIDTrap,
-		NotifyGetNotifyChannelsOKTriggersItemIDVulnerability,
 		NotifyGetNotifyChannelsOKTriggersItemIDIntrusion,
 		NotifyGetNotifyChannelsOKTriggersItemIDBadAddress,
 		NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly,
@@ -211854,8 +211865,6 @@ func (NotifyGetNotifyChannelsOKTriggersItemID) AllValues() []NotifyGetNotifyChan
 func (s NotifyGetNotifyChannelsOKTriggersItemID) MarshalText() ([]byte, error) {
 	switch s {
 	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
-		return []byte(s), nil
-	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
 		return []byte(s), nil
 	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
 		return []byte(s), nil
@@ -211875,9 +211884,6 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemID) UnmarshalText(data []byte) err
 	switch NotifyGetNotifyChannelsOKTriggersItemID(data) {
 	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
 		*s = NotifyGetNotifyChannelsOKTriggersItemIDTrap
-		return nil
-	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
-		*s = NotifyGetNotifyChannelsOKTriggersItemIDVulnerability
 		return nil
 	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
 		*s = NotifyGetNotifyChannelsOKTriggersItemIDIntrusion
@@ -211950,6 +211956,32 @@ func (s *NotifyGetNotifyChannelsOKTriggersItemMin) UnmarshalText(data []byte) er
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type NotifyGetNotifyChannelsOKVulnerabilityTrigger struct {
+	DefaultOn bool `json:"default_on"`
+	// Off: the finding is still recorded, but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetDefaultOn returns the value of DefaultOn.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) GetDefaultOn() bool {
+	return s.DefaultOn
+}
+
+// GetOn returns the value of On.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) GetOn() bool {
+	return s.On
+}
+
+// SetDefaultOn sets the value of DefaultOn.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) SetDefaultOn(val bool) {
+	s.DefaultOn = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyGetNotifyChannelsOKVulnerabilityTrigger) SetOn(val bool) {
+	s.On = val
 }
 
 type NotifyGetNotifyFindingsIDNoticesOK struct {
@@ -219075,7 +219107,8 @@ func (s *NotifyPutNotifyRulesReqQuiet) SetTo(val string) {
 }
 
 type NotifyPutNotifyTriggersOK struct {
-	Triggers []NotifyPutNotifyTriggersOKTriggersItem `json:"triggers"`
+	Triggers             []NotifyPutNotifyTriggersOKTriggersItem       `json:"triggers"`
+	VulnerabilityTrigger NotifyPutNotifyTriggersOKVulnerabilityTrigger `json:"vulnerability_trigger"`
 }
 
 // GetTriggers returns the value of Triggers.
@@ -219083,15 +219116,26 @@ func (s *NotifyPutNotifyTriggersOK) GetTriggers() []NotifyPutNotifyTriggersOKTri
 	return s.Triggers
 }
 
+// GetVulnerabilityTrigger returns the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersOK) GetVulnerabilityTrigger() NotifyPutNotifyTriggersOKVulnerabilityTrigger {
+	return s.VulnerabilityTrigger
+}
+
 // SetTriggers sets the value of Triggers.
 func (s *NotifyPutNotifyTriggersOK) SetTriggers(val []NotifyPutNotifyTriggersOKTriggersItem) {
 	s.Triggers = val
 }
 
+// SetVulnerabilityTrigger sets the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersOK) SetVulnerabilityTrigger(val NotifyPutNotifyTriggersOKVulnerabilityTrigger) {
+	s.VulnerabilityTrigger = val
+}
+
 type NotifyPutNotifyTriggersOKTriggersItem struct {
 	DefaultMin NotifyPutNotifyTriggersOKTriggersItemDefaultMin `json:"default_min"`
 	DefaultOn  bool                                            `json:"default_on"`
-	ID         NotifyPutNotifyTriggersOKTriggersItemID         `json:"id"`
+	// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
+	ID NotifyPutNotifyTriggersOKTriggersItemID `json:"id"`
 	// The lowest severity of this kind that sends a message.
 	Min NotifyPutNotifyTriggersOKTriggersItemMin `json:"min"`
 	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
@@ -219203,11 +219247,11 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemDefaultMin) UnmarshalText(data []b
 	}
 }
 
+// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 type NotifyPutNotifyTriggersOKTriggersItemID string
 
 const (
 	NotifyPutNotifyTriggersOKTriggersItemIDTrap          NotifyPutNotifyTriggersOKTriggersItemID = "trap"
-	NotifyPutNotifyTriggersOKTriggersItemIDVulnerability NotifyPutNotifyTriggersOKTriggersItemID = "vulnerability"
 	NotifyPutNotifyTriggersOKTriggersItemIDIntrusion     NotifyPutNotifyTriggersOKTriggersItemID = "intrusion"
 	NotifyPutNotifyTriggersOKTriggersItemIDBadAddress    NotifyPutNotifyTriggersOKTriggersItemID = "bad_address"
 	NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly    NotifyPutNotifyTriggersOKTriggersItemID = "log_anomaly"
@@ -219218,7 +219262,6 @@ const (
 func (NotifyPutNotifyTriggersOKTriggersItemID) AllValues() []NotifyPutNotifyTriggersOKTriggersItemID {
 	return []NotifyPutNotifyTriggersOKTriggersItemID{
 		NotifyPutNotifyTriggersOKTriggersItemIDTrap,
-		NotifyPutNotifyTriggersOKTriggersItemIDVulnerability,
 		NotifyPutNotifyTriggersOKTriggersItemIDIntrusion,
 		NotifyPutNotifyTriggersOKTriggersItemIDBadAddress,
 		NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly,
@@ -219230,8 +219273,6 @@ func (NotifyPutNotifyTriggersOKTriggersItemID) AllValues() []NotifyPutNotifyTrig
 func (s NotifyPutNotifyTriggersOKTriggersItemID) MarshalText() ([]byte, error) {
 	switch s {
 	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
-		return []byte(s), nil
-	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
 		return []byte(s), nil
 	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
 		return []byte(s), nil
@@ -219251,9 +219292,6 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemID) UnmarshalText(data []byte) err
 	switch NotifyPutNotifyTriggersOKTriggersItemID(data) {
 	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
 		*s = NotifyPutNotifyTriggersOKTriggersItemIDTrap
-		return nil
-	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
-		*s = NotifyPutNotifyTriggersOKTriggersItemIDVulnerability
 		return nil
 	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
 		*s = NotifyPutNotifyTriggersOKTriggersItemIDIntrusion
@@ -219328,8 +219366,36 @@ func (s *NotifyPutNotifyTriggersOKTriggersItemMin) UnmarshalText(data []byte) er
 	}
 }
 
+type NotifyPutNotifyTriggersOKVulnerabilityTrigger struct {
+	DefaultOn bool `json:"default_on"`
+	// Off: the finding is still recorded, but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetDefaultOn returns the value of DefaultOn.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) GetDefaultOn() bool {
+	return s.DefaultOn
+}
+
+// GetOn returns the value of On.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) GetOn() bool {
+	return s.On
+}
+
+// SetDefaultOn sets the value of DefaultOn.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) SetDefaultOn(val bool) {
+	s.DefaultOn = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyPutNotifyTriggersOKVulnerabilityTrigger) SetOn(val bool) {
+	s.On = val
+}
+
 type NotifyPutNotifyTriggersReq struct {
 	Triggers []NotifyPutNotifyTriggersReqTriggersItem `json:"triggers"`
+	// Left out: keeps its rule.
+	VulnerabilityTrigger OptNotifyPutNotifyTriggersReqVulnerabilityTrigger `json:"vulnerability_trigger"`
 }
 
 // GetTriggers returns the value of Triggers.
@@ -219337,12 +219403,23 @@ func (s *NotifyPutNotifyTriggersReq) GetTriggers() []NotifyPutNotifyTriggersReqT
 	return s.Triggers
 }
 
+// GetVulnerabilityTrigger returns the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersReq) GetVulnerabilityTrigger() OptNotifyPutNotifyTriggersReqVulnerabilityTrigger {
+	return s.VulnerabilityTrigger
+}
+
 // SetTriggers sets the value of Triggers.
 func (s *NotifyPutNotifyTriggersReq) SetTriggers(val []NotifyPutNotifyTriggersReqTriggersItem) {
 	s.Triggers = val
 }
 
+// SetVulnerabilityTrigger sets the value of VulnerabilityTrigger.
+func (s *NotifyPutNotifyTriggersReq) SetVulnerabilityTrigger(val OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) {
+	s.VulnerabilityTrigger = val
+}
+
 type NotifyPutNotifyTriggersReqTriggersItem struct {
+	// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 	ID NotifyPutNotifyTriggersReqTriggersItemID `json:"id"`
 	// The lowest severity of this kind that sends a message.
 	Min NotifyPutNotifyTriggersReqTriggersItemMin `json:"min"`
@@ -219380,11 +219457,11 @@ func (s *NotifyPutNotifyTriggersReqTriggersItem) SetOn(val bool) {
 	s.On = val
 }
 
+// The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger).
 type NotifyPutNotifyTriggersReqTriggersItemID string
 
 const (
 	NotifyPutNotifyTriggersReqTriggersItemIDTrap          NotifyPutNotifyTriggersReqTriggersItemID = "trap"
-	NotifyPutNotifyTriggersReqTriggersItemIDVulnerability NotifyPutNotifyTriggersReqTriggersItemID = "vulnerability"
 	NotifyPutNotifyTriggersReqTriggersItemIDIntrusion     NotifyPutNotifyTriggersReqTriggersItemID = "intrusion"
 	NotifyPutNotifyTriggersReqTriggersItemIDBadAddress    NotifyPutNotifyTriggersReqTriggersItemID = "bad_address"
 	NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly    NotifyPutNotifyTriggersReqTriggersItemID = "log_anomaly"
@@ -219395,7 +219472,6 @@ const (
 func (NotifyPutNotifyTriggersReqTriggersItemID) AllValues() []NotifyPutNotifyTriggersReqTriggersItemID {
 	return []NotifyPutNotifyTriggersReqTriggersItemID{
 		NotifyPutNotifyTriggersReqTriggersItemIDTrap,
-		NotifyPutNotifyTriggersReqTriggersItemIDVulnerability,
 		NotifyPutNotifyTriggersReqTriggersItemIDIntrusion,
 		NotifyPutNotifyTriggersReqTriggersItemIDBadAddress,
 		NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly,
@@ -219407,8 +219483,6 @@ func (NotifyPutNotifyTriggersReqTriggersItemID) AllValues() []NotifyPutNotifyTri
 func (s NotifyPutNotifyTriggersReqTriggersItemID) MarshalText() ([]byte, error) {
 	switch s {
 	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
-		return []byte(s), nil
-	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
 		return []byte(s), nil
 	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
 		return []byte(s), nil
@@ -219428,9 +219502,6 @@ func (s *NotifyPutNotifyTriggersReqTriggersItemID) UnmarshalText(data []byte) er
 	switch NotifyPutNotifyTriggersReqTriggersItemID(data) {
 	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
 		*s = NotifyPutNotifyTriggersReqTriggersItemIDTrap
-		return nil
-	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
-		*s = NotifyPutNotifyTriggersReqTriggersItemIDVulnerability
 		return nil
 	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
 		*s = NotifyPutNotifyTriggersReqTriggersItemIDIntrusion
@@ -219503,6 +219574,22 @@ func (s *NotifyPutNotifyTriggersReqTriggersItemMin) UnmarshalText(data []byte) e
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Left out: keeps its rule.
+type NotifyPutNotifyTriggersReqVulnerabilityTrigger struct {
+	// Off: the finding is still recorded, but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetOn returns the value of On.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) GetOn() bool {
+	return s.On
+}
+
+// SetOn sets the value of On.
+func (s *NotifyPutNotifyTriggersReqVulnerabilityTrigger) SetOn(val bool) {
+	s.On = val
 }
 
 // NewOptAiGetAiActivityResult returns new OptAiGetAiActivityResult with value set to v.
@@ -224845,6 +224932,52 @@ func (o OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) Get() (v NotifyPostNot
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) Or(d NotifyPostNotifyNoticesIDSendOKNotSentChannel) NotifyPostNotifyNoticesIDSendOKNotSentChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotifyPutNotifyTriggersReqVulnerabilityTrigger returns new OptNotifyPutNotifyTriggersReqVulnerabilityTrigger with value set to v.
+func NewOptNotifyPutNotifyTriggersReqVulnerabilityTrigger(v NotifyPutNotifyTriggersReqVulnerabilityTrigger) OptNotifyPutNotifyTriggersReqVulnerabilityTrigger {
+	return OptNotifyPutNotifyTriggersReqVulnerabilityTrigger{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyPutNotifyTriggersReqVulnerabilityTrigger is optional NotifyPutNotifyTriggersReqVulnerabilityTrigger.
+type OptNotifyPutNotifyTriggersReqVulnerabilityTrigger struct {
+	Value NotifyPutNotifyTriggersReqVulnerabilityTrigger
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyPutNotifyTriggersReqVulnerabilityTrigger was set.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Reset() {
+	var v NotifyPutNotifyTriggersReqVulnerabilityTrigger
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) SetTo(v NotifyPutNotifyTriggersReqVulnerabilityTrigger) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Get() (v NotifyPutNotifyTriggersReqVulnerabilityTrigger, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyPutNotifyTriggersReqVulnerabilityTrigger) Or(d NotifyPutNotifyTriggersReqVulnerabilityTrigger) NotifyPutNotifyTriggersReqVulnerabilityTrigger {
 	if v, ok := o.Get(); ok {
 		return v
 	}

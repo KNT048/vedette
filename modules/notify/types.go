@@ -74,10 +74,12 @@ type Rules struct {
 
 // ChannelsView is the answer of GET /notify/channels.
 type ChannelsView struct {
-	Channels       []Channel     `json:"channels"`
-	Quiet          Quiet         `json:"quiet"`
-	Triggers       []TriggerView `json:"triggers"`
-	EmailCodeUsers int           `json:"email_code_users"`
+	Channels []Channel     `json:"channels"`
+	Quiet    Quiet         `json:"quiet"`
+	Triggers []TriggerView `json:"triggers"`
+	// Vulnerability is the vulnerability trigger: on or off, no minimum (INV-32: a finding alerts only when exploited, always critical)
+	Vulnerability  VulnTriggerView `json:"vulnerability_trigger"`
+	EmailCodeUsers int             `json:"email_code_users"`
 }
 
 // SendView is one delivery attempt as the API shows it.

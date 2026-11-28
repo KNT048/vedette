@@ -78694,12 +78694,12 @@
                             "type": "string",
                             "enum": [
                               "trap",
-                              "vulnerability",
                               "intrusion",
                               "bad_address",
                               "log_anomaly",
                               "unknown_device"
-                            ]
+                            ],
+                            "description": "The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger)"
                           },
                           "on": {
                             "type": "boolean",
@@ -78737,7 +78737,24 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Which kinds of event send an alert, and from which severity"
+                      "description": "Which kinds of incident send an alert, and from which severity"
+                    },
+                    "vulnerability_trigger": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean",
+                          "description": "Off: the finding is still recorded, but no message is sent"
+                        },
+                        "default_on": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "default_on"
+                      ],
+                      "additionalProperties": false
                     },
                     "email_code_users": {
                       "type": "integer",
@@ -78750,6 +78767,7 @@
                     "channels",
                     "quiet",
                     "triggers",
+                    "vulnerability_trigger",
                     "email_code_users"
                   ],
                   "additionalProperties": false
@@ -81528,12 +81546,12 @@
                           "type": "string",
                           "enum": [
                             "trap",
-                            "vulnerability",
                             "intrusion",
                             "bad_address",
                             "log_anomaly",
                             "unknown_device"
-                          ]
+                          ],
+                          "description": "The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger)"
                         },
                         "on": {
                           "type": "boolean",
@@ -81557,6 +81575,20 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "vulnerability_trigger": {
+                    "description": "Left out: keeps its rule",
+                    "type": "object",
+                    "properties": {
+                      "on": {
+                        "type": "boolean",
+                        "description": "Off: the finding is still recorded, but no message is sent"
+                      }
+                    },
+                    "required": [
+                      "on"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -81584,12 +81616,12 @@
                             "type": "string",
                             "enum": [
                               "trap",
-                              "vulnerability",
                               "intrusion",
                               "bad_address",
                               "log_anomaly",
                               "unknown_device"
-                            ]
+                            ],
+                            "description": "The incident triggers; the vulnerability trigger is its own type (VulnerabilityTrigger)"
                           },
                           "on": {
                             "type": "boolean",
@@ -81627,10 +81659,28 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "vulnerability_trigger": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean",
+                          "description": "Off: the finding is still recorded, but no message is sent"
+                        },
+                        "default_on": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "default_on"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
-                    "triggers"
+                    "triggers",
+                    "vulnerability_trigger"
                   ],
                   "additionalProperties": false
                 }

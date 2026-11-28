@@ -76,13 +76,13 @@ func parseNews(text string) (newsAnswer, error) {
 	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "exploited", "public_exploit", "workaround", "other") {
 		return newsAnswer{}, ErrBadOutput
 	}
-	a.Exploited, a.PublicExploit, a.Workaround = cleanLine(a.Exploited, maxNewsLine), cleanLine(a.PublicExploit, maxNewsLine), cleanLine(a.Workaround, maxNewsLine)
+	a.Exploited, a.PublicExploit, a.Workaround = cleanLine(plainText(a.Exploited), maxNewsLine), cleanLine(plainText(a.PublicExploit), maxNewsLine), cleanLine(plainText(a.Workaround), maxNewsLine)
 	if a.Exploited == "" || a.PublicExploit == "" || a.Workaround == "" {
 		return newsAnswer{}, ErrBadOutput
 	}
 	other := []string{}
 	for _, s := range a.Other {
-		if s = cleanLine(s, maxNewsLine); s != "" && len(other) < maxNewsOther {
+		if s = cleanLine(plainText(s), maxNewsLine); s != "" && len(other) < maxNewsOther {
 			other = append(other, s)
 		}
 	}

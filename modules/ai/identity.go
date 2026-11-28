@@ -79,7 +79,9 @@ const identifyReasonMax = 400
 // a name talked the model into is refused here, before findings sees it), a match of the enum, a reason within its cap.
 func (a *identifyAnswer) check(offered map[int]map[string]bool) error {
 	seen := map[int]bool{}
-	for _, c := range a.Items {
+	for i := range a.Items {
+		a.Items[i].Reason = plainText(a.Items[i].Reason) // shown as text, never a link
+		c := a.Items[i]
 		ids, ok := offered[c.Index]
 		if !ok || seen[c.Index] {
 			return fmt.Errorf("index %d is not a program asked about once", c.Index)

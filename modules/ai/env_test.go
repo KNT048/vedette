@@ -50,6 +50,8 @@ type fakeProviders struct {
 	cut               int // the next answers with a schema that stop at the output limit: half the text, stop reason max_tokens
 	// script, when set, answers every request that carries tools or follows a tool turn instead of the default text (slice 5, ask).
 	script func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
+	// adversary, when set, answers every request that is not a probe: a model that obeys any instruction it finds (attack_test.go).
+	adversary func(req provider.Request) provider.Response
 }
 
 func (f *fakeProviders) factory(p ai.Profile) (provider.Provider, error) {
@@ -102,6 +104,9 @@ func (p fakeProvider) Complete(ctx context.Context, req provider.Request) (provi
 	}
 	if len(req.Tools) > 0 && !p.f.tools {
 		return provider.Response{}, &provider.Error{Kind: provider.ErrRequest, Status: 400}
+	}
+	if p.f.adversary != nil { // set after the profile was added and probed
+		return p.f.adversary(req), nil
 	}
 	if p.f.script != nil && req.Schema == nil {
 		return p.f.script(ctx, p.p, req)
@@ -171,6 +176,8 @@ type env struct {
 	askTimeout  time.Duration // 0 = the default
 	data        *fakeData
 	conns       *fakeConns
+	net         *fakeNet            // the box's page fetchers, when a test attached them (attack_test.go)
+	identity    []ai.IdentifyItem   // the programs an attack case identifies
 	logs        *fakeLogs
 	logBuf      *logBuffer // what the service logged
 }

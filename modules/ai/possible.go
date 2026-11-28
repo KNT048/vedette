@@ -247,7 +247,9 @@ func (a *possibleAnswer) check(indexes map[int]bool, pages int) error {
 		return fmt.Errorf("%d verdicts for %d items", len(a.Items), len(indexes))
 	}
 	seen := map[int]bool{}
-	for _, v := range a.Items {
+	for i := range a.Items {
+		a.Items[i].Reason = plainText(a.Items[i].Reason) // shown as text; the links of a reading are the pages the box fetched
+		v := a.Items[i]
 		if !indexes[v.Index] || seen[v.Index] {
 			return fmt.Errorf("index %d is not an item asked about once", v.Index)
 		}

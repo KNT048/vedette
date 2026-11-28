@@ -255,7 +255,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "summary", "items") || (!remember && a.Remember != nil) {
 		return logDigestBody{}, nil, ErrBadOutput
 	}
-	out := logDigestBody{Summary: cleanLine(a.Summary, digestMaxSummary), Items: []LogDigestItem{}}
+	out := logDigestBody{Summary: cleanLine(plainText(a.Summary), digestMaxSummary), Items: []LogDigestItem{}}
 	if out.Summary == "" {
 		return logDigestBody{}, nil, ErrBadOutput
 	}
@@ -263,7 +263,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 		if it.Severity != "high" && it.Severity != "medium" && it.Severity != "info" {
 			return logDigestBody{}, nil, ErrBadOutput
 		}
-		title := cleanLine(it.Title, digestMaxTitle)
+		title := cleanLine(plainText(it.Title), digestMaxTitle)
 		if title == "" {
 			return logDigestBody{}, nil, ErrBadOutput
 		}
@@ -276,7 +276,7 @@ func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 				ev = append(ev, e)
 			}
 		}
-		out.Items = append(out.Items, LogDigestItem{Severity: it.Severity, Title: title, Evidence: ev, Recommendation: cleanLine(it.Recommendation, digestMaxRec)})
+		out.Items = append(out.Items, LogDigestItem{Severity: it.Severity, Title: title, Evidence: ev, Recommendation: cleanLine(plainText(it.Recommendation), digestMaxRec)})
 	}
 	var mem []string
 	for _, r := range a.Remember {

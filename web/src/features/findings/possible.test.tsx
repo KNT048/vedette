@@ -21,7 +21,8 @@ describe('Possible findings in By device and By fix', () => {
     const line = await waitFor(() => { const e = document.querySelector('[data-count="by-device"]'); if (!e?.textContent?.includes('possible')) throw new Error('no line'); return e }, T)
     const open = records.get().filter((r) => r.state === 'open').length
     const older = possibleCounts().older_build
-    expect(line).toHaveTextContent(new RegExp(`, ${open} open findings · ${n} possible · ${older} older build$`))
+    const distro = possibleCounts().distro_pending
+    expect(line).toHaveTextContent(new RegExp(`, ${open} open findings · ${n} possible · ${older} older build · ${distro} waiting for the distribution$`))
     expect(within(line as HTMLElement).getByRole('link', { name: `${n} possible` })).toHaveAttribute('href', '#possible')
     // never hidden: the older-build group's count is a link beside it
     expect(within(line as HTMLElement).getByRole('link', { name: `${older} older build` })).toHaveAttribute('href', '#possible')
@@ -155,6 +156,30 @@ describe('Possible findings in By device and By fix', () => {
     expect(rows.some((r) => r.textContent?.includes('CVE-2026-900105'))).toBe(false)
   })
 
+  it('CVEs waiting for the distribution are counted and listed apart, closed, the header saying how many are exploited', async () => {
+    const c = possibleCounts()
+    expect([c.distro_pending, c.distro_pending_exploited]).toEqual([3, 1])
+    expect(c.causes.distro_silent).toBe(0) // the causes add up to the main number only
+    renderApp('/findings?tab=device')
+    const s = await section()
+    expect(await within(s).findByText(new RegExp(`^${c.possible} possible CVEs on \\d+ devices · .* · 3 waiting for the distribution`), {}, T)).toBeInTheDocument()
+    const group = within(s).getByTestId('distro-pending')
+    expect(within(group).queryAllByTestId('possible-row')).toHaveLength(0)
+    await userEvent.click(within(group).getByRole('button', { name: 'The distribution has not decided yet: 3 CVEs · 1 exploited' }))
+    const rows = within(group).getAllByTestId('possible-row')
+    expect(rows).toHaveLength(3)
+    // each row says the distribution's own reason
+    const row = rows.find((r) => r.textContent?.includes('CVE-2023-900203'))!
+    expect(row).toHaveTextContent('The distribution lists this CVE for curl in other releases only, not the one this device runs.')
+  })
+
+  it('a device page shows its CVEs waiting for the distribution as the same closed group', async () => {
+    renderApp('/devices/a-web01?tab=findings')
+    const s = await section()
+    expect(await within(s).findByRole('button', { name: 'The distribution has not decided yet: 3 CVEs · 1 exploited' }, T)).toBeInTheDocument()
+    expect(within(s).queryAllByTestId('possible-row')).toHaveLength(0)
+  })
+
   it('a device with possible CVEs of both kinds counts both on its page', async () => {
     renderApp('/devices/a-srvacc?tab=findings')
     const s = await section()
@@ -233,5 +258,6 @@ describe('Checking possible findings and the AI proposals', () => {
     expect(await screen.findByRole('link', { name: `${c.possible} possible CVEs to check` }, T)).toHaveAttribute('href', '/findings?tab=device#possible')
     expect(screen.getByRole('link', { name: `${c.proposals} AI proposals wait for you` })).toHaveAttribute('href', '/findings?tab=proposals')
     expect(screen.getByRole('link', { name: `${c.older_build} reported only for an older build` })).toHaveAttribute('href', '/findings?tab=device#possible')
+    expect(screen.getByRole('link', { name: `${c.distro_pending} waiting for the distribution (${c.distro_pending_exploited} exploited)` })).toHaveAttribute('href', '/findings?tab=device#possible')
   })
 })

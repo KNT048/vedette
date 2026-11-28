@@ -1,5 +1,5 @@
 -- +goose Up
--- How the AI researched one release line (findings P-10): the reading itself is the fnd_line_statement row of the same key (verdict,
+-- How the AI researched one release line (findings P-12): the reading itself is the fnd_line_statement row of the same key (verdict,
 -- quote, page, model); this row keeps the research behind it: the layer whose answer stands (quick, or strong after an escalation),
 -- where the box found the quote (in text the AI's tools returned, in the box's own digest of the CVE, on a live fetch of the cited
 -- page, not found, or no quote), the tokens of every layer, and detail: the mode, the AI's confidence, the trap it checked, and per

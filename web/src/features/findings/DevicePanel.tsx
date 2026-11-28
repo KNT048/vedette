@@ -33,6 +33,8 @@ export type DeviceFindingsSummary = {
   possible: number
   /** Possible CVEs reported only for an older build (0 when none or not known): counted apart from possible. */
   olderBuild: number
+  /** Possible CVEs waiting for the distribution (0 when none or not known): counted apart, not in the badge. */
+  distroPending: number
 }
 
 /** The device's findings summary; undefined while loading or when the findings module is off. */
@@ -52,6 +54,7 @@ export function useDeviceFindingsSummary(assetId: string): DeviceFindingsSummary
     counts: card?.counts ?? Object.fromEntries(OPEN_FINDING_STATUSES.map((s) => [s, 0])) as Record<OpenFindingStatus, number>,
     possible,
     olderBuild,
+    distroPending: counts.data?.distro_pending ?? 0,
   }
 }
 
@@ -67,6 +70,7 @@ export function DeviceFindingsLine({ summary }: { summary: DeviceFindingsSummary
       {statuses.map((s) => <StatusBadge key={s} code={s} count={summary.counts![s]} />)}
       {summary.open ? <Link to={keep('?tab=findings')} className="text-sm text-accent underline-offset-4 hover:underline">{t('device.view')}</Link> : null}
       {summary.possible ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLink', { count: summary.possible })}</Link> : null}
+      {summary.distroPending ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLinkDistro', { count: summary.distroPending })}</Link> : null}
       {summary.olderBuild ? <Link to={`${keep('?tab=findings')}#possible`} className="text-sm text-accent underline-offset-4 hover:underline">{t('possible.countLinkOlder', { count: summary.olderBuild })}</Link> : null}
     </div>
   )

@@ -215325,6 +215325,14 @@ func (s *FindingsGetFindingsOverviewOKPossible) encodeFields(e *jx.Encoder) {
 		s.Causes.Encode(e)
 	}
 	{
+		e.FieldStart("distro_pending")
+		e.Int(s.DistroPending)
+	}
+	{
+		e.FieldStart("distro_pending_exploited")
+		e.Int(s.DistroPendingExploited)
+	}
+	{
 		e.FieldStart("older_build")
 		e.Int(s.OlderBuild)
 	}
@@ -215346,13 +215354,15 @@ func (s *FindingsGetFindingsOverviewOKPossible) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOverviewOKPossible = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsOverviewOKPossible = [8]string{
 	0: "causes",
-	1: "older_build",
-	2: "possible",
-	3: "proposals",
-	4: "settled",
-	5: "unchecked",
+	1: "distro_pending",
+	2: "distro_pending_exploited",
+	3: "older_build",
+	4: "possible",
+	5: "proposals",
+	6: "settled",
+	7: "unchecked",
 }
 
 // Decode decodes FindingsGetFindingsOverviewOKPossible from json.
@@ -215374,8 +215384,32 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"causes\"")
 			}
-		case "older_build":
+		case "distro_pending":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.DistroPending = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pending\"")
+			}
+		case "distro_pending_exploited":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.DistroPendingExploited = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pending_exploited\"")
+			}
+		case "older_build":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.OlderBuild = int(v)
@@ -215387,7 +215421,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"older_build\"")
 			}
 		case "possible":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Possible = int(v)
@@ -215399,7 +215433,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"possible\"")
 			}
 		case "proposals":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -215411,7 +215445,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "settled":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Settled = int(v)
@@ -215423,7 +215457,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"settled\"")
 			}
 		case "unchecked":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Unchecked = int(v)
@@ -215444,7 +215478,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -215508,6 +215542,10 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) encodeFields(e *jx.Encoder
 		e.Int(s.AiUnsure)
 	}
 	{
+		e.FieldStart("distro_silent")
+		e.Int(s.DistroSilent)
+	}
+	{
 		e.FieldStart("identity_unproven")
 		e.Int(s.IdentityUnproven)
 	}
@@ -215537,16 +215575,17 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOverviewOKPossibleCauses = [9]string{
+var jsonFieldsNameOfFindingsGetFindingsOverviewOKPossibleCauses = [10]string{
 	0: "ai_budget",
 	1: "ai_unsure",
-	2: "identity_unproven",
-	3: "needs_person",
-	4: "needs_reading",
-	5: "page_unreadable",
-	6: "pending_nvd",
-	7: "vendor_silent",
-	8: "version_needed",
+	2: "distro_silent",
+	3: "identity_unproven",
+	4: "needs_person",
+	5: "needs_reading",
+	6: "page_unreadable",
+	7: "pending_nvd",
+	8: "vendor_silent",
+	9: "version_needed",
 }
 
 // Decode decodes FindingsGetFindingsOverviewOKPossibleCauses from json.
@@ -215582,8 +215621,20 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ai_unsure\"")
 			}
-		case "identity_unproven":
+		case "distro_silent":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.DistroSilent = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_silent\"")
+			}
+		case "identity_unproven":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.IdentityUnproven = int(v)
@@ -215595,7 +215646,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"identity_unproven\"")
 			}
 		case "needs_person":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.NeedsPerson = int(v)
@@ -215607,7 +215658,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"needs_person\"")
 			}
 		case "needs_reading":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.NeedsReading = int(v)
@@ -215619,7 +215670,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"needs_reading\"")
 			}
 		case "page_unreadable":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.PageUnreadable = int(v)
@@ -215631,7 +215682,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"page_unreadable\"")
 			}
 		case "pending_nvd":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.PendingNvd = int(v)
@@ -215643,7 +215694,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"pending_nvd\"")
 			}
 		case "vendor_silent":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.VendorSilent = int(v)
@@ -215655,7 +215706,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"vendor_silent\"")
 			}
 		case "version_needed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.VersionNeeded = int(v)
@@ -215677,7 +215728,7 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) Decode(d *jx.Decoder) erro
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -216021,6 +216072,18 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) Decode(d *jx.Decode
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData
 	default:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReason(v)
 	}
@@ -216599,6 +216662,14 @@ func (s *FindingsGetFindingsPossibleOKCounts) encodeFields(e *jx.Encoder) {
 		s.Causes.Encode(e)
 	}
 	{
+		e.FieldStart("distro_pending")
+		e.Int(s.DistroPending)
+	}
+	{
+		e.FieldStart("distro_pending_exploited")
+		e.Int(s.DistroPendingExploited)
+	}
+	{
 		e.FieldStart("older_build")
 		e.Int(s.OlderBuild)
 	}
@@ -216620,13 +216691,15 @@ func (s *FindingsGetFindingsPossibleOKCounts) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKCounts = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKCounts = [8]string{
 	0: "causes",
-	1: "older_build",
-	2: "possible",
-	3: "proposals",
-	4: "settled",
-	5: "unchecked",
+	1: "distro_pending",
+	2: "distro_pending_exploited",
+	3: "older_build",
+	4: "possible",
+	5: "proposals",
+	6: "settled",
+	7: "unchecked",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKCounts from json.
@@ -216648,8 +216721,32 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"causes\"")
 			}
-		case "older_build":
+		case "distro_pending":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.DistroPending = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pending\"")
+			}
+		case "distro_pending_exploited":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.DistroPendingExploited = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pending_exploited\"")
+			}
+		case "older_build":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.OlderBuild = int(v)
@@ -216661,7 +216758,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"older_build\"")
 			}
 		case "possible":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Possible = int(v)
@@ -216673,7 +216770,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"possible\"")
 			}
 		case "proposals":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -216685,7 +216782,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "settled":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Settled = int(v)
@@ -216697,7 +216794,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"settled\"")
 			}
 		case "unchecked":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Unchecked = int(v)
@@ -216718,7 +216815,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -216782,6 +216879,10 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) encodeFields(e *jx.Encoder) 
 		e.Int(s.AiUnsure)
 	}
 	{
+		e.FieldStart("distro_silent")
+		e.Int(s.DistroSilent)
+	}
+	{
 		e.FieldStart("identity_unproven")
 		e.Int(s.IdentityUnproven)
 	}
@@ -216811,16 +216912,17 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleOKCountsCauses = [9]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleOKCountsCauses = [10]string{
 	0: "ai_budget",
 	1: "ai_unsure",
-	2: "identity_unproven",
-	3: "needs_person",
-	4: "needs_reading",
-	5: "page_unreadable",
-	6: "pending_nvd",
-	7: "vendor_silent",
-	8: "version_needed",
+	2: "distro_silent",
+	3: "identity_unproven",
+	4: "needs_person",
+	5: "needs_reading",
+	6: "page_unreadable",
+	7: "pending_nvd",
+	8: "vendor_silent",
+	9: "version_needed",
 }
 
 // Decode decodes FindingsGetFindingsPossibleOKCountsCauses from json.
@@ -216856,8 +216958,20 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ai_unsure\"")
 			}
-		case "identity_unproven":
+		case "distro_silent":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.DistroSilent = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_silent\"")
+			}
+		case "identity_unproven":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.IdentityUnproven = int(v)
@@ -216869,7 +216983,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"identity_unproven\"")
 			}
 		case "needs_person":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.NeedsPerson = int(v)
@@ -216881,7 +216995,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"needs_person\"")
 			}
 		case "needs_reading":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.NeedsReading = int(v)
@@ -216893,7 +217007,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"needs_reading\"")
 			}
 		case "page_unreadable":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.PageUnreadable = int(v)
@@ -216905,7 +217019,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"page_unreadable\"")
 			}
 		case "pending_nvd":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.PendingNvd = int(v)
@@ -216917,7 +217031,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"pending_nvd\"")
 			}
 		case "vendor_silent":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.VendorSilent = int(v)
@@ -216929,7 +217043,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"vendor_silent\"")
 			}
 		case "version_needed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.VersionNeeded = int(v)
@@ -216951,7 +217065,7 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) Decode(d *jx.Decoder) error 
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -217391,6 +217505,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCause) Decode(d *jx.Decoder) erro
 		*s = FindingsGetFindingsPossibleOKItemsItemCausePendingNvd
 	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson:
 		*s = FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson
+	case FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent
 	default:
 		*s = FindingsGetFindingsPossibleOKItemsItemCause(v)
 	}
@@ -220457,6 +220573,18 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) Decode(d *jx.Dec
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData
 	default:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReason(v)
 	}

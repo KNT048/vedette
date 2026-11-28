@@ -42,6 +42,13 @@ type PossibleItem struct {
 	OlderBuild *OlderBuild
 }
 
+// DistroPending says the item waits for the distribution's word on its own package (cause distro_silent): it is listed and counted
+// apart from the main possible list, like the older-build group, and the device badge leaves it out. It is never checked (checkable).
+func (it PossibleItem) DistroPending() bool {
+	u := it.Question.Detail.Undecided
+	return it.State == PossibleOpen && u != nil && slices.Contains(distroSilentReasons, u.Reason)
+}
+
 // Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
 // only one made on older evidence of the CVE record, which applies until a new check replaces it, or one that stored only that no page
 // could be read, from before the AI read the record when no page reads).
@@ -209,15 +216,20 @@ func (s *Service) exploitedSet(ctx context.Context) (map[string]bool, error) {
 	return out, nil
 }
 
-// PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals) but those reported only for an older build, those
-// apart, the AI proposals waiting, the ones a check can still look at, and the ones the box settled from an advisory.
+// PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals) but those reported only for an older build and
+// those waiting for the distribution, each group apart, the AI proposals waiting, the ones a check can still look at, and the ones the
+// box settled from an advisory.
 type PossibleCounts struct {
-	Possible   int            `json:"possible"`
-	OlderBuild int            `json:"older_build"` // reported only for an older build (OlderBuild), not in Possible
-	Proposals  int            `json:"proposals"`
-	Unchecked  int            `json:"unchecked"`
-	Settled    int            `json:"settled"`
-	Causes     map[string]int `json:"causes"` // the possible CVEs of Possible by cause (PossibleCause), every cause of the list present
+	Possible   int `json:"possible"`
+	OlderBuild int `json:"older_build"` // reported only for an older build (OlderBuild), not in Possible
+	// DistroPending: waiting for the distribution's word on its own package (DistroPending), not in Possible or its causes;
+	// DistroPendingExploited how many of them are on an exploited list
+	DistroPending          int            `json:"distro_pending"`
+	DistroPendingExploited int            `json:"distro_pending_exploited"`
+	Proposals              int            `json:"proposals"`
+	Unchecked              int            `json:"unchecked"`
+	Settled                int            `json:"settled"`
+	Causes                 map[string]int `json:"causes"` // the possible CVEs of Possible by cause (PossibleCause), every cause of the list present
 }
 
 func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
@@ -236,6 +248,13 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 		if it.Checkable() {
 			c.Unchecked++
 		}
+		if it.DistroPending() {
+			c.DistroPending++
+			if it.Exploited {
+				c.DistroPendingExploited++
+			}
+			continue
+		}
 		if it.OlderBuild != nil {
 			c.OlderBuild++
 			continue
@@ -247,12 +266,12 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 }
 
 // possibleByDevice is how many possible CVEs (not settled) each device has, those reported only for an older build apart: the device
-// badge's counts when nothing open is more urgent.
+// badge's counts when nothing open is more urgent. Those waiting for the distribution are not counted (the badge leaves them out).
 func possibleByDevice(items []PossibleItem) (main, older map[string]int) {
 	main, older = map[string]int{}, map[string]int{}
 	for _, it := range items {
 		switch {
-		case it.State == PossibleSettled:
+		case it.State == PossibleSettled, it.DistroPending():
 		case it.OlderBuild != nil:
 			older[it.Question.AssetID]++
 		default:
@@ -324,7 +343,7 @@ type ReadingJS struct {
 	Host         *string `json:"host"`
 	VendorPage   bool    `json:"vendor_page"`
 	QuoteFound   bool    `json:"quote_found"`
-	// Research is how the customer's AI researched the line (P-10); null for a reading of the pages the box fetched.
+	// Research is how the customer's AI researched the line (P-12); null for a reading of the pages the box fetched.
 	Research *LineResearch `json:"research"`
 }
 

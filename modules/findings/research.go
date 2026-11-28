@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// P-10 The customer's AI researches what the box cannot decide. Where the box's own readers (the record's rows, NVD, a vendor's CSAF
+// P-12 The customer's AI researches what the box cannot decide. Where the box's own readers (the record's rows, NVD, a vendor's CSAF
 // or plain-text ranges on a reference page) decide nothing, the check asks the research job once per (CVE, product, release line), for
 // every device and version on that line: findings hands it a digest of what the box read for free (the record's rows and who wrote
 // each, the references with their tags, the pages the box read) and the kinds of devices the line runs on, never a device's name or
@@ -320,7 +320,7 @@ func onPages(st *LineStatement, pages []FetchedPage) bool {
 	return slices.ContainsFunc(pages, func(p FetchedPage) bool { return p.URL == st.URL })
 }
 
-// ---- the review queue (P-10): the AI's "not affected" answers, which wait for a person ----
+// ---- the review queue (P-12): the AI's "not affected" answers, which wait for a person ----
 
 // ReviewFilter selects the rows of GET /findings/review.
 type ReviewFilter struct {

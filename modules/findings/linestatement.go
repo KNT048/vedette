@@ -68,7 +68,7 @@ type LineStatement struct {
 	AskedAt, SeenAt           time.Time
 	RejectedBy                string
 	RejectedAt                time.Time
-	// Research is the research behind the reading (fnd_line_research, P-10); nil for a reading of the pages the box fetched.
+	// Research is the research behind the reading (fnd_line_research, P-12); nil for a reading of the pages the box fetched.
 	Research *LineResearch
 }
 

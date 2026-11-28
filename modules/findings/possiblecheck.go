@@ -47,7 +47,7 @@ type PossibleChecker interface {
 	Record(ctx context.Context, cve string) (CVERecordText, error)
 	// Fetch reads public reference pages over HTTPS (the box's own requests, no AI).
 	Fetch(ctx context.Context, urls []string) []FetchedPage
-	// Research asks the customer's AI to research one CVE for one release line (P-10: the research job, its quick and strong
+	// Research asks the customer's AI to research one CVE for one release line (P-12: the research job, its quick and strong
 	// profiles, its mode and budget; actor SystemUser is the automatic research, held to the daily number of automatic AI calls and its
 	// share of the month's tokens).
 	Research(ctx context.Context, actor string, req ResearchRequest) (ResearchAnswer, error)

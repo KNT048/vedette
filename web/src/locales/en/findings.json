@@ -619,6 +619,8 @@
     "countLink_other": "{{count}} possible",
     "countLinkOlder_one": "{{count}} older build",
     "countLinkOlder_other": "{{count}} older build",
+    "countLinkDistro_one": "{{count}} waiting for the distribution",
+    "countLinkDistro_other": "{{count}} waiting for the distribution",
     "summary_one": "{{count}} possible CVE on {{devices}}",
     "summary_other": "{{count}} possible CVEs on {{devices}}",
     "search": "Search devices, software or CVEs",
@@ -686,7 +688,8 @@
       "identity_unproven": "Vedette cannot tie this software to a product the CVE records name.",
       "version_needed": "Vedette needs the exact version, build, edition, system or package release.",
       "pending_nvd": "Vedette decides it by itself once NVD lists them.",
-      "needs_person": "A person decides: confirm or reject what the AI read, or answer it yourself."
+      "needs_person": "A person decides: confirm or reject what the AI read, or answer it yourself.",
+      "distro_silent": "The distribution's security data has no word on this package for this CVE. Vedette decides it by itself once the distribution states it."
     },
     "reason": {
       "no_version": "Vedette does not know the version of {{software}}.",
@@ -708,7 +711,13 @@
       "no_reference_page": "The CVE links no vendor advisory to read.",
       "fetch_failed": "The vendor's advisory could not be read.",
       "unparsed_vendor_text": "The vendor's advisory names versions in words Vedette cannot read yet.",
-      "ai_unsure": "The AI check read the advisories and could not decide."
+      "ai_unsure": "The AI check read the advisories and could not decide.",
+      "version_from_network": "Vedette has only the version {{version}} that {{software}} shows on the network. It compares CVEs nobody is known to exploit only with a version the device's agent or a person states.",
+      "distro_not_listed": "The distribution has not listed this CVE for any of its packages yet.",
+      "distro_other_packages": "The distribution lists this CVE for other packages only, not {{software}}.",
+      "distro_other_releases": "The distribution lists this CVE for {{software}} in other releases only, not the one this device runs.",
+      "distro_other_build": "The distribution's word on {{software}} is about its own build, not the build installed here ({{version}}).",
+      "distro_no_data": "Vedette has no security data for the distribution this device runs."
     },
     "detail": {
       "toggle": "Details",
@@ -821,6 +830,16 @@
       "done": "Check finished: {{advisory}} decided from vendor advisories, {{undecided}} still undecided.",
       "doneProposals": "Check finished: {{proposals}} AI proposals wait for you ({{advisory}} decided from vendor advisories).",
       "review": "Review"
+    },
+    "distroPending": {
+      "toggle_one": "The distribution has not decided yet: {{count}} CVE",
+      "toggle_other": "The distribution has not decided yet: {{count}} CVEs",
+      "exploited_one": "{{count}} exploited",
+      "exploited_other": "{{count}} exploited",
+      "summary_one": "{{count}} waiting for the distribution",
+      "summary_other": "{{count}} waiting for the distribution",
+      "body": "These packages are built by the device's Linux distribution, which backports its own fixes, so only the distribution's security data can decide them, and it has no word on these yet. Each row says why. Vedette decides them by itself once the distribution states it; they send no alert and are not read by the AI. Answer one when you know more.",
+      "caption": "CVEs waiting for the distribution"
     },
     "olderBuild": {
       "toggle_one": "Reported only for an older build: {{count}} CVE",
@@ -1052,6 +1071,8 @@
       "version_needed": "Version or build needed",
       "pending_nvd": "NVD has not listed versions",
       "needs_person": "A person decides",
+      "distro_silent": "Distribution has no word on the package",
+      "version_from_network": "Version read from the network",
       "other": "Other reason",
       "not_comparable": "Version not comparable",
       "no_range_data": "No range decides this version",

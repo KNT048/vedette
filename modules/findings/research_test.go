@@ -207,7 +207,7 @@ func TestReview_BulkConfirmOfANotExploitedAnswer(t *testing.T) {
 	e, fc := quillWorld(t, "115.12.0")
 	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.12.0": quillResearch(StatementNotAffected, QuoteTool, "the 115 line is fixed in Quillfeather Mail 115.12", quillSAText)}
 	runCheck(t, e)
-	rev, err := e.svc.Review(t.Context(), ReviewFilter{Confidence: "high", Evidence: "checked"}, Page{Limit: PageMax})
+	rev, err := e.svc.Review(t.Context(), ReviewFilter{Confidence: "high", Quote: "checked"}, Page{Limit: PageMax})
 	if err != nil || rev.Total != 1 || rev.Exploited != 0 {
 		t.Fatalf("review %+v %v", rev, err)
 	}

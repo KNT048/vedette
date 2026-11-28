@@ -142,7 +142,7 @@ func (h *FindingHandlers) FindingsGetFindingsReview(ctx context.Context, p oas.F
 		f.Confidence = string(v)
 	}
 	if v, ok := p.Evidence.Get(); ok {
-		f.Evidence = string(v)
+		f.Quote = string(v)
 	}
 	out, err := h.svc.Review(ctx, f, ParsePage(p.Offset.Or(""), p.Limit.Or("")))
 	if err != nil {

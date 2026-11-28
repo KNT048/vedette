@@ -326,7 +326,7 @@ func onPages(st *LineStatement, pages []FetchedPage) bool {
 type ReviewFilter struct {
 	Device, Software, Q string
 	Confidence          string // high, medium or low: the AI's own confidence ("" every one)
-	Evidence            string // checked: the box found the quote; unchecked: it did not ("" both)
+	Quote               string // checked: the box found the quote; unchecked: it did not ("" both)
 }
 
 // ReviewList is contract.ts ReviewList.
@@ -365,8 +365,8 @@ func (s *Service) Review(ctx context.Context, f ReviewFilter, p Page) (ReviewLis
 			case !reviewable(it):
 			case f.Software != "" && it.Question.SoftwareID != f.Software:
 			case f.Confidence != "" && aiConfidence(it.Check) != f.Confidence:
-			case f.Evidence == "checked" && (it.Check.Reading == nil || !it.Check.Reading.QuoteFound):
-			case f.Evidence == "unchecked" && it.Check.Reading != nil && it.Check.Reading.QuoteFound:
+			case f.Quote == "checked" && (it.Check.Reading == nil || !it.Check.Reading.QuoteFound):
+			case f.Quote == "unchecked" && it.Check.Reading != nil && it.Check.Reading.QuoteFound:
 			default:
 				keep = append(keep, it)
 			}

@@ -414,8 +414,8 @@ AND NOT EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) AND s
 // DistroOn lists the distributions ("ubuntu", "debian") whose security data decides their own packages: the feed that says which
 // packages are affected and fixed (debian-tracker, ubuntu-osv) is on and has rows or a completed pull, or is loading (as DistroLoading
 // counts it). findings judges a package such a distribution built by its word alone; a distribution whose feeds are off, or were given
-// up after failing, falls back to NVD's ranges. ubuntu-vex does not count: it keeps only "not affected", so with ubuntu-osv off no row
-// could ever say an Ubuntu package is affected.
+// up after failing, falls back to NVD's ranges. ubuntu-vex does not count: it never gives a fixed version, so with ubuntu-osv off no row
+// could ever say an Ubuntu package is fixed.
 func (s *Store) DistroOn(ctx context.Context) (map[string]bool, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM feeds_source s WHERE s.enabled = 1 AND s.builtin = 1 AND s.id IN ('debian-tracker', 'ubuntu-osv')
 AND (s.last_success IS NOT NULL OR EXISTS (SELECT 1 FROM feeds_distro_fix d WHERE d.source_id = s.id) OR s.failures < ? AND `+kevCanArrive+`)`,

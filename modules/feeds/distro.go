@@ -20,20 +20,23 @@ import (
 
 // Distribution backport data. Ubuntu and Debian fix their packages without changing the upstream version, so a
 // patched OpenSSH stays inside NVD's affected range. Four built-in feeds say, for the CVEs of the CISA list and for the catalogue's
-// CVEs of the last 12 months (the tier CVEs) in the source packages and releases the devices run (DistroWant), which source package
-// of which release is fixed in which distribution version, not affected, or affected with no fix yet; findings judges a package the
-// distribution built by these rows:
+// CVEs the matcher reads (the tier CVEs: tierCVEs) in the source packages and releases the devices run (DistroWant), which source
+// package of which release is fixed in which distribution version, not affected, affected with no fix yet, or still being triaged;
+// findings judges a package the distribution built by these rows:
 //   - ubuntu-osv: Canonical's osv-all.tar.xz, every Ubuntu release in one file; a "fixed" event is the first fixed version.
-//   - ubuntu-vex: Canonical's vex-all.tar.xz; only its not_affected statements are kept (its "fixed" statements name the
-//     archive's current version, not the first fixed one, so they would keep a patched device suspected).
+//   - ubuntu-vex: Canonical's vex-all.tar.xz (OpenVEX); its not_affected, affected and under_investigation statements are kept, of
+//     a plain release and of the Ubuntu Pro pockets of a release (vexStatuses, vexChannel). Its "fixed" statements are not: they
+//     name the archive's current version, not the first fixed one, so they would keep a patched device suspected (the OSV file
+//     has the first fixed version).
 //   - debian-tracker: the Debian Security Tracker JSON, every Debian release in one file: resolved with a fixed version,
-//     resolved with fixed version "0" (not affected), or open (with Debian's reason when it publishes no security update).
+//     resolved with fixed version "0" (not affected), open (with Debian's reason when it publishes no security update), or
+//     undetermined (still being triaged).
 //   - alpine-osv: OSV.dev's Alpine ecosystem (all.zip, one OSV record per CVE converted from Alpine's secdb), every Alpine
 //     branch OSV lists in one file: a "fixed" event is the first fixed apk release of the source package on that branch, "0" not
 //     affected. Pulled only while a device states Alpine (the inventory gate without a first pull).
 //
-// Each file covers every release, so a pull names none of the releases the customer runs. Needs-triage, deferred and ignored
-// entries of Ubuntu's VEX file are not kept.
+// Each file covers every release, so a pull names none of the releases the customer runs. A row is only ever a status token the
+// source states for that release and source package; silence (no statement) is never read as "not affected".
 const (
 	DistroUbuntu = "ubuntu"
 	DistroDebian = "debian"
@@ -44,6 +47,10 @@ const (
 	// DistroOpen is the distribution's word "affected, no fix yet" (Debian's open entries, an Ubuntu release with no fixed event):
 	// the matcher judges a package the distribution built by its word alone.
 	DistroOpen = "open"
+	// DistroTriage is the distribution's word "we are triaging this CVE for this package" (Ubuntu VEX under_investigation, Debian
+	// undetermined): it decides nothing, and a package with it stays undecided with that reason. It outranks an Ubuntu OSV record
+	// without a fixed event, which mixes "needed", "deferred" and "needs triage" in one shape.
+	DistroTriage = "under_investigation"
 
 	ubuntuOSVFeedID     = "ubuntu-osv"
 	ubuntuVEXFeedID     = "ubuntu-vex"
@@ -81,10 +88,12 @@ type DistroFix struct {
 	Release string // "24.04", "12", "3.23" (an Alpine branch)
 	Package string // the source package
 	CVE     string
-	Status  string // DistroFixed or DistroNotAffected
+	Status  string // DistroFixed, DistroNotAffected, DistroOpen or DistroTriage
 	Fixed   string // the first fixed version (DistroFixed), "" otherwise
-	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
-	Reason  string // DistroOpen from Debian: why no security update comes (DistroReason*), "" when one is expected
+	// Pro: the word is about the package as Ubuntu Pro (ESM) ships it: a fix only Ubuntu Pro has (DistroFixed), or a package Ubuntu
+	// tracks for the release only in an Ubuntu Pro pocket (esm-apps, esm-infra), whose fix would come through Ubuntu Pro (DistroOpen)
+	Pro    bool
+	Reason string // DistroOpen from Debian: why no security update comes (DistroReason*), "" when one is expected
 }
 
 // Why Debian publishes no security update for an entry it lists as affected (DistroFix.Reason, feeds_distro_fix.reason).
@@ -619,10 +628,31 @@ type vexDoc struct {
 	} `json:"statements"`
 }
 
-// ParseUbuntuVEX reads Canonical's vex-all.tar.xz and keeps the not_affected statements of the CVEs in want: each
-// source product ("pkg:deb/ubuntu/<source>@<version>?arch=source&distro=<codename>") of a plain release. Products of a
-// pocket (esm-infra/focal, fips/jammy) and binary products are left out. A codename this Vedette does not know is
-// rejected with its name; a malformed product rejects the CVE file whole.
+// vexStatuses maps each OpenVEX status Canonical's file uses to the row it keeps: the one table of the reader. "fixed" keeps no row
+// (it names the archive's current version, not the first fixed one: the OSV file's first fixed version decides) but a key with it
+// keeps no "not affected" either (vexRank). A status outside the table rejects the CVE file: it is never guessed.
+var vexStatuses = map[string]string{
+	"not_affected":        DistroNotAffected,
+	"affected":            DistroOpen,
+	"under_investigation": DistroTriage,
+	"fixed":               DistroFixed,
+}
+
+// vexRank orders the statuses a CVE file states for one source package of one release (a plain release and its Ubuntu Pro pockets):
+// the highest decides. Any "affected" opens; a triage keeps it undecided; a "fixed" leaves it to the OSV file; "not affected" is kept
+// only when nothing else is stated, so it never closes a package another statement of the same file calls affected or fixed.
+var vexRank = map[string]int{DistroNotAffected: 1, DistroFixed: 2, DistroTriage: 3, DistroOpen: 4}
+
+// vexProPockets are the pockets of a release whose statements are about the release's own source package as Ubuntu Pro ships it:
+// Expanded Security Maintenance of the universe packages (esm-apps) and of main after standard support (esm-infra). Canonical's VEX
+// names a universe package of an LTS release only under esm-apps. Other pockets (fips, fips-updates, realtime) are other builds.
+var vexProPockets = map[string]bool{"esm-apps": true, "esm-infra": true}
+
+// ParseUbuntuVEX reads Canonical's vex-all.tar.xz and keeps, for the CVEs in want (DistroWant.Row), each source product's stated status
+// ("pkg:deb/ubuntu/<source>@<version>?arch=source&distro=<codename>", or distro=<pocket>/<codename> for an Ubuntu Pro pocket) through
+// vexStatuses: not affected, affected with no fix (open) and under investigation (triage). One row per release and source package
+// (vexRank); Pro is set when only an Ubuntu Pro pocket states the kept status. Binary products and other pockets are left out. A
+// codename this Vedette does not know is rejected with its name; a malformed product or an unknown status rejects the CVE file whole.
 func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
@@ -635,14 +665,20 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 			return nil
 		}
 		type key struct{ release, pkg string }
-		got := map[key]bool{}
+		type word struct {
+			status string
+			public bool // a plain release's product states it
+		}
+		got := map[key]word{}
 		var unknown string
 		for _, st := range doc.Statements {
-			if st.Status != "not_affected" {
-				continue
+			status, known := vexStatuses[st.Status]
+			if !known {
+				tl.reject(row, "%s: status %s is not an OpenVEX status this Vedette reads", cve, quoteVal(st.Status))
+				return nil
 			}
 			for _, p := range st.Products {
-				name, codename, ok, bad := sourcePurl(p.ID)
+				name, codename, pro, ok, bad := sourcePurl(p.ID)
 				if bad {
 					tl.reject(row, "%s: product %s is not a Debian package", cve, quoteVal(p.ID))
 					return nil
@@ -655,8 +691,16 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 					unknown = codename
 					continue
 				}
-				if want.Row(cve, rel, name) {
-					got[key{rel, name}] = true
+				if !want.Row(cve, rel, name) {
+					continue
+				}
+				k := key{rel, name}
+				old, seen := got[k]
+				switch {
+				case !seen || vexRank[status] > vexRank[old.status]:
+					got[k] = word{status, !pro}
+				case status == old.status && !pro:
+					got[k] = word{status, true}
 				}
 			}
 		}
@@ -667,8 +711,11 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 			tl.reject(row, "%s: more than 20,000 packages", cve)
 			return nil
 		}
-		for k := range got {
-			out = append(out, DistroFix{Distro: DistroUbuntu, Release: k.release, Package: k.pkg, CVE: cve, Status: DistroNotAffected})
+		for k, w := range got {
+			if w.status == DistroFixed {
+				continue
+			}
+			out = append(out, DistroFix{Distro: DistroUbuntu, Release: k.release, Package: k.pkg, CVE: cve, Status: w.status, Pro: !w.public})
 		}
 		tl.Accepted++
 		return nil
@@ -679,28 +726,35 @@ func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 	return DistroResult{Rows: out, Stats: tl.stats()}, nil
 }
 
-// sourcePurl reads an Ubuntu source product. ok is false for a product that is not about a source package of a plain
-// release (a binary, a pocket such as esm-infra/focal); bad is true for one that is not a Debian package at all.
-func sourcePurl(id string) (name, codename string, ok, bad bool) {
+// sourcePurl reads an Ubuntu source product. ok is false for a product that is not about a source package of a release or of one of
+// its Ubuntu Pro pockets (vexProPockets; pro is then true): a binary, a fips or realtime pocket; bad is true for one that is not a
+// Debian package at all.
+func sourcePurl(id string) (name, codename string, pro, ok, bad bool) {
 	rest, found := strings.CutPrefix(id, "pkg:deb/ubuntu/")
 	if !found {
-		return "", "", false, true
+		return "", "", false, false, true
 	}
 	path, query, _ := strings.Cut(rest, "?")
 	name, _, _ = strings.Cut(path, "@")
 	name, err := url.PathUnescape(name) // a purl percent-encodes its name (review L4 of #732)
 	if err != nil || !debPackageRE.MatchString(name) {
-		return "", "", false, true
+		return "", "", false, false, true
 	}
 	q, err := url.ParseQuery(query)
 	if err != nil {
-		return "", "", false, true
+		return "", "", false, false, true
 	}
 	codename = q.Get("distro")
-	if q.Get("arch") != "source" || codename == "" || strings.Contains(codename, "/") {
-		return "", "", false, false
+	if pocket, base, cut := strings.Cut(codename, "/"); cut {
+		if !vexProPockets[pocket] {
+			return "", "", false, false, false
+		}
+		codename, pro = base, true
 	}
-	return name, codename, true, false
+	if q.Get("arch") != "source" || codename == "" || strings.Contains(codename, "/") {
+		return "", "", false, false, false
+	}
+	return name, codename, pro, true, false
 }
 
 type debianRelease struct {
@@ -747,8 +801,8 @@ func (r debianRelease) noUpdateReason() string {
 }
 
 // ParseDebianTracker reads the Debian Security Tracker JSON ({source: {CVE: {releases: {codename: {status,
-// fixed_version}}}}}) as a stream and keeps, for the CVEs in want, each release's "resolved" status: fixed in its
-// fixed_version, or not affected when that version is "0". sid has no release number and is skipped; a codename this
+// fixed_version}}}}}) as a stream and keeps, for the CVEs in want, each release's stated status: "resolved" (fixed in its
+// fixed_version, or not affected when that version is "0"), "open" (affected, no fix yet) or "undetermined" (being triaged). sid has no release number and is skipped; a codename this
 // Vedette does not know is rejected with its name. A bad package name or version rejects that package's CVE entry.
 func ParseDebianTracker(r io.Reader, want DistroWant) (DistroResult, error) {
 	body := &bodyErr{r: r}
@@ -799,8 +853,8 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 				// open: affected, no fix yet; one Debian will not fix in a security update (unimportant, end-of-life, nodsa, ignored,
 				// postponed) is kept with its reason (Debian still says affected, and findings says why no fixed package comes)
 				reason := rel.noUpdateReason()
-				open := rel.Status == "open"
-				if rel.Status != "resolved" && !open || codename == "sid" {
+				open, triage := rel.Status == "open", rel.Status == "undetermined" // undetermined: Debian has not triaged it yet
+				if rel.Status != "resolved" && !open && !triage || codename == "sid" {
 					continue
 				}
 				num, known := debianReleases[codename]
@@ -812,6 +866,8 @@ func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 				switch {
 				case open:
 					f.Status, f.Fixed, f.Reason = DistroOpen, "", reason
+				case triage:
+					f.Status, f.Fixed = DistroTriage, ""
 				case rel.FixedVersion == "0":
 					f.Status, f.Fixed = DistroNotAffected, ""
 				case !debver.Valid(rel.FixedVersion):

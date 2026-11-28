@@ -302,11 +302,17 @@ type DistroFix struct {
 	Distro  string // "ubuntu", "debian" or "alpine" (DistroAlpine)
 	Release string // "24.04", "12", "3.23" (an Alpine branch)
 	Package string // source package
-	Status  string // "fixed", "not_affected" or "open" (affected, no fix yet)
+	Status  string // "fixed", "not_affected", "open" (affected, no fix yet) or "under_investigation" (distroTriage)
 	Fixed   string // the first fixed version (status fixed)
-	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
-	Reason  string // status open from Debian: why no security update comes (feeds.DistroReason*), "" otherwise
+	// Pro: the word is about the package as Ubuntu Pro (ESM) ships it: the fix is in Ubuntu Pro only (status fixed), or Ubuntu tracks
+	// the package for the release only in an Ubuntu Pro pocket, so its fix would come through Ubuntu Pro (status open)
+	Pro    bool
+	Reason string // status open from Debian: why no security update comes (feeds.DistroReason*), "" otherwise
 }
+
+// distroTriage is the status of a distribution's word "this CVE is being triaged for this package" (feeds.DistroTriage: Ubuntu's
+// under_investigation, Debian's undetermined): it decides nothing, and the pair stays undecided with DistroTriaging.
+const distroTriage = "under_investigation"
 
 // Evidence is the explanation shown with a finding.
 type Evidence struct {
@@ -1578,9 +1584,13 @@ func awaitingDistro(a Asset, s Software, in swInfo, v Vuln, m Match, out outcome
 		m.Evidence.Agent, m.Evidence.Source = false, ""
 		_, rel := distroOf(in)
 		name := distroName(in)
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s %s from %s %s's packages. %s has not published its answer yet; based on the upstream version "+
+		said := fmt.Sprintf("%s has not published its answer yet", name)
+		if distroSilence(in, v) == DistroTriaging { // the distribution states that it is still triaging the CVE for this package
+			said = fmt.Sprintf("%s states that it is still triaging %s for this package", name, v.CVE)
+		}
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s %s from %s %s's packages. %s; based on the upstream version "+
 			"ranges, its upstream version %s is inside the range affected by %s. %s carries fixes under its own package releases, so this is "+
-			"not confirmed until %s answers.", clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), name, rel, name,
+			"not confirmed until %s answers.", clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), name, rel, said,
 			clean(in.ver), v.CVE, name, name)
 		return m, out
 	case outNotAffected:

@@ -485,18 +485,19 @@ const (
 	UndecidedUnparsedVendor   = "unparsed_vendor_text"        // the advisory was read, its ranges were not
 	UndecidedAIUnsure         = "ai_unsure"                   // the AI read the pages and could not tell
 	// The distribution's package is judged by its distribution's word alone and its data has no word on it (distroSilence, cause
-	// distro_silent): DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData (distroSilentReasons).
+	// distro_silent): DistroNotListed, DistroTriaging, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData
+	// (distroSilentReasons).
 )
 
 // distroSilentReasons are the undecided reasons of a distribution's silence on its own package (DistroSilences less the version, which
 // an agent's package row without its release takes as UndecidedPackage).
-var distroSilentReasons = []string{DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData}
+var distroSilentReasons = []string{DistroNotListed, DistroTriaging, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData}
 
 // UndecidedReasons lists every reason.
 var UndecidedReasons = []string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute, UndecidedSchemeMismatch, UndecidedNVDPending,
 	UndecidedNoRanges, UndecidedNotNamed, UndecidedPlatformOnly, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedThirdPartyBuild, UndecidedNoReference, UndecidedFetchFailed,
 	UndecidedUnparsedVendor, UndecidedAIUnsure, UndecidedNetworkVersion, DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild,
-	DistroNoData}
+	DistroNoData, DistroTriaging}
 
 // The most range rows and advisory bytes an Undecided keeps.
 const (

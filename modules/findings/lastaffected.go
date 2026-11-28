@@ -403,14 +403,6 @@ type listedRow struct {
 	proof    bool // the row may prove: not a record row only read for "affected" beside NVD's
 }
 
-// in is the row's release in form.
-func (x listedRow) in(form releaseForm) release {
-	if form == formUpdate {
-		return x.u
-	}
-	return x.p
-}
-
 // newerLineOfExploited says an exploited CVE's own exact list names only lines older than the installation's (afterLastListedLine):
 // the pair stays undecided as newer_line_exploited, never closed by that reading.
 func newerLineOfExploited(in swInfo, v Vuln) bool {

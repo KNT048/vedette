@@ -94,6 +94,7 @@ type CVERecordText struct {
 	Description string
 	Solution    string // the CNA's solution text, "" when none
 	Workaround  string // the CNA's workaround text, "" when none
+	Read        bool   // the CNA's record was read: "" in Solution and Workaround says it gives none (false: only NVD's copy is held)
 	Rows        []RecordRow
 	Refs        []RefLink
 }

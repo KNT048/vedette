@@ -19,8 +19,10 @@ import (
 //   - every build the rows list is older than the installed release (testedBuilds);
 //   - it is on no exploited list, is not a proposal for a person, and its cause is one the record or a reading of it leaves
 //     (vendor_silent, ai_unsure, needs_reading, ai_budget): a page that could not be read may hold the vendor's word;
-//   - the CVE record gives no solution and no workaround and has no reference tagged as the vendor's (vendor advisory, release notes,
-//     patch, mitigation). Without the record (no door to it, or it cannot be read) the box cannot say so: the CVE stays in the main list.
+//   - no reading of the vendor's own page is stored for it (its word, whatever it decided);
+//   - the CVE record was read and gives no solution and no workaround, has no reference tagged as the vendor's (vendor advisory, release
+//     notes, patch, mitigation) and no dispute or unsupported tag (vendorMarks). Without the record (no door to it, not read yet, or it
+//     cannot be read) the box cannot say so: the CVE stays in the main list.
 //
 // It is a presentation of the list only: the question, the automatic reading and every decision stay as they are.
 
@@ -69,6 +71,9 @@ func olderBuildOf(it PossibleItem, rs ReadState) *OlderBuild {
 		len(q.Detail.Fixes) > 0 || !slices.Contains(olderBuildCauses, PossibleCause(it, rs)) {
 		return nil
 	}
+	if c := it.Check; c != nil && c.Reading != nil && c.Reading.VendorPage {
+		return nil // a reading of the vendor's own page is the vendor's word, whatever it decided
+	}
 	tested := testedBuilds(u.Ranges, q.Detail.Version)
 	if len(tested) == 0 {
 		return nil
@@ -111,9 +116,18 @@ func testedBuilds(rows []string, ver string) []string {
 	return out
 }
 
-// recordSilent says the CVE record gives no word from the vendor: no solution, no workaround, no reference tagged as the vendor's.
+// vendorMarks are the CVE Program's description tags that say something beside the rows: a party (most often the vendor) disputes the
+// CVE, or the product was no longer supported when the CVE was assigned (no fix will come).
+var vendorMarks = []string{"** DISPUTED **", "** UNSUPPORTED WHEN ASSIGNED **"}
+
+// recordSilent says the CVE record was read and gives no word from the vendor: no solution, no workaround, no reference tagged as the
+// vendor's, no dispute or unsupported tag. A record not read (only NVD's copy held) says nothing of its solution or workaround.
 func recordSilent(rec CVERecordText) bool {
-	if strings.TrimSpace(rec.Solution) != "" || strings.TrimSpace(rec.Workaround) != "" {
+	if !rec.Read || strings.TrimSpace(rec.Solution) != "" || strings.TrimSpace(rec.Workaround) != "" {
+		return false
+	}
+	desc := strings.ToUpper(strings.Join(strings.Fields(rec.Description), " "))
+	if slices.ContainsFunc(vendorMarks, func(m string) bool { return strings.Contains(desc, m) }) {
 		return false
 	}
 	return !slices.ContainsFunc(rec.Refs, func(r RefLink) bool {

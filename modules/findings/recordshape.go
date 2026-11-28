@@ -394,7 +394,9 @@ func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 		}
 	}
 	var own []Affected // the rows that name the line, as decide reads them
-	line := 0          // the numbers that name a release line in the rows' own ranges: the fewest any range's start and end share
+	// line is how many leading numbers name a release line in the rows' own ranges: the fewest that the start and end of a range on one
+	// line share ("7.6.0" to "7.6.2": 2), else 1 (every range spans lines, as "141.0.0" to "153.4.0" does: major lines)
+	line := 0
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || af.Lost {
@@ -406,12 +408,13 @@ func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 		own = append(own, af)
 		if start := cmp.Or(af.Range.StartIncl, af.Range.StartExcl); start != "" && !isPlaceholder(start) {
 			if _, _, exact := exactRow(af); !exact {
-				if n, rel := rowLine(start, cmp.Or(af.Range.EndExcl, af.Range.EndIncl)); rel != nil && (line == 0 || n < line) {
+				if n := sharedNumbers(start, cmp.Or(af.Range.EndExcl, af.Range.EndIncl)); n > 0 && (line == 0 || n < line) {
 					line = n
 				}
 			}
 		}
 	}
+	line = max(line, 1)
 	var lowest string   // the lowest start of a range above the version
 	lowestLine := false // that start is the first release of a line
 	for _, af := range own {
@@ -442,7 +445,7 @@ func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 		case !ok:
 			continue
 		case o >= 0: // the range starts at or below the version, which is outside it: past its end
-			if !af.AffectedOnly && pastEnd(r, in.ver) && onRowLine(in.ver, start, end) {
+			if !af.AffectedOnly && pastEnd(r, in.ver) && onRowLine(in.ver, start, end, line) {
 				return false
 			}
 			continue
@@ -486,8 +489,9 @@ func firstOfLine(start, end string) bool {
 }
 
 // onRowLine says ver is on a release line the range from start to end speaks for: the line of its start (rowLine: "20.20.0" of
-// "20.0.0" to "20.19.4"), or the train its end is on (onEndTrain: "7.4.8" of "6.4.0" to "7.4.7", which spans several lines).
-func onRowLine(ver, start, end string) bool {
+// "20.0.0" to "20.19.4"), or the line its end is on, line numbers long (onEndLine: "7.4.8" of "6.4.0" to "7.4.7" beside ranges of
+// major.minor lines, "153.8.0" of "141.0.0" to "153.4.0" beside ranges of major lines).
+func onRowLine(ver, start, end string, line int) bool {
 	n, rel := rowLine(start, end)
 	pv, ok := parseVersion(ver)
 	if !ok {
@@ -496,7 +500,22 @@ func onRowLine(ver, start, end string) bool {
 	if rel != nil && len(pv.rel) >= n && len(rel) >= n && slices.Equal(pv.rel[:n], rel[:n]) {
 		return true
 	}
-	return onEndLine(ver, end, 0)
+	return onEndLine(ver, end, line)
+}
+
+// sharedNumbers is how many leading numbers start and end share ("7.6.0" and "7.6.2": 2, "6.4.0" and "7.4.7": 0); 0 when either does
+// not read as numbers.
+func sharedNumbers(start, end string) int {
+	s, okS := parseVersion(start)
+	e, okE := parseVersion(end)
+	if !okS || !okE || end == "" {
+		return 0
+	}
+	n := 0
+	for n < min(len(s.rel), len(e.rel)) && s.rel[n] == e.rel[n] {
+		n++
+	}
+	return n
 }
 
 // onEndLine says ver is on the release line of end, the fix a range ends at: they share the first n numbers, or with n 0 every number

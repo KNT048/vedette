@@ -54,7 +54,8 @@ function NotSentNotices({ rows, days }: { rows: UnsentNotice[]; days: number }) 
   return (
     <Section id="not-sent" title={t('history.notSent.title')} description={rows.length === 0 ? undefined : t('history.notSent.description', { days })}>
       {rows.length === 0 ? <p className="text-meta text-muted">{t('history.notSent.none', { days })}</p>
-        : <DataTable urlKey="notify-not-sent" caption={t('history.notSent.caption')} data={rows} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />}
+        : <DataTable urlKey="notify-not-sent" caption={t('history.notSent.caption')} data={rows} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]}
+          summary={t('history.notSent.summary', { count: rows.length })} />}
     </Section>
   )
 }
@@ -151,7 +152,7 @@ function SentMessages({ items }: { items: HistoryItem[] }) {
   return (
     <Section id="sent" title={t('history.sent.title')} description={t('history.sent.description')}>
       {items.length === 0 ? <EmptyState title={t('history.emptyTitle')} info={t('history.emptyBodyInfo')}>{t('history.emptyBody')}</EmptyState>
-        : <DataTable urlKey={SENT_KEY} caption={t('history.caption')} data={rows} columns={columns} mobileRow={mobileRow} hiddenColumns={['where']} initialSort={[{ id: 'time', desc: true }]}
+        : <DataTable urlKey={SENT_KEY} caption={t('history.caption')} data={rows} columns={columns} mobileRow={mobileRow} hiddenColumns={['where']} initialSort={[{ id: 'time', desc: true }]} summary={t('history.summary', { count: rows.length })}
             filterPlaceholder={t('history.filter.search')} toolbar={toolbar} filtered={on} onClearFilters={clear} resetPageOn={f} />}
     </Section>
   )

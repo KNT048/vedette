@@ -204,7 +204,7 @@ function Content() {
             // docs/UI.md §6: nothing open is good news: the drawing, what shows up here, and the channel when none is set up
             <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? newChannel.button(t('incidents.setupChannels')) : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
-            <DataTable urlKey="incidents" fillColumn="incident" caption={t('incidents.caption')}
+            <DataTable urlKey="incidents" fillColumn="incident" caption={t('incidents.caption')} summary={t(tab === 'open' ? 'incidents.summaryOpen' : 'incidents.summaryResolved', { count: rows.length })}
               toolbar={<>
                 <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={(v) => { setKind(v); setPageIds(null) }} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
                 {tab === 'open' && onlyUrgent ? <Button size="sm" onClick={() => setParam('severity', '')}><X />{t('incidents.clearUrgent')}</Button> : null}

@@ -481,7 +481,8 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   return (
     <>
       {/* #850: the place deep links name (docs/UI.md §0): /settings/channels#channels focuses the first channel's button */}
-      <div id="channels"><DataTable urlKey="notify-channels" caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} /></div>
+      <div id="channels"><DataTable urlKey="notify-channels" caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow}
+        summary={t('channels.summary', { count: channels.length, on: channels.filter((c) => c.configured && c.enabled).length })} /></div>
       {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }}
         onSwitch={(ty) => setEditing(channels.find((c) => c.type === ty) ?? null)} /> : null}
       <Dialog open={removing !== null} onOpenChange={(o) => { if (!o) setRemoving(null) }}>

@@ -2,6 +2,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
+import { KpiStrip } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, ErrorState, Loading, QueryState } from '@/components/common/States'
@@ -95,40 +96,12 @@ function Watchers({ watchers, badAddresses }: { watchers: Watcher[]; badAddresse
   )
 }
 
-function KindTile({ label, incidents, note }: { label: string; incidents: number; note: string }) {
-  return (
-    <>
-      <span className="text-meta text-muted">{label}</span>
-      <span className="text-xl font-semibold tabular-nums">{fmtNumber(incidents)}</span>
-      <span className="text-caption text-muted">{note}</span>
-    </>
-  )
-}
-
 function Kinds({ kinds }: { kinds: { kind: string; incidents: number; new: number }[] }) {
   const { t } = useTranslation('detection')
-  return (
-    <Section id="kinds" title={t('kinds.title')}>
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {kinds.map((k) => {
-          const note = k.new > 0 ? t('kinds.new', { count: k.new }) : t('kinds.none')
-          return (
-          <li key={k.kind}>
-            {k.incidents > 0 ? (
-              <Link to="/incidents" className="grid gap-0.5 rounded-md border border-rule p-3 hover:border-accent">
-                <KindTile label={t(`kind.${k.kind}`)} incidents={k.incidents} note={note} />
-              </Link>
-            ) : (
-              <div className="grid gap-0.5 rounded-md border border-rule p-3">
-                <KindTile label={t(`kind.${k.kind}`)} incidents={0} note={t('kinds.none')} />
-              </div>
-            )}
-          </li>
-          )
-        })}
-      </ul>
-    </Section>
-  )
+  // what each kind raised in the last 7 days, each leading to the incidents; a kind with new ones says how many
+  // at most four numbers: intrusion alerts are the list under it, with its own count
+  const items = kinds.filter((k) => k.kind !== 'intrusion').map((k) => ({ value: fmtNumber(k.incidents), label: k.new > 0 ? `${t(`kind.${k.kind}`)}, ${t('kinds.new', { count: k.new })}` : t(`kind.${k.kind}`), to: '/incidents' }))
+  return <KpiStrip label={t('kinds.title')} items={items} />
 }
 
 function MirrorHits({ hits }: { hits: { total: number; latest: Array<{ ts: string; src_ip: string; device: { id: string; name: string } | null; dest: string; seen_via: string; feeds: string[] }> } }) {
@@ -137,14 +110,12 @@ function MirrorHits({ hits }: { hits: { total: number; latest: Array<{ ts: strin
   return (
     <Section id="mirror-hits" title={t('mirror.title', { count: hits.total })} actions={<Link to="/logs" className={`text-meta ${link}`}>{t('mirror.all')}</Link>}>
       <Card flush>
-        <ul className="divide-y divide-rule">
+        <RowList flush label={t('mirror.title', { count: hits.total })}>
           {hits.latest.map((h) => (
-            <li key={`${h.ts}-${h.src_ip}-${h.dest}`} className="grid gap-0.5 px-4 py-2">
-              <p><DeviceLink device={h.device} ip={h.src_ip} />{' → '}<span className="font-medium [overflow-wrap:anywhere]">{h.dest}</span></p>
-              <p className="text-caption text-muted">{fmtDateTime(h.ts)} · {t(`via.${h.seen_via}`)} · {h.feeds.join(', ')}</p>
-            </li>
+            <ListRow key={`${h.ts}-${h.src_ip}-${h.dest}`} title={<><DeviceLink device={h.device} ip={h.src_ip} />{' → '}<span className="[overflow-wrap:anywhere]">{h.dest}</span></>}
+              meta={[`${fmtDateTime(h.ts)} · ${t(`via.${h.seen_via}`)} · ${h.feeds.join(', ')}`]} />
           ))}
-        </ul>
+        </RowList>
       </Card>
     </Section>
   )
@@ -197,6 +168,7 @@ function Alerts() {
           {(d) => d.total === 0 && !list.q ? <EmptyState title={t('alerts.empty')} /> : (
             <DataTable caption={t('alerts.caption')} data={d.items} columns={columns} pageSize={25} urlKey="alerts" server={{ total: d.total, list }}
               filtered={!!list.q} onClearFilters={() => list.set({ q: '', page: 0 })}
+              summary={t('alerts.summary', { count: d.total })}
               rowTone={(a) => (a.severity === 'critical' ? 'danger' : a.severity === 'high' ? 'warn' : undefined)}
               onRowClick={(a) => navigate(`/detection/alerts/${a.id}`)}
               mobileRow={(a) => (

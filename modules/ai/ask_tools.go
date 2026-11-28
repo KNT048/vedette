@@ -42,6 +42,12 @@ type errToolFailed struct{ msg string }
 
 func (e errToolFailed) Error() string { return e.msg }
 
+// errConnFailed is a read of a connection that failed with words the box did not write (an MCP server's error result, a device's
+// error page): the tool loop sends them to the model as fenced data, like a result, never as its own words.
+type errConnFailed struct{ text string }
+
+func (e errConnFailed) Error() string { return e.text }
+
 // toolImpl is a tool the model may be offered with the code that runs it.
 type toolImpl struct {
 	Tool
@@ -887,7 +893,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 				case errors.Is(err, read.ErrUnavailable):
 					return toolOut{}, errToolFailed{"that read tool is not available"}
 				case err != nil:
-					return toolOut{}, errToolFailed{"the read failed: " + clip(err.Error(), 200)}
+					return toolOut{}, errConnFailed{clip(err.Error(), 200)}
 				}
 				// The box's own record of the read, the only thing a config_read evidence can name. Its id is not shown to the model.
 				s.recordRead(ctx, JobAskMyData, connID, connName, tool)

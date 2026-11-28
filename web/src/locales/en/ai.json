@@ -198,6 +198,13 @@
       "today": "Today: {{used}} of {{daily}} calls.",
       "err": "The number must be a whole number from 1 to 5,000."
     },
+    "askConn": {
+      "title": "Connections outside your network in Ask",
+      "intro": "Ask uses the read tools of a connection inside your network as before. A connection outside it is used only after you allow it here.",
+      "info": "When Ask calls a read tool of a connection, the AI writes the arguments itself, and they can contain data you ask about (device names, addresses, findings, after the personal-data hook masks what it masks). The AI also reads text it did not write, such as device names, log summaries and the output of other tools. So a connection at a public address or a name only gets those arguments when you allow it. The privacy rule, when on, still keeps every connection outside your network away from the AI.",
+      "notice": "Ask no longer uses a connection outside your network until you allow it here.",
+      "switch": "Allow {{name}} in Ask (data you ask about may be sent to it)"
+    },
     "retention": {
       "title": "Activity log retention",
       "intro": "How long the AI activity log is kept.",

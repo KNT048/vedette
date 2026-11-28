@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { AiConfigView, AiJob, AiProfile, AskResult, Assignments, ConfigInput, ExplainResult, LogDigest, NewsResult, AiRun, ActivityList, ActivityResult, ActivitySettings, ActivityVerify, ProfileInput, ModelsInput, ModelsResult, TestInput, TestResult, Usage } from './types'
+import type { AiConfigView, AiJob, AiProfile, AskResult, Assignments, ConfigInput, ExplainResult, LogDigest, NewsResult, AiRun, ActivityList, ActivityResult, ActivitySettings, ActivityVerify, AskConnection, AskConnectionsView, ProfileInput, ModelsInput, ModelsResult, TestInput, TestResult, Usage } from './types'
 
 /** enabled false: not asked (the AI module is off, so /ai/config is 404). */
 export const useAiConfig = (enabled = true) => useQuery({ queryKey: ['ai', 'config'], queryFn: () => api.get<AiConfigView>('/ai/config'), enabled })
@@ -78,6 +78,11 @@ export function useActivity(f: ActivityFilter) {
   return useQuery({ queryKey: ['ai', 'activity', q.toString()], queryFn: () => api.get<ActivityList>(`/ai/activity?${q}`) })
 }
 export const useVerifyChain = () => useQuery({ queryKey: ['ai', 'activity-verify'], queryFn: () => api.get<ActivityVerify>('/ai/activity/verify') })
+export const useAskConnections = (enabled = true) => useQuery({ queryKey: ['ai', 'ask-connections'], queryFn: () => api.get<AskConnectionsView>('/ai/ask/connections'), enabled })
+export function useSetAskConnection() {
+  const done = useInvalidateAi()
+  return useMutation({ mutationFn: (b: { id: string; allowed: boolean }) => api.put<AskConnection>(`/ai/ask/connections/${encodeURIComponent(b.id)}`, { allowed: b.allowed }), onSuccess: done })
+}
 export const useActivitySettings = () => useQuery({ queryKey: ['ai', 'activity-settings'], queryFn: () => api.get<ActivitySettings>('/ai/activity/settings') })
 export function useSaveActivitySettings() {
   const done = useInvalidateAi()

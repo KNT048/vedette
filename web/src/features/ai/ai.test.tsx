@@ -13,6 +13,7 @@ import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
 import { scheduledPause, scheduledProfileStop } from './mocks'
+import { askConnStore } from './askConnectionsMock'
 import LogsPanel from './LogsPanel'
 import type { AiProfile } from './types'
 
@@ -794,6 +795,25 @@ describe('ai: settings, token level and global cap (S-AI-4)', () => {
     await userEvent.click(within(again).getByRole('switch', { name: 'Read by itself after each match' }))
     await userEvent.click(within(again).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(within(screen.getByRole('form', { name: 'Reading vendor advisories' })).getByRole('switch', { name: 'Read by itself after each match' })).not.toBeChecked())
+  })
+  it('a connection outside the network is used in Ask only once an administrator allows it; the page says so once; an operator does not see the list', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    const section = (await screen.findByRole('heading', { name: 'Connections outside your network in Ask' })).closest('section')!
+    expect(within(section).getByText('Ask no longer uses a connection outside your network until you allow it here.')).toBeInTheDocument()
+    const sw = within(section).getByRole('switch', { name: 'Allow Vendor advisories (HTTP) in Ask (data you ask about may be sent to it)' })
+    expect(sw).not.toBeChecked()
+    expect(within(section).queryByText(/Office FortiGate API/)).toBeNull() // inside the network: always usable, not listed
+    await userEvent.click(sw)
+    await waitFor(() => expect(askConnStore.get()).toEqual({ 'cn-http': true }))
+    await waitFor(() => expect(within(section).queryByText('Ask no longer uses a connection outside your network until you allow it here.')).toBeNull())
+    expect(within(section).getByRole('switch', { name: /Allow Vendor advisories/ })).toBeChecked()
+    await expectNoA11yViolations()
+    v.unmount()
+    const op = renderUi(<AiSettings />, 'operator')
+    await op.ready
+    await screen.findByRole('form', { name: 'Reading vendor advisories' })
+    expect(screen.queryByRole('heading', { name: 'Connections outside your network in Ask' })).toBeNull()
   })
 })
 

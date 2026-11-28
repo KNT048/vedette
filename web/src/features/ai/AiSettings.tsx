@@ -23,6 +23,7 @@ import { notOffered } from '@/lib/v1'
 import { useCan } from '@/lib/session'
 import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useListModels, useSaveProfile, useTestProfile } from './api'
 import { ActionError } from './parts'
+import { AskConnectionsSection } from './AskConnections'
 import { BudgetUse, budgetPct } from './Budget'
 import type { AiConfigView, AiJob, AiProfile, AiTier, ApiStyle, Assignments, ProfileInput, ProfileKind, TestResult } from './types'
 
@@ -107,6 +108,7 @@ function ProfilesTab({ cfg }: { cfg: AiConfigView }) {
       <QueryState query={assign}>{(a) => <AssignSection profiles={profiles.data?.items ?? []} assign={a} />}</QueryState>
       <TierForm key={`${cfg.tier}|${cfg.monthly_budget}|${cfg.redact_pii}`} cfg={cfg} />
       <AutoReadForm key={`${cfg.auto_read}|${cfg.daily_reads}`} cfg={cfg} />
+      <AskConnectionsSection />
       <RetentionForm />
     </>
   )

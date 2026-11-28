@@ -125,3 +125,27 @@ func TestDistroStatus_StatedVEXStatusOutranksAnOSVRecordWithoutAFix(t *testing.T
 		t.Fatalf("a fixed release under a triage: %+v", r)
 	}
 }
+
+// A "not affected" stated only for the Ubuntu Pro pocket (esm-apps, esm-infra) is about the package as Ubuntu Pro ships it. When the
+// public release's own word on the same package says affected with no fix (an OSV record of the release without a fixed event), the
+// two differ and the cautious one stands: the pocket's word never closes the package the public release calls affected.
+func TestDistroStatus_ProPocketNotAffectedNeverOutranksThePublicReleasesAffected(t *testing.T) {
+	t.Parallel()
+	a, v := quillpad()
+	v.Vendor, v.Product = "Acme", "Quillpad"
+	v.Distro = []DistroFix{quillRow("not_affected", true), quillRow("open", false)}
+	r := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, distroNow)
+	if len(r.NotAffected) != 0 || len(r.New)+len(r.Existing) != 1 {
+		t.Fatalf("a pocket's not affected closed what the public release calls affected: %+v", r)
+	}
+	// the public release's own "not affected" still outranks its OSV record without a fix
+	v.Distro = []DistroFix{quillRow("not_affected", true), quillRow("not_affected", false), quillRow("open", false)}
+	if r := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, distroNow); len(r.NotAffected) != 1 {
+		t.Fatalf("the public release's not affected: %+v", r)
+	}
+	// and a pocket's "not affected" with no other word still closes
+	v.Distro = []DistroFix{quillRow("not_affected", true)}
+	if r := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, distroNow); len(r.NotAffected) != 1 {
+		t.Fatalf("a pocket's not affected alone: %+v", r)
+	}
+}

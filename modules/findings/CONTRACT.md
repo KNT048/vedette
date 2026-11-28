@@ -532,7 +532,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts
   it decided affected (`distro_no_fix`). The rows of a package's release rank fixed, then not affected, then being triaged, then
   "affected, no fix yet" (`chooseInRelease`): a stated triage outranks an OSV record without a fixed event, which mixes "needed" and
-  "needs triage". An exploited CVE being triaged is the suspected upstream finding of a package the distribution has not answered for
+  "needs triage"; a "not affected" stated only for an Ubuntu Pro pocket never outranks the public release's own "affected, no fix
+  yet" (`TestDistroStatus_ProPocketNotAffectedNeverOutranksThePublicReleasesAffected`). An exploited CVE being triaged is the suspected upstream finding of a package the distribution has not answered for
   (`awaitingDistro`, its evidence names the triage), never the distribution's confirmed "affected". "Affected, no fix yet" of a package
   Ubuntu tracks for the release only in an Ubuntu Pro pocket carries the fix channel `ubuntu_pro` (`none_yet`): its fix would come
   through Ubuntu Pro only, never a free update (`TestDistroStatus_*`).

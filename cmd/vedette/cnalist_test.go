@@ -80,11 +80,16 @@ func TestCNAList_ArrivingLaterDecidesOnlyTheVendorsOwnRecord(t *testing.T) {
 		}
 		out := map[string]string{}
 		for _, c := range cases {
+			var open, asked int
+			if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM fnd_finding WHERE asset_id = ?1 AND cve = ?2 AND state = 'open'),
+	(SELECT count(*) FROM fnd_question WHERE asset_id = ?1 AND cve = ?2 AND answer IS NULL)`, devices[c.cve], c.cve).Scan(&open, &asked); err != nil {
+				t.Fatal(err)
+			}
 			got := "none"
 			switch {
-			case slices.Contains(openFindings(t, s, devices[c.cve]), c.cve):
+			case open > 0:
 				got = "open"
-			case s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = ? AND answer IS NULL`, devices[c.cve], c.cve) > 0:
+			case asked > 0:
 				got = "question"
 			}
 			out[c.cve] = got
@@ -111,8 +116,9 @@ func TestCNAList_ArrivingLaterDecidesOnlyTheVendorsOwnRecord(t *testing.T) {
 	if err := fs.Fetch(ctx, "cve-cna-list"); err != nil {
 		t.Fatal(err)
 	}
-	if s.count(`SELECT count(*) FROM feeds_cna`) != 3 {
-		t.Fatalf("CNAs stored: %d", s.count(`SELECT count(*) FROM feeds_cna`))
+	var cnas int
+	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_cna`).Scan(&cnas); err != nil || cnas != 3 {
+		t.Fatalf("CNAs stored: %d %v", cnas, err)
 	}
 	if !slices.Contains(woke, "findings/reconcile") {
 		t.Fatalf("the CNA list's arrival woke %v, want findings' match pass", woke)

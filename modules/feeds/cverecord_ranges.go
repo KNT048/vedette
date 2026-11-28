@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/versionscheme"
@@ -217,12 +218,18 @@ func clipAssigner(s string) string {
 // "unaffected" for the rest is no evidence (CVE JSON 5 leaves the trust in defaultStatus to the reader; versions.md). An entry that
 // names no vendor ("n/a", empty) does not say whose product it is, so it is never the assigner's own. Such an entry is read with
 // defaultStatus unknown: its listed versions still say "affected", a version it does not list stays a question.
+// The CVE Program's CNA list (cnalist.go), while the box holds a current one, also makes the assigner the vendor's own CNA when the
+// list types it as a vendor and its organization name is the vendor's ("zoom" of "Zoom Communications, Inc."); without the list the
+// rules above stand alone.
 func ownCNA(assigner, vendor string) bool {
-	return ownCNAIn(catalogueProductVendors(), assigner, vendor)
+	return ownCNAIn(catalogueProductVendors(), currentCNAList.Load(), assigner, vendor)
 }
 
-// ownCNAIn is ownCNA with the vendors of each product name (productVendors).
-func ownCNAIn(names map[string][]string, assigner, vendor string) bool {
+// currentCNAList is the CNA list ownCNA reads: nil while the box holds none, or none recent enough.
+var currentCNAList atomic.Pointer[cnaList]
+
+// ownCNAIn is ownCNA with the vendors of each product name (productVendors) and a CNA list (nil: none).
+func ownCNAIn(names map[string][]string, cnas *cnaList, assigner, vendor string) bool {
 	v := productid.NormVendor(vendor)
 	if noVendor[v] {
 		return false
@@ -234,8 +241,10 @@ func ownCNAIn(names map[string][]string, assigner, vendor string) bool {
 	if a == v {
 		return true
 	}
-	vs := names[productid.Norm(assigner)]
-	return len(vs) == 1 && vs[0] == v // a name two vendors' products share says nothing
+	if vs := names[productid.Norm(assigner)]; len(vs) == 1 && vs[0] == v { // a name two vendors' products share says nothing
+		return true
+	}
+	return cnas.orgIsVendor(assigner, vendor)
 }
 
 // catalogueProductVendors is productVendors of the product catalogue built into the box.

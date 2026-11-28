@@ -252,7 +252,7 @@ func TestWiringQuietHoursFollowTheOrganizationTimeZone(t *testing.T) {
 	setZone(`INSERT INTO core_org (id, name, timezone, data_mode, install_id) VALUES (1, 'Acme', 'Asia/Ho_Chi_Minh', 'clean', 'ins-test')`)
 	reasons := func(id string) string {
 		s.t.Helper()
-		if err := svc.Publish(ctx, notify.Notice{ID: id, Kind: notify.KindVuln, Severity: notify.High, Title: "x is being exploited", What: "w", Action: "a", Product: "x", Devices: []string{"fw"}, At: now}); err != nil {
+		if err := svc.Publish(ctx, notify.Notice{ID: id, Kind: notify.KindVuln, Exploited: true, Severity: notify.High, Title: "x is being exploited", What: "w", Action: "a", Product: "x", Devices: []string{"fw"}, At: now}); err != nil {
 			s.t.Fatal(err)
 		}
 		var r string

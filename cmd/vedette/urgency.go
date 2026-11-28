@@ -121,7 +121,7 @@ func exploitedCVEs(d deps) func(ctx context.Context, cves []string) (map[string]
 			now = d.Clock()
 		}
 		for _, c := range cves {
-			out[c] = findings.Urgency(c, facts[c], findings.Target{}, nil, now).Layer <= findings.UrgencyExploited
+			out[c] = findings.ExploitedLayer(findings.Urgency(c, facts[c], findings.Target{}, nil, now).Layer)
 		}
 		return out, nil
 	}

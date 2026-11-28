@@ -2,6 +2,7 @@ package exposure
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"sync"
 	"testing"
@@ -344,5 +345,121 @@ func TestAlerts_OnlyAnIssueWithAnExploitedCVEAlerts(t *testing.T) {
 	}
 	if issues != 2 || ports != 2 { // the CVE nobody exploits and the admin page; 80 and 3389 (443 was the baseline)
 		t.Fatalf("for the daily summary: %d issues, %d ports", issues, ports)
+	}
+}
+
+// exploitedSet is a Config.Exploited whose answer a test changes: a CVE joins CISA's list after the scan.
+type exploitedSet struct {
+	mu  sync.Mutex
+	set map[string]bool
+}
+
+func (x *exploitedSet) add(cve string) { x.mu.Lock(); defer x.mu.Unlock(); x.set[cve] = true }
+
+func (x *exploitedSet) ask(_ context.Context, cves []string) (map[string]bool, error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	out := map[string]bool{}
+	for _, c := range cves {
+		out[c] = x.set[c]
+	}
+	return out, nil
+}
+
+// An issue whose CVE becomes exploited in the wild after the scan alerts at that moment, once, as a finding whose urgency rises does: the
+// exploited-check job finds it. One that was already told, or still is not exploited, sends nothing; an issue of the target's first scan
+// (its baseline) alerts too once its CVE becomes exploited, since that is news.
+func TestAlerts_AnIssueWhoseCVEBecomesExploitedLaterAlertsOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	log := &alertLog{}
+	e.svc.cfg.Alert = log.send
+	ex := &exploitedSet{set: map[string]bool{}}
+	e.svc.cfg.Exploited = ex.ask
+	withCVEs(e, "CVE-2026-7001") // found by the baseline
+	base := Content{Ports: []PortRow{{IP: ipA, Port: 80, Service: "http", Ident: IdentProbed}}}
+	run := e.scanIP(base).RunID
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT target_id FROM exp_scan WHERE run_id = ?`, run).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	withCVEs(e, "CVE-2026-7001", "CVE-2026-7002") // a later scan finds a second one, nobody exploits it yet
+	e.advance(ScanEvery)
+	e.svc.SetRunner(&fakeRunner{content: base})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	check := func() {
+		t.Helper()
+		if err := e.svc.RunExploitedCheck(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check()
+	if got := log.all(); len(got) != 0 {
+		t.Fatalf("nothing is exploited yet, yet: %+v", got)
+	}
+	ex.add("CVE-2026-7002") // joins CISA's list
+	ex.add("CVE-2026-7001")
+	check()
+	got := log.all()
+	if len(got) != 1 || got[0].Severity != AlertCritical || !strings.Contains(got[0].Text, "CVE-2026-7001") || !strings.Contains(got[0].Text, "CVE-2026-7002") ||
+		!strings.Contains(got[0].Text, "now exploited in the wild") {
+		t.Fatalf("the alert of the CVEs that became exploited: %+v", got)
+	}
+	check()
+	if n := len(log.all()); n != 1 {
+		t.Fatalf("told again: %d alerts", n)
+	}
+}
+
+// An issue found again (a scan had closed it) and a port that opens again are news of the span they opened again in: counted for the
+// daily summary when nobody exploits them; a re-found issue whose CVE is exploited alerts, once per re-open, as a reopened finding does.
+func TestAlerts_FoundAgainIsNewsOncePerReopen(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	log := &alertLog{}
+	e.svc.cfg.Alert = log.send
+	e.svc.cfg.Exploited = onlyExploited("CVE-2021-41773")
+	withCVEs(e, "CVE-2099-0002")
+	open := Content{Ports: []PortRow{{IP: ipA, Port: 80, Service: "http", Ident: IdentProbed}, {IP: ipA, Port: 3389, Service: "ms-wbt-server", Ident: IdentProbed}}}
+	run := e.scanIP(open).RunID
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT target_id FROM exp_scan WHERE run_id = ?`, run).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	scan := func(c Content, cves ...string) {
+		t.Helper()
+		withCVEs(e, cves...)
+		e.advance(ScanEvery)
+		e.svc.SetRunner(&fakeRunner{content: c})
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	closed := Content{Ports: []PortRow{{IP: ipA, Port: 80, Service: "http", Ident: IdentProbed}}}
+	scan(closed) // the issue is gone
+	// two probes missed 3389: closeVanished closed it (INV-22)
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_service SET state = 'closed' WHERE port = 3389`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	from := e.clock.Now().Add(time.Second)
+	scan(open, "CVE-2099-0002") // both are back
+	issues, ports, err := e.svc.NewSince(e.ctx(), from, e.clock.Now().Add(time.Second))
+	if err != nil || issues != 1 || ports != 1 {
+		t.Fatalf("found again in the span: %d issues, %d ports, %v; want 1 and 1", issues, ports, err)
+	}
+	if n := len(log.all()); n != 0 {
+		t.Fatalf("news nobody exploits alerted: %d", n)
+	}
+	for round := 1; round <= 2; round++ { // an exploited issue that goes and comes back alerts each time it comes back
+		scan(open, "CVE-2021-41773")
+		scan(closed)
+		if n := len(log.all()); n != round {
+			t.Fatalf("round %d: %d alerts, want %d", round, n, round)
+		}
 	}
 }

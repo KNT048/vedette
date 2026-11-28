@@ -130,7 +130,7 @@ func TestHomeFirstLookWithoutAChannelCountsEveryPass(t *testing.T) {
 	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
 	dir.at("f-4", 2, finding("OpenSSH", "CVE-2026-20001", "web-01", notify.High))
 	big := firstRun(e, "f-1") // a pass that counts more findings than it lists
-	big.Findings, big.Devices = 3, 2
+	big.Findings, big.Exploited, big.Devices = 3, 3, 2
 	pub(big)
 	first, err := e.svc.FirstRunSummary(e.ctx(), e.clock.Now().Add(-time.Hour))
 	if err != nil || first == nil {

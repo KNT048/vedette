@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 func vuln(id, product, cve string, devices []string, sev Severity, t time.Time) Notice {
-	return Notice{ID: id, Kind: KindVuln, Severity: sev, Product: product, CVEs: []string{cve}, Devices: devices,
+	return Notice{ID: id, Kind: KindVuln, Exploited: true, Severity: sev, Product: product, CVEs: []string{cve}, Devices: devices,
 		Title: product + " is being exploited (" + cve + ")", What: "Attackers are using " + cve + " right now.",
 		Action: "Update " + product + " today.", Link: "https://192.168.10.2/findings/" + id, At: t}
 }
@@ -328,7 +329,7 @@ func FuzzBatchMessage(f *testing.F) {
 	f.Add("<b>\u202e", "\x00", "a\r\nb", strings.Repeat("é", 400))
 	f.Add("P", "CVE-1", "  ", "t")
 	f.Fuzz(func(t *testing.T, product, cve, device, title string) {
-		a := Notice{ID: "a", Kind: KindVuln, Severity: High, Product: product, CVEs: []string{cve}, Devices: []string{device}, Title: title, Link: "https://h/x", At: at(9, 0)}
+		a := Notice{ID: "a", Kind: KindVuln, Exploited: true, Severity: High, Product: product, CVEs: []string{cve}, Devices: []string{device}, Title: title, Link: "https://h/x", At: at(9, 0)}
 		b := a
 		b.ID, b.At = "b", at(9, 1)
 		for _, ns := range [][]Notice{{a}, {a, b}} {
@@ -417,7 +418,7 @@ func TestDigestWordingFollowsTheUrgencyLayer(t *testing.T) {
 	t.Parallel()
 	layered := func(id, product, cve string, layer int) Notice {
 		n := vuln(id, product, cve, []string{"NAS-01"}, High, at(9, 0))
-		n.Layer = layer
+		n.Layer, n.Exploited = layer, findings.ExploitedLayer(layer)
 		return n
 	}
 	same := msgOf(t, oneBatch(t, layered("a", "WordPress", "CVE-1", 3), layered("b", "WordPress", "CVE-2", 5)))

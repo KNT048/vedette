@@ -86,7 +86,7 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 		t.Fatalf("event %q layer %d", n.Event, n.Layer)
 	}
 	// findings computed medium (no NVD versions, so the version was not compared); an exploited finding alerts as critical
-	if n.Severity != notify.AlertSeverity(notify.Medium, n.Layer) || n.Severity != notify.Critical {
+	if n.Severity != notify.AlertSeverity(notify.Medium, n.Exploited) || n.Severity != notify.Critical {
 		t.Fatalf("severity %q, want critical: the CVSS band (medium) raised to the floor of an exploited finding", n.Severity)
 	}
 }

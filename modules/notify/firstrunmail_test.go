@@ -18,7 +18,7 @@ import (
 
 // firstRun is one findings.urgency.first_run event of the box's own first look, at the clock's time.
 func firstRun(e *env, ids ...string) findings.FirstRunEvent {
-	return findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: len(ids), Devices: 1, Layer: 2, FindingIDs: ids}
+	return findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: len(ids), Exploited: len(ids), Devices: 1, Layer: 2, FindingIDs: ids}
 }
 
 // summaries is every delivered first-run summary, oldest first.

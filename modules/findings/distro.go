@@ -320,7 +320,25 @@ var debianArch = map[string]bool{"amd64": true, "arm64": true, "i386": true, "ar
 var (
 	ubuntuOwnRE = regexp.MustCompile(`^[0-9][0-9.]*(~exp[0-9]+)?((build|ubuntu)[0-9][0-9.]*)+(\+esm[0-9]+)?(~[0-9][0-9.]*)*$`)
 	debianOwnRE = regexp.MustCompile(`^[0-9][0-9.]*([+~]deb[0-9]+u[0-9]+)?(\+b[0-9]+)?$`)
+	// ubuntuCountRE is the counter of Ubuntu's mark ("7.21" of "2ubuntu7.21", "5.24.04.1" of "3ubuntu5.24.04.1").
+	ubuntuCountRE = regexp.MustCompile(`(?:build|ubuntu)([0-9][0-9.]*)`)
 )
+
+// ubuntuOwn says a revision has Ubuntu's own form (ubuntuOwnRE). Ubuntu counts its uploads after its mark with plain numbers and
+// writes a release number only inside the counter ("0ubuntu0.24.04.1", "3ubuntu5.24.04.1": a further upload number follows it), so a
+// mark that ends in a number with a leading zero ("1ubuntu24.04", a vendor's package named after the release) is not Ubuntu's.
+func ubuntuOwn(rev string) bool {
+	if !ubuntuOwnRE.MatchString(rev) {
+		return false
+	}
+	for _, m := range ubuntuCountRE.FindAllStringSubmatch(rev, -1) {
+		parts := strings.Split(strings.TrimRight(m[1], "."), ".")
+		if last := parts[len(parts)-1]; len(last) > 1 && last[0] == '0' {
+			return false
+		}
+	}
+	return true
+}
 
 // ubuntuKernelRE is the revision of an Ubuntu kernel built for an older release or a cloud: "45.45~22.04.1" (HWE),
 // "1015.16~22.04.1" (a cloud kernel), the plain ABI.upload revision with the release it was backported to (review round 2 of
@@ -337,7 +355,45 @@ func ownBuild(distro, pkg, version string, strict bool) bool {
 	if !strict && (pkg == "linux" || strings.HasPrefix(pkg, "linux-")) && ubuntuKernelRE.MatchString(rev) {
 		return true
 	}
-	return ubuntuOwnRE.MatchString(rev) || !strict && debianOwnRE.MatchString(rev) && !strings.Contains(rev, "deb")
+	return ubuntuOwn(rev) || !strict && debianOwnRE.MatchString(rev) && !strings.Contains(rev, "deb")
+}
+
+// debBuild is who built a dpkg package as far as the Debian version conventions tell (debBuildOf).
+type debBuild int
+
+const (
+	buildUnknown  debBuild = iota // not a Debian version: nothing is known
+	buildOwn                      // the distribution's own revision (ownBuild)
+	buildMarked                   // the distribution's packaging mark outside its own revision form: the builder is not known
+	buildUpstream                 // none of the distribution's marks: a release in its upstream's own numbering
+)
+
+// The distribution's packaging marks anywhere in a version: Ubuntu's upload mark ("2ubuntu7", "3build1"), its ESM mark ("+esm3") and
+// the release suffix of its backports ("~24.04.1", "~ubuntu24.04.3", "~ubuntu0.22.04.2"); Debian's stable updates ("+deb13u1",
+// "~deb12u1"), binary rebuilds ("+b1") and backports ("~bpo12+1").
+var (
+	ubuntuMarkRE = regexp.MustCompile(`[0-9](?:ubuntu|build)[0-9]|\+esm[0-9]|~(?:ubuntu)?(?:0\.)?[0-9]{2}\.[0-9]{2}`)
+	debianMarkRE = regexp.MustCompile(`[+~]deb[0-9]+u[0-9]+|\+b[0-9]+$|~bpo[0-9]`)
+)
+
+// debBuildOf tells, from a dpkg version alone, whether the distribution built the package (Debian policy: the revision after the last
+// hyphen is the packager's, and the distribution writes it in its own form, ownBuild), whether the version carries one of the
+// distribution's packaging marks outside that form (an Ubuntu backport suffix, a vendor's "1ubuntu24.04": the builder is not known),
+// or none of them at all: a vendor's or PPA's build ("1.28.0-1~noble", "17.6-1.pgdg24.04+1", "22.20.0-1nodesource1",
+// "8.3.27-1+ubuntu24.04.1+deb.sury.org+1"), another distribution's build ("+deb13u1" on Ubuntu), or a native package ("12.2.1") whose
+// version is its upstream release. Such a package's upstream version is the release the upstream's ranges speak of, and a distribution's
+// fix for its own build of the same source says nothing about it.
+func debBuildOf(distro, pkg, version string) debBuild {
+	if !debver.Valid(version) {
+		return buildUnknown
+	}
+	switch {
+	case ownBuild(distro, pkg, version, false):
+		return buildOwn
+	case distro == "ubuntu" && ubuntuMarkRE.MatchString(version), distro == "debian" && debianMarkRE.MatchString(version):
+		return buildMarked
+	}
+	return buildUpstream
 }
 
 // distroDecides says only the distribution's own data judges row in for v: a package an agent read from an Ubuntu or Debian package
@@ -362,7 +418,7 @@ func distroDecides(in swInfo, v Vuln) bool {
 	if d == "debian" {
 		return strings.Contains(rev, "deb") && debianOwnRE.MatchString(rev)
 	}
-	return ubuntuOwnRE.MatchString(rev)
+	return ubuntuOwn(rev)
 }
 
 // distroVerdict reads v.Distro for the software row through its distribution's adapter (distroData), the same way for every
@@ -553,8 +609,9 @@ const (
 	// DistroOtherReleases: the distribution lists the CVE for this package in other releases only (most often a CVE fixed before the
 	// device's release came out, which the distribution never lists for it).
 	DistroOtherReleases = "distro_other_releases"
-	// DistroOtherBuild: the distribution's row for the package is about another build than the installed one (a PPA or a vendor's
-	// package of the same source, an earlier upstream release than its fix).
+	// DistroOtherBuild: the distribution's row for the package is about another build than the installed one (a build with the
+	// distribution's mark outside its own revision form, whose builder is not known; an earlier upstream release than its fix). A
+	// build with none of the distribution's marks is its upstream product (debBuildOf) and never gets here.
 	DistroOtherBuild = "distro_other_build"
 	// DistroNotListed: the distribution's data has no row of the CVE at all (not triaged yet, or its feed holds no row of it yet).
 	DistroNotListed = "distro_not_listed"

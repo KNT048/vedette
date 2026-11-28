@@ -44,6 +44,9 @@ type qual struct {
 	sub   int
 	num   uint64
 	num2  uint64
+	// tilde: the word after Debian's "~" when it is no pre-release word Vedette knows ("us1" of "10.1.61~us1", "git" of "1.0~git"):
+	// before the release itself (class -1), in no known order against another pre-release of the same release (orderKnown).
+	tilde string
 }
 
 type version struct {
@@ -193,6 +196,8 @@ func parseQual(tail string) (qual, string, bool) {
 	case w == "build" || releaseWord[w]:
 		t, ok := tailOK(after)
 		return qual{}, w + t, ok
+	case sep == '~': // Debian's tilde sorts before the release itself, whatever follows it
+		return qual{class: -1, tilde: rest}, "", true
 	}
 	return qual{}, "", false
 }
@@ -307,10 +312,32 @@ func (v version) compare(o version) int {
 func CompareVersions(a, b string) (order int, ok bool) {
 	va, okA := parseVersion(a)
 	vb, okB := parseVersion(b)
-	if !okA || !okB {
+	if !okA || !okB || !orderKnown(va, vb) {
 		return 0, false
 	}
 	return va.compare(vb), true
+}
+
+// orderKnown says compare orders v and o: not when both are pre-releases of the same release and one of them is a tilde version
+// ("10.1.61~us1" against "10.1.61-rc1" or "10.1.61~us2"), unless they are the same.
+func orderKnown(v, o version) bool {
+	if v.q.tilde == "" && o.q.tilde == "" || v.q == o.q || v.q.class != -1 || o.q.class != -1 {
+		return true
+	}
+	n := max(len(v.rel), len(o.rel))
+	for i := 0; i < n; i++ {
+		var a, b uint64
+		if i < len(v.rel) {
+			a = v.rel[i]
+		}
+		if i < len(o.rel) {
+			b = o.rel[i]
+		}
+		if a != b {
+			return true
+		}
+	}
+	return false
 }
 
 // compareBound is CompareVersions for range decisions: when the releases and
@@ -319,7 +346,7 @@ func CompareVersions(a, b string) (order int, ok bool) {
 func compareBound(a, b string) (int, bool) {
 	va, okA := parseVersion(a)
 	vb, okB := parseVersion(b)
-	if !okA || !okB {
+	if !okA || !okB || !orderKnown(va, vb) {
 		return 0, false
 	}
 	if c := va.compare(vb); c != 0 {

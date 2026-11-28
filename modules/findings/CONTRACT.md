@@ -438,7 +438,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   about an older line it does not list, so a version outside every row, below a range that starts at the first release of a later
   line, and past no fix of its own line (a range from its line's start or ending on its train, a range from 0 ending on its line as
   the record's other ranges name lines, a stated `LineFix`) is no proof of "not affected": undecided `ranges_start_at_branch_only`, asked as `no_range_data` (listed), never a
-  finding on that basis (`unlistedLine`). The vendor's complete list (`VendorList`, a complete CVE.org record), a line newer than every
+  finding on that basis (`unlistedLine`). The vendor's complete list (`VendorList`, a complete CVE.org record), the product's own CNA
+  stating in the record every version it does not list unaffected (feeds `UnlistedUnaffected`), a line newer than every
   listed one, and a start inside a line (where the flaw came in) still decide. Windows releases and the vendor's own schemes keep
   their rules. `TestUnlistedLine_OlderLineIsNotClosed`.
   A row limited to an operating system whose builds do not run on the device's (`otherSystem`) states that system's fix and is not

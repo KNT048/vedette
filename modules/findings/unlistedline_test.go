@@ -26,6 +26,11 @@ func TestUnlistedLine_OlderLineIsNotClosed(t *testing.T) {
 		undecided = "undecided"
 		affected  = "affected"
 	)
+	// the products the record's own CNA states every version of unaffected that it does not list (CVE JSON 5 defaultStatus)
+	statesUnlisted := map[string][]string{
+		"the product's own CNA states every version its record does not list unaffected": {"cpe:2.3:*:example:gateway:*:*:*:*:*:*:*:*"},
+		"the own CNA's word on another product of the vendor":                            {"cpe:2.3:*:example:router:*:*:*:*:*:*:*:*"},
+	}
 	for _, tc := range []struct {
 		name, ver string
 		aff       []Affected
@@ -49,12 +54,15 @@ func TestUnlistedLine_OlderLineIsNotClosed(t *testing.T) {
 		{"the vendor's complete list states every unlisted version", "7.0.5", []Affected{complete(rng("8.0.0", "8.0.21")), complete(rng("9.0.0", "9.0.10"))}, closed},
 		{"a fixed release the record states on its line", "3.1.32", []Affected{lineFix(rng("3.0.0", "3.0.5"), "3.1.0"), rng("8.0.0", "8.0.21")}, closed},
 		{"a start inside a line states where the flaw came in", "2.2.34", []Affected{rng("2.4.17", "2.4.60")}, closed},
+		{"the product's own CNA states every version its record does not list unaffected", "7.0.5", supported[1:], closed},
+		{"the own CNA's word on another product of the vendor", "7.0.5", supported[1:], undecided},
 	} {
 		v := uncVuln("CVE-2026-91001", "Example", "Gateway", uncNew, tc.aff...)
 		if tc.aff == nil { // the CNA's record when NVD has none, with defaultStatus stating every version it does not list
 			v = uncVuln("CVE-2026-91001", "Example", "Gateway", uncNew, rng("8.0.0", "8.0.21"), rng("9.0.0", "9.0.10"))
 			v.RangesFrom = RangesCVEOrg
 		}
+		v.UnlistedUnaffected = statesUnlisted[tc.name]
 		for _, keyed := range []bool{true, false} {
 			s := shapeRow("Gateway", tc.ver, keyed)
 			s.CPE = "cpe:2.3:a:example:gateway:" + tc.ver + ":*:*:*:*:*:*:*"

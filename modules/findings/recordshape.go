@@ -369,7 +369,8 @@ func laterExactInTrain(own []Affected, ver string) bool {
 // (3.1 beside rows for 2.3, 8.0 and 9.0, or a line below every row) was not evaluated, and being outside the rows says nothing about
 // it. Such a version is no proof of "not affected": the CVE stays undecided (ranges_start_at_branch_only), never a finding on that
 // basis. The rows speak for the version (false) when
-//   - a row is of a list that states what every unlisted version is (VendorList: the product's own CNA, defaultStatus);
+//   - a row is of a list that states what every unlisted version is (VendorList: the product's own CNA, defaultStatus), or the product's
+//     own CNA states it in the record whatever rows the match reads (Vuln.UnlistedUnaffected);
 //   - the version is past the fix of a row of its own release line: a range that starts at or below it on the line the range's start
 //     and end share (at least their first number: "20.0.0" before "20.19.4" is line 20, "8.0.0" before "8.0.21" line 8.0) or on the
 //     train its end is on, a range from version 0 or with no start whose end is on the version's line (as the record's other ranges
@@ -384,6 +385,13 @@ func laterExactInTrain(own []Affected, ver string) bool {
 func unlistedLine(in swInfo, v Vuln, key []identity) bool {
 	if !versionKnown(in.ver) || v.RangesFrom == RangesCVEOrg { // a complete CVE record states what every unlisted version is
 		return false
+	}
+	for _, name := range v.UnlistedUnaffected { // the product's own CNA states every version its record does not list unaffected
+		if c, err := (Affected{CPE: name}).cpe(); err == nil {
+			if o, _, _ := entryFor(c, in, key); o {
+				return false
+			}
+		}
 	}
 	var own []Affected // the rows that name the line, as decide reads them
 	line := 0          // the numbers that name a release line in the rows' own ranges: the fewest any range's start and end share

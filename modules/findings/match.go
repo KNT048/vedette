@@ -213,6 +213,10 @@ type Vuln struct {
 	Lines       []LineRow
 	LineCovers  []LineCover
 	LineSupport []LineSupport
+	// UnlistedUnaffected are the products whose own CNA states in the CVE record that every version it does not list is unaffected
+	// (CVE JSON 5 defaultStatus, feeds UnlistedUnaffected), as CPE names: a release line the rows do not list is then decided by the
+	// vendor's word, not left undecided (unlistedLine).
+	UnlistedUnaffected []string
 	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom): NVD's when NVD has any, the CVE record's
 	// rows read beside them marked (Affected.AffectedOnly, VendorList); the finding stores it (range_origin), RangeCNA when the record's
 	// rows beside NVD's are what call it affected (recordDecided).

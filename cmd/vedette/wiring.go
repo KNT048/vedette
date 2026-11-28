@@ -475,10 +475,14 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	unaffected, err := a.st.UnlistedUnaffected(ctx, ids) // the vendor's own word on the versions its record does not list
+	if err != nil {
+		return nil, err
+	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
-			DistroLoading: loading, DistroOn: on, Stamp: stamps[v.CVE]}
+			DistroLoading: loading, DistroOn: on, Stamp: stamps[v.CVE], UnlistedUnaffected: unaffected[v.CVE]}
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE NVD or the CVE record answered for
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
@@ -656,6 +660,10 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	if err != nil {
 		return nil, err
 	}
+	unaffected, err := a.st.UnlistedUnaffected(ctx, cves) // the vendor's own word on the versions its record does not list
+	if err != nil {
+		return nil, err
+	}
 	distro, err := a.st.DistroFixesFor(ctx, cves)
 	if err != nil {
 		return nil, err
@@ -675,7 +683,8 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 		if len(rows) == 0 && !inCatalogue {
 			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
 		}
-		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows), Stamp: stamps[cve]}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, DistroOn: on, Origin: recordOrigin(rows), Stamp: stamps[cve],
+			UnlistedUnaffected: unaffected[cve]}
 		complete := true
 		for _, r := range rows {
 			// the list is complete when its author's every row says what is not listed (the CNA's, as an exploited-list entry reads

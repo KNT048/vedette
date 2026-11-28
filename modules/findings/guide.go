@@ -300,6 +300,9 @@ type KnownVersion struct {
 // one the match compares ("25.1.1+dfsg-1ubuntu2", not the upstream "25.1.1+dfsg"), so the page and the fix name the same numbers.
 func knownVersion(a Asset, s Software) *KnownVersion {
 	pkg := clean(s.PkgVersion)
+	if pkg != "" && swInfoOn(s, a).upstreamBuild { // a package the distribution did not build: matched on its upstream release
+		pkg = ""
+	}
 	if !versionGiven(s.Version) && pkg == "" {
 		return nil
 	}

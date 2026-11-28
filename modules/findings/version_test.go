@@ -75,7 +75,7 @@ func TestCompareVersions_NotComparable(t *testing.T) {
 	t.Parallel()
 	for _, s := range []string{
 		"", "   ", "unknown", "latest", "n/a", "x86_64", "R2", "(1.2)", "1.2.3-foo", "1.0-ubuntu", "1.0.git2023",
-		"1.0~git", "7.2.x", ".", strings.Repeat("1.", 40) + "1", strings.Repeat("9", 40), strings.Repeat("a", 200) + "1",
+		"7.2.x", ".", strings.Repeat("1.", 40) + "1", strings.Repeat("9", 40), strings.Repeat("a", 200) + "1",
 		"1.99999999999999999999999",
 	} {
 		if _, ok := CompareVersions(s, "1.0"); ok {
@@ -254,5 +254,58 @@ func TestVersionRange_Contains_PlaceholderIsUnknown(t *testing.T) {
 	}
 	if c, ok := CompareVersions("0", "1"); !ok || c != -1 {
 		t.Errorf("plain order of 0: %d,%v", c, ok)
+	}
+}
+
+// Debian's tilde sorts before the release itself, whatever word follows it ("10.1.61~us1" is a repack of 10.1.61, "1.0~git" a
+// snapshot before 1.0). The word does not tell which of the two it is, so such a version orders against every other release, and
+// against the release itself or another pre-release of it it is undecidable: a range that starts or ends at that release, or an
+// exact list naming it, never decides it.
+func TestCompareVersions_DebianTilde(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		a, b string
+		want int
+		ok   bool
+	}{
+		{"10.1.61~us1", "7.0.81", 1, true},
+		{"10.1.61~us1", "10.1.60", 1, true},
+		{"10.1.61~us1", "10.1.61", 0, false}, // a repack of 10.1.61 or a snapshot before it: no order against the release itself
+		{"1.7.24~ds1", "1.7.24", 0, false},
+		{"1.7.24~ds1", "1.7.24+b1", 0, false},
+		{"1.7.24~ds1", "1.7.24p1", -1, true},
+		{"10.1.61~us1", "10.1.61.1", -1, true},
+		{"10.1.61~us1", "10.1.62", -1, true},
+		{"1.7.24~ds1", "1.7.23", 1, true},
+		{"1.0~git", "1.0", 0, false},
+		{"1.0~git", "0.9", 1, true},
+		{"10.1.61~us1", "10.1.61~us1", 0, true},
+		{"10.1.61~us1", "10.1.61-rc1", 0, false}, // two pre-releases of one release: no order is known
+		{"10.1.61~us1", "10.1.61~us2", 0, false},
+	} {
+		got, ok := CompareVersions(c.a, c.b)
+		if ok != c.ok || ok && got != c.want {
+			t.Errorf("CompareVersions(%s, %s) = %d %v, want %d %v", c.a, c.b, got, ok, c.want, c.ok)
+		}
+		if back, ok := CompareVersions(c.b, c.a); ok != c.ok || ok && back != -c.want {
+			t.Errorf("CompareVersions(%s, %s) = %d %v, want %d %v", c.b, c.a, back, ok, -c.want, c.ok)
+		}
+	}
+	for _, c := range []struct {
+		r    VersionRange
+		v    string
+		want Tri
+	}{
+		{VersionRange{StartIncl: "7.0.0", EndIncl: "7.0.79"}, "10.1.61~us1", No},
+		{VersionRange{EndExcl: "10.1.62"}, "10.1.61~us1", Yes},
+		{VersionRange{EndExcl: "10.1.61"}, "10.1.61~us1", Unknown},
+		{VersionRange{StartIncl: "1.7.24", EndExcl: "1.7.30"}, "1.7.24~ds1", Unknown},
+		{VersionRange{StartIncl: "1.7.24", EndIncl: "1.7.24"}, "1.7.24~ds1", Unknown},
+		{VersionRange{StartExcl: "1.7.23", EndExcl: "1.7.24"}, "1.7.24~ds1", Unknown},
+		{VersionRange{StartIncl: "10.1.61-rc1"}, "10.1.61~us1", Unknown},
+	} {
+		if got := c.r.Contains(c.v); got != c.want {
+			t.Errorf("%+v.Contains(%s) = %v, want %v", c.r, c.v, got, c.want)
+		}
 	}
 }

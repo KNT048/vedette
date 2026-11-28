@@ -45,6 +45,10 @@ type distroData struct {
 	// own says the installed release is the distribution's own build of the package (a PPA, a backport or a vendor's build is not);
 	// strict is the rule for "not affected", which compares no version.
 	own func(pkg, ver string, strict bool) bool
+	// upstream says the installed release carries none of the distribution's packaging marks (debBuildOf): another builder's package or
+	// a native one, judged as its upstream product by the upstream ranges and never by this data; nil when every release is the
+	// distribution's (Alpine's apk releases).
+	upstream func(pkg, ver string) bool
 	// applies says a fixed release of the data is about the installed build, so the two compare (the same upstream release of a
 	// backport, a later one the distribution built, Debian's kernel moving inside its series).
 	applies func(pkg, installed, fixed string) bool
@@ -87,11 +91,11 @@ func osVendor(osName string) string {
 var (
 	ubuntuData = &distroData{id: "ubuntu", name: "Ubuntu", is: func(o string) bool { return osVendor(o) == "canonical" }, os: func(a Asset) string { return a.OS },
 		rel: debRelease, kernelRule: true, pkgOf: debPkgOf, release: debReleaseOf, source: func(src string) string { return securitySource("ubuntu", src) },
-		own: func(pkg, ver string, strict bool) bool { return ownBuild("ubuntu", pkg, ver, strict) }, applies: debApplies("ubuntu"),
+		own: func(pkg, ver string, strict bool) bool { return ownBuild("ubuntu", pkg, ver, strict) }, upstream: debUpstreamBuild("ubuntu"), applies: debApplies("ubuntu"),
 		compare: debCompare, choose: chooseInRelease}
 	debianData = &distroData{id: "debian", name: "Debian", is: func(o string) bool { return osVendor(o) == "debian" }, os: func(a Asset) string { return a.OS },
 		rel: debRelease, kernelRule: true, pkgOf: debPkgOf, release: debReleaseOf, source: func(src string) string { return securitySource("debian", src) },
-		own: func(pkg, ver string, strict bool) bool { return ownBuild("debian", pkg, ver, strict) }, applies: debApplies("debian"),
+		own: func(pkg, ver string, strict bool) bool { return ownBuild("debian", pkg, ver, strict) }, upstream: debUpstreamBuild("debian"), applies: debApplies("debian"),
 		compare: debCompare, choose: chooseInRelease}
 	alpineData = &distroData{id: DistroAlpine, name: "Alpine Linux", is: func(o string) bool { return linuxDistro(o) == DistroAlpine },
 		os: func(a Asset) string { return cmp.Or(a.ManualOS, a.AgentOS, a.SNMPOS, a.OS) }, rel: alpineBranch, anyRelease: true, fixedOnly: true,
@@ -100,6 +104,11 @@ var (
 		choose: chooseAlpine}
 	distroAdapters = []*distroData{ubuntuData, debianData, alpineData}
 )
+
+// debUpstreamBuild is distroData.upstream of Ubuntu and Debian.
+func debUpstreamBuild(distro string) func(pkg, ver string) bool {
+	return func(pkg, ver string) bool { return debBuildOf(distro, pkg, ver) == buildUpstream }
+}
 
 // debReleaseOf is the Debian version of an agent's deb row as the data compares it ("1:9.6p1-3ubuntu13.14"); "" when it is none.
 func debReleaseOf(v string) string {

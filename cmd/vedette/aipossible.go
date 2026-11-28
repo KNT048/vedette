@@ -46,31 +46,81 @@ func (c possibleChecker) Record(ctx context.Context, cve string) (findings.CVERe
 	if err != nil || !ok {
 		return findings.CVERecordText{}, err
 	}
-	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution}
-	for _, r := range b.Ranges {
-		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r)}
-		if f := strings.Split(r.CPE, ":"); len(f) == 13 && f[9] != "*" && f[9] != "-" {
-			row.Edition = f[9] // the edition the row's CPE pins (sw_edition)
-		}
-		out.Rows = append(out.Rows, row)
-	}
+	out := findings.CVERecordText{Description: b.Description, Solution: b.Solution, Rows: recordRows(b.Ranges)}
 	for _, r := range b.References {
 		out.Refs = append(out.Refs, findings.RefLink{URL: r.URL, Tags: r.Tags})
 	}
 	return out, nil
 }
 
+// rowPins are the CPE 2.3 attributes a record row's text names (sw_edition, target_sw, target_hw), with the words for a value and for
+// the build of none of the values other rows name.
+var rowPins = []struct {
+	i         int
+	word, not string
+}{{9, "edition", "edition not"}, {10, "on", "not on"}, {11, "hardware", "hardware not"}}
+
+// cpeValue is the attribute of a row's CPE at i as a person reads it ("" for ANY, "-" for NA), "" when the CPE has no such field.
+func cpeValue(f []string, i int) string {
+	if len(f) != 13 || f[i] == "*" {
+		return ""
+	}
+	return strings.ReplaceAll(f[i], "\\", "")
+}
+
+// recordRows is each affected row of a CVE record as findings reads it (recordRowText), with the edition its CPE pins, or the editions
+// it is not (a "-" beside other rows of its product that pin one).
+func recordRows(rs []feeds.BriefRange) []findings.RecordRow {
+	named := map[string]map[int][]string{} // vendor:product of the CPE -> attribute -> the values its rows pin
+	key := func(f []string) string { return f[3] + ":" + f[4] }
+	for _, r := range rs {
+		f := strings.Split(r.CPE, ":")
+		for _, p := range rowPins {
+			if v := cpeValue(f, p.i); v != "" && v != "-" {
+				if named[key(f)] == nil {
+					named[key(f)] = map[int][]string{}
+				}
+				if !slices.Contains(named[key(f)][p.i], v) {
+					named[key(f)][p.i] = append(named[key(f)][p.i], v)
+				}
+			}
+		}
+	}
+	out := make([]findings.RecordRow, 0, len(rs))
+	for _, r := range rs {
+		f := strings.Split(r.CPE, ":")
+		var others map[int][]string
+		if len(f) == 13 {
+			others = named[key(f)]
+		}
+		row := findings.RecordRow{Vendor: r.Vendor, Product: r.Product, Text: recordRowText(r, others)}
+		switch v := cpeValue(f, 9); v {
+		case "":
+		case "-":
+			row.NotEditions = slices.Sorted(slices.Values(others[9]))
+		default:
+			row.Edition = v // the edition the row's CPE pins (sw_edition)
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
 // recordRowText is one affected row of a CVE record as a person reads it: the product, the edition, system or hardware its CPE pins,
 // the systems it runs on, the versions and its fixed release, and who wrote the row ("acme browser (edition esr): affected from
-// 115.1.0 before 115.42.0 [nvd]").
-func recordRowText(r feeds.BriefRange) string {
+// 115.1.0 before 115.42.0 [nvd]"). A "-" (CPE 2.3's NA: no value) where other rows of the product name values (others, by attribute)
+// is the build of none of them ("acme browser (edition not esr)"): read as no pin, it would seem to speak for every build.
+func recordRowText(r feeds.BriefRange, others map[int][]string) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimSpace(r.Vendor + " " + r.Product))
 	if f := strings.Split(r.CPE, ":"); len(f) == 13 {
 		var pins []string
-		for i, word := range map[int]string{9: "edition", 10: "on", 11: "hardware"} {
-			if v := f[i]; v != "*" && v != "-" && v != "" {
-				pins = append(pins, word+" "+strings.ReplaceAll(v, "\\", ""))
+		for _, p := range rowPins {
+			switch v := cpeValue(f, p.i); {
+			case v == "-" && len(others[p.i]) > 0:
+				pins = append(pins, p.not+" "+strings.Join(slices.Sorted(slices.Values(others[p.i])), " or "))
+			case v != "" && v != "-":
+				pins = append(pins, p.word+" "+v)
 			}
 		}
 		slices.Sort(pins)

@@ -552,3 +552,61 @@ func TestLineReading_AnAIReadingNeverSettlesNotAffected(t *testing.T) {
 		t.Error("confirming the proposal did not answer the question not affected")
 	}
 }
+
+// An inference from another product's row that states a range of line N ("from 115.1.0 before 115.42.0") speaks for a version of
+// this product inside that range: the start of the range is a lower bound, not a release the version must be before. A version
+// before the start, or past the end, is not named.
+func TestLineReading_AnInferenceFromARangeOfTheOtherProductsLine(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		version string
+		finding bool
+	}{
+		{"115.9.0", true},
+		{"115.1.0", true},
+		{"115.0.5", false},
+		{"115.42.0", false},
+	} {
+		t.Run(tc.version, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorld(t, tc.version)
+			fc.verdicts[cveQuill+"|"+tc.version] = ProposeVerdict{Status: StatementAffected, Line: "115", InferredFrom: "quillfeather browser (edition esr)",
+				Quote: quillRowESR, Source: 0, Reason: "The browser's ESR 115 line is affected; the mail client's 115 line has no row."}
+			runCheck(t, e)
+			if got := quillFindings(t, e) == 1; got != tc.finding {
+				t.Fatalf("finding %v, want %v", got, tc.finding)
+			}
+		})
+	}
+}
+
+// An answer that quotes a row of this product about another build (an edition the item is not, or "edition not" the item's) reads
+// another build's statement: it is an inference like a quote of another product's row. A row of the item's own edition, a row of no
+// edition beside none, and any row while the item's edition is unknown are this product's own.
+func TestOtherProductsRow_ARowOfAnotherBuildOfThisProduct(t *testing.T) {
+	t.Parallel()
+	plain := "quillfeather mail (edition not esr): affected before 157.0 [nvd]"
+	own := "quillfeather mail (edition esr): affected from 140.0 before 140.17.0 [nvd]"
+	pro := "quillfeather mail (edition pro): affected before 3.2 [nvd]"
+	rec := CVERecordText{Description: "Use-after-free in the layout engine.", Rows: []RecordRow{
+		{Vendor: "quillfeather", Product: "mail", NotEditions: []string{"esr"}, Text: plain},
+		{Vendor: "quillfeather", Product: "mail", Edition: "esr", Text: own},
+		{Vendor: "quillfeather", Product: "mail", Edition: "pro", Text: pro},
+		{Vendor: "quillfeather", Product: "browser", Edition: "esr", Text: quillRowESR},
+	}}
+	for _, tc := range []struct {
+		quote, edition, want string
+	}{
+		{plain, "esr", "quillfeather mail (edition not esr)"},
+		{pro, "esr", "quillfeather mail (edition pro)"},
+		{own, "esr", ""},
+		{plain, "", ""},
+		{pro, "", ""},
+		{quillRowESR, "esr", "quillfeather browser"},
+		{quillRowESR, "", "quillfeather browser"},
+	} {
+		if got := otherProductsRow(rec, "quillfeather|mail", tc.quote, tc.edition); got != tc.want {
+			t.Errorf("%q (edition %q): %q, want %q", tc.quote, tc.edition, got, tc.want)
+		}
+	}
+}

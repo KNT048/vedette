@@ -783,6 +783,7 @@ func (d *devMatch) read(vi int) *entryRead {
 	if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
 		rows = d.namedRows[vi]
 	}
+	var asks []Unchecked // askRow's rows, kept below only on a line no other row of it has a word on
 	for _, i := range rows {
 		s := sws[i]
 		keyed := keyedBy(d.keys[i], ek)
@@ -822,7 +823,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			} else if r, silence, ok := askRow(a, s, info, v, keyed, nm); ok && out == outNone {
 				u := uncheckedOf(s, v, r)
 				u.silence = silence
-				e.unchecked = append(e.unchecked, u)
+				asks = append(asks, u)
 			}
 		}
 		if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
@@ -868,8 +869,40 @@ func (d *devMatch) read(vi int) *entryRead {
 			e.needRows = append(e.needRows, i)
 		}
 	}
+	if len(asks) > 0 {
+		e.unchecked = append(e.unchecked, d.unspoken(asks, e, v)...)
+	}
 	d.reads[vi] = e
 	return e
+}
+
+// unspoken is the rows of asks (askRow's) on a line no other row of it has a word on for v: an outcome (a finding, a proof, a version
+// or a person's answer it needs, a question), a row already listed as unchecked, or its distribution's "affected, no fix yet". A line
+// holds several rows (its readings); one that is decided or asked about is not asked about again for another of its rows.
+func (d *devMatch) unspoken(asks []Unchecked, e *entryRead, v Vuln) []Unchecked {
+	spoken, asked := map[string]bool{}, map[string]bool{}
+	for _, u := range asks {
+		asked[storedLine(u.SoftwareID)] = true
+	}
+	for _, o := range e.outs {
+		spoken[storedLine(d.sws[o.row].ID)] = true
+	}
+	for _, u := range e.unchecked {
+		spoken[storedLine(u.SoftwareID)] = true
+	}
+	for i, s := range d.sws {
+		if in := d.infos[i]; asked[storedLine(s.ID)] && in.pkgBuilt() && distroSilence(in, v) == DistroNoFixYet {
+			spoken[storedLine(s.ID)] = true
+		}
+	}
+	var out []Unchecked
+	for _, u := range asks {
+		if line := storedLine(u.SoftwareID); !spoken[line] {
+			spoken[line] = true // one question per line
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // aiGuard is row i's reading of entry vi (and whether the AI's choice made it) when the AI chose the row's product (Software.AIProduct), from its reading m, out with that

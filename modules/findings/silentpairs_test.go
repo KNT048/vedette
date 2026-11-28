@@ -33,6 +33,9 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		pkg("s-wid", "Acmesoft", "Widget", "2.4.1", "2.4.1-1ubuntu0.2", "acme-widget"),
 		pkg("s-ppa", "Acmesoft", "Gizmo", "3.2.0", "3.2.0-1+ubuntu26.04.1+ppa.example+1", "acme-gizmo"),
 		pkg("s-norel", "Acmesoft", "Sprocket", "1.8", "", ""), // the agent gave no package release or source
+		// one line read from two packages: the distribution decides one, and has no word on the other
+		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool"),
+		pkg("s-two", "Acmesoft", "Tool", "5.1", "5.1-2ubuntu0.4", "acme-tool-extras"),
 	}}
 	rhel := Asset{ID: "r-2", Name: "db-02", OS: "Red Hat Enterprise Linux 9.4", Software: []Software{pkg("s-rwid", "Acmesoft", "Widget", "2.4.1", "2.4.1-3.el9", "acme-widget")}}
 	alpine := Asset{ID: "a-3", Name: "gw-03", OS: "Alpine Linux 3.23.8", Software: []Software{pkg("s-abox", "Acmesoft", "Boxer", "1.37.0", "1.37.0-r30", "acme-boxer")}}
@@ -89,7 +92,8 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		{name: "a line beside another line's finding", device: "w-4", sw: "s-run2", vuln: runtime, cause: CauseNeedsReading, detail: UndecidedExactOnly},
 		{name: "a legacy browser's record on the current browser", device: "w-4", sw: "s-edge", vuln: legacy, unrelated: true},
 	}
-	var vulns []Vuln
+	tool := nvd("CVE-2026-61014", "cpe:2.3:a:acmesoft:tool:*:*:*:*:*:*:*:*", "5.2", row("26.04", "acme-tool", "fixed", "5.1-2ubuntu0.3"))
+	vulns := []Vuln{tool}
 	for _, c := range cases {
 		vulns = append(vulns, c.vuln)
 	}
@@ -125,6 +129,12 @@ func TestCoverage_EveryRelatedPairIsDecidedOrAsked(t *testing.T) {
 		for k, v := range st {
 			states[a.ID+"/"+k] = v
 		}
+	}
+	if st, ok := states["u-1/"+lineKey(tool.CVE, "s-two")]; !ok || st.by != RangeDistro || st.affected {
+		t.Errorf("a line the distribution decided on one of its packages: %+v, want decided not affected by the distribution", st)
+	}
+	if q, ok := questions["u-1/"+lineKey(tool.CVE, "s-two")]; ok {
+		t.Errorf("a line the distribution decided is asked about for its other package: %+v", q)
 	}
 	if st, ok := states["w-4/"+lineKey(runtime.CVE, "s-run1")]; !ok || !st.affected {
 		t.Errorf("the line inside the range is not a finding: %+v", st)

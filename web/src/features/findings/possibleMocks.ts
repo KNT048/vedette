@@ -50,7 +50,8 @@ function items(device?: string | null): Item[] {
 
 const checkable = (it: Item) => !!it.key && !it.check
 
-const VERSION_REASONS: UndecidedReason[] = ['no_version', 'platform_unknown', 'package_unknown', 'attribute_unknown']
+const VERSION_REASONS: UndecidedReason[] = ['no_version', 'version_from_network', 'platform_unknown', 'package_unknown', 'attribute_unknown']
+const DISTRO_REASONS: UndecidedReason[] = ['distro_not_listed', 'distro_other_packages', 'distro_other_releases', 'distro_other_build', 'distro_no_data']
 /** Why the CVE is still possible (the server's PossibleCause, in short); null for a settled row. */
 function causeOf(it: Item): PossibleCause | null {
   const reason = undecidedOf(it.q).reason
@@ -58,6 +59,7 @@ function causeOf(it: Item): PossibleCause | null {
   if (it.state === 'settled') return null
   if (it.state === 'proposal') return 'needs_person'
   if (reason === 'nvd_pending') return 'pending_nvd'
+  if (DISTRO_REASONS.includes(reason)) return 'distro_silent'
   if (['version_needed', 'platform', 'package_release'].includes(it.q.kind) || VERSION_REASONS.includes(reason)) return 'version_needed'
   if (c) {
     if (c.rejected) return 'needs_person'
@@ -79,7 +81,7 @@ function olderBuildOf(it: Item): PossibleRow['older_build'] {
   const tested = [...new Set((u.ranges ?? []).map((r) => r.split(':').slice(5, 7).filter((x) => x !== '*' && x !== '-').join(' ')))]
   return tested.length ? { tested, year: Number(it.cve.split('-')[1]) } : null
 }
-const CAUSES: PossibleCause[] = ['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget', 'identity_unproven', 'version_needed', 'pending_nvd', 'needs_person']
+const CAUSES: PossibleCause[] = ['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget', 'identity_unproven', 'version_needed', 'pending_nvd', 'needs_person', 'distro_silent']
 
 /** The check of a question about one CVE stored by the time of its answer (the Answered list names a confirmed AI proposal by it);
  *  null when none. */

@@ -649,12 +649,12 @@ export function PossibleSection({ device = '' }: { device?: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: device || undefined })
   const summary = useSummary()
-  const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
+  const [rows, older, distro, covered] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const devices = useMemo(() => devicesOf(rows), [rows])
   useScrollHere(!!q.data)
   const reviewed = (q.data?.items ?? []).filter(inReview).length
   const counts = q.data?.counts ? { ...q.data.counts, possible: q.data.counts.possible - reviewed, proposals: q.data.counts.proposals - reviewed } : undefined
-  const show = !!counts?.possible || !!counts?.older_build || !!counts?.distro_pending
+  const show = !!counts?.possible || !!counts?.older_build || !!counts?.distro_pending || covered.length > 0
   return (
     <section id="possible" aria-label={t('possible.title')} className="grid scroll-mt-4 gap-3">
       <QueryState query={q}>
@@ -669,6 +669,7 @@ export function PossibleSection({ device = '' }: { device?: string }) {
                 list={(x) => <DeviceGroup d={x} />} resetPageOn={device}
                 summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} device={device || undefined} />} />
             )}
+            <CoveredLines rows={covered} withDevice={!device} />
             <OlderBuilds rows={older} withDevice={!device} />
             <DistroPending rows={distro} exploited={d.counts.distro_pending_exploited} withDevice={!device} />
           </>
@@ -684,7 +685,7 @@ export function PossibleSection({ device = '' }: { device?: string }) {
 export function DevicePossible({ assetId }: { assetId: string }) {
   const { t } = useTranslation('findings')
   const q = useAllPossible({ device: assetId })
-  const [rows, older, distro] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
+  const [rows, older, distro, covered] = useMemo(() => splitOlder(q.data?.items ?? []), [q.data])
   const lines = useMemo(() => linesOf(rows), [rows])
   useScrollHere(!!q.data)
   const reviewed = (q.data?.items ?? []).filter(inReview).length
@@ -696,7 +697,7 @@ export function DevicePossible({ assetId }: { assetId: string }) {
   const notOpen = t('possible.notOpenInfo')
   return (
     <section id="possible" aria-label={t('possible.title')} className="grid gap-3">
-      {counts.possible || counts.older_build || counts.distro_pending ? (
+      {counts.possible || counts.older_build || counts.distro_pending || covered.length ? (
         <>
           <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
           <NoAiLine />
@@ -707,6 +708,7 @@ export function DevicePossible({ assetId }: { assetId: string }) {
               list={(l) => <LineBlock l={l} />}
               summary={<>{summary.join(' · ')}<InfoTip topic={t('possible.notOpenTopic')}>{notOpen}</InfoTip></>} actions={<CheckPossible counts={counts} device={assetId} />} />
           ) : <div className="flex justify-end"><CheckPossible counts={counts} device={assetId} /></div>}
+          <CoveredLines rows={covered} />
           <OlderBuilds rows={older} />
           <DistroPending rows={distro} exploited={counts.distro_pending_exploited} />
         </>
@@ -802,10 +804,56 @@ export function usePossibleCheckWatch() {
 /** An AI "not affected" answer waits in Review AI answers, not here: one status, one place. */
 const inReview = (r: PossibleRow) => r.state === 'proposal' && r.check?.verdict === 'not_affected'
 
-function splitOlder(all: PossibleRow[]): [PossibleRow[], PossibleRow[], PossibleRow[]] {
+function splitOlder(all: PossibleRow[]): [PossibleRow[], PossibleRow[], PossibleRow[], PossibleRow[]] {
   const rows = all.filter((r) => !inReview(r))
   const distro = (r: PossibleRow) => r.distro_pending
-  return [rows.filter((r) => !r.older_build && !distro(r)), rows.filter((r) => r.older_build && !distro(r)), rows.filter(distro)]
+  const covered = (r: PossibleRow) => !!r.deferred && !distro(r)
+  return [rows.filter((r) => !r.older_build && !distro(r) && !covered(r)), rows.filter((r) => r.older_build && !distro(r) && !covered(r)), rows.filter(distro), rows.filter(covered)]
+}
+
+/** The words of a covered line: what its update is (or that there is none on its release line), and that Vedette looks again after it.
+ *  Never says the update fixes these CVEs: they are not checked, so undecided. */
+export function useCoveredText() {
+  const { t } = useTranslation('findings')
+  return (l: PossibleLine) => {
+    const d = l.rows[0]!.deferred!
+    const name = l.software?.name ?? t('possible.theSoftware')
+    const count = l.rows.length
+    const why = d.kind === 'feature_update' ? t('possible.covered.unsupported', { software: name })
+      : d.version ? t(d.raised ? 'possible.covered.toRaised' : 'possible.covered.to', { software: name, version: d.version })
+      : d.kind === 'none_yet' || d.kind === 'unknown' ? t('possible.covered.noFix', { software: name })
+      : t('possible.covered.update', { software: name })
+    return t('possible.covered.line', { count, why })
+  }
+}
+
+/** The CVEs an update their line already needs covers: one closed row per device and software line, saying that they were not
+ *  checked one by one and what the update is; open, each CVE with Research deeper and its answers. Never an alert or a count of
+ *  Needs your input. */
+export function CoveredLines({ rows, withDevice = false, caption }: { rows: PossibleRow[]; withDevice?: boolean; caption?: string }) {
+  const { t } = useTranslation('findings')
+  const lines = useMemo(() => linesOf(rows), [rows])
+  const text = useCoveredText()
+  if (!rows.length) return null
+  return (
+    <RowList label={caption ?? t('possible.covered.caption')}>
+      {lines.map((l) => <CoveredLine key={l.key} l={l} text={text(l)} withDevice={withDevice} />)}
+    </RowList>
+  )
+}
+
+function CoveredLine({ l, text, withDevice }: { l: PossibleLine; text: string; withDevice: boolean }) {
+  const { t } = useTranslation('findings')
+  const [open, setOpen] = useState(false)
+  const name = nameOf(l.software, t('possible.theSoftware'))
+  const panel = `covered-${l.key.replace(/[^\w-]/g, '_')}`
+  return (
+    <ListRow testId="covered-line" label={withDevice ? `${l.device.name}: ${name}` : name} title={name} sub={withDevice ? l.device.name : undefined}
+      toggle={{ open, onToggle: () => setOpen((o) => !o), controls: panel, label: t('possible.covered.toggleOf', { software: name, device: l.device.name }) }}
+      meta={[text]}>
+      {open ? <div id={panel}><Rows rows={l.rows} label={t('possible.line.cvesOf', { software: name, device: l.device.name })} /></div> : null}
+    </ListRow>
+  )
 }
 
 /** The CVEs waiting for the distribution's word on its own packages, closed until clicked; its header says how many are exploited, so

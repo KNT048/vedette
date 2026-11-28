@@ -16,14 +16,14 @@ import { StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { usePossibleSame } from '@/features/inventory/api'
-import { useDeviceCards, useFixCards, usePossibleCounts, useReviewTotal } from './api'
-import { PossibleLink } from './Possible'
+import { useAllPossible, useDeviceCards, useFixCards, usePossibleCounts, useReviewTotal } from './api'
+import { CoveredLines, PossibleLink } from './Possible'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { HandleDialog, type HandleRow } from './HandleDialog'
 import { FixLink, SeverityLine, useDeviceRow, useFixTitle } from './parts'
 import { StatusFilter } from './StatusFilter'
-import type { DeviceRef, FixCard, FixDevice, SoftwareRef } from './types'
+import type { DeviceRef, FixCard, FixDevice, PossibleRow, SoftwareRef } from './types'
 
 type Want = { device: DeviceRef; fix: string; software: string | null }
 type Handling = { device: DeviceRef; rows: HandleRow[]; fix: string; software: string | null; complete: boolean }
@@ -97,7 +97,7 @@ function machines(card: FixCard, same: Same): number {
   return new Set(card.items.map((d) => find(d.device.id))).size
 }
 
-function FixCardView({ card, rank, same, loading, onHandle }: { card: FixCard; rank: number; same: Same; loading: Want | null; onHandle: (w: Want) => void }) {
+function FixCardView({ card, rank, same, loading, covered, onHandle }: { card: FixCard; rank: number; same: Same; loading: Want | null; covered: PossibleRow[]; onHandle: (w: Want) => void }) {
   const { t } = useTranslation('findings')
   const from = sharedFrom(card)
   const title = useFixTitle()(card.fix, from)
@@ -119,7 +119,11 @@ function FixCardView({ card, rank, same, loading, onHandle }: { card: FixCard; r
           {card.findings > 1 ? <span>{t('byDevice.cause', { cve: card.cause })}</span> : null}
           <SeverityLine counts={card.severity} className="" />
         </>,
-        nowOn.length ? t('byFix.nowOn', { versions: listOf(nowOn) }) : null,
+        // the undecided CVEs of these devices' software that this update already covers: part of the fix, not a number of their own
+        nowOn.length || covered.length ? <>
+          {nowOn.length ? <span>{t('byFix.nowOn', { versions: listOf(nowOn) })}</span> : null}
+          {covered.length ? <span data-testid="fix-covered">{t('possible.covered.more', { count: covered.length })}</span> : null}
+        </> : null,
       ]}>
       {open ? (
         <RowList id={panel} label={t('byFix.devicesOf', { fix: title })}>
@@ -129,6 +133,7 @@ function FixCardView({ card, rank, same, loading, onHandle }: { card: FixCard; r
           ))}
         </RowList>
       ) : null}
+      {open && covered.length ? <CoveredLines rows={covered} withDevice caption={t('possible.covered.captionOf', { fix: title })} /> : null}
     </ListRow>
   )
 }
@@ -149,6 +154,13 @@ export function ByFix({ status }: { status: string }) {
   const possible = Math.max(0, (possibleCounts?.possible ?? 0) - (useReviewTotal(!filtered).data ?? 0))
   const older = possibleCounts?.older_build ?? 0
   const distro = possibleCounts?.distro_pending ?? 0
+  // the CVEs an update covers, by that update's fix key (read only when a count says there are some, and not under a search or filter)
+  const covered = useAllPossible({}, !filtered && (possibleCounts?.deferred ?? 0) > 0).data?.items
+  const coveredBy = useMemo(() => {
+    const m = new Map<string, PossibleRow[]>()
+    for (const r of covered ?? []) if (r.deferred?.fix_key) m.set(r.deferred.fix_key, [...(m.get(r.deferred.fix_key) ?? []), r])
+    return m
+  }, [covered])
   const gotRows = useMemo(() => (h: Handling) => { setWant(null); setHandling(h) }, [])
   const failed = useMemo(() => () => setWant(null), [])
   // a list of cards: the column only names it (the server searches and orders it)
@@ -164,7 +176,7 @@ export function ByFix({ status }: { status: string }) {
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
               summary={<>{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}<PossibleLink count={filtered ? 0 : possible} older={filtered ? 0 : older} distro={filtered ? 0 : distro} />{d.total > 1 ? <InfoTip topic={t('byFix.orderTopic')}>{t('byFix.order')}</InfoTip> : null}</>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
-              list={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} onHandle={setWant} />} />
+              list={(c) => <FixCardView card={c} rank={offset + d.items.indexOf(c) + 1} same={sameIn(c, pairs ?? [])} loading={want} covered={coveredBy.get(c.fix.key) ?? []} onHandle={setWant} />} />
           </>
         )}
       </QueryState>

@@ -72,6 +72,7 @@ export type ReviewList = z.infer<typeof C.ReviewList>
 export type ReviewConfirmed = z.infer<typeof C.ReviewConfirmed>
 export type AiResearch = z.infer<typeof C.AiResearch>
 export type PossibleRow = z.infer<typeof C.PossibleRow>
+export type PossibleDeferred = NonNullable<PossibleRow['deferred']>
 export type PossibleCounts = z.infer<typeof C.PossibleCounts>
 export type PossibleCheck = z.infer<typeof C.PossibleCheck>
 export type UndecidedReason = z.infer<typeof C.Undecided>['reason']

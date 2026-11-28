@@ -1,7 +1,7 @@
 // 3 sample findings tied to real KEV CVEs. Fixed ids: f-1 (NAS, confirmed), f-2 (WordPress, suspected), f-3 (Windows Server 2016, suspected).
 // The findings module owns this file (it may add findings); other modules only read through findingsStore.
 import type { Finding } from '@/lib/types'
-import type { AiIdentity, Basis, CveSeverity, EventKind, FindingEvent, FixKind, PossibleCheck, Reason, Resolution, UndecidedReason, Verified, Via, QuestionKind } from '@/features/findings/types'
+import type { AiIdentity, Basis, CveSeverity, EventKind, FindingEvent, FixKind, PossibleCheck, PossibleDeferred, Reason, Resolution, UndecidedReason, Verified, Via, QuestionKind } from '@/features/findings/types'
 
 const D = (days: number, h = 0) => new Date(Date.now() - days * 864e5 - h * 36e5).toISOString()
 
@@ -97,6 +97,8 @@ export interface QuestionRecord {
   undecided?: { reason: UndecidedReason; ranges?: string[]; text?: string; url?: string }
   /** third_party_tested_build: the CVE record gives a fix, a workaround or the vendor's advisory (absent: it gives nothing from the vendor). */
   vendor_word?: boolean
+  /** The update the line already needs covers this CVE: it is grouped under that action, not checked one by one. */
+  deferred?: PossibleDeferred
 }
 
 const day = (days: number) => D(days).slice(0, 10)
@@ -244,6 +246,7 @@ export function seedQuestions(): QuestionRecord[] {
     ...sqlQuestions(),
     ...olderBuildQuestions(),
     ...distroQuestions(),
+    ...deferredQuestions(),
   ]
 }
 
@@ -276,6 +279,22 @@ function olderBuildQuestions(): QuestionRecord[] {
     q(5, ftp, 'CVE-2026-900105', ['2.11.0'], { vendor_word: true }),
     // a recorder whose only possible CVE is one of these: its badge and links still say so
     { ...q(6, { id: 's-nvr01-fw', name: 'Video Recorder Firmware', version: '4.2.0' }, 'CVE-2020-900106', ['2.0.1']), id: 'fq-nvr01-old-1', asset_id: 'a-nvr01' },
+  ]
+}
+
+/** CVEs an update their line already needs covers: five on the web server's WordPress (the update to 7.1.5 is By fix's step, the
+ *  finding behind it is the anchor) and three on the recorder, whose release line the vendor no longer supports (no fix to wait for). */
+function deferredQuestions(): QuestionRecord[] {
+  const wp = { id: 's-web01-wp', name: 'WordPress website', version: '7.1.x' }
+  const fw = { id: 's-nvr01-fw', name: 'Video Recorder Firmware', version: '4.2.0' }
+  const q = (id: string, asset_id: string, software: QuestionRecord['software'], cve: string, deferred: PossibleDeferred): QuestionRecord => ({
+    id, kind: 'no_range_data', asset_id, software, cve, cves: 1, asked_at: D(1), url: null, command: null, choices: [], undecided: { reason: 'no_ranges' }, deferred,
+  })
+  const update: PossibleDeferred = { anchor: 'fv-web01-wp-1', anchor_kind: 'finding', anchor_cve: 'CVE-2026-119977', fix_key: 'wordpress:wordpress|update|7.1.5', kind: 'update', version: '7.1.5', raised: false }
+  const unsupported: PossibleDeferred = { anchor: 'fq-nvr01-old-1', anchor_kind: 'unsupported_line', anchor_cve: 'CVE-2020-900106', fix_key: null, kind: 'feature_update', version: null, raised: false }
+  return [
+    ...[1, 2, 3, 4, 5].map((n) => q(`fq-web01-wp-${n}`, 'a-web01', wp, `CVE-2026-9003${String(n).padStart(2, '0')}`, update)),
+    ...[1, 2, 3].map((n) => q(`fq-nvr01-fw-${n}`, 'a-nvr01', fw, `CVE-2021-9004${String(n).padStart(2, '0')}`, unsupported)),
   ]
 }
 
@@ -335,13 +354,13 @@ export function checkKeyOf(q: Pick<QuestionRecord, 'id' | 'kind' | 'software' | 
 
 type Research = NonNullable<NonNullable<CheckRecord['reading']>['research']>
 /** How the customer's AI researched one release line, as the box stores it: the layers that ran, the pages they read, the tokens. */
-function researchOf(o: { tokens: number; pages: string[]; quote?: Research['quote_check']; inferred?: boolean; confidence?: 'high' | 'medium' | 'low'; verdict?: string; fixedIn?: string; strong?: boolean }): Research {
+function researchOf(o: { tokens: number; pages: string[]; quote?: Research['quote_check']; inferred?: boolean; confidence?: 'high' | 'medium' | 'low'; verdict?: string; fixedIn?: string; strong?: boolean; refused?: string[] }): Research {
   const verdict = o.verdict ?? 'not_affected'
   const confidence = o.confidence ?? 'high'
   const quote = o.quote ?? 'digest'
   const step = (layer: 'quick' | 'strong', model: string, profile: string, web: 'none' | 'provider', share: number) => ({
     layer, model, profile, web, excerpt_chars: 6200, tokens_in: Math.round(o.tokens * share * 0.8), tokens_out: Math.round(o.tokens * share * 0.2),
-    searches: web === 'provider' ? 2 : 0, pages: o.pages, verdict, confidence, quote_check: quote,
+    searches: web === 'provider' ? 2 : 0, pages: o.pages, verdict, confidence, quote_check: quote, ...(o.refused ? { refused: o.refused } : {}),
   })
   return {
     layer: o.strong ? 'strong' : 'quick', quote_check: quote, tokens: o.tokens,
@@ -447,7 +466,7 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
     ai(rt(8), 'CVE-2026-240108', 'unsure', null, 'RouterOS 7.14 is not affected by this issue.', 'A third-party analysis says 7.14 is not affected; the vendor\'s page says nothing about it.',
       { ...reading('blog.example.net', 'not_affected', false, true, '7.14'), sources: [{ url: 'https://blog.example.net/routeros-analysis', status: 'ok' as const, cited: true }] }),
     ai(rt(7), 'CVE-2026-240107', 'not_affected', 'confident', 'This issue affects RouterOS 7.15 and later releases only; 7.14 is not affected.', 'The vendor names 7.15 and later; 7.14 is older.',
-      { reading: { ...reading('mikrotik.example.com', 'not_affected', true, true, '7.14').reading, research: researchOf({ tokens: 10_400, pages: PAGES.slice(0, 2), quote: 'digest' }) } }),
+      { reading: { ...reading('mikrotik.example.com', 'not_affected', true, true, '7.14').reading, research: researchOf({ tokens: 10_400, pages: PAGES.slice(0, 2), quote: 'digest', refused: ['https://cdn.example.net/mirror/routeros-advisory.html', 'https://paste.example.org/raw/7f3a'] }) } }),
     // unsure after both layers: what the AI tried is said on the Not decided row
     ai(rt(9), 'CVE-2026-240109', 'unsure', null, '', 'The pages do not name RouterOS versions.', {
       reading: { ...reading('mikrotik.example.com', 'unsure', true, false, null).reading, research: researchOf({ tokens: 15_200, pages: PAGES.slice(0, 3), verdict: 'unsure', confidence: 'low', quote: 'none', strong: true }) },

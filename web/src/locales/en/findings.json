@@ -837,6 +837,20 @@
       "doneProposals": "Check finished: {{proposals}} AI proposals wait for you ({{advisory}} decided from vendor advisories).",
       "review": "Review"
     },
+    "covered": {
+      "caption": "CVEs not checked one by one",
+      "line_one": "{{count}} more CVE not checked one by one. {{why}}",
+      "line_other": "{{count}} more CVEs not checked one by one. {{why}}",
+      "to": "{{software}} already needs an update to {{version}}; Vedette checks again after it.",
+      "toRaised": "{{software}} already needs an update to {{version}}, the lowest release that leaves all of them; Vedette checks again after it.",
+      "update": "{{software}} already needs an update; Vedette checks again after it.",
+      "noFix": "{{software}} has no fix on this release line yet; Vedette checks again when one is published.",
+      "unsupported": "{{software}} has no fix on this release line: move to a supported release. Vedette checks again after the move.",
+      "toggleOf": "Show the CVEs of {{software}} on {{device}} that are not checked one by one",
+      "captionOf": "CVEs not checked one by one, covered by {{fix}}",
+      "more_one": "+ {{count}} CVE not checked one by one",
+      "more_other": "+ {{count}} CVEs not checked one by one"
+    },
     "distroPending": {
       "toggle_one": "The distribution has not decided yet: {{count}} CVE",
       "toggle_other": "The distribution has not decided yet: {{count}} CVEs",
@@ -1119,6 +1133,7 @@
       "web_provider": "searched the web through its provider",
       "web_box": "the box fetched the pages it named",
       "answer": "answered {{verdict}} ({{confidence}} confidence)",
+      "refused": "Not opened (not in this CVE's data): {{urls}}",
       "pages": "Pages read"
     },
     "confidence_high": "High confidence",

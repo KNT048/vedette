@@ -44,6 +44,17 @@ describe('Review AI answers', () => {
     expect(within(row).getAllByRole('link', { name: /^https:\/\// }).length).toBeGreaterThan(1)
   })
 
+  it('"How it decided" says in one muted line which addresses the box refused to open', async () => {
+    renderApp('/findings?tab=review')
+    const row = await rowOf('CVE-2026-240107')
+    await userEvent.click(within(row).getByRole('button', { name: 'Show how the AI decided CVE-2026-240107' }))
+    expect(within(row).getByTestId('review-refused')).toHaveTextContent("Not opened (not in this CVE's data): cdn.example.net/mirror/routeros-advisory.html, paste.example.org/raw/7f3a")
+    // an answer that refused nothing has no such line
+    const other = await rowOf('CVE-2026-250206')
+    await userEvent.click(within(other).getByRole('button', { name: 'Show how the AI decided CVE-2026-250206' }))
+    expect(within(other).queryByTestId('review-refused')).toBeNull()
+  })
+
   it('a row whose answer is inferred from a product sharing its code says "inferred"', async () => {
     renderApp('/findings?tab=review')
     const inferred = await rowOf('CVE-2026-250207')

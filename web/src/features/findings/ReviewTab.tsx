@@ -38,6 +38,9 @@ export function EvidenceLine({ row }: { row: PossibleRow }) {
   return <span data-testid="review-evidence">{[t('review.evidence.pages', { count: pagesRead(r) }), quote, t('review.evidence.tokens', { count: r.tokens, formatted: tokens(r.tokens) }), model].filter(Boolean).join(' · ')}</span>
 }
 
+/** An address as host/path, without the scheme (the line says it was not opened, so it is not a link). */
+const shortUrl = (u: string) => u.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+
 /** "How it decided": every layer that ran (model, how it read the web, pages, tokens, its own answer) and what it could not do. */
 function HowItDecided({ row }: { row: PossibleRow }) {
   const { t } = useTranslation('findings')
@@ -65,6 +68,7 @@ function HowItDecided({ row }: { row: PossibleRow }) {
                 ))}
               </ul>
             ) : null}
+            {s.refused?.length ? <span className="text-muted [overflow-wrap:anywhere]" data-testid="review-refused">{t('review.how.refused', { urls: s.refused.map(shortUrl).join(', ') })}</span> : null}
           </li>
         ))}
       </ol>

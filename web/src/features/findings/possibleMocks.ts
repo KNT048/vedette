@@ -83,6 +83,8 @@ function olderBuildOf(it: Item): PossibleRow['older_build'] {
   const tested = [...new Set((u.ranges ?? []).map((r) => r.split(':').slice(5, 7).filter((x) => x !== '*' && x !== '-').join(' ')))]
   return tested.length ? { tested, year: Number(it.cve.split('-')[1]) } : null
 }
+/** Covered by an update the line already needs (the server's deferred): a seeded group, undecided, not waiting for the distribution. */
+const deferredOf = (it: Item): PossibleRow['deferred'] => (it.q.deferred && it.state === 'possible' && !POSSIBLE_EXPLOITED.has(it.cve) && !distroPendingOf(it) ? it.q.deferred : null)
 const CAUSES: PossibleCause[] = ['vendor_silent', 'page_unreadable', 'needs_reading', 'ai_unsure', 'ai_budget', 'identity_unproven', 'version_needed', 'pending_nvd', 'needs_person', 'distro_silent']
 
 /** The check of a question about one CVE stored by the time of its answer (the Answered list names a confirmed AI proposal by it);
@@ -101,6 +103,7 @@ export function possibleCounts(device?: string): PossibleCounts {
   for (const it of items(device)) {
     if (it.state === 'settled') { c.settled++; continue }
     if (it.state === 'proposal') c.proposals++
+    if (deferredOf(it) && !distroPendingOf(it)) { c.deferred++; continue }
     if (checkable(it)) c.unchecked++
     if (distroPendingOf(it)) {
       c.distro_pending++
@@ -140,7 +143,7 @@ function row(it: Item): PossibleRow {
     held: heldOf(it),
     older_build: olderBuildOf(it),
     distro_pending: distroPendingOf(it),
-    deferred: null,
+    deferred: deferredOf(it),
   }
 }
 

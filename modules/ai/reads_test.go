@@ -45,6 +45,7 @@ func TestConfigReadIsAReadTheBoxMade(t *testing.T) {
 		{ConnectionID: "cn1", ConnectionName: "Edge firewall", Kind: "http", Name: "fetch_url", Schema: json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"}},"additionalProperties":false}`)},
 		{ConnectionID: "cn2", ConnectionName: "Core switch\u202e", Kind: "ssh", Name: "show_run", Schema: json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)},
 	}
+	a.conns.addrs = map[string]string{"cn1": "https://192.168.10.1", "cn2": "192.168.10.2:22"} // inside the network
 	a.conns.out = map[string]string{"cn1/fetch_url": "status ok", "cn2/show_run": "hostname core"}
 	ctx := a.ctx()
 

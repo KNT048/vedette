@@ -254,7 +254,7 @@ func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (q
 		d.Text = t
 		data = append(data, d)
 	}
-	return Instruction(q), data, dedupe(names), "", false, false
+	return maskedInstruction(q), data, dedupe(names), "", false, false
 }
 
 func dedupe(in []string) []string {
@@ -276,6 +276,9 @@ func dedupe(in []string) []string {
 func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if !spec.Job.Valid() || spec.Actor == "" || spec.MaxTokens <= 0 {
 		return JobResult{}, fmt.Errorf("ai: run job: invalid spec")
+	}
+	if spec.tools != nil && len(jobPowers[spec.Job].classes) == 0 {
+		return JobResult{}, fmt.Errorf("ai: run job: %s may not use tools", spec.Job)
 	}
 	if err := s.Ready(spec.Job); err != nil {
 		return JobResult{}, err // nothing was attempted: no activity row

@@ -113,3 +113,25 @@ func (h *AIHandlers) AiPutAiSkillsID(ctx context.Context, req *oas.AiPutAiSkills
 	}
 	return convert[oas.AiPutAiSkillsIDOK](v)
 }
+
+// AiGetAiAskConnections implements GET /ai/ask/connections (admin).
+func (h *AIHandlers) AiGetAiAskConnections(ctx context.Context) (*oas.AiGetAiAskConnectionsOK, error) {
+	v, err := h.svc.AskConnections(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiAskConnectionsOK](v)
+}
+
+// AiPutAiAskConnectionsID implements PUT /ai/ask/connections/{id} (admin).
+func (h *AIHandlers) AiPutAiAskConnectionsID(ctx context.Context, req *oas.AiPutAiAskConnectionsIDReq, params oas.AiPutAiAskConnectionsIDParams) (*oas.AiPutAiAskConnectionsIDOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c, err := h.svc.SetAskConnection(ctx, who, params.ID, req.Allowed)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPutAiAskConnectionsIDOK](c)
+}

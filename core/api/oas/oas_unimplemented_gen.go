@@ -86,6 +86,15 @@ func (UnimplementedHandler) AiGetAiActivityVerify(ctx context.Context) (r *AiGet
 	return r, ht.ErrNotImplemented
 }
 
+// AiGetAiAskConnections implements ai_get_ai_ask_connections operation.
+//
+// Connections outside the network that Ask may use, each only after an administrator allows it.
+//
+// GET /ai/ask/connections
+func (UnimplementedHandler) AiGetAiAskConnections(ctx context.Context) (r *AiGetAiAskConnectionsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AiGetAiAsks implements ai_get_ai_asks operation.
 //
 // Recent "Ask your data" questions.
@@ -346,6 +355,15 @@ func (UnimplementedHandler) AiPostAiRules(ctx context.Context, req *AiPostAiRule
 //
 // PUT /ai/activity/settings
 func (UnimplementedHandler) AiPutAiActivitySettings(ctx context.Context, req *AiPutAiActivitySettingsReq) (r *AiPutAiActivitySettingsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AiPutAiAskConnectionsID implements ai_put_ai_ask_connections_id operation.
+//
+// Allow or forbid Ask to use one connection outside the network.
+//
+// PUT /ai/ask/connections/{id}
+func (UnimplementedHandler) AiPutAiAskConnectionsID(ctx context.Context, req *AiPutAiAskConnectionsIDReq, params AiPutAiAskConnectionsIDParams) (r *AiPutAiAskConnectionsIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

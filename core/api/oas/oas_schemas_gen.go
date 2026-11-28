@@ -688,6 +688,96 @@ func (s *AiGetAiActivityVerifyOK) SetOk(val bool) {
 	s.Ok = val
 }
 
+type AiGetAiAskConnectionsOK struct {
+	// Connections outside the network that have read tools; one inside the network is always usable and
+	// not listed.
+	Items []AiGetAiAskConnectionsOKItemsItem `json:"items"`
+	// At least one of them was never chosen: Ask no longer uses such a connection until an administrator
+	// allows it.
+	Notice bool `json:"notice"`
+}
+
+// GetItems returns the value of Items.
+func (s *AiGetAiAskConnectionsOK) GetItems() []AiGetAiAskConnectionsOKItemsItem {
+	return s.Items
+}
+
+// GetNotice returns the value of Notice.
+func (s *AiGetAiAskConnectionsOK) GetNotice() bool {
+	return s.Notice
+}
+
+// SetItems sets the value of Items.
+func (s *AiGetAiAskConnectionsOK) SetItems(val []AiGetAiAskConnectionsOKItemsItem) {
+	s.Items = val
+}
+
+// SetNotice sets the value of Notice.
+func (s *AiGetAiAskConnectionsOK) SetNotice(val bool) {
+	s.Notice = val
+}
+
+type AiGetAiAskConnectionsOKItemsItem struct {
+	// The address the connection points to, as Settings, Connections has it.
+	Address string `json:"address"`
+	// Ask may call the read tools of this connection; the arguments the AI writes are sent to it.
+	Allowed bool `json:"allowed"`
+	// An administrator has chosen; false = never chosen, so not allowed.
+	Decided bool   `json:"decided"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+}
+
+// GetAddress returns the value of Address.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetAddress() string {
+	return s.Address
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetAllowed() bool {
+	return s.Allowed
+}
+
+// GetDecided returns the value of Decided.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetDecided() bool {
+	return s.Decided
+}
+
+// GetID returns the value of ID.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *AiGetAiAskConnectionsOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// SetAddress sets the value of Address.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// SetDecided sets the value of Decided.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetDecided(val bool) {
+	s.Decided = val
+}
+
+// SetID sets the value of ID.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *AiGetAiAskConnectionsOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
 type AiGetAiAsksOK struct {
 	Items []AiGetAiAsksOKItemsItem `json:"items"`
 }
@@ -9513,6 +9603,81 @@ func (s *AiPutAiActivitySettingsReq) GetRetentionDays() int {
 // SetRetentionDays sets the value of RetentionDays.
 func (s *AiPutAiActivitySettingsReq) SetRetentionDays(val int) {
 	s.RetentionDays = val
+}
+
+type AiPutAiAskConnectionsIDOK struct {
+	// The address the connection points to, as Settings, Connections has it.
+	Address string `json:"address"`
+	// Ask may call the read tools of this connection; the arguments the AI writes are sent to it.
+	Allowed bool `json:"allowed"`
+	// An administrator has chosen; false = never chosen, so not allowed.
+	Decided bool   `json:"decided"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+}
+
+// GetAddress returns the value of Address.
+func (s *AiPutAiAskConnectionsIDOK) GetAddress() string {
+	return s.Address
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *AiPutAiAskConnectionsIDOK) GetAllowed() bool {
+	return s.Allowed
+}
+
+// GetDecided returns the value of Decided.
+func (s *AiPutAiAskConnectionsIDOK) GetDecided() bool {
+	return s.Decided
+}
+
+// GetID returns the value of ID.
+func (s *AiPutAiAskConnectionsIDOK) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *AiPutAiAskConnectionsIDOK) GetName() string {
+	return s.Name
+}
+
+// SetAddress sets the value of Address.
+func (s *AiPutAiAskConnectionsIDOK) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *AiPutAiAskConnectionsIDOK) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// SetDecided sets the value of Decided.
+func (s *AiPutAiAskConnectionsIDOK) SetDecided(val bool) {
+	s.Decided = val
+}
+
+// SetID sets the value of ID.
+func (s *AiPutAiAskConnectionsIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *AiPutAiAskConnectionsIDOK) SetName(val string) {
+	s.Name = val
+}
+
+type AiPutAiAskConnectionsIDReq struct {
+	Allowed bool `json:"allowed"`
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *AiPutAiAskConnectionsIDReq) GetAllowed() bool {
+	return s.Allowed
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *AiPutAiAskConnectionsIDReq) SetAllowed(val bool) {
+	s.Allowed = val
 }
 
 type AiPutAiAssignmentsOK struct {

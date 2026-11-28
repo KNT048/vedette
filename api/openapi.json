@@ -797,6 +797,179 @@
         }
       }
     },
+    "/ai/ask/connections": {
+      "get": {
+        "operationId": "ai_get_ai_ask_connections",
+        "summary": "Connections outside the network that Ask may use, each only after an administrator allows it",
+        "tags": [
+          "ai"
+        ],
+        "x-stories": [
+          "S-AI-5"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string",
+                            "description": "The address the connection points to, as Settings, Connections has it"
+                          },
+                          "allowed": {
+                            "type": "boolean",
+                            "description": "Ask may call the read tools of this connection; the arguments the AI writes are sent to it"
+                          },
+                          "decided": {
+                            "type": "boolean",
+                            "description": "An administrator has chosen; false = never chosen, so not allowed"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "address",
+                          "allowed",
+                          "decided"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Connections outside the network that have read tools; one inside the network is always usable and not listed"
+                    },
+                    "notice": {
+                      "type": "boolean",
+                      "description": "At least one of them was never chosen: Ask no longer uses such a connection until an administrator allows it"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "notice"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/ask/connections/{id}": {
+      "put": {
+        "operationId": "ai_put_ai_ask_connections_id",
+        "summary": "Allow or forbid Ask to use one connection outside the network",
+        "tags": [
+          "ai"
+        ],
+        "x-stories": [
+          "S-AI-5"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "allowed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "allowed"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string",
+                      "description": "The address the connection points to, as Settings, Connections has it"
+                    },
+                    "allowed": {
+                      "type": "boolean",
+                      "description": "Ask may call the read tools of this connection; the arguments the AI writes are sent to it"
+                    },
+                    "decided": {
+                      "type": "boolean",
+                      "description": "An administrator has chosen; false = never chosen, so not allowed"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "address",
+                    "allowed",
+                    "decided"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/asks": {
       "get": {
         "operationId": "ai_get_ai_asks",

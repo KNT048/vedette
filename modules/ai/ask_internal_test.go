@@ -17,6 +17,7 @@ func TestContract_INV14_AskLoopOffersAndRunsReadToolsOnly(t *testing.T) {
 	mk := func(name string, access Access, enabled bool, jobs ...Job) toolImpl {
 		return toolImpl{
 			Tool: Tool{Name: name, Access: access, Enabled: enabled, Jobs: jobs, Schema: json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)},
+			class: toolConnLAN, // the tools of a connection inside the network: the job's row allows the class
 			run: func(context.Context, map[string]any) (toolOut, error) {
 				ran[name]++
 				return toolOut{Text: "ok", Summary: "ok"}, nil

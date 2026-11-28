@@ -87,6 +87,19 @@ func encodeAiGetAiActivityVerifyResponse(response *AiGetAiActivityVerifyOK, w ht
 	return nil
 }
 
+func encodeAiGetAiAskConnectionsResponse(response *AiGetAiAskConnectionsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeAiGetAiAsksResponse(response *AiGetAiAsksOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -445,6 +458,19 @@ func encodeAiPostAiRulesResponse(response *AiPostAiRulesOK, w http.ResponseWrite
 }
 
 func encodeAiPutAiActivitySettingsResponse(response *AiPutAiActivitySettingsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeAiPutAiAskConnectionsIDResponse(response *AiPutAiAskConnectionsIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

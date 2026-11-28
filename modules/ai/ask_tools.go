@@ -51,7 +51,9 @@ type toolImpl struct {
 	// internal: the connection of a connection tool is inside the network (private, loopback, ULA or CGNAT address); false when that
 	// could not be checked.
 	internal bool
-	run      func(ctx context.Context, args map[string]any) (toolOut, error)
+	// class is what the tool reaches with its arguments (jobPowers decides which classes a job may call).
+	class toolClass
+	run   func(ctx context.Context, args map[string]any) (toolOut, error)
 }
 
 // Limits of the result of one call. Every turn of a question sends the whole conversation again, so a result is paid for
@@ -248,7 +250,7 @@ var (
 // productTool is a tool of the box for "Ask your data" and the jobs named; log investigation gets its own four.
 func productTool(name, desc, schema string, spec map[string]argSpec, required []string, run func(context.Context, map[string]any) (toolOut, error), jobs ...Job) toolImpl {
 	return toolImpl{Tool: Tool{Name: name, Description: desc, Access: AccessRead, Enabled: true, Jobs: append([]Job{JobAskMyData}, jobs...), Schema: json.RawMessage(schema)},
-		parse: func(raw json.RawMessage) (map[string]any, error) { return parseArgs(raw, spec, required...) }, run: run}
+		parse: func(raw json.RawMessage) (map[string]any, error) { return parseArgs(raw, spec, required...) }, run: run, class: toolBox}
 }
 
 // productTools are the tools of the box. A tool whose data door is missing is not offered: the model is never told of a tool that
@@ -847,12 +849,26 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		}
 	}
 	internalOnly := s.snap.Load().assign.InternalOnly
+	allowed, err := s.askConnections(ctx, s.cfg.DB.Reader())
+	if err != nil { // a setting that cannot be read allows no connection outside the network
+		s.cfg.Log.WarnContext(ctx, "ai: could not read which connections Ask may use", "error", err)
+		allowed = askConnSetting{Allowed: map[string]bool{}}
+	}
 	var out []toolImpl
 	seen := map[string]bool{}
 	for _, rt := range list {
 		inside := internalTarget(targets[rt.ConnectionID])
 		if internalOnly && !inside {
 			continue
+		}
+		// A connection outside the network gets the arguments the model writes, and the model reads untrusted text: it is offered only
+		// after an administrator allowed it for Ask (Settings, AI assistant), whatever the privacy rule.
+		class := toolConnLAN
+		if !inside {
+			class = toolConnOut
+			if !allowed.Allowed[rt.ConnectionID] {
+				continue
+			}
 		}
 		name := connToolName(rt)
 		if seen[name] || rt.ConnectionID == "" || rt.Name == "" {
@@ -862,6 +878,7 @@ func (s *Service) connectionTools(ctx context.Context) []toolImpl {
 		connID, tool, connName := rt.ConnectionID, rt.Name, clip(rt.ConnectionName, 60)
 		out = append(out, toolImpl{
 			internal: inside,
+			class:    class,
 			Tool: Tool{Name: name, Access: AccessRead, Enabled: true, Jobs: []Job{JobAskMyData}, ConnectorID: connID, Schema: stripSchemaText(rt.Schema),
 				Description: fmt.Sprintf("Read-only call on the connection %q (%s): %s. It can change nothing. Give the arguments exactly as the schema allows.", connName, clip(rt.Kind, 20), clip(tool, 60))},
 			run: func(ctx context.Context, args map[string]any) (toolOut, error) {

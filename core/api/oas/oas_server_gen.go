@@ -57,6 +57,12 @@ type Handler interface {
 	//
 	// GET /ai/activity/verify
 	AiGetAiActivityVerify(ctx context.Context) (*AiGetAiActivityVerifyOK, error)
+	// AiGetAiAskConnections implements ai_get_ai_ask_connections operation.
+	//
+	// Connections outside the network that Ask may use, each only after an administrator allows it.
+	//
+	// GET /ai/ask/connections
+	AiGetAiAskConnections(ctx context.Context) (*AiGetAiAskConnectionsOK, error)
 	// AiGetAiAsks implements ai_get_ai_asks operation.
 	//
 	// Recent "Ask your data" questions.
@@ -233,6 +239,12 @@ type Handler interface {
 	//
 	// PUT /ai/activity/settings
 	AiPutAiActivitySettings(ctx context.Context, req *AiPutAiActivitySettingsReq) (*AiPutAiActivitySettingsOK, error)
+	// AiPutAiAskConnectionsID implements ai_put_ai_ask_connections_id operation.
+	//
+	// Allow or forbid Ask to use one connection outside the network.
+	//
+	// PUT /ai/ask/connections/{id}
+	AiPutAiAskConnectionsID(ctx context.Context, req *AiPutAiAskConnectionsIDReq, params AiPutAiAskConnectionsIDParams) (*AiPutAiAskConnectionsIDOK, error)
 	// AiPutAiAssignments implements ai_put_ai_assignments operation.
 	//
 	// Save job assignments and the "internal data only to internal profiles" rule.

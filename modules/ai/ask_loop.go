@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -56,11 +57,15 @@ type toolSession struct {
 
 func (s *Service) newToolSession(ctx context.Context, job Job) *toolSession {
 	ts := &toolSession{svc: s, job: job, impl: map[string]toolImpl{}}
+	pw := jobPowers[job]
 	tools := s.productTools()
-	if job == JobAskMyData { // log investigation reads the box only: the connections are not listed, and not asked
+	if slices.Contains(pw.classes, toolConnLAN) || slices.Contains(pw.classes, toolConnOut) { // only a job whose row names connections asks them
 		tools = append(tools, s.connectionTools(ctx)...)
 	}
 	for _, t := range tools {
+		if !pw.permits(t.class, t.Name) { // the table is the authority: what its row does not name is never offered
+			continue
+		}
 		if _, dup := ts.impl[t.Name]; dup {
 			continue
 		}
@@ -141,6 +146,11 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	// a connection tool sends the arguments to that connection: refused when the privacy rule is on and the connection is not inside
 	// the network, even if the rule was turned on after the tools were listed
 	if impl.ConnectorID != "" && ts.svc.snap.Load().assign.InternalOnly && !impl.internal {
+		record("not available", act("skipped"))
+		return fail("That tool is not available. Use only the tools you were given.")
+	}
+	// the job's row of jobPowers again, at the call, and a connection outside the network only while it is still allowed for Ask
+	if !jobPowers[ts.job].permits(impl.class, impl.Name) || impl.class == toolConnOut && !ts.svc.askAllows(ctx, impl.ConnectorID) {
 		record("not available", act("skipped"))
 		return fail("That tool is not available. Use only the tools you were given.")
 	}

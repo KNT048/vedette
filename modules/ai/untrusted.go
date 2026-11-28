@@ -166,6 +166,9 @@ func blockPtr(b DataBlock) *DataBlock { return &b }
 // cleaned it and run it through the hooks.
 func personQuestion(q string) Instruction { return Instruction(q) }
 
+// maskedInstruction is an instruction as the before-AI hooks gave it back (masked where they mask): the same text, less.
+func maskedInstruction(q string) Instruction { return Instruction(q) }
+
 // decodeAnswer reads a model's structured answer strictly: exactly one JSON object, no field the type does not name (a field a page
 // talked the model into adding is refused, never ignored), nothing after it; then check validates the values (closed enums, length caps,
 // indexes in range). Any failure is ErrBadOutput: the answer is discarded, never repaired.

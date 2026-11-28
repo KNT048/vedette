@@ -613,7 +613,7 @@ func TestSendCodeErrorsCarryNothingFromTheServer(t *testing.T) {
 func TestQuietHoursFollowTheBoxTimeZoneNotTheProcess(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) { c.Location = nil }) // no zone given: Asia/Ho_Chi_Minh
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: false}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: false})
 	// 10:00 UTC is 17:00 in Ho Chi Minh: awake.
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("a", "QNAP", "CVE-2026-1", notify.High, "NAS-01")); err != nil {
 		t.Fatal(err)
@@ -645,7 +645,7 @@ func TestQuietHoursUseTheZoneCoreGives(t *testing.T) {
 		c.Zone = func(context.Context) string { return "America/New_York" }
 	})
 	e.telegram(notify.Low)
-	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: false}, notify.Grouping{Enabled: false, WindowMin: 60})
+	e.rules(notify.Quiet{Enabled: true, From: "22:00", To: "06:30", AllowCritical: false})
 	// 10:00 UTC is 05:00 in New York in November: quiet there, daytime in Ho Chi Minh.
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("a", "QNAP", "CVE-2026-1", notify.High, "NAS-01")); err != nil {
 		t.Fatal(err)

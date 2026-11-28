@@ -45,8 +45,14 @@ type PossibleItem struct {
 // DistroPending says the item waits for the distribution's word on its own package (cause distro_silent): it is listed and counted
 // apart from the main possible list, like the older-build group, and the device badge leaves it out. It is never checked (checkable).
 func (it PossibleItem) DistroPending() bool {
-	u := it.Question.Detail.Undecided
-	return it.State == PossibleOpen && u != nil && slices.Contains(distroSilentReasons, u.Reason)
+	return it.State == PossibleOpen && distroPendingQuestion(it.Question)
+}
+
+// distroPendingQuestion says an unanswered question waits for the distribution's word on its own package (its undecided reason is a
+// distribution's silence, distroSilentReasons): the one definition of the group, which Needs your input leaves out too.
+func distroPendingQuestion(q Question) bool {
+	u := q.Detail.Undecided
+	return q.Answer == "" && u != nil && slices.Contains(distroSilentReasons, u.Reason)
 }
 
 // Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
@@ -317,6 +323,8 @@ type PossibleRowJS struct {
 	// Finding is the open finding an older AI reading of the line opened, which this newer "not affected" answer would close once a
 	// person confirms it (Review AI answers only); absent otherwise.
 	Finding *string `json:"finding,omitempty"`
+	// DistroPending: waiting for the distribution, listed apart in its own group (PossibleItem.DistroPending: the one definition)
+	DistroPending bool `json:"distro_pending"`
 }
 
 // HeldJS is contract.ts PossibleHeld.
@@ -444,7 +452,8 @@ func nonEmpty(xs []string) []string {
 func possibleRow(it PossibleItem, ref refs, rs ReadState) PossibleRowJS {
 	q := it.Question
 	r := PossibleRowJS{ID: q.ID, CVE: it.CVE, Kind: string(q.Kind), Device: deviceRef(ref.device(q.AssetID)), Exploited: it.Exploited, State: it.State,
-		Undecided: q.Detail.Undecided, Fixes: q.Detail.Fixes, Check: checkJS(it.Check), Checkable: it.Checkable(), Bulk: it.Bulk(), OlderBuild: it.OlderBuild}
+		Undecided: q.Detail.Undecided, Fixes: q.Detail.Fixes, Check: checkJS(it.Check), Checkable: it.Checkable(), Bulk: it.Bulk(), OlderBuild: it.OlderBuild,
+		DistroPending: it.DistroPending()}
 	if r.Fixes == nil {
 		r.Fixes = []string{}
 	}

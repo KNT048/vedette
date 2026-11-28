@@ -582,6 +582,7 @@ export const PossibleRow = z.object({
   held: PossibleHeld.nullable().describe('The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today\'s reads used up, no AI profile)'),
   older_build: PossibleOlderBuild.nullable().describe('Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise'),
   finding: z.string().optional().describe('Review AI answers only: the open finding an older AI reading of the line opened, which this newer "not affected" answer would close. The AI never closes it; a person\'s confirmation does (an exploited CVE only when named). Absent otherwise'),
+  distro_pending: z.boolean().describe('Waiting for the distribution\'s word on its own package: listed apart in its own group, counted in counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server\'s one definition of the group)'),
 }).describe('One possible CVE of one software line of one device')
 export const PossibleCounts = z.object({
   possible: z.number().int().min(0).describe('Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build and those waiting for the distribution'),

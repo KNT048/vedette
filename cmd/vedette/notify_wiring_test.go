@@ -240,7 +240,7 @@ func TestWiringQuietHoursFollowTheOrganizationTimeZone(t *testing.T) {
 	s.email(newSMTPSink(t))
 	ctx := t.Context()
 	svc := newNotify(s.d)
-	if _, err := svc.SaveRules(ctx, "admin@acme.example", notify.Rules{Quiet: notify.Quiet{Enabled: true, From: "22:00", To: "06:30"}, Grouping: notify.Grouping{WindowMin: 15}}); err != nil {
+	if _, err := svc.SaveRules(ctx, "admin@acme.example", notify.Rules{Quiet: notify.Quiet{Enabled: true, From: "22:00", To: "06:30"}}); err != nil {
 		t.Fatal(err)
 	}
 	setZone := func(sqlText string) { // the write PUT /core/general does (it needs a signed-in admin row, which this stack's test sessions are not)
@@ -252,7 +252,7 @@ func TestWiringQuietHoursFollowTheOrganizationTimeZone(t *testing.T) {
 	setZone(`INSERT INTO core_org (id, name, timezone, data_mode, install_id) VALUES (1, 'Acme', 'Asia/Ho_Chi_Minh', 'clean', 'ins-test')`)
 	reasons := func(id string) string {
 		s.t.Helper()
-		if err := svc.Publish(ctx, notify.Notice{ID: id, Kind: notify.KindVuln, Severity: notify.High, Title: "x is being exploited", What: "w", Action: "a", Product: "x", Devices: []string{"fw"}, At: now}); err != nil {
+		if err := svc.Publish(ctx, notify.Notice{ID: id, Kind: notify.KindVuln, Exploited: true, Severity: notify.High, Title: "x is being exploited", What: "w", Action: "a", Product: "x", Devices: []string{"fw"}, At: now}); err != nil {
 			s.t.Fatal(err)
 		}
 		var r string

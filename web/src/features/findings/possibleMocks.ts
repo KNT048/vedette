@@ -71,6 +71,8 @@ function causeOf(it: Item): PossibleCause | null {
   if (!aiReady()) return 'needs_reading'
   return autoReadReached() ? 'ai_budget' : 'needs_reading'
 }
+/** Waiting for the distribution (the server's PossibleItem.DistroPending): an open row whose reason is a distribution's silence. */
+const distroPendingOf = (it: Item) => it.state === 'possible' && DISTRO_REASONS.includes(undecidedOf(it.q).reason)
 /** Reported only for an older build (the server's markOlderBuilds, in short): a third party's tested builds, the CVE on no exploited
  *  list, undecided by the record or a reading of it, and the record gives nothing from the vendor. */
 const OLDER_CAUSES: PossibleCause[] = ['vendor_silent', 'ai_unsure', 'needs_reading', 'ai_budget']
@@ -97,7 +99,7 @@ export function possibleCounts(device?: string): PossibleCounts {
     if (it.state === 'settled') { c.settled++; continue }
     if (it.state === 'proposal') c.proposals++
     if (checkable(it)) c.unchecked++
-    if (it.state === 'possible' && DISTRO_REASONS.includes(undecidedOf(it.q).reason)) {
+    if (distroPendingOf(it)) {
       c.distro_pending++
       if (POSSIBLE_EXPLOITED.has(it.cve)) c.distro_pending_exploited++
       continue
@@ -134,6 +136,7 @@ function row(it: Item): PossibleRow {
     cause: causeOf(it),
     held: heldOf(it),
     older_build: olderBuildOf(it),
+    distro_pending: distroPendingOf(it),
   }
 }
 

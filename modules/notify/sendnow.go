@@ -56,14 +56,14 @@ func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, 
 	}
 	var n Notice
 	if NoticeEvent(event) == NoticeFirstRun {
-		key := strings.TrimPrefix(id, "nt-first-run-")
+		key := strings.TrimPrefix(strings.TrimPrefix(id, quietPrefix), "nt-first-run-")
 		if k := strings.LastIndex(key, "-"); k > 0 {
 			key = key[:k]
 		}
 		n = s.summaryNotice(key, keep, infos, 0, 0, 0, "")
 	} else {
 		f := infos[keep[0]]
-		n = Notice{Kind: KindVuln, Severity: AlertSeverity(f.Severity, f.Layer), Product: f.Product, FindingIDs: keep[:1], Devices: f.Devices,
+		n = Notice{Kind: KindVuln, Severity: AlertSeverity(f.Severity, f.Exploited), Exploited: f.Exploited, Product: f.Product, FindingIDs: keep[:1], Devices: f.Devices,
 			Title: cmp.Or(title, titleOf(f, f.CVE, "")), What: whatOf(f), Action: f.Action, Reasons: f.Reasons, Status: f.Status, Verification: f.Verification,
 			Layer: f.Layer, Link: s.link("/findings/" + keep[0])}
 		if f.CVE != "" {

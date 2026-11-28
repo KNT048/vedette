@@ -60,9 +60,13 @@ type Config struct {
 	// Schedules is the box's schedule service (core/schedule): each target's scan schedule is ScheduleKey(id). nil: no target is
 	// scanned by itself.
 	Schedules *schedule.Service
-	// Alert sends what a scan found new (a newly open port, a new issue) to the alert channels; nil sends nothing (the page shows it).
-	Alert    func(ctx context.Context, a Alert) error
-	Location *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
+	// Alert sends what a scan found new that is exploited in the wild (an issue that carries such a CVE) to the alert channels; nil
+	// sends nothing (the page shows it).
+	Alert func(ctx context.Context, a Alert) error
+	// Exploited says which CVEs are exploited in the wild: the rule a finding's alert follows (cmd/vedette reads it with findings'
+	// urgency over feeds' facts). nil: no CVE counts as exploited, so no scan news alerts; it is all in the daily summary (NewSince).
+	Exploited func(ctx context.Context, cves []string) (map[string]bool, error)
+	Location  *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
 	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
 	// a snapshot is a day of the customer's calendar: two scans of one local day are one snapshot, never two that read as the same day.
 	Zone  func(ctx context.Context) *time.Location

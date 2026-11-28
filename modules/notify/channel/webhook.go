@@ -521,6 +521,8 @@ func newWebhookPayload(n Message, link string) webhookPayload {
 		event += ".created"
 	case "approval":
 		event += ".requested"
+	case KindSummary:
+		event += ".daily"
 	}
 	devices := n.Devices
 	if devices == nil {

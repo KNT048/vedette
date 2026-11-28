@@ -1564,6 +1564,15 @@ CREATE TABLE notify_setting (
     updated_by TEXT NOT NULL CHECK (length(updated_by) > 0)
 );
 
+CREATE TABLE notify_summary (
+    id      TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 64),
+    due_at  TEXT NOT NULL CHECK (due_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    state   TEXT NOT NULL CHECK (state IN ('due', 'sending', 'sent', 'empty', 'skipped')),
+    done_at TEXT CHECK (done_at IS NULL OR done_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
+);
+
+CREATE INDEX notify_summary_due_ix ON notify_summary (due_at);
+
 -- module sensor-passive
 
 CREATE TABLE sp_sensor (
@@ -1918,7 +1927,7 @@ CREATE TABLE exp_service (
     state       TEXT    NOT NULL CHECK (state IN ('open', 'closed')),
     first_seen  TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen   TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_run_id TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), -- the run that last saw it; runs are pruned, so no key
+    last_run_id TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), opened_at TEXT, -- the run that last saw it; runs are pruned, so no key
     UNIQUE (target_id, ip, port, proto),
     CHECK (first_seen <= last_seen)
 );
@@ -1946,7 +1955,7 @@ CREATE TABLE exp_issue (
     accepted_until TEXT    CHECK (accepted_until IS NULL OR accepted_until GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
     first_seen     TEXT    NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_seen      TEXT    NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    last_run_id    TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96),
+    last_run_id    TEXT    NOT NULL CHECK (length(last_run_id) BETWEEN 1 AND 96), opened_at TEXT, exploited INTEGER,
     CHECK ((state = 'handled') = (resolution IS NOT NULL)),
     CHECK ((resolution IS NULL) = (resolved_by IS NULL) AND (resolution IS NULL) = (resolved_at IS NULL)),
     CHECK (accepted_until IS NULL OR resolution = 'accepted'),
@@ -2013,6 +2022,8 @@ CREATE TABLE exp_deep_setting (
     updated_at  TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     updated_by  TEXT    NOT NULL CHECK (length(updated_by) BETWEEN 1 AND 320)
 ) WITHOUT ROWID;
+
+CREATE INDEX exp_issue_exploited_idx ON exp_issue (state, exploited);
 
 -- module scan
 

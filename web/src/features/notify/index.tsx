@@ -5,7 +5,7 @@ import { Loading } from '@/components/common/States'
 import ChannelsSettings from './ChannelsSettings'
 
 // Module notify (S-ALERT-1, S-ALERT-3, S-NOT-1). incidents at /incidents (trap, bad address, log anomaly, unknown device); old /alerts redirects.
-// Vulnerability notices show on the finding (slot finding.panels). Channels, quiet hours and grouping live in Settings, section `channels`
+// Vulnerability notices show on the finding (slot finding.panels). Channels, quiet hours and the daily summary live in Settings, section `channels`
 // (tabs Channels and Settings); the sent-message history is its page /settings/channels/history.
 const FindingNotices = lazy(() => import('./FindingNotices'))
 const wrap = (C: ComponentType<Record<string, unknown>>): ComponentType<Record<string, unknown>> =>

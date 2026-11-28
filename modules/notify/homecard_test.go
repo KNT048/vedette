@@ -24,8 +24,8 @@ func TestHomeFirstRunSummaryFollowsTheMessage(t *testing.T) {
 		t.Fatalf("before any load: %+v, %v; want none", f, err)
 	}
 	made := e.clock.Now()
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
-	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	pub(notify.EventFirstRun, firstRun(e, "f-1", "f-2"))
 
 	f, err := e.svc.FirstRunSummary(e.ctx(), week())
@@ -33,7 +33,7 @@ func TestHomeFirstRunSummaryFollowsTheMessage(t *testing.T) {
 		t.Fatalf("waiting summary: %+v, %v", f, err)
 	}
 	if f.State != notify.SummaryWaiting || f.Quiet || !f.DueAt.Equal(made.Add(2*time.Minute)) || f.Load != "install" ||
-		f.Title != "Patch first: 2 urgent findings on 2 devices" || f.Link != "/findings?tab=device&status=public_exploit,critical_edge" || f.Later != 0 {
+		f.Title != "Patch first: 2 urgent findings on 2 devices" || f.Link != "/findings?tab=device&status=exploited" || f.Later != 0 {
 		t.Fatalf("waiting summary = %+v", f)
 	}
 	first := f.ID
@@ -58,7 +58,7 @@ func TestHomeFirstRunSummaryFollowsTheMessage(t *testing.T) {
 		t.Fatalf("after a later summary: %+v, %v", f, err)
 	}
 	if f.ID != first || f.Title != "Patch first: 2 urgent findings on 2 devices" || f.State != notify.SummarySent || f.Later != 1 ||
-		f.LaterTitle != "1 more urgent finding on 1 device to patch first" || f.Link != "/findings?tab=device&status=exploited,public_exploit,critical_edge" {
+		f.LaterTitle != "1 more urgent finding on 1 device to patch first" || f.Link != "/findings?tab=device&status=exploited" {
 		t.Fatalf("after a later summary = %+v", f)
 	}
 
@@ -98,7 +98,7 @@ func TestHomeFirstRunSummaryFailedKeepsTheErrorInHistory(t *testing.T) {
 	dir := &liveFindings{}
 	e, pub := alertEnv(t, dir)
 	e.net.failTelegram(http.StatusBadRequest)
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
 	pub(notify.EventFirstRun, firstRun(e, "f-1"))
 	e.clock.Add(3 * time.Minute)
 	e.flush()
@@ -125,12 +125,12 @@ func TestHomeFirstLookWithoutAChannelCountsEveryPass(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
-	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
-	dir.at("f-4", 4, finding("OpenSSH", "CVE-2026-20001", "web-01", notify.High))
+	dir.at("f-4", 2, finding("OpenSSH", "CVE-2026-20001", "web-01", notify.High))
 	big := firstRun(e, "f-1") // a pass that counts more findings than it lists
-	big.Findings, big.Devices = 3, 2
+	big.Findings, big.Exploited, big.Devices = 3, 3, 2
 	pub(big)
 	first, err := e.svc.FirstRunSummary(e.ctx(), e.clock.Now().Add(-time.Hour))
 	if err != nil || first == nil {
@@ -151,7 +151,7 @@ func TestHomeFirstLookWithoutAChannelCountsEveryPass(t *testing.T) {
 	}
 	if f.ID != first.ID || f.Title != "Patch first: 6 urgent findings on 3 devices" || f.Later != 0 || f.LaterTitle != "" ||
 		f.State != notify.SummaryNotSent || f.NotSent == nil || f.NotSent.Reason != notify.UnsentNoChannel ||
-		f.Link != "/findings?tab=device&status=exploited,public_exploit,critical_edge" {
+		f.Link != "/findings?tab=device&status=exploited" {
 		t.Fatalf("summary = %+v (not sent: %+v)", f, f.NotSent)
 	}
 }
@@ -161,8 +161,8 @@ func TestHomeFirstLookWithoutAChannelCountsEveryPass(t *testing.T) {
 func TestHomeFirstLookPassWhileTheFirstSummaryIsBeingSent(t *testing.T) {
 	dir := &liveFindings{}
 	e, pub := alertEnv(t, dir)
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
-	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
 	pub(notify.EventFirstRun, firstRun(e, "f-1"))
 	e.clock.Add(3 * time.Minute)
@@ -246,8 +246,8 @@ func TestHomeFirstLookIsCountedOncePerPass(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
-	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
 	pub(firstRun(e, "f-1"))
 	e.clock.Add(20 * time.Second)

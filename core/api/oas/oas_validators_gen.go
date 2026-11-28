@@ -99527,17 +99527,6 @@ func (s *NotifyGetNotifyChannelsOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := s.Grouping.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "grouping",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := s.Quiet.Validate(); err != nil {
 			return err
 		}
@@ -99655,42 +99644,6 @@ func (s NotifyGetNotifyChannelsOKChannelsItemType) Validate() error {
 	case "email":
 		return nil
 	case "webhook":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *NotifyGetNotifyChannelsOKGrouping) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.WindowMin.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "window_min",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s NotifyGetNotifyChannelsOKGroupingWindowMin) Validate() error {
-	switch s {
-	case 15:
-		return nil
-	case 60:
-		return nil
-	case 240:
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -99818,8 +99771,6 @@ func (s NotifyGetNotifyChannelsOKTriggersItemDefaultMin) Validate() error {
 func (s NotifyGetNotifyChannelsOKTriggersItemID) Validate() error {
 	switch s {
 	case "trap":
-		return nil
-	case "vulnerability":
 		return nil
 	case "intrusion":
 		return nil
@@ -100165,8 +100116,6 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Validate() error {
 		return nil
 	case "quiet_hours":
 		return nil
-	case "grouped":
-		return nil
 	case "no_channel":
 		return nil
 	case "channels_off":
@@ -100188,6 +100137,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -100500,8 +100451,6 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 		return nil
 	case "quiet_hours":
 		return nil
-	case "grouped":
-		return nil
 	case "no_channel":
 		return nil
 	case "channels_off":
@@ -100523,6 +100472,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -100884,8 +100835,6 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 		return nil
 	case "quiet_hours":
 		return nil
-	case "grouped":
-		return nil
 	case "no_channel":
 		return nil
 	case "channels_off":
@@ -100907,6 +100856,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -101622,8 +101573,6 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 		return nil
 	case "quiet_hours":
 		return nil
-	case "grouped":
-		return nil
 	case "no_channel":
 		return nil
 	case "channels_off":
@@ -101645,6 +101594,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -102494,8 +102445,6 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) Validate() error {
 		return nil
 	case "quiet_hours":
 		return nil
-	case "grouped":
-		return nil
 	case "no_channel":
 		return nil
 	case "channels_off":
@@ -102517,6 +102466,8 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -103025,17 +102976,6 @@ func (s *NotifyPutNotifyRulesOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Grouping.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "grouping",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := s.Quiet.Validate(); err != nil {
 			return err
 		}
@@ -103050,42 +102990,6 @@ func (s *NotifyPutNotifyRulesOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *NotifyPutNotifyRulesOKGrouping) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.WindowMin.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "window_min",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s NotifyPutNotifyRulesOKGroupingWindowMin) Validate() error {
-	switch s {
-	case 15:
-		return nil
-	case 60:
-		return nil
-	case 240:
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *NotifyPutNotifyRulesOKQuiet) Validate() error {
@@ -103153,17 +103057,6 @@ func (s *NotifyPutNotifyRulesReq) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Grouping.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "grouping",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := s.Quiet.Validate(); err != nil {
 			return err
 		}
@@ -103178,42 +103071,6 @@ func (s *NotifyPutNotifyRulesReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *NotifyPutNotifyRulesReqGrouping) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.WindowMin.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "window_min",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s NotifyPutNotifyRulesReqGroupingWindowMin) Validate() error {
-	switch s {
-	case 15:
-		return nil
-	case 60:
-		return nil
-	case 240:
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *NotifyPutNotifyRulesReqQuiet) Validate() error {
@@ -103378,8 +103235,6 @@ func (s NotifyPutNotifyTriggersOKTriggersItemID) Validate() error {
 	switch s {
 	case "trap":
 		return nil
-	case "vulnerability":
-		return nil
 	case "intrusion":
 		return nil
 	case "bad_address":
@@ -103493,8 +103348,6 @@ func (s *NotifyPutNotifyTriggersReqTriggersItem) Validate() error {
 func (s NotifyPutNotifyTriggersReqTriggersItemID) Validate() error {
 	switch s {
 	case "trap":
-		return nil
-	case "vulnerability":
 		return nil
 	case "intrusion":
 		return nil

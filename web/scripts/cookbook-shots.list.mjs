@@ -251,7 +251,7 @@ export const SHOTS = [
       const d = dialog(page)
       await mark(d.getByLabel('Provider'), 1)
       await mark(d.getByLabel('Send to'), 2)
-      await mark(d.getByText('What to send', { exact: true }).locator('xpath=ancestor::*[.//*[@role="radiogroup"] or .//select][1]'), 3)
+      await mark(d.getByText('Minimum level for incidents and system notices', { exact: true }).locator('xpath=ancestor::*[.//*[@role="radiogroup"] or .//select][1]'), 3)
       await mark(d.getByRole('button', { name: 'Save and send test' }), 4)
       await shoot({ area: d, fixed: true })
     },

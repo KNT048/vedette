@@ -154,6 +154,13 @@ func TestFindingNoticesGolden(t *testing.T) {
 			e, pub := noticeEnv(t, dir)
 			c.publish(pub, "f-1", e.clock.Now())
 			got := queued(e)
+			if c.layer > 2 { // not exploited in the wild: recorded with its words for the daily summary, never queued (INV-32)
+				if len(got) != 0 || e.count(`SELECT count(*) FROM notify_notice WHERE substr(id, 1, ?) = ? AND title = ? AND event = ? AND unsent = 'not_exploited'`,
+					len(c.wantIDPrefix), c.wantIDPrefix, c.title, string(c.event)) != 1 {
+					t.Fatalf("queued %d notices, want none and the notice recorded as not exploited with title %q", len(got), c.title)
+				}
+				return
+			}
 			if len(got) != 1 {
 				t.Fatalf("queued %d notices, want 1", len(got))
 			}
@@ -187,6 +194,16 @@ func TestFindingNoticeWordsAreFindingsWords(t *testing.T) {
 		dir.at("f-1", layer, qnap)
 		e, pub := noticeEnv(t, dir)
 		pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", Severity: findings.SeverityHigh})
+		if layer > 2 { // not exploited: recorded with its title for the daily summary, never queued (INV-32)
+			var title string
+			if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT title FROM notify_notice WHERE id = 'nt-f-1-created'`).Scan(&title); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(title, strings.ToLower(findings.StatusName(layer))) {
+				t.Errorf("layer %d: %q", layer, title)
+			}
+			continue
+		}
 		n := queued(e)[0]
 		if !strings.Contains(n.Title, strings.ToLower(findings.StatusName(layer))) || !strings.HasPrefix(n.What, findings.StatusMeaning(layer)) {
 			t.Errorf("layer %d: %q / %q", layer, n.Title, n.What)
@@ -242,25 +259,28 @@ func TestOneAlertPerEscalation(t *testing.T) {
 	}
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", Severity: findings.SeverityHigh})
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", Severity: findings.SeverityHigh}) // redelivered
-	want(3)
+	want() // a public exploit is not exploited in the wild: recorded at its layer for the daily summary, never queued (INV-32)
+	if n := e.count(`SELECT count(*) FROM notify_notice_finding WHERE finding_id = 'f-1' AND layer = 3`); n != 1 {
+		t.Fatalf("told at layer 3 %d times, want once", n)
+	}
 	pub(notify.EventUrgencyRaised, rise("f-1", 4, 3, step(time.Hour))) // a rise into the layer it was told at, at another time
-	want(3)
+	want()
 	dir.at("f-1", 2, qnap)
 	pub(notify.EventUrgencyRaised, rise("f-1", 3, 2, step(time.Hour))) // an escalation
 	pub(notify.EventUrgencyRaised, rise("f-1", 3, 2, step(time.Hour))) // the same one again, stamped later
-	want(3, 2)
+	want(2)
 	dir.at("f-1", 3, qnap) // it drops to 3 and rises to 2 again: not an escalation
 	dir.at("f-1", 2, qnap)
 	pub(notify.EventUrgencyRaised, rise("f-1", 3, 2, step(time.Hour)))
-	want(3, 2)
+	want(2)
 	dir.at("f-1", 1, qnap)
 	pub(notify.EventUrgencyRaised, rise("f-1", 2, 1, step(time.Hour)))
-	want(3, 2, 1)
+	want(2, 1)
 	// a finding handled and reopened is told as reopened, whatever it was told at before; it is not an escalation, so the rise log is unchanged
 	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusPatched, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain})
-	want(3, 2, 1, 1)
+	want(2, 1, 1)
 	pub(notify.EventUrgencyRaised, rise("f-1", 2, 1, step(time.Hour)))
-	want(3, 2, 1, 1)
+	want(2, 1, 1)
 }
 
 // The summary of a first load records each finding at its layer, so a later rise to that layer is not told again and a rise above it is.
@@ -273,7 +293,8 @@ func TestFirstRunSummaryIsTheMemoryOfWhatWasTold(t *testing.T) {
 	pub(notify.EventFirstRun, findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: 3, Devices: 1, Layer: 2,
 		FindingIDs: []string{"f-1", "f-2", "f-5"}, CVEList: []string{"CVE-2026-100"}})
 	got := queued(e)
-	if len(got) != 1 || fmt.Sprint(got[0].FindingIDs) != "[f-1 f-2]" || fmt.Sprint(got[0].FindingLayers) != "[2 3]" || got[0].Event != notify.NoticeFirstRun {
+	// f-2 (a public exploit) is not exploited in the wild: it is recorded at its layer for the daily summary, not in the summary (INV-32)
+	if len(got) != 1 || fmt.Sprint(got[0].FindingIDs) != "[f-1]" || fmt.Sprint(got[0].FindingLayers) != "[2]" || got[0].Event != notify.NoticeFirstRun {
 		t.Fatalf("summary = %+v", got)
 	}
 	at := e.clock.Now()
@@ -389,10 +410,10 @@ func fixturePass(t *testing.T) (notices, repeats, layerFive, handled int) {
 func TestCountNoticesOfAFixturePass(t *testing.T) {
 	notices, repeats, layerFive, handled := fixturePass(t)
 	t.Logf("notices %d, repeats %d, layer 5 %d, handled %d", notices, repeats, layerFive, handled)
-	// f1: created, then under attack; f2: created; f3: none (layer 5); f4: created once; f5: created and reopened; f6: created, then
-	// exploited; f8: created (it was open then), no rise once handled
-	if notices != 9 || repeats != 0 || layerFive != 0 || handled != 0 {
-		t.Fatalf("notices %d (want 9), repeats %d, layer 5 %d, rises told for handled findings %d", notices, repeats, layerFive, handled)
+	// f1: created, then under attack; f5: created and reopened; f6: exploited. Not exploited in the wild, recorded for the daily summary
+	// and never queued (INV-32): f2, f4 (once), f6 when created, f8; f3: none (layer 5)
+	if notices != 5 || repeats != 0 || layerFive != 0 || handled != 0 {
+		t.Fatalf("notices %d (want 5), repeats %d, layer 5 %d, rises told for handled findings %d", notices, repeats, layerFive, handled)
 	}
 }
 
@@ -402,7 +423,7 @@ func TestFirstRunSummaryCountsTheKeptFindings(t *testing.T) {
 	dir := &liveFindings{}
 	other := qnap
 	other.CVE = "CVE-2026-200"
-	dir.at("f-1", 4, qnap)
+	dir.at("f-1", 2, qnap)
 	dir.at("f-2", 1, other)
 	dir.handle("f-2")
 	dir.at("f-5", 5, other)
@@ -414,7 +435,7 @@ func TestFirstRunSummaryCountsTheKeptFindings(t *testing.T) {
 		t.Fatalf("summaries = %+v", got)
 	}
 	n := got[0]
-	if n.Title != "Patch first: 1 urgent finding on 1 device" || n.Layer != 4 || n.Severity != notify.High || fmt.Sprint(n.CVEs) != "[CVE-2026-100]" {
+	if n.Title != "Patch first: 1 urgent finding on 1 device" || n.Layer != 2 || n.Severity != notify.Critical || fmt.Sprint(n.CVEs) != "[CVE-2026-100]" {
 		t.Fatalf("title %q layer %d severity %q CVEs %v", n.Title, n.Layer, n.Severity, n.CVEs)
 	}
 }

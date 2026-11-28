@@ -296,6 +296,9 @@ func newNotify(d *deps) *notify.Service {
 	c.Sessions = notifyHits{d}
 	c.Findings = notifyFindings{d} // d.Findings and the feeds store are built after notify: read when asked
 	c.Signals = notifySignals{d}
+	// The daily summary's count of new findings with no sign of exploitation; the AI answers waiting for review and the tokens of the
+	// AI's research of CVEs are wired by the module that keeps them (SummarySources.AIReview, AITokens).
+	c.Summary = notify.SummarySources{Updates: notifyUpdates(d)}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
 		c.Modules = d.Reg
 	}
@@ -308,6 +311,11 @@ func newNotify(d *deps) *notify.Service {
 	}
 	if d.Bus != nil {
 		svc.Subscribe(d.Bus) // handlers ignore events while the module is off; the box lives as long as the process
+	}
+	if d.Schedules != nil {
+		if err := d.Schedules.Register(svc.ScheduleOwner()); err != nil { // the daily summary's time (INV-32)
+			panic("vedette: " + err.Error()) // the owner is a constant of the package: registered once per database
+		}
 	}
 	notifyServices[d.DB] = svc
 	return svc

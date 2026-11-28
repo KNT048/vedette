@@ -41,6 +41,10 @@ func settleDue(now, first time.Time) time.Time {
 	return due
 }
 
+// quietPrefix starts the id of the notice of a load's findings that are not exploited (INV-32): "nt-quiet-first-run-<key>-<time>", so
+// no reader of the load's summaries (Home's first look, the waiting summary, "N more") counts it as one.
+const quietPrefix = "nt-quiet-"
+
 // firstRunPrefix starts the id of every summary of one load: "nt-first-run-<key>-".
 func firstRunPrefix(key string) string { return "nt-first-run-" + clip(key, 80) + "-" }
 
@@ -172,8 +176,30 @@ func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.
 			infos[id] = f
 		}
 	}
+	// Only a finding exploited in the wild is told in the summary (INV-32): the others of the load are one notice recorded for the
+	// daily summary, which no channel takes as an alert.
+	quiet := map[string]FindingInfo{}
+	var quietIDs []string
+	for _, id := range ids {
+		if f, ok := infos[id]; ok && !exploitedLayer(f.Layer) {
+			quiet[id] = f
+			quietIDs = append(quietIDs, id)
+			delete(infos, id)
+		}
+	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if len(quietIDs) > 0 {
+			q := s.summaryNotice(key, quietIDs, quiet, 0, 0, 0, "")
+			q.ID, q.At = quietPrefix+strings.TrimPrefix(prefix, "nt-")+at.UTC().Format("20060102T150405.000"), at
+			q.Title = plural(len(quietIDs), "finding", "findings") + " not exploited in the wild, for the daily summary"
+			if err := s.enqueue(ctx, tx, q); err != nil {
+				return err
+			}
+		}
 		unlisted := max(eventFindings-len(eventIDs), 0) // the event counts more findings than it lists
+		if !exploitedLayer(eventLayer) {
+			unlisted = 0 // the most urgent of them is not exploited: none is told here
+		}
 		w := waiting
 		cur, err := waitingSummaryID(ctx, tx, prefix)
 		if err != nil {
@@ -345,7 +371,7 @@ func (s *Service) summaryNotice(key string, keep []string, infos map[string]Find
 	n.More = found - len(n.Lines)
 	n.Severity = AlertSeverity(Medium, n.Layer)
 	n.Link = s.link(findingsListOf(append(slices.Clone(n.FindingLayers), n.Layer)))
-	const urgent = "as exploited, with a public exploit or critical on an edge device"
+	const urgent = "as exploited in the wild" // only those are in a summary (INV-32)
 	if prior != "" {
 		why := "Like those, they come from the first load of a source of exploitation news, so they are listed together here instead of one alert each."
 		switch {

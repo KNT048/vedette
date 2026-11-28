@@ -212340,7 +212340,8 @@ type NotifyGetNotifyHistoryOKNotSentItemNotSent struct {
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
 	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+	// is told in the daily summary (schedule notify.summary).
 	Reason NotifyGetNotifyHistoryOKNotSentItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -212466,7 +212467,8 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) UnmarshalText(data [
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 // message could hold; unknown = opened before the reason was kept and today's channels would take it;
 // trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+// is told in the daily summary (schedule notify.summary).
 type NotifyGetNotifyHistoryOKNotSentItemNotSentReason string
 
 const (
@@ -212484,6 +212486,7 @@ const (
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut      NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "line_left_out"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "unknown"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "trigger_off"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited     NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentReason values.
@@ -212503,6 +212506,7 @@ func (NotifyGetNotifyHistoryOKNotSentItemNotSentReason) AllValues() []NotifyGetN
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited,
 	}
 }
 
@@ -212536,6 +212540,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) MarshalText() ([]byte,
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
 		return []byte(s), nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -212586,6 +212592,9 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) UnmarshalText(data []
 		return nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -212917,7 +212926,8 @@ type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
 	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+	// is told in the daily summary (schedule notify.summary).
 	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -213043,7 +213053,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data 
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 // message could hold; unknown = opened before the reason was kept and today's channels would take it;
 // trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+// is told in the daily summary (schedule notify.summary).
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
@@ -213061,6 +213072,7 @@ const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "line_left_out"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "trigger_off"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited     NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentNotSentReason values.
@@ -213080,6 +213092,7 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited,
 	}
 }
 
@@ -213113,6 +213126,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -213163,6 +213178,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -213824,7 +213842,8 @@ type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
 	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+	// is told in the daily summary (schedule notify.summary).
 	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -213950,7 +213969,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(da
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 // message could hold; unknown = opened before the reason was kept and today's channels would take it;
 // trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+// is told in the daily summary (schedule notify.summary).
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
 
 const (
@@ -213968,6 +213988,7 @@ const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "line_left_out"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "unknown"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "trigger_off"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited     NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason values.
@@ -213987,6 +214008,7 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited,
 	}
 }
 
@@ -214020,6 +214042,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -214070,6 +214094,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -215278,7 +215305,8 @@ type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
 	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+	// is told in the daily summary (schedule notify.summary).
 	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -215404,7 +215432,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(dat
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 // message could hold; unknown = opened before the reason was kept and today's channels would take it;
 // trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+// is told in the daily summary (schedule notify.summary).
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
@@ -215422,6 +215451,7 @@ const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "line_left_out"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "trigger_off"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited     NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason values.
@@ -215441,6 +215471,7 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited,
 	}
 }
 
@@ -215474,6 +215505,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -215524,6 +215557,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -217145,7 +217181,8 @@ type NotifyPostNotifyNoticesIDSendOKNotSent struct {
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
 	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-	// set there.
+	// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+	// is told in the daily summary (schedule notify.summary).
 	Reason NotifyPostNotifyNoticesIDSendOKNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -217271,7 +217308,8 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentChannel) UnmarshalText(data []byt
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
 // message could hold; unknown = opened before the reason was kept and today's channels would take it;
 // trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
-// set there.
+// set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and
+// is told in the daily summary (schedule notify.summary).
 type NotifyPostNotifyNoticesIDSendOKNotSentReason string
 
 const (
@@ -217289,6 +217327,7 @@ const (
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut      NotifyPostNotifyNoticesIDSendOKNotSentReason = "line_left_out"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown          NotifyPostNotifyNoticesIDSendOKNotSentReason = "unknown"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff       NotifyPostNotifyNoticesIDSendOKNotSentReason = "trigger_off"
+	NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited     NotifyPostNotifyNoticesIDSendOKNotSentReason = "not_exploited"
 )
 
 // AllValues returns all NotifyPostNotifyNoticesIDSendOKNotSentReason values.
@@ -217308,6 +217347,7 @@ func (NotifyPostNotifyNoticesIDSendOKNotSentReason) AllValues() []NotifyPostNoti
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff,
+		NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited,
 	}
 }
 
@@ -217341,6 +217381,8 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) MarshalText() ([]byte, err
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown:
 		return []byte(s), nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
+		return []byte(s), nil
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -217391,6 +217433,9 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) UnmarshalText(data []byte
 		return nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff
+		return nil
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

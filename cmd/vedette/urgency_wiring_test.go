@@ -18,6 +18,15 @@ import (
 // seedUrgencyCatalogue stores three catalogue CVEs of FortiOS 7.2.0 to 7.2.8 on no list: one critical over the network with no login
 // (layer 4 on a firewall), one with a Metasploit module seen this week (layer 3; the source loaded before, so it is not its first load),
 // one with neither (layer 5).
+// seedExploitedClaims adds a researcher's exploited claim, a month old, for the critical and the public-exploit CVE of the urgency
+// catalogue: both findings are then exploited in the wild, the only ones a first-run summary tells.
+func seedExploitedClaims(s *stack) {
+	at := store.FormatTS(time.Now().AddDate(0, -1, 0))
+	for _, cve := range []string{"CVE-2026-50001", "CVE-2026-50002"} {
+		s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES (?1, 'exploited', 'rapid7-blog', ?2, ?2, ?2, 1)`, cve, at)
+	}
+}
+
 func seedUrgencyCatalogue(t *testing.T, s *stack) {
 	t.Helper()
 	ctx := t.Context()
@@ -194,8 +203,8 @@ func TestUrgencyWiring_FactsMarkTheFirstLoad(t *testing.T) {
 	}
 }
 
-// A rise is one alert with its own id and a reasons line in the feeds' own names: the device's public-exploit finding is told when the
-// device is added (a new finding), and again when a researcher's claim makes it exploited (3→2), "not yet in CISA KEV".
+// A rise is one alert with its own id and a reasons line in the feeds' own names: the device's public-exploit finding is recorded for
+// the daily summary when the device is added, and alerts when a researcher's claim makes it exploited (3→2), "not yet in CISA KEV".
 func TestUrgencyWiring_ARiseIsOneAlertWithItsReasons(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -222,9 +231,11 @@ func TestUrgencyWiring_ARiseIsOneAlertWithItsReasons(t *testing.T) {
 			fid = f.ID
 		}
 	}
-	if got := byID("nt-" + fid + "-urgency_changed-3"); len(got) != 1 || !strings.Contains(got[0].What, "Why: Public exploit available: Metasploit") ||
-		strings.Contains(got[0].Title+got[0].What, "exploited in") {
-		t.Fatalf("the public-exploit rise: %+v", got)
+	// a public exploit is not exploited in the wild: the rise is recorded for the daily summary, never queued as an alert
+	var title string
+	if err := s.d.DB.Reader().QueryRowContext(t.Context(), `SELECT title FROM notify_notice WHERE id = ? AND unsent = 'not_exploited'`,
+		"nt-"+fid+"-urgency_changed-3").Scan(&title); err != nil || !strings.Contains(title, "public exploit available") || len(byID("nt-"+fid+"-urgency_changed-3")) != 0 {
+		t.Fatalf("the public-exploit rise: %q, %v", title, err)
 	}
 	s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES ('CVE-2019-0002', 'exploited', 'rapid7-blog', ?1, ?2, ?2, 1)`,
 		store.FormatTS(time.Now().AddDate(0, -2, 0)), store.FormatTS(time.Now().AddDate(0, -1, 0))) // the source's first load, long ago
@@ -246,6 +257,7 @@ func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
 	s := newStack(t) // notify first ran now: the box's first run
 	s.telegramOn()
 	seedUrgencyCatalogue(t, s)
+	seedExploitedClaims(s)
 	s.addFortiGate()
 	var sums, alerts []notify.Notice
 	for _, n := range s.queuedNotices() {

@@ -272,6 +272,8 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		if floor.Valid() && sev.Valid() {
 			n.Text = fmt.Sprintf("Not sent: it is %s, and the alert settings send this kind only from %s.", sev, floor)
 		}
+	case UnsentNotExploited:
+		n.Text = "No alert: only findings exploited in the wild send one. It is in the daily summary when that is on (Settings, Alert channels)."
 	case UnsentLineLeftOut:
 		n.Text = "Not named in the message that went out: its line was past what the message could hold."
 	default:

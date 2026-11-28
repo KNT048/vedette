@@ -992,6 +992,7 @@ func (s *Service) Jobs() []jobs.Job {
 		{Module: ModuleID, Name: telegramListenJob, Every: telegramListenEvery, Run: s.listenTelegram},
 		{Module: ModuleID, Name: slackListenJob, Every: slackListenEvery, Run: s.listenSlack},
 		{Module: ModuleID, Name: zaloListenJob, Every: zaloListenEvery, Run: s.listenZalo},
+		{Module: ModuleID, Name: summaryJob, Every: summaryEvery, Run: s.RunSummary},                           // INV-32: sends the daily summary the schedule marked
 		{Module: ModuleID, Name: autoCloseJob, Every: autoCloseEvery, Run: s.runAutoClose},                     // INV-22, INV-23: a normal job, only while notify is on
 		{Module: ModuleID, Name: retentionJob, Every: retentionEvery, Housekeeping: true, Run: s.RunRetention}, // deletes history past 1 year, also while the module is off
 	}

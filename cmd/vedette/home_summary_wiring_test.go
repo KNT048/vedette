@@ -33,6 +33,7 @@ func TestWiringHomeSummaryCarriesTheFirstRunSummary(t *testing.T) {
 	s := newStack(t) // notify first ran now: the box's first run
 	s.telegramOn()
 	seedUrgencyCatalogue(t, s)
+	seedExploitedClaims(s)
 	s.addFortiGate()
 	sum, err := s.d.FindingHandlers.Overview(t.Context())
 	if err != nil {

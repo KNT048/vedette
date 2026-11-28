@@ -96256,6 +96256,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Validate() error {
 		return nil
 	case "trigger_off":
 		return nil
+	case "not_exploited":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -96590,6 +96592,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -96974,6 +96978,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -97712,6 +97718,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -98584,6 +98592,8 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) Validate() error {
 	case "unknown":
 		return nil
 	case "trigger_off":
+		return nil
+	case "not_exploited":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

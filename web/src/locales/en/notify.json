@@ -592,7 +592,8 @@
       "quiet_hours": "Quiet hours settings",
       "grouped": "Grouping settings",
       "failed": "Test the channel",
-      "trigger_off": "Change in alert triggers"
+      "trigger_off": "Change in alert triggers",
+      "not_exploited": "Daily summary settings"
     },
     "emptyResolvedTitle": "No resolved incidents",
     "clearUrgent": "Showing high and critical only",
@@ -866,8 +867,8 @@
         "why": "Nobody has a reason to open a decoy, so a touch is almost always someone exploring the network."
       },
       "vulnerability": {
-        "label": "Exploited or urgent vulnerability on a device",
-        "why": "A device you own has a weakness attackers use now: patch it first."
+        "label": "Vulnerability exploited in the wild on a device",
+        "why": "A device you own has a weakness attackers use now: patch it first. Other findings go into the daily summary."
       },
       "intrusion": {
         "label": "Intrusion alert (IPS/IDS)",
@@ -886,5 +887,11 @@
         "why": "Phones use private, random hardware addresses, so a busy office sees many new devices a day. Review them on Devices instead."
       }
     }
+  },
+  "summary": {
+    "title": "Daily summary",
+    "description": "Only findings exploited in the wild send an alert; the rest is in the daily summary.",
+    "descriptionInfo": "Once a day, at the time you set, every channel that is on gets one message: the findings with a public exploit or critical on an edge device, the new findings with no sign of exploitation, the answers of your AI waiting for review and the tokens its research used. Nothing new, no message. A finding that becomes exploited in the wild still alerts at once. Incidents (a decoy touched, an intrusion alert, a bad connection, an odd log) are not findings: they alert as before.",
+    "scheduleName": "the daily summary"
   }
 }

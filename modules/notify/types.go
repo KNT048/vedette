@@ -213,6 +213,8 @@ const (
 	UnsentLineLeftOut  NotSentReason = "line_left_out"      // a vulnerability notice queued and sent, but its line was past what the message could hold
 	UnsentUnknown      NotSentReason = "unknown"            // opened before the reason was kept, and today's channels would take it
 	UnsentTriggerOff   NotSentReason = "trigger_off"        // its alert trigger is off, or it is below the trigger's minimum (INV-31)
+	// UnsentNotExploited: a finding whose CVE is not exploited in the wild sends no alert (INV-32); it is told in the daily summary
+	UnsentNotExploited NotSentReason = "not_exploited"
 )
 
 // NotSent is the reason an incident has no message on any channel, in the customer's words (INV-24).
@@ -359,7 +361,9 @@ type FindingInfo struct {
 }
 
 // exploitedLayer says whether an urgency layer means attackers use the flaw: under attack here (1), exploited in the wild (2), or not
-// stated (0).
+// stated (0). It is the one test of "exploited in the wild" in notify (INV-32): the layer is findings' Urgency, read from the same
+// feeds rows as the reporting window's exploited part (an exploited list's entry, a vendor's or a researcher's exploited signal) and
+// from this network's intrusion alerts, whoever found the finding (a scan, a version match, the customer's AI).
 func exploitedLayer(layer int) bool { return layer <= 2 }
 
 // layerUpdate is the urgency layer of a finding with no sign of exploitation (findings.UrgencyUpdate): it never alerts.

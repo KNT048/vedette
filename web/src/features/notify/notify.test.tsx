@@ -1569,3 +1569,36 @@ describe('notify: alert triggers', () => {
     expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
   })
 })
+
+describe('notify: daily summary (only exploited findings alert)', () => {
+  it('the Settings tab says that only findings exploited in the wild alert, and sets the daily summary: off by default, on at a time', async () => {
+    const puts: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'PUT') puts.push(new URL(request.url).pathname) })
+    renderApp('/settings/channels?tab=settings#daily-summary', { role: 'admin' })
+    const main = await screen.findByRole('main')
+    expect(await within(main).findByText('Only findings exploited in the wild send an alert; the rest is in the daily summary.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+    const change = await within(main).findByRole('button', { name: 'Change the schedule of the daily summary' })
+    await waitFor(() => expect(change).toBeEnabled())
+    await userEvent.click(change)
+    const dlg = await screen.findByRole('dialog')
+    const on = within(dlg).getByRole('switch', { name: 'Run on a schedule' })
+    expect(on).toHaveAttribute('aria-checked', 'false')
+    await userEvent.click(on)
+    const at = within(dlg).getByLabelText('At')
+    await userEvent.clear(at)
+    await userEvent.type(at, '07:30')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect((await screen.findAllByText('Schedule of the daily summary saved.')).length).toBeGreaterThan(0)
+    expect(puts.some((p) => p.endsWith('/schedules/notify.summary'))).toBe(true)
+    const saved = await getJson('/schedules/notify.summary')
+    expect(saved.enabled).toBe(true)
+    expect((saved.rule as { at_time: string }).at_time).toBe('07:30')
+    server.events.removeAllListeners()
+  })
+
+  it('a vulnerability alert that was not sent because it is not exploited links to the daily summary', async () => {
+    const { fixAt } = await import('./shared')
+    expect(fixAt({ reason: 'not_exploited', text: 'No alert: only findings exploited in the wild send one.' })).toBe('/settings/channels?tab=settings#daily-summary')
+  })
+})

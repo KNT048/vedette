@@ -36,10 +36,14 @@ const (
 
 var severityLabel = map[string]string{"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low", "info": "Info"}
 
+// KindSummary is the Kind of the daily summary: headed by its title alone, like a vulnerability notice; its webhook event is
+// "summary.daily".
+const KindSummary = "summary"
+
 // Message is one notification, as plain text. Adapters render it per channel.
 type Message struct {
 	ID           string      // stable id, used in the webhook payload and the Message-ID header
-	Kind         string      // "incident", "vuln", "approval" or "test"
+	Kind         string      // "incident", "vuln", "approval", "test" or KindSummary
 	IncidentKind string      // incidents only: trap, bad_address, log_anomaly or unknown_device (webhook "kind")
 	Devices      []DeviceRef // the devices as a list (webhook "devices"); Device is the same for people to read
 	Severity     string      // critical|high|medium|low|info

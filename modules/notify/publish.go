@@ -186,6 +186,11 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 				return fmt.Errorf("notify: save notice findings: %w", err)
 			}
 		}
+		// Only a finding exploited in the wild sends an alert (INV-32): the notice of any other is recorded (History, Not sent, with Send
+		// now) and told in the daily summary, never queued on a channel.
+		if !n.exploited() {
+			return markUnsent(ctx, tx, n.ID, UnsentNotExploited, "", "")
+		}
 	}
 	triggers, err := loadTriggers(ctx, tx)
 	if err != nil {

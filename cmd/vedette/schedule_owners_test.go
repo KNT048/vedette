@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/core/schedule"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/reports"
 	"github.com/knt048/vedette/modules/scan"
 )
@@ -23,6 +24,7 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 	scanService(d)
 	exposureService(d)
 	reportsService(d)
+	newNotify(&d)
 	fs, err := feedsService(d)
 	if err != nil {
 		t.Fatal(err)
@@ -42,6 +44,7 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 		{agentintake.WazuhScheduleKey, []schedule.Freq{schedule.Interval}, 5, 0, false, true}, // off until a server is connected
 		{"feeds.source:cisa-kev", []schedule.Freq{schedule.Interval}, 60, 168 * 60, true, true},
 		{reports.ScheduleKey(reports.DefinitionID), []schedule.Freq{schedule.Weekly, schedule.Monthly}, 1, 0, false, true}, // off until a person turns it on
+		{notify.SummaryScheduleKey, []schedule.Freq{schedule.Daily}, 1, 0, false, true},                                    // the daily summary: off until a person turns it on
 	} {
 		v, err := d.Schedules.Get(ctx, c.key)
 		if err != nil {
@@ -87,6 +90,7 @@ func TestEveryOwnerOfTheSpecTableIsRegistered(t *testing.T) {
 		"exposure.public_ip": {filepath.Join("..", "..", "modules", "exposure", "schedule.go"), "s.PublicIPScheduleOwner()"},
 		"agent-intake.wazuh": {"wiring.go", "d.AgentIntake.ScheduleOwner()"},
 		"reports.def":        {"reports.go", "svc.ScheduleOwner()"},
+		"notify.summary":     {"notify.go", "svc.ScheduleOwner()"},
 	}
 	for key, w := range wired {
 		b, err := os.ReadFile(w.file)

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Notice, Section } from '@/components/common/PageHeader'
+import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -63,12 +64,20 @@ function RulesForm({ init }: { init: Rules }) {
   )
 }
 
-/** Settings › Alert channels › Settings: how alerts go out on every channel. Each block is a Section of its own; the delivery rules
- *  (quiet hours, grouping) come first. */
+/** The core/schedule owner key of the daily summary (notify ScheduleOwner): its switch and time. */
+export const SUMMARY_SCHEDULE = 'notify.summary'
+
+/** Settings › Alert channels › Settings: how alerts go out on every channel. Each block is a Section of its own: first what sends an
+ *  alert at all (only findings exploited in the wild) and the daily summary of the rest, then the delivery rules (quiet hours,
+ *  grouping), then the triggers. */
 export function AlertSettings({ quiet, grouping, triggers }: Settings) {
   const { t } = useTranslation('notify')
   return (
     <>
+      {/* /settings/channels?tab=settings#daily-summary (NotSentFix of a finding that is not exploited) lands here */}
+      <Section id="daily-summary" title={t('summary.title')} description={t('summary.description')} info={t('summary.descriptionInfo')}>
+        <ScheduleEditor ownerKey={SUMMARY_SCHEDULE} name={t('summary.scheduleName')} runNow={false} />
+      </Section>
       <Section id="alert-rules" title={t('alertSettings.rules.title')} description={t('alertSettings.rules.description')}>
         <RulesForm init={{ quiet, grouping }} />
       </Section>

@@ -333342,6 +333342,8 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Decode(d *jx.Decoder)
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonNotExploited
 	default:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReason(v)
 	}
@@ -334373,6 +334375,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decoder
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 	default:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReason(v)
 	}
@@ -335784,6 +335788,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Decode(d *jx.Deco
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNotExploited
 	default:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason(v)
 	}
@@ -338540,6 +338546,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decod
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNotExploited
 	default:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason(v)
 	}
@@ -341403,6 +341411,8 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) Decode(d *jx.Decoder) err
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNotExploited
 	default:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReason(v)
 	}

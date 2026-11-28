@@ -79644,9 +79644,10 @@
                                   "first_run_summary",
                                   "line_left_out",
                                   "unknown",
-                                  "trigger_off"
+                                  "trigger_off",
+                                  "not_exploited"
                                 ],
-                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                               },
                               "text": {
                                 "type": "string",
@@ -80052,9 +80053,10 @@
                                       "first_run_summary",
                                       "line_left_out",
                                       "unknown",
-                                      "trigger_off"
+                                      "trigger_off",
+                                      "not_exploited"
                                     ],
-                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                    "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                                   },
                                   "text": {
                                     "type": "string",
@@ -80356,9 +80358,10 @@
                                     "first_run_summary",
                                     "line_left_out",
                                     "unknown",
-                                    "trigger_off"
+                                    "trigger_off",
+                                    "not_exploited"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                                 },
                                 "text": {
                                   "type": "string",
@@ -80716,9 +80719,10 @@
                                     "first_run_summary",
                                     "line_left_out",
                                     "unknown",
-                                    "trigger_off"
+                                    "trigger_off",
+                                    "not_exploited"
                                   ],
-                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                                  "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                                 },
                                 "text": {
                                   "type": "string",
@@ -80998,9 +81002,10 @@
                             "first_run_summary",
                             "line_left_out",
                             "unknown",
-                            "trigger_off"
+                            "trigger_off",
+                            "not_exploited"
                           ],
-                          "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there"
+                          "description": "Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today's channels would take it; trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity set there; not_exploited = a finding whose CVE is not exploited in the wild: it sends no alert and is told in the daily summary (schedule notify.summary)"
                         },
                         "text": {
                           "type": "string",

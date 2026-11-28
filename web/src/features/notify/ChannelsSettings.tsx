@@ -501,7 +501,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
 }
 
 /** Where an anchor of this page lives: the quiet hours and grouping are on the Settings tab, the channels on the Channels tab. */
-const tabOfAnchor = (id: string): Tab | null => (id === 'quiet-hours' || id === 'grouping' || id === 'alert-rules' || id === 'triggers' || id.startsWith('trigger-') ? 'settings' : id === 'channels' || id.startsWith('channel-') ? 'channels' : null)
+const tabOfAnchor = (id: string): Tab | null => (id === 'quiet-hours' || id === 'grouping' || id === 'alert-rules' || id === 'triggers' || id === 'daily-summary' || id.startsWith('trigger-') ? 'settings' : id === 'channels' || id.startsWith('channel-') ? 'channels' : null)
 type Tab = 'channels' | 'settings'
 
 /** A link to an anchor of the other tab (an old bookmark, /settings/channels#quiet-hours) opens that tab and keeps the anchor, so the

@@ -18,7 +18,7 @@ import (
 
 // firstRun is one findings.urgency.first_run event of the box's own first look, at the clock's time.
 func firstRun(e *env, ids ...string) findings.FirstRunEvent {
-	return findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: len(ids), Devices: 1, Layer: 4, FindingIDs: ids}
+	return findings.FirstRunEvent{Key: "install", At: e.clock.Now().UTC().Format(time.RFC3339Nano), Findings: len(ids), Devices: 1, Layer: 2, FindingIDs: ids}
 }
 
 // summaries is every delivered first-run summary, oldest first.
@@ -45,9 +45,9 @@ func TestFirstRunSummaryLinesAreTheFindingsAsTheirPagesSayThem(t *testing.T) {
 	nas.Verification = "Confirmed by a safe check"
 	web := finding("nginx", "CVE-2026-123007", "web-01", notify.Critical)
 	web.Reasons, web.Verification = "Critical on an edge device: CVSS 9.8 (19 Mar 2025)", "Not confirmed yet: based on a version someone entered"
-	dir.at("f-java", 3, java)
-	dir.at("f-nas", 2, nas)
-	dir.at("f-web", 4, web)
+	dir.at("f-java", 2, java)
+	dir.at("f-nas", 1, nas)
+	dir.at("f-web", 2, web)
 	pub(notify.EventFirstRun, firstRun(e, "f-java", "f-nas", "f-web"))
 	e.flush()
 	if got := summaries(e); len(got) != 0 {
@@ -71,14 +71,14 @@ func TestFirstRunSummaryLinesAreTheFindingsAsTheirPagesSayThem(t *testing.T) {
 	if strings.Join(m.Items, "\n") != strings.Join(want, "\n") {
 		t.Errorf("lines:\n%s\nwant:\n%s", strings.Join(m.Items, "\n"), strings.Join(want, "\n"))
 	}
-	if m.Link != "https://box.example:8443/findings?tab=device&status=exploited,public_exploit,critical_edge" {
+	if m.Link != "https://box.example:8443/findings?tab=device&status=under_attack,exploited" {
 		t.Errorf("link %q", m.Link)
 	}
 	h, err := e.svc.History(e.ctx())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(h.Items) != 1 || h.Items[0].Link != "/findings?tab=device&status=exploited,public_exploit,critical_edge" {
+	if len(h.Items) != 1 || h.Items[0].Link != "/findings?tab=device&status=under_attack,exploited" {
 		t.Errorf("History opens the summary at %+v, want the list of what it told", h.Items)
 	}
 }
@@ -89,9 +89,9 @@ func TestFirstRunSummaryLinesAreTheFindingsAsTheirPagesSayThem(t *testing.T) {
 func TestFirstRunPassesOfOneLoadAreOneMessage(t *testing.T) {
 	dir := &liveFindings{}
 	e, pub := alertEnv(t, dir)
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-02", notify.High))
-	dir.at("f-2", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
-	dir.at("f-3", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-02", notify.High))
+	dir.at("f-2", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-3", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	pub(notify.EventFirstRun, firstRun(e, "f-1"))
 	e.clock.Add(5 * time.Second)
 	e.flush()
@@ -118,7 +118,7 @@ func TestFirstRunPassesOfOneLoadAreOneMessage(t *testing.T) {
 	// A load that keeps bringing passes is still told within firstRunSettleMax of its first one.
 	for i := range 8 {
 		id := "f-late-" + string(rune('a'+i))
-		dir.at(id, 4, finding("nginx", "CVE-2026-20000", "web-0"+string(rune('2'+i)), notify.Critical))
+		dir.at(id, 2, finding("nginx", "CVE-2026-20000", "web-0"+string(rune('2'+i)), notify.Critical))
 		e.clock.Add(90 * time.Second)
 		pub(notify.EventFirstRun, firstRun(e, id))
 		e.flush()
@@ -147,7 +147,7 @@ func TestFirstRunSaysMoreOnlyAfterASummaryWentOut(t *testing.T) {
 		}
 		return nil
 	})
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-02", notify.High))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-02", notify.High))
 	pub(notify.EventFirstRun, firstRun(e, "f-1"))
 	e.clock.Add(3 * time.Minute)
 	e.flush()
@@ -157,7 +157,7 @@ func TestFirstRunSaysMoreOnlyAfterASummaryWentOut(t *testing.T) {
 	}
 
 	e.clock.Add(time.Hour)
-	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	pub(notify.EventFirstRun, firstRun(e, "f-2"))
 	e.clock.Add(3 * time.Minute)
 	e.flush()
@@ -204,7 +204,7 @@ func TestSendNowSendsAnAlertThatWasNotSent(t *testing.T) {
 	pub("f-2")
 	e.flush()
 	if n := len(sentMessages(e)); n != 0 {
-		t.Fatalf("%d messages sent below the minimum", n)
+		t.Fatalf("%d messages sent for findings not exploited in the wild", n)
 	}
 	dir.at("f-1", 3, func() notify.FindingInfo {
 		f := finding("Example NAS", "CVE-2026-1", "nas-01", notify.High)
@@ -345,11 +345,11 @@ func TestFirstRunSummaryPastItsListLimitStillCountsNewFindings(t *testing.T) {
 	var ids []string
 	for i := range 100 {
 		id := fmt.Sprintf("f-%03d", i)
-		dir.at(id, 4, finding("nginx", fmt.Sprintf("CVE-2026-%d", 1000+i), fmt.Sprintf("web-%03d", i), notify.Critical))
+		dir.at(id, 2, finding("nginx", fmt.Sprintf("CVE-2026-%d", 1000+i), fmt.Sprintf("web-%03d", i), notify.Critical))
 		ids = append(ids, id)
 	}
 	pub(notify.EventFirstRun, firstRun(e, ids...))
-	dir.at("f-new", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-new", 1, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
 	pub(notify.EventFirstRun, firstRun(e, "f-new"))
 	e.clock.Add(3 * time.Minute)
 	e.flush()
@@ -390,8 +390,8 @@ func TestFirstRunPassesToldAtOnceAreOneMessage(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	live.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
-	live.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	live.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	live.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
 	first := firstRun(e, "f-1")
 	e.clock.Add(time.Second)
 	dir.hook = func() { pub(firstRun(e, "f-2")) }
@@ -415,7 +415,7 @@ func TestSendNowRefusesAFindingAlreadyToldSince(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	dir.at("f-1", 3, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
+	dir.at("f-1", 2, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
 	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-1", CVE: "CVE-2026-1", Severity: findings.SeverityHigh})
 	e.flush()
 	dir.at("f-1", 2, finding("Example NAS", "CVE-2026-1", "nas-01", notify.High))
@@ -440,7 +440,8 @@ func TestSendNowRefusesAFindingAlreadyToldSince(t *testing.T) {
 func TestSendNowOfASummaryIsNotTakenBackByTheNextPass(t *testing.T) {
 	dir := &liveFindings{}
 	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
-	e.telegram(notify.Critical)
+	e.telegram(notify.Medium)
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "07:00"}, notify.Grouping{WindowMin: 60}) // now is 10:00: quiet hours hold every alert
 	e.svc.Subscribe(e.bus)
 	pub := func(data any) {
 		t.Helper()
@@ -448,12 +449,12 @@ func TestSendNowOfASummaryIsNotTakenBackByTheNextPass(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-1", 2, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
 	pub(firstRun(e, "f-1"))
 	e.clock.Add(3 * time.Minute)
 	e.flush()
 	if got := summaries(e); len(got) != 0 {
-		t.Fatalf("a high summary went to a channel that takes only critical: %+v", got)
+		t.Fatalf("a summary went out during quiet hours: %+v", got)
 	}
 	var id string
 	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM notify_notice WHERE event = 'first_run'`).Scan(&id); err != nil {
@@ -463,7 +464,7 @@ func TestSendNowOfASummaryIsNotTakenBackByTheNextPass(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.clock.Add(time.Second)
-	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.High))
+	dir.at("f-2", 2, finding("nginx", "CVE-2026-123007", "web-01", notify.High))
 	pub(firstRun(e, "f-2"))
 	e.flush()
 	if got := summaries(e); len(got) != 1 || got[0].ID != id {

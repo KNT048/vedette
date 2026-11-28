@@ -186,6 +186,20 @@ WHERE s.kind = 'exploited' AND s.qualifies = 1 AND s.stored_at >= ? AND NOT EXIS
 	return count, nil
 }
 
+// notifyUpdates is the daily summary's count of new findings with no sign of exploitation (notify SummarySources.Updates): the
+// findings first seen in [from, to) that are open now at "update recommended", and the devices they are on. One read on
+// fnd_finding_state_urgency_ix.
+func notifyUpdates(d *deps) func(ctx context.Context, from, to time.Time) (int, int, error) {
+	return func(ctx context.Context, from, to time.Time) (found, devices int, err error) {
+		if d.DB == nil {
+			return 0, 0, nil
+		}
+		err = d.DB.Reader().QueryRowContext(ctx, `SELECT count(*), count(DISTINCT asset_id) FROM fnd_finding
+WHERE state = 'open' AND urgency = ? AND first_seen >= ? AND first_seen < ?`, findings.UrgencyUpdate, store.FormatTS(from), store.FormatTS(to)).Scan(&found, &devices)
+		return found, devices, err
+	}
+}
+
 // plainText makes feed text safe to show: control characters and line breaks become spaces, invisible format characters
 // (Unicode Cf) go, runs of spaces collapse, and the result is cut to max characters. Adapters render it as text, never as markup.
 func plainText(s string, limit int) string {

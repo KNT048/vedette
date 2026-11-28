@@ -25,6 +25,8 @@ type fakeChecker struct {
 	records  map[string]CVERecordText  // by CVE: the record's text and rows (unset: a one-sentence description)
 	answers  map[string]ResearchAnswer // by CVE + "|" + version: a research answer as given (overrides verdicts)
 	research []ResearchRequest         // every research request as sent
+	recorded []string                  // the CVE of every Record call, in order
+	tick     func(ctx context.Context) // run by each research call before it answers (the time a call takes)
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
@@ -32,6 +34,9 @@ func (f *fakeChecker) Ready(context.Context) error { return f.ready }
 func (f *fakeChecker) Budget(context.Context) ReadBudget { return f.budget }
 
 func (f *fakeChecker) Record(_ context.Context, cve string) (CVERecordText, error) {
+	f.mu.Lock()
+	f.recorded = append(f.recorded, cve)
+	f.mu.Unlock()
 	var refs []RefLink
 	for _, p := range f.pages[cve] {
 		tags, ok := f.tags[p.URL]
@@ -62,9 +67,12 @@ func (f *fakeChecker) Fetch(_ context.Context, urls []string) []FetchedPage {
 // Research answers like a careful reader of the box's pages: the verdict set for the CVE and version (unsure otherwise), its quote
 // looked up word for word in the cited page or the record (research overrides it per CVE and version). The call is recorded as the
 // request of one release line.
-func (f *fakeChecker) Research(_ context.Context, _ string, req ResearchRequest) (ResearchAnswer, error) {
+func (f *fakeChecker) Research(ctx context.Context, _ string, req ResearchRequest) (ResearchAnswer, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.tick != nil {
+		f.tick(ctx)
+	}
 	f.sent = append(f.sent, ProposeRequest{CVE: req.CVE, Description: req.Description, Rows: req.Rows, Items: []ProposeItem{req.Item}, Pages: req.Pages})
 	f.research = append(f.research, req)
 	if f.stop != nil {
@@ -130,8 +138,10 @@ func runCheck(t *testing.T, e *env) CheckRun {
 	if err != nil {
 		t.Fatal(err)
 	}
+	units := e.svc.unitsToCheck(t.Context(), items)
 	e.svc.check.run = &CheckRun{Running: true}
-	e.svc.runPossibleCheck(t.Context(), e.svc.unitsToCheck(t.Context(), items), "ana@example.com")
+	e.svc.check.run.LinesTotal, e.svc.check.run.LinesDone = lineCount(items, units)
+	e.svc.runPossibleCheck(t.Context(), units, "ana@example.com")
 	return *e.svc.check.run
 }
 

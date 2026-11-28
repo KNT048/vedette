@@ -23,7 +23,7 @@ func (a *anthropic) Complete(ctx context.Context, r Request) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	data, err := a.h.post(ctx, "/v1/messages", map[string]string{
+	data, err := a.h.post(ctx, r.Timeout, "/v1/messages", map[string]string{
 		"x-api-key": a.h.key.Reveal(), "anthropic-version": a.version,
 	}, body)
 	if err != nil {

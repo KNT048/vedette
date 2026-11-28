@@ -121016,6 +121016,11 @@ type FindingsGetFindingsPossibleCheckOKRun struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
+	// Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time
+	// window leaves the rest to the next run.
+	LinesDone int `json:"lines_done"`
+	// Release lines of the possible CVEs the AI may research.
+	LinesTotal int `json:"lines_total"`
 	// AI proposals made.
 	Proposals int `json:"proposals"`
 	// AI readings of a vendor's statement stored, one per release line.
@@ -121051,6 +121056,16 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) GetFailed() int {
 // GetFinishedAt returns the value of FinishedAt.
 func (s *FindingsGetFindingsPossibleCheckOKRun) GetFinishedAt() NilDateTime {
 	return s.FinishedAt
+}
+
+// GetLinesDone returns the value of LinesDone.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetLinesDone() int {
+	return s.LinesDone
+}
+
+// GetLinesTotal returns the value of LinesTotal.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetLinesTotal() int {
+	return s.LinesTotal
 }
 
 // GetProposals returns the value of Proposals.
@@ -121111,6 +121126,16 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) SetFailed(val int) {
 // SetFinishedAt sets the value of FinishedAt.
 func (s *FindingsGetFindingsPossibleCheckOKRun) SetFinishedAt(val NilDateTime) {
 	s.FinishedAt = val
+}
+
+// SetLinesDone sets the value of LinesDone.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetLinesDone(val int) {
+	s.LinesDone = val
+}
+
+// SetLinesTotal sets the value of LinesTotal.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetLinesTotal(val int) {
+	s.LinesTotal = val
 }
 
 // SetProposals sets the value of Proposals.
@@ -147739,6 +147764,11 @@ type FindingsPostFindingsPossibleCheckOK struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
+	// Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time
+	// window leaves the rest to the next run.
+	LinesDone int `json:"lines_done"`
+	// Release lines of the possible CVEs the AI may research.
+	LinesTotal int `json:"lines_total"`
 	// AI proposals made.
 	Proposals int `json:"proposals"`
 	// AI readings of a vendor's statement stored, one per release line.
@@ -147774,6 +147804,16 @@ func (s *FindingsPostFindingsPossibleCheckOK) GetFailed() int {
 // GetFinishedAt returns the value of FinishedAt.
 func (s *FindingsPostFindingsPossibleCheckOK) GetFinishedAt() NilDateTime {
 	return s.FinishedAt
+}
+
+// GetLinesDone returns the value of LinesDone.
+func (s *FindingsPostFindingsPossibleCheckOK) GetLinesDone() int {
+	return s.LinesDone
+}
+
+// GetLinesTotal returns the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleCheckOK) GetLinesTotal() int {
+	return s.LinesTotal
 }
 
 // GetProposals returns the value of Proposals.
@@ -147834,6 +147874,16 @@ func (s *FindingsPostFindingsPossibleCheckOK) SetFailed(val int) {
 // SetFinishedAt sets the value of FinishedAt.
 func (s *FindingsPostFindingsPossibleCheckOK) SetFinishedAt(val NilDateTime) {
 	s.FinishedAt = val
+}
+
+// SetLinesDone sets the value of LinesDone.
+func (s *FindingsPostFindingsPossibleCheckOK) SetLinesDone(val int) {
+	s.LinesDone = val
+}
+
+// SetLinesTotal sets the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleCheckOK) SetLinesTotal(val int) {
+	s.LinesTotal = val
 }
 
 // SetProposals sets the value of Proposals.
@@ -148054,6 +148104,11 @@ type FindingsPostFindingsPossibleIDResearchOK struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
+	// Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time
+	// window leaves the rest to the next run.
+	LinesDone int `json:"lines_done"`
+	// Release lines of the possible CVEs the AI may research.
+	LinesTotal int `json:"lines_total"`
 	// AI proposals made.
 	Proposals int `json:"proposals"`
 	// AI readings of a vendor's statement stored, one per release line.
@@ -148089,6 +148144,16 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) GetFailed() int {
 // GetFinishedAt returns the value of FinishedAt.
 func (s *FindingsPostFindingsPossibleIDResearchOK) GetFinishedAt() NilDateTime {
 	return s.FinishedAt
+}
+
+// GetLinesDone returns the value of LinesDone.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetLinesDone() int {
+	return s.LinesDone
+}
+
+// GetLinesTotal returns the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetLinesTotal() int {
+	return s.LinesTotal
 }
 
 // GetProposals returns the value of Proposals.
@@ -148149,6 +148214,16 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) SetFailed(val int) {
 // SetFinishedAt sets the value of FinishedAt.
 func (s *FindingsPostFindingsPossibleIDResearchOK) SetFinishedAt(val NilDateTime) {
 	s.FinishedAt = val
+}
+
+// SetLinesDone sets the value of LinesDone.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetLinesDone(val int) {
+	s.LinesDone = val
+}
+
+// SetLinesTotal sets the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetLinesTotal(val int) {
+	s.LinesTotal = val
 }
 
 // SetProposals sets the value of Proposals.

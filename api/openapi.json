@@ -62409,6 +62409,18 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
+                    "lines_total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Release lines of the possible CVEs the AI may research"
+                    },
+                    "lines_done": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time window leaves the rest to the next run"
+                    },
                     "advisory": {
                       "type": "integer",
                       "minimum": 0,
@@ -62470,6 +62482,8 @@
                     "running",
                     "total",
                     "done",
+                    "lines_total",
+                    "lines_done",
                     "advisory",
                     "proposals",
                     "readings",
@@ -62644,6 +62658,18 @@
                               "minimum": 0,
                               "maximum": 9007199254740991
                             },
+                            "lines_total": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines of the possible CVEs the AI may research"
+                            },
+                            "lines_done": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time window leaves the rest to the next run"
+                            },
                             "advisory": {
                               "type": "integer",
                               "minimum": 0,
@@ -62705,6 +62731,8 @@
                             "running",
                             "total",
                             "done",
+                            "lines_total",
+                            "lines_done",
                             "advisory",
                             "proposals",
                             "readings",
@@ -62794,6 +62822,18 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
+                    "lines_total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Release lines of the possible CVEs the AI may research"
+                    },
+                    "lines_done": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time window leaves the rest to the next run"
+                    },
                     "advisory": {
                       "type": "integer",
                       "minimum": 0,
@@ -62855,6 +62895,8 @@
                     "running",
                     "total",
                     "done",
+                    "lines_total",
+                    "lines_done",
                     "advisory",
                     "proposals",
                     "readings",

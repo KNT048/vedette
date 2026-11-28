@@ -554,7 +554,7 @@ func (s *Service) StartResearchDeeper(ctx context.Context, questionID, actor str
 	first := *run
 	s.check.mu.Unlock()
 	go func() {
-		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckTimeout)
+		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckWindow+possibleLineMax)
 		defer cancel()
 		s.runPossibleCheck(bg, []checkUnit{*unit}, actor)
 	}()

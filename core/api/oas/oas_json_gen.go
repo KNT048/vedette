@@ -216262,6 +216262,14 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) encodeFields(e *jx.Encoder) {
 		s.FinishedAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("lines_done")
+		e.Int(s.LinesDone)
+	}
+	{
+		e.FieldStart("lines_total")
+		e.Int(s.LinesTotal)
+	}
+	{
 		e.FieldStart("proposals")
 		e.Int(s.Proposals)
 	}
@@ -216291,19 +216299,21 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPossibleCheckOKRun = [12]string{
+var jsonFieldsNameOfFindingsGetFindingsPossibleCheckOKRun = [14]string{
 	0:  "advisory",
 	1:  "by",
 	2:  "done",
 	3:  "failed",
 	4:  "finished_at",
-	5:  "proposals",
-	6:  "readings",
-	7:  "running",
-	8:  "started_at",
-	9:  "stopped",
-	10: "total",
-	11: "undecided",
+	5:  "lines_done",
+	6:  "lines_total",
+	7:  "proposals",
+	8:  "readings",
+	9:  "running",
+	10: "started_at",
+	11: "stopped",
+	12: "total",
+	13: "undecided",
 }
 
 // Decode decodes FindingsGetFindingsPossibleCheckOKRun from json.
@@ -216373,8 +216383,32 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"finished_at\"")
 			}
-		case "proposals":
+		case "lines_done":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.LinesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lines_done\"")
+			}
+		case "lines_total":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.LinesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lines_total\"")
+			}
+		case "proposals":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -216386,7 +216420,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "readings":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Readings = int(v)
@@ -216398,7 +216432,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"readings\"")
 			}
 		case "running":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Bool()
 				s.Running = bool(v)
@@ -216410,7 +216444,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running\"")
 			}
 		case "started_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -216422,7 +216456,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "stopped":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Stopped.Decode(d); err != nil {
 					return err
@@ -216432,7 +216466,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stopped\"")
 			}
 		case "total":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -216444,7 +216478,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "undecided":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Undecided = int(v)
@@ -216466,7 +216500,7 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -257149,6 +257183,14 @@ func (s *FindingsPostFindingsPossibleCheckOK) encodeFields(e *jx.Encoder) {
 		s.FinishedAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("lines_done")
+		e.Int(s.LinesDone)
+	}
+	{
+		e.FieldStart("lines_total")
+		e.Int(s.LinesTotal)
+	}
+	{
 		e.FieldStart("proposals")
 		e.Int(s.Proposals)
 	}
@@ -257178,19 +257220,21 @@ func (s *FindingsPostFindingsPossibleCheckOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsPossibleCheckOK = [12]string{
+var jsonFieldsNameOfFindingsPostFindingsPossibleCheckOK = [14]string{
 	0:  "advisory",
 	1:  "by",
 	2:  "done",
 	3:  "failed",
 	4:  "finished_at",
-	5:  "proposals",
-	6:  "readings",
-	7:  "running",
-	8:  "started_at",
-	9:  "stopped",
-	10: "total",
-	11: "undecided",
+	5:  "lines_done",
+	6:  "lines_total",
+	7:  "proposals",
+	8:  "readings",
+	9:  "running",
+	10: "started_at",
+	11: "stopped",
+	12: "total",
+	13: "undecided",
 }
 
 // Decode decodes FindingsPostFindingsPossibleCheckOK from json.
@@ -257260,8 +257304,32 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"finished_at\"")
 			}
-		case "proposals":
+		case "lines_done":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.LinesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lines_done\"")
+			}
+		case "lines_total":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.LinesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lines_total\"")
+			}
+		case "proposals":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -257273,7 +257341,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "readings":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Readings = int(v)
@@ -257285,7 +257353,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"readings\"")
 			}
 		case "running":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Bool()
 				s.Running = bool(v)
@@ -257297,7 +257365,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running\"")
 			}
 		case "started_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -257309,7 +257377,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "stopped":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Stopped.Decode(d); err != nil {
 					return err
@@ -257319,7 +257387,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stopped\"")
 			}
 		case "total":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -257331,7 +257399,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "undecided":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Undecided = int(v)
@@ -257353,7 +257421,7 @@ func (s *FindingsPostFindingsPossibleCheckOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -257984,6 +258052,14 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) encodeFields(e *jx.Encoder) {
 		s.FinishedAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("lines_done")
+		e.Int(s.LinesDone)
+	}
+	{
+		e.FieldStart("lines_total")
+		e.Int(s.LinesTotal)
+	}
+	{
 		e.FieldStart("proposals")
 		e.Int(s.Proposals)
 	}
@@ -258013,19 +258089,21 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsPossibleIDResearchOK = [12]string{
+var jsonFieldsNameOfFindingsPostFindingsPossibleIDResearchOK = [14]string{
 	0:  "advisory",
 	1:  "by",
 	2:  "done",
 	3:  "failed",
 	4:  "finished_at",
-	5:  "proposals",
-	6:  "readings",
-	7:  "running",
-	8:  "started_at",
-	9:  "stopped",
-	10: "total",
-	11: "undecided",
+	5:  "lines_done",
+	6:  "lines_total",
+	7:  "proposals",
+	8:  "readings",
+	9:  "running",
+	10: "started_at",
+	11: "stopped",
+	12: "total",
+	13: "undecided",
 }
 
 // Decode decodes FindingsPostFindingsPossibleIDResearchOK from json.
@@ -258095,8 +258173,32 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"finished_at\"")
 			}
-		case "proposals":
+		case "lines_done":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.LinesDone = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lines_done\"")
+			}
+		case "lines_total":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.LinesTotal = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lines_total\"")
+			}
+		case "proposals":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Proposals = int(v)
@@ -258108,7 +258210,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"proposals\"")
 			}
 		case "readings":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.Readings = int(v)
@@ -258120,7 +258222,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"readings\"")
 			}
 		case "running":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Bool()
 				s.Running = bool(v)
@@ -258132,7 +258234,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running\"")
 			}
 		case "started_at":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -258144,7 +258246,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "stopped":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Stopped.Decode(d); err != nil {
 					return err
@@ -258154,7 +258256,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stopped\"")
 			}
 		case "total":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -258166,7 +258268,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "undecided":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Undecided = int(v)
@@ -258188,7 +258290,7 @@ func (s *FindingsPostFindingsPossibleIDResearchOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -597,6 +597,8 @@ export const PossibleCounts = z.object({
 })
 export const PossibleCheckRun = z.object({
   running: z.boolean(), total: z.number().int().min(0), done: z.number().int().min(0),
+  lines_total: z.number().int().min(0).describe('Release lines of the possible CVEs the AI may research'),
+  lines_done: z.number().int().min(0).describe('Of them, the lines with an answer, read by an earlier run or by this one; a run stopped by its time window leaves the rest to the next run'),
   advisory: z.number().int().min(0).describe('Decided by the box from a vendor\'s advisory, no AI'),
   proposals: z.number().int().min(0).describe('AI proposals made'),
   readings: z.number().int().min(0).describe('AI readings of a vendor\'s statement stored, one per release line'), undecided: z.number().int().min(0), failed: z.number().int().min(0).describe('Not checked: a page or AI call failed; the next check asks again'),

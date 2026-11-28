@@ -751,6 +751,7 @@ function CheckProgress({ run }: { run: PossibleCheckRun }) {
   return (
     <span className="flex items-center gap-2 text-meta text-muted" role="status" aria-live="polite">
       {t('possible.check.running', { done: run.done, total: run.total })}
+      {run.lines_total ? <span>({t('possible.check.lines', { done: run.lines_done, total: run.lines_total })})</span> : null}
       <span aria-hidden className="h-1.5 w-24 overflow-hidden rounded-full bg-rule">
         <span className="block h-full bg-accent" style={{ width: `${pct}%` }} />
       </span>
@@ -766,6 +767,7 @@ function CheckRunLine() {
   return (
     <p className="text-meta text-muted">
       {t('possible.check.last', { date: fmtDate(run.finished_at), by: run.by, advisory: run.advisory, proposals: run.proposals, undecided: run.undecided })}
+      {run.lines_total ? ` ${t('possible.check.lines', { done: run.lines_done, total: run.lines_total })}.` : ''}
       {run.failed ? ` ${t('possible.check.failed', { failed: run.failed })}` : ''}
       {run.stopped ? ` ${t('possible.check.stopped', { why: run.stopped })}` : ''}
     </p>

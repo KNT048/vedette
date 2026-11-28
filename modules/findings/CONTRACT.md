@@ -452,7 +452,14 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   record changes or a quote it found leaves its page, never by age alone (`TestResearch_APreviousReadersUnsureReadingIsResearchedOnce`).
   **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
   record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
-  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **Bulk confirm** reads the exploited lists again inside its write
+  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **Research goes on across runs:** a check has a 30-minute window
+  (`possibleCheckWindow`); once it has passed no new line starts, so a check stops between two lines, never during a call (its context
+  is the window plus the longest one line may take, `possibleLineMax`), and the lines it left are neither failed nor held. Each run takes
+  the CVEs whose line waits longest first (no standing answer, then the oldest look; `byLineAge`), so the next run goes on with the lines
+  left; a line whose call failed or timed out stores nothing, keeps its error and retry time (`held`), and the automatic reading asks it
+  again after that time. `PossibleCheckRun` has `lines_total` (the release lines of the possible CVEs the AI may research) and
+  `lines_done` (those with an answer, from earlier runs or this one), shown beside the check's progress
+  (`TestResearch_ARunStopsBetweenLinesAndTheNextGoesOn`, `TestResearch_ATimedOutLineIsRetriedAtTheNextRun`). **Bulk confirm** reads the exploited lists again inside its write
   transaction (`TestReview_ExploitedIsReadInsideTheConfirmation`). A reading
   survives a re-read of the CVE record (a new stamp) while its quote is still in the new record text or on its cited page as the box
   fetches it then: only its record identity moves on (`rehashStatement`), no tokens (`TestResearch_SurvivesARecordReReadOnlyWithItsQuote`,

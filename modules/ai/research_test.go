@@ -540,3 +540,38 @@ func TestResearch_TheWebToolsAndTheTaskAsTheModelSeesThem(t *testing.T) {
 		})
 	}
 }
+
+// A research turn with the provider's web tools can take minutes: each request gets the research call timeout, far beyond the router's
+// timeout of interactive calls, a paused turn's resend too.
+func TestResearch_ACallMayTakeMinutes(t *testing.T) {
+	a := researchSetup(t, ai.ResearchEconomy, false)
+	var left []time.Duration
+	var timeouts []time.Duration
+	turn := 0
+	a.fake.research = func(ctx context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
+		turn++
+		dl, ok := ctx.Deadline()
+		if !ok {
+			t.Fatal("a research request has no deadline")
+		}
+		left, timeouts = append(left, time.Until(dl)), append(timeouts, req.Timeout)
+		if turn == 1 {
+			return provider.Response{Raw: json.RawMessage(`[{"type":"text","text":"part"}]`), Usage: provider.Usage{InputTokens: 10, OutputTokens: 1}, Stop: provider.StopPause}, nil
+		}
+		return provider.Response{Text: verdict("unsure", "low", ""), Usage: provider.Usage{InputTokens: 10, OutputTokens: 1}, Stop: provider.StopEnd}, nil
+	}
+	if _, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq); err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 2 {
+		t.Fatalf("%d requests", len(left))
+	}
+	for i := range left {
+		if timeouts[i] < 4*time.Minute || left[i] < 4*time.Minute {
+			t.Errorf("request %d: timeout %v, %v left; want minutes, not the router's 90 s", i+1, timeouts[i], left[i])
+		}
+		if left[i] > 5*time.Minute {
+			t.Errorf("request %d: %v left, beyond one research call's cap", i+1, left[i])
+		}
+	}
+}

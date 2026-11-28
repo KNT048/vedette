@@ -84,7 +84,8 @@ type RouterConfig struct {
 	Meter       *Meter
 	// Factory builds the client of a profile; nil = Profile.Provider. Tests inject fakes here.
 	Factory func(Profile) (provider.Provider, error)
-	// CallTimeout bounds one attempt. Zero = 90 s. The caller's context can only shorten it.
+	// CallTimeout bounds one attempt, or the request's own timeout when longer (provider.Request.Timeout, a research turn). Zero = 90 s.
+	// The caller's context can only shorten it.
 	CallTimeout time.Duration
 }
 
@@ -320,7 +321,7 @@ func (r *Router) call(ctx context.Context, job Job, req provider.Request, slot i
 			skipErr(errProfileCapSkip)
 			continue
 		}
-		actx, cancel := context.WithTimeout(ctx, r.timeout)
+		actx, cancel := context.WithTimeout(ctx, max(r.timeout, req.Timeout))
 		resp, err := cl.Complete(actx, req)
 		cancel()
 		if err != nil {
@@ -375,7 +376,7 @@ func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Prov
 		res.Attempts = append(res.Attempts, attempt)
 		return err
 	}
-	actx, cancel := context.WithTimeout(ctx, 2*r.timeout)
+	actx, cancel := context.WithTimeout(ctx, max(2*r.timeout, req.Timeout))
 	resp, err := cl.Complete(actx, more)
 	cancel()
 	first := res.Response.Usage

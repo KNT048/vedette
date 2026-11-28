@@ -31,12 +31,19 @@ import (
 // Each check is stored once per evidence identity (fnd_possible_check) with how it was decided, and the CVE's undecided reason and
 // blocking evidence when it stays undecided. A check that failed (no answer, a budget, the provider) stores nothing.
 
-// possibleCheckMax is the most evidence identities one check reads; possibleCheckTimeout bounds a whole check.
+// possibleCheckMax is the most evidence identities one check reads. possibleCheckWindow is a check's time window: once it has passed,
+// no new line is started (the check stops between two lines, and the next run goes on with the lines left). possibleLineMax is the
+// longest one line may take once started (a research of two layers, each capped by the ai module), so the check's context, the window
+// plus that, never ends during a call.
 const (
-	possibleCheckMax     = 40
-	possibleCheckTimeout = 15 * time.Minute
-	possibleCheckItems   = 10 // the most products of one CVE in one AI call
+	possibleCheckMax    = 40
+	possibleCheckWindow = 30 * time.Minute
+	possibleLineMax     = 25 * time.Minute
+	possibleCheckItems  = 10 // the most products of one CVE in one AI call
 )
+
+// windowStop is why a check stopped at its time window.
+const windowStop = "The run used its time window; the lines left are read at the next run."
 
 // PossibleChecker is what a check of possible findings needs from outside findings (the binary's adapter over feeds and the ai module).
 // nil: no check (the AI module is off).
@@ -393,15 +400,19 @@ type ProposeAnswer struct {
 
 // CheckRun is contract.ts PossibleCheckRun: how the last check stands.
 type CheckRun struct {
-	Running    bool    `json:"running"`
-	Total      int     `json:"total"`
-	Done       int     `json:"done"`
-	Advisory   int     `json:"advisory"`  // decided by the box from a vendor's advisory
-	Proposals  int     `json:"proposals"` // AI proposals made (a reading of an exploited CVE as not affected, which a person confirms)
-	Readings   int     `json:"readings"`  // AI readings of a vendor's statement stored (one per release line)
-	Undecided  int     `json:"undecided"` // checked, still undecided
-	Failed     int     `json:"failed"`    // not checked: a fetch or AI call failed (asked again by the next check)
-	Stopped    *string `json:"stopped"`   // why the check stopped before the end (a budget, the AI unavailable); nil otherwise
+	Running   bool `json:"running"`
+	Total     int  `json:"total"`
+	Done      int  `json:"done"`
+	Advisory  int  `json:"advisory"`  // decided by the box from a vendor's advisory
+	Proposals int  `json:"proposals"` // AI proposals made (a reading of an exploited CVE as not affected, which a person confirms)
+	Readings  int  `json:"readings"`  // AI readings of a vendor's statement stored (one per release line)
+	Undecided int  `json:"undecided"` // checked, still undecided
+	Failed    int  `json:"failed"`    // not checked: a fetch or AI call failed (asked again by the next check)
+	// LinesTotal is the release lines of the check's CVEs, LinesDone those with an answer: read before this check (an AI's reading that
+	// stands) or by it. A check stopped by its window leaves the rest to the next one, which counts the same lines again.
+	LinesTotal int     `json:"lines_total"`
+	LinesDone  int     `json:"lines_done"`
+	Stopped    *string `json:"stopped"` // why the check stopped before the end (a budget, the AI unavailable); nil otherwise
 	By         string  `json:"by"`
 	StartedAt  string  `json:"started_at"`
 	FinishedAt *string `json:"finished_at"`
@@ -444,6 +455,7 @@ func (s *Service) noteReadingDue(q Question) {
 // due again (taken: the next match notes them again if they are still due).
 func (s *Service) unitsToCheck(ctx context.Context, items []PossibleItem) []checkUnit {
 	units := checkUnits(items, s.scoresOf(ctx, items))
+	s.byLineAge(ctx, units)
 	s.check.mu.Lock()
 	due := s.check.due
 	s.check.due = nil
@@ -459,7 +471,79 @@ func (s *Service) unitsToCheck(ctx context.Context, items []PossibleItem) []chec
 		}
 	}
 	slices.SortStableFunc(extra, func(a, b checkUnit) int { return strings.Compare(a.cve, b.cve) })
+	s.byLineAge(ctx, extra)
 	return append(units, extra...) // a finding is open already: the possible CVEs come first
+}
+
+// cveLine is a release line of a CVE as a check counts it (CheckRun.LinesTotal).
+func cveLine(cve string, id CheckID) string { return cve + "\x1f" + id.Product + "\x1f" + id.Line }
+
+// lineCount is the release lines of the possible items the AI may research (and of the units, the lines of findings it opened whose
+// reading is due again), and how many of them have an answer: no item on the line is due for a check, or its reading stands (byLineAge).
+// The lines a run leaves (its window, a failed call, a cap) are counted again by the next run, so the count goes on across runs.
+func lineCount(items []PossibleItem, units []checkUnit) (total, done int) {
+	answered := map[string]bool{}
+	for _, it := range items {
+		if it.Question.CheckKey == "" || it.Question.Detail.Check == nil || !checkable(it.Question) {
+			continue
+		}
+		k := cveLine(it.CVE, *it.Question.Detail.Check)
+		if _, ok := answered[k]; !ok {
+			answered[k] = true
+		}
+		if it.Checkable() {
+			answered[k] = false
+		}
+	}
+	for _, u := range units {
+		k := cveLine(u.cve, u.id)
+		answered[k] = answered[k] || u.answered
+	}
+	for _, ok := range answered {
+		if ok {
+			done++
+		}
+	}
+	return len(answered), done
+}
+
+// byLineAge notes whether each unit's line has an answer that stands (an AI's reading that is not due for research) and orders the
+// units by CVE, the CVE whose line waits longest first: a line with no such answer, then the oldest look at one (asked or found
+// unchanged). A run that stopped at its window is so continued by the next with the lines it left, instead of walking the lines it
+// read. The order of checkUnits (exploited, then CVSS) holds among CVEs that wait alike; a CVE's units stay together.
+func (s *Service) byLineAge(ctx context.Context, units []checkUnit) {
+	if len(units) == 0 {
+		return
+	}
+	cves := make([]string, 0, len(units))
+	for _, u := range units {
+		cves = append(cves, u.cve)
+	}
+	sts, err := statementsOf(ctx, s.rd(ctx), uniqueIDs(cves))
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: reading the AI's readings to order a check failed", "error", err)
+		return
+	}
+	oldest := map[string]time.Time{} // per CVE: the oldest look at one of its lines; zero = a line has no answer
+	for i := range units {
+		u := &units[i]
+		r := readingFor(sts, u.cve, u.id)
+		last := r.newest()
+		if last != nil && last.Line != u.id.Line {
+			last = r.rejected // as linesToAsk: another line's reading that covers this one is not this line's own
+		}
+		var at time.Time
+		if u.answered = last != nil && !last.toResearch(); u.answered {
+			at = last.AskedAt
+			if last.SeenAt.After(at) {
+				at = last.SeenAt
+			}
+		}
+		if o, ok := oldest[u.cve]; !ok || at.Before(o) {
+			oldest[u.cve] = at
+		}
+	}
+	slices.SortStableFunc(units, func(a, b checkUnit) int { return oldest[a.cve].Compare(oldest[b.cve]) })
 }
 
 // unreadKeys is the check keys whose pages the last check could not read.
@@ -601,6 +685,8 @@ type checkUnit struct {
 	devs []string
 	// deeper is a person's "Research deeper" of the unit's line: the strong layer now, whatever was read before
 	deeper bool
+	// answered: the unit's line has an AI's reading that stands (byLineAge), counted in CheckRun.LinesDone from the start
+	answered bool
 }
 
 // StartPossibleCheck starts a check of the possible CVEs (of one device when device is set) and returns its first state. The check
@@ -629,11 +715,12 @@ func (s *Service) StartPossibleCheck(ctx context.Context, device, actor string) 
 		return CheckRun{}, ErrCheckRunning
 	}
 	run := &CheckRun{Running: true, Total: len(units), By: actor, StartedAt: store.FormatTS(s.now())}
+	run.LinesTotal, run.LinesDone = lineCount(items, units)
 	s.check.run = run
 	first := *run
 	s.check.mu.Unlock()
 	go func() {
-		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckTimeout)
+		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckWindow+possibleLineMax)
 		defer cancel()
 		s.runPossibleCheck(bg, units, actor)
 	}()
@@ -661,6 +748,7 @@ func (s *Service) AutoRead(ctx context.Context) bool {
 		return false
 	}
 	now := s.now()
+	all := slices.Clone(items)
 	s.check.mu.Lock()
 	recent := func(k string) bool { at, ok := s.check.unread[k]; return ok && now.Sub(at) < 24*time.Hour }
 	items = slices.DeleteFunc(items, func(it PossibleItem) bool { return recent(it.Question.CheckKey) })
@@ -681,9 +769,10 @@ func (s *Service) AutoRead(ctx context.Context) bool {
 		return false
 	}
 	s.check.run = &CheckRun{Running: true, Total: len(units), By: SystemUser, StartedAt: store.FormatTS(now)}
+	s.check.run.LinesTotal, s.check.run.LinesDone = lineCount(all, units)
 	s.check.mu.Unlock()
 	go func() {
-		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckTimeout)
+		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), possibleCheckWindow+possibleLineMax)
 		defer cancel()
 		s.runPossibleCheck(bg, units, SystemUser)
 	}()
@@ -751,14 +840,28 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 	devices := map[string]bool{}
 	var stopped string
 	streak := 0 // AI calls in a row that failed with no answer between (aiFailStreak)
+	until := s.now().Add(possibleCheckWindow)
+	answered := map[string]bool{} // the run's lines, whether each has an answer
+	for _, u := range units {
+		answered[cveLine(u.cve, u.id)] = answered[cveLine(u.cve, u.id)] || u.answered
+	}
+	update(func(r *CheckRun) {
+		if r.LinesTotal == 0 { // a run of chosen units (Research deeper): its own lines
+			r.LinesTotal, r.LinesDone = lineCount(nil, units)
+		}
+	})
 	for i := 0; i < len(units); {
+		if i > 0 && !s.now().Before(until) {
+			stopped = windowStop
+			break
+		}
 		j := i
 		for j < len(units) && units[j].cve == units[i].cve {
 			j++
 		}
 		group := units[i:j]
 		i = j
-		res := s.checkCVE(ctx, group, actor, &streak)
+		res := s.checkCVE(ctx, group, actor, &streak, until)
 		failed, checks, readings := res.failed, res.checks, res.readings
 		if len(checks) > 0 || len(readings) > 0 || len(res.seen) > 0 || len(res.rehash) > 0 {
 			if err := s.storeChecks(ctx, checks, readings, res.seen, res.rehash); err != nil {
@@ -780,8 +883,24 @@ func (s *Service) runPossibleCheck(ctx context.Context, units []checkUnit, actor
 				devices[d] = true
 			}
 		}
+		newly := 0 // the lines this CVE's check answered for the first time
+		answer := func(cve string, id CheckID) {
+			if done, ok := answered[cveLine(cve, id)]; ok && !done {
+				answered[cveLine(cve, id)] = true
+				newly++
+			}
+		}
+		for _, st := range readings {
+			answer(st.CVE, CheckID{Product: st.Product, Line: st.Line})
+		}
+		for _, c := range checks {
+			if c.DecidedBy == DecidedAdvisory {
+				answer(c.CVE, c.ID)
+			}
+		}
 		update(func(r *CheckRun) {
-			r.Done += len(group)
+			r.Done += len(group) - res.left
+			r.LinesDone += newly
 			r.Failed += failed
 			for _, c := range checks {
 				switch {
@@ -855,6 +974,7 @@ type cveCheck struct {
 	seen     []string
 	rehash   []rehash // readings that survived a re-read of the record, to its new identity
 	failed   int
+	left     int // units not started: the check's window passed before their line
 	stop     string
 }
 
@@ -871,7 +991,7 @@ type lineAsk struct {
 // run must stop (the AI unavailable, a budget reached, aiFailStreak failed calls in a row): what was decided so far is returned. streak
 // is the run's count of AI calls in a row that failed for a reason Propose did not name or whose answer was not usable (ItemRefused
 // Systemic), with no answer between: an answer sets it to 0, a call a hook refused leaves it, since it says nothing about the AI.
-func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string, streak *int) (res cveCheck) {
+func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string, streak *int, until time.Time) (res cveCheck) {
 	cve := group[0].cve
 	now := s.now()
 	rec, err := s.cfg.Checker.Record(ctx, cve)
@@ -970,6 +1090,13 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		asks = append(asks, l)
 	}
 	for i, l := range asks {
+		if !s.now().Before(until) { // the window has passed: no new line starts, the next run reads these
+			for _, l := range asks[i:] {
+				res.left += len(l.units)
+			}
+			res.stop = windowStop
+			return res
+		}
 		id := l.units[0].id
 		if rec.Stamp != "" {
 			id.Record = recordHash(rec.Stamp)

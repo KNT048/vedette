@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
@@ -83,9 +84,14 @@ func capsFor(mode, layer string) researchCaps {
 const (
 	researchMaxTokens = 8000 // the answer and the model's thinking before it
 	researchPauses    = 4    // continuations of a turn the provider paused (its own tools ran long)
-	researchPageBytes = 4    // bytes per token of a fetched page's text into the prompt
-	researchDigestMax = 24000
-	researchPageMax   = 6000 // per reference page the box read, inside the digest
+	// researchCallTimeout bounds one request of a research: a turn whose provider-side tools search and read takes one to three minutes,
+	// far beyond the router's timeout of interactive calls. researchLayerTimeout bounds a whole layer, its paused turns and the box's
+	// page fetches included; a layer that runs out fails like a call that timed out (the line is asked again by a later run).
+	researchCallTimeout  = 5 * time.Minute
+	researchLayerTimeout = 10 * time.Minute
+	researchPageBytes    = 4 // bytes per token of a fetched page's text into the prompt
+	researchDigestMax    = 24000
+	researchPageMax      = 6000 // per reference page the box read, inside the digest
 )
 
 // ResearchRequest is one research: one CVE for one release line of a product. Digest is the box's own reading (findings builds it from
@@ -436,7 +442,9 @@ type researchRun struct {
 // converse runs the layer's conversation through the router's slot of the layer. With provider-side web tools: one request, sent again
 // while the provider pauses its own turn. With the box's fetch tool: a tool loop, each fetch run by the box's page reader, within the
 // layer's fetch cap. The last response's Text is the JSON object of the answer.
-func (r *researchRun) converse(ctx context.Context, hooks *HookRunner, prompt Prompt, req provider.Request) (CallResult, error) {
+func (r *researchRun) converse(parent context.Context, hooks *HookRunner, prompt Prompt, req provider.Request) (CallResult, error) {
+	ctx, cancel := context.WithTimeout(parent, researchLayerTimeout)
+	defer cancel()
 	var (
 		last     CallResult
 		attempts []Attempt
@@ -448,7 +456,11 @@ func (r *researchRun) converse(ctx context.Context, hooks *HookRunner, prompt Pr
 		return out
 	}
 	send := func(req provider.Request) (CallResult, error) {
+		req.Timeout = researchCallTimeout
 		res, err := r.s.router.CallSlot(ctx, JobResearchCVEs, r.strong, req)
+		if err != nil && ctx.Err() != nil && parent.Err() == nil {
+			err = errAskDeadline // the layer's own time ran out, not the caller's: the call failed in time, the run goes on
+		}
 		attempts = append(attempts, res.Attempts...)
 		r.usage.InputTokens += res.Response.Usage.InputTokens
 		r.usage.OutputTokens += res.Response.Usage.OutputTokens

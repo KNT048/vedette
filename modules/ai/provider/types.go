@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // APIStyle is the wire format a server speaks: Messages (anthropic), Chat Completions (openai), generateContent (gemini).
@@ -98,6 +99,9 @@ type Request struct {
 	// Effort asks a model that weighs how much to think and use tools for that much: "high" (Messages API output_config.effort; the
 	// other adapters ignore it); "" leaves the provider's default.
 	Effort string
+	// Timeout bounds this request when it is longer than the client's own timeout (Config.Timeout): a research turn whose provider-side
+	// tools search and read for minutes. Zero = the client's. The caller's context can only make it shorter.
+	Timeout time.Duration
 }
 
 // WebUse is what the provider's own web tools did in one response: the searches it counted, the queries and the addresses it fetched,

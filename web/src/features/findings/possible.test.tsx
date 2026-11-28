@@ -30,7 +30,7 @@ describe('Possible findings in By device and By fix', () => {
     const s = await section()
     expect(await within(s).findByText(new RegExp(`^${n} CVEs not decided on \\d+ devices`), {}, T)).toBeInTheDocument()
     // every device row counts its CVEs; together they are the total
-    const rows = within(s).getAllByRole('article')
+    const rows = within(s).getAllByRole('article').filter((a) => !a.closest('[data-testid="covered-line"]'))
     const sum = rows.reduce((t, a) => t + Number(/^(\d+)/.exec(within(a).getByText(/^\d+ CVEs? not decided$/).textContent ?? '')?.[1]), 0)
     expect(sum).toBe(n)
   })

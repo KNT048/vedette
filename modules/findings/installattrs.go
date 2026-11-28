@@ -168,6 +168,16 @@ var osFamilies = map[string]string{
 	"iphone_os": "ios", "ipados": "ios", "ios": "ios", "android": "android",
 }
 
+// osFamilyNames name the families of osFamilies in a sentence.
+var osFamilyNames = map[string]string{"windows": "Windows", "macos": "macOS", "linux": "Linux", "ios": "iOS or iPadOS", "android": "Android"}
+
+// platformsMeet says a build for the system family row may run on a device of family device: the same family, or an iPhone or iPad
+// app on macOS (Macs with Apple silicon run them, and the device's software list shows them as its own applications). Families that
+// do not meet are the only ones a row is ruled out by: anything else stays unknown.
+func platformsMeet(device, row string) bool {
+	return device == row || device == "macos" && row == "ios"
+}
+
 // familyOf is the OS family of the platform the device's own software inventory states for the line (platformOS), "" when unknown.
 func familyOf(osText string) string {
 	ids := platformsIn(osText)
@@ -381,6 +391,7 @@ func (at installAttrs) judge(c CPE, sw CPE, hasSW bool, sib *siblings) (CPE, boo
 			case w == "" || p.have == "": // a host application, or nothing known: left pinned
 			case w == p.have:
 				*a = Attr{Kind: Any}
+			case p.i == attrTargetSW && platformsMeet(p.have, w): // another system's build that may still run on this one: left pinned
 			default:
 				return c, false
 			}

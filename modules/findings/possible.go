@@ -38,6 +38,8 @@ type PossibleItem struct {
 	Unread bool
 	// Held says the automatic reading leaves it until a time, and why (its last AI call was refused or failed); nil when not held.
 	Held *Held
+	// OlderBuild says it is reported only for an older build (markOlderBuilds): listed and counted apart; nil otherwise.
+	OlderBuild *OlderBuild
 }
 
 // Checkable says the item can be checked now: its evidence has a check identity and no check of that evidence is stored (none, or
@@ -207,14 +209,15 @@ func (s *Service) exploitedSet(ctx context.Context) (map[string]bool, error) {
 	return out, nil
 }
 
-// PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals), the AI proposals waiting, the ones a check can
-// still look at, and the ones the box settled from an advisory.
+// PossibleCounts is contract.ts PossibleCounts: the possible CVEs (open and proposals) but those reported only for an older build, those
+// apart, the AI proposals waiting, the ones a check can still look at, and the ones the box settled from an advisory.
 type PossibleCounts struct {
-	Possible  int            `json:"possible"`
-	Proposals int            `json:"proposals"`
-	Unchecked int            `json:"unchecked"`
-	Settled   int            `json:"settled"`
-	Causes    map[string]int `json:"causes"` // the possible CVEs by cause (PossibleCause), every cause of the list present
+	Possible   int            `json:"possible"`
+	OlderBuild int            `json:"older_build"` // reported only for an older build (OlderBuild), not in Possible
+	Proposals  int            `json:"proposals"`
+	Unchecked  int            `json:"unchecked"`
+	Settled    int            `json:"settled"`
+	Causes     map[string]int `json:"causes"` // the possible CVEs of Possible by cause (PossibleCause), every cause of the list present
 }
 
 func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
@@ -230,24 +233,33 @@ func countPossible(items []PossibleItem, rs ReadState) PossibleCounts {
 		case PossibleProposal:
 			c.Proposals++
 		}
-		c.Possible++
-		c.Causes[PossibleCause(it, rs)]++
 		if it.Checkable() {
 			c.Unchecked++
 		}
+		if it.OlderBuild != nil {
+			c.OlderBuild++
+			continue
+		}
+		c.Possible++
+		c.Causes[PossibleCause(it, rs)]++
 	}
 	return c
 }
 
-// possibleByDevice is how many possible CVEs (not settled) each device has: the device badge's count when nothing open is more urgent.
-func possibleByDevice(items []PossibleItem) map[string]int {
-	out := map[string]int{}
+// possibleByDevice is how many possible CVEs (not settled) each device has, those reported only for an older build apart: the device
+// badge's counts when nothing open is more urgent.
+func possibleByDevice(items []PossibleItem) (main, older map[string]int) {
+	main, older = map[string]int{}, map[string]int{}
 	for _, it := range items {
-		if it.State != PossibleSettled {
-			out[it.Question.AssetID]++
+		switch {
+		case it.State == PossibleSettled:
+		case it.OlderBuild != nil:
+			older[it.Question.AssetID]++
+		default:
+			main[it.Question.AssetID]++
 		}
 	}
-	return out
+	return main, older
 }
 
 // PossibleFilter selects the rows of GET /findings/possible.
@@ -275,6 +287,8 @@ type PossibleRowJS struct {
 	Bulk      bool           `json:"bulk"`
 	Cause     *string        `json:"cause"` // PossibleCause; null for a settled row
 	Held      *HeldJS        `json:"held"`  // the automatic reading leaves it until a time; null when not held, settled, or that reading cannot run now
+	// OlderBuild: reported only for an older build, listed apart (markOlderBuilds); null otherwise
+	OlderBuild *OlderBuild `json:"older_build"`
 }
 
 // HeldJS is contract.ts PossibleHeld.
@@ -363,6 +377,7 @@ func (s *Service) Possible(ctx context.Context, f PossibleFilter, p Page) (Possi
 			return err
 		}
 		rs := s.ReadState(ctx)
+		s.markOlderBuilds(ctx, items, rs)
 		out.Counts = countPossible(items, rs)
 		var assets, lines, cves []string
 		for _, it := range items {
@@ -399,7 +414,7 @@ func nonEmpty(xs []string) []string {
 func possibleRow(it PossibleItem, ref refs, rs ReadState) PossibleRowJS {
 	q := it.Question
 	r := PossibleRowJS{ID: q.ID, CVE: it.CVE, Kind: string(q.Kind), Device: deviceRef(ref.device(q.AssetID)), Exploited: it.Exploited, State: it.State,
-		Undecided: q.Detail.Undecided, Fixes: q.Detail.Fixes, Check: checkJS(it.Check), Checkable: it.Checkable(), Bulk: it.Bulk()}
+		Undecided: q.Detail.Undecided, Fixes: q.Detail.Fixes, Check: checkJS(it.Check), Checkable: it.Checkable(), Bulk: it.Bulk(), OlderBuild: it.OlderBuild}
 	if r.Fixes == nil {
 		r.Fixes = []string{}
 	}

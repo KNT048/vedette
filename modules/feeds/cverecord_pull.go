@@ -100,9 +100,12 @@ const (
 	// ("all version prior to" lessThan "23.4R1") from the first release (unaffectedRows), keeps the highest of several single
 	// unaffected versions above every affected row as the fix of its line (highestAbove), and keeps a model-limited row's
 	// defaultStatus "unaffected" only from the vendor's own CNA (ownCNA); "ranges-12" stores the record's assigner (feeds_cve.assigner,
-	// Range.VendorCNA) and reads an assigner named after a product only its vendor ships as that vendor's own CNA (ownCNA); "ranges-15"
-	// stores a CNA row's defaultStatus "unaffected" as the record says it, read as the vendor's own word or not when the row is read
-	// (trustRow), so the CVE Program's CNA list can change that without a read of the records.
+	// Range.VendorCNA) and reads an assigner named after a product only its vendor ships as that vendor's own CNA (ownCNA); "ranges-13"
+	// drops the system limit of a product's rows when an entry of the product gives no row; "ranges-14" instead marks every row of
+	// such a product, or of a record with an entry whose product it cannot tell, as one that only ever says "affected" (markLost),
+	// and reads an entry with a version of status unknown as not complete; "ranges-15" stores a CNA row's defaultStatus "unaffected"
+	// as the record says it, read as the vendor's own word or not when the row is read (trustRow), so the CVE Program's CNA list can
+	// change that without a read of the records.
 	recordReader = "ranges-15"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"

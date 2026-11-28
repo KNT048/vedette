@@ -133,6 +133,9 @@ func pastRecordFix(in swInfo, v Vuln, key []identity) bool {
 		if own, _, _ := entryFor(c, in, key); !own {
 			continue
 		}
+		if otherSystem(in, c) {
+			continue // that system's build: its fix says nothing about the build the device runs (systemReadings decides such rows)
+		}
 		r := af.Range
 		if r.IsZero() {
 			lit, ok := c.Version.Literal()
@@ -165,6 +168,18 @@ func pastRecordFix(in swInfo, v Vuln, key []identity) bool {
 		}
 	}
 	return train || (fromZero || lineFixed) && !gap
+}
+
+// otherSystem says row c is limited to an operating system (target_sw in osFamilies) the device's own agent reports another one than,
+// and whose builds do not run on it (platformsMeet). An unknown device system, a row of every system or a word outside the vocabulary is
+// not another system.
+func otherSystem(in swInfo, c CPE) bool {
+	lit, ok := c.TargetSW.Literal()
+	if !ok || c.TargetSW.Kind != Value || in.install.platform == "" {
+		return false
+	}
+	w := osFamilies[strings.ToLower(lit)]
+	return w != "" && !platformsMeet(in.install.platform, w)
 }
 
 // sameLine says two versions start with the same number (their release line: "7" of "7.25.2" and "7.24.0").

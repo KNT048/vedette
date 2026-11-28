@@ -55952,7 +55952,13 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 9007199254740991,
-                                    "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide)"
+                                    "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included"
+                                  },
+                                  "older_build": {
+                                    "description": "possible: how many of count are reported only for an older build (\"3 possible · 2 older build\"); absent when none",
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -57942,7 +57948,13 @@
                                         "type": "integer",
                                         "minimum": 1,
                                         "maximum": 9007199254740991,
-                                        "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide)"
+                                        "description": "An open status: distinct CVEs of the device at that status (\"2 exploited\"); possible: the possible CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included"
+                                      },
+                                      "older_build": {
+                                        "description": "possible: how many of count are reported only for an older build (\"3 possible · 2 older build\"); absent when none",
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 9007199254740991
                                       }
                                     },
                                     "required": [
@@ -59192,7 +59204,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once)"
+                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build"
+                        },
+                        "older_build": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible"
                         },
                         "proposals": {
                           "type": "integer",
@@ -59204,7 +59222,7 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs a check can still look at: what the \"Check possible with AI\" button counts"
+                          "description": "Possible CVEs a check can still look at, those reported only for an older build included: what the \"Check possible with AI\" button counts"
                         },
                         "settled": {
                           "type": "integer",
@@ -59273,11 +59291,12 @@
                             "needs_person"
                           ],
                           "additionalProperties": false,
-                          "description": "The possible CVEs by cause; every cause of the list is present"
+                          "description": "The possible CVEs of possible by cause; every cause of the list is present"
                         }
                       },
                       "required": [
                         "possible",
+                        "older_build",
                         "proposals",
                         "unchecked",
                         "settled",
@@ -60814,6 +60833,39 @@
                               }
                             ],
                             "description": "The automatic AI reading leaves it for now (its last call was refused or failed); null when not held, settled, or while the automatic reading cannot run (switched off, today's reads used up, no AI profile)"
+                          },
+                          "older_build": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "tested": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "description": "The builds the third party reported, as its rows write them (\"5.4.0\"); each older than the release the device runs"
+                                  },
+                                  "year": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "The year of the report: the year of the CVE id"
+                                  }
+                                },
+                                "required": [
+                                  "tested",
+                                  "year"
+                                ],
+                                "additionalProperties": false,
+                                "description": "Reported only for an older build: a third party lists the builds it tested, every one older than the installed release; the CVE is on no exploited list and its record gives no fix, workaround or reference from the vendor. It stays possible and is listed and counted apart"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise"
                           }
                         },
                         "required": [
@@ -60832,7 +60884,8 @@
                           "checkable",
                           "bulk",
                           "cause",
-                          "held"
+                          "held",
+                          "older_build"
                         ],
                         "additionalProperties": false,
                         "description": "One possible CVE of one software line of one device"
@@ -60852,7 +60905,13 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once)"
+                          "description": "Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an older build"
+                        },
+                        "older_build": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from possible"
                         },
                         "proposals": {
                           "type": "integer",
@@ -60864,7 +60923,7 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 9007199254740991,
-                          "description": "Possible CVEs a check can still look at: what the \"Check possible with AI\" button counts"
+                          "description": "Possible CVEs a check can still look at, those reported only for an older build included: what the \"Check possible with AI\" button counts"
                         },
                         "settled": {
                           "type": "integer",
@@ -60933,11 +60992,12 @@
                             "needs_person"
                           ],
                           "additionalProperties": false,
-                          "description": "The possible CVEs by cause; every cause of the list is present"
+                          "description": "The possible CVEs of possible by cause; every cause of the list is present"
                         }
                       },
                       "required": [
                         "possible",
+                        "older_build",
                         "proposals",
                         "unchecked",
                         "settled",

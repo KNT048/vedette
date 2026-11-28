@@ -346,7 +346,7 @@ type Range struct {
 // AffectedRow is the range as the matcher's CPE entry.
 func (r Range) AffectedRow() AffectedRow {
 	row := AffectedRow{CPE: r.CPE, StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl,
-		AffectedOnly: r.AffectedOnly, VendorList: r.VendorList, VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
+		AffectedOnly: r.AffectedOnly || r.Lost(), VendorList: r.VendorList && !r.Lost(), Lost: r.Lost(), VendorCNA: r.VendorCNA, LineFix: r.LineFix()}
 	if r.Origin == OriginNVD && len(r.Platforms) > 0 { // a record row's platforms are the record's systems or models, not NVD's environment
 		row.Platforms = r.Platforms
 	}
@@ -446,14 +446,16 @@ func matchRows(rows []Range) []Range {
 		case nvd:
 			continue
 		}
+		if r.Lost() { // a product an entry of which the reader could not keep: only ever "affected"
+			r.AffectedOnly, r.VendorList = true, false
+		}
 		out = append(out, r)
 	}
 	return out
 }
 
 // recordComplete says, per product of the CNA's generic rows of one CVE (recordKey), whether every row states what a version the
-// record does not list is (defaultStatus affected or unaffected, as the rows are read: a third-party CNA's "unaffected" is read as
-// unknown, trustRow).
+// record does not list is (Range.StatesUnlisted, as the rows are read: a third-party CNA's "unaffected" is read as unknown, trustRow).
 func recordComplete(rows []Range) map[[3]string]bool {
 	out := map[[3]string]bool{}
 	for _, r := range rows {
@@ -462,7 +464,7 @@ func recordComplete(rows []Range) map[[3]string]bool {
 		}
 		k := recordKey(r)
 		c, seen := out[k]
-		out[k] = (c || !seen) && (r.DefaultStatus == DefaultAffected || r.DefaultStatus == DefaultUnaffected)
+		out[k] = (c || !seen) && r.StatesUnlisted()
 	}
 	return out
 }
@@ -992,7 +994,7 @@ func (s *Store) rangesComplete(ctx context.Context, out map[string]CatalogueEntr
 		}
 		open := map[string]bool{}
 		for _, r := range rows {
-			if r.DefaultStatus != DefaultAffected && r.DefaultStatus != DefaultUnaffected {
+			if !r.StatesUnlisted() { // as recordComplete reads them: a lost row, or a third party's unaffected (trustRow), leaves it open
 				open[r.CVE] = true
 			}
 		}

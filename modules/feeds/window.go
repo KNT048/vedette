@@ -147,6 +147,29 @@ AND c.published IS NOT NULL AND c.published < ? AND c.cve NOT IN (`+w.keptSQL()+
 	return got, nil
 }
 
+// Kept says which of cves the reporting window keeps whatever their publication day (keptSQL): an exploited-list entry, a qualifying
+// exploited signal, an intrusion alert of this network inside the window, a public exploit dated inside it; while every age is reported,
+// any qualifying signal. The one reading of "an exploitation signal keeps it" for a reader outside feeds (findings' older-build group).
+func (s *Store) Kept(ctx context.Context, cves []string, now time.Time) (map[string]bool, error) {
+	out := map[string]bool{}
+	if len(cves) == 0 {
+		return out, nil
+	}
+	w, err := s.Window(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := json.Marshal(cves)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: the reporting window: %w", err)
+	}
+	got, err := stringSet(ctx, s.db.Reader(), `SELECT value FROM json_each(?) WHERE value IN (`+w.keptSQL()+`)`, string(ids))
+	if err != nil {
+		return nil, fmt.Errorf("feeds: the reporting window: %w", err)
+	}
+	return got, nil
+}
+
 // SignalAttackedHere is the kind of the signal this box builds from its own intrusion alerts: an alert named the CVE (source
 // attackedHereSource). first_seen and last_seen are the first and the latest alert that named it, kept here so the reporting window
 // never depends on how long the alerts themselves are kept. It keeps the CVE inside the window until 12 months after last_seen.

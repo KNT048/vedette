@@ -118,7 +118,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `feeds.report_window`): every CVE is then inside. The catalogue keeps the CVEs inside the window that NVD has not rejected, and the
   CVEs a finding pins (`Deps.Pins`): a pin keeps the CVE's data (its page, a finding's history, a report), never puts it inside the
   window. `Store.OutsideWindow` is the one reading of the window; the match set marks a catalogue CVE outside it and findings sets it
-  aside (findings M-15). Pulls store only CVEs this rule keeps, and ask by ID only for kept ones (`Window.publicListedSQL`). Switched
+  aside (findings M-15). `Store.Kept` reads the same rule's kept set (`keptSQL`: an exploited-list entry, a qualifying exploited signal,
+  an alert here, a public exploit dated inside the window) for given CVEs; findings keeps such a CVE out of its older-build group (P-10). Pulls store only CVEs this rule keeps, and ask by ID only for kept ones (`Window.publicListedSQL`). Switched
   on, the next catalogue pulls read NVD's whole set (`everyAgeOwed`, `feeds_nvd_cursor` row `walk_every_age`) and the CVE Program's
   whole list (`recordsEveryAge`, row `cve_record_every_age`) once more, never within 24 hours of the last read a switch started
   (`everyAgeCooldown`; a read for another reason never holds the first switch-on back); switched off, the pull job's prune drops the older CVEs at its next check.
@@ -180,6 +181,17 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   the CPE's target_sw (`kevRecordRow`, `Range.MatchRow`), so the row speaks for that system only. NVD's running-on platforms are not
   read so: they reach the matcher with their NVD row (`AffectedRow.Platforms`, `KevAffected`, `Range.MatchRow`) as the environment
   the row's product runs on, never as an affected product (findings P-2). `TestKevAffected_CarriesNVDsRunningOnSystems`. An entry naming any other platform (a model) still leaves its product's generic rows out. `TestRecordSystems_EntryLimitedToSystems`.
+  When the reader cannot keep an entry of a product (it gives no generic row: an "unspecified", "n/a" or unknown-status version and no
+  defaultStatus, or the product's entries do not read; or an affected version of it names no version beside its ranges), every
+  generic row of that product in the record, named by its CPE or by its own words (`lostKey`), is stored with version_type
+  `record-lost` (`markLost`, `Range.Lost`, reader `ranges-14`): read for matching it only ever says "affected" (`AffectedOnly`, never
+  `VendorList`, `AffectedRow.Lost`), its list is never complete (`Range.StatesUnlisted`), and the matcher proves nothing "not
+  affected" while such a row names the line (findings `lostRow`). An entry whose product the reader cannot tell (no vendor or product
+  it can read, a CPE list naming two products) or a container with more entries than it keeps marks every row of the record so. A
+  version of status unknown makes its entry not complete. A third party's row that calls every version on one system affected
+  (defaultStatus affected) does not make the list complete: it says nothing of another system (`StatesUnlisted`, also read by the
+  wiring's catalogue entries). `TestRecordSystems_ADroppedEntryMakesTheProductAffectedOnly`,
+  `TestRecordSystems_WhatAListStatesOfTheVersionsItDoesNotName`.
   An entry whose only unaffected statements are single versions above the end of every affected row it lists ("0 through 6.49.18",
   "7.0.0 through 7.11.2", "7.24.0 unaffected"; a fixed release per train, "7.21.5" and "7.23.1" above 7.20.8) keeps the highest of them,
   when it is on the release line (first number) the highest row ends on, as `fixed` of that row (`highestAbove`, `lineFixOf`, OSV's

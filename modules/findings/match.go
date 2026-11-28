@@ -156,6 +156,9 @@ type Affected struct {
 	// affected, a version outside it proves nothing (the record and NVD disagree: the affected answer wins). VendorList: a row of a
 	// record list that states what every unlisted version is (complete): an exact version it lists decides like a range.
 	AffectedOnly, VendorList bool
+	// Lost: a CVE record row of a product an entry of which the record reader could not keep (feeds Range.Lost): beside AffectedOnly,
+	// no other reading of the record may prove the line not affected while such a row names it (lostRow).
+	Lost bool
 	// VendorCNA: the CVE record's assigner is the row's vendor (feeds Range.VendorCNA): a list of exact releases it gives is the vendor's
 	// enumeration, where a third party's names the build it tested (newerThanListed).
 	VendorCNA bool
@@ -1566,6 +1569,9 @@ func judgeRanges(a Asset, s Software, in swInfo, v Vuln, key []identity, now tim
 			}
 		}
 	}
+	if tri == No && lostRow(in, v, key) { // the record reader dropped a statement about the product: nothing proves it is not affected
+		tri, proof, agreed, schemed = Unknown, proofNone, "", false
+	}
 	switch {
 	case tri == No && schemed:
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
@@ -2147,7 +2153,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		if naVersionApart(c, in.ver, v.Affected) || earlierMarker(c, af, v.Affected) {
 			continue // the row is not about this install (NA), or it only repeats a bounded row's "and earlier" (legacy NVD)
 		}
-		if af.AffectedOnly { // only "affected" counts from it, and only for a version it states: outside it, it neither applies nor proves
+		if af.AffectedOnly || af.Lost { // only "affected" counts from it, and only for a version it states: outside it, it neither applies nor proves
 			if t, r := in.eval(c, af.Range, in.ver, sib); t == Yes && own && versionEvidence(af) {
 				if yes == nil || explainsBetter(r, *yes) {
 					yes = &r
@@ -2249,6 +2255,23 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing
 	}
 	return result, VersionRange{}, every, proofNone
+}
+
+// lostRow says a row of v that names the line (its own, or the exploited list's key) is a CVE record row of a product an entry of which
+// the record reader could not keep (Affected.Lost): the record's rows are not its whole word on the product, so no reading of them
+// (outside every range, past a fix, a complete list, another system) nor a vendor scheme's verdict may prove the line not affected.
+func lostRow(in swInfo, v Vuln, key []identity) bool {
+	return slices.ContainsFunc(v.Affected, func(af Affected) bool {
+		if !af.Lost {
+			return false
+		}
+		c, err := af.cpe()
+		if err != nil {
+			return true
+		}
+		own, byKey, known := entryFor(c, in, key)
+		return own || byKey || !known
+	})
 }
 
 // otherBranch says row c with range r lies inside one release branch that is not version ver's: every bound starts with the same

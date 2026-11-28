@@ -99,7 +99,9 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
   const offset = list.page * size
   const named = q.data?.items.find((c) => c.device.id === device)?.device.name
   // the possible findings are not searched or filtered by status here: their count is said only with the whole list
-  const possible = usePossibleCounts(device || undefined, !narrowed).data?.possible ?? 0
+  const possibleCounts = usePossibleCounts(device || undefined, !narrowed).data
+  const possible = possibleCounts?.possible ?? 0
+  const older = possibleCounts?.older_build ?? 0
   return (
     <div className="grid gap-3">
       <ListToolbar search={{ value: raw.q, onChange: (v) => raw.set({ q: v, page: 0 }), label: t('byDevice.search') }}>
@@ -118,7 +120,7 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
         ) : (
           <>
             <DataTable urlKey="by-device" caption={t('byDevice.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-              summary={<>{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}<PossibleLink count={narrowed ? 0 : possible} /></>}
+              summary={<>{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}<PossibleLink count={narrowed ? 0 : possible} older={narrowed ? 0 : older} /></>}
               server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
               list={(c) => <DeviceCardView card={c} rank={offset + d.items.indexOf(c) + 1} narrowed={narrowed} onHandle={setHandling} />} />
           </>

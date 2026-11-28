@@ -1033,6 +1033,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	if err != nil {
 		return nil, err
 	}
+	s.markOlderBuilds(ctx, items, s.ReadState(ctx))
 	var only map[string]bool
 	if assets != nil {
 		only = make(map[string]bool, len(assets))
@@ -1040,9 +1041,15 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 			only[id] = true
 		}
 	}
-	for id, n := range possibleByDevice(items) {
+	main, older := possibleByDevice(items)
+	for id, n := range main {
 		if only == nil || only[id] {
 			get(id).Possible += n
+		}
+	}
+	for id, n := range older {
+		if only == nil || only[id] {
+			get(id).OlderBuild += n
 		}
 	}
 	return out, nil

@@ -87,7 +87,7 @@ export function useDeviceRow() {
     sub: device.ip ?? t('noIp'),
     badges: <>
       <NotAddedChip asset={{ approved: device.added, ignored: device.ignored }} />
-      {badge && status ? <StatusBadge code={status.code} count={status.count} to={deviceStatusLink(device.id, status.code)} /> : null}
+      {badge && status ? <StatusBadge code={status.code} count={status.count} older={status.older_build} to={deviceStatusLink(device.id, status.code)} /> : null}
     </>,
   })
 }

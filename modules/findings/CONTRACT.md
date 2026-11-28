@@ -371,6 +371,21 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   again), drops the AI's choice and matches again at once the finding's device and every device whose last match had a line of that
   name (the findings close `data_corrected`, resolved by that person: `goneVia`, `identityRejectedBy`). No AI: nothing runs, the lines stay `none` in the coverage. `TestAIIdentity_*`,
   `TestIdentityCandidates`, `TestIdentityScrubber`.
+- **P-10 Reported only for an older build.** A possible CVE whose rows are only the exact builds a third party tested
+  (`third_party_tested_build`), every one older than the release the line runs (`testedBuilds`: `laterThan`, or an older release line by
+  `lineOrder`; a range, a row that does not read or a list `undecidedRows` may have cut reads none), on no exploited list and with no exploitation signal the reporting window keeps it for (`CVERecordText.Kept`, feeds `Store.Kept`: an
+  exploited signal of a vendor or researcher, an intrusion alert here, a public exploit dated inside the window), not a proposal,
+  with no fix the question names, whose cause the record or a reading of it leaves (`vendor_silent`, `ai_unsure`, `needs_reading`,
+  `ai_budget`), with no stored reading of the vendor's own page, and whose CVE record was read and gives no solution, no workaround, no
+  reference tagged as the vendor's (vendor advisory, release notes, patch, mitigation) and no dispute or unsupported-when-assigned tag
+  (`recordSilent`, read through `PossibleChecker.Record`) is listed apart (`PossibleRow.older_build`: the builds
+  tested and the year of the CVE id) and counted apart: `PossibleCounts.older_build`, not in `possible` or its `causes`;
+  Home and the lists show both numbers. Never hidden: the device badge `possible` counts both and says how many are of the group
+  (`DeviceStatus.older_build`, `possibleByDevice`), so a device whose only possible CVEs are of the group keeps a badge. Without the record (no checker, a read error, a record not read yet) the CVE stays in the main list.
+  It changes no decision: the question, its check key, the automatic reading and every answer stay as they are, and nothing closes
+  (`markOlderBuilds`, run by the list, Home and the device counts only). `TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart`,
+  `TestOlderBuild_NoRecordNoGroup`, `TestOlderBuild_RecordNotReadNoGroup`, `TestOlderBuild_VendorPageReadingKeepsMainList`,
+  `TestOlderBuild_RecordSilent`, `TestOlderBuild_TestedBuilds`.
 
 ## Invariants
 
@@ -398,10 +413,21 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   0 with no listed row above the version, or past a row that starts on the version's own major.minor, or at or past a fix the record
   states above all its rows (feeds `LineFix`: a lone unaffected version) on that fix's own first number with no listed row above the
   version; a version between listed trains, or between the last one listed affected and such a fix, stays a question (`pastRecordFix`).
+  A row limited to an operating system whose builds do not run on the device's (`otherSystem`) states that system's fix and is not
+  read here; only `systemReadings` may rule the line out by such rows. `TestPlatformRows_AnotherSystemsFixProvesNothing`.
   A version at or past a fix (an excluded end) on that fix's own major.minor, inside no row and below the start of no row of that
   train, is not affected under both readings of such a list (every affected release listed, or only the trains its writer tested), and
   so is decided, also for a record's rows read beside NVD's when no NVD row names the line (`fixTrainReadings`); never for a CVE on an
-  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw. A
+  exploited list, which a person closes. A record row limited to one operating system (feeds `recordSystems`) names it as target_sw.
+  Such a list (partial, or beside NVD's rows when no NVD row names the line) whose every row of the line is limited to systems the
+  device's own agent does not report is not affected under both readings too, when the vendor's own CNA wrote the rows or NVD has rows
+  of the line's own product, all limited to such systems as well (a third party's record names the system it tested on; NVD's rows of
+  another product, and a record row of a complete list, say nothing); both sides must read
+  in the target_sw vocabulary and not meet (`systemReadings`; an iPhone or iPad app runs on macOS, `platformsMeet`, also for `judge`);
+  a row for every system, an unknown device system or one outside the vocabulary (ESXi, a network OS) keeps it a question. A row of a
+  product an entry of which the record reader could not keep (`Affected.Lost`, feeds `markLost`) only ever says "affected": while
+  such a row names the line, no verdict "not affected" stands (`lostRow`, after every reading and the vendor's scheme rows), so the CVE
+  stays a question or, for a version inside a row, a finding. `TestPlatformRows_ALostEntryOnlyEverOpens`. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside
@@ -436,6 +462,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153; an exact ESR row lists its own line only) stays asked whether that
   line is affected (`detail.attribute` `unlisted_line`, never the edition: `TestMatchAsset_UnlistedESRLineStaysAsked`). A platform's
   "-" alone is every build (Visual Studio Code); beside named systems (Office's "-" and "macos") it is the build for none of them. A
+  row for a system whose builds run on the device's (iOS on macOS) stays pinned, never ruled out. A
   derived attribute is the device's evidence (the finding is verified `device`) and the evidence names it. What is not derivable stays
   pinned (#906): a version inside the range of every edition NVD lists is a version finding whichever it runs (`pinnedInside`); inside
   some only, a `not_comparable` question whose `detail.attribute` names what decides it (`edition`, `architecture`, `platform`,

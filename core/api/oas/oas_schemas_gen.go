@@ -98502,8 +98502,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemDeviceKind) UnmarshalText(data []b
 type FindingsGetFindingsDevicesOKItemsItemStatus struct {
 	Code FindingsGetFindingsDevicesOKItemsItemStatusCode `json:"code"`
 	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible
-	// CVEs of the device (CVEs Vedette cannot decide).
+	// CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included.
 	Count int `json:"count"`
+	// Possible: how many of count are reported only for an older build ("3 possible · 2 older build");
+	// absent when none.
+	OlderBuild OptInt `json:"older_build"`
 }
 
 // GetCode returns the value of Code.
@@ -98516,6 +98519,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatus) GetCount() int {
 	return s.Count
 }
 
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsDevicesOKItemsItemStatus) GetOlderBuild() OptInt {
+	return s.OlderBuild
+}
+
 // SetCode sets the value of Code.
 func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetCode(val FindingsGetFindingsDevicesOKItemsItemStatusCode) {
 	s.Code = val
@@ -98524,6 +98532,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetCode(val FindingsGetFin
 // SetCount sets the value of Count.
 func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetCount(val int) {
 	s.Count = val
+}
+
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsDevicesOKItemsItemStatus) SetOlderBuild(val OptInt) {
+	s.OlderBuild = val
 }
 
 type FindingsGetFindingsDevicesOKItemsItemStatusCode string
@@ -114208,8 +114221,11 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedDeviceKind) UnmarshalText(data [
 type FindingsGetFindingsInput2DeviceNotAddedStatus struct {
 	Code FindingsGetFindingsInput2DeviceNotAddedStatusCode `json:"code"`
 	// An open status: distinct CVEs of the device at that status ("2 exploited"); possible: the possible
-	// CVEs of the device (CVEs Vedette cannot decide).
+	// CVEs of the device (CVEs Vedette cannot decide), those reported only for an older build included.
 	Count int `json:"count"`
+	// Possible: how many of count are reported only for an older build ("3 possible · 2 older build");
+	// absent when none.
+	OlderBuild OptInt `json:"older_build"`
 }
 
 // GetCode returns the value of Code.
@@ -114222,6 +114238,11 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) GetCount() int {
 	return s.Count
 }
 
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) GetOlderBuild() OptInt {
+	return s.OlderBuild
+}
+
 // SetCode sets the value of Code.
 func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetCode(val FindingsGetFindingsInput2DeviceNotAddedStatusCode) {
 	s.Code = val
@@ -114230,6 +114251,11 @@ func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetCode(val FindingsGetF
 // SetCount sets the value of Count.
 func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetCount(val int) {
 	s.Count = val
+}
+
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) SetOlderBuild(val OptInt) {
+	s.OlderBuild = val
 }
 
 type FindingsGetFindingsInput2DeviceNotAddedStatusCode string
@@ -118992,21 +119018,31 @@ func (s *FindingsGetFindingsOverviewOKOpenByStatus) SetUpdateRecommended(val int
 // Possible CVEs (Vedette cannot decide them), counted apart from the open findings: "158 open findings
 // · 16 possible".
 type FindingsGetFindingsOverviewOKPossible struct {
-	// The possible CVEs by cause; every cause of the list is present.
+	// The possible CVEs of possible by cause; every cause of the list is present.
 	Causes FindingsGetFindingsOverviewOKPossibleCauses `json:"causes"`
-	// Possible CVEs, proposals included (each (device, line, CVE) once).
+	// Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from
+	// possible.
+	OlderBuild int `json:"older_build"`
+	// Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an
+	// older build.
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
 	Proposals int `json:"proposals"`
 	// Settled not affected by the box from a vendor's advisory.
 	Settled int `json:"settled"`
-	// Possible CVEs a check can still look at: what the "Check possible with AI" button counts.
+	// Possible CVEs a check can still look at, those reported only for an older build included: what the
+	// "Check possible with AI" button counts.
 	Unchecked int `json:"unchecked"`
 }
 
 // GetCauses returns the value of Causes.
 func (s *FindingsGetFindingsOverviewOKPossible) GetCauses() FindingsGetFindingsOverviewOKPossibleCauses {
 	return s.Causes
+}
+
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsOverviewOKPossible) GetOlderBuild() int {
+	return s.OlderBuild
 }
 
 // GetPossible returns the value of Possible.
@@ -119034,6 +119070,11 @@ func (s *FindingsGetFindingsOverviewOKPossible) SetCauses(val FindingsGetFinding
 	s.Causes = val
 }
 
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsOverviewOKPossible) SetOlderBuild(val int) {
+	s.OlderBuild = val
+}
+
 // SetPossible sets the value of Possible.
 func (s *FindingsGetFindingsOverviewOKPossible) SetPossible(val int) {
 	s.Possible = val
@@ -119054,7 +119095,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) SetUnchecked(val int) {
 	s.Unchecked = val
 }
 
-// The possible CVEs by cause; every cause of the list is present.
+// The possible CVEs of possible by cause; every cause of the list is present.
 type FindingsGetFindingsOverviewOKPossibleCauses struct {
 	AiBudget         int `json:"ai_budget"`
 	AiUnsure         int `json:"ai_unsure"`
@@ -119583,21 +119624,31 @@ func (s *FindingsGetFindingsPossibleOK) SetTotal(val int) {
 
 // Of the device, or of every device; not narrowed by the search or the state.
 type FindingsGetFindingsPossibleOKCounts struct {
-	// The possible CVEs by cause; every cause of the list is present.
+	// The possible CVEs of possible by cause; every cause of the list is present.
 	Causes FindingsGetFindingsPossibleOKCountsCauses `json:"causes"`
-	// Possible CVEs, proposals included (each (device, line, CVE) once).
+	// Possible CVEs reported only for an older build (PossibleRow.older_build), counted apart from
+	// possible.
+	OlderBuild int `json:"older_build"`
+	// Possible CVEs, proposals included (each (device, line, CVE) once), but those reported only for an
+	// older build.
 	Possible int `json:"possible"`
 	// AI proposals waiting for a person.
 	Proposals int `json:"proposals"`
 	// Settled not affected by the box from a vendor's advisory.
 	Settled int `json:"settled"`
-	// Possible CVEs a check can still look at: what the "Check possible with AI" button counts.
+	// Possible CVEs a check can still look at, those reported only for an older build included: what the
+	// "Check possible with AI" button counts.
 	Unchecked int `json:"unchecked"`
 }
 
 // GetCauses returns the value of Causes.
 func (s *FindingsGetFindingsPossibleOKCounts) GetCauses() FindingsGetFindingsPossibleOKCountsCauses {
 	return s.Causes
+}
+
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsPossibleOKCounts) GetOlderBuild() int {
+	return s.OlderBuild
 }
 
 // GetPossible returns the value of Possible.
@@ -119625,6 +119676,11 @@ func (s *FindingsGetFindingsPossibleOKCounts) SetCauses(val FindingsGetFindingsP
 	s.Causes = val
 }
 
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsPossibleOKCounts) SetOlderBuild(val int) {
+	s.OlderBuild = val
+}
+
 // SetPossible sets the value of Possible.
 func (s *FindingsGetFindingsPossibleOKCounts) SetPossible(val int) {
 	s.Possible = val
@@ -119645,7 +119701,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) SetUnchecked(val int) {
 	s.Unchecked = val
 }
 
-// The possible CVEs by cause; every cause of the list is present.
+// The possible CVEs of possible by cause; every cause of the list is present.
 type FindingsGetFindingsPossibleOKCountsCauses struct {
 	AiBudget         int `json:"ai_budget"`
 	AiUnsure         int `json:"ai_unsure"`
@@ -119780,9 +119836,12 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	// question for all of them (cve_list).
 	Kind FindingsGetFindingsPossibleOKItemsItemKind `json:"kind"`
 	// Older_line: the device's release line.
-	Line     NilString                                         `json:"line"`
-	Severity NilFindingsGetFindingsPossibleOKItemsItemSeverity `json:"severity"`
-	Software NilFindingsGetFindingsPossibleOKItemsItemSoftware `json:"software"`
+	Line NilString `json:"line"`
+	// Reported only for an older build: listed apart, counted in counts.older_build, not in
+	// counts.possible; null otherwise.
+	OlderBuild NilFindingsGetFindingsPossibleOKItemsItemOlderBuild `json:"older_build"`
+	Severity   NilFindingsGetFindingsPossibleOKItemsItemSeverity   `json:"severity"`
+	Software   NilFindingsGetFindingsPossibleOKItemsItemSoftware   `json:"software"`
 	// Possible: undecided; proposal: an AI proposal waits for a person; settled: the box settled it not
 	// affected from the vendor's advisory (not counted).
 	State FindingsGetFindingsPossibleOKItemsItemState `json:"state"`
@@ -119848,6 +119907,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) GetKind() FindingsGetFindingsPo
 // GetLine returns the value of Line.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetLine() NilString {
 	return s.Line
+}
+
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetOlderBuild() NilFindingsGetFindingsPossibleOKItemsItemOlderBuild {
+	return s.OlderBuild
 }
 
 // GetSeverity returns the value of Severity.
@@ -119928,6 +119992,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetKind(val FindingsGetFindings
 // SetLine sets the value of Line.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetLine(val NilString) {
 	s.Line = val
+}
+
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetOlderBuild(val NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) {
+	s.OlderBuild = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -121496,6 +121565,37 @@ func (s *FindingsGetFindingsPossibleOKItemsItemKind) UnmarshalText(data []byte) 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Reported only for an older build: a third party lists the builds it tested, every one older than the
+// installed release; the CVE is on no exploited list and its record gives no fix, workaround or
+// reference from the vendor. It stays possible and is listed and counted apart.
+type FindingsGetFindingsPossibleOKItemsItemOlderBuild struct {
+	// The builds the third party reported, as its rows write them ("5.4.0"); each older than the release
+	// the device runs.
+	Tested []string `json:"tested"`
+	// The year of the report: the year of the CVE id.
+	Year int `json:"year"`
+}
+
+// GetTested returns the value of Tested.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) GetTested() []string {
+	return s.Tested
+}
+
+// GetYear returns the value of Year.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) GetYear() int {
+	return s.Year
+}
+
+// SetTested sets the value of Tested.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) SetTested(val []string) {
+	s.Tested = val
+}
+
+// SetYear sets the value of Year.
+func (s *FindingsGetFindingsPossibleOKItemsItemOlderBuild) SetYear(val int) {
+	s.Year = val
 }
 
 // The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes
@@ -198065,6 +198165,51 @@ func (o NilFindingsGetFindingsPossibleOKItemsItemHeld) Get() (v FindingsGetFindi
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsPossibleOKItemsItemHeld) Or(d FindingsGetFindingsPossibleOKItemsItemHeld) FindingsGetFindingsPossibleOKItemsItemHeld {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPossibleOKItemsItemOlderBuild returns new NilFindingsGetFindingsPossibleOKItemsItemOlderBuild with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemOlderBuild(v FindingsGetFindingsPossibleOKItemsItemOlderBuild) NilFindingsGetFindingsPossibleOKItemsItemOlderBuild {
+	return NilFindingsGetFindingsPossibleOKItemsItemOlderBuild{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemOlderBuild is nullable FindingsGetFindingsPossibleOKItemsItemOlderBuild.
+type NilFindingsGetFindingsPossibleOKItemsItemOlderBuild struct {
+	Value FindingsGetFindingsPossibleOKItemsItemOlderBuild
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) SetTo(v FindingsGetFindingsPossibleOKItemsItemOlderBuild) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemOlderBuild
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) Get() (v FindingsGetFindingsPossibleOKItemsItemOlderBuild, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemOlderBuild) Or(d FindingsGetFindingsPossibleOKItemsItemOlderBuild) FindingsGetFindingsPossibleOKItemsItemOlderBuild {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -301,7 +301,7 @@ func TestDeviceStatuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]DeviceStatus{"a-nas": {CodeExploited, 1}, "a-fw": {CodePublicExploit, 1}, "a-new": {CodeExploited, 1}, "a-ign": {CodeExploited, 1}}
+	want := map[string]DeviceStatus{"a-nas": {Code: CodeExploited, Count: 1}, "a-fw": {Code: CodePublicExploit, Count: 1}, "a-new": {Code: CodeExploited, Count: 1}, "a-ign": {Code: CodeExploited, Count: 1}}
 	for id, w := range want {
 		if got[id] != w {
 			t.Errorf("%s: %+v, want %+v", id, got[id], w)
@@ -309,7 +309,7 @@ func TestDeviceStatuses(t *testing.T) {
 	}
 	e.call("POST", "/findings/handle", "operator", `{"ids":["f-f1"],"resolution":"patched","note":""}`)
 	got, _ = e.svc.DeviceStatuses(context.Background())
-	if got["a-fw"] != (DeviceStatus{CodeCriticalEdge, 1}) { // CVE-2026-2001 on two lines is one CVE
+	if got["a-fw"] != (DeviceStatus{Code: CodeCriticalEdge, Count: 1}) { // CVE-2026-2001 on two lines is one CVE
 		t.Errorf("fw01 after patching: %+v", got["a-fw"])
 	}
 	_ = url.QueryEscape

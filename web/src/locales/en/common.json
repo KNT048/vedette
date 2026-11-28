@@ -124,6 +124,8 @@
     "possible_one": "{{count}} possible",
     "possible_other": "{{count}} possible"
   },
+  "olderBuildCount_one": "{{count}} older build",
+  "olderBuildCount_other": "{{count}} older build",
   "verification": {
     "scan": "Confirmed by a safe check",
     "device": "Confirmed: the device reports this version",

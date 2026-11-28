@@ -75,13 +75,16 @@ func parseResolutions(s string) ([]Resolution, error) {
 type DeviceStatus struct {
 	Code  string `json:"code"`
 	Count int    `json:"count"`
+	// OlderBuild is how many of a possible badge's CVEs are reported only for an older build (oldbuild.go); 0 otherwise
+	OlderBuild int `json:"older_build,omitempty"`
 }
 
 // DeviceCounts is what the status of one device is computed from: the distinct CVEs of its open findings at each layer (index 1..5)
 // and its possible CVEs.
 type DeviceCounts struct {
-	CVEs     [UrgencyUpdate + 1]int
-	Possible int
+	CVEs       [UrgencyUpdate + 1]int
+	Possible   int
+	OlderBuild int // possible CVEs reported only for an older build, not in Possible
 }
 
 // DeviceStatusOf is the one rule of a device's badge: the most urgent layer of its open findings with the distinct CVEs at it, else
@@ -92,8 +95,8 @@ func DeviceStatusOf(c DeviceCounts) *DeviceStatus {
 			return &DeviceStatus{Code: LayerCode(l), Count: c.CVEs[l]}
 		}
 	}
-	if c.Possible > 0 {
-		return &DeviceStatus{Code: CodePossible, Count: c.Possible}
+	if c.Possible+c.OlderBuild > 0 { // never hidden: the badge counts both and says how many are of the group
+		return &DeviceStatus{Code: CodePossible, Count: c.Possible + c.OlderBuild, OlderBuild: c.OlderBuild}
 	}
 	return nil
 }

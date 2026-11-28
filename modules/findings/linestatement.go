@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -159,9 +160,25 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 		return fmt.Errorf("findings: replacing a reading: %w", err)
 	}
 	at := store.FormatTS(st.AskedAt)
+	// a person who rejected a reading of the same verdict for the line, from the same CVE record and the same cited page (its text, or
+	// for a page only the AI's tools read, its address), is not asked twice: the new reading is stored rejected (P-12)
+	var rejBy, rejAt any
+	if side := statusSide(st.Status); side != "" {
+		byURL := st.Research != nil && (st.Research.QuoteCheck == QuoteTool || st.Research.QuoteCheck == QuoteLive)
+		var by string
+		err := tx.QueryRowContext(ctx, `SELECT rejected_by FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NOT NULL
+			AND statement_key <> ? AND record_hash = ? AND url = ? AND (page_hash = ? OR ?) AND `+statusSideSQL+` = ? ORDER BY rejected_at DESC LIMIT 1`,
+			st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key, st.RecordHash, clipBytes(st.URL, 2000), st.PageHash, byURL, side).Scan(&by)
+		switch {
+		case err == nil:
+			rejBy, rejAt = by, at
+		case !errors.Is(err, sql.ErrNoRows):
+			return fmt.Errorf("findings: reading the line's rejections: %w", err)
+		}
+	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO fnd_line_statement (statement_key, cve, product_key, line, stated_line, record_hash, page_hash, status, introduced,
-		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at, basis)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		fixed_in, last_affected, reason, quote, url, host, vendor_page, quote_found, model, profile, activity_id, asked_by, asked_at, seen_at, basis, rejected_by, rejected_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (statement_key) DO UPDATE SET status = excluded.status, introduced = excluded.introduced, fixed_in = excluded.fixed_in,
 			last_affected = excluded.last_affected, stated_line = excluded.stated_line, reason = excluded.reason, quote = excluded.quote,
 			url = excluded.url, host = excluded.host, vendor_page = excluded.vendor_page, quote_found = excluded.quote_found, model = excluded.model,
@@ -171,7 +188,7 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 		st.Key, st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), clipBytes(st.StatedLine, 200), st.RecordHash, st.PageHash, st.Status,
 		nullString(clipBytes(st.Introduced, 100)), nullString(clipBytes(st.FixedIn, 100)), nullString(clipBytes(st.Last, 100)), clipBytes(st.Reason, 600),
 		clipBytes(st.Quote, 400), clipBytes(st.URL, 2000), clipBytes(st.Host, 255), st.VendorPage, st.QuoteFound, clipBytes(cmpNonEmpty(st.Model, "unknown"), 80),
-		clipBytes(cmpNonEmpty(st.Profile, "unknown"), 160), nullString(st.Activity), st.AskedBy, at, at, cmpNonEmpty(st.Basis, BasisStated))
+		clipBytes(cmpNonEmpty(st.Profile, "unknown"), 160), nullString(st.Activity), st.AskedBy, at, at, cmpNonEmpty(st.Basis, BasisStated), rejBy, rejAt)
 	if err != nil {
 		return fmt.Errorf("findings: storing a reading: %w", err)
 	}
@@ -652,3 +669,18 @@ func aiReadNote(q Question, st LineStatement) string {
 	}
 	return clipBytes(note+". A person can reject this reading.", 1000)
 }
+
+// statusSide is the side a reading's status takes for a person's rejection: affected (affected, or fixed in a release: it may open a
+// finding), not_affected, or "" for unsure.
+func statusSide(status string) string {
+	switch status {
+	case StatementAffected, StatementFixed:
+		return StatementAffected
+	case StatementNotAffected:
+		return StatementNotAffected
+	}
+	return ""
+}
+
+// statusSideSQL is statusSide of fnd_line_statement.status.
+const statusSideSQL = `(CASE WHEN status IN ('affected', 'fixed') THEN 'affected' WHEN status = 'not_affected' THEN 'not_affected' ELSE '' END)`

@@ -246,7 +246,7 @@ func namesDevice(text string, v AssetView) bool {
 // was found (the reference page the box fetched, else the CVE record: Source 0), never to the page the AI cited; a quote its tools or a
 // live fetch found is the cited page among the pages the box read, else a page of the research's own appended to pages; a "not affected" whose fix
 // the quote or the text it was found in names is a fixed line.
-func researchVerdict(a ResearchAnswer, pages []FetchedPage, record string) (ProposeVerdict, []FetchedPage) {
+func researchVerdict(a ResearchAnswer, pages []FetchedPage) (ProposeVerdict, []FetchedPage) {
 	v := a.Verdict
 	v.Index = 0
 	// "not affected" because the installed release has the fix: a fixed line, so each version is placed against the fix (pastFix); an

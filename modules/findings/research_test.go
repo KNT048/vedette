@@ -442,3 +442,64 @@ func TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage(t *testing.T) {
 		t.Errorf("a digest quote credited to %q (%q, vendor page %v), want the CVE record", host, url, vendor)
 	}
 }
+
+// A person rejects an AI reading once: the rejection covers the line's older readings of the same verdict (one of them may hold the
+// finding open), and a new research of the same verdict from the same record and cited page is stored already rejected.
+func TestResearch_OneRejectCoversTheSameVerdict(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementAffected, QuoteTool, quillAffected, quillSAText)}
+	fc.pages["elsewhere"] = []FetchedPage{{URL: quillSA, Status: "ok", Text: quillSAText}}
+	runCheck(t, e)
+	outside := quillResearch(StatementAffected, QuoteTool, "Quillfeather Mail 115.10 through 115.11 is affected", "QSA-2026-17 (CVE-2026-991001): Quillfeather Mail 115.10 through 115.11 is affected.")
+	outside.Verdict.Introduced, outside.Verdict.FixedIn, outside.Verdict.LastAffected = "115.10", "", "115.11"
+	fc.answers[cveQuill+"|115.9.0"] = outside
+	fc.pages["elsewhere"][0].Text = "QSA-2026-17 was revised."
+	e.feeds.vulns[0].Stamp = "revised"
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	runCheck(t, e)
+	if quillFindings(t, e) != 1 || len(fc.research) != 2 {
+		t.Fatalf("findings %d researches %d: want the finding held by the older reading", quillFindings(t, e), len(fc.research))
+	}
+	var newest string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT statement_key FROM fnd_line_statement WHERE cve = ? ORDER BY rowid DESC LIMIT 1`, cveQuill).Scan(&newest); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RejectProposal(t.Context(), newest, "ana@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if quillFindings(t, e) != 0 {
+		t.Fatal("one rejection left the finding open on an older reading of the same verdict")
+	}
+	// researched again now (same record, same cited page) with the same verdict: already rejected, nothing opens
+	fc.answers[cveQuill+"|115.9.0"] = quillResearch(StatementAffected, QuoteTool, quillAffected, quillSAText)
+	it := quillItem(t, e)
+	u, err := e.svc.deeperUnit(t.Context(), it.Question.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), []checkUnit{*u}, "ana@example.com")
+	if len(fc.research) != 3 {
+		t.Fatalf("%d researches", len(fc.research))
+	}
+	if quillFindings(t, e) != 0 {
+		t.Error("the same rejected verdict from the same record and page opened the finding again")
+	}
+	// a changed record is a new statement: no longer covered
+	e.feeds.vulns[0].Stamp = "revised again"
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	u, err = e.svc.deeperUnit(t.Context(), it.Question.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), []checkUnit{*u}, "ana@example.com")
+	if quillFindings(t, e) != 1 {
+		t.Error("an answer on a changed record was held by an older rejection")
+	}
+}

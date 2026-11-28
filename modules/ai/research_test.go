@@ -375,9 +375,9 @@ func TestResearch_AutomaticPaceAndDailyNumber(t *testing.T) {
 func TestResearch_QuoteWithAMadeUpEndIsNotChecked(t *testing.T) {
 	a := researchSetup(t, ai.ResearchEconomy, false)
 	pageServer(t, a)
-	const real = "Widget releases 4.0 through 4.2.0 are affected by this issue"
-	la := &layerAnswers{by: map[string]string{"Quick": verdict("affected", "high", real+" and 4.1.3")},
-		texts: map[string][]string{"Quick": {"Advisory for CVE-2099-81001. " + real + ". Update to 4.2.1."}}}
+	const realSentence = "Widget releases 4.0 through 4.2.0 are affected by this issue"
+	la := &layerAnswers{by: map[string]string{"Quick": verdict("affected", "high", realSentence+" and 4.1.3")},
+		texts: map[string][]string{"Quick": {"Advisory for CVE-2099-81001. " + realSentence + ". Update to 4.2.1."}}}
 	a.fake.research = la.answer
 	ans, err := a.svc.Research(a.ctx(), "it@acme.example", researchReq)
 	if err != nil {
@@ -386,7 +386,7 @@ func TestResearch_QuoteWithAMadeUpEndIsNotChecked(t *testing.T) {
 	if ai.QuoteChecked(ans.QuoteCheck) {
 		t.Errorf("quote check %s: a quote whose end is not in the text was taken as checked", ans.QuoteCheck)
 	}
-	la.by["Quick"] = verdict("affected", "high", real)
+	la.by["Quick"] = verdict("affected", "high", realSentence)
 	if ans, _ = a.svc.Research(a.ctx(), "it@acme.example", researchReq); ans.QuoteCheck != ai.QuoteTool {
 		t.Errorf("the whole sentence: %s", ans.QuoteCheck)
 	}
@@ -442,12 +442,14 @@ func TestResearch_FetchPageSendsAPlainGET(t *testing.T) {
 	var got []*http.Request
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
-		got = append(got, r.Clone(context.Background()))
+		got = append(got, r.Clone(r.Context()))
 		mu.Unlock()
 		_, _ = w.Write([]byte("<p>CVE-2099-81001: " + vendorSentence + "</p>"))
 	}))
 	t.Cleanup(srv.Close)
-	a.svc.SetPageServer(srv, func(context.Context, string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil })
+	a.svc.SetPageServer(srv, func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
+	})
 	turn := 0
 	a.fake.research = func(_ context.Context, _ ai.Profile, _ provider.Request) (provider.Response, error) {
 		if turn++; turn == 1 {

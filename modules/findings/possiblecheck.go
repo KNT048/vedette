@@ -1022,7 +1022,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 		}
 		*streak = 0
 		s.hold(keys, time.Time{}, "", "")
-		v, pages := researchVerdict(ans, okPages, recText)
+		v, pages := researchVerdict(ans, okPages)
 		if len(pages) > len(okPages) { // the research's own page: the vendor's when the record tags it so or it is on the vendor's host
 			markVendorPages(pages[len(okPages):], rec.Refs, id.Product)
 		}
@@ -1633,6 +1633,13 @@ func (s *Service) RejectProposal(ctx context.Context, key, user string) error {
 			st, err := scanStatement(tx.QueryRowContext(ctx, `SELECT `+statementColumns+` FROM fnd_line_statement WHERE statement_key = ?`, key))
 			if err != nil {
 				return fmt.Errorf("findings: reading a reading: %w", err)
+			}
+			// one rejection covers the line's other readings of the same verdict: an older one must not hold the finding open (P-12)
+			if side := statusSide(st.Status); side != "" {
+				if _, err := tx.ExecContext(ctx, `UPDATE fnd_line_statement SET rejected_by = ?, rejected_at = ? WHERE cve = ? AND product_key = ? AND line = ?
+					AND rejected_by IS NULL AND `+statusSideSQL+` = ?`, user, store.FormatTS(now), st.CVE, st.Product, st.Line, side); err != nil {
+					return fmt.Errorf("findings: rejecting the line's readings: %w", err)
+				}
 			}
 			if devices, err = devicesOfCVE(ctx, tx, st.CVE); err != nil {
 				return err

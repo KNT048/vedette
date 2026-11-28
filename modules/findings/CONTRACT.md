@@ -430,7 +430,14 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   affected and matches the device again; an exploited CVE only when named; rejecting the older reading does too). A newer "affected"
   with a checked quote opens at once (`TestResearch_AnAIFindingStaysOpenWhenTheAINowSaysNotAffected`). Questions the distribution's
   data or the device's own version decides (`distro_silent` reasons, `version_from_network`, `package_unknown`) are never researched,
-  whatever key they kept (`checkable` in `checkUnits` and Research deeper; `TestResearch_DistroPendingQuestionsAreNeverResearched`). A reading
+  whatever key they kept (`checkable` in `checkUnits` and Research deeper; `TestResearch_DistroPendingQuestionsAreNeverResearched`).
+  **One rejection is enough:** rejecting a reading also rejects the line's other readings of the same verdict side (affected or fixed;
+  not affected), and a new reading of that side from the same record and cited page (its text; a page only the AI's tools read: its
+  address) is stored already rejected (`storeStatement`, `statusSide`; `TestResearch_OneRejectCoversTheSameVerdict`); a changed record
+  or page is a new statement. **Where a quote was found is where it is credited:** a quote found in the box's digest is the CVE
+  record's (no host, "found in the CVE record") or the reference page the box fetched, never the page the AI cited
+  (`TestResearch_ADigestQuoteIsTheRecordsNotTheCitedPage`). **Bulk confirm** reads the exploited lists again inside its write
+  transaction (`TestReview_ExploitedIsReadInsideTheConfirmation`). A reading
   survives a re-read of the CVE record (a new stamp) while its quote is still in the new record text or on its cited page as the box
   fetches it then: only its record identity moves on (`rehashStatement`), no tokens (`TestResearch_SurvivesARecordReReadOnlyWithItsQuote`,
   `TestLineReading_ReadAgainWhenTheRecordOrThePageChanges`); a page only the AI's tools read is fetched by the box after 30 days and the

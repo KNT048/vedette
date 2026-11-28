@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { InfoTip } from '@/components/common/InfoTip'
+import { ListRow, RowList } from '@/components/common/ListParts'
 import { Card } from '@/components/common/Card'
 import { Notice } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
@@ -98,26 +99,23 @@ export default function ReadyMade({ items }: { items: Token[] }) {
               <p className="text-meta text-muted">{type === 'file' && ov?.smb_name ? t('token.ready.group.file.bodyNamed', { name: ov.smb_name }) : t(`token.ready.group.${type}.body`)}</p>
             </div>
             {blocked[type] ? <Blocked type={type} fix={fixFor(type, traps)} admin={admin} /> : null}
-            <ul aria-label={t(`token.ready.group.${type}.title`)} className="grid divide-y divide-rule">
+            <RowList label={t(`token.ready.group.${type}.title`)}>
               {TOKEN_PRESETS.filter((p) => p.type === type).map((p) => {
                 const tok = presetToken(p, items)
                 return (
-                  <li key={p.id} className="grid gap-2 py-2.5 first:pt-0 last:pb-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="grid min-w-0 gap-0.5">
-                        <span className="text-sm font-medium">{label(p)}</span>
-                        <span className="text-meta text-muted [overflow-wrap:anywhere]">{tok ? onLine(t, tok, ov?.smb_name ?? null) : offLine(t, p)}</span>
-                        {tok ? <span className="text-meta text-muted">{tok.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(tok.last_triggered_at), count: tok.triggers }) : t('token.never')}</span> : null}
-                      </div>
-                      <Switch checked={!!tok} disabled={!admin || pending !== null} title={needAdmin} aria-label={label(p)}
-                        onCheckedChange={(v) => { if (v) turnOn(p); else if (tok) { if (askFirst(tok)) setAsking({ p, tok }); else turnOff(p, tok) } }} />
-                    </div>
+                  <ListRow key={p.id} title={label(p)}
+                    meta={[
+                      tok ? onLine(t, tok, ov?.smb_name ?? null) : offLine(t, p),
+                      tok ? (tok.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(tok.last_triggered_at), count: tok.triggers }) : t('token.never')) : null,
+                    ]}
+                    actions={<Switch checked={!!tok} disabled={!admin || pending !== null} title={needAdmin} aria-label={label(p)}
+                      onCheckedChange={(v) => { if (v) turnOn(p); else if (tok) { if (askFirst(tok)) setAsking({ p, tok }); else turnOff(p, tok) } }} />}>
                     {tok && tok.type === 'url' ? <CodeBlock code={tok.value} label={t('token.ready.pasteIn', { where: tok.plant_at })} wrapOnPhone /> : null}
                     {tok && tok.type === 'credential' && operator ? <CodeBlock code={`user: ${tok.value}\npassword: ${tok.password ?? ''}`} label={t('token.ready.putIn', { where: tok.plant_at })} /> : null}
-                  </li>
+                  </ListRow>
                 )
               })}
-            </ul>
+            </RowList>
           </section>
         ))}
       </div>

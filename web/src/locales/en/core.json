@@ -121,6 +121,7 @@
     "twofaOn": "On",
     "twofaOff": "Off",
     "never": "Never signed in",
+    "lastSignIn": "Last sign-in {{when}}",
     "active": "Active",
     "disabled": "Disabled",
     "disable": "Disable",

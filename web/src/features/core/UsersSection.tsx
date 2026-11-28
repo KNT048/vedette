@@ -8,6 +8,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
+import { ListRow } from '@/components/common/ListParts'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, Loading, ErrorState } from '@/components/common/States'
 import { BusyNote } from '@/components/common/BusyNote'
@@ -244,35 +245,25 @@ export default function UsersSection() {
             <Select className="h-8 w-36" aria-label={t('users.roleOf', { name: u.name })} value={u.role} onChange={(e) => void patch(u, { role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>
           ))
           const actions = (u: AdminUser) => (
-            <div className="flex flex-wrap gap-1.5">
+            <>
+              {roleSelect(u)}
               {u.sso ? null : <Button size="sm" onClick={() => setAskReset(u)} aria-label={t('users.resetOf', { name: u.name })}>{t('users.reset')}</Button>}
               <Button size="sm" disabled={isMe(u) && !u.disabled} busy={m.patch.isPending && m.patch.variables?.id === u.id && m.patch.variables.disabled !== undefined} busyLabel={t('common:busy.saving')} title={isMe(u) && !u.disabled ? t('users.selfDisable') : undefined} onClick={() => void patch(u, { disabled: !u.disabled })} aria-label={t(u.disabled ? 'users.enableOf' : 'users.disableOf', { name: u.name })}>{u.disabled ? t('users.enable') : t('users.disable')}</Button>
               {u.twofa ? <Button size="sm" disabled={isMe(u)} title={isMe(u) ? t('users.resetTwofaSelf') : undefined} onClick={() => setAskReset2fa(u)} aria-label={t('users.resetTwofaOf', { name: u.name })}>{t('users.resetTwofa')}</Button> : null}
-            </div>
+            </>
           )
-          const nameCell = (u: AdminUser) => <div className="grid"><span className="font-medium">{u.name}{isMe(u) ? <span className="ml-2 text-caption font-normal text-muted">{t('users.you')}</span> : null}</span><span className="break-all text-meta text-muted">{u.email}</span></div>
           const twofa = (u: AdminUser) => (u.sso ? <Chip tone="accent">{t('users.sso')}</Chip> : u.twofa_method ? <Chip tone="ok">{t(`users.method.${u.twofa_method}`)}</Chip> : <Chip tone="off">{t('users.twofaOff')}</Chip>)
           const stateChip = (u: AdminUser) => (u.disabled ? <Chip tone="off">{t('users.disabled')}</Chip> : <Chip tone="ok">{t('users.active')}</Chip>)
-          const columns: ColumnDef<AdminUser>[] = [
-            { id: 'name', header: t('users.col.name'), accessorFn: (u) => u.name, cell: ({ row }) => nameCell(row.original) },
-            { id: 'role', header: t('users.col.role'), accessorFn: (u) => u.role, cell: ({ row }) => roleSelect(row.original) },
-            { id: 'twofa', header: t('users.col.twofa'), accessorFn: (u) => u.twofa_method ?? '', cell: ({ row }) => twofa(row.original) },
-            { id: 'last', header: t('users.col.last'), accessorFn: (u) => u.last_login ?? '', cell: ({ row }) => (row.original.last_login ? fmtRelative(row.original.last_login) : t('users.never')) },
-            { id: 'state', header: t('users.col.state'), accessorFn: (u) => Number(!!u.disabled), cell: ({ row }) => stateChip(row.original) },
-            { id: 'actions', header: t('users.col.actions'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => actions(row.original) },
-          ]
+          // what the list's search reads: the name, the email and the role
+          const searchCols: ColumnDef<AdminUser>[] = [{ id: 'text', accessorFn: (u) => [u.name, u.email, t(`common:role.${u.role}`)].join(' ') }]
           return (
-            <DataTable urlKey="users" data={items} columns={columns} caption={t('users.caption')} filterPlaceholder={t('users.filter')}
-              toolbar={<>
-                <span className="text-meta text-muted tabular-nums">{t('users.count', { count: items.filter((u) => !u.disabled).length })}</span>
-                <Button id="users-add" variant="primary" className="ml-auto" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>
-              </>}
-              mobileRow={(u) => (
-                <div className="grid gap-2">
-                  <div className="flex items-start justify-between gap-3">{nameCell(u)}{stateChip(u)}</div>
-                  <div className="flex flex-wrap items-center gap-2">{roleSelect(u)}{twofa(u)}<span className="text-caption text-muted">{u.last_login ? fmtRelative(u.last_login) : t('users.never')}</span></div>
-                  {actions(u)}
-                </div>
+            <DataTable urlKey="users" data={items} columns={searchCols} caption={t('users.caption')} filterPlaceholder={t('users.filter')}
+              summary={t('users.count', { count: items.filter((u) => !u.disabled).length })}
+              actions={<Button id="users-add" variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
+              list={(u) => (
+                <ListRow off={u.disabled} title={u.name} sub={isMe(u) ? t('users.you') : undefined} badges={<>{stateChip(u)}{twofa(u)}</>}
+                  meta={[u.email, u.last_login ? t('users.lastSignIn', { when: fmtRelative(u.last_login) }) : t('users.never')]}
+                  actions={actions(u)} />
               )} />
           )
         }}

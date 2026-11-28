@@ -2113,8 +2113,7 @@ describe('core: admin reset of two-step sign-in', () => {
     setUser('u-op', { twofa: true, twofa_method: 'email' })
     setUser('u-view', { twofa: true })
     renderApp('/settings/users')
-    const row = (await screen.findByRole('table', { name: 'Users' })).querySelectorAll('tbody tr')
-    const text = [...row].map((r) => r.textContent ?? '').join('|')
+    const text = (await screen.findByRole('list', { name: 'Users' })).textContent ?? ''
     expect(text).toContain('Email code')
     expect(text).toContain('Authenticator app')
     expect(screen.queryByRole('button', { name: 'Reset two-step sign-in of Director' })).toBeInTheDocument()

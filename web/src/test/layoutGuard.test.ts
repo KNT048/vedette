@@ -296,6 +296,34 @@ describe('layout guard: tabs, list toolbars, count lines, rows, row titles, row 
     })
   }
 
+  // The management lists (Trap IPs, tokens, ready-made decoys, the AI rules, memory, skills, hooks, knowledge, users) draw every row with
+  // ListRow: no <li> of their own, and the users list is a DataTable `list`, not a table of control columns.
+  const ROW_LISTS = (f: { file: string }) => f.file.startsWith('features/honeypot/') || f.file.startsWith('features/ai/harness/') || f.file === 'features/core/UsersSection.tsx'
+  it('row-lists: honeypot, AI settings and users rows are ListRows, not <li> or table rows of their own', () => {
+    const own = files.filter(ROW_LISTS).filter((f) => /<li\b[^>]*className=/.test(f.text)).map((f) => f.file)
+    expect(own, 'a row of these lists is a ListRow in a RowList (or DataTable `list`)').toEqual([])
+    const users = files.find((f) => f.file === 'features/core/UsersSection.tsx')!
+    expect(users.text).toMatch(/<DataTable\b[\s\S]*?\blist=\{/)
+    expect(users.text).not.toMatch(/mobileRow=/)
+    // a list with a search has its add action in the toolbar (DataTable `actions`), not a loose button above it
+    for (const file of ['features/honeypot/TrapIps.tsx', 'features/honeypot/Tokens.tsx', 'features/core/UsersSection.tsx']) {
+      expect(files.find((f) => f.file === file)!.text, file).toMatch(/<DataTable\b[\s\S]*?\bactions=\{/)
+    }
+    // the text of a row's actions is a word, not an icon alone
+    for (const f of files.filter((x) => x.file === 'features/honeypot/TrapIps.tsx' || x.file === 'features/honeypot/Tokens.tsx')) {
+      expect(f.text, f.file).not.toMatch(/<(?:Pencil|Trash2) \/>/)
+    }
+  })
+
+  // The line of help or state under a control is FieldHint (text-meta, muted, wrapping): no <p> of its own with those classes.
+  it('field-hint: hints on General and the Exposure address settings are FieldHint', () => {
+    for (const file of ['features/core/GeneralSection.tsx', 'features/exposure/BoxIpPanel.tsx']) {
+      const text = files.find((f) => f.file === file)!.text
+      expect(text, file).toMatch(/<FieldHint\b/)
+      expect(text.match(/<p\b[^>]*className="[^"]*\btext-meta (?:text-muted|text-warn)\b/g) ?? [], `${file}: a hint drawn by hand`).toEqual([])
+    }
+  })
+
   it('tab-heading: a tab panel does not open with a heading that repeats the tab name (Section `label`, not `title`)', () => {
     const found = files.flatMap((f) => tabHeadings(f.file, f.text).map((key) => ({ file: f.file, key })))
     const bad = found.filter((x) => !TAB_HEADING_ALLOWED.some((a) => a.file === x.file && a.key === x.key)).map((x) => `${x.file} ${x.key}`)

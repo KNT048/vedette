@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { FlaskConical, Plus, Trash2 } from 'lucide-react'
+import { FlaskConical, Plus } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -54,12 +54,11 @@ function Inner({ items }: { items: Token[] }) {
   }, [asked, setParams])
   // what the list's search reads: the name, the type and where the token is planted
   const searchCols: ColumnDef<Token>[] = [{ id: 'text', accessorFn: (k) => [k.name, t(`token.type.${k.type}`), k.plant_at].join(' ') }]
+  // the add action sits in the list's toolbar; with no token yet there is no list, so it stands in the empty state
+  const addButton = <Button variant="primary" disabled={!admin} onClick={() => setAdding(true)} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}><Plus />{t('token.form.new')}</Button>
   return (
     <div className="grid gap-4">
       <ReadyMade items={items} />
-      <div>
-        <Button disabled={!admin} onClick={() => setAdding(true)} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}><Plus />{t('token.form.new')}</Button>
-      </div>
       <Dialog open={adding} onOpenChange={setAdding}>
         {adding ? (
           <DialogContent title={t('token.form.new')}>
@@ -68,16 +67,16 @@ function Inner({ items }: { items: Token[] }) {
         ) : null}
       </Dialog>
 
-      {items.length === 0 ? <EmptyState title={t('token.emptyTitle')}>{t('token.emptyBody')}</EmptyState> : (
-        <DataTable urlKey="honey-tokens" caption={t('token.listLabel')} data={items} columns={searchCols} pageSize={25}
+      {items.length === 0 ? <EmptyState title={t('token.emptyTitle')} action={addButton}>{t('token.emptyBody')}</EmptyState> : (
+        <DataTable urlKey="honey-tokens" caption={t('token.listLabel')} data={items} columns={searchCols} pageSize={25} actions={addButton}
           list={(k) => (
             <ListRow title={k.name} badges={<><Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</>}
               meta={[t('token.plantedAt', { where: k.plant_at }), k.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(k.last_triggered_at), count: k.triggers }) : t('token.never')]}
               actions={<>
                   <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === k.id} busyLabel={t('common:busy.testing')} title={operator ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('token.testLabel', { name: k.name })}
                     onClick={() => test.mutate(k.id, { onSuccess: (hit) => testAlertToast(t, t('token.testToast', { name: k.name }), hit), onError: (e) => toast.error(errMsg(e)) })}><FlaskConical />{t('token.test')}</Button>
-                  <Button size="sm" variant="ghost" disabled={!admin || del.isPending} busy={del.isPending && del.variables === k.id} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('token.deleteLabel', { name: k.name })}
-                    onClick={() => del.mutate(k.id, { onSuccess: () => toast.success(t('token.deleted', { name: k.name })), onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
+                  <Button size="sm" disabled={!admin || del.isPending} busy={del.isPending && del.variables === k.id} busyLabel={t('common:busy.deleting')} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('token.deleteLabel', { name: k.name })}
+                    onClick={() => del.mutate(k.id, { onSuccess: () => toast.success(t('token.deleted', { name: k.name })), onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
                 </>}>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="grid content-start gap-2">

@@ -12,7 +12,7 @@ import (
 // The closing gate in shadow. Each step of the matcher that ends a pair as "not affected" (outNotAffected) or "ruled out"
 // (outRuledOut) also says what the gate would read from it (gateShadow): the proofs the step's data states, with their scope, and the
 // blockers. The coverage of a pass and the closing of a finding that went away ask Gate with them and record its answer beside their
-// own (pairState.gate, Coverage.GateWould, Coverage.GateGone). Nothing here changes a finding, a question or a count of the coverage.
+// own (pairState.gate, covers.gate: in memory only). Nothing here changes a finding, a question or a count of the coverage.
 
 // The producers: the matcher step a shadow comes from.
 const (

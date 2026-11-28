@@ -398,11 +398,12 @@ func (r Span) contains(scheme, v string) Tri {
 	return Yes
 }
 
-// compareIn orders a and b in scheme; false when either cannot be read in it.
+// compareIn orders a and b in scheme; false when either cannot be read in it. The generic scheme reads build and revision tails too
+// (compareBound): two builds of one release are not equal, and a tail it cannot order is unknown.
 func compareIn(scheme, a, b string) (int, bool) {
 	switch scheme {
 	case SchemeGeneric:
-		return CompareVersions(a, b)
+		return compareBound(a, b)
 	case SchemeDeb:
 		c, err := debver.Compare(a, b)
 		return c, err == nil

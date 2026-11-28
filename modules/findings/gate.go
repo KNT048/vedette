@@ -127,7 +127,7 @@ func allowedProof(p Proof, exploited bool) (bool, GateCause) {
 			}
 		}
 	case ProofBeforeIntroduced: // versions below the first affected release, stated by the format's own semantics
-		if f == FormatCVE5 && !p.Src.DefaultUnaffected || vs.Every || len(vs.Exact) > 0 || len(vs.Ranges) == 0 {
+		if f == FormatCVE5 && !p.Src.DefaultUnaffected || vs.Every || vs.AllExceptListed || len(vs.Exact) > 0 || len(vs.Ranges) == 0 {
 			return false, CauseKindNotAllowed
 		}
 		for _, r := range vs.Ranges {

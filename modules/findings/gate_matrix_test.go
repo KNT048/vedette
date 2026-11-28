@@ -244,6 +244,19 @@ func (r *matrixRun) check(c mCase) {
 	}
 }
 
+// pairs is every (i, x) of i in [0, n) and x in xs, as an iterator of two values.
+func pairs(n int, xs []int) func(yield func(int, int) bool) {
+	return func(yield func(int, int) bool) {
+		for i := range n {
+			for _, x := range xs {
+				if !yield(i, x) {
+					return
+				}
+			}
+		}
+	}
+}
+
 func mInstall(io int, sh int) Installation {
 	s := mShapes[sh]
 	return Installation{Device: "d", Line: "l", InstallKey: "A", Product: []ProductRef{mProduct}, Origin: mInstallOrigins[io],
@@ -308,11 +321,11 @@ func TestGateMatrix_LayerA(t *testing.T) {
 		}
 	}
 	full := r.cases
-	// Pairwise: format × kind × version set × exploited × the CVE record's defaultStatus, on upstream 2.5 (shape 4), plus formats
-	// that are not declared (I2).
+	// Pairwise: format × kind × version set × exploited × the CVE record's defaultStatus, on upstream 2.5 (shape 4) and 0.9 (shape 0,
+	// below every start: what a before-introduced span contains), plus formats that are not declared (I2).
 	formats := []Format{FormatCVE5, FormatNVDCPE, FormatOSV, FormatCSAF, FormatOpenVEX, FormatDistroTracker, FormatMSRelease, FormatLineSource, FormatPerson, 0, 200}
 	for _, f := range formats {
-		for k := range mKindOf {
+		for k, sh := range pairs(len(mKindOf), []int{4, 0}) {
 			for vs := range mVersionSets {
 				for _, exploited := range []bool{false, true} {
 					for _, def := range []bool{false, true} {
@@ -327,9 +340,9 @@ func TestGateMatrix_LayerA(t *testing.T) {
 						}
 						allowed := shape && oFormatKind[f][k] && (!exploited || k != mkBefore && k != mkHardware)
 						r.check(mCase{name: func() string {
-							return fmt.Sprintf("format %s k%d vs%d exploited=%v default=%v", f, k, vs, exploited, def)
-						}, in: mInstall(0, 4),
-							ev: []Proof{p}, exploited: exploited, want: oracle(k, oVersion[vs][4], allowed, false, false, false)})
+							return fmt.Sprintf("format %s k%d vs%d sh%d exploited=%v default=%v", f, k, vs, sh, exploited, def)
+						}, in: mInstall(0, sh),
+							ev: []Proof{p}, exploited: exploited, want: oracle(k, oVersion[vs][sh], allowed, false, false, false)})
 					}
 				}
 			}
@@ -455,5 +468,54 @@ func TestGate_NoModelFormat(t *testing.T) {
 		default:
 			t.Errorf("format %d (%s) is not one of the published standards or a person", f, f)
 		}
+	}
+}
+
+// A scope's versions are read strictly: a build or revision tail the order ignores (CompareVersions) does not make two versions equal,
+// so a fix at one build never contains an earlier build of the same release.
+func TestGate_VersionTailsReadStrictly(t *testing.T) {
+	t.Parallel()
+	in := mInstall(0, 4)
+	for _, c := range []struct {
+		name    string
+		install string
+		vs      VersionSet
+		kind    ProofKind
+	}{
+		{"fixed at a later build of the release", "13.1-48.47", VersionSet{Scheme: SchemeGeneric, Ranges: []Span{{From: "13.1-49.15"}}}, ProofFixedAt},
+		{"stated unaffected for another build", "7.0.0 build 1300", VersionSet{Scheme: SchemeGeneric, Exact: []string{"7.0.0 build 1234"}}, ProofStatedUnaffected},
+		{"fixed at a build, installation states no build", "13.1", VersionSet{Scheme: SchemeGeneric, Ranges: []Span{{From: "13.1-49.15"}}}, ProofFixedAt},
+	} {
+		in.Version = VersionValue{Scheme: SchemeGeneric, Raw: c.install}
+		p := Proof{Kind: c.kind, CVE: mCVE, Src: ProofSource{Format: FormatCVE5, Ref: "r"}, Says: SaysNotAffected,
+			Scope: Scope{Product: mProduct, Origin: OriginSet{Upstream: true}, Versions: c.vs, Platform: PlatformSet{Any: true}}}
+		if d := Gate(mCVE, in, []Proof{p}, nil, false); d.State == GateNotAffected {
+			t.Errorf("%s: %s closed", c.name, c.install)
+		}
+	}
+}
+
+// A before-introduced proof is a span below the introduction: "every version but those below it" states the opposite and never
+// closes as an introduction, in any format.
+func TestGate_BeforeIntroducedIsASpanBelowTheIntroduction(t *testing.T) {
+	t.Parallel()
+	in := mInstall(0, 4) // upstream 2.5
+	for _, f := range []Format{FormatOSV, FormatCVE5} {
+		p := Proof{Kind: ProofBeforeIntroduced, CVE: mCVE, Src: ProofSource{Format: f, Ref: "r", DefaultUnaffected: true}, Says: SaysNotAffected,
+			Scope: Scope{Product: mProduct, Origin: OriginSet{Upstream: true}, Platform: PlatformSet{Any: true},
+				Versions: VersionSet{Scheme: SchemeGeneric, Ranges: []Span{{To: "1.0"}}, AllExceptListed: true}}}
+		if d := Gate(mCVE, in, []Proof{p}, nil, false); d.State == GateNotAffected {
+			t.Errorf("%s: 2.5 closed as older than an introduction at 1.0", f)
+		}
+	}
+}
+
+// A statement with no direction is neither proof nor conflict: it never closes.
+func TestGate_StatementWithoutDirectionNeverCloses(t *testing.T) {
+	t.Parallel()
+	p := mProof(mkStated, FormatCVE5, Scope{Product: mProduct, Origin: OriginSet{Any: true}, Versions: VersionSet{Every: true}, Platform: PlatformSet{Any: true}})
+	p.Says = 0
+	if d := Gate(mCVE, mInstall(0, 4), []Proof{p}, nil, false); d.State != GateUndecided || d.Cause != CauseNoProof {
+		t.Errorf("gate %s (%s), want undecided (%s)", d.State, d.Cause, CauseNoProof)
 	}
 }

@@ -796,7 +796,7 @@ export function usePossibleCheckWatch() {
 
 /** The rows of a possible list, those reported only for an older build and those waiting for the distribution, each listed apart. */
 function splitOlder(rows: PossibleRow[]): [PossibleRow[], PossibleRow[], PossibleRow[]] {
-  const distro = (r: PossibleRow) => r.cause === 'distro_silent'
+  const distro = (r: PossibleRow) => r.distro_pending
   return [rows.filter((r) => !r.older_build && !distro(r)), rows.filter((r) => r.older_build && !distro(r)), rows.filter(distro)]
 }
 

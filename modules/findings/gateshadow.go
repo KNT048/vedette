@@ -57,8 +57,49 @@ type gateShadow struct {
 	ver      string
 }
 
-// shadowStop is a step the gate takes no proof from: whatever it decides, the gate leaves the pair undecided (no_proof).
-func shadowStop(producer string) *gateShadow { return &gateShadow{producer: producer} }
+// ShadowGate switches the closing gate's shadow on or off for the next passes: with it on, each closing step records what the gate
+// would read from it, and the pass keeps the gate's answers in memory beside its counts (for measurement runs; nothing reads them to
+// decide). Off by default, and then no shadow work is done.
+func (s *Service) ShadowGate(on bool) { s.gateShadow.Store(on) }
+
+// shadowGate makes every row of the device match record the gate's shadow.
+func (d *devMatch) shadowGate() {
+	for i := range d.infos {
+		d.infos[i].shadow = true
+	}
+	for _, r := range d.own {
+		if r != nil {
+			r.info.shadow = true
+		}
+	}
+}
+
+// The shadows of the steps that state nothing are the same for every pair.
+var stopShadows = func() map[string]*gateShadow {
+	m := map[string]*gateShadow{}
+	for _, p := range []string{prodOtherSeries, prodPlatformList, prodOthersOnly, prodRuledOutNoProof, prodOSList, prodWindowsSibling, prodEveryReading} {
+		m[p] = &gateShadow{producer: p}
+	}
+	m[prodEdgeLegacy] = &gateShadow{producer: prodEdgeLegacy, identity: true}
+	return m
+}()
+
+// shadowStop is a step the gate takes no proof from: whatever it decides, the gate leaves the pair undecided (no_proof). nil when the
+// row records no shadow.
+func shadowStop(in swInfo, producer string) *gateShadow {
+	if !in.shadow {
+		return nil
+	}
+	return stopShadows[producer]
+}
+
+// shadowIdentity is a step that is an identity rule (not a decision about this product); nil when the row records no shadow.
+func shadowIdentity(in swInfo, producer string) *gateShadow {
+	if !in.shadow {
+		return nil
+	}
+	return stopShadows[producer]
+}
 
 // distroID is the distribution whose data judges a packaged row and the device's release as it names it ("" when none).
 func distroID(in swInfo) (string, string) {
@@ -78,6 +119,9 @@ func distroScheme(distro string) string {
 // shadowDistro is the distribution's answer d (fixed release or not affected) as a proof: the package of the distribution's own build
 // of the release (and pocket) it speaks for.
 func shadowDistro(in swInfo, v Vuln, d distroAnswer) *gateShadow {
+	if !in.shadow {
+		return nil
+	}
 	distro, _ := distroID(in)
 	b := Origin{Kind: OriginDistro, Distro: distro, Release: cmp.Or(d.from, d.release)}
 	if d.pro {
@@ -128,6 +172,9 @@ func rowsFormat(origin string) Format {
 
 // shadowPlatformFixed is the platform list's distribution step: the distribution's fix, taken as read.
 func shadowPlatformFixed(v Vuln, in swInfo) *gateShadow {
+	if !in.shadow {
+		return nil
+	}
 	distro, rel := distroID(in)
 	ver := cmp.Or(strings.TrimSpace(in.pkgVer), strings.TrimSpace(in.personPkg))
 	p := asRead(prodPlatformFixed, ProofFixedAt, FormatDistroTracker, v, in, ver)
@@ -138,6 +185,9 @@ func shadowPlatformFixed(v Vuln, in swInfo) *gateShadow {
 
 // shadowSchemed is the vendor's own verdict: a release-line statement (lr, when it decides) or the vendor's rows read in its scheme.
 func shadowSchemed(v Vuln, in swInfo, lr lineRead, sr schemeRead) *gateShadow {
+	if !in.shadow {
+		return nil
+	}
 	if lr.decides() {
 		return shadowLine(v, in, lr)
 	}
@@ -193,14 +243,16 @@ func shadowLine(v Vuln, in swInfo, lr lineRead) *gateShadow {
 // sibling release's, every reading of the record, a partial record's fix, or the rows themselves (rangeProofs).
 func shadowRanges(in swInfo, v Vuln, key []identity, proof proofKind, via, agreed bool) *gateShadow {
 	switch {
+	case !in.shadow:
+		return nil
 	case agreed:
-		return shadowStop(prodEveryReading)
+		return shadowStop(in, prodEveryReading)
 	case proof == proofOS:
-		return shadowStop(prodOSList)
+		return shadowStop(in, prodOSList)
 	case proof == proofRelease:
 		return &gateShadow{producer: prodWindowsRelease, proofs: []Proof{asRead(prodWindowsRelease, ProofFixedAt, FormatMSRelease, v, in, in.ver)}}
 	case via:
-		return shadowStop(prodWindowsSibling)
+		return shadowStop(in, prodWindowsSibling)
 	case v.RangesFrom == RangesCVEOrgPartial:
 		return &gateShadow{producer: prodPastRecordFix, proofs: []Proof{asRead(prodPastRecordFix, ProofFixedAt, FormatCVE5, v, in, in.ver)}}
 	}
@@ -475,7 +527,7 @@ func sortedGateCounts(m map[gateCount]int) []gateCount {
 	}
 	slices.SortFunc(out, func(a, b gateCount) int {
 		return cmp.Or(cmp.Compare(b.n, a.n), strings.Compare(a.producer, b.producer), strings.Compare(a.would, b.would),
-			strings.Compare(a.cause, b.cause), strings.Compare(a.by, b.by), cmp.Compare(exploitedRank(a.exploited), exploitedRank(b.exploited)))
+			strings.Compare(a.cause, b.cause), strings.Compare(a.by, b.by), cmp.Compare(exploitedRank(b.exploited), exploitedRank(a.exploited))) // exploited first
 	})
 	return out
 }

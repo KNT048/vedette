@@ -182,9 +182,13 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	defer c.mu.Unlock()
 	maps.DeleteFunc(c.m, func(id string, _ deviceCover) bool { return !live[id] })
 	out := Coverage{At: at, OutsideWindow: outside, Decided: []CoverageSource{}, Possible: []CoverageCause{}, Identity: []CoverageMethod{}}
-	decided, possible, identity, gate := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}, map[gateCount]int{}
+	decided, possible, identity := map[string][2]int{}, map[causeDetail]int{}, map[string]int{}
+	var gate map[gateCount]int // nil when the shadow is off
 	for _, d := range c.m {
 		for k, n := range d.gate {
+			if gate == nil {
+				gate = map[gateCount]int{}
+			}
 			gate[k] += n
 		}
 		out.Devices++
@@ -229,7 +233,10 @@ func (c *covers) pass(live map[string]bool, at time.Time, outside int) {
 	for _, m := range IdentityMethods {
 		out.Identity = append(out.Identity, CoverageMethod{Method: m, Lines: identity[m]})
 	}
-	c.gate = gateReport{would: sortedGateCounts(gate), gone: c.takeGone()}
+	c.gate = gateReport{}
+	if gate != nil || c.gone != nil {
+		c.gate = gateReport{would: sortedGateCounts(gate), gone: c.takeGone()}
+	}
 	c.last = &out
 }
 
@@ -364,11 +371,11 @@ func coverOf(dm *devMatch, rows deviceRows, in causeInputs) deviceCover {
 
 // pairStates is the state of every pair of device dm.a, by lineKey, and the lines (stored id) with a related pair.
 func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairState, map[string]bool) {
-	related := map[string]string{}      // lineKey of every pair a row of the line reached -> its unnamed class, if nothing else decides it
-	proofs := map[string]string{}       // lineKey -> the source of the proof of "not affected"
-	ruledOut := map[string]string{}     // lineKey -> the source of the rows that name another product (no proof)
-	shadows := map[string]*pairShadow{} // lineKey -> what the closing gate reads from the steps that decided it (Match.gate)
-	linked := map[string]bool{}         // stored line id -> the line has a related pair
+	related := map[string]string{}     // lineKey of every pair a row of the line reached -> its unnamed class, if nothing else decides it
+	proofs := map[string]string{}      // lineKey -> the source of the proof of "not affected"
+	ruledOut := map[string]string{}    // lineKey -> the source of the rows that name another product (no proof)
+	var shadows map[string]*pairShadow // lineKey -> what the closing gate reads from the steps that decided it (Match.gate); nil when off
+	linked := map[string]bool{}        // stored line id -> the line has a related pair
 	seen := make(map[string]bool, len(dm.vulns))
 	for vi, v := range dm.vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
@@ -386,6 +393,9 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 			}
 			linked[line] = true
 			if o.gate != nil && (o.out == outNotAffected || o.out == outRuledOut) {
+				if shadows == nil {
+					shadows = map[string]*pairShadow{}
+				}
 				sh := shadows[key]
 				if sh == nil {
 					sh = &pairShadow{row: o.row, v: vi}
@@ -513,9 +523,12 @@ func (sh *pairShadow) on(dm *devMatch, st pairState) pairState {
 
 // gateCounts counts the gate's answers in shadow of the pairs of state.
 func gateCounts(state map[string]pairState) map[gateCount]int {
-	out := map[gateCount]int{}
+	var out map[gateCount]int // nil when no pair has one (the shadow is off)
 	for _, st := range state {
 		if st.gate != "" {
+			if out == nil {
+				out = map[gateCount]int{}
+			}
 			out[gateCount{by: st.by, producer: st.gateBy, would: st.gate, cause: st.gateCause, exploited: st.exploited}]++
 		}
 	}

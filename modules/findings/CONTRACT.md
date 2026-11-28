@@ -170,17 +170,20 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   release's own numbers (a CPE update "update45" or "-", a record's "8u45", a name's "Java 8 Update 491" beside "8.0.4910.10"); a
   row neither form reads, an update ANY beside updates, or another numbering ("1.8.0" against "8") leaves the CVE as it was. Each
   format that lists the product (the CVE record, NVD) must list the installation's line and place it past its newest release; a line
-  no row is on stays undecided (`unlistedLine`), a release at or below a listed one is never closed by it. The closing note names the
+  no row is on stays undecided (`unlistedLine`), a release at or below a listed one is never closed by it, and the installation must
+  differ from the newest listed release of its line only in its last number (`sameBranch`: not another build branch,
+  "10.0.19045.10" beside "10.0.17763.100", nor another count of numbers). A distribution's package is never read by it (`pkgBuilt`). The closing note names the
   line and the release; the gate's proof is `after_last_affected`, scoped to the product, that line and the releases above it.
   `TestMatch_ExactListIsTheLastAffectedReleaseOfItsLine`, `TestGate_AfterLastAffected`, `TestGateShadow_ExactRowIsNoFixOnItsOwn`.
   The same list read for a line it does not name (`afterLastListedLine`): a release on a line strictly above every listed line is not
   affected when every format that may prove lists at least two lines, and every listed release and the installed version are written
   in one numbering (same form, as many numbers: not "160.0" beside "152.0.3", nor "8 Update 491" beside "1.7.0 update 80"); one listed
-  line (the vendor may have assessed only that train), a line between listed lines or below them, and every condition above stay as
-  they were. The gate's proof is `after_last_listed_line` (CVE5 or NVD CPE), scoped to the product and the installed line, and it
+  line (the vendor may have assessed only that train), a line between listed lines or below them, a row of another edition or system
+  that reaches the installed line or a newer one (`elsewhereBelow`), and every condition above stay as they were. The gate's proof is `after_last_listed_line` (CVE5 or NVD CPE), scoped to the product and the installed line, and it
   never closes an exploited CVE: such a pair stays undecided as `newer_line_exploited` for a person. `TestMatch_NewerThanEveryListedLine`,
   `TestGate_AfterLastListedLine`. A CVE only NVD's list ties to the line (`viaNVD`, where an exact row alone says nothing) is reached and
-  closed by these two readings too (`exactListCloses`), never by anything else an exact row says. `TestMatch_ExactListClosesOnTheNVDPath`.
+  closed by these two readings too (`exactListCloses`), never by anything else an exact row says. `TestMatch_ExactListClosesOnTheNVDPath`, `TestMatch_ExactListClosesOnlyTheListsOwnLineAndBuild`,
+  `TestMatch_ExactListAFixBuildListedAsAffectedErrsTowardAffected`.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen

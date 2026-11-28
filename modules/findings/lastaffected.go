@@ -27,7 +27,10 @@ import (
 //     installation's numbering ("1.8.0" against "8") make the list read nothing for the line;
 //   - each format that lists the product (the CVE record, NVD's configuration) lists a release on the installation's line and the
 //     installation is strictly later than every one of them: a line no row is on is unlisted (unlistedLine), and a release at or below
-//     a listed one stays as it was.
+//     a listed one stays as it was;
+//   - the installation differs from the newest listed release of its line only in its last number (sameBranch): "10.0.19045.10" is on
+//     another build branch than "10.0.17763.100", and "4.2.9.1" is written in another count of numbers than "4.2.9";
+//   - the installation is the vendor's own build: a distribution's package (pkgBuilt) is read by its distribution's word only.
 // The proof is scoped to the product, the line and the releases above the newest listed one (ProofAfterLastAffected).
 
 // releaseForm is how a version is written.
@@ -214,13 +217,15 @@ type exactList struct {
 	ip, iu   release
 	ipOK     bool
 	iuOK     bool
+	// elsewhere: the product's rows of another edition, system or architecture than the installation's (set aside for it)
+	elsewhere []Affected
 }
 
 // exactListOf reads the rows of v that name the line by its own names (never one a model chose) as a list of exact releases; ok is
 // false when a row is not one (a range, a row neither form reads), is not the vendor's own word, was lost, states a fix above it or
 // what every unlisted version is, or when no row names the line.
 func exactListOf(in swInfo, v Vuln, key []identity) (exactList, bool) {
-	if !versionKnown(in.ver) {
+	if !versionKnown(in.ver) || in.pkgBuilt() { // a distribution's build: its version is not the upstream release the list speaks of
 		return exactList{}, false
 	}
 	own := in.own()
@@ -239,6 +244,7 @@ func exactListOf(in swInfo, v Vuln, key []identity) (exactList, bool) {
 			continue
 		}
 		if _, ok := in.install.judge(c, in.cpe, in.hasCPE, sib); !ok { // a row of another edition, system or architecture
+			l.elsewhere = append(l.elsewhere, af)
 			continue
 		}
 		if af.Lost || af.VendorList || af.LineFix != "" || !af.VendorCNA {
@@ -321,12 +327,29 @@ func afterLastAffected(in swInfo, v Vuln, key []identity) ([]lastAffected, bool)
 		if last < 0 || inst.compare(rels[last]) <= 0 {
 			return false // no release of the installation's line (unlisted, as before), or it is at or below the last affected one
 		}
+		if !rels[last].sameBranch(inst) {
+			return false // another build branch of the line ("10.0.19045.10" beside "10.0.17763.100"), or another count of numbers
+		}
 		if slices.ContainsFunc(rows, func(x listedRow) bool { return x.proof }) { // the record's rows beside NVD's only say affected
 			out = append(out, lastAffected{format: fm, product: rows[last].ref, ref: rows[last].af.CPE, line: inst.line(), last: rels[last].text(), installed: inst.text()})
 		}
 		return true
 	})
 	return out, ok && len(out) > 0
+}
+
+// sameBranch says o is written as r is and differs from it only in its last number: a dotted version with as many numbers and the same
+// numbers before the last ("4.2.10" of "4.2.9", "117.0.2045.55" of "117.0.2045.47"; not "10.0.19045.10" of "10.0.17763.100" nor
+// "4.2.9.1" of "4.2.9"), or a release with its update on the same line (the update is its last number).
+func (r release) sameBranch(o release) bool {
+	if r.form != o.form {
+		return false
+	}
+	if r.form == formUpdate {
+		return r.line() == o.line()
+	}
+	n := len(r.rel)
+	return n >= 3 && len(o.rel) == n && slices.Equal(r.rel[:n-1], o.rel[:n-1])
 }
 
 // lineNumbers is the numbers that name r's release line ("2.4" of "2.4.49", "1.8" of "1.8.0 update 45").
@@ -349,7 +372,8 @@ func (r release) lineNumbers() []uint64 {
 //     beside "148.0.7778.216"; not "160.0" beside "152.0.3", nor "8 Update 491" beside "1.7.0 update 80"); a row that may name its whole
 //     line ("115.34.0") is read as that line;
 //   - the installation's line is strictly above every listed line, in numbers;
-//   - each format that may prove lists at least two lines: a list of one line may be the only train the vendor assessed.
+//   - each format that may prove lists at least two lines: a list of one line may be the only train the vendor assessed;
+//   - no row of the product for another edition, system or architecture reaches the installation's line or a newer one (elsewhereBelow).
 //
 // The proof is scoped to the product and the installation's line (ProofAfterLastListedLine); the gate never lets it close an exploited
 // CVE by itself.
@@ -374,6 +398,9 @@ func afterLastListedLine(in swInfo, v Vuln, key []identity) ([]lastAffected, boo
 				newest = i
 			}
 		}
+		if !l.elsewhereBelow(inst) {
+			return false // a row of another edition or system reaches this line: the flaw was not fixed before it began
+		}
 		proves := slices.ContainsFunc(rows, func(x listedRow) bool { return x.proof })
 		if !proves {
 			return true // the record's rows beside NVD's only say affected: they agree, NVD's rows prove
@@ -392,6 +419,23 @@ func afterLastListedLine(in swInfo, v Vuln, key []identity) ([]lastAffected, boo
 		return true
 	})
 	return out, ok && len(out) > 0
+}
+
+// elsewhereBelow says every row of the product for another edition, system or architecture (exactList.elsewhere) is one exact release
+// written as inst is (same form, as many numbers) on a line strictly below inst's. A row that reaches the installation's line or a newer
+// one shows the flaw was not fixed before that line began, whatever build it names; a row that does not read that way may.
+func (l exactList) elsewhereBelow(inst release) bool {
+	for _, af := range l.elsewhere {
+		p, u, pOK, uOK := listedRelease(af)
+		r, ok := p, pOK
+		if inst.form == formUpdate {
+			r, ok = u, uOK
+		}
+		if !ok || len(r.rel) != len(inst.rel) || (version{rel: inst.lineNumbers()}).compare(version{rel: r.lineNumbers()}) <= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // listedRow is one exact row of the product as exactListOf reads it.

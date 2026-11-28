@@ -87,6 +87,7 @@
 | GET/POST, PUT/DELETE | `/ai/rules`, `/ai/rules/{id}` | admin |
 | GET/POST, PUT/DELETE | `/ai/memory`, `/ai/memory/{id}`; PUT `/ai/memory/settings`; POST `/ai/memory/suggestions/{id}/accept\|reject` | admin |
 | GET, PUT | `/ai/skills`, `/ai/skills/{id}` | admin |
+| GET, PUT | `/ai/ask/connections`, `/ai/ask/connections/{id}` | admin |
 | GET/POST, PUT/DELETE | `/ai/knowledge`, `/ai/knowledge/{id}`; PUT `/ai/knowledge/settings` | admin |
 | GET, POST, PUT/DELETE | `/ai/hooks`, `/ai/hooks/{id}`; PUT `/ai/hooks/builtin/{id}`; POST `/ai/hooks/test` | admin |
 

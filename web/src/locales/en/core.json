@@ -517,6 +517,7 @@
       "ai.activity_pruned": "Delete old AI activity log lines",
       "ai.assign": "Choose AI profiles for jobs",
       "ai.config": "Change AI settings",
+      "ai.ask.connection": "Allow or forbid Ask to use a connection outside the network",
       "ai.hook.add": "Add AI hook",
       "ai.hook.builtin": "Turn a built-in AI hook on or off",
       "ai.hook.edit": "Change AI hook",

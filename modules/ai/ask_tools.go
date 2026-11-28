@@ -776,10 +776,32 @@ const (
 	connMaxValueText = 4000 // all the values of one tool, as listed in the data block
 )
 
+// schemaNumberKeywords are the kept keywords whose value is a number.
+var schemaNumberKeywords = []string{"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minLength", "maxLength", "minItems", "maxItems"}
+
+var schemaTypes = map[string]bool{"string": true, "number": true, "integer": true, "boolean": true, "object": true, "array": true, "null": true}
+
+// schemaType reports whether v is a JSON Schema type: one type name, or a non-empty list of them.
+func schemaType(v any) bool {
+	switch x := v.(type) {
+	case string:
+		return schemaTypes[x]
+	case []any:
+		for _, e := range x {
+			if s, ok := e.(string); !ok || !schemaTypes[s] {
+				return false
+			}
+		}
+		return len(x) > 0
+	}
+	return false
+}
+
 // connToolSchema checks the schema a connection's server wrote and splits it (tool poisoning, OWASP LLM01): the shape the model is
 // offered (types, argument names, required, bounds, no enum value and no free text: stripSchemaText), and the values it allows, as
 // "argument: one of ..." lines for the fenced data block. ok is false, and the tool is not offered, when the schema does not hold up: not
-// one JSON object schema of type object, an argument name that is not an identifier, a value with a control or invisible character or
+// one JSON object schema of type object, a type that is not a JSON Schema type, a bound or length that is not a number, an argument
+// name that is not an identifier, a value with a control or invisible character or
 // longer than 200 characters, more than 64 values, deeper than 6 levels, or values longer than 4,000 characters in all.
 func connToolSchema(raw json.RawMessage) (shape json.RawMessage, values []string, ok bool) {
 	var root map[string]any
@@ -796,6 +818,17 @@ func connToolSchema(raw json.RawMessage) (shape json.RawMessage, values []string
 		}
 		if depth > connMaxDepth {
 			return false
+		}
+		// the kept keywords other than enum reach the tool definition as written, so they may hold no free text
+		if ty, has := m["type"]; has && !schemaType(ty) {
+			return false
+		}
+		for _, k := range schemaNumberKeywords {
+			if x, has := m[k]; has {
+				if _, isNum := x.(float64); !isNum {
+					return false
+				}
+			}
 		}
 		if e, has := m["enum"]; has {
 			l, isList := e.([]any)

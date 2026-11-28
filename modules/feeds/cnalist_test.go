@@ -106,6 +106,23 @@ func TestOwnCNA_TheCNAListNamesTheOrganization(t *testing.T) {
 	if ownCNAIn(names, "kitecna", "Kite Corporation", orgsOf(coordinator)["kitecna"]) {
 		t.Error("a CNA whose scope takes the reports of no other CNA was read as the vendor by its organization name")
 	}
+	// the list words that scope in many ways: each one defers to other CNAs, so each one is a coordinator's
+	for i, scope := range []string{
+		"Kite products and vulnerabilities in third-party products discovered by Kite, unless covered by the scope of another CNA.",
+		"Kite products, or third-party products Kite researches, unless covered by another CNA’s scope.",
+		"Kite products and third-party software identified by Kite that are outside the scope of another CNA.",
+		"Kite issues and vulnerabilities discovered by Kite in third-party products, unless covered under the scope of another CNA.",
+		"Any Kite developed product and not under the scope of another CNA.",
+		"Open source projects affecting Kite software that are not covered by a more specific CNA.",
+	} {
+		l, err := parseCNAList(strings.NewReader(string(cnaListOf(t, [4]string{"kitecna", "Kite Corporation", scope, "Vendor"}))), 1<<20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ownCNAIn(names, "kitecna", "Kite Corporation", orgsOf(l)["kitecna"]) {
+			t.Errorf("scope %d: a CNA whose scope defers to other CNAs was read as the vendor by its organization name: %q", i, scope)
+		}
+	}
 	// without the list (missing, stale): the rules of before
 	if ownCNAIn(names, "zz", "Zenith Widgets", "") || !ownCNAIn(names, "zz", "ZZ Inc", "") {
 		t.Error("without a CNA list the short-name rule must stand alone")

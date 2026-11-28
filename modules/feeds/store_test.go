@@ -426,4 +426,13 @@ func TestMatchStampChangesWithTheData(t *testing.T) {
 	if b, _ := s.MatchStamp(t.Context()); err != nil || b == a {
 		t.Fatalf("a pull of nvd-kev did not move the stamp: %v", err)
 	}
+	// the CNA list decides whose "unaffected" a matcher reads (trustRow): its pull moves the stamp too
+	a, _ = s.MatchStamp(t.Context())
+	err = db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_fetch = '2026-11-13T09:00:00.000Z' WHERE id = 'cve-cna-list'`)
+		return err
+	})
+	if b, _ := s.MatchStamp(t.Context()); err != nil || b == a {
+		t.Fatalf("a pull of the CNA list did not move the stamp: %v", err)
+	}
 }

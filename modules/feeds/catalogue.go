@@ -1179,9 +1179,10 @@ func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error)
 }
 
 // matchStampFeeds are the feeds whose pulls may change what the match pass reads: the exploited lists, the catalogue's records, the
-// distributions' data, EPSS, the scan templates, the public-exploit indexes and the vendors' exploitation claims (their signals
-// change no match yet, but the urgency read of the findings keys on the same stamp).
-const matchStampFeeds = `'alpine-osv', 'cisa-kev', 'cisco-psirt', 'cve-org', 'debian-tracker', 'epss-all', 'exploit-db', 'fortinet-psirt', 'metasploit',
+// CVE Program's CNA list (whose word a record's rows carry: trustRow), the distributions' data, EPSS, the scan templates, the
+// public-exploit indexes and the vendors' exploitation claims (their signals change no match yet, but the urgency read of the
+// findings keys on the same stamp).
+const matchStampFeeds = `'alpine-osv', 'cisa-kev', 'cisco-psirt', 'cve-cna-list', 'cve-org', 'debian-tracker', 'epss-all', 'exploit-db', 'fortinet-psirt', 'metasploit',
 'msrc', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'poc-in-github', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev'`
 
 // MatchStamp changes whenever what KevVulns, KevAffected and DistroFixes return may have changed: the last pull time and

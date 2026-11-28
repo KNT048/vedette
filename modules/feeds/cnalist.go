@@ -115,13 +115,15 @@ func parseCNAList(r io.Reader, maxBytes int64) ([]cnaRow, error) {
 	return out, nil
 }
 
-// cnaCoordinator is a scope that takes the reports no other CNA covers: "vulnerabilities discovered by X that are not in another CNA's
-// scope", "not within another CNA's scope", "not covered by the scope of another CNA". A CNA of such a scope assigns for products of
-// others, so its name equal to an entry's vendor is not taken as its own word on its products.
-var cnaCoordinator = regexp.MustCompile(`(?i)\bnot\s+(?:already\s+)?(?:in|within|covered\s+by|part\s+of)\s+(?:the\s+scope\s+of\s+)?(?:another|any\s+other|other)\s+cnas?\b`)
+// cnaCoordinator is a scope that defines itself against other CNAs' scopes: "vulnerabilities discovered by X that are not in another
+// CNA's scope", "unless covered by the scope of another CNA", "outside the scope of another CNA", "not covered by a more specific CNA".
+// The list words this in many ways; whatever the words, a CNA of such a scope may assign for products of others, so its name equal to
+// an entry's vendor is not taken as its own word on its products. A vendor whose scope only mentions other CNAs loses nothing but the
+// list's help: its short name rules still stand.
+var cnaCoordinator = regexp.MustCompile(`(?i)\b(?:another|any\s+other|other|a\s+more\s+specific)\s+cnas?\b`)
 
 // cnaMayBeVendor says a CNA may be the vendor of what it assigns: the list types it as a vendor or an open-source project, and its
-// scope does not take the reports of other CNAs' products (cnaCoordinator). A researcher, CERT, bug bounty or hosting CNA never is.
+// scope does not define itself against other CNAs' scopes (cnaCoordinator). A researcher, CERT, bug bounty or hosting CNA never is.
 func cnaMayBeVendor(types []string, scope string) bool {
 	maker := slices.ContainsFunc(types, func(t string) bool {
 		t = strings.ToLower(strings.TrimSpace(t))

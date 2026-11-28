@@ -284,7 +284,9 @@ func exactListProves(ver string, nos []Affected) bool {
 	}
 	told, ranges, rangeInTrain, endedInTrain, lineFixed := true, false, false, false, false
 	for _, af := range nos {
-		if af.LineFix != "" { // the fix the record states above its rows, which bounds the line: the version is at or past it
+		// the fix the record states above its rows, which bounds its own line only (as pastRecordFix reads it): the version is of
+		// that line, at or past it
+		if af.LineFix != "" && sameLine(ver, af.LineFix) {
 			if c, ok := compareBound(ver, af.LineFix); ok && c >= 0 {
 				lineFixed = true
 			}

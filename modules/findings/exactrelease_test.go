@@ -244,3 +244,25 @@ func TestMatch_ExactOnlyListClosesNothing(t *testing.T) {
 		}
 	}
 }
+
+// A fix the record states above its rows (LineFix) bounds only its own release line: a fix of another line says nothing of a release
+// a list of exact releases leaves open (as pastRecordFix reads it).
+func TestExactListProves_LineFixOfAnotherLine(t *testing.T) {
+	t.Parallel()
+	row := func(v, fix string) Affected {
+		return Affected{CPE: "cpe:2.3:a:examplecorp:widget:" + v + ":*:*:*:*:*:*:*", LineFix: fix}
+	}
+	for _, tc := range []struct {
+		name, ver string
+		rows      []Affected
+		want      bool
+	}{
+		{"a fix of another line, an earlier exact release of the version's train", "3.0.7", []Affected{row("2.4.1", "2.4.3"), row("3.0.3", "")}, false},
+		{"a fix of another line only", "3.0.7", []Affected{row("2.4.1", "2.4.3")}, false},
+		{"a fix of the version's own line at or before it", "3.0.7", []Affected{row("3.0.3", "3.0.5")}, true},
+	} {
+		if got := exactListProves(tc.ver, tc.rows); got != tc.want {
+			t.Errorf("%s: proves %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

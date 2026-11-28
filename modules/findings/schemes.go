@@ -142,7 +142,9 @@ func sqlServerRelease(c CPE, r VersionRange, exact bool, ver string) (Tri, bool)
 
 // schemeClash reports whether the range and the version are written in two different schemes, so that ordering
 // them means nothing: one side starts with a year or a build-sized number (2016, 1607) and the other with a small
-// one (16.0.1, 10.0.14393). Unparseable sides are left to the ordinary comparison (it answers Unknown).
+// one (16.0.1, 10.0.14393), or one side starts with a date or timestamp written as one number (20221005, 20251015172955)
+// and the other with a number of another length (a year "2023-03-20", a date of another precision). Unparseable sides are
+// left to the ordinary comparison (it answers Unknown).
 func schemeClash(r VersionRange, ver string) bool {
 	sv, ok := parseVersion(ver)
 	if !ok {
@@ -153,11 +155,18 @@ func schemeClash(r VersionRange, ver string) bool {
 			continue
 		}
 		bv, ok := parseVersion(b)
-		if ok && (bv.rel[0] >= 1000) != (sv.rel[0] >= 1000) {
+		if ok && ((bv.rel[0] >= 1000) != (sv.rel[0] >= 1000) || dateSized(bv.rel[0], sv.rel[0])) {
 			return true
 		}
 	}
 	return false
+}
+
+// dateSized says one of two leading numbers is a date written as one number (eight digits or more: 20221005,
+// 20251015172955) and the other is not of the same length, so their numeric order is not their order in time.
+func dateSized(a, b uint64) bool {
+	const date = 10_000_000
+	return (a >= date || b >= date) && len(strconv.FormatUint(a, 10)) != len(strconv.FormatUint(b, 10))
 }
 
 // osPatterns turn the operating system inventory folds from osquery ("Ubuntu 26.04.1 LTS", "Debian GNU/Linux 12

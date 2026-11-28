@@ -233,3 +233,36 @@ func TestMatchAsset_UpstreamBuildOfUnclearReleaseIsNotClosed(t *testing.T) {
 		}
 	}
 }
+
+// A release written as a timestamp ("20251015172955.0.0", a vendor's .deb of a date-named release) and a bound written as a date
+// ("2023-03-20t20-16-18z") are two notations: their first numbers differ in precision, so ordering them means nothing (a 2022
+// timestamp is numerically above 2023). The pair stays undecided rather than closed.
+func TestSchemeClash_TimestampAgainstADate(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		r    VersionRange
+		ver  string
+		want bool
+	}{
+		{VersionRange{EndExcl: "2023-03-20t20-16-18z"}, "20221005145827.0.0", true},
+		{VersionRange{EndExcl: "2023-03-20t20-16-18z"}, "20251015172955.0.0", true},
+		{VersionRange{EndExcl: "20230320"}, "20221005145827", true},
+		{VersionRange{EndExcl: "20230320"}, "20221005", false},
+		{VersionRange{EndExcl: "2016"}, "2019", false},
+		{VersionRange{EndExcl: "1607"}, "19045", false},
+		{VersionRange{EndExcl: "2016"}, "16.0.1", true},
+	} {
+		if got := schemeClash(c.r, c.ver); got != c.want {
+			t.Errorf("schemeClash(%+v, %s) = %v, want %v", c.r, c.ver, got, c.want)
+		}
+	}
+	now := time.Date(2026, 11, 28, 0, 0, 0, 0, time.UTC)
+	s := Software{ID: "s-obj", Display: "Example Store", Vendor: "Example", Product: "Example Store", Version: "20221005145827.0.0",
+		Source: "agent", Packaged: true, PkgVersion: "20221005145827.0.0", PkgSource: "examplestore"}
+	v := Vuln{CVE: "CVE-2023-71030", NVDAnswered: true, Origin: RangeNVD,
+		Affected: []Affected{{CPE: "cpe:2.3:a:example:example_store:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "2023-03-20t20-16-18z"}}}}
+	r := MatchAsset(Asset{ID: "a", Name: "store-01", OS: "Ubuntu 24.04.3 LTS", Software: []Software{s}}, []Vuln{v}, map[string]bool{v.CVE: true}, now)
+	if len(r.NotAffected) != 0 {
+		t.Errorf("a timestamp release was closed against a date bound: %+v", r.NotAffected)
+	}
+}

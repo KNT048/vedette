@@ -274,8 +274,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   quote names places a version past it or becomes the fix (`TestLineReading_ABoundOnTheCitedPageOpensButNeverSettles`); `fixed`
   with no named bound is `unsure`; an answer inferred from another product's release line of the same record (`inferred_from`: the record
   states line N of that product fixed or affected in a release N.x and nothing for this product's line N) is stored with `basis inferred`
-  (`fnd_line_statement.basis`, else `stated`; an answer whose quote is only in another product's row of the record is inferred whatever
-  it says, `otherProductsRow`, `TestLineReading_AQuoteOfAnotherProductsRowIsAnInference`; so is one whose quote names another product of
+  (`fnd_line_statement.basis`, else `stated`; an answer whose quote is only in another product's row of the record, or in a row of this
+  product about another build than the item's known edition (a pinned other edition, or a CPE "-" edition beside rows that pin the
+  item's: `RecordRow.NotEditions`, rendered "edition not esr"), is inferred whatever it says, `otherProductsRow`,
+  `TestLineReading_AQuoteOfAnotherProductsRowIsAnInference`, `TestOtherProductsRow_ARowOfAnotherBuildOfThisProduct`; so is one whose quote names another product of
   the record and pairs a release of the answer (a bound, the "before X" fix on the version's train, or the version or line itself, at
   any place the quote names it) with the other product, the nearest product name before it, a name inside a longer one being the longer
   one's ("Mail" in "Mail Server") and this product's edition ("Browser ESR") being this product: `unpairedBound`,
@@ -287,8 +289,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
   scheme or the generic order (`verdictFor`). An inferred reading is decided from its basis, not its quote: it never gives a fix, and when its quote names its stated line only through releases of it ("115.42" for line 115) it speaks for a
-  version on that line before every such release (`namedByRelease`), with evidence that says the AI inferred it
-  (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`, `TestLineStatement_AnInferredReadingIsNeverAFix`).
+  version on that line before every such release, a release that starts a range ("from 115.1.0", "after 115.1.0") being a lower bound
+  the version is at or past (`namedByRelease`), with evidence that says the AI inferred it
+  (`TestLineReading_AnInferenceFromAnotherProductsLineOnlyOpens`, `TestLineStatement_AnInferredReadingIsNeverAFix`,
+  `TestLineReading_AnInferenceFromARangeOfTheOtherProductsLine`).
   Asymmetry: inside the stated affected releases is a finding by itself (range origin
   `ai_read`, evidence "Read by AI from <host>", fix only the release the quote names, its `fixed_in` or a "before X" on the version's
   own train: `LineStatement.fix`; What to do cites the page and the sentence), rejected in one click

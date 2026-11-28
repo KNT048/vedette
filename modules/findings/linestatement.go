@@ -365,21 +365,41 @@ func onFixTrain(fix, version string) bool {
 // reVersionToken is a dotted version as a sentence writes it ("115.42", "7.2.1"; never a lone number).
 var reVersionToken = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)+`)
 
+// reLowerBound is a release written as the start of a range: "from X" (X affected) or "after X" (X not), as the record's rows and
+// sentences write it.
+var reLowerBound = regexp.MustCompile(`(?i)\b(from|after)\s+(?:version\s+|v)?$`)
+
 // namedByRelease says the quote names the reading's stated line through releases of it only ("Browser ESR 115.42" names line 115), and
 // id's version is on that line and before every such release: the record states line N of another product fixed in release N.x, so
-// N.y of this product's line before it carried the flaw. A version at or past a named release, or one off the line, is not named. Only
-// an inferred reading (BasisInferred) speaks for a version this way.
+// N.y of this product's line before it carried the flaw. A release that starts a range ("from 115.1.0 before 115.42.0") is a lower
+// bound: the version is at or past it ("after": past it). A version at or past a named release, before a range's start, or off the
+// line, is not named. Only an inferred reading (BasisInferred) speaks for a version this way.
 func (st LineStatement) namedByRelease(id CheckID) bool {
 	l := st.StatedLine
 	if l == "" || !dottedPrefix(l, id.Version) || namesToken(st.Quote, l) {
 		return false
 	}
 	n := 0
-	for _, tok := range reVersionToken.FindAllString(st.Quote, -1) {
+	for _, at := range reVersionToken.FindAllStringIndex(st.Quote, -1) {
+		tok := st.Quote[at[0]:at[1]]
 		if tok == l || !dottedPrefix(l, tok) || !namesToken(st.Quote, tok) {
 			continue
 		}
-		if before, ok := versionBefore(id, tok); !ok || !before {
+		before, ok := versionBefore(id, tok)
+		if !ok {
+			return false
+		}
+		if m := reLowerBound.FindStringSubmatch(st.Quote[:at[0]]); m != nil {
+			if strings.EqualFold(m[1], "after") {
+				if atMost, ok := versionAtMost(id, tok); !ok || atMost {
+					return false
+				}
+			} else if before {
+				return false
+			}
+			continue
+		}
+		if !before {
 			return false
 		}
 		n++
@@ -427,6 +447,20 @@ func versionBefore(id CheckID, x string) (before, ok bool) {
 	}
 	c, ok := CompareVersions(id.Version, x)
 	return c < 0, ok
+}
+
+// versionAtMost says id's version is at or before release x (ok false when the two cannot be ordered): "after x" excludes x however
+// the text writes it ("115.1" is "115.1.0").
+func versionAtMost(id CheckID, x string) (atMost, ok bool) {
+	if scheme := productScheme(id.Product); scheme != nil {
+		v, _, ok := judgeTextRanges([]textRange{{end: x, endIncl: true}}, id.Version, id.Build, scheme)
+		return v == VerdictAffected, ok
+	}
+	if id.Build != "" {
+		return false, false
+	}
+	c, ok := CompareVersions(id.Version, x)
+	return c <= 0, ok
 }
 
 // asCheck is the reading as the lists show a check of a possible CVE: decided by the AI, the verdict it gives this version (unsure when

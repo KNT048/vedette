@@ -102,7 +102,23 @@ type CVERecordText struct {
 type RecordRow struct {
 	Vendor, Product string
 	Edition         string // the edition the row's CPE pins (sw_edition, "esr"), "" when none
-	Text            string // "acme widget (edition esr): affected from 3.0 before 3.4.2 [nvd]"
+	// NotEditions: the row's CPE writes no edition ("-", CPE 2.3's NA) while other rows of its product pin these: the row is about the
+	// build of none of them ("acme widget (edition not esr)"). Empty otherwise.
+	NotEditions []string
+	Text        string // "acme widget (edition esr): affected from 3.0 before 3.4.2 [nvd]"
+}
+
+// forEdition says the row may speak for a build of edition (a CPE sw_edition, "" when unknown): it pins no edition, or that one, and is
+// not about the build of no edition beside it. A row about another build of the product is that build's statement.
+func (r RecordRow) forEdition(edition string) bool {
+	e := strings.ToLower(strings.TrimSpace(edition))
+	if e == "" {
+		return true
+	}
+	if r.Edition != "" {
+		return strings.EqualFold(r.Edition, e)
+	}
+	return !slices.ContainsFunc(r.NotEditions, func(n string) bool { return strings.EqualFold(n, e) })
 }
 
 // recordRowsMax is the most rows of the record one reading sends (the item's own product first).
@@ -152,10 +168,12 @@ func ownRowOnLine(rec CVERecordText, product, line string) bool {
 	return false
 }
 
-// otherProductsRow is the product ("vendor product") of the record's row that quote is from, when that row is another product's and the
-// quote is in no row of product, nor in the description or the solution: an answer relying on it reads another product's statement,
-// so it is an inference whatever the answer says (its bounds are that product's releases). "" otherwise.
-func otherProductsRow(rec CVERecordText, product, quote string) string {
+// otherProductsRow is the product ("vendor product") of the record's row that quote is from, when that row is another product's, or
+// this product's about another build than the item's edition (RecordRow.forEdition; then with the row's edition words: "vendor product
+// (edition not esr)"), and the quote is in no row that may speak for the item, nor in the description or the solution: an answer
+// relying on it reads another product's or build's statement, so it is an inference whatever the answer says (its bounds are that
+// product's releases). edition is the item's (ProposeItem.Edition), "" when unknown. "" otherwise.
+func otherProductsRow(rec CVERecordText, product, quote, edition string) string {
 	if quoteFound(quote, rec.Description) || quoteFound(quote, rec.Solution) {
 		return ""
 	}
@@ -165,11 +183,19 @@ func otherProductsRow(rec CVERecordText, product, quote string) string {
 		if !quoteFound(quote, r.Text) {
 			continue
 		}
+		label := strings.TrimSpace(r.Vendor + " " + r.Product)
 		if productid.Norm(r.Vendor) == productid.Norm(vendor) && productid.Norm(r.Product) == productid.Norm(name) {
-			return ""
+			if r.forEdition(edition) {
+				return ""
+			}
+			if r.Edition != "" {
+				label += " (edition " + strings.ToLower(r.Edition) + ")"
+			} else {
+				label += " (edition not " + strings.ToLower(strings.Join(r.NotEditions, " or ")) + ")"
+			}
 		}
 		if from == "" {
-			from = strings.TrimSpace(r.Vendor + " " + r.Product)
+			from = label
 		}
 	}
 	return from
@@ -965,7 +991,7 @@ func (s *Service) checkCVE(ctx context.Context, group []checkUnit, actor string,
 				continue
 			}
 			if v.InferredFrom == "" && (v.Source < 1 || v.Source > len(okPages)) {
-				v.InferredFrom = otherProductsRow(rec, l.units[0].id.Product, v.Quote) // another product's row is that product's statement
+				v.InferredFrom = otherProductsRow(rec, l.units[0].id.Product, v.Quote, edition(l.units[0].q)) // another product's or build's row is its statement
 			}
 			if v.InferredFrom == "" {
 				v.InferredFrom = unpairedBound(rec, l.units[0].id, v) // a release the sentence pairs with another product is that product's

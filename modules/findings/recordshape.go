@@ -362,3 +362,114 @@ func laterExactInTrain(own []Affected, ver string) bool {
 		return okC && c < 0
 	})
 }
+
+// unlistedLine says version in.ver, outside every row of v that names the line (decide's "not affected"), is on a release line the rows
+// do not speak for while a row starts a later line above it. NVD's configurations and a CNA's version list often name only the release
+// lines the vendor still supports ("8.0.0" before "8.0.21", "9.0.0" before "9.0.10"): a line older than one of them that no row covers
+// (3.1 beside rows for 2.3, 8.0 and 9.0, or a line below every row) was not evaluated, and being outside the rows says nothing about
+// it. Such a version is no proof of "not affected": the CVE stays undecided (ranges_start_at_branch_only), never a finding on that
+// basis. The rows speak for the version (false) when
+//   - a row is of a list that states what every unlisted version is (VendorList: the product's own CNA, defaultStatus);
+//   - the version is past the fix of a row of its own release line: a range that starts at or below it on the line the range's start
+//     and end share (at least their first number: "20.0.0" before "20.19.4" is line 20, "8.0.0" before "8.0.21" line 8.0), a range
+//     from version 0 or with no start whose end is on the version's train (its first two numbers), or a fixed release the record
+//     states above its rows (LineFix) on its line that it is at or past;
+//   - a row is one release of the version's own train: the line is listed (exactListProves reads such a list);
+//   - no range starts above it (a line newer than every listed one, past every fix), or the lowest start above it is a release inside
+//     a line ("2.4.17" before "2.4.60", "17.12.10"): the record states where the flaw came in, and an older version is before it.
+//
+// Only the version's numbers are read (CVE JSON 5 versions with lessThan or lessThanOrEqual, NVD's versionStart/versionEnd): a bound
+// that does not read as numbers starts no line, and a start that does not compare with the version is set aside.
+func unlistedLine(in swInfo, v Vuln, key []identity) bool {
+	if !versionKnown(in.ver) {
+		return false
+	}
+	var lowest string   // the lowest start of a range above the version
+	lowestLine := false // that start is the first release of a line
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || af.Lost {
+			continue
+		}
+		if own, _, _ := entryFor(c, in, key); !own || otherSystem(in, c) || naVersionApart(c, in.ver, v.Affected) || earlierMarker(c, af, v.Affected) {
+			continue
+		}
+		if af.VendorList && !af.AffectedOnly {
+			return false
+		}
+		if af.LineFix != "" && sameLine(in.ver, af.LineFix) {
+			if o, ok := compareBound(in.ver, af.LineFix); ok && o >= 0 {
+				return false
+			}
+		}
+		if rel, _, ok := exactRow(af); ok {
+			if sameTrain(in.ver, rel, rel) {
+				return false
+			}
+			continue // one release of another line: no line statement, above or below
+		}
+		r := af.Range
+		start, end := cmp.Or(r.StartIncl, r.StartExcl), cmp.Or(r.EndExcl, r.EndIncl)
+		if start == "" || isPlaceholder(start) {
+			if !af.AffectedOnly && pastEnd(r, in.ver) && sameTrain(in.ver, end, end) {
+				return false
+			}
+			continue
+		}
+		o, ok := compareBound(in.ver, start)
+		switch {
+		case !ok:
+			continue
+		case o >= 0: // the range starts at or below the version, which is outside it: past its end
+			if !af.AffectedOnly && pastEnd(r, in.ver) && onRowLine(in.ver, start, end) {
+				return false
+			}
+			continue
+		}
+		switch l, ok := compareBound(start, lowest); {
+		case lowest == "" || ok && l < 0:
+			lowest, lowestLine = start, firstOfLine(start, end)
+		case ok && l == 0:
+			lowestLine = lowestLine || firstOfLine(start, end)
+		}
+	}
+	return lowest != "" && lowestLine
+}
+
+// rowLine is the count of leading numbers that name the release line of a range from start to end: the numbers both share, at least the
+// first ("20.0.0" to "20.19.4": 1; "8.0.0" to "8.0.21": 2; "1.0.0" to "2.3.4": 1), the numbers of start alone with no end less its
+// last. 0 when start does not read as numbers.
+func rowLine(start, end string) (int, []uint64) {
+	s, ok := parseVersion(start)
+	if !ok || len(s.rel) == 0 {
+		return 0, nil
+	}
+	n := len(s.rel) - 1
+	if e, ok := parseVersion(end); ok && end != "" {
+		n = 0
+		for n < min(len(s.rel), len(e.rel)) && s.rel[n] == e.rel[n] {
+			n++
+		}
+	}
+	return max(n, 1), s.rel
+}
+
+// firstOfLine says start, the lower bound of a range to end, is the first release of its line (every number after the line's is 0:
+// "8.0.0" of 8.0, "20.0.0" of 20, "2.3" of 2.3), not a release inside it where a flaw came in ("2.4.17" to "2.4.60").
+func firstOfLine(start, end string) bool {
+	n, rel := rowLine(start, end)
+	if rel == nil {
+		return false
+	}
+	return !slices.ContainsFunc(rel[min(n, len(rel)):], func(x uint64) bool { return x != 0 })
+}
+
+// onRowLine says ver is on the release line of the range from start to end (rowLine): it starts with the same leading numbers.
+func onRowLine(ver, start, end string) bool {
+	n, rel := rowLine(start, end)
+	pv, ok := parseVersion(ver)
+	if rel == nil || !ok || len(pv.rel) < n || len(rel) < n {
+		return false
+	}
+	return slices.Equal(pv.rel[:n], rel[:n])
+}

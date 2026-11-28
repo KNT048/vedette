@@ -162,8 +162,8 @@ func (g *testGate) set(v bool)          { g.mu.Lock(); g.on = v; g.mu.Unlock() }
 
 func TestContract_INV9_ReconcileJobRunsOnlyWhileFindingsIsOn(t *testing.T) {
 	jb := Jobs(nil)
-	if len(jb) != 2 || jb[0].Module != "findings" || jb[0].Name != "reconcile" || jb[0].Every != time.Hour ||
-		jb[1].Module != "findings" || jb[1].Name != UrgencyJob || jb[1].Every != UrgencyEvery {
+	if len(jb) != 3 || jb[0].Module != "findings" || jb[0].Name != "reconcile" || jb[0].Every != time.Hour ||
+		jb[1].Module != "findings" || jb[1].Name != UrgencyJob || jb[1].Every != UrgencyEvery || jb[2].Module != "findings" || jb[2].Name != ResearchJob {
 		t.Fatalf("jobs = %+v", jb)
 	}
 	synctest.Test(t, func(t *testing.T) {

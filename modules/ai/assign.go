@@ -14,7 +14,7 @@ type SlotView struct {
 	Fallback *string `json:"fallback"`
 }
 
-// AssignmentsView is the body and the answer of the assignments endpoints: all ten jobs, and the privacy rule.
+// AssignmentsView is the body and the answer of the assignments endpoints: every job, and the privacy rule.
 type AssignmentsView struct {
 	InternalOnly bool                `json:"internal_only"`
 	Jobs         map[string]SlotView `json:"jobs"`
@@ -72,7 +72,7 @@ func (s *Service) SetAssignments(ctx context.Context, who string, in Assignments
 			}
 		}
 	}
-	for _, j := range Jobs() { // all ten, so the saved rows and the router agree
+	for _, j := range Jobs() { // every job, so the saved rows and the router agree
 		if _, ok := asg.Jobs[j]; !ok {
 			asg.Jobs[j] = Slot{}
 		}
@@ -124,7 +124,7 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 				ok = append(ok, p.Profile)
 			}
 		}
-		wantFast := batchJobs[j]
+		wantFast := batchJobs[j] || j == JobResearchCVEs // research: the quick layer first
 		rank := func(p Profile) int {
 			r := 0
 			if fastModel.MatchString(p.Model) != wantFast {
@@ -142,6 +142,14 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 		}
 		if len(ok) > 1 {
 			slot.Fallback = ok[1].ID
+			if j == JobResearchCVEs { // research escalates to a strong model: the first one that is not a quick model, when there is one
+				for _, p := range ok[1:] {
+					if !fastModel.MatchString(p.Model) {
+						slot.Fallback = p.ID
+						break
+					}
+				}
+			}
 		}
 		asg.Jobs[j] = slot
 	}
@@ -161,6 +169,12 @@ type ConfigView struct {
 	AutoRead      bool            `json:"auto_read"`   // the automatic reading of vendor advisories for possible findings is on
 	DailyReads    int             `json:"daily_reads"` // its AI calls a day
 	ReadsToday    int             `json:"reads_today"` // its AI calls so far today
+	// The research of CVEs (research.go): its mode, the share of the monthly budget its automatic runs may spend, the tokens it spent
+	// this month, and the tokens one research takes per mode (never money).
+	ResearchMode      string                      `json:"research_mode"`
+	ResearchShare     int                         `json:"research_share"`
+	ResearchUsedMonth int                         `json:"research_used_month"`
+	ResearchEstimates map[string]ResearchEstimate `json:"research_estimates"`
 }
 
 // Config returns the settings. Tier is the configured level (the monthly budget never lowers it).
@@ -184,6 +198,8 @@ func (s *Service) Config(ctx context.Context) ConfigView {
 	}
 	ar := s.AutoReadState(ctx)
 	v.AutoRead, v.DailyReads, v.ReadsToday = ar.Auto, ar.Daily, min(ar.Used, ar.Daily)
+	v.ResearchMode, v.ResearchShare, v.ResearchEstimates = s.ResearchMode(), sn.cfg.researchShare(), s.ResearchEstimates(ctx)
+	v.ResearchUsedMonth, _ = s.ResearchUsedMonth(ctx)
 	return v
 }
 
@@ -217,8 +233,8 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 		if err := saveHookSwitch(ctx, tx, HookBlockPII, in.RedactPII); err != nil {
 			return err
 		}
-		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t, auto_read=%t, daily_reads=%d", in.Tier, in.MonthlyBudget, in.RedactPII,
-			!in.AutoReadOff, in.dailyReads()))
+		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t, auto_read=%t, daily_reads=%d, research_mode=%s, research_share=%d", in.Tier, in.MonthlyBudget, in.RedactPII,
+			!in.AutoReadOff, in.dailyReads(), cmpStr(in.ResearchMode, ResearchBalanced), in.researchShare()))
 	})
 	if err != nil {
 		return ConfigView{}, err
@@ -228,5 +244,6 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 	}
 	s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: in})
 	s.harness.Store(hnext)
+	s.settingsChanged()
 	return s.Config(ctx), nil
 }

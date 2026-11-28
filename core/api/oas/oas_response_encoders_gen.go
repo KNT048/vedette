@@ -2605,6 +2605,19 @@ func encodeFindingsGetFindingsPossibleCheckResponse(response *FindingsGetFinding
 	return nil
 }
 
+func encodeFindingsGetFindingsReviewResponse(response *FindingsGetFindingsReviewOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeFindingsPostFindingsHandleResponse(response *FindingsPostFindingsHandleOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2748,6 +2761,19 @@ func encodeFindingsPostFindingsPossibleIDConfirmResponse(response *FindingsPostF
 	return nil
 }
 
+func encodeFindingsPostFindingsPossibleIDResearchResponse(response *FindingsPostFindingsPossibleIDResearchOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeFindingsPostFindingsQuestionsAcceptRiskResponse(response *FindingsPostFindingsQuestionsAcceptRiskOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2788,6 +2814,19 @@ func encodeFindingsPostFindingsQuestionsIDUnanswerResponse(response *FindingsPos
 }
 
 func encodeFindingsPostFindingsQuestionsIgnoreResponse(response *FindingsPostFindingsQuestionsIgnoreOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeFindingsPostFindingsReviewConfirmResponse(response *FindingsPostFindingsReviewConfirmOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

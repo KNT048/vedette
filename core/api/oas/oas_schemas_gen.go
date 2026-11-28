@@ -52,6 +52,7 @@ const (
 	AiDeleteAiProfilesIDOKClearedJobsItemPdplAssessment    AiDeleteAiProfilesIDOKClearedJobsItem = "pdpl-assessment"
 	AiDeleteAiProfilesIDOKClearedJobsItemTranslateAdvisory AiDeleteAiProfilesIDOKClearedJobsItem = "translate-advisory"
 	AiDeleteAiProfilesIDOKClearedJobsItemResponsePlan      AiDeleteAiProfilesIDOKClearedJobsItem = "response-plan"
+	AiDeleteAiProfilesIDOKClearedJobsItemResearchCves      AiDeleteAiProfilesIDOKClearedJobsItem = "research-cves"
 )
 
 // AllValues returns all AiDeleteAiProfilesIDOKClearedJobsItem values.
@@ -67,6 +68,7 @@ func (AiDeleteAiProfilesIDOKClearedJobsItem) AllValues() []AiDeleteAiProfilesIDO
 		AiDeleteAiProfilesIDOKClearedJobsItemPdplAssessment,
 		AiDeleteAiProfilesIDOKClearedJobsItemTranslateAdvisory,
 		AiDeleteAiProfilesIDOKClearedJobsItemResponsePlan,
+		AiDeleteAiProfilesIDOKClearedJobsItemResearchCves,
 	}
 }
 
@@ -92,6 +94,8 @@ func (s AiDeleteAiProfilesIDOKClearedJobsItem) MarshalText() ([]byte, error) {
 	case AiDeleteAiProfilesIDOKClearedJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiDeleteAiProfilesIDOKClearedJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiDeleteAiProfilesIDOKClearedJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -130,6 +134,9 @@ func (s *AiDeleteAiProfilesIDOKClearedJobsItem) UnmarshalText(data []byte) error
 		return nil
 	case AiDeleteAiProfilesIDOKClearedJobsItemResponsePlan:
 		*s = AiDeleteAiProfilesIDOKClearedJobsItemResponsePlan
+		return nil
+	case AiDeleteAiProfilesIDOKClearedJobsItemResearchCves:
+		*s = AiDeleteAiProfilesIDOKClearedJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -1455,8 +1462,20 @@ type AiGetAiConfigOK struct {
 	ReadsToday int  `json:"reads_today"`
 	RedactPii  bool `json:"redact_pii"`
 	// Local date (YYYY-MM-DD) the monthly budgets start again.
-	RenewsOn string              `json:"renews_on"`
-	Tier     AiGetAiConfigOKTier `json:"tier"`
+	RenewsOn string `json:"renews_on"`
+	// Tokens one research takes in each mode, never money.
+	ResearchEstimates AiGetAiConfigOKResearchEstimates `json:"research_estimates"`
+	// How the research of a CVE Vedette cannot decide escalates: economy = the quick profile only;
+	// balanced (default) = the quick profile, then the strong profile (the job's fallback) when the quick
+	// answer is unsure, of low confidence, or rests on a quote the box could not find; thorough = the
+	// strong profile only.
+	ResearchMode AiGetAiConfigOKResearchMode `json:"research_mode"`
+	// Percent of the monthly token budget the automatic research of CVEs may spend this month (default
+	// 50); a person's "Research deeper" is held only by the budget itself.
+	ResearchShare int `json:"research_share"`
+	// Tokens the research of CVEs spent this calendar month (every layer, answered or not).
+	ResearchUsedMonth int                 `json:"research_used_month"`
+	Tier              AiGetAiConfigOKTier `json:"tier"`
 	// Estimated tokens/day per tier (no money). null = depends on alert count.
 	TierEstimates AiGetAiConfigOKTierEstimates `json:"tier_estimates"`
 }
@@ -1504,6 +1523,26 @@ func (s *AiGetAiConfigOK) GetRedactPii() bool {
 // GetRenewsOn returns the value of RenewsOn.
 func (s *AiGetAiConfigOK) GetRenewsOn() string {
 	return s.RenewsOn
+}
+
+// GetResearchEstimates returns the value of ResearchEstimates.
+func (s *AiGetAiConfigOK) GetResearchEstimates() AiGetAiConfigOKResearchEstimates {
+	return s.ResearchEstimates
+}
+
+// GetResearchMode returns the value of ResearchMode.
+func (s *AiGetAiConfigOK) GetResearchMode() AiGetAiConfigOKResearchMode {
+	return s.ResearchMode
+}
+
+// GetResearchShare returns the value of ResearchShare.
+func (s *AiGetAiConfigOK) GetResearchShare() int {
+	return s.ResearchShare
+}
+
+// GetResearchUsedMonth returns the value of ResearchUsedMonth.
+func (s *AiGetAiConfigOK) GetResearchUsedMonth() int {
+	return s.ResearchUsedMonth
 }
 
 // GetTier returns the value of Tier.
@@ -1561,6 +1600,26 @@ func (s *AiGetAiConfigOK) SetRenewsOn(val string) {
 	s.RenewsOn = val
 }
 
+// SetResearchEstimates sets the value of ResearchEstimates.
+func (s *AiGetAiConfigOK) SetResearchEstimates(val AiGetAiConfigOKResearchEstimates) {
+	s.ResearchEstimates = val
+}
+
+// SetResearchMode sets the value of ResearchMode.
+func (s *AiGetAiConfigOK) SetResearchMode(val AiGetAiConfigOKResearchMode) {
+	s.ResearchMode = val
+}
+
+// SetResearchShare sets the value of ResearchShare.
+func (s *AiGetAiConfigOK) SetResearchShare(val int) {
+	s.ResearchShare = val
+}
+
+// SetResearchUsedMonth sets the value of ResearchUsedMonth.
+func (s *AiGetAiConfigOK) SetResearchUsedMonth(val int) {
+	s.ResearchUsedMonth = val
+}
+
 // SetTier sets the value of Tier.
 func (s *AiGetAiConfigOK) SetTier(val AiGetAiConfigOKTier) {
 	s.Tier = val
@@ -1581,6 +1640,98 @@ func (s *AiGetAiConfigOKJobsReady) init() AiGetAiConfigOKJobsReady {
 		*s = m
 	}
 	return m
+}
+
+// Tokens one research takes in each mode, never money.
+type AiGetAiConfigOKResearchEstimates map[string]AiGetAiConfigOKResearchEstimatesItem
+
+func (s *AiGetAiConfigOKResearchEstimates) init() AiGetAiConfigOKResearchEstimates {
+	m := *s
+	if m == nil {
+		m = map[string]AiGetAiConfigOKResearchEstimatesItem{}
+		*s = m
+	}
+	return m
+}
+
+type AiGetAiConfigOKResearchEstimatesItem struct {
+	// True: the average of this box's own researches; false: the figure of a trial on real office
+	// software, until the box has researched enough.
+	Measured bool `json:"measured"`
+	// Tokens per CVE.
+	Tokens int `json:"tokens"`
+}
+
+// GetMeasured returns the value of Measured.
+func (s *AiGetAiConfigOKResearchEstimatesItem) GetMeasured() bool {
+	return s.Measured
+}
+
+// GetTokens returns the value of Tokens.
+func (s *AiGetAiConfigOKResearchEstimatesItem) GetTokens() int {
+	return s.Tokens
+}
+
+// SetMeasured sets the value of Measured.
+func (s *AiGetAiConfigOKResearchEstimatesItem) SetMeasured(val bool) {
+	s.Measured = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *AiGetAiConfigOKResearchEstimatesItem) SetTokens(val int) {
+	s.Tokens = val
+}
+
+// How the research of a CVE Vedette cannot decide escalates: economy = the quick profile only;
+// balanced (default) = the quick profile, then the strong profile (the job's fallback) when the quick
+// answer is unsure, of low confidence, or rests on a quote the box could not find; thorough = the
+// strong profile only.
+type AiGetAiConfigOKResearchMode string
+
+const (
+	AiGetAiConfigOKResearchModeEconomy  AiGetAiConfigOKResearchMode = "economy"
+	AiGetAiConfigOKResearchModeBalanced AiGetAiConfigOKResearchMode = "balanced"
+	AiGetAiConfigOKResearchModeThorough AiGetAiConfigOKResearchMode = "thorough"
+)
+
+// AllValues returns all AiGetAiConfigOKResearchMode values.
+func (AiGetAiConfigOKResearchMode) AllValues() []AiGetAiConfigOKResearchMode {
+	return []AiGetAiConfigOKResearchMode{
+		AiGetAiConfigOKResearchModeEconomy,
+		AiGetAiConfigOKResearchModeBalanced,
+		AiGetAiConfigOKResearchModeThorough,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiGetAiConfigOKResearchMode) MarshalText() ([]byte, error) {
+	switch s {
+	case AiGetAiConfigOKResearchModeEconomy:
+		return []byte(s), nil
+	case AiGetAiConfigOKResearchModeBalanced:
+		return []byte(s), nil
+	case AiGetAiConfigOKResearchModeThorough:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiGetAiConfigOKResearchMode) UnmarshalText(data []byte) error {
+	switch AiGetAiConfigOKResearchMode(data) {
+	case AiGetAiConfigOKResearchModeEconomy:
+		*s = AiGetAiConfigOKResearchModeEconomy
+		return nil
+	case AiGetAiConfigOKResearchModeBalanced:
+		*s = AiGetAiConfigOKResearchModeBalanced
+		return nil
+	case AiGetAiConfigOKResearchModeThorough:
+		*s = AiGetAiConfigOKResearchModeThorough
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type AiGetAiConfigOKTier string
@@ -2744,6 +2895,7 @@ const (
 	AiGetAiKnowledgeOKItemsItemJobsItemPdplAssessment    AiGetAiKnowledgeOKItemsItemJobsItem = "pdpl-assessment"
 	AiGetAiKnowledgeOKItemsItemJobsItemTranslateAdvisory AiGetAiKnowledgeOKItemsItemJobsItem = "translate-advisory"
 	AiGetAiKnowledgeOKItemsItemJobsItemResponsePlan      AiGetAiKnowledgeOKItemsItemJobsItem = "response-plan"
+	AiGetAiKnowledgeOKItemsItemJobsItemResearchCves      AiGetAiKnowledgeOKItemsItemJobsItem = "research-cves"
 )
 
 // AllValues returns all AiGetAiKnowledgeOKItemsItemJobsItem values.
@@ -2759,6 +2911,7 @@ func (AiGetAiKnowledgeOKItemsItemJobsItem) AllValues() []AiGetAiKnowledgeOKItems
 		AiGetAiKnowledgeOKItemsItemJobsItemPdplAssessment,
 		AiGetAiKnowledgeOKItemsItemJobsItemTranslateAdvisory,
 		AiGetAiKnowledgeOKItemsItemJobsItemResponsePlan,
+		AiGetAiKnowledgeOKItemsItemJobsItemResearchCves,
 	}
 }
 
@@ -2784,6 +2937,8 @@ func (s AiGetAiKnowledgeOKItemsItemJobsItem) MarshalText() ([]byte, error) {
 	case AiGetAiKnowledgeOKItemsItemJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiGetAiKnowledgeOKItemsItemJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiGetAiKnowledgeOKItemsItemJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -2822,6 +2977,9 @@ func (s *AiGetAiKnowledgeOKItemsItemJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiKnowledgeOKItemsItemJobsItemResponsePlan:
 		*s = AiGetAiKnowledgeOKItemsItemJobsItemResponsePlan
+		return nil
+	case AiGetAiKnowledgeOKItemsItemJobsItemResearchCves:
+		*s = AiGetAiKnowledgeOKItemsItemJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -3901,6 +4059,7 @@ const (
 	AiGetAiRulesOKCustomItemJobsItemPdplAssessment    AiGetAiRulesOKCustomItemJobsItem = "pdpl-assessment"
 	AiGetAiRulesOKCustomItemJobsItemTranslateAdvisory AiGetAiRulesOKCustomItemJobsItem = "translate-advisory"
 	AiGetAiRulesOKCustomItemJobsItemResponsePlan      AiGetAiRulesOKCustomItemJobsItem = "response-plan"
+	AiGetAiRulesOKCustomItemJobsItemResearchCves      AiGetAiRulesOKCustomItemJobsItem = "research-cves"
 )
 
 // AllValues returns all AiGetAiRulesOKCustomItemJobsItem values.
@@ -3916,6 +4075,7 @@ func (AiGetAiRulesOKCustomItemJobsItem) AllValues() []AiGetAiRulesOKCustomItemJo
 		AiGetAiRulesOKCustomItemJobsItemPdplAssessment,
 		AiGetAiRulesOKCustomItemJobsItemTranslateAdvisory,
 		AiGetAiRulesOKCustomItemJobsItemResponsePlan,
+		AiGetAiRulesOKCustomItemJobsItemResearchCves,
 	}
 }
 
@@ -3941,6 +4101,8 @@ func (s AiGetAiRulesOKCustomItemJobsItem) MarshalText() ([]byte, error) {
 	case AiGetAiRulesOKCustomItemJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiGetAiRulesOKCustomItemJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiGetAiRulesOKCustomItemJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -3979,6 +4141,9 @@ func (s *AiGetAiRulesOKCustomItemJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiRulesOKCustomItemJobsItemResponsePlan:
 		*s = AiGetAiRulesOKCustomItemJobsItemResponsePlan
+		return nil
+	case AiGetAiRulesOKCustomItemJobsItemResearchCves:
+		*s = AiGetAiRulesOKCustomItemJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -4255,6 +4420,7 @@ const (
 	AiGetAiSkillsOKItemsItemJobsItemPdplAssessment    AiGetAiSkillsOKItemsItemJobsItem = "pdpl-assessment"
 	AiGetAiSkillsOKItemsItemJobsItemTranslateAdvisory AiGetAiSkillsOKItemsItemJobsItem = "translate-advisory"
 	AiGetAiSkillsOKItemsItemJobsItemResponsePlan      AiGetAiSkillsOKItemsItemJobsItem = "response-plan"
+	AiGetAiSkillsOKItemsItemJobsItemResearchCves      AiGetAiSkillsOKItemsItemJobsItem = "research-cves"
 )
 
 // AllValues returns all AiGetAiSkillsOKItemsItemJobsItem values.
@@ -4270,6 +4436,7 @@ func (AiGetAiSkillsOKItemsItemJobsItem) AllValues() []AiGetAiSkillsOKItemsItemJo
 		AiGetAiSkillsOKItemsItemJobsItemPdplAssessment,
 		AiGetAiSkillsOKItemsItemJobsItemTranslateAdvisory,
 		AiGetAiSkillsOKItemsItemJobsItemResponsePlan,
+		AiGetAiSkillsOKItemsItemJobsItemResearchCves,
 	}
 }
 
@@ -4295,6 +4462,8 @@ func (s AiGetAiSkillsOKItemsItemJobsItem) MarshalText() ([]byte, error) {
 	case AiGetAiSkillsOKItemsItemJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiGetAiSkillsOKItemsItemJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiGetAiSkillsOKItemsItemJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -4333,6 +4502,9 @@ func (s *AiGetAiSkillsOKItemsItemJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiSkillsOKItemsItemJobsItemResponsePlan:
 		*s = AiGetAiSkillsOKItemsItemJobsItemResponsePlan
+		return nil
+	case AiGetAiSkillsOKItemsItemJobsItemResearchCves:
+		*s = AiGetAiSkillsOKItemsItemJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -7139,6 +7311,7 @@ const (
 	AiPostAiKnowledgeOKJobsItemPdplAssessment    AiPostAiKnowledgeOKJobsItem = "pdpl-assessment"
 	AiPostAiKnowledgeOKJobsItemTranslateAdvisory AiPostAiKnowledgeOKJobsItem = "translate-advisory"
 	AiPostAiKnowledgeOKJobsItemResponsePlan      AiPostAiKnowledgeOKJobsItem = "response-plan"
+	AiPostAiKnowledgeOKJobsItemResearchCves      AiPostAiKnowledgeOKJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPostAiKnowledgeOKJobsItem values.
@@ -7154,6 +7327,7 @@ func (AiPostAiKnowledgeOKJobsItem) AllValues() []AiPostAiKnowledgeOKJobsItem {
 		AiPostAiKnowledgeOKJobsItemPdplAssessment,
 		AiPostAiKnowledgeOKJobsItemTranslateAdvisory,
 		AiPostAiKnowledgeOKJobsItemResponsePlan,
+		AiPostAiKnowledgeOKJobsItemResearchCves,
 	}
 }
 
@@ -7179,6 +7353,8 @@ func (s AiPostAiKnowledgeOKJobsItem) MarshalText() ([]byte, error) {
 	case AiPostAiKnowledgeOKJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPostAiKnowledgeOKJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPostAiKnowledgeOKJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -7217,6 +7393,9 @@ func (s *AiPostAiKnowledgeOKJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPostAiKnowledgeOKJobsItemResponsePlan:
 		*s = AiPostAiKnowledgeOKJobsItemResponsePlan
+		return nil
+	case AiPostAiKnowledgeOKJobsItemResearchCves:
+		*s = AiPostAiKnowledgeOKJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -7334,6 +7513,7 @@ const (
 	AiPostAiKnowledgeReqJobsItemPdplAssessment    AiPostAiKnowledgeReqJobsItem = "pdpl-assessment"
 	AiPostAiKnowledgeReqJobsItemTranslateAdvisory AiPostAiKnowledgeReqJobsItem = "translate-advisory"
 	AiPostAiKnowledgeReqJobsItemResponsePlan      AiPostAiKnowledgeReqJobsItem = "response-plan"
+	AiPostAiKnowledgeReqJobsItemResearchCves      AiPostAiKnowledgeReqJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPostAiKnowledgeReqJobsItem values.
@@ -7349,6 +7529,7 @@ func (AiPostAiKnowledgeReqJobsItem) AllValues() []AiPostAiKnowledgeReqJobsItem {
 		AiPostAiKnowledgeReqJobsItemPdplAssessment,
 		AiPostAiKnowledgeReqJobsItemTranslateAdvisory,
 		AiPostAiKnowledgeReqJobsItemResponsePlan,
+		AiPostAiKnowledgeReqJobsItemResearchCves,
 	}
 }
 
@@ -7374,6 +7555,8 @@ func (s AiPostAiKnowledgeReqJobsItem) MarshalText() ([]byte, error) {
 	case AiPostAiKnowledgeReqJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPostAiKnowledgeReqJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPostAiKnowledgeReqJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -7412,6 +7595,9 @@ func (s *AiPostAiKnowledgeReqJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPostAiKnowledgeReqJobsItemResponsePlan:
 		*s = AiPostAiKnowledgeReqJobsItemResponsePlan
+		return nil
+	case AiPostAiKnowledgeReqJobsItemResearchCves:
+		*s = AiPostAiKnowledgeReqJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -9268,6 +9454,7 @@ const (
 	AiPostAiRulesOKJobsItemPdplAssessment    AiPostAiRulesOKJobsItem = "pdpl-assessment"
 	AiPostAiRulesOKJobsItemTranslateAdvisory AiPostAiRulesOKJobsItem = "translate-advisory"
 	AiPostAiRulesOKJobsItemResponsePlan      AiPostAiRulesOKJobsItem = "response-plan"
+	AiPostAiRulesOKJobsItemResearchCves      AiPostAiRulesOKJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPostAiRulesOKJobsItem values.
@@ -9283,6 +9470,7 @@ func (AiPostAiRulesOKJobsItem) AllValues() []AiPostAiRulesOKJobsItem {
 		AiPostAiRulesOKJobsItemPdplAssessment,
 		AiPostAiRulesOKJobsItemTranslateAdvisory,
 		AiPostAiRulesOKJobsItemResponsePlan,
+		AiPostAiRulesOKJobsItemResearchCves,
 	}
 }
 
@@ -9308,6 +9496,8 @@ func (s AiPostAiRulesOKJobsItem) MarshalText() ([]byte, error) {
 	case AiPostAiRulesOKJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPostAiRulesOKJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPostAiRulesOKJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9346,6 +9536,9 @@ func (s *AiPostAiRulesOKJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPostAiRulesOKJobsItemResponsePlan:
 		*s = AiPostAiRulesOKJobsItemResponsePlan
+		return nil
+	case AiPostAiRulesOKJobsItemResearchCves:
+		*s = AiPostAiRulesOKJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -9401,6 +9594,7 @@ const (
 	AiPostAiRulesReqJobsItemPdplAssessment    AiPostAiRulesReqJobsItem = "pdpl-assessment"
 	AiPostAiRulesReqJobsItemTranslateAdvisory AiPostAiRulesReqJobsItem = "translate-advisory"
 	AiPostAiRulesReqJobsItemResponsePlan      AiPostAiRulesReqJobsItem = "response-plan"
+	AiPostAiRulesReqJobsItemResearchCves      AiPostAiRulesReqJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPostAiRulesReqJobsItem values.
@@ -9416,6 +9610,7 @@ func (AiPostAiRulesReqJobsItem) AllValues() []AiPostAiRulesReqJobsItem {
 		AiPostAiRulesReqJobsItemPdplAssessment,
 		AiPostAiRulesReqJobsItemTranslateAdvisory,
 		AiPostAiRulesReqJobsItemResponsePlan,
+		AiPostAiRulesReqJobsItemResearchCves,
 	}
 }
 
@@ -9441,6 +9636,8 @@ func (s AiPostAiRulesReqJobsItem) MarshalText() ([]byte, error) {
 	case AiPostAiRulesReqJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPostAiRulesReqJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPostAiRulesReqJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9479,6 +9676,9 @@ func (s *AiPostAiRulesReqJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPostAiRulesReqJobsItemResponsePlan:
 		*s = AiPostAiRulesReqJobsItemResponsePlan
+		return nil
+	case AiPostAiRulesReqJobsItemResearchCves:
+		*s = AiPostAiRulesReqJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -9659,8 +9859,20 @@ type AiPutAiConfigOK struct {
 	ReadsToday int  `json:"reads_today"`
 	RedactPii  bool `json:"redact_pii"`
 	// Local date (YYYY-MM-DD) the monthly budgets start again.
-	RenewsOn string              `json:"renews_on"`
-	Tier     AiPutAiConfigOKTier `json:"tier"`
+	RenewsOn string `json:"renews_on"`
+	// Tokens one research takes in each mode, never money.
+	ResearchEstimates AiPutAiConfigOKResearchEstimates `json:"research_estimates"`
+	// How the research of a CVE Vedette cannot decide escalates: economy = the quick profile only;
+	// balanced (default) = the quick profile, then the strong profile (the job's fallback) when the quick
+	// answer is unsure, of low confidence, or rests on a quote the box could not find; thorough = the
+	// strong profile only.
+	ResearchMode AiPutAiConfigOKResearchMode `json:"research_mode"`
+	// Percent of the monthly token budget the automatic research of CVEs may spend this month (default
+	// 50); a person's "Research deeper" is held only by the budget itself.
+	ResearchShare int `json:"research_share"`
+	// Tokens the research of CVEs spent this calendar month (every layer, answered or not).
+	ResearchUsedMonth int                 `json:"research_used_month"`
+	Tier              AiPutAiConfigOKTier `json:"tier"`
 	// Estimated tokens/day per tier (no money). null = depends on alert count.
 	TierEstimates AiPutAiConfigOKTierEstimates `json:"tier_estimates"`
 }
@@ -9708,6 +9920,26 @@ func (s *AiPutAiConfigOK) GetRedactPii() bool {
 // GetRenewsOn returns the value of RenewsOn.
 func (s *AiPutAiConfigOK) GetRenewsOn() string {
 	return s.RenewsOn
+}
+
+// GetResearchEstimates returns the value of ResearchEstimates.
+func (s *AiPutAiConfigOK) GetResearchEstimates() AiPutAiConfigOKResearchEstimates {
+	return s.ResearchEstimates
+}
+
+// GetResearchMode returns the value of ResearchMode.
+func (s *AiPutAiConfigOK) GetResearchMode() AiPutAiConfigOKResearchMode {
+	return s.ResearchMode
+}
+
+// GetResearchShare returns the value of ResearchShare.
+func (s *AiPutAiConfigOK) GetResearchShare() int {
+	return s.ResearchShare
+}
+
+// GetResearchUsedMonth returns the value of ResearchUsedMonth.
+func (s *AiPutAiConfigOK) GetResearchUsedMonth() int {
+	return s.ResearchUsedMonth
 }
 
 // GetTier returns the value of Tier.
@@ -9765,6 +9997,26 @@ func (s *AiPutAiConfigOK) SetRenewsOn(val string) {
 	s.RenewsOn = val
 }
 
+// SetResearchEstimates sets the value of ResearchEstimates.
+func (s *AiPutAiConfigOK) SetResearchEstimates(val AiPutAiConfigOKResearchEstimates) {
+	s.ResearchEstimates = val
+}
+
+// SetResearchMode sets the value of ResearchMode.
+func (s *AiPutAiConfigOK) SetResearchMode(val AiPutAiConfigOKResearchMode) {
+	s.ResearchMode = val
+}
+
+// SetResearchShare sets the value of ResearchShare.
+func (s *AiPutAiConfigOK) SetResearchShare(val int) {
+	s.ResearchShare = val
+}
+
+// SetResearchUsedMonth sets the value of ResearchUsedMonth.
+func (s *AiPutAiConfigOK) SetResearchUsedMonth(val int) {
+	s.ResearchUsedMonth = val
+}
+
 // SetTier sets the value of Tier.
 func (s *AiPutAiConfigOK) SetTier(val AiPutAiConfigOKTier) {
 	s.Tier = val
@@ -9785,6 +10037,98 @@ func (s *AiPutAiConfigOKJobsReady) init() AiPutAiConfigOKJobsReady {
 		*s = m
 	}
 	return m
+}
+
+// Tokens one research takes in each mode, never money.
+type AiPutAiConfigOKResearchEstimates map[string]AiPutAiConfigOKResearchEstimatesItem
+
+func (s *AiPutAiConfigOKResearchEstimates) init() AiPutAiConfigOKResearchEstimates {
+	m := *s
+	if m == nil {
+		m = map[string]AiPutAiConfigOKResearchEstimatesItem{}
+		*s = m
+	}
+	return m
+}
+
+type AiPutAiConfigOKResearchEstimatesItem struct {
+	// True: the average of this box's own researches; false: the figure of a trial on real office
+	// software, until the box has researched enough.
+	Measured bool `json:"measured"`
+	// Tokens per CVE.
+	Tokens int `json:"tokens"`
+}
+
+// GetMeasured returns the value of Measured.
+func (s *AiPutAiConfigOKResearchEstimatesItem) GetMeasured() bool {
+	return s.Measured
+}
+
+// GetTokens returns the value of Tokens.
+func (s *AiPutAiConfigOKResearchEstimatesItem) GetTokens() int {
+	return s.Tokens
+}
+
+// SetMeasured sets the value of Measured.
+func (s *AiPutAiConfigOKResearchEstimatesItem) SetMeasured(val bool) {
+	s.Measured = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *AiPutAiConfigOKResearchEstimatesItem) SetTokens(val int) {
+	s.Tokens = val
+}
+
+// How the research of a CVE Vedette cannot decide escalates: economy = the quick profile only;
+// balanced (default) = the quick profile, then the strong profile (the job's fallback) when the quick
+// answer is unsure, of low confidence, or rests on a quote the box could not find; thorough = the
+// strong profile only.
+type AiPutAiConfigOKResearchMode string
+
+const (
+	AiPutAiConfigOKResearchModeEconomy  AiPutAiConfigOKResearchMode = "economy"
+	AiPutAiConfigOKResearchModeBalanced AiPutAiConfigOKResearchMode = "balanced"
+	AiPutAiConfigOKResearchModeThorough AiPutAiConfigOKResearchMode = "thorough"
+)
+
+// AllValues returns all AiPutAiConfigOKResearchMode values.
+func (AiPutAiConfigOKResearchMode) AllValues() []AiPutAiConfigOKResearchMode {
+	return []AiPutAiConfigOKResearchMode{
+		AiPutAiConfigOKResearchModeEconomy,
+		AiPutAiConfigOKResearchModeBalanced,
+		AiPutAiConfigOKResearchModeThorough,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPutAiConfigOKResearchMode) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPutAiConfigOKResearchModeEconomy:
+		return []byte(s), nil
+	case AiPutAiConfigOKResearchModeBalanced:
+		return []byte(s), nil
+	case AiPutAiConfigOKResearchModeThorough:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPutAiConfigOKResearchMode) UnmarshalText(data []byte) error {
+	switch AiPutAiConfigOKResearchMode(data) {
+	case AiPutAiConfigOKResearchModeEconomy:
+		*s = AiPutAiConfigOKResearchModeEconomy
+		return nil
+	case AiPutAiConfigOKResearchModeBalanced:
+		*s = AiPutAiConfigOKResearchModeBalanced
+		return nil
+	case AiPutAiConfigOKResearchModeThorough:
+		*s = AiPutAiConfigOKResearchModeThorough
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type AiPutAiConfigOKTier string
@@ -9851,9 +10195,13 @@ type AiPutAiConfigReq struct {
 	// Absent: unchanged.
 	AutoRead OptBool `json:"auto_read"`
 	// Absent: unchanged.
-	DailyReads    OptInt               `json:"daily_reads"`
-	MonthlyBudget int                  `json:"monthly_budget"`
-	RedactPii     bool                 `json:"redact_pii"`
+	DailyReads    OptInt `json:"daily_reads"`
+	MonthlyBudget int    `json:"monthly_budget"`
+	RedactPii     bool   `json:"redact_pii"`
+	// Absent: unchanged.
+	ResearchMode OptAiPutAiConfigReqResearchMode `json:"research_mode"`
+	// Absent: unchanged.
+	ResearchShare OptInt               `json:"research_share"`
 	Tier          AiPutAiConfigReqTier `json:"tier"`
 }
 
@@ -9875,6 +10223,16 @@ func (s *AiPutAiConfigReq) GetMonthlyBudget() int {
 // GetRedactPii returns the value of RedactPii.
 func (s *AiPutAiConfigReq) GetRedactPii() bool {
 	return s.RedactPii
+}
+
+// GetResearchMode returns the value of ResearchMode.
+func (s *AiPutAiConfigReq) GetResearchMode() OptAiPutAiConfigReqResearchMode {
+	return s.ResearchMode
+}
+
+// GetResearchShare returns the value of ResearchShare.
+func (s *AiPutAiConfigReq) GetResearchShare() OptInt {
+	return s.ResearchShare
 }
 
 // GetTier returns the value of Tier.
@@ -9902,9 +10260,68 @@ func (s *AiPutAiConfigReq) SetRedactPii(val bool) {
 	s.RedactPii = val
 }
 
+// SetResearchMode sets the value of ResearchMode.
+func (s *AiPutAiConfigReq) SetResearchMode(val OptAiPutAiConfigReqResearchMode) {
+	s.ResearchMode = val
+}
+
+// SetResearchShare sets the value of ResearchShare.
+func (s *AiPutAiConfigReq) SetResearchShare(val OptInt) {
+	s.ResearchShare = val
+}
+
 // SetTier sets the value of Tier.
 func (s *AiPutAiConfigReq) SetTier(val AiPutAiConfigReqTier) {
 	s.Tier = val
+}
+
+// Absent: unchanged.
+type AiPutAiConfigReqResearchMode string
+
+const (
+	AiPutAiConfigReqResearchModeEconomy  AiPutAiConfigReqResearchMode = "economy"
+	AiPutAiConfigReqResearchModeBalanced AiPutAiConfigReqResearchMode = "balanced"
+	AiPutAiConfigReqResearchModeThorough AiPutAiConfigReqResearchMode = "thorough"
+)
+
+// AllValues returns all AiPutAiConfigReqResearchMode values.
+func (AiPutAiConfigReqResearchMode) AllValues() []AiPutAiConfigReqResearchMode {
+	return []AiPutAiConfigReqResearchMode{
+		AiPutAiConfigReqResearchModeEconomy,
+		AiPutAiConfigReqResearchModeBalanced,
+		AiPutAiConfigReqResearchModeThorough,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPutAiConfigReqResearchMode) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPutAiConfigReqResearchModeEconomy:
+		return []byte(s), nil
+	case AiPutAiConfigReqResearchModeBalanced:
+		return []byte(s), nil
+	case AiPutAiConfigReqResearchModeThorough:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPutAiConfigReqResearchMode) UnmarshalText(data []byte) error {
+	switch AiPutAiConfigReqResearchMode(data) {
+	case AiPutAiConfigReqResearchModeEconomy:
+		*s = AiPutAiConfigReqResearchModeEconomy
+		return nil
+	case AiPutAiConfigReqResearchModeBalanced:
+		*s = AiPutAiConfigReqResearchModeBalanced
+		return nil
+	case AiPutAiConfigReqResearchModeThorough:
+		*s = AiPutAiConfigReqResearchModeThorough
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type AiPutAiConfigReqTier string
@@ -10611,6 +11028,7 @@ const (
 	AiPutAiKnowledgeIDOKJobsItemPdplAssessment    AiPutAiKnowledgeIDOKJobsItem = "pdpl-assessment"
 	AiPutAiKnowledgeIDOKJobsItemTranslateAdvisory AiPutAiKnowledgeIDOKJobsItem = "translate-advisory"
 	AiPutAiKnowledgeIDOKJobsItemResponsePlan      AiPutAiKnowledgeIDOKJobsItem = "response-plan"
+	AiPutAiKnowledgeIDOKJobsItemResearchCves      AiPutAiKnowledgeIDOKJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPutAiKnowledgeIDOKJobsItem values.
@@ -10626,6 +11044,7 @@ func (AiPutAiKnowledgeIDOKJobsItem) AllValues() []AiPutAiKnowledgeIDOKJobsItem {
 		AiPutAiKnowledgeIDOKJobsItemPdplAssessment,
 		AiPutAiKnowledgeIDOKJobsItemTranslateAdvisory,
 		AiPutAiKnowledgeIDOKJobsItemResponsePlan,
+		AiPutAiKnowledgeIDOKJobsItemResearchCves,
 	}
 }
 
@@ -10651,6 +11070,8 @@ func (s AiPutAiKnowledgeIDOKJobsItem) MarshalText() ([]byte, error) {
 	case AiPutAiKnowledgeIDOKJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPutAiKnowledgeIDOKJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPutAiKnowledgeIDOKJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -10689,6 +11110,9 @@ func (s *AiPutAiKnowledgeIDOKJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPutAiKnowledgeIDOKJobsItemResponsePlan:
 		*s = AiPutAiKnowledgeIDOKJobsItemResponsePlan
+		return nil
+	case AiPutAiKnowledgeIDOKJobsItemResearchCves:
+		*s = AiPutAiKnowledgeIDOKJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -10770,6 +11194,7 @@ const (
 	AiPutAiKnowledgeIDReqJobsItemPdplAssessment    AiPutAiKnowledgeIDReqJobsItem = "pdpl-assessment"
 	AiPutAiKnowledgeIDReqJobsItemTranslateAdvisory AiPutAiKnowledgeIDReqJobsItem = "translate-advisory"
 	AiPutAiKnowledgeIDReqJobsItemResponsePlan      AiPutAiKnowledgeIDReqJobsItem = "response-plan"
+	AiPutAiKnowledgeIDReqJobsItemResearchCves      AiPutAiKnowledgeIDReqJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPutAiKnowledgeIDReqJobsItem values.
@@ -10785,6 +11210,7 @@ func (AiPutAiKnowledgeIDReqJobsItem) AllValues() []AiPutAiKnowledgeIDReqJobsItem
 		AiPutAiKnowledgeIDReqJobsItemPdplAssessment,
 		AiPutAiKnowledgeIDReqJobsItemTranslateAdvisory,
 		AiPutAiKnowledgeIDReqJobsItemResponsePlan,
+		AiPutAiKnowledgeIDReqJobsItemResearchCves,
 	}
 }
 
@@ -10810,6 +11236,8 @@ func (s AiPutAiKnowledgeIDReqJobsItem) MarshalText() ([]byte, error) {
 	case AiPutAiKnowledgeIDReqJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPutAiKnowledgeIDReqJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPutAiKnowledgeIDReqJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -10848,6 +11276,9 @@ func (s *AiPutAiKnowledgeIDReqJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPutAiKnowledgeIDReqJobsItemResponsePlan:
 		*s = AiPutAiKnowledgeIDReqJobsItemResponsePlan
+		return nil
+	case AiPutAiKnowledgeIDReqJobsItemResearchCves:
+		*s = AiPutAiKnowledgeIDReqJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -10975,6 +11406,7 @@ const (
 	AiPutAiKnowledgeSettingsOKItemsItemJobsItemPdplAssessment    AiPutAiKnowledgeSettingsOKItemsItemJobsItem = "pdpl-assessment"
 	AiPutAiKnowledgeSettingsOKItemsItemJobsItemTranslateAdvisory AiPutAiKnowledgeSettingsOKItemsItemJobsItem = "translate-advisory"
 	AiPutAiKnowledgeSettingsOKItemsItemJobsItemResponsePlan      AiPutAiKnowledgeSettingsOKItemsItemJobsItem = "response-plan"
+	AiPutAiKnowledgeSettingsOKItemsItemJobsItemResearchCves      AiPutAiKnowledgeSettingsOKItemsItemJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPutAiKnowledgeSettingsOKItemsItemJobsItem values.
@@ -10990,6 +11422,7 @@ func (AiPutAiKnowledgeSettingsOKItemsItemJobsItem) AllValues() []AiPutAiKnowledg
 		AiPutAiKnowledgeSettingsOKItemsItemJobsItemPdplAssessment,
 		AiPutAiKnowledgeSettingsOKItemsItemJobsItemTranslateAdvisory,
 		AiPutAiKnowledgeSettingsOKItemsItemJobsItemResponsePlan,
+		AiPutAiKnowledgeSettingsOKItemsItemJobsItemResearchCves,
 	}
 }
 
@@ -11015,6 +11448,8 @@ func (s AiPutAiKnowledgeSettingsOKItemsItemJobsItem) MarshalText() ([]byte, erro
 	case AiPutAiKnowledgeSettingsOKItemsItemJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPutAiKnowledgeSettingsOKItemsItemJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPutAiKnowledgeSettingsOKItemsItemJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -11053,6 +11488,9 @@ func (s *AiPutAiKnowledgeSettingsOKItemsItemJobsItem) UnmarshalText(data []byte)
 		return nil
 	case AiPutAiKnowledgeSettingsOKItemsItemJobsItemResponsePlan:
 		*s = AiPutAiKnowledgeSettingsOKItemsItemJobsItemResponsePlan
+		return nil
+	case AiPutAiKnowledgeSettingsOKItemsItemJobsItemResearchCves:
+		*s = AiPutAiKnowledgeSettingsOKItemsItemJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12135,6 +12573,7 @@ const (
 	AiPutAiRulesIDOKJobsItemPdplAssessment    AiPutAiRulesIDOKJobsItem = "pdpl-assessment"
 	AiPutAiRulesIDOKJobsItemTranslateAdvisory AiPutAiRulesIDOKJobsItem = "translate-advisory"
 	AiPutAiRulesIDOKJobsItemResponsePlan      AiPutAiRulesIDOKJobsItem = "response-plan"
+	AiPutAiRulesIDOKJobsItemResearchCves      AiPutAiRulesIDOKJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPutAiRulesIDOKJobsItem values.
@@ -12150,6 +12589,7 @@ func (AiPutAiRulesIDOKJobsItem) AllValues() []AiPutAiRulesIDOKJobsItem {
 		AiPutAiRulesIDOKJobsItemPdplAssessment,
 		AiPutAiRulesIDOKJobsItemTranslateAdvisory,
 		AiPutAiRulesIDOKJobsItemResponsePlan,
+		AiPutAiRulesIDOKJobsItemResearchCves,
 	}
 }
 
@@ -12175,6 +12615,8 @@ func (s AiPutAiRulesIDOKJobsItem) MarshalText() ([]byte, error) {
 	case AiPutAiRulesIDOKJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPutAiRulesIDOKJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPutAiRulesIDOKJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -12213,6 +12655,9 @@ func (s *AiPutAiRulesIDOKJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPutAiRulesIDOKJobsItemResponsePlan:
 		*s = AiPutAiRulesIDOKJobsItemResponsePlan
+		return nil
+	case AiPutAiRulesIDOKJobsItemResearchCves:
+		*s = AiPutAiRulesIDOKJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12268,6 +12713,7 @@ const (
 	AiPutAiRulesIDReqJobsItemPdplAssessment    AiPutAiRulesIDReqJobsItem = "pdpl-assessment"
 	AiPutAiRulesIDReqJobsItemTranslateAdvisory AiPutAiRulesIDReqJobsItem = "translate-advisory"
 	AiPutAiRulesIDReqJobsItemResponsePlan      AiPutAiRulesIDReqJobsItem = "response-plan"
+	AiPutAiRulesIDReqJobsItemResearchCves      AiPutAiRulesIDReqJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPutAiRulesIDReqJobsItem values.
@@ -12283,6 +12729,7 @@ func (AiPutAiRulesIDReqJobsItem) AllValues() []AiPutAiRulesIDReqJobsItem {
 		AiPutAiRulesIDReqJobsItemPdplAssessment,
 		AiPutAiRulesIDReqJobsItemTranslateAdvisory,
 		AiPutAiRulesIDReqJobsItemResponsePlan,
+		AiPutAiRulesIDReqJobsItemResearchCves,
 	}
 }
 
@@ -12308,6 +12755,8 @@ func (s AiPutAiRulesIDReqJobsItem) MarshalText() ([]byte, error) {
 	case AiPutAiRulesIDReqJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPutAiRulesIDReqJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPutAiRulesIDReqJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -12346,6 +12795,9 @@ func (s *AiPutAiRulesIDReqJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPutAiRulesIDReqJobsItemResponsePlan:
 		*s = AiPutAiRulesIDReqJobsItemResponsePlan
+		return nil
+	case AiPutAiRulesIDReqJobsItemResearchCves:
+		*s = AiPutAiRulesIDReqJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12424,6 +12876,7 @@ const (
 	AiPutAiSkillsIDOKJobsItemPdplAssessment    AiPutAiSkillsIDOKJobsItem = "pdpl-assessment"
 	AiPutAiSkillsIDOKJobsItemTranslateAdvisory AiPutAiSkillsIDOKJobsItem = "translate-advisory"
 	AiPutAiSkillsIDOKJobsItemResponsePlan      AiPutAiSkillsIDOKJobsItem = "response-plan"
+	AiPutAiSkillsIDOKJobsItemResearchCves      AiPutAiSkillsIDOKJobsItem = "research-cves"
 )
 
 // AllValues returns all AiPutAiSkillsIDOKJobsItem values.
@@ -12439,6 +12892,7 @@ func (AiPutAiSkillsIDOKJobsItem) AllValues() []AiPutAiSkillsIDOKJobsItem {
 		AiPutAiSkillsIDOKJobsItemPdplAssessment,
 		AiPutAiSkillsIDOKJobsItemTranslateAdvisory,
 		AiPutAiSkillsIDOKJobsItemResponsePlan,
+		AiPutAiSkillsIDOKJobsItemResearchCves,
 	}
 }
 
@@ -12464,6 +12918,8 @@ func (s AiPutAiSkillsIDOKJobsItem) MarshalText() ([]byte, error) {
 	case AiPutAiSkillsIDOKJobsItemTranslateAdvisory:
 		return []byte(s), nil
 	case AiPutAiSkillsIDOKJobsItemResponsePlan:
+		return []byte(s), nil
+	case AiPutAiSkillsIDOKJobsItemResearchCves:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -12502,6 +12958,9 @@ func (s *AiPutAiSkillsIDOKJobsItem) UnmarshalText(data []byte) error {
 		return nil
 	case AiPutAiSkillsIDOKJobsItemResponsePlan:
 		*s = AiPutAiSkillsIDOKJobsItemResponsePlan
+		return nil
+	case AiPutAiSkillsIDOKJobsItemResearchCves:
+		*s = AiPutAiSkillsIDOKJobsItemResearchCves
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -94830,6 +95289,8 @@ type FindingsGetFindingsAnsweredOKItemsItemCheckReading struct {
 	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
 	// not found decides nothing.
 	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch `json:"research"`
 	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
 	// the quote names it.
 	StatedLine NilString `json:"stated_line"`
@@ -94869,6 +95330,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetLine() string {
 // GetQuoteFound returns the value of QuoteFound.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetQuoteFound() bool {
 	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) GetResearch() NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch {
+	return s.Research
 }
 
 // GetStatedLine returns the value of StatedLine.
@@ -94916,6 +95382,11 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetQuoteFound(val b
 	s.QuoteFound = val
 }
 
+// SetResearch sets the value of Research.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetResearch(val NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) {
+	s.Research = val
+}
+
 // SetStatedLine sets the value of StatedLine.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetStatedLine(val NilString) {
 	s.StatedLine = val
@@ -94929,6 +95400,596 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetStatus(val Findi
 // SetVendorPage sets the value of VendorPage.
 func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReading) SetVendorPage(val bool) {
 	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch struct {
+	Detail FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) GetDetail() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) GetLayer() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) GetQuoteCheck() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) SetDetail(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) SetLayer(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) SetQuoteCheck(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                                  `json:"fallback"`
+	Fetch    FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                                `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                         `json:"reader"`
+	Steps  []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetFetch() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetSteps() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetSteps(val []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                         `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetLayer() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) GetWeb() FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetLayer(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItem) SetWeb(val FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick  FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer{
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerQuick  FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer = "quick"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerStrong FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer values.
+func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer) AllValues() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer {
+	return []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer{
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerQuick,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayer(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerQuick:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerQuick
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerStrong:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckTool     FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck = "tool"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckDigest   FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck = "digest"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckLive     FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck = "live"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNotFound FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck = "not_found"
+	FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNone     FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck values.
+func (FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck) AllValues() []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck {
+	return []FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck{
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckTool,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckDigest,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckLive,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNotFound,
+		FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheck(data) {
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckTool:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckLive:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNone:
+		*s = FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
@@ -106458,6 +107519,8 @@ type FindingsGetFindingsIDViewOKAiCheckReading struct {
 	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
 	// not found decides nothing.
 	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsGetFindingsIDViewOKAiCheckReadingResearch `json:"research"`
 	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
 	// the quote names it.
 	StatedLine NilString `json:"stated_line"`
@@ -106497,6 +107560,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetLine() string {
 // GetQuoteFound returns the value of QuoteFound.
 func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetQuoteFound() bool {
 	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) GetResearch() NilFindingsGetFindingsIDViewOKAiCheckReadingResearch {
+	return s.Research
 }
 
 // GetStatedLine returns the value of StatedLine.
@@ -106544,6 +107612,11 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetQuoteFound(val bool) {
 	s.QuoteFound = val
 }
 
+// SetResearch sets the value of Research.
+func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetResearch(val NilFindingsGetFindingsIDViewOKAiCheckReadingResearch) {
+	s.Research = val
+}
+
 // SetStatedLine sets the value of StatedLine.
 func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetStatedLine(val NilString) {
 	s.StatedLine = val
@@ -106557,6 +107630,596 @@ func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetStatus(val FindingsGetFin
 // SetVendorPage sets the value of VendorPage.
 func (s *FindingsGetFindingsIDViewOKAiCheckReading) SetVendorPage(val bool) {
 	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsGetFindingsIDViewOKAiCheckReadingResearch struct {
+	Detail FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) GetDetail() FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) GetLayer() FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) GetQuoteCheck() FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) SetDetail(val FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) SetLayer(val FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) SetQuoteCheck(val FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                         `json:"fallback"`
+	Fetch    FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                       `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                `json:"reader"`
+	Steps  []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetFetch() FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetSteps() []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetSteps(val []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetLayer() FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) GetWeb() FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetLayer(val FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItem) SetWeb(val FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerQuick  FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerStrong FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer{
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer string
+
+const (
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerQuick  FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer = "quick"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerStrong FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer values.
+func (FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer) AllValues() []FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer {
+	return []FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer{
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerQuick,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKAiCheckReadingResearchLayer(data) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerQuick:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerQuick
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerStrong:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckTool     FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck = "tool"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckDigest   FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck = "digest"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckLive     FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck = "live"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNotFound FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck = "not_found"
+	FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNone     FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck values.
+func (FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck) AllValues() []FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck {
+	return []FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck{
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckTool,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckDigest,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckLive,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNotFound,
+		FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheck(data) {
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckTool:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckLive:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNone:
+		*s = FindingsGetFindingsIDViewOKAiCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
@@ -119549,6 +121212,11 @@ type FindingsGetFindingsPossibleCheckOKRun struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
+	// Of them, the lines with an answer, read by an earlier run or by this one; a pass that stopped leaves
+	// the rest to the next one.
+	LinesDone int `json:"lines_done"`
+	// Release lines of the possible CVEs the AI may research.
+	LinesTotal int `json:"lines_total"`
 	// AI proposals made.
 	Proposals int `json:"proposals"`
 	// AI readings of a vendor's statement stored, one per release line.
@@ -119584,6 +121252,16 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) GetFailed() int {
 // GetFinishedAt returns the value of FinishedAt.
 func (s *FindingsGetFindingsPossibleCheckOKRun) GetFinishedAt() NilDateTime {
 	return s.FinishedAt
+}
+
+// GetLinesDone returns the value of LinesDone.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetLinesDone() int {
+	return s.LinesDone
+}
+
+// GetLinesTotal returns the value of LinesTotal.
+func (s *FindingsGetFindingsPossibleCheckOKRun) GetLinesTotal() int {
+	return s.LinesTotal
 }
 
 // GetProposals returns the value of Proposals.
@@ -119644,6 +121322,16 @@ func (s *FindingsGetFindingsPossibleCheckOKRun) SetFailed(val int) {
 // SetFinishedAt sets the value of FinishedAt.
 func (s *FindingsGetFindingsPossibleCheckOKRun) SetFinishedAt(val NilDateTime) {
 	s.FinishedAt = val
+}
+
+// SetLinesDone sets the value of LinesDone.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetLinesDone(val int) {
+	s.LinesDone = val
+}
+
+// SetLinesTotal sets the value of LinesTotal.
+func (s *FindingsGetFindingsPossibleCheckOKRun) SetLinesTotal(val int) {
+	s.LinesTotal = val
 }
 
 // SetProposals sets the value of Proposals.
@@ -119956,6 +121644,10 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	DistroPending bool `json:"distro_pending"`
 	// The CVE is on an exploited list.
 	Exploited bool `json:"exploited"`
+	// Review AI answers only: the open finding an older AI reading of the line opened, which this newer
+	// "not affected" answer would close. The AI never closes it; a person's confirmation does (an
+	// exploited CVE only when named). Absent otherwise.
+	Finding OptString `json:"finding"`
 	// Older_line: the newest fixed release of each newer line.
 	Fixes []string `json:"fixes"`
 	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not
@@ -120025,6 +121717,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) GetDistroPending() bool {
 // GetExploited returns the value of Exploited.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetExploited() bool {
 	return s.Exploited
+}
+
+// GetFinding returns the value of Finding.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetFinding() OptString {
+	return s.Finding
 }
 
 // GetFixes returns the value of Fixes.
@@ -120115,6 +121812,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetDistroPending(val bool) {
 // SetExploited sets the value of Exploited.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetExploited(val bool) {
 	s.Exploited = val
+}
+
+// SetFinding sets the value of Finding.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetFinding(val OptString) {
+	s.Finding = val
 }
 
 // SetFixes sets the value of Fixes.
@@ -120527,6 +122229,8 @@ type FindingsGetFindingsPossibleOKItemsItemCheckReading struct {
 	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
 	// not found decides nothing.
 	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch `json:"research"`
 	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
 	// the quote names it.
 	StatedLine NilString `json:"stated_line"`
@@ -120566,6 +122270,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetLine() string {
 // GetQuoteFound returns the value of QuoteFound.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetQuoteFound() bool {
 	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) GetResearch() NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch {
+	return s.Research
 }
 
 // GetStatedLine returns the value of StatedLine.
@@ -120613,6 +122322,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetQuoteFound(val b
 	s.QuoteFound = val
 }
 
+// SetResearch sets the value of Research.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetResearch(val NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) {
+	s.Research = val
+}
+
 // SetStatedLine sets the value of StatedLine.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetStatedLine(val NilString) {
 	s.StatedLine = val
@@ -120626,6 +122340,596 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetStatus(val Findi
 // SetVendorPage sets the value of VendorPage.
 func (s *FindingsGetFindingsPossibleOKItemsItemCheckReading) SetVendorPage(val bool) {
 	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch struct {
+	Detail FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) GetDetail() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) GetLayer() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) GetQuoteCheck() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) SetDetail(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) SetLayer(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) SetQuoteCheck(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                                  `json:"fallback"`
+	Fetch    FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                                `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                         `json:"reader"`
+	Steps  []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetFetch() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetSteps() []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetSteps(val []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                         `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetLayer() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) GetWeb() FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetLayer(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItem) SetWeb(val FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick  FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer{
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerQuick  FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer = "quick"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerStrong FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer{
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerQuick,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayer(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerQuick:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerQuick
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerStrong:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckTool     FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck = "tool"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckDigest   FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck = "digest"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckLive     FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck = "live"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNotFound FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck = "not_found"
+	FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNone     FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck values.
+func (FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck) AllValues() []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck {
+	return []FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck{
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckTool,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckDigest,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckLive,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNotFound,
+		FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheck(data) {
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckTool:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckLive:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNone:
+		*s = FindingsGetFindingsPossibleOKItemsItemCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
@@ -122319,6 +124623,3091 @@ func (s *FindingsGetFindingsPossibleState) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsPossibleStateSettled:
 		*s = FindingsGetFindingsPossibleStateSettled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's own confidence.
+type FindingsGetFindingsReviewConfidence string
+
+const (
+	FindingsGetFindingsReviewConfidenceHigh   FindingsGetFindingsReviewConfidence = "high"
+	FindingsGetFindingsReviewConfidenceMedium FindingsGetFindingsReviewConfidence = "medium"
+	FindingsGetFindingsReviewConfidenceLow    FindingsGetFindingsReviewConfidence = "low"
+)
+
+// AllValues returns all FindingsGetFindingsReviewConfidence values.
+func (FindingsGetFindingsReviewConfidence) AllValues() []FindingsGetFindingsReviewConfidence {
+	return []FindingsGetFindingsReviewConfidence{
+		FindingsGetFindingsReviewConfidenceHigh,
+		FindingsGetFindingsReviewConfidenceMedium,
+		FindingsGetFindingsReviewConfidenceLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewConfidenceHigh:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewConfidenceMedium:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewConfidenceLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewConfidence) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewConfidence(data) {
+	case FindingsGetFindingsReviewConfidenceHigh:
+		*s = FindingsGetFindingsReviewConfidenceHigh
+		return nil
+	case FindingsGetFindingsReviewConfidenceMedium:
+		*s = FindingsGetFindingsReviewConfidenceMedium
+		return nil
+	case FindingsGetFindingsReviewConfidenceLow:
+		*s = FindingsGetFindingsReviewConfidenceLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Checked: the box found the quote; unchecked: it did not.
+type FindingsGetFindingsReviewEvidence string
+
+const (
+	FindingsGetFindingsReviewEvidenceChecked   FindingsGetFindingsReviewEvidence = "checked"
+	FindingsGetFindingsReviewEvidenceUnchecked FindingsGetFindingsReviewEvidence = "unchecked"
+)
+
+// AllValues returns all FindingsGetFindingsReviewEvidence values.
+func (FindingsGetFindingsReviewEvidence) AllValues() []FindingsGetFindingsReviewEvidence {
+	return []FindingsGetFindingsReviewEvidence{
+		FindingsGetFindingsReviewEvidenceChecked,
+		FindingsGetFindingsReviewEvidenceUnchecked,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewEvidence) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewEvidenceChecked:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewEvidenceUnchecked:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewEvidence) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewEvidence(data) {
+	case FindingsGetFindingsReviewEvidenceChecked:
+		*s = FindingsGetFindingsReviewEvidenceChecked
+		return nil
+	case FindingsGetFindingsReviewEvidenceUnchecked:
+		*s = FindingsGetFindingsReviewEvidenceUnchecked
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsReviewOK struct {
+	// Rows of the filter whose CVE is exploited: a bulk confirmation includes them only when it names
+	// their CVE.
+	Exploited int `json:"exploited"`
+	// The AI's "not affected" answers waiting for a person (state proposal, verdict not_affected),
+	// exploited CVEs first.
+	Items []FindingsGetFindingsReviewOKItemsItem `json:"items"`
+	Total int                                    `json:"total"`
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsReviewOK) GetExploited() int {
+	return s.Exploited
+}
+
+// GetItems returns the value of Items.
+func (s *FindingsGetFindingsReviewOK) GetItems() []FindingsGetFindingsReviewOKItemsItem {
+	return s.Items
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsReviewOK) GetTotal() int {
+	return s.Total
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsReviewOK) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetItems sets the value of Items.
+func (s *FindingsGetFindingsReviewOK) SetItems(val []FindingsGetFindingsReviewOKItemsItem) {
+	s.Items = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsReviewOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// One possible CVE of one software line of one device.
+type FindingsGetFindingsReviewOKItemsItem struct {
+	// Proposal: may be confirmed with its class in one step; false for an exploited CVE proposed not
+	// affected (one by one).
+	Bulk bool `json:"bulk"`
+	// Why it is still possible; null for a settled row.
+	Cause NilFindingsGetFindingsReviewOKItemsItemCause `json:"cause"`
+	Check NilFindingsGetFindingsReviewOKItemsItemCheck `json:"check"`
+	// A check of its advisories can still run for it.
+	Checkable bool                                       `json:"checkable"`
+	Cve       string                                     `json:"cve"`
+	Device    FindingsGetFindingsReviewOKItemsItemDevice `json:"device"`
+	// Waiting for the distribution's word on its own package: listed apart in its own group, counted in
+	// counts.distro_pending, not in counts.possible, Needs your input or the device badge (the server's
+	// one definition of the group).
+	DistroPending bool `json:"distro_pending"`
+	// The CVE is on an exploited list.
+	Exploited bool `json:"exploited"`
+	// Review AI answers only: the open finding an older AI reading of the line opened, which this newer
+	// "not affected" answer would close. The AI never closes it; a person's confirmation does (an
+	// exploited CVE only when named). Absent otherwise.
+	Finding OptString `json:"finding"`
+	// Older_line: the newest fixed release of each newer line.
+	Fixes []string `json:"fixes"`
+	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not
+	// held, settled, or while the automatic reading cannot run (switched off, today's reads used up, no AI
+	// profile).
+	Held NilFindingsGetFindingsReviewOKItemsItemHeld `json:"held"`
+	// The question (confirm: POST /findings/possible/{id}/confirm; answer: POST
+	// /findings/questions/{id}/answer).
+	ID string `json:"id"`
+	// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
+	// platforms and nothing says which this is; package_release = the distribution's package release
+	// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
+	// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+	// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+	// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+	// question for all of them (cve_list).
+	Kind FindingsGetFindingsReviewOKItemsItemKind `json:"kind"`
+	// Older_line: the device's release line.
+	Line NilString `json:"line"`
+	// Reported only for an older build: listed apart, counted in counts.older_build, not in
+	// counts.possible; null otherwise.
+	OlderBuild NilFindingsGetFindingsReviewOKItemsItemOlderBuild `json:"older_build"`
+	Severity   NilFindingsGetFindingsReviewOKItemsItemSeverity   `json:"severity"`
+	Software   NilFindingsGetFindingsReviewOKItemsItemSoftware   `json:"software"`
+	// Possible: undecided; proposal: an AI proposal waits for a person; settled: the box settled it not
+	// affected from the vendor's advisory (not counted).
+	State FindingsGetFindingsReviewOKItemsItemState `json:"state"`
+	// Why a CVE stays possible and what blocked the decision.
+	Undecided FindingsGetFindingsReviewOKItemsItemUndecided `json:"undecided"`
+}
+
+// GetBulk returns the value of Bulk.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetBulk() bool {
+	return s.Bulk
+}
+
+// GetCause returns the value of Cause.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetCause() NilFindingsGetFindingsReviewOKItemsItemCause {
+	return s.Cause
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetCheck() NilFindingsGetFindingsReviewOKItemsItemCheck {
+	return s.Check
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetCheckable() bool {
+	return s.Checkable
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetDevice() FindingsGetFindingsReviewOKItemsItemDevice {
+	return s.Device
+}
+
+// GetDistroPending returns the value of DistroPending.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetDistroPending() bool {
+	return s.DistroPending
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetExploited() bool {
+	return s.Exploited
+}
+
+// GetFinding returns the value of Finding.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetFinding() OptString {
+	return s.Finding
+}
+
+// GetFixes returns the value of Fixes.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetFixes() []string {
+	return s.Fixes
+}
+
+// GetHeld returns the value of Held.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetHeld() NilFindingsGetFindingsReviewOKItemsItemHeld {
+	return s.Held
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetKind() FindingsGetFindingsReviewOKItemsItemKind {
+	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetLine() NilString {
+	return s.Line
+}
+
+// GetOlderBuild returns the value of OlderBuild.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetOlderBuild() NilFindingsGetFindingsReviewOKItemsItemOlderBuild {
+	return s.OlderBuild
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetSeverity() NilFindingsGetFindingsReviewOKItemsItemSeverity {
+	return s.Severity
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetSoftware() NilFindingsGetFindingsReviewOKItemsItemSoftware {
+	return s.Software
+}
+
+// GetState returns the value of State.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetState() FindingsGetFindingsReviewOKItemsItemState {
+	return s.State
+}
+
+// GetUndecided returns the value of Undecided.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetUndecided() FindingsGetFindingsReviewOKItemsItemUndecided {
+	return s.Undecided
+}
+
+// SetBulk sets the value of Bulk.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetBulk(val bool) {
+	s.Bulk = val
+}
+
+// SetCause sets the value of Cause.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetCause(val NilFindingsGetFindingsReviewOKItemsItemCause) {
+	s.Cause = val
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetCheck(val NilFindingsGetFindingsReviewOKItemsItemCheck) {
+	s.Check = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetCheckable(val bool) {
+	s.Checkable = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetDevice(val FindingsGetFindingsReviewOKItemsItemDevice) {
+	s.Device = val
+}
+
+// SetDistroPending sets the value of DistroPending.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetDistroPending(val bool) {
+	s.DistroPending = val
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetExploited(val bool) {
+	s.Exploited = val
+}
+
+// SetFinding sets the value of Finding.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetFinding(val OptString) {
+	s.Finding = val
+}
+
+// SetFixes sets the value of Fixes.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetFixes(val []string) {
+	s.Fixes = val
+}
+
+// SetHeld sets the value of Held.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetHeld(val NilFindingsGetFindingsReviewOKItemsItemHeld) {
+	s.Held = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetKind(val FindingsGetFindingsReviewOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetLine(val NilString) {
+	s.Line = val
+}
+
+// SetOlderBuild sets the value of OlderBuild.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetOlderBuild(val NilFindingsGetFindingsReviewOKItemsItemOlderBuild) {
+	s.OlderBuild = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetSeverity(val NilFindingsGetFindingsReviewOKItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetSoftware(val NilFindingsGetFindingsReviewOKItemsItemSoftware) {
+	s.Software = val
+}
+
+// SetState sets the value of State.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetState(val FindingsGetFindingsReviewOKItemsItemState) {
+	s.State = val
+}
+
+// SetUndecided sets the value of Undecided.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetUndecided(val FindingsGetFindingsReviewOKItemsItemUndecided) {
+	s.Undecided = val
+}
+
+// Why the CVE is still possible and what would decide it: vendor_silent (no vendor page states more
+// than the record), page_unreadable (the pages could not be read), needs_reading (the vendor's
+// advisory must be read: no AI set up, or the reading is still to come), ai_unsure (the AI could not
+// tell, or its quote was not in the page), ai_budget (the AI's reading waits for the budget),
+// identity_unproven (the software is not tied to a product the records name), version_needed (the
+// version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the
+// affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a
+// rejected reading), distro_silent (a distribution's package is judged by the distribution's word
+// alone, and its security data has no word on the package for the CVE; the undecided reason says why).
+type FindingsGetFindingsReviewOKItemsItemCause string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCauseVendorSilent     FindingsGetFindingsReviewOKItemsItemCause = "vendor_silent"
+	FindingsGetFindingsReviewOKItemsItemCausePageUnreadable   FindingsGetFindingsReviewOKItemsItemCause = "page_unreadable"
+	FindingsGetFindingsReviewOKItemsItemCauseNeedsReading     FindingsGetFindingsReviewOKItemsItemCause = "needs_reading"
+	FindingsGetFindingsReviewOKItemsItemCauseAiUnsure         FindingsGetFindingsReviewOKItemsItemCause = "ai_unsure"
+	FindingsGetFindingsReviewOKItemsItemCauseAiBudget         FindingsGetFindingsReviewOKItemsItemCause = "ai_budget"
+	FindingsGetFindingsReviewOKItemsItemCauseIdentityUnproven FindingsGetFindingsReviewOKItemsItemCause = "identity_unproven"
+	FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded    FindingsGetFindingsReviewOKItemsItemCause = "version_needed"
+	FindingsGetFindingsReviewOKItemsItemCausePendingNvd       FindingsGetFindingsReviewOKItemsItemCause = "pending_nvd"
+	FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson      FindingsGetFindingsReviewOKItemsItemCause = "needs_person"
+	FindingsGetFindingsReviewOKItemsItemCauseDistroSilent     FindingsGetFindingsReviewOKItemsItemCause = "distro_silent"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCause values.
+func (FindingsGetFindingsReviewOKItemsItemCause) AllValues() []FindingsGetFindingsReviewOKItemsItemCause {
+	return []FindingsGetFindingsReviewOKItemsItemCause{
+		FindingsGetFindingsReviewOKItemsItemCauseVendorSilent,
+		FindingsGetFindingsReviewOKItemsItemCausePageUnreadable,
+		FindingsGetFindingsReviewOKItemsItemCauseNeedsReading,
+		FindingsGetFindingsReviewOKItemsItemCauseAiUnsure,
+		FindingsGetFindingsReviewOKItemsItemCauseAiBudget,
+		FindingsGetFindingsReviewOKItemsItemCauseIdentityUnproven,
+		FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded,
+		FindingsGetFindingsReviewOKItemsItemCausePendingNvd,
+		FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson,
+		FindingsGetFindingsReviewOKItemsItemCauseDistroSilent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCause) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCauseVendorSilent:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCausePageUnreadable:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseNeedsReading:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseAiUnsure:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseAiBudget:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseIdentityUnproven:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCausePendingNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCauseDistroSilent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCause) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCause(data) {
+	case FindingsGetFindingsReviewOKItemsItemCauseVendorSilent:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseVendorSilent
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCausePageUnreadable:
+		*s = FindingsGetFindingsReviewOKItemsItemCausePageUnreadable
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseNeedsReading:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseNeedsReading
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseAiUnsure:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseAiUnsure
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseAiBudget:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseAiBudget
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseIdentityUnproven:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseIdentityUnproven
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseVersionNeeded
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCausePendingNvd:
+		*s = FindingsGetFindingsReviewOKItemsItemCausePendingNvd
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseNeedsPerson
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCauseDistroSilent:
+		*s = FindingsGetFindingsReviewOKItemsItemCauseDistroSilent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// A check of a possible CVE's advisories.
+type FindingsGetFindingsReviewOKItemsItemCheck struct {
+	CheckedAt time.Time `json:"checked_at"`
+	CheckedBy string    `json:"checked_by"`
+	// Ai only: confident when the AI's quote is in the page word for word and names a release range of
+	// this version's line; likely otherwise. null for the box's own verdicts and for unsure.
+	Confidence NilFindingsGetFindingsReviewOKItemsItemCheckConfidence `json:"confidence"`
+	// Advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai:
+	// the AI read the pages, a proposal a person confirms or rejects.
+	DecidedBy FindingsGetFindingsReviewOKItemsItemCheckDecidedBy `json:"decided_by"`
+	// The evidence identity the check is stored under (reject: POST
+	// /findings/possible/checks/{key}/reject).
+	Key string `json:"key"`
+	// Ai only: the model.
+	Model NilString `json:"model"`
+	// The sentence the verdict rests on, as the page writes it; "" when none.
+	Quote string `json:"quote"`
+	// The AI's reading of the vendor's statement for the line this check shows (key: the reading); null
+	// for a check of one version.
+	Reading NilFindingsGetFindingsReviewOKItemsItemCheckReading `json:"reading"`
+	Reason  string                                              `json:"reason"`
+	// A person rejected this AI proposal or reading: the CVE is possible again.
+	Rejected bool                                                   `json:"rejected"`
+	Sources  []FindingsGetFindingsReviewOKItemsItemCheckSourcesItem `json:"sources"`
+	Verdict  FindingsGetFindingsReviewOKItemsItemCheckVerdict       `json:"verdict"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetCheckedBy returns the value of CheckedBy.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetCheckedBy() string {
+	return s.CheckedBy
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetConfidence() NilFindingsGetFindingsReviewOKItemsItemCheckConfidence {
+	return s.Confidence
+}
+
+// GetDecidedBy returns the value of DecidedBy.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetDecidedBy() FindingsGetFindingsReviewOKItemsItemCheckDecidedBy {
+	return s.DecidedBy
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetKey() string {
+	return s.Key
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetModel() NilString {
+	return s.Model
+}
+
+// GetQuote returns the value of Quote.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetQuote() string {
+	return s.Quote
+}
+
+// GetReading returns the value of Reading.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetReading() NilFindingsGetFindingsReviewOKItemsItemCheckReading {
+	return s.Reading
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetReason() string {
+	return s.Reason
+}
+
+// GetRejected returns the value of Rejected.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetRejected() bool {
+	return s.Rejected
+}
+
+// GetSources returns the value of Sources.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetSources() []FindingsGetFindingsReviewOKItemsItemCheckSourcesItem {
+	return s.Sources
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) GetVerdict() FindingsGetFindingsReviewOKItemsItemCheckVerdict {
+	return s.Verdict
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetCheckedBy sets the value of CheckedBy.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetCheckedBy(val string) {
+	s.CheckedBy = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetConfidence(val NilFindingsGetFindingsReviewOKItemsItemCheckConfidence) {
+	s.Confidence = val
+}
+
+// SetDecidedBy sets the value of DecidedBy.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetDecidedBy(val FindingsGetFindingsReviewOKItemsItemCheckDecidedBy) {
+	s.DecidedBy = val
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetKey(val string) {
+	s.Key = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetModel(val NilString) {
+	s.Model = val
+}
+
+// SetQuote sets the value of Quote.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetQuote(val string) {
+	s.Quote = val
+}
+
+// SetReading sets the value of Reading.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetReading(val NilFindingsGetFindingsReviewOKItemsItemCheckReading) {
+	s.Reading = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetRejected sets the value of Rejected.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetRejected(val bool) {
+	s.Rejected = val
+}
+
+// SetSources sets the value of Sources.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetSources(val []FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) {
+	s.Sources = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsReviewOKItemsItemCheck) SetVerdict(val FindingsGetFindingsReviewOKItemsItemCheckVerdict) {
+	s.Verdict = val
+}
+
+type FindingsGetFindingsReviewOKItemsItemCheckConfidence string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckConfidenceConfident FindingsGetFindingsReviewOKItemsItemCheckConfidence = "confident"
+	FindingsGetFindingsReviewOKItemsItemCheckConfidenceLikely    FindingsGetFindingsReviewOKItemsItemCheckConfidence = "likely"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckConfidence values.
+func (FindingsGetFindingsReviewOKItemsItemCheckConfidence) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckConfidence {
+	return []FindingsGetFindingsReviewOKItemsItemCheckConfidence{
+		FindingsGetFindingsReviewOKItemsItemCheckConfidenceConfident,
+		FindingsGetFindingsReviewOKItemsItemCheckConfidenceLikely,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckConfidenceConfident:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckConfidenceLikely:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckConfidence) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckConfidence(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckConfidenceConfident:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckConfidenceConfident
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckConfidenceLikely:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckConfidenceLikely
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Advisory: the box read the vendor's advisory and its ranges decided (applied without a person); ai:
+// the AI read the pages, a proposal a person confirms or rejects.
+type FindingsGetFindingsReviewOKItemsItemCheckDecidedBy string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckDecidedByStructured FindingsGetFindingsReviewOKItemsItemCheckDecidedBy = "structured"
+	FindingsGetFindingsReviewOKItemsItemCheckDecidedByAdvisory   FindingsGetFindingsReviewOKItemsItemCheckDecidedBy = "advisory"
+	FindingsGetFindingsReviewOKItemsItemCheckDecidedByAi         FindingsGetFindingsReviewOKItemsItemCheckDecidedBy = "ai"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckDecidedBy values.
+func (FindingsGetFindingsReviewOKItemsItemCheckDecidedBy) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckDecidedBy {
+	return []FindingsGetFindingsReviewOKItemsItemCheckDecidedBy{
+		FindingsGetFindingsReviewOKItemsItemCheckDecidedByStructured,
+		FindingsGetFindingsReviewOKItemsItemCheckDecidedByAdvisory,
+		FindingsGetFindingsReviewOKItemsItemCheckDecidedByAi,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckDecidedBy) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckDecidedByStructured:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckDecidedByAdvisory:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckDecidedByAi:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckDecidedBy) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckDecidedBy(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckDecidedByStructured:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckDecidedByStructured
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckDecidedByAdvisory:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckDecidedByAdvisory
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckDecidedByAi:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckDecidedByAi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The AI's reading of the vendor's statement for one release line, as the box checked it; applied to
+// every device and version on that line.
+type FindingsGetFindingsReviewOKItemsItemCheckReading struct {
+	// The release that fixes it; null unless the quote names it (only then is it the finding's fix).
+	FixedIn NilString `json:"fixed_in"`
+	// The host of the page the quote is from; null when it is from the CVE record.
+	Host NilString `json:"host"`
+	// The first affected release; null unless the quote names it.
+	Introduced NilString `json:"introduced"`
+	// The last affected release; null unless the quote names it.
+	LastAffected NilString `json:"last_affected"`
+	// The release line the reading is keyed by (the product's scheme line, else the version).
+	Line string `json:"line"`
+	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
+	// not found decides nothing.
+	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch `json:"research"`
+	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
+	// the quote names it.
+	StatedLine NilString `json:"stated_line"`
+	// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+	// affected, or unsure.
+	Status FindingsGetFindingsReviewOKItemsItemCheckReadingStatus `json:"status"`
+	// The page is the vendor's own advisory: only then may "not affected" settle the CVE (never an
+	// exploited one).
+	VendorPage bool `json:"vendor_page"`
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetFixedIn() NilString {
+	return s.FixedIn
+}
+
+// GetHost returns the value of Host.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetHost() NilString {
+	return s.Host
+}
+
+// GetIntroduced returns the value of Introduced.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetIntroduced() NilString {
+	return s.Introduced
+}
+
+// GetLastAffected returns the value of LastAffected.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetLastAffected() NilString {
+	return s.LastAffected
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetLine() string {
+	return s.Line
+}
+
+// GetQuoteFound returns the value of QuoteFound.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetQuoteFound() bool {
+	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetResearch() NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch {
+	return s.Research
+}
+
+// GetStatedLine returns the value of StatedLine.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetStatedLine() NilString {
+	return s.StatedLine
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetStatus() FindingsGetFindingsReviewOKItemsItemCheckReadingStatus {
+	return s.Status
+}
+
+// GetVendorPage returns the value of VendorPage.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) GetVendorPage() bool {
+	return s.VendorPage
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetFixedIn(val NilString) {
+	s.FixedIn = val
+}
+
+// SetHost sets the value of Host.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetHost(val NilString) {
+	s.Host = val
+}
+
+// SetIntroduced sets the value of Introduced.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetIntroduced(val NilString) {
+	s.Introduced = val
+}
+
+// SetLastAffected sets the value of LastAffected.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetLastAffected(val NilString) {
+	s.LastAffected = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetLine(val string) {
+	s.Line = val
+}
+
+// SetQuoteFound sets the value of QuoteFound.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetQuoteFound(val bool) {
+	s.QuoteFound = val
+}
+
+// SetResearch sets the value of Research.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetResearch(val NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) {
+	s.Research = val
+}
+
+// SetStatedLine sets the value of StatedLine.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetStatedLine(val NilString) {
+	s.StatedLine = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetStatus(val FindingsGetFindingsReviewOKItemsItemCheckReadingStatus) {
+	s.Status = val
+}
+
+// SetVendorPage sets the value of VendorPage.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReading) SetVendorPage(val bool) {
+	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearch struct {
+	Detail FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) GetDetail() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) GetLayer() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) GetQuoteCheck() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) SetDetail(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) SetLayer(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) SetQuoteCheck(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                                `json:"fallback"`
+	Fetch    FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                              `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                       `json:"reader"`
+	Steps  []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetFetch() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetSteps() []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetFetch(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetSteps(val []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                       `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetLayer() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) GetWeb() FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetLayer(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItem) SetWeb(val FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick  FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer{
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone     FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox      FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb{
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerQuick  FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer = "quick"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerStrong FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer values.
+func (FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer {
+	return []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer{
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerQuick,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayer(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerQuick:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerQuick
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerStrong:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckTool     FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck = "tool"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckDigest   FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck = "digest"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckLive     FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck = "live"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNotFound FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck = "not_found"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNone     FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck values.
+func (FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck {
+	return []FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck{
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckTool,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckDigest,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckLive,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNotFound,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheck(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckTool:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckLive:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNone:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
+// affected, or unsure.
+type FindingsGetFindingsReviewOKItemsItemCheckReadingStatus string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckReadingStatusAffected    FindingsGetFindingsReviewOKItemsItemCheckReadingStatus = "affected"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingStatusFixed       FindingsGetFindingsReviewOKItemsItemCheckReadingStatus = "fixed"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingStatusNotAffected FindingsGetFindingsReviewOKItemsItemCheckReadingStatus = "not_affected"
+	FindingsGetFindingsReviewOKItemsItemCheckReadingStatusUnsure      FindingsGetFindingsReviewOKItemsItemCheckReadingStatus = "unsure"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckReadingStatus values.
+func (FindingsGetFindingsReviewOKItemsItemCheckReadingStatus) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckReadingStatus {
+	return []FindingsGetFindingsReviewOKItemsItemCheckReadingStatus{
+		FindingsGetFindingsReviewOKItemsItemCheckReadingStatusAffected,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingStatusFixed,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingStatusNotAffected,
+		FindingsGetFindingsReviewOKItemsItemCheckReadingStatusUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckReadingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusNotAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckReadingStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckReadingStatus(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusAffected:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingStatusAffected
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusFixed:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingStatusFixed
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusNotAffected:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingStatusNotAffected
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckReadingStatusUnsure:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckReadingStatusUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One reference page a check read or tried to.
+type FindingsGetFindingsReviewOKItemsItemCheckSourcesItem struct {
+	// The verdict's quote is from this page.
+	Cited OptBool `json:"cited"`
+	// Why it was not read.
+	Note   OptString                                                  `json:"note"`
+	Status FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus `json:"status"`
+	Title  OptString                                                  `json:"title"`
+	URL    string                                                     `json:"url"`
+}
+
+// GetCited returns the value of Cited.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) GetCited() OptBool {
+	return s.Cited
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) GetStatus() FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) GetTitle() OptString {
+	return s.Title
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) GetURL() string {
+	return s.URL
+}
+
+// SetCited sets the value of Cited.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) SetCited(val OptBool) {
+	s.Cited = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) SetStatus(val FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItem) SetURL(val string) {
+	s.URL = val
+}
+
+type FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusOk      FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus = "ok"
+	FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusFailed  FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus = "failed"
+	FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusSkipped FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus = "skipped"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus values.
+func (FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus {
+	return []FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus{
+		FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusOk,
+		FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusFailed,
+		FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusSkipped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusOk:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusFailed:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusSkipped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatus(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusOk:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusOk
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusFailed:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusFailed
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusSkipped:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckSourcesItemStatusSkipped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsReviewOKItemsItemCheckVerdict string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemCheckVerdictAffected    FindingsGetFindingsReviewOKItemsItemCheckVerdict = "affected"
+	FindingsGetFindingsReviewOKItemsItemCheckVerdictNotAffected FindingsGetFindingsReviewOKItemsItemCheckVerdict = "not_affected"
+	FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure      FindingsGetFindingsReviewOKItemsItemCheckVerdict = "unsure"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemCheckVerdict values.
+func (FindingsGetFindingsReviewOKItemsItemCheckVerdict) AllValues() []FindingsGetFindingsReviewOKItemsItemCheckVerdict {
+	return []FindingsGetFindingsReviewOKItemsItemCheckVerdict{
+		FindingsGetFindingsReviewOKItemsItemCheckVerdictAffected,
+		FindingsGetFindingsReviewOKItemsItemCheckVerdictNotAffected,
+		FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemCheckVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemCheckVerdictAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckVerdictNotAffected:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemCheckVerdict) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemCheckVerdict(data) {
+	case FindingsGetFindingsReviewOKItemsItemCheckVerdictAffected:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckVerdictAffected
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckVerdictNotAffected:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckVerdictNotAffected
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure:
+		*s = FindingsGetFindingsReviewOKItemsItemCheckVerdictUnsure
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsReviewOKItemsItemDevice struct {
+	// False = "Not added yet": nobody added this device; its card offers Add device and Ignore.
+	Added bool   `json:"added"`
+	ID    string `json:"id"`
+	// A person ignored the device: its findings are left out of every list and count except the Ignored
+	// devices tab.
+	Ignored bool `json:"ignored"`
+	// Null when the device has no IP address.
+	IP   NilString                                      `json:"ip"`
+	Kind FindingsGetFindingsReviewOKItemsItemDeviceKind `json:"kind"`
+	// The name the Devices page shows; never the internal id.
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) GetID() string {
+	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) GetIgnored() bool {
+	return s.Ignored
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) GetIP() NilString {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) GetKind() FindingsGetFindingsReviewOKItemsItemDeviceKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) SetIgnored(val bool) {
+	s.Ignored = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) SetKind(val FindingsGetFindingsReviewOKItemsItemDeviceKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsReviewOKItemsItemDevice) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsReviewOKItemsItemDeviceKind string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemDeviceKindRouter              FindingsGetFindingsReviewOKItemsItemDeviceKind = "router"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSwitch              FindingsGetFindingsReviewOKItemsItemDeviceKind = "switch"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindModem               FindingsGetFindingsReviewOKItemsItemDeviceKind = "modem"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSdWan               FindingsGetFindingsReviewOKItemsItemDeviceKind = "sd_wan"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindLoadBalancer        FindingsGetFindingsReviewOKItemsItemDeviceKind = "load_balancer"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindNetworkController   FindingsGetFindingsReviewOKItemsItemDeviceKind = "network_controller"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindFirewall            FindingsGetFindingsReviewOKItemsItemDeviceKind = "firewall"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindVpnGateway          FindingsGetFindingsReviewOKItemsItemDeviceKind = "vpn_gateway"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindIdsSensor           FindingsGetFindingsReviewOKItemsItemDeviceKind = "ids_sensor"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindProxy               FindingsGetFindingsReviewOKItemsItemDeviceKind = "proxy"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindAp                  FindingsGetFindingsReviewOKItemsItemDeviceKind = "ap"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessController  FindingsGetFindingsReviewOKItemsItemDeviceKind = "wireless_controller"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindWifiExtender        FindingsGetFindingsReviewOKItemsItemDeviceKind = "wifi_extender"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindMeshNode            FindingsGetFindingsReviewOKItemsItemDeviceKind = "mesh_node"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindServer              FindingsGetFindingsReviewOKItemsItemDeviceKind = "server"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindVirtualMachine      FindingsGetFindingsReviewOKItemsItemDeviceKind = "virtual_machine"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindHypervisor          FindingsGetFindingsReviewOKItemsItemDeviceKind = "hypervisor"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindBmc                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "bmc"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindDomainController    FindingsGetFindingsReviewOKItemsItemDeviceKind = "domain_controller"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindMailServer          FindingsGetFindingsReviewOKItemsItemDeviceKind = "mail_server"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindDatabaseServer      FindingsGetFindingsReviewOKItemsItemDeviceKind = "database_server"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindBackupServer        FindingsGetFindingsReviewOKItemsItemDeviceKind = "backup_server"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPc                  FindingsGetFindingsReviewOKItemsItemDeviceKind = "pc"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindLaptop              FindingsGetFindingsReviewOKItemsItemDeviceKind = "laptop"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindWorkstation         FindingsGetFindingsReviewOKItemsItemDeviceKind = "workstation"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindThinClient          FindingsGetFindingsReviewOKItemsItemDeviceKind = "thin_client"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPosTerminal         FindingsGetFindingsReviewOKItemsItemDeviceKind = "pos_terminal"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindKiosk               FindingsGetFindingsReviewOKItemsItemDeviceKind = "kiosk"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartphone          FindingsGetFindingsReviewOKItemsItemDeviceKind = "smartphone"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindTablet              FindingsGetFindingsReviewOKItemsItemDeviceKind = "tablet"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartwatch          FindingsGetFindingsReviewOKItemsItemDeviceKind = "smartwatch"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPrinter             FindingsGetFindingsReviewOKItemsItemDeviceKind = "printer"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindMfp                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "mfp"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindScanner             FindingsGetFindingsReviewOKItemsItemDeviceKind = "scanner"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindLabelPrinter        FindingsGetFindingsReviewOKItemsItemDeviceKind = "label_printer"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindReceiptPrinter      FindingsGetFindingsReviewOKItemsItemDeviceKind = "receipt_printer"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPlotter             FindingsGetFindingsReviewOKItemsItemDeviceKind = "plotter"
+	FindingsGetFindingsReviewOKItemsItemDeviceKind3dPrinter           FindingsGetFindingsReviewOKItemsItemDeviceKind = "3d_printer"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindCamera              FindingsGetFindingsReviewOKItemsItemDeviceKind = "camera"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindNvr                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "nvr"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindDvr                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "dvr"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindVideoEncoder        FindingsGetFindingsReviewOKItemsItemDeviceKind = "video_encoder"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindDoorbell            FindingsGetFindingsReviewOKItemsItemDeviceKind = "doorbell"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindVideoConferencing   FindingsGetFindingsReviewOKItemsItemDeviceKind = "video_conferencing"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindIPPhone             FindingsGetFindingsReviewOKItemsItemDeviceKind = "ip_phone"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPbx                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "pbx"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindVoipAdapter         FindingsGetFindingsReviewOKItemsItemDeviceKind = "voip_adapter"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindVoipGateway         FindingsGetFindingsReviewOKItemsItemDeviceKind = "voip_gateway"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindConferencePhone     FindingsGetFindingsReviewOKItemsItemDeviceKind = "conference_phone"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindIntercom            FindingsGetFindingsReviewOKItemsItemDeviceKind = "intercom"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindNas                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "nas"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSan                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "san"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindBackupAppliance     FindingsGetFindingsReviewOKItemsItemDeviceKind = "backup_appliance"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindTapeLibrary         FindingsGetFindingsReviewOKItemsItemDeviceKind = "tape_library"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindIot                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "iot"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartTv             FindingsGetFindingsReviewOKItemsItemDeviceKind = "smart_tv"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindMediaPlayer         FindingsGetFindingsReviewOKItemsItemDeviceKind = "media_player"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartSpeaker        FindingsGetFindingsReviewOKItemsItemDeviceKind = "smart_speaker"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindGameConsole         FindingsGetFindingsReviewOKItemsItemDeviceKind = "game_console"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartPlug           FindingsGetFindingsReviewOKItemsItemDeviceKind = "smart_plug"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartLight          FindingsGetFindingsReviewOKItemsItemDeviceKind = "smart_light"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartHub            FindingsGetFindingsReviewOKItemsItemDeviceKind = "smart_hub"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindThermostat          FindingsGetFindingsReviewOKItemsItemDeviceKind = "thermostat"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindProjector           FindingsGetFindingsReviewOKItemsItemDeviceKind = "projector"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindDigitalSignage      FindingsGetFindingsReviewOKItemsItemDeviceKind = "digital_signage"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSingleBoardComputer FindingsGetFindingsReviewOKItemsItemDeviceKind = "single_board_computer"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSmartAppliance      FindingsGetFindingsReviewOKItemsItemDeviceKind = "smart_appliance"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindRobotVacuum         FindingsGetFindingsReviewOKItemsItemDeviceKind = "robot_vacuum"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessBridge      FindingsGetFindingsReviewOKItemsItemDeviceKind = "wireless_bridge"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPlc                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "plc"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindHmi                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "hmi"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindRtu                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "rtu"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindScadaServer         FindingsGetFindingsReviewOKItemsItemDeviceKind = "scada_server"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindIndustrialSwitch    FindingsGetFindingsReviewOKItemsItemDeviceKind = "industrial_switch"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindUps                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "ups"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPdu                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "pdu"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindAccessControl       FindingsGetFindingsReviewOKItemsItemDeviceKind = "access_control"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindTimeClock           FindingsGetFindingsReviewOKItemsItemDeviceKind = "time_clock"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindAlarmPanel          FindingsGetFindingsReviewOKItemsItemDeviceKind = "alarm_panel"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindHvacController      FindingsGetFindingsReviewOKItemsItemDeviceKind = "hvac_controller"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindBuildingController  FindingsGetFindingsReviewOKItemsItemDeviceKind = "building_controller"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindPowerMeter          FindingsGetFindingsReviewOKItemsItemDeviceKind = "power_meter"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindEnvironmentMonitor  FindingsGetFindingsReviewOKItemsItemDeviceKind = "environment_monitor"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindEvCharger           FindingsGetFindingsReviewOKItemsItemDeviceKind = "ev_charger"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindSolarInverter       FindingsGetFindingsReviewOKItemsItemDeviceKind = "solar_inverter"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindMedicalDevice       FindingsGetFindingsReviewOKItemsItemDeviceKind = "medical_device"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindWeb                 FindingsGetFindingsReviewOKItemsItemDeviceKind = "web"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindCloudService        FindingsGetFindingsReviewOKItemsItemDeviceKind = "cloud_service"
+	FindingsGetFindingsReviewOKItemsItemDeviceKindUnknown             FindingsGetFindingsReviewOKItemsItemDeviceKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemDeviceKind values.
+func (FindingsGetFindingsReviewOKItemsItemDeviceKind) AllValues() []FindingsGetFindingsReviewOKItemsItemDeviceKind {
+	return []FindingsGetFindingsReviewOKItemsItemDeviceKind{
+		FindingsGetFindingsReviewOKItemsItemDeviceKindRouter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSwitch,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindModem,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSdWan,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindLoadBalancer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindNetworkController,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindFirewall,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindVpnGateway,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindIdsSensor,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindProxy,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindAp,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessController,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindWifiExtender,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindMeshNode,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindServer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindVirtualMachine,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindHypervisor,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindBmc,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindDomainController,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindMailServer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindDatabaseServer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindBackupServer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPc,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindLaptop,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindWorkstation,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindThinClient,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPosTerminal,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindKiosk,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartphone,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindTablet,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartwatch,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPrinter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindMfp,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindScanner,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindLabelPrinter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindReceiptPrinter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPlotter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKind3dPrinter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindCamera,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindNvr,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindDvr,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindVideoEncoder,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindDoorbell,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindVideoConferencing,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindIPPhone,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPbx,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindVoipAdapter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindVoipGateway,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindConferencePhone,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindIntercom,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindNas,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSan,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindBackupAppliance,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindTapeLibrary,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindIot,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartTv,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindMediaPlayer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartSpeaker,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindGameConsole,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartPlug,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartLight,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartHub,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindThermostat,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindProjector,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindDigitalSignage,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSingleBoardComputer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSmartAppliance,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindRobotVacuum,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessBridge,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPlc,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindHmi,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindRtu,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindScadaServer,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindIndustrialSwitch,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindUps,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPdu,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindAccessControl,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindTimeClock,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindAlarmPanel,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindHvacController,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindBuildingController,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindPowerMeter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindEnvironmentMonitor,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindEvCharger,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindSolarInverter,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindMedicalDevice,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindWeb,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindCloudService,
+		FindingsGetFindingsReviewOKItemsItemDeviceKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemDeviceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemDeviceKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemDeviceKind(data) {
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindRouter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindRouter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSwitch:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSwitch
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindModem:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindModem
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSdWan:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSdWan
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindLoadBalancer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindNetworkController:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindNetworkController
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindFirewall:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindFirewall
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVpnGateway:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindVpnGateway
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIdsSensor:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindIdsSensor
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindProxy:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindProxy
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindAp:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindAp
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessController:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessController
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWifiExtender:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindWifiExtender
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMeshNode:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindMeshNode
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindServer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindServer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindVirtualMachine
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindHypervisor:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindHypervisor
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBmc:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindBmc
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDomainController:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindDomainController
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMailServer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindMailServer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindDatabaseServer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBackupServer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindBackupServer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPc:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPc
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindLaptop:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindLaptop
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWorkstation:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindWorkstation
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindThinClient:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindThinClient
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPosTerminal:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPosTerminal
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindKiosk:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindKiosk
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartphone:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartphone
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindTablet:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindTablet
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartwatch:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartwatch
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPrinter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPrinter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMfp:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindMfp
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindScanner:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindScanner
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindLabelPrinter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPlotter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPlotter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKind3dPrinter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKind3dPrinter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindCamera:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindCamera
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindNvr:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindNvr
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDvr:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindDvr
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindVideoEncoder
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDoorbell:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindDoorbell
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindVideoConferencing
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIPPhone:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindIPPhone
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPbx:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPbx
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindVoipAdapter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindVoipGateway:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindVoipGateway
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindConferencePhone:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindConferencePhone
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIntercom:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindIntercom
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindNas:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindNas
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSan:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSan
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindBackupAppliance
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindTapeLibrary
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIot:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindIot
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartTv:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartTv
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindMediaPlayer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindGameConsole:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindGameConsole
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartPlug:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartPlug
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartLight:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartLight
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartHub:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartHub
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindThermostat:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindThermostat
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindProjector:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindProjector
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindDigitalSignage
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSmartAppliance
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindRobotVacuum
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindWirelessBridge
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPlc:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPlc
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindHmi:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindHmi
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindRtu:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindRtu
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindScadaServer:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindScadaServer
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindUps:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindUps
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPdu:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPdu
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindAccessControl:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindAccessControl
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindTimeClock:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindTimeClock
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindAlarmPanel
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindHvacController:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindHvacController
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindBuildingController:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindBuildingController
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindPowerMeter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindPowerMeter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindEvCharger:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindEvCharger
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindSolarInverter:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindSolarInverter
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindMedicalDevice
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindWeb:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindWeb
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindCloudService:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindCloudService
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemDeviceKindUnknown:
+		*s = FindingsGetFindingsReviewOKItemsItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The automatic AI reading leaves this CVE until a time, and why.
+type FindingsGetFindingsReviewOKItemsItemHeld struct {
+	// Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable
+	// (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks
+	// could not finish in time).
+	Reason FindingsGetFindingsReviewOKItemsItemHeldReason `json:"reason"`
+	// The automatic reading reads it again after this time; a person's check reads it at once.
+	Until time.Time `json:"until"`
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsReviewOKItemsItemHeld) GetReason() FindingsGetFindingsReviewOKItemsItemHeldReason {
+	return s.Reason
+}
+
+// GetUntil returns the value of Until.
+func (s *FindingsGetFindingsReviewOKItemsItemHeld) GetUntil() time.Time {
+	return s.Until
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsReviewOKItemsItemHeld) SetReason(val FindingsGetFindingsReviewOKItemsItemHeldReason) {
+	s.Reason = val
+}
+
+// SetUntil sets the value of Until.
+func (s *FindingsGetFindingsReviewOKItemsItemHeld) SetUntil(val time.Time) {
+	s.Until = val
+}
+
+// Why its last AI call gave no reading: hook_refused (a hook stopped the text sent), answer_unusable
+// (the answer was outside the format or cut off), ai_failed (the AI provider failed, or the hooks
+// could not finish in time).
+type FindingsGetFindingsReviewOKItemsItemHeldReason string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemHeldReasonHookRefused    FindingsGetFindingsReviewOKItemsItemHeldReason = "hook_refused"
+	FindingsGetFindingsReviewOKItemsItemHeldReasonAnswerUnusable FindingsGetFindingsReviewOKItemsItemHeldReason = "answer_unusable"
+	FindingsGetFindingsReviewOKItemsItemHeldReasonAiFailed       FindingsGetFindingsReviewOKItemsItemHeldReason = "ai_failed"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemHeldReason values.
+func (FindingsGetFindingsReviewOKItemsItemHeldReason) AllValues() []FindingsGetFindingsReviewOKItemsItemHeldReason {
+	return []FindingsGetFindingsReviewOKItemsItemHeldReason{
+		FindingsGetFindingsReviewOKItemsItemHeldReasonHookRefused,
+		FindingsGetFindingsReviewOKItemsItemHeldReasonAnswerUnusable,
+		FindingsGetFindingsReviewOKItemsItemHeldReasonAiFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemHeldReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemHeldReasonHookRefused:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemHeldReasonAnswerUnusable:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemHeldReasonAiFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemHeldReason) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemHeldReason(data) {
+	case FindingsGetFindingsReviewOKItemsItemHeldReasonHookRefused:
+		*s = FindingsGetFindingsReviewOKItemsItemHeldReasonHookRefused
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemHeldReasonAnswerUnusable:
+		*s = FindingsGetFindingsReviewOKItemsItemHeldReasonAnswerUnusable
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemHeldReasonAiFailed:
+		*s = FindingsGetFindingsReviewOKItemsItemHeldReasonAiFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
+// platforms and nothing says which this is; package_release = the distribution's package release
+// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
+// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+// question for all of them (cve_list).
+type FindingsGetFindingsReviewOKItemsItemKind string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemKindVersionNeeded  FindingsGetFindingsReviewOKItemsItemKind = "version_needed"
+	FindingsGetFindingsReviewOKItemsItemKindPlatform       FindingsGetFindingsReviewOKItemsItemKind = "platform"
+	FindingsGetFindingsReviewOKItemsItemKindPackageRelease FindingsGetFindingsReviewOKItemsItemKind = "package_release"
+	FindingsGetFindingsReviewOKItemsItemKindNotComparable  FindingsGetFindingsReviewOKItemsItemKind = "not_comparable"
+	FindingsGetFindingsReviewOKItemsItemKindNoRangeData    FindingsGetFindingsReviewOKItemsItemKind = "no_range_data"
+	FindingsGetFindingsReviewOKItemsItemKindOlderLine      FindingsGetFindingsReviewOKItemsItemKind = "older_line"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemKind values.
+func (FindingsGetFindingsReviewOKItemsItemKind) AllValues() []FindingsGetFindingsReviewOKItemsItemKind {
+	return []FindingsGetFindingsReviewOKItemsItemKind{
+		FindingsGetFindingsReviewOKItemsItemKindVersionNeeded,
+		FindingsGetFindingsReviewOKItemsItemKindPlatform,
+		FindingsGetFindingsReviewOKItemsItemKindPackageRelease,
+		FindingsGetFindingsReviewOKItemsItemKindNotComparable,
+		FindingsGetFindingsReviewOKItemsItemKindNoRangeData,
+		FindingsGetFindingsReviewOKItemsItemKindOlderLine,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemKindVersionNeeded:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemKindPlatform:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemKindPackageRelease:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemKindNotComparable:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemKindNoRangeData:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemKindOlderLine:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemKind(data) {
+	case FindingsGetFindingsReviewOKItemsItemKindVersionNeeded:
+		*s = FindingsGetFindingsReviewOKItemsItemKindVersionNeeded
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemKindPlatform:
+		*s = FindingsGetFindingsReviewOKItemsItemKindPlatform
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemKindPackageRelease:
+		*s = FindingsGetFindingsReviewOKItemsItemKindPackageRelease
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemKindNotComparable:
+		*s = FindingsGetFindingsReviewOKItemsItemKindNotComparable
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemKindNoRangeData:
+		*s = FindingsGetFindingsReviewOKItemsItemKindNoRangeData
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemKindOlderLine:
+		*s = FindingsGetFindingsReviewOKItemsItemKindOlderLine
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Reported only for an older build: a third party lists the builds it tested, every one older than the
+// installed release; the CVE is on no exploited list and its record gives no fix, workaround or
+// reference from the vendor. It stays possible and is listed and counted apart.
+type FindingsGetFindingsReviewOKItemsItemOlderBuild struct {
+	// The builds the third party reported, as its rows write them ("5.4.0"); each older than the release
+	// the device runs.
+	Tested []string `json:"tested"`
+	// The year of the report: the year of the CVE id.
+	Year int `json:"year"`
+}
+
+// GetTested returns the value of Tested.
+func (s *FindingsGetFindingsReviewOKItemsItemOlderBuild) GetTested() []string {
+	return s.Tested
+}
+
+// GetYear returns the value of Year.
+func (s *FindingsGetFindingsReviewOKItemsItemOlderBuild) GetYear() int {
+	return s.Year
+}
+
+// SetTested sets the value of Tested.
+func (s *FindingsGetFindingsReviewOKItemsItemOlderBuild) SetTested(val []string) {
+	s.Tested = val
+}
+
+// SetYear sets the value of Year.
+func (s *FindingsGetFindingsReviewOKItemsItemOlderBuild) SetYear(val int) {
+	s.Year = val
+}
+
+// The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes
+// the status. null = "Not scored yet", never 0.
+type FindingsGetFindingsReviewOKItemsItemSeverity struct {
+	Band    FindingsGetFindingsReviewOKItemsItemSeverityBand    `json:"band"`
+	Score   float64                                             `json:"score"`
+	Vector  string                                              `json:"vector"`
+	Version FindingsGetFindingsReviewOKItemsItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) GetBand() FindingsGetFindingsReviewOKItemsItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) GetVersion() FindingsGetFindingsReviewOKItemsItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) SetBand(val FindingsGetFindingsReviewOKItemsItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverity) SetVersion(val FindingsGetFindingsReviewOKItemsItemSeverityVersion) {
+	s.Version = val
+}
+
+type FindingsGetFindingsReviewOKItemsItemSeverityBand string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemSeverityBandCritical FindingsGetFindingsReviewOKItemsItemSeverityBand = "critical"
+	FindingsGetFindingsReviewOKItemsItemSeverityBandHigh     FindingsGetFindingsReviewOKItemsItemSeverityBand = "high"
+	FindingsGetFindingsReviewOKItemsItemSeverityBandMedium   FindingsGetFindingsReviewOKItemsItemSeverityBand = "medium"
+	FindingsGetFindingsReviewOKItemsItemSeverityBandLow      FindingsGetFindingsReviewOKItemsItemSeverityBand = "low"
+	FindingsGetFindingsReviewOKItemsItemSeverityBandNone     FindingsGetFindingsReviewOKItemsItemSeverityBand = "none"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemSeverityBand values.
+func (FindingsGetFindingsReviewOKItemsItemSeverityBand) AllValues() []FindingsGetFindingsReviewOKItemsItemSeverityBand {
+	return []FindingsGetFindingsReviewOKItemsItemSeverityBand{
+		FindingsGetFindingsReviewOKItemsItemSeverityBandCritical,
+		FindingsGetFindingsReviewOKItemsItemSeverityBandHigh,
+		FindingsGetFindingsReviewOKItemsItemSeverityBandMedium,
+		FindingsGetFindingsReviewOKItemsItemSeverityBandLow,
+		FindingsGetFindingsReviewOKItemsItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandCritical:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandHigh:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandMedium:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandLow:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverityBand) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemSeverityBand(data) {
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandCritical:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityBandCritical
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandHigh:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityBandHigh
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandMedium:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityBandMedium
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandLow:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityBandLow
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityBandNone:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsReviewOKItemsItemSeverityVersion string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemSeverityVersion40 FindingsGetFindingsReviewOKItemsItemSeverityVersion = "4.0"
+	FindingsGetFindingsReviewOKItemsItemSeverityVersion31 FindingsGetFindingsReviewOKItemsItemSeverityVersion = "3.1"
+	FindingsGetFindingsReviewOKItemsItemSeverityVersion30 FindingsGetFindingsReviewOKItemsItemSeverityVersion = "3.0"
+	FindingsGetFindingsReviewOKItemsItemSeverityVersion20 FindingsGetFindingsReviewOKItemsItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemSeverityVersion values.
+func (FindingsGetFindingsReviewOKItemsItemSeverityVersion) AllValues() []FindingsGetFindingsReviewOKItemsItemSeverityVersion {
+	return []FindingsGetFindingsReviewOKItemsItemSeverityVersion{
+		FindingsGetFindingsReviewOKItemsItemSeverityVersion40,
+		FindingsGetFindingsReviewOKItemsItemSeverityVersion31,
+		FindingsGetFindingsReviewOKItemsItemSeverityVersion30,
+		FindingsGetFindingsReviewOKItemsItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemSeverityVersion(data) {
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion40:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityVersion40
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion31:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityVersion31
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion30:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityVersion30
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemSeverityVersion20:
+		*s = FindingsGetFindingsReviewOKItemsItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsReviewOKItemsItemSoftware struct {
+	// The software line of the device (inventory).
+	ID string `json:"id"`
+	// Display name, as on the device page.
+	Name string `json:"name"`
+	// The version the match compared.
+	Version NilString `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsReviewOKItemsItemSoftware) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsReviewOKItemsItemSoftware) GetName() string {
+	return s.Name
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsReviewOKItemsItemSoftware) GetVersion() NilString {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsReviewOKItemsItemSoftware) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsReviewOKItemsItemSoftware) SetName(val string) {
+	s.Name = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsReviewOKItemsItemSoftware) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Possible: undecided; proposal: an AI proposal waits for a person; settled: the box settled it not
+// affected from the vendor's advisory (not counted).
+type FindingsGetFindingsReviewOKItemsItemState string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemStatePossible FindingsGetFindingsReviewOKItemsItemState = "possible"
+	FindingsGetFindingsReviewOKItemsItemStateProposal FindingsGetFindingsReviewOKItemsItemState = "proposal"
+	FindingsGetFindingsReviewOKItemsItemStateSettled  FindingsGetFindingsReviewOKItemsItemState = "settled"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemState values.
+func (FindingsGetFindingsReviewOKItemsItemState) AllValues() []FindingsGetFindingsReviewOKItemsItemState {
+	return []FindingsGetFindingsReviewOKItemsItemState{
+		FindingsGetFindingsReviewOKItemsItemStatePossible,
+		FindingsGetFindingsReviewOKItemsItemStateProposal,
+		FindingsGetFindingsReviewOKItemsItemStateSettled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemStatePossible:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemStateProposal:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemStateSettled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemState) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemState(data) {
+	case FindingsGetFindingsReviewOKItemsItemStatePossible:
+		*s = FindingsGetFindingsReviewOKItemsItemStatePossible
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemStateProposal:
+		*s = FindingsGetFindingsReviewOKItemsItemStateProposal
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemStateSettled:
+		*s = FindingsGetFindingsReviewOKItemsItemStateSettled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why a CVE stays possible and what blocked the decision.
+type FindingsGetFindingsReviewOKItemsItemUndecided struct {
+	// The range rows that were read and did not decide it (" [start, end)"), at most 20.
+	Ranges []string `json:"ranges"`
+	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+	// compared with. The distribution's silence on its own package (cause distro_silent):
+	// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+	// the CVE for this package and release), distro_other_packages (rows for other packages only),
+	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+	// build), distro_no_data (no security data of that distribution).
+	Reason FindingsGetFindingsReviewOKItemsItemUndecidedReason `json:"reason"`
+	// Up to 500 characters of advisory text the box could not read as ranges.
+	Text OptString `json:"text"`
+	// The page text is from.
+	URL OptString `json:"url"`
+}
+
+// GetRanges returns the value of Ranges.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) GetRanges() []string {
+	return s.Ranges
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) GetReason() FindingsGetFindingsReviewOKItemsItemUndecidedReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) GetText() OptString {
+	return s.Text
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) GetURL() OptString {
+	return s.URL
+}
+
+// SetRanges sets the value of Ranges.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) SetRanges(val []string) {
+	s.Ranges = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) SetReason(val FindingsGetFindingsReviewOKItemsItemUndecidedReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) SetText(val OptString) {
+	s.Text = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecided) SetURL(val OptString) {
+	s.URL = val
+}
+
+// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+// compared with. The distribution's silence on its own package (cause distro_silent):
+// distro_not_listed (no row of the CVE), distro_triage (the distribution states it is still triaging
+// the CVE for this package and release), distro_other_packages (rows for other packages only),
+// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+// build), distro_no_data (no security data of that distribution).
+type FindingsGetFindingsReviewOKItemsItemUndecidedReason string
+
+const (
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoVersion               FindingsGetFindingsReviewOKItemsItemUndecidedReason = "no_version"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonPlatformUnknown         FindingsGetFindingsReviewOKItemsItemUndecidedReason = "platform_unknown"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonPackageUnknown          FindingsGetFindingsReviewOKItemsItemUndecidedReason = "package_unknown"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonAttributeUnknown        FindingsGetFindingsReviewOKItemsItemUndecidedReason = "attribute_unknown"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionSchemeMismatch   FindingsGetFindingsReviewOKItemsItemUndecidedReason = "version_scheme_mismatch"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonNvdPending              FindingsGetFindingsReviewOKItemsItemUndecidedReason = "nvd_pending"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoRanges                FindingsGetFindingsReviewOKItemsItemUndecidedReason = "no_ranges"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonProductNotNamed         FindingsGetFindingsReviewOKItemsItemUndecidedReason = "product_not_named"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonNamedAsPlatformOnly     FindingsGetFindingsReviewOKItemsItemUndecidedReason = "named_as_platform_only"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonExactReleasesOnly       FindingsGetFindingsReviewOKItemsItemUndecidedReason = "exact_releases_only"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesDoNotDecide       FindingsGetFindingsReviewOKItemsItemUndecidedReason = "ranges_do_not_decide"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesStartAtBranchOnly FindingsGetFindingsReviewOKItemsItemUndecidedReason = "ranges_start_at_branch_only"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonEolLineUnlisted         FindingsGetFindingsReviewOKItemsItemUndecidedReason = "eol_line_unlisted"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonThirdPartyTestedBuild   FindingsGetFindingsReviewOKItemsItemUndecidedReason = "third_party_tested_build"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoReferencePage         FindingsGetFindingsReviewOKItemsItemUndecidedReason = "no_reference_page"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed             FindingsGetFindingsReviewOKItemsItemUndecidedReason = "fetch_failed"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText      FindingsGetFindingsReviewOKItemsItemUndecidedReason = "unparsed_vendor_text"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure                FindingsGetFindingsReviewOKItemsItemUndecidedReason = "ai_unsure"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork      FindingsGetFindingsReviewOKItemsItemUndecidedReason = "version_from_network"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed         FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_not_listed"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages     FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_packages"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases     FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_releases"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild        FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_other_build"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData            FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_no_data"
+	FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage            FindingsGetFindingsReviewOKItemsItemUndecidedReason = "distro_triage"
+)
+
+// AllValues returns all FindingsGetFindingsReviewOKItemsItemUndecidedReason values.
+func (FindingsGetFindingsReviewOKItemsItemUndecidedReason) AllValues() []FindingsGetFindingsReviewOKItemsItemUndecidedReason {
+	return []FindingsGetFindingsReviewOKItemsItemUndecidedReason{
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoVersion,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonPlatformUnknown,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonPackageUnknown,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonAttributeUnknown,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionSchemeMismatch,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonNvdPending,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoRanges,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonProductNotNamed,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonNamedAsPlatformOnly,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonExactReleasesOnly,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesDoNotDecide,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesStartAtBranchOnly,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonEolLineUnlisted,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonThirdPartyTestedBuild,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoReferencePage,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData,
+		FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsReviewOKItemsItemUndecidedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoVersion:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonPlatformUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonPackageUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAttributeUnknown:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionSchemeMismatch:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNvdPending:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoRanges:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonProductNotNamed:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNamedAsPlatformOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonExactReleasesOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesDoNotDecide:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesStartAtBranchOnly:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonEolLineUnlisted:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonThirdPartyTestedBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoReferencePage:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
+		return []byte(s), nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsReviewOKItemsItemUndecidedReason) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsReviewOKItemsItemUndecidedReason(data) {
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoVersion:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoVersion
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonPlatformUnknown:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonPlatformUnknown
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonPackageUnknown:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonPackageUnknown
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAttributeUnknown:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonAttributeUnknown
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionSchemeMismatch:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionSchemeMismatch
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNvdPending:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonNvdPending
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoRanges:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoRanges
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonProductNotNamed:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonProductNotNamed
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNamedAsPlatformOnly:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonNamedAsPlatformOnly
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonExactReleasesOnly:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonExactReleasesOnly
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesDoNotDecide:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesDoNotDecide
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesStartAtBranchOnly:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonRangesStartAtBranchOnly
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonEolLineUnlisted:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonEolLineUnlisted
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonThirdPartyTestedBuild:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonThirdPartyTestedBuild
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoReferencePage:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonNoReferencePage
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonFetchFailed
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonUnparsedVendorText
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonAiUnsure
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonVersionFromNetwork
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNotListed
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherPackages
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherReleases
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroOtherBuild
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroNoData
+		return nil
+	case FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage:
+		*s = FindingsGetFindingsReviewOKItemsItemUndecidedReasonDistroTriage
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -131671,6 +137060,8 @@ type FindingsPostFindingsIDReopenOKAiCheckReading struct {
 	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
 	// not found decides nothing.
 	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch `json:"research"`
 	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
 	// the quote names it.
 	StatedLine NilString `json:"stated_line"`
@@ -131710,6 +137101,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetLine() string {
 // GetQuoteFound returns the value of QuoteFound.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetQuoteFound() bool {
 	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) GetResearch() NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch {
+	return s.Research
 }
 
 // GetStatedLine returns the value of StatedLine.
@@ -131757,6 +137153,11 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetQuoteFound(val bool) {
 	s.QuoteFound = val
 }
 
+// SetResearch sets the value of Research.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetResearch(val NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch) {
+	s.Research = val
+}
+
 // SetStatedLine sets the value of StatedLine.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetStatedLine(val NilString) {
 	s.StatedLine = val
@@ -131770,6 +137171,596 @@ func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetStatus(val FindingsPos
 // SetVendorPage sets the value of VendorPage.
 func (s *FindingsPostFindingsIDReopenOKAiCheckReading) SetVendorPage(val bool) {
 	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearch struct {
+	Detail FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) GetDetail() FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) GetLayer() FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) GetQuoteCheck() FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) SetDetail(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) SetLayer(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) SetQuoteCheck(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                            `json:"fallback"`
+	Fetch    FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                          `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                   `json:"reader"`
+	Steps  []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetFetch() FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetSteps() []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetFetch(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetSteps(val []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                   `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetLayer() FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) GetWeb() FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetLayer(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItem) SetWeb(val FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerQuick  FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerStrong FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer{
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer string
+
+const (
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerQuick  FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer = "quick"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerStrong FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer values.
+func (FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer) AllValues() []FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer {
+	return []FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer{
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerQuick,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayer(data) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerQuick:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerQuick
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerStrong:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckTool     FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck = "tool"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckDigest   FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck = "digest"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckLive     FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck = "live"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNotFound FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck = "not_found"
+	FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNone     FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck values.
+func (FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck) AllValues() []FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck {
+	return []FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck{
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckTool,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckDigest,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckLive,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNotFound,
+		FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheck(data) {
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckTool:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckLive:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNone:
+		*s = FindingsPostFindingsIDReopenOKAiCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
@@ -135023,6 +141014,8 @@ type FindingsPostFindingsIDUnverifyOKAiCheckReading struct {
 	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
 	// not found decides nothing.
 	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch `json:"research"`
 	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
 	// the quote names it.
 	StatedLine NilString `json:"stated_line"`
@@ -135062,6 +141055,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetLine() string {
 // GetQuoteFound returns the value of QuoteFound.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetQuoteFound() bool {
 	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) GetResearch() NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch {
+	return s.Research
 }
 
 // GetStatedLine returns the value of StatedLine.
@@ -135109,6 +141107,11 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetQuoteFound(val bool)
 	s.QuoteFound = val
 }
 
+// SetResearch sets the value of Research.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetResearch(val NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) {
+	s.Research = val
+}
+
 // SetStatedLine sets the value of StatedLine.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetStatedLine(val NilString) {
 	s.StatedLine = val
@@ -135122,6 +141125,596 @@ func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetStatus(val FindingsP
 // SetVendorPage sets the value of VendorPage.
 func (s *FindingsPostFindingsIDUnverifyOKAiCheckReading) SetVendorPage(val bool) {
 	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch struct {
+	Detail FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) GetDetail() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) GetLayer() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) GetQuoteCheck() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) SetDetail(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) SetLayer(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) SetQuoteCheck(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                              `json:"fallback"`
+	Fetch    FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                            `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                     `json:"reader"`
+	Steps  []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetFetch() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetSteps() []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetFetch(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetSteps(val []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                     `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetLayer() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) GetWeb() FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetLayer(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItem) SetWeb(val FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerQuick  FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerStrong FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer{
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer string
+
+const (
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerQuick  FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer = "quick"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerStrong FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer values.
+func (FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer) AllValues() []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer {
+	return []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer{
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerQuick,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayer(data) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerQuick:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerQuick
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerStrong:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckTool     FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck = "tool"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckDigest   FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck = "digest"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckLive     FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck = "live"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNotFound FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck = "not_found"
+	FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNone     FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck values.
+func (FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck) AllValues() []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck {
+	return []FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck{
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckTool,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckDigest,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckLive,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNotFound,
+		FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheck(data) {
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckTool:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckLive:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNone:
+		*s = FindingsPostFindingsIDUnverifyOKAiCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
@@ -138361,6 +144954,8 @@ type FindingsPostFindingsIDVerifyOKAiCheckReading struct {
 	// The box found the quote word for word in the page text it fetched itself; a reading whose quote was
 	// not found decides nothing.
 	QuoteFound bool `json:"quote_found"`
+	// How the AI researched the line; null for a reading of the pages the box fetched.
+	Research NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch `json:"research"`
 	// The release line as the AI wrote it; it extends the reading to other versions of that line only when
 	// the quote names it.
 	StatedLine NilString `json:"stated_line"`
@@ -138400,6 +144995,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetLine() string {
 // GetQuoteFound returns the value of QuoteFound.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetQuoteFound() bool {
 	return s.QuoteFound
+}
+
+// GetResearch returns the value of Research.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) GetResearch() NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch {
+	return s.Research
 }
 
 // GetStatedLine returns the value of StatedLine.
@@ -138447,6 +145047,11 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetQuoteFound(val bool) {
 	s.QuoteFound = val
 }
 
+// SetResearch sets the value of Research.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetResearch(val NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch) {
+	s.Research = val
+}
+
 // SetStatedLine sets the value of StatedLine.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetStatedLine(val NilString) {
 	s.StatedLine = val
@@ -138460,6 +145065,596 @@ func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetStatus(val FindingsPos
 // SetVendorPage sets the value of VendorPage.
 func (s *FindingsPostFindingsIDVerifyOKAiCheckReading) SetVendorPage(val bool) {
 	s.VendorPage = val
+}
+
+// How the customer's AI researched a CVE Vedette cannot decide for one release line, shared by every
+// device and version on the line.
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearch struct {
+	Detail FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail `json:"detail"`
+	// The layer whose answer stands.
+	Layer FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer `json:"layer"`
+	// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+	// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+	// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+	// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+	QuoteCheck FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck `json:"quote_check"`
+	// Tokens of every layer of the research.
+	Tokens int `json:"tokens"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) GetDetail() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail {
+	return s.Detail
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) GetLayer() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer {
+	return s.Layer
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) GetQuoteCheck() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck {
+	return s.QuoteCheck
+}
+
+// GetTokens returns the value of Tokens.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) GetTokens() int {
+	return s.Tokens
+}
+
+// SetDetail sets the value of Detail.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) SetDetail(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) {
+	s.Detail = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) SetLayer(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer) {
+	s.Layer = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) SetQuoteCheck(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck) {
+	s.QuoteCheck = val
+}
+
+// SetTokens sets the value of Tokens.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) SetTokens(val int) {
+	s.Tokens = val
+}
+
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail struct {
+	// Stated: the page states it for this product; inferred: from a product sharing its code.
+	Basis string `json:"basis"`
+	// The AI's own confidence: high, medium or low.
+	Confidence string `json:"confidence"`
+	// A call with web tools ran: the excerpts named nothing and the record has no rows by the vendor, or
+	// the answer was unsure and no vendor page was read.
+	Fallback bool                                                            `json:"fallback"`
+	Fetch    FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch `json:"fetch"`
+	FixedIn  string                                                          `json:"fixed_in"`
+	// Economy, balanced, thorough, or deeper (a person asked the strong layer).
+	Mode string `json:"mode"`
+	// What the research could not do ("" when nothing): escalation needs a second AI profile.
+	Note string `json:"note"`
+	// The research version: 2 reads the box's excerpts first and the web only as a fallback; 3 also reads
+	// http references as https and keeps a record the vendor wrote off the web; a line read by an older
+	// version is researched again once.
+	Reader int                                                                   `json:"reader"`
+	Steps  []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem `json:"steps"`
+	// The trap of the checklist the AI says it checked.
+	Trap string `json:"trap"`
+	// The AI's own answer before the box's checks of the reading.
+	Verdict string `json:"verdict"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetBasis() string {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetFallback returns the value of Fallback.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetFallback() bool {
+	return s.Fallback
+}
+
+// GetFetch returns the value of Fetch.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetFetch() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch {
+	return s.Fetch
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetFixedIn() string {
+	return s.FixedIn
+}
+
+// GetMode returns the value of Mode.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetMode() string {
+	return s.Mode
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetNote() string {
+	return s.Note
+}
+
+// GetReader returns the value of Reader.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetReader() int {
+	return s.Reader
+}
+
+// GetSteps returns the value of Steps.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetSteps() []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem {
+	return s.Steps
+}
+
+// GetTrap returns the value of Trap.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetTrap() string {
+	return s.Trap
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) GetVerdict() string {
+	return s.Verdict
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetBasis(val string) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetFallback sets the value of Fallback.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetFallback(val bool) {
+	s.Fallback = val
+}
+
+// SetFetch sets the value of Fetch.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetFetch(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) {
+	s.Fetch = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetFixedIn(val string) {
+	s.FixedIn = val
+}
+
+// SetMode sets the value of Mode.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetMode(val string) {
+	s.Mode = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReader sets the value of Reader.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetReader(val int) {
+	s.Reader = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetSteps(val []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) {
+	s.Steps = val
+}
+
+// SetTrap sets the value of Trap.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetTrap(val string) {
+	s.Trap = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetail) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch struct {
+	// Their bytes as received.
+	Bytes int `json:"bytes"`
+	// Characters of excerpts the box cut from them.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Reference pages the box read for the research.
+	Pages int `json:"pages"`
+}
+
+// GetBytes returns the value of Bytes.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) GetBytes() int {
+	return s.Bytes
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) GetPages() int {
+	return s.Pages
+}
+
+// SetBytes sets the value of Bytes.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) SetBytes(val int) {
+	s.Bytes = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailFetch) SetPages(val int) {
+	s.Pages = val
+}
+
+// One layer of a research: how it ran, what it read, what it answered, its tokens (never money).
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem struct {
+	// The layer's own confidence: high, medium, low, or "".
+	Confidence string `json:"confidence"`
+	// Why the layer gave no answer, in the box's words.
+	Error OptString `json:"error"`
+	// Characters of excerpts the call carried.
+	ExcerptChars int `json:"excerpt_chars"`
+	// Quick: the research job's first profile; strong: its second profile, which the quick answer
+	// escalated to (or the only layer in thorough mode and for Research deeper).
+	Layer FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer `json:"layer"`
+	Model string                                                                   `json:"model"`
+	// The pages the layer read.
+	Pages   []string `json:"pages"`
+	Profile string   `json:"profile"`
+	// Where the box found the layer's quote (QuoteCheck), or "" when it gave no answer.
+	QuoteCheck string `json:"quote_check"`
+	// Web searches the provider ran.
+	Searches  int `json:"searches"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
+	// The layer's own answer: affected, not_affected, unsure, or "" when it gave none.
+	Verdict string `json:"verdict"`
+	// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+	// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+	// the pages the AI named itself, public addresses only, no search.
+	Web FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb `json:"web"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetConfidence() string {
+	return s.Confidence
+}
+
+// GetError returns the value of Error.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetError() OptString {
+	return s.Error
+}
+
+// GetExcerptChars returns the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetExcerptChars() int {
+	return s.ExcerptChars
+}
+
+// GetLayer returns the value of Layer.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetLayer() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer {
+	return s.Layer
+}
+
+// GetModel returns the value of Model.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetModel() string {
+	return s.Model
+}
+
+// GetPages returns the value of Pages.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetPages() []string {
+	return s.Pages
+}
+
+// GetProfile returns the value of Profile.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetProfile() string {
+	return s.Profile
+}
+
+// GetQuoteCheck returns the value of QuoteCheck.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetQuoteCheck() string {
+	return s.QuoteCheck
+}
+
+// GetSearches returns the value of Searches.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetSearches() int {
+	return s.Searches
+}
+
+// GetTokensIn returns the value of TokensIn.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetTokensIn() int {
+	return s.TokensIn
+}
+
+// GetTokensOut returns the value of TokensOut.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetTokensOut() int {
+	return s.TokensOut
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetVerdict() string {
+	return s.Verdict
+}
+
+// GetWeb returns the value of Web.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) GetWeb() FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb {
+	return s.Web
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetConfidence(val string) {
+	s.Confidence = val
+}
+
+// SetError sets the value of Error.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetExcerptChars sets the value of ExcerptChars.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetExcerptChars(val int) {
+	s.ExcerptChars = val
+}
+
+// SetLayer sets the value of Layer.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetLayer(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer) {
+	s.Layer = val
+}
+
+// SetModel sets the value of Model.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetModel(val string) {
+	s.Model = val
+}
+
+// SetPages sets the value of Pages.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetPages(val []string) {
+	s.Pages = val
+}
+
+// SetProfile sets the value of Profile.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetProfile(val string) {
+	s.Profile = val
+}
+
+// SetQuoteCheck sets the value of QuoteCheck.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetQuoteCheck(val string) {
+	s.QuoteCheck = val
+}
+
+// SetSearches sets the value of Searches.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetSearches(val int) {
+	s.Searches = val
+}
+
+// SetTokensIn sets the value of TokensIn.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetTokensIn(val int) {
+	s.TokensIn = val
+}
+
+// SetTokensOut sets the value of TokensOut.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetTokensOut(val int) {
+	s.TokensOut = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetVerdict(val string) {
+	s.Verdict = val
+}
+
+// SetWeb sets the value of Web.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItem) SetWeb(val FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) {
+	s.Web = val
+}
+
+// Quick: the research job's first profile; strong: its second profile, which the quick answer
+// escalated to (or the only layer in thorough mode and for Research deeper).
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer string
+
+const (
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerQuick  FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer = "quick"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerStrong FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer = "strong"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer values.
+func (FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer) AllValues() []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer {
+	return []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer{
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerQuick,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayer(data) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerQuick:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerQuick
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerStrong:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// None: the digest and the excerpts the box cut from the pages it read, no tools; provider: the AI
+// provider's own web search and page fetch (the queries went to the provider); box: the box fetched
+// the pages the AI named itself, public addresses only, no search.
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb string
+
+const (
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone     FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb = "none"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb = "provider"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox      FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb = "box"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb values.
+func (FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) AllValues() []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb {
+	return []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb{
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWeb(data) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebNone
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebProvider
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchDetailStepsItemWebBox
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The layer whose answer stands.
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer string
+
+const (
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerQuick  FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer = "quick"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerStrong FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer = "strong"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer values.
+func (FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer) AllValues() []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer {
+	return []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer{
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerQuick,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerStrong,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerQuick:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerStrong:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayer(data) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerQuick:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerQuick
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerStrong:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchLayerStrong
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the box found the quote: tool (in text the AI's tools returned), digest (in what the box read
+// itself: a reference page it fetched, then the reading's host is that page, else the CVE record, then
+// the host is null and the quote reads "found in the CVE record", never the page the AI cited), live
+// (on the box's own fetch of the cited page), not_found (nowhere: it decides nothing), none (no quote).
+type FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck string
+
+const (
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckTool     FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck = "tool"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckDigest   FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck = "digest"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckLive     FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck = "live"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNotFound FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck = "not_found"
+	FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNone     FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck = "none"
+)
+
+// AllValues returns all FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck values.
+func (FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck) AllValues() []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck {
+	return []FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck{
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckTool,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckDigest,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckLive,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNotFound,
+		FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckTool:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckDigest:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckLive:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNotFound:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheck(data) {
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckTool:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckTool
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckDigest:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckDigest
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckLive:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckLive
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNotFound:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNotFound
+		return nil
+	case FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNone:
+		*s = FindingsPostFindingsIDVerifyOKAiCheckReadingResearchQuoteCheckNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the AI read the vendor states for the release line: affected, fixed (in fixed_in), not
@@ -141255,6 +148450,11 @@ type FindingsPostFindingsPossibleCheckOK struct {
 	// Not checked: a page or AI call failed; the next check asks again.
 	Failed     int         `json:"failed"`
 	FinishedAt NilDateTime `json:"finished_at"`
+	// Of them, the lines with an answer, read by an earlier run or by this one; a pass that stopped leaves
+	// the rest to the next one.
+	LinesDone int `json:"lines_done"`
+	// Release lines of the possible CVEs the AI may research.
+	LinesTotal int `json:"lines_total"`
 	// AI proposals made.
 	Proposals int `json:"proposals"`
 	// AI readings of a vendor's statement stored, one per release line.
@@ -141290,6 +148490,16 @@ func (s *FindingsPostFindingsPossibleCheckOK) GetFailed() int {
 // GetFinishedAt returns the value of FinishedAt.
 func (s *FindingsPostFindingsPossibleCheckOK) GetFinishedAt() NilDateTime {
 	return s.FinishedAt
+}
+
+// GetLinesDone returns the value of LinesDone.
+func (s *FindingsPostFindingsPossibleCheckOK) GetLinesDone() int {
+	return s.LinesDone
+}
+
+// GetLinesTotal returns the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleCheckOK) GetLinesTotal() int {
+	return s.LinesTotal
 }
 
 // GetProposals returns the value of Proposals.
@@ -141350,6 +148560,16 @@ func (s *FindingsPostFindingsPossibleCheckOK) SetFailed(val int) {
 // SetFinishedAt sets the value of FinishedAt.
 func (s *FindingsPostFindingsPossibleCheckOK) SetFinishedAt(val NilDateTime) {
 	s.FinishedAt = val
+}
+
+// SetLinesDone sets the value of LinesDone.
+func (s *FindingsPostFindingsPossibleCheckOK) SetLinesDone(val int) {
+	s.LinesDone = val
+}
+
+// SetLinesTotal sets the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleCheckOK) SetLinesTotal(val int) {
+	s.LinesTotal = val
 }
 
 // SetProposals sets the value of Proposals.
@@ -141560,6 +148780,171 @@ func (s *FindingsPostFindingsPossibleIDConfirmOK) GetFinding() NilString {
 // SetFinding sets the value of Finding.
 func (s *FindingsPostFindingsPossibleIDConfirmOK) SetFinding(val NilString) {
 	s.Finding = val
+}
+
+type FindingsPostFindingsPossibleIDResearchOK struct {
+	// Decided by the box from a vendor's advisory, no AI.
+	Advisory int    `json:"advisory"`
+	By       string `json:"by"`
+	Done     int    `json:"done"`
+	// Not checked: a page or AI call failed; the next check asks again.
+	Failed     int         `json:"failed"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	// Of them, the lines with an answer, read by an earlier run or by this one; a pass that stopped leaves
+	// the rest to the next one.
+	LinesDone int `json:"lines_done"`
+	// Release lines of the possible CVEs the AI may research.
+	LinesTotal int `json:"lines_total"`
+	// AI proposals made.
+	Proposals int `json:"proposals"`
+	// AI readings of a vendor's statement stored, one per release line.
+	Readings  int       `json:"readings"`
+	Running   bool      `json:"running"`
+	StartedAt time.Time `json:"started_at"`
+	// Why the check stopped before the end (the AI unavailable, the budget reached).
+	Stopped   NilString `json:"stopped"`
+	Total     int       `json:"total"`
+	Undecided int       `json:"undecided"`
+}
+
+// GetAdvisory returns the value of Advisory.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetAdvisory() int {
+	return s.Advisory
+}
+
+// GetBy returns the value of By.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetBy() string {
+	return s.By
+}
+
+// GetDone returns the value of Done.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetDone() int {
+	return s.Done
+}
+
+// GetFailed returns the value of Failed.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetFailed() int {
+	return s.Failed
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetLinesDone returns the value of LinesDone.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetLinesDone() int {
+	return s.LinesDone
+}
+
+// GetLinesTotal returns the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetLinesTotal() int {
+	return s.LinesTotal
+}
+
+// GetProposals returns the value of Proposals.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetProposals() int {
+	return s.Proposals
+}
+
+// GetReadings returns the value of Readings.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetReadings() int {
+	return s.Readings
+}
+
+// GetRunning returns the value of Running.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetRunning() bool {
+	return s.Running
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStopped returns the value of Stopped.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetStopped() NilString {
+	return s.Stopped
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetTotal() int {
+	return s.Total
+}
+
+// GetUndecided returns the value of Undecided.
+func (s *FindingsPostFindingsPossibleIDResearchOK) GetUndecided() int {
+	return s.Undecided
+}
+
+// SetAdvisory sets the value of Advisory.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetAdvisory(val int) {
+	s.Advisory = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetDone sets the value of Done.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetFailed(val int) {
+	s.Failed = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetLinesDone sets the value of LinesDone.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetLinesDone(val int) {
+	s.LinesDone = val
+}
+
+// SetLinesTotal sets the value of LinesTotal.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetLinesTotal(val int) {
+	s.LinesTotal = val
+}
+
+// SetProposals sets the value of Proposals.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetProposals(val int) {
+	s.Proposals = val
+}
+
+// SetReadings sets the value of Readings.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetReadings(val int) {
+	s.Readings = val
+}
+
+// SetRunning sets the value of Running.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetRunning(val bool) {
+	s.Running = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStopped sets the value of Stopped.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetStopped(val NilString) {
+	s.Stopped = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetTotal(val int) {
+	s.Total = val
+}
+
+// SetUndecided sets the value of Undecided.
+func (s *FindingsPostFindingsPossibleIDResearchOK) SetUndecided(val int) {
+	s.Undecided = val
 }
 
 type FindingsPostFindingsQuestionsAcceptRiskOK struct {
@@ -141797,6 +149182,140 @@ func (s *FindingsPostFindingsQuestionsIgnoreReq) SetNote(val string) {
 // SetSoftware sets the value of Software.
 func (s *FindingsPostFindingsQuestionsIgnoreReq) SetSoftware(val OptString) {
 	s.Software = val
+}
+
+type FindingsPostFindingsReviewConfirmOK struct {
+	// AI answers confirmed: each question answered not affected (listed under Handled, can be reopened).
+	Confirmed int                                              `json:"confirmed"`
+	Skipped   []FindingsPostFindingsReviewConfirmOKSkippedItem `json:"skipped"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsPostFindingsReviewConfirmOK) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *FindingsPostFindingsReviewConfirmOK) GetSkipped() []FindingsPostFindingsReviewConfirmOKSkippedItem {
+	return s.Skipped
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsPostFindingsReviewConfirmOK) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *FindingsPostFindingsReviewConfirmOK) SetSkipped(val []FindingsPostFindingsReviewConfirmOKSkippedItem) {
+	s.Skipped = val
+}
+
+type FindingsPostFindingsReviewConfirmOKSkippedItem struct {
+	Cve string `json:"cve"`
+	ID  string `json:"id"`
+	// Not_waiting: no such AI answer waits (answered, rejected, the evidence changed); exploited: its CVE
+	// is exploited and the request did not name it.
+	Reason FindingsPostFindingsReviewConfirmOKSkippedItemReason `json:"reason"`
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItem) GetCve() string {
+	return s.Cve
+}
+
+// GetID returns the value of ID.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItem) GetID() string {
+	return s.ID
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItem) GetReason() FindingsPostFindingsReviewConfirmOKSkippedItemReason {
+	return s.Reason
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItem) SetReason(val FindingsPostFindingsReviewConfirmOKSkippedItemReason) {
+	s.Reason = val
+}
+
+// Not_waiting: no such AI answer waits (answered, rejected, the evidence changed); exploited: its CVE
+// is exploited and the request did not name it.
+type FindingsPostFindingsReviewConfirmOKSkippedItemReason string
+
+const (
+	FindingsPostFindingsReviewConfirmOKSkippedItemReasonNotWaiting FindingsPostFindingsReviewConfirmOKSkippedItemReason = "not_waiting"
+	FindingsPostFindingsReviewConfirmOKSkippedItemReasonExploited  FindingsPostFindingsReviewConfirmOKSkippedItemReason = "exploited"
+)
+
+// AllValues returns all FindingsPostFindingsReviewConfirmOKSkippedItemReason values.
+func (FindingsPostFindingsReviewConfirmOKSkippedItemReason) AllValues() []FindingsPostFindingsReviewConfirmOKSkippedItemReason {
+	return []FindingsPostFindingsReviewConfirmOKSkippedItemReason{
+		FindingsPostFindingsReviewConfirmOKSkippedItemReasonNotWaiting,
+		FindingsPostFindingsReviewConfirmOKSkippedItemReasonExploited,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsReviewConfirmOKSkippedItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsReviewConfirmOKSkippedItemReasonNotWaiting:
+		return []byte(s), nil
+	case FindingsPostFindingsReviewConfirmOKSkippedItemReasonExploited:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsReviewConfirmOKSkippedItemReason) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsReviewConfirmOKSkippedItemReason(data) {
+	case FindingsPostFindingsReviewConfirmOKSkippedItemReasonNotWaiting:
+		*s = FindingsPostFindingsReviewConfirmOKSkippedItemReasonNotWaiting
+		return nil
+	case FindingsPostFindingsReviewConfirmOKSkippedItemReasonExploited:
+		*s = FindingsPostFindingsReviewConfirmOKSkippedItemReasonExploited
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsReviewConfirmReq struct {
+	// The questions (PossibleRow.id).
+	Ids []string `json:"ids"`
+	// The exploited CVEs the person ticked by name; absent: no exploited CVE is confirmed.
+	IncludeExploited []string `json:"include_exploited"`
+}
+
+// GetIds returns the value of Ids.
+func (s *FindingsPostFindingsReviewConfirmReq) GetIds() []string {
+	return s.Ids
+}
+
+// GetIncludeExploited returns the value of IncludeExploited.
+func (s *FindingsPostFindingsReviewConfirmReq) GetIncludeExploited() []string {
+	return s.IncludeExploited
+}
+
+// SetIds sets the value of Ids.
+func (s *FindingsPostFindingsReviewConfirmReq) SetIds(val []string) {
+	s.Ids = val
+}
+
+// SetIncludeExploited sets the value of IncludeExploited.
+func (s *FindingsPostFindingsReviewConfirmReq) SetIncludeExploited(val []string) {
+	s.IncludeExploited = val
 }
 
 // HoneypotDeleteHoneypotTokensIDNoContent is response for HoneypotDeleteHoneypotTokensID operation.
@@ -196089,6 +203608,51 @@ func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReading) Or(d FindingsGetF
 	return d
 }
 
+// NewNilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch returns new NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch with value set to v.
+func NewNilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch(v FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch {
+	return NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch is nullable FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch.
+type NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch struct {
+	Value FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) SetTo(v FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) Get() (v FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) Or(d FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch) FindingsGetFindingsAnsweredOKItemsItemCheckReadingResearch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsAnsweredOKItemsItemSoftware returns new NilFindingsGetFindingsAnsweredOKItemsItemSoftware with value set to v.
 func NewNilFindingsGetFindingsAnsweredOKItemsItemSoftware(v FindingsGetFindingsAnsweredOKItemsItemSoftware) NilFindingsGetFindingsAnsweredOKItemsItemSoftware {
 	return NilFindingsGetFindingsAnsweredOKItemsItemSoftware{
@@ -197075,6 +204639,51 @@ func (o NilFindingsGetFindingsIDViewOKAiCheckReading) Get() (v FindingsGetFindin
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsIDViewOKAiCheckReading) Or(d FindingsGetFindingsIDViewOKAiCheckReading) FindingsGetFindingsIDViewOKAiCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsIDViewOKAiCheckReadingResearch returns new NilFindingsGetFindingsIDViewOKAiCheckReadingResearch with value set to v.
+func NewNilFindingsGetFindingsIDViewOKAiCheckReadingResearch(v FindingsGetFindingsIDViewOKAiCheckReadingResearch) NilFindingsGetFindingsIDViewOKAiCheckReadingResearch {
+	return NilFindingsGetFindingsIDViewOKAiCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDViewOKAiCheckReadingResearch is nullable FindingsGetFindingsIDViewOKAiCheckReadingResearch.
+type NilFindingsGetFindingsIDViewOKAiCheckReadingResearch struct {
+	Value FindingsGetFindingsIDViewOKAiCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDViewOKAiCheckReadingResearch) SetTo(v FindingsGetFindingsIDViewOKAiCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDViewOKAiCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDViewOKAiCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDViewOKAiCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDViewOKAiCheckReadingResearch) Get() (v FindingsGetFindingsIDViewOKAiCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDViewOKAiCheckReadingResearch) Or(d FindingsGetFindingsIDViewOKAiCheckReadingResearch) FindingsGetFindingsIDViewOKAiCheckReadingResearch {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -198343,6 +205952,51 @@ func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReading) Or(d FindingsGetF
 	return d
 }
 
+// NewNilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch returns new NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch with value set to v.
+func NewNilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch(v FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch {
+	return NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch is nullable FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch.
+type NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch struct {
+	Value FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) SetTo(v FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) Get() (v FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) Or(d FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch) FindingsGetFindingsPossibleOKItemsItemCheckReadingResearch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsPossibleOKItemsItemHeld returns new NilFindingsGetFindingsPossibleOKItemsItemHeld with value set to v.
 func NewNilFindingsGetFindingsPossibleOKItemsItemHeld(v FindingsGetFindingsPossibleOKItemsItemHeld) NilFindingsGetFindingsPossibleOKItemsItemHeld {
 	return NilFindingsGetFindingsPossibleOKItemsItemHeld{
@@ -198517,6 +206171,411 @@ func (o NilFindingsGetFindingsPossibleOKItemsItemSoftware) Get() (v FindingsGetF
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsPossibleOKItemsItemSoftware) Or(d FindingsGetFindingsPossibleOKItemsItemSoftware) FindingsGetFindingsPossibleOKItemsItemSoftware {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemCause returns new NilFindingsGetFindingsReviewOKItemsItemCause with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemCause(v FindingsGetFindingsReviewOKItemsItemCause) NilFindingsGetFindingsReviewOKItemsItemCause {
+	return NilFindingsGetFindingsReviewOKItemsItemCause{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemCause is nullable FindingsGetFindingsReviewOKItemsItemCause.
+type NilFindingsGetFindingsReviewOKItemsItemCause struct {
+	Value FindingsGetFindingsReviewOKItemsItemCause
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCause) SetTo(v FindingsGetFindingsReviewOKItemsItemCause) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemCause) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCause) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemCause
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemCause) Get() (v FindingsGetFindingsReviewOKItemsItemCause, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemCause) Or(d FindingsGetFindingsReviewOKItemsItemCause) FindingsGetFindingsReviewOKItemsItemCause {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemCheck returns new NilFindingsGetFindingsReviewOKItemsItemCheck with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemCheck(v FindingsGetFindingsReviewOKItemsItemCheck) NilFindingsGetFindingsReviewOKItemsItemCheck {
+	return NilFindingsGetFindingsReviewOKItemsItemCheck{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemCheck is nullable FindingsGetFindingsReviewOKItemsItemCheck.
+type NilFindingsGetFindingsReviewOKItemsItemCheck struct {
+	Value FindingsGetFindingsReviewOKItemsItemCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheck) SetTo(v FindingsGetFindingsReviewOKItemsItemCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheck) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheck) Get() (v FindingsGetFindingsReviewOKItemsItemCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheck) Or(d FindingsGetFindingsReviewOKItemsItemCheck) FindingsGetFindingsReviewOKItemsItemCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemCheckConfidence returns new NilFindingsGetFindingsReviewOKItemsItemCheckConfidence with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemCheckConfidence(v FindingsGetFindingsReviewOKItemsItemCheckConfidence) NilFindingsGetFindingsReviewOKItemsItemCheckConfidence {
+	return NilFindingsGetFindingsReviewOKItemsItemCheckConfidence{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemCheckConfidence is nullable FindingsGetFindingsReviewOKItemsItemCheckConfidence.
+type NilFindingsGetFindingsReviewOKItemsItemCheckConfidence struct {
+	Value FindingsGetFindingsReviewOKItemsItemCheckConfidence
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheckConfidence) SetTo(v FindingsGetFindingsReviewOKItemsItemCheckConfidence) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckConfidence) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheckConfidence) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemCheckConfidence
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckConfidence) Get() (v FindingsGetFindingsReviewOKItemsItemCheckConfidence, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckConfidence) Or(d FindingsGetFindingsReviewOKItemsItemCheckConfidence) FindingsGetFindingsReviewOKItemsItemCheckConfidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemCheckReading returns new NilFindingsGetFindingsReviewOKItemsItemCheckReading with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemCheckReading(v FindingsGetFindingsReviewOKItemsItemCheckReading) NilFindingsGetFindingsReviewOKItemsItemCheckReading {
+	return NilFindingsGetFindingsReviewOKItemsItemCheckReading{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemCheckReading is nullable FindingsGetFindingsReviewOKItemsItemCheckReading.
+type NilFindingsGetFindingsReviewOKItemsItemCheckReading struct {
+	Value FindingsGetFindingsReviewOKItemsItemCheckReading
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheckReading) SetTo(v FindingsGetFindingsReviewOKItemsItemCheckReading) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckReading) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheckReading) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemCheckReading
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckReading) Get() (v FindingsGetFindingsReviewOKItemsItemCheckReading, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckReading) Or(d FindingsGetFindingsReviewOKItemsItemCheckReading) FindingsGetFindingsReviewOKItemsItemCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch returns new NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch(v FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch {
+	return NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch is nullable FindingsGetFindingsReviewOKItemsItemCheckReadingResearch.
+type NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch struct {
+	Value FindingsGetFindingsReviewOKItemsItemCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) SetTo(v FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) Get() (v FindingsGetFindingsReviewOKItemsItemCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemCheckReadingResearch) Or(d FindingsGetFindingsReviewOKItemsItemCheckReadingResearch) FindingsGetFindingsReviewOKItemsItemCheckReadingResearch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemHeld returns new NilFindingsGetFindingsReviewOKItemsItemHeld with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemHeld(v FindingsGetFindingsReviewOKItemsItemHeld) NilFindingsGetFindingsReviewOKItemsItemHeld {
+	return NilFindingsGetFindingsReviewOKItemsItemHeld{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemHeld is nullable FindingsGetFindingsReviewOKItemsItemHeld.
+type NilFindingsGetFindingsReviewOKItemsItemHeld struct {
+	Value FindingsGetFindingsReviewOKItemsItemHeld
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemHeld) SetTo(v FindingsGetFindingsReviewOKItemsItemHeld) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemHeld) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemHeld) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemHeld
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemHeld) Get() (v FindingsGetFindingsReviewOKItemsItemHeld, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemHeld) Or(d FindingsGetFindingsReviewOKItemsItemHeld) FindingsGetFindingsReviewOKItemsItemHeld {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemOlderBuild returns new NilFindingsGetFindingsReviewOKItemsItemOlderBuild with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemOlderBuild(v FindingsGetFindingsReviewOKItemsItemOlderBuild) NilFindingsGetFindingsReviewOKItemsItemOlderBuild {
+	return NilFindingsGetFindingsReviewOKItemsItemOlderBuild{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemOlderBuild is nullable FindingsGetFindingsReviewOKItemsItemOlderBuild.
+type NilFindingsGetFindingsReviewOKItemsItemOlderBuild struct {
+	Value FindingsGetFindingsReviewOKItemsItemOlderBuild
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemOlderBuild) SetTo(v FindingsGetFindingsReviewOKItemsItemOlderBuild) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemOlderBuild) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemOlderBuild) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemOlderBuild
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemOlderBuild) Get() (v FindingsGetFindingsReviewOKItemsItemOlderBuild, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemOlderBuild) Or(d FindingsGetFindingsReviewOKItemsItemOlderBuild) FindingsGetFindingsReviewOKItemsItemOlderBuild {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemSeverity returns new NilFindingsGetFindingsReviewOKItemsItemSeverity with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemSeverity(v FindingsGetFindingsReviewOKItemsItemSeverity) NilFindingsGetFindingsReviewOKItemsItemSeverity {
+	return NilFindingsGetFindingsReviewOKItemsItemSeverity{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemSeverity is nullable FindingsGetFindingsReviewOKItemsItemSeverity.
+type NilFindingsGetFindingsReviewOKItemsItemSeverity struct {
+	Value FindingsGetFindingsReviewOKItemsItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemSeverity) SetTo(v FindingsGetFindingsReviewOKItemsItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemSeverity) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemSeverity) Get() (v FindingsGetFindingsReviewOKItemsItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemSeverity) Or(d FindingsGetFindingsReviewOKItemsItemSeverity) FindingsGetFindingsReviewOKItemsItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsReviewOKItemsItemSoftware returns new NilFindingsGetFindingsReviewOKItemsItemSoftware with value set to v.
+func NewNilFindingsGetFindingsReviewOKItemsItemSoftware(v FindingsGetFindingsReviewOKItemsItemSoftware) NilFindingsGetFindingsReviewOKItemsItemSoftware {
+	return NilFindingsGetFindingsReviewOKItemsItemSoftware{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsReviewOKItemsItemSoftware is nullable FindingsGetFindingsReviewOKItemsItemSoftware.
+type NilFindingsGetFindingsReviewOKItemsItemSoftware struct {
+	Value FindingsGetFindingsReviewOKItemsItemSoftware
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsReviewOKItemsItemSoftware) SetTo(v FindingsGetFindingsReviewOKItemsItemSoftware) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsReviewOKItemsItemSoftware) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsReviewOKItemsItemSoftware) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsReviewOKItemsItemSoftware
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsReviewOKItemsItemSoftware) Get() (v FindingsGetFindingsReviewOKItemsItemSoftware, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsReviewOKItemsItemSoftware) Or(d FindingsGetFindingsReviewOKItemsItemSoftware) FindingsGetFindingsReviewOKItemsItemSoftware {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -199738,6 +207797,51 @@ func (o NilFindingsPostFindingsIDReopenOKAiCheckReading) Or(d FindingsPostFindin
 	return d
 }
 
+// NewNilFindingsPostFindingsIDReopenOKAiCheckReadingResearch returns new NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch with value set to v.
+func NewNilFindingsPostFindingsIDReopenOKAiCheckReadingResearch(v FindingsPostFindingsIDReopenOKAiCheckReadingResearch) NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch {
+	return NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch is nullable FindingsPostFindingsIDReopenOKAiCheckReadingResearch.
+type NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch struct {
+	Value FindingsPostFindingsIDReopenOKAiCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch) SetTo(v FindingsPostFindingsIDReopenOKAiCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDReopenOKAiCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch) Get() (v FindingsPostFindingsIDReopenOKAiCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDReopenOKAiCheckReadingResearch) Or(d FindingsPostFindingsIDReopenOKAiCheckReadingResearch) FindingsPostFindingsIDReopenOKAiCheckReadingResearch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDReopenOKEventsItemResolution returns new NilFindingsPostFindingsIDReopenOKEventsItemResolution with value set to v.
 func NewNilFindingsPostFindingsIDReopenOKEventsItemResolution(v FindingsPostFindingsIDReopenOKEventsItemResolution) NilFindingsPostFindingsIDReopenOKEventsItemResolution {
 	return NilFindingsPostFindingsIDReopenOKEventsItemResolution{
@@ -200233,6 +208337,51 @@ func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReading) Or(d FindingsPostFind
 	return d
 }
 
+// NewNilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch returns new NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch with value set to v.
+func NewNilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch(v FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch {
+	return NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch is nullable FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch.
+type NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch struct {
+	Value FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) SetTo(v FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) Get() (v FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) Or(d FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch) FindingsPostFindingsIDUnverifyOKAiCheckReadingResearch {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDUnverifyOKEventsItemResolution returns new NilFindingsPostFindingsIDUnverifyOKEventsItemResolution with value set to v.
 func NewNilFindingsPostFindingsIDUnverifyOKEventsItemResolution(v FindingsPostFindingsIDUnverifyOKEventsItemResolution) NilFindingsPostFindingsIDUnverifyOKEventsItemResolution {
 	return NilFindingsPostFindingsIDUnverifyOKEventsItemResolution{
@@ -200722,6 +208871,51 @@ func (o NilFindingsPostFindingsIDVerifyOKAiCheckReading) Get() (v FindingsPostFi
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDVerifyOKAiCheckReading) Or(d FindingsPostFindingsIDVerifyOKAiCheckReading) FindingsPostFindingsIDVerifyOKAiCheckReading {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch returns new NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch with value set to v.
+func NewNilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch(v FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch {
+	return NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch is nullable FindingsPostFindingsIDVerifyOKAiCheckReadingResearch.
+type NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch struct {
+	Value FindingsPostFindingsIDVerifyOKAiCheckReadingResearch
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch) SetTo(v FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDVerifyOKAiCheckReadingResearch
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch) Get() (v FindingsPostFindingsIDVerifyOKAiCheckReadingResearch, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDVerifyOKAiCheckReadingResearch) Or(d FindingsPostFindingsIDVerifyOKAiCheckReadingResearch) FindingsPostFindingsIDVerifyOKAiCheckReadingResearch {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -219717,6 +227911,52 @@ func (o OptAiPostAiHooksTestReqHook) Or(d AiPostAiHooksTestReqHook) AiPostAiHook
 	return d
 }
 
+// NewOptAiPutAiConfigReqResearchMode returns new OptAiPutAiConfigReqResearchMode with value set to v.
+func NewOptAiPutAiConfigReqResearchMode(v AiPutAiConfigReqResearchMode) OptAiPutAiConfigReqResearchMode {
+	return OptAiPutAiConfigReqResearchMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAiPutAiConfigReqResearchMode is optional AiPutAiConfigReqResearchMode.
+type OptAiPutAiConfigReqResearchMode struct {
+	Value AiPutAiConfigReqResearchMode
+	Set   bool
+}
+
+// IsSet returns true if OptAiPutAiConfigReqResearchMode was set.
+func (o OptAiPutAiConfigReqResearchMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAiPutAiConfigReqResearchMode) Reset() {
+	var v AiPutAiConfigReqResearchMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAiPutAiConfigReqResearchMode) SetTo(v AiPutAiConfigReqResearchMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAiPutAiConfigReqResearchMode) Get() (v AiPutAiConfigReqResearchMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAiPutAiConfigReqResearchMode) Or(d AiPutAiConfigReqResearchMode) AiPutAiConfigReqResearchMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBool returns new OptBool with value set to v.
 func NewOptBool(v bool) OptBool {
 	return OptBool{
@@ -222113,6 +230353,98 @@ func (o OptFindingsGetFindingsPossibleState) Get() (v FindingsGetFindingsPossibl
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsPossibleState) Or(d FindingsGetFindingsPossibleState) FindingsGetFindingsPossibleState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsReviewConfidence returns new OptFindingsGetFindingsReviewConfidence with value set to v.
+func NewOptFindingsGetFindingsReviewConfidence(v FindingsGetFindingsReviewConfidence) OptFindingsGetFindingsReviewConfidence {
+	return OptFindingsGetFindingsReviewConfidence{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsReviewConfidence is optional FindingsGetFindingsReviewConfidence.
+type OptFindingsGetFindingsReviewConfidence struct {
+	Value FindingsGetFindingsReviewConfidence
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsReviewConfidence was set.
+func (o OptFindingsGetFindingsReviewConfidence) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsReviewConfidence) Reset() {
+	var v FindingsGetFindingsReviewConfidence
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsReviewConfidence) SetTo(v FindingsGetFindingsReviewConfidence) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsReviewConfidence) Get() (v FindingsGetFindingsReviewConfidence, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsReviewConfidence) Or(d FindingsGetFindingsReviewConfidence) FindingsGetFindingsReviewConfidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsReviewEvidence returns new OptFindingsGetFindingsReviewEvidence with value set to v.
+func NewOptFindingsGetFindingsReviewEvidence(v FindingsGetFindingsReviewEvidence) OptFindingsGetFindingsReviewEvidence {
+	return OptFindingsGetFindingsReviewEvidence{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsReviewEvidence is optional FindingsGetFindingsReviewEvidence.
+type OptFindingsGetFindingsReviewEvidence struct {
+	Value FindingsGetFindingsReviewEvidence
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsReviewEvidence was set.
+func (o OptFindingsGetFindingsReviewEvidence) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsReviewEvidence) Reset() {
+	var v FindingsGetFindingsReviewEvidence
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsReviewEvidence) SetTo(v FindingsGetFindingsReviewEvidence) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsReviewEvidence) Get() (v FindingsGetFindingsReviewEvidence, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsReviewEvidence) Or(d FindingsGetFindingsReviewEvidence) FindingsGetFindingsReviewEvidence {
 	if v, ok := o.Get(); ok {
 		return v
 	}

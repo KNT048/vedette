@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // APIStyle is the wire format a server speaks: Messages (anthropic), Chat Completions (openai), generateContent (gemini).
@@ -79,6 +80,14 @@ type Schema struct {
 	JSON json.RawMessage
 }
 
+// WebTools asks for the provider's own web search and page fetch (Anthropic's server tools): the provider runs them on its side, the
+// box never sees the requests, only what the tools returned. Searches and Fetches cap the uses in one request, PageTokens the text of
+// one fetched page. Only the Anthropic adapter sends them; every other adapter refuses such a request (ErrNoWebTools), so the caller
+// offers its own fetch tool instead.
+type WebTools struct {
+	Searches, Fetches, PageTokens int
+}
+
 // Request is the normalised request. MaxTokens must be positive; the model comes from the profile.
 type Request struct {
 	System    string
@@ -86,6 +95,23 @@ type Request struct {
 	Tools     []ToolDef
 	Schema    *Schema
 	MaxTokens int
+	Web       *WebTools // nil: no provider-side web tools
+	// Effort asks a model that weighs how much to think and use tools for that much: "high" (Messages API output_config.effort; the
+	// other adapters ignore it); "" leaves the provider's default.
+	Effort string
+	// Timeout bounds this request when it is longer than the client's own timeout (Config.Timeout): a research turn whose provider-side
+	// tools search and read for minutes. Zero = the client's. The caller's context can only make it shorter.
+	Timeout time.Duration
+}
+
+// WebUse is what the provider's own web tools did in one response: the searches it counted, the queries and the addresses it fetched,
+// the text the tools returned (fetched documents, the source text of citations) and the error codes of failed tool calls.
+type WebUse struct {
+	Searches int
+	Queries  []string
+	Fetched  []string
+	Texts    []string
+	Errors   []string
 }
 
 // StopReason is why generation ended: end, max_tokens, tool_use or other.
@@ -96,7 +122,9 @@ const (
 	StopEnd       StopReason = "end"
 	StopMaxTokens StopReason = "max_tokens"
 	StopToolUse   StopReason = "tool_use"
-	StopOther     StopReason = "other"
+	// StopPause: the provider paused a long turn of its own server tools; send the conversation back with this turn to let it go on.
+	StopPause StopReason = "pause"
+	StopOther StopReason = "other"
 	// StopRefusal never appears in a successful Response: a refusal is returned as an error (ErrRefused).
 	StopRefusal StopReason = "refusal"
 )
@@ -113,6 +141,8 @@ type Response struct {
 	Model     string
 	// Raw is the assistant content as the provider sent it (Anthropic only); pass it back in Message.Raw.
 	Raw json.RawMessage
+	// Web is what the provider's own web tools did (Request.Web); zero otherwise.
+	Web WebUse
 }
 
 // Secret holds an API key. It never prints, logs or marshals its value; only Reveal returns it.
@@ -172,6 +202,8 @@ var (
 	ErrNoWorkspace = errors.New("the API key is not tied to a workspace")
 	// ErrRefused: the model declined (safety refusal). The content is discarded; Error.Category says why.
 	ErrRefused = errors.New("the model declined the request")
+	// ErrNoWebTools: the request asks for provider-side web tools (Request.Web) and this provider has none. Nothing was sent.
+	ErrNoWebTools = errors.New("provider: this provider has no web tools of its own")
 )
 
 // Error wraps a sentinel with the HTTP status and a short, scrubbed message from the provider.

@@ -85,13 +85,13 @@ export interface AiRun { id: string; ts: string; skill: string; model: string; t
 export const aiRunsStore = collection<AiRun[]>('ai_runs', () => [], () => [])
 // ---- Several AI profiles + job assignments. Added at the end; the old fields of aiConfigStore still work:
 // `configured` = at least one usable profile (the ai module updates it whenever a profile changes); provider/model/key_last4 mirror the first usable profile.
-export type AiJob = 'explain-finding' | 'mitigation-config' | 'cve-news' | 'log-digest' | 'log-investigate' | 'ask-my-data' | 'weekly-report' | 'pdpl-assessment' | 'translate-advisory' | 'response-plan'
+export type AiJob = 'explain-finding' | 'mitigation-config' | 'cve-news' | 'log-digest' | 'log-investigate' | 'ask-my-data' | 'weekly-report' | 'pdpl-assessment' | 'translate-advisory' | 'response-plan' | 'research-cves'
 /** `data`: internal = sends the customer's logs/devices; public = public data only (CVEs, advisories). */
 export const AI_JOBS: { id: AiJob; data: 'internal' | 'public' }[] = [
   { id: 'explain-finding', data: 'internal' }, { id: 'mitigation-config', data: 'internal' }, { id: 'cve-news', data: 'public' },
   { id: 'log-digest', data: 'internal' }, { id: 'log-investigate', data: 'internal' }, { id: 'ask-my-data', data: 'internal' },
   { id: 'weekly-report', data: 'internal' }, { id: 'pdpl-assessment', data: 'internal' }, { id: 'translate-advisory', data: 'public' },
-  { id: 'response-plan', data: 'internal' },
+  { id: 'response-plan', data: 'internal' }, { id: 'research-cves', data: 'internal' },
 ]
 const JOB_ALIAS: Record<string, AiJob> = { explain: 'explain-finding' }
 export const aiJobOf = (skill: string): AiJob | null => (AI_JOBS.some((j) => j.id === skill) ? (skill as AiJob) : JOB_ALIAS[skill] ?? null)
@@ -121,7 +121,7 @@ export const aiAssignStore = collection<{ internal_only: boolean; jobs: AiAssign
     'cve-news': { primary: 'p-haiku', fallback: 'p-ollama' }, 'log-digest': { primary: 'p-ollama', fallback: 'p-haiku' },
     'log-investigate': { primary: 'p-ollama', fallback: 'p-sonnet' }, 'ask-my-data': { primary: 'p-sonnet', fallback: 'p-ollama' },
     'weekly-report': { primary: 'p-haiku', fallback: null }, 'pdpl-assessment': { primary: 'p-sonnet', fallback: null }, 'translate-advisory': { primary: 'p-haiku', fallback: null },
-    'response-plan': { primary: 'p-sonnet', fallback: 'p-ollama' },
+    'response-plan': { primary: 'p-sonnet', fallback: 'p-ollama' }, 'research-cves': { primary: 'p-haiku', fallback: 'p-sonnet' },
   },
 }), () => ({ internal_only: false, jobs: noAssign() }))
 /** The profiles usable for a job, in order primary then fallback; drops profiles that are not usable and cloud profiles when the privacy rule requires internal. */

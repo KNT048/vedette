@@ -1327,8 +1327,6 @@ CREATE TABLE fnd_line_statement (
     CHECK (status <> 'fixed' OR fixed_in IS NOT NULL OR last_affected IS NOT NULL)
 );
 
-CREATE UNIQUE INDEX fnd_line_statement_identity_uq ON fnd_line_statement (cve, product_key, line, record_hash, page_hash);
-
 CREATE INDEX fnd_line_statement_cve_ix ON fnd_line_statement (cve, product_key);
 
 CREATE TABLE fnd_identity (
@@ -1356,6 +1354,13 @@ CREATE TABLE fnd_identity (
 CREATE UNIQUE INDEX fnd_identity_ai_uq ON fnd_identity (publisher, name) WHERE kind = 'ai';
 
 CREATE UNIQUE INDEX fnd_identity_rejected_uq ON fnd_identity (publisher, name, vendor, product) WHERE kind = 'rejected';
+
+CREATE TABLE fnd_line_research (
+    statement_key TEXT NOT NULL PRIMARY KEY REFERENCES fnd_line_statement (statement_key) ON DELETE CASCADE,
+    layer TEXT NOT NULL CHECK (layer IN ('quick', 'strong')), quote_check TEXT NOT NULL CHECK (quote_check IN ('tool', 'digest', 'live', 'not_found', 'none')),
+    tokens INTEGER NOT NULL CHECK (tokens >= 0), detail TEXT NOT NULL CHECK (json_valid(detail)));
+
+CREATE INDEX fnd_line_statement_line_ix ON fnd_line_statement (cve, product_key, line, record_hash, page_hash);
 
 -- module mitigation
 
@@ -2161,14 +2166,6 @@ CREATE TABLE ai_profile (
     CHECK ((secret_id IS NULL) = (key_last4 IS NULL))
 );
 
-CREATE TABLE ai_assignment (
-    job                 TEXT NOT NULL PRIMARY KEY CHECK (job IN ('explain-finding', 'mitigation-config', 'cve-news', 'log-digest', 'log-investigate', 'ask-my-data', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan')),
-    primary_profile_id  TEXT REFERENCES ai_profile (id) ON DELETE SET NULL,
-    fallback_profile_id TEXT REFERENCES ai_profile (id) ON DELETE SET NULL,
-    CHECK (fallback_profile_id IS NULL OR primary_profile_id IS NOT NULL),
-    CHECK (fallback_profile_id IS NULL OR fallback_profile_id <> primary_profile_id)
-);
-
 CREATE TABLE ai_setting (
     key        TEXT NOT NULL PRIMARY KEY CHECK (length(key) BETWEEN 1 AND 40),
     value      TEXT NOT NULL CHECK (json_valid(value)),
@@ -2366,6 +2363,14 @@ CREATE TRIGGER ai_knowledge_chunk_ad AFTER DELETE ON ai_knowledge_chunk
 BEGIN
     INSERT INTO ai_knowledge_chunk_fts (ai_knowledge_chunk_fts, rowid, text) VALUES ('delete', old.id, old.text);
 END;
+
+CREATE TABLE "ai_assignment" (
+    job                 TEXT NOT NULL PRIMARY KEY CHECK (job IN ('explain-finding', 'mitigation-config', 'cve-news', 'log-digest', 'log-investigate', 'ask-my-data', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan', 'research-cves')),
+    primary_profile_id  TEXT REFERENCES ai_profile (id) ON DELETE SET NULL,
+    fallback_profile_id TEXT REFERENCES ai_profile (id) ON DELETE SET NULL,
+    CHECK (fallback_profile_id IS NULL OR primary_profile_id IS NOT NULL),
+    CHECK (fallback_profile_id IS NULL OR fallback_profile_id <> primary_profile_id)
+);
 
 -- module reports
 

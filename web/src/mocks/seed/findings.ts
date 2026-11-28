@@ -346,7 +346,7 @@ export function seedPossibleChecks(): Record<string, CheckRecord> {
   }
   // the AI's reading of the vendor's statement for the release line (stored once per line, applied to every device on it)
   const reading = (host: string, status: NonNullable<CheckRecord['reading']>['status'], vendor: boolean, found = true, statedLine: string | null = '7.15') =>
-    ({ reading: { status, line: '7.14', stated_line: statedLine, introduced: null, fixed_in: null, last_affected: null, host, vendor_page: vendor, quote_found: found } })
+    ({ reading: { status, line: '7.14', stated_line: statedLine, introduced: null, fixed_in: null, last_affected: null, host, vendor_page: vendor, quote_found: found, research: null } })
   const advisory = (q: ReturnType<typeof rt>, cve: string, quote: string): [string, CheckRecord] => {
     const key = checkKeyOf(q, cve)
     return [key, { key, decided_by: 'advisory', verdict: 'not_affected', confidence: null, reason: 'The vendor lists the affected releases from 7.15 on; 7.14 is older than the first affected release.',

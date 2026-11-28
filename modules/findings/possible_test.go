@@ -22,14 +22,25 @@ type fakeChecker struct {
 	sent     []ProposeRequest
 	tags     map[string][]string // a reference's tags by its address; unset: vendor-advisory (the catalogue's words)
 	budget   ReadBudget
-	records  map[string]CVERecordText // by CVE: the record's text and rows (unset: a one-sentence description)
+	records  map[string]CVERecordText                             // by CVE: the record's text and rows (unset: a one-sentence description)
+	answers  map[string]ResearchAnswer                            // by CVE + "|" + version: a research answer as given (overrides verdicts)
+	research []ResearchRequest                                    // every research request as sent
+	recorded []string                                             // the CVE of every Record call, in order
+	tick     func(ctx context.Context, req ResearchRequest) error // run by each research call, outside the lock, before it answers
 }
 
 func (f *fakeChecker) Ready(context.Context) error { return f.ready }
 
-func (f *fakeChecker) Budget(context.Context) ReadBudget { return f.budget }
+func (f *fakeChecker) Budget(context.Context) ReadBudget {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.budget
+}
 
 func (f *fakeChecker) Record(_ context.Context, cve string) (CVERecordText, error) {
+	f.mu.Lock()
+	f.recorded = append(f.recorded, cve)
+	f.mu.Unlock()
 	var refs []RefLink
 	for _, p := range f.pages[cve] {
 		tags, ok := f.tags[p.URL]
@@ -57,24 +68,50 @@ func (f *fakeChecker) Fetch(_ context.Context, urls []string) []FetchedPage {
 	return out
 }
 
-func (f *fakeChecker) Propose(_ context.Context, _ string, req ProposeRequest) (ProposeAnswer, error) {
+// Research answers like a careful reader of the box's pages: the verdict set for the CVE and version (unsure otherwise), its quote
+// looked up word for word in the cited page or the record (research overrides it per CVE and version). The call is recorded as the
+// request of one release line.
+func (f *fakeChecker) Research(ctx context.Context, _ string, req ResearchRequest) (ResearchAnswer, error) {
+	f.mu.Lock()
+	f.sent = append(f.sent, ProposeRequest{CVE: req.CVE, Description: req.Description, Rows: req.Rows, Items: []ProposeItem{req.Item}, Pages: req.Pages})
+	f.research = append(f.research, req)
+	tick := f.tick
+	f.mu.Unlock()
+	if tick != nil {
+		if err := tick(ctx, req); err != nil {
+			return ResearchAnswer{}, err
+		}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.sent = append(f.sent, req)
 	if f.stop != nil {
-		return ProposeAnswer{}, f.stop
+		return ResearchAnswer{}, f.stop
 	}
 	if err := f.refuse[req.CVE]; err != nil {
-		return ProposeAnswer{}, err
+		return ResearchAnswer{}, err
 	}
-	ans := ProposeAnswer{Model: "test-model", Profile: "test", ActivityID: "act-1"}
-	for _, it := range req.Items {
-		v, ok := f.verdicts[req.CVE+"|"+it.Version]
-		if !ok { // a model answers every item: what the text does not state is unsure
-			v = ProposeVerdict{Status: StatementUnsure, Reason: "The text states nothing for this release line."}
-		}
-		v.Index = it.Index
-		ans.Verdicts = append(ans.Verdicts, v)
+	if a, ok := f.answers[req.CVE+"|"+req.Item.Version]; ok {
+		return a, nil
+	}
+	v, ok := f.verdicts[req.CVE+"|"+req.Item.Version]
+	if !ok { // a model answers every item: what the text does not state is unsure
+		v = ProposeVerdict{Status: StatementUnsure, Reason: "The text states nothing for this release line."}
+	}
+	ans := ResearchAnswer{Verdict: v, Model: "test-model", Profile: "test", ActivityID: "act-1", Layer: "quick", Mode: "balanced", Confidence: "high",
+		Basis: BasisStated, QuoteCheck: QuoteNone, TokensIn: 1000, TokensOut: 100}
+	if v.InferredFrom != "" {
+		ans.Basis = BasisInferred
+	}
+	text := recordText(CVERecordText{Description: req.Description}, req.Rows)
+	if v.Source >= 1 && v.Source <= len(req.Pages) {
+		ans.URL, text = req.Pages[v.Source-1].URL, req.Pages[v.Source-1].Text
+	}
+	switch {
+	case v.Quote == "":
+	case quoteFound(v.Quote, text):
+		ans.QuoteCheck, ans.QuotedText = QuoteDigest, text
+	default:
+		ans.QuoteCheck = QuoteNotFound
 	}
 	return ans, nil
 }
@@ -110,8 +147,10 @@ func runCheck(t *testing.T, e *env) CheckRun {
 	if err != nil {
 		t.Fatal(err)
 	}
+	units := e.svc.unitsToCheck(t.Context(), items)
 	e.svc.check.run = &CheckRun{Running: true}
-	e.svc.runPossibleCheck(t.Context(), e.svc.unitsToCheck(t.Context(), items), "ana@example.com")
+	e.svc.check.run.LinesTotal, e.svc.check.run.LinesDone = lineCount(items, units)
+	e.svc.runPossibleCheck(t.Context(), units, "ana@example.com")
 	return *e.svc.check.run
 }
 
@@ -577,8 +616,8 @@ func TestPossibleCheck_ARecordChangeKeepsTheLastVerdict(t *testing.T) {
 	for _, req := range fc.sent[calls:] {
 		asked = asked || req.CVE == "CVE-2026-82002"
 	}
-	if !asked {
-		t.Error("the check on the new evidence did not ask about CVE-2026-82002 again")
+	if asked {
+		t.Error("the check on the new evidence asked about CVE-2026-82002 again although the quote is still on its page")
 	}
 	it = possibleByCVE(t, e)["CVE-2026-82002"]
 	if it.Check == nil || it.Check.Reading == nil || it.Check.Reading.RecordHash != it.Question.Detail.Check.Record || it.Checkable() {
@@ -693,5 +732,28 @@ func seedProposal(t *testing.T, e *env, cve, verdict string) {
 		Profile: "test", CheckedBy: "ana@example.com", CheckedAt: e.svc.now()}
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { return insertCheck(t.Context(), tx, c) }); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Old records cite the vendor's advisory over http: the box reads its https form (redirects stay on https), and a reference tagged as a
+// broken link or not applicable is not read, so it leaves its place to a page that may answer. A page read from the https form of a
+// reference tagged vendor-advisory is the vendor's.
+func TestChooseRefs_ReadsHTTPReferencesOverHTTPS(t *testing.T) {
+	t.Parallel()
+	refs := []RefLink{
+		{URL: "http://lists.example.net/msg", Tags: []string{"mailing-list"}},
+		{URL: "https://oval.example.org/def/1", Tags: []string{"broken-link"}},
+		{URL: "http://secunia.example.com/advisories/1", Tags: []string{"not-applicable"}},
+		{URL: "http://www.oracle.com/technetwork/topics/security/javacpuoct2012-1515924.html", Tags: []string{"patch", "vendor-advisory"}},
+	}
+	got := chooseRefs(refs, "oracle|java se")
+	want := []string{"https://www.oracle.com/technetwork/topics/security/javacpuoct2012-1515924.html", "https://lists.example.net/msg"}
+	if !slices.Equal(got, want) {
+		t.Errorf("chooseRefs = %v, want %v", got, want)
+	}
+	pages := []FetchedPage{{URL: want[0], Status: "ok"}, {URL: want[1], Status: "ok"}}
+	markVendorPages(pages, refs, "acme|widget")
+	if !pages[0].Vendor || pages[1].Vendor {
+		t.Errorf("vendor pages %v %v, want the https form of the vendor-advisory reference only", pages[0].Vendor, pages[1].Vendor)
 	}
 }

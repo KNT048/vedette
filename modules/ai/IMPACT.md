@@ -158,10 +158,12 @@
 - `device_updates` no longer reads `findings.Service.DeviceUpdates`; `aiAsk.DeviceUpdates` reads `Service.ByDevice` for the device and maps each fix block to a row (named release and urgent: update; named release and recommended: recommended update; urgent with no release: no named update). Ransomware and EPSS counts of a row are no longer given.
 - `ExplainResult` lost `why`, `patch_steps`, `temp_mitigations`, `detection_hints`; the cache key version is `explain-v3`, so an explanation stored before is never served.
 
-## Modifying: `ProposePossible`, `PossibleVerdict`, `AutoReadState`, `Settings.AutoReadOff` / `DailyReads`
-- **findings** (P-6, P-7, through `cmd/vedette/aipossible.go`): the answer's fields are what findings checks against the page it fetched and stores per release line; renaming a status or a bound breaks every reading. `AutoReadState` is the automatic reading's switch and budget (`PossibleChecker.Budget`): it decides whether the reading runs after a match pass and the cause `ai_budget`.
-- **web** (`features/ai/AiSettings.tsx` "Reading vendor advisories", `features/ai/contract.ts` `auto_read`, `daily_reads`, `reads_today`), PRIVACY.md flow 3 and Settings → Privacy, which say when the automatic reading sends public text and how to turn it off.
-- The daily count reads `ai_activity` rows by job, trigger and the summary prefix `autoReadSummary`: changing that summary resets the count of the day.
+## Modifying: `Research`, `ResearchVerdict`, `ResearchAnswer`, the research job, `AutoReadState`, `Settings.AutoReadOff` / `DailyReads` / `ResearchMode` / `ResearchShare`
+- **findings** (P-6, P-7, P-12, through `cmd/vedette/aipossible.go` `possibleChecker.Research`): the answer's fields become the line's reading and its research row (`fnd_line_research`); renaming a verdict, a quote check value or a bound breaks every reading. `AutoReadState` is the automatic research's switch and daily number (`PossibleChecker.Budget`): it decides whether the research runs after a match pass and the cause `ai_budget`.
+- **provider**: the research needs `Request.Web` (Anthropic server tools), `Response.Web` (the text the tools returned, for the quote check) and `StopPause`; another adapter must keep refusing `Request.Web` with `ErrNoWebTools` so the box's own `fetch_page` tool is used.
+- **router**: the layers are the job's slots (`CallSlot`, `SlotProfile`); a change to how a slot is chosen changes which model answers each layer.
+- **web** (`features/ai/AiSettings.tsx` the "Research CVEs" routing row, `features/ai/contract.ts` `auto_read`, `daily_reads`, `reads_today`, `research_mode`, `research_share`, `research_used_month`, `research_estimates`), PRIVACY.md flow 3 and Settings → Privacy, which say what the research sends, the provider-side web search and fetch, and how to turn it off.
+- The daily count reads `ai_activity` rows by job, trigger and the summary prefixes `autoReadSummary` and `autoResearchSummary`; the measured tokens per mode read the research rows' summaries ("(quick layer, …)"): changing them resets the count of the day and the estimates.
 
 ## Modifying: `IdentifyProducts`, `IdentifyItem`, `IdentifyChoice`, `autoIdentifySummary`
 - **findings** (P-9, through `cmd/vedette/aipossible.go` `softwareIdentifier`): a choice is a candidate id findings offered, `none` or `unsure`; findings stores it per software name and lets only an offered id open findings. Renaming the choices or the schema breaks every stored identification.
@@ -169,6 +171,6 @@
 - PRIVACY.md flow 3 and Settings → Privacy say what an identification call sends (publisher, scrubbed display name, version, candidates) and how to turn it off (the same switch).
 
 ## Modifying: the automatic pace (`paceAuto`, `autoPerMinute`, `Config.Sleep`) or the fuse (`fuseCalls`)
-- The automatic reading and identification keep below the `explain-finding` fuse so a person's Explain in the same minute is not refused; raising the pace or lowering the fuse brings that back (`TestProposePossible_TheAutomaticReadingLeavesAPersonRoomInEveryMinute`).
+- The automatic reading and identification keep below the `explain-finding` fuse so a person's Explain in the same minute is not refused; raising the pace or lowering the fuse brings that back (`TestResearch_AutomaticPaceAndDailyNumber`).
 - **findings**: a run's time (`possibleCheckTimeout`, `identityRunTimeout`, 15 minutes) must hold its most calls at the pace (200 units, 100 names); a run whose time ends while it waits stops (`aiCallError` → `CheckStop`).
 - The error codes findings sorts (`cmd/vedette/aipossible.go` `aiCallError`): `blocked_by_hook` with `retry_after` (hooks out of time) is a failure for an hour, without it a refusal for a day; `ai_bad_format`/`ai_cut_off` are refusals that count toward the run's stop after 3 in a row.

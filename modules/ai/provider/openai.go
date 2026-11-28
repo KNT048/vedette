@@ -19,6 +19,9 @@ func (o *openAI) Complete(ctx context.Context, r Request) (Response, error) {
 	if err := checkRequest(r); err != nil {
 		return Response{}, err
 	}
+	if r.Web != nil {
+		return Response{}, ErrNoWebTools
+	}
 	body, err := o.encode(r)
 	if err != nil {
 		return Response{}, err
@@ -27,7 +30,7 @@ func (o *openAI) Complete(ctx context.Context, r Request) (Response, error) {
 	if o.h.key.IsSet() {
 		headers["Authorization"] = "Bearer " + o.h.key.Reveal()
 	}
-	data, err := o.h.post(ctx, "/chat/completions", headers, body)
+	data, err := o.h.post(ctx, r.Timeout, "/chat/completions", headers, body)
 	if err != nil {
 		return Response{}, err
 	}

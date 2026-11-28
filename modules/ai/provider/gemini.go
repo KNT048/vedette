@@ -21,12 +21,15 @@ func (g *gemini) Complete(ctx context.Context, r Request) (Response, error) {
 	if err := checkRequest(r); err != nil {
 		return Response{}, err
 	}
+	if r.Web != nil {
+		return Response{}, ErrNoWebTools
+	}
 	body, err := g.encode(r)
 	if err != nil {
 		return Response{}, err
 	}
 	path := "/v1beta/models/" + url.PathEscape(g.model) + ":generateContent"
-	data, err := g.h.post(ctx, path, map[string]string{"x-goog-api-key": g.h.key.Reveal()}, body)
+	data, err := g.h.post(ctx, r.Timeout, path, map[string]string{"x-goog-api-key": g.h.key.Reveal()}, body)
 	if err != nil {
 		return Response{}, err
 	}

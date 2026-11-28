@@ -450,6 +450,7 @@ type UpsertResult struct {
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	defer s.wakeResearch() // a new possible CVE, or a changed record, is researched now
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the device to match: %w", err)

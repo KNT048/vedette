@@ -50,6 +50,8 @@ type fakeProviders struct {
 	cut               int // the next answers with a schema that stop at the output limit: half the text, stop reason max_tokens
 	// script, when set, answers every request that carries tools or follows a tool turn instead of the default text (slice 5, ask).
 	script func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
+	// research, when set, answers every request of the research of a CVE (its schema, or its fetch_page tool).
+	research func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
 }
 
 func (f *fakeProviders) factory(p ai.Profile) (provider.Provider, error) {
@@ -99,6 +101,9 @@ func (p fakeProvider) Complete(ctx context.Context, req provider.Request) (provi
 	}
 	if err := p.f.fail[p.p.Name]; err != nil {
 		return provider.Response{}, err
+	}
+	if p.f.research != nil && (req.Schema != nil && req.Schema.Name == "cve_research" || len(req.Tools) == 1 && req.Tools[0].Name == "fetch_page") {
+		return p.f.research(ctx, p.p, req)
 	}
 	if len(req.Tools) > 0 && !p.f.tools {
 		return provider.Response{}, &provider.Error{Kind: provider.ErrRequest, Status: 400}

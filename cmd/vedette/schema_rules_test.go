@@ -50,6 +50,7 @@ var jsonColumnAllowList = []string{
 	"fnd_coverage_run.counts", // a pass's coverage counts, read whole
 	"fnd_finding.evidence",
 	"fnd_finding_event.detail",
+	"fnd_line_research.detail",   // the steps of one research (models, tokens, pages read), read whole beside its reading
 	"fnd_possible_check.detail",  // the undecided reason and the evidence that blocked a decision, read whole for an audit
 	"fnd_possible_check.sources", // the pages a check read, shown whole beside its verdict
 	"fnd_question.detail",

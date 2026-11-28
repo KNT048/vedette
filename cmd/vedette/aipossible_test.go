@@ -33,7 +33,7 @@ func (p *readProvider) Complete(_ context.Context, req provider.Request) (provid
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reqs = append(p.reqs, req)
-	text := `{"items":[{"index":0,"status":"unsure","introduced":"","fixed_in":"","last_affected":"","line":"","reason":"No range.","quote":"","source":0}]}`
+	text := `{"verdict":"unsure","confidence":"low","basis":"stated","fixed_in":"","line":"","introduced":"","last_affected":"","url":"","quote":"","reason":"No range.","trap":""}`
 	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}, Stop: provider.StopEnd}, nil
 }
 
@@ -64,27 +64,27 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	asg := svc.Assignments()
-	asg.Jobs[string(ai.JobExplainFinding)] = ai.SlotView{Primary: &p.ID}
+	asg.Jobs[string(ai.JobResearchCVEs)] = ai.SlotView{Primary: &p.ID}
 	if _, err := svc.SetAssignments(ctx, "test", asg); err != nil {
 		t.Fatal(err)
 	}
 	c := possibleChecker{ai: svc}
 	page := "Vulnerability Note VU#644655: Widget 3.4 is affected.\n\nCarnegie Mellon University\n\nPittsburgh, PA 15213-2612\n\n412-268-5800"
-	req := findings.ProposeRequest{CVE: "CVE-2099-72003", Description: "A flaw in Widget.",
-		Items: []findings.ProposeItem{{Index: 0, Vendor: "acme", Product: "Widget", Version: "3.4.1", Line: "3.4"}},
+	req := findings.ResearchRequest{CVE: "CVE-2099-72003", Description: "A flaw in Widget.", Digest: "CVE-2099-72003\nDescription: A flaw in Widget.",
+		Item:  findings.ProposeItem{Vendor: "acme", Product: "Widget", Version: "3.4.1", Line: "3.4"},
 		Pages: []findings.FetchedPage{{URL: "https://www.kb.cert.org/vuls/id/644655", Status: "ok", Text: page}}}
-	if ans, err := c.Propose(ctx, findings.SystemUser, req); err != nil || len(ans.Verdicts) != 1 {
+	if ans, err := c.Research(ctx, findings.SystemUser, req); err != nil || ans.Verdict.Status != "unsure" || len(ans.Steps) != 1 {
 		t.Fatalf("the CERT/CC page was not read: %+v %v", ans, err)
 	}
 
 	refused := req
-	refused.Items = []findings.ProposeItem{{Index: 0, Vendor: "acme", Product: "Widget 079201234567", Version: "3.4.1", Line: "3.4"}}
-	_, err = c.Propose(ctx, findings.SystemUser, refused)
+	refused.Item = findings.ProposeItem{Vendor: "acme", Product: "Widget 079201234567", Version: "3.4.1", Line: "3.4"}
+	_, err = c.Research(ctx, findings.SystemUser, refused)
 	var item *findings.ItemRefused
 	if !errors.As(err, &item) || item.RetryAfter < time.Hour || !strings.Contains(item.Reason, "hook") {
 		t.Fatalf("a call a hook stopped: %#v, want the item refused with a retry time", err)
 	}
-	if _, err := c.Propose(ctx, findings.SystemUser, req); err != nil {
+	if _, err := c.Research(ctx, findings.SystemUser, req); err != nil {
 		t.Fatalf("the call after a refused one: %v", err)
 	}
 
@@ -92,7 +92,7 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stop *findings.CheckStop
-	if _, err := c.Propose(ctx, findings.SystemUser, req); !errors.As(err, &stop) {
+	if _, err := c.Research(ctx, findings.SystemUser, req); !errors.As(err, &stop) {
 		t.Fatalf("the reading switched off: %#v, want the check stopped", err)
 	}
 	// the run's own time is up (its context ended while it waited for its pace): the run stops, the item is not held as failed
@@ -101,7 +101,7 @@ func TestPossibleChecker_ARefusedCallIsTheItemsAlone(t *testing.T) {
 	}
 	done, cancel := context.WithCancel(ctx)
 	cancel()
-	if _, err := c.Propose(done, findings.SystemUser, req); !errors.As(err, &stop) {
+	if _, err := c.Research(done, findings.SystemUser, req); !errors.As(err, &stop) {
 		t.Fatalf("a call after the run's time was up: %#v, want the check stopped", err)
 	}
 }

@@ -59,7 +59,7 @@ func (h *AIHandlers) AiPutAiConfig(ctx context.Context, req *oas.AiPutAiConfigRe
 	}
 	in := Settings{Tier: Tier(req.Tier), MonthlyBudget: req.MonthlyBudget, RedactPII: req.RedactPii}
 	cur := h.svc.snap.Load().cfg // the automatic reading's settings stay as saved unless the request names them
-	in.AutoReadOff, in.DailyReads = cur.AutoReadOff, cur.DailyReads
+	in.AutoReadOff, in.DailyReads, in.ResearchMode, in.ResearchShare = cur.AutoReadOff, cur.DailyReads, cur.ResearchMode, cur.ResearchShare
 	if v, ok := req.AutoRead.Get(); ok {
 		in.AutoReadOff = !v
 	}
@@ -68,6 +68,15 @@ func (h *AIHandlers) AiPutAiConfig(ctx context.Context, req *oas.AiPutAiConfigRe
 			return nil, mapErr(perr("invalid_daily_reads", "The automatic reads a day must be a whole number from 1 to %d.", MaxDailyReads))
 		}
 		in.DailyReads = v
+	}
+	if v, ok := req.ResearchMode.Get(); ok {
+		in.ResearchMode = string(v)
+	}
+	if v, ok := req.ResearchShare.Get(); ok {
+		if v < 1 {
+			return nil, mapErr(perr("invalid_research_share", "The research share must be a whole percent from 1 to %d.", maxResearchShare))
+		}
+		in.ResearchShare = v
 	}
 	v, err := h.svc.SetConfig(ctx, who, in)
 	if err != nil {

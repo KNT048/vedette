@@ -600,7 +600,7 @@ describe('ai: settings, job routing and privacy rule', () => {
     const v = renderUi(<AiSettings />)
     await v.ready
     const table = await screen.findByRole('table', { name: 'AI job routing' })
-    expect(within(table).getAllByRole('row')).toHaveLength(10) // the header and 9 tasks: the response plan row is left out while that module is not offered
+    expect(within(table).getAllByRole('row')).toHaveLength(11) // the header and 10 tasks: the response plan row is left out while that module is not offered
     const primary = within(table).getByLabelText('Primary profile for Log summaries')
     expect(primary).toHaveValue('p-ollama')
     await userEvent.selectOptions(primary, 'Claude Haiku')

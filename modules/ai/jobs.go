@@ -3,10 +3,10 @@
 // hash-chained activity log. It has no HTTP, no database and no scheduler; the module wiring connects it to core.
 package ai
 
-// Job is one of the ten AI jobs (INV-2).
+// Job is one of the eleven AI jobs (INV-2).
 type Job string
 
-// The ten AI jobs, as in contract.ts.
+// The eleven AI jobs, as in contract.ts.
 const (
 	JobExplainFinding    Job = "explain-finding"
 	JobMitigationConfig  Job = "mitigation-config"
@@ -18,15 +18,18 @@ const (
 	JobPDPLAssessment    Job = "pdpl-assessment"
 	JobTranslateAdvisory Job = "translate-advisory"
 	JobResponsePlan      Job = "response-plan"
+	// JobResearchCVEs researches a CVE Vedette's own data cannot decide for one release line (research.go): the primary profile is the
+	// quick layer, the fallback the strong layer the quick answer escalates to.
+	JobResearchCVEs Job = "research-cves"
 )
 
 // Jobs lists every job in contract order.
 func Jobs() []Job {
 	return []Job{JobExplainFinding, JobMitigationConfig, JobCVENews, JobLogDigest, JobLogInvestigate,
-		JobAskMyData, JobWeeklyReport, JobPDPLAssessment, JobTranslateAdvisory, JobResponsePlan}
+		JobAskMyData, JobWeeklyReport, JobPDPLAssessment, JobTranslateAdvisory, JobResponsePlan, JobResearchCVEs}
 }
 
-// Valid reports whether j is one of the ten jobs.
+// Valid reports whether j is one of the jobs.
 func (j Job) Valid() bool {
 	for _, k := range Jobs() {
 		if j == k {
@@ -65,6 +68,8 @@ func (j Job) Name() string {
 		return "translating advisories"
 	case JobResponsePlan:
 		return "response plans"
+	case JobResearchCVEs:
+		return "researching CVEs"
 	}
 	return string(j)
 }

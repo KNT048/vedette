@@ -100,12 +100,16 @@ const profileView = (p: StoredProfile): AiProfile => ({ ...p, key_lost: false, u
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
 /** The automatic reading of vendor advisories (sample data: on, 300 calls a day, 42 made today). */
 const autoReads = collection<{ on: boolean; daily: number; today: number }>('ai_auto_read', () => ({ on: true, daily: 300, today: 42 }), () => ({ on: true, daily: 300, today: 0 }))
+/** The research of CVEs Vedette cannot decide (sample data: balanced, half of the monthly budget, some tokens spent). */
+const research = collection<{ mode: 'economy' | 'balanced' | 'thorough'; share: number; used: number }>('ai_research', () => ({ mode: 'balanced', share: 50, used: 412_000 }), () => ({ mode: 'balanced', share: 50, used: 0 }))
+const RESEARCH_ESTIMATES = { economy: { tokens: 20_000, measured: false }, balanced: { tokens: 70_000, measured: false }, thorough: { tokens: 200_000, measured: false } }
 /** Today's automatic reads are used up (the possible findings' cause ai_budget). */
 export const autoReadReached = () => { const a = autoReads.get(); return a.on && a.today >= a.daily }
 /** The automatic reading runs by itself (Settings, AI assistant). */
 export const autoReadOn = () => autoReads.get().on
 const view = (): AiConfigView => { const c = aiConfigStore.get(); const autoRead = autoReads.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady(),
-  auto_read: autoRead.on, daily_reads: autoRead.daily, reads_today: Math.min(autoRead.today, autoRead.daily) } }
+  auto_read: autoRead.on, daily_reads: autoRead.daily, reads_today: Math.min(autoRead.today, autoRead.daily),
+  research_mode: research.get().mode, research_share: research.get().share, research_used_month: research.get().used, research_estimates: RESEARCH_ESTIMATES } }
 
 /** `configured` (shared with other modules) = at least one usable profile; provider/model/key mirror the first usable profile. */
 function syncConfig() {
@@ -113,7 +117,7 @@ function syncConfig() {
   aiConfigStore.update((c) => ({ ...c, configured: !!first, provider: first ? (first.kind === 'custom' ? 'openai-compatible' : first.kind) : c.provider, base_url: first?.base_url ?? c.base_url, model: first?.model ?? '', key_last4: first?.key_last4 ?? null }))
 }
 
-const JOB_NAME: Record<AiJob, string> = { 'explain-finding': 'explaining findings', 'mitigation-config': 'writing mitigation configs', 'cve-news': 'CVE news', 'log-digest': 'log summaries', 'log-investigate': 'log investigation', 'ask-my-data': 'asking your data', 'weekly-report': 'the weekly report', 'pdpl-assessment': 'the data protection assessment', 'translate-advisory': 'translating advisories', 'response-plan': 'response plans' }
+const JOB_NAME: Record<AiJob, string> = { 'explain-finding': 'explaining findings', 'mitigation-config': 'writing mitigation configs', 'cve-news': 'CVE news', 'log-digest': 'log summaries', 'log-investigate': 'log investigation', 'ask-my-data': 'asking your data', 'weekly-report': 'the weekly report', 'pdpl-assessment': 'the data protection assessment', 'translate-advisory': 'translating advisories', 'response-plan': 'response plans', 'research-cves': 'researching CVEs' }
 function notReady(job: AiJob) {
   if (!isOn('ai')) return fail(409, 'ai_unavailable', 'The AI assistant module is off. Turn it on in Settings, Modules.')
   if (!aiConfigStore.get().configured) return fail(409, 'ai_unavailable', 'No AI profile is set up. An administrator adds one in Settings, AI assistant.')
@@ -329,7 +333,10 @@ export const handlers = [
     const cap = Number(b.monthly_budget)
     if (!Number.isInteger(cap) || cap < 1000 || cap > 150_000_000) return fail(400, 'invalid_cap', 'The monthly AI budget must be a whole number of tokens from 1000 to 150000000.')
     if (b.daily_reads !== undefined && (!Number.isInteger(b.daily_reads) || b.daily_reads < 1 || b.daily_reads > 5000)) return fail(400, 'invalid_daily_reads', 'The automatic reads a day must be a whole number from 1 to 5000.')
+    if (b.research_mode !== undefined && !['economy', 'balanced', 'thorough'].includes(b.research_mode)) return fail(400, 'invalid_research_mode', 'Pick a research mode: economy, balanced or thorough.')
+    if (b.research_share !== undefined && (!Number.isInteger(b.research_share) || b.research_share < 1 || b.research_share > 100)) return fail(400, 'invalid_research_share', 'The research share must be a whole percent from 1 to 100.')
     aiConfigStore.update((c) => ({ ...c, tier: b.tier as AiTier, monthly_budget: cap, redact_pii: b.redact_pii !== false }))
+    research.update((r) => ({ ...r, mode: b.research_mode ?? r.mode, share: b.research_share ?? r.share }))
     autoReads.update((a) => ({ ...a, on: b.auto_read ?? a.on, daily: b.daily_reads ?? a.daily }))
     const autoRead = autoReads.get()
     audit('ai.config', 'tier', `tier=${b.tier}, monthly_budget=${cap}, redact_pii=${b.redact_pii !== false}, auto_read=${autoRead.on}, daily_reads=${autoRead.daily}`)

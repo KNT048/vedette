@@ -19,6 +19,7 @@ import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { useReviewTotal } from '@/features/findings/api'
 import { useFixTitle } from '@/features/findings/parts'
 import type { FirstItem, Overview } from '@/features/findings/types'
 import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
@@ -103,7 +104,9 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
  *  unknown. Nothing when there is none of them. */
 function PossibleLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  const { possible, older_build: older, distro_pending: distro, proposals, settled } = o.possible
+  const { possible, older_build: older, distro_pending: distro, settled } = o.possible
+  // the AI's not-affected answers are the ones Review AI answers lists; every other undecided CVE is still unknown
+  const proposals = useReviewTotal().data ?? 0
   const unknown = Math.max(0, possible - proposals) + older + distro
   if (!settled && !proposals && !unknown) return null
   const link = 'text-accent underline-offset-4 hover:underline'

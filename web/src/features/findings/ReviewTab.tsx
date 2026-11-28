@@ -189,19 +189,19 @@ export function ReviewTab() {
       ) : (
         <div className="grid gap-3">
           <ListToolbar label={t('review.filters')}>
-            <Select aria-label={t('review.filterDevice')} value={f.device} onChange={(e) => set('device', e.target.value)}>
+            <Select className="w-full sm:w-auto" aria-label={t('review.filterDevice')} value={f.device} onChange={(e) => set('device', e.target.value)}>
               <option value={ALL}>{t('review.anyDevice')}</option>
               {devices.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </Select>
-            <Select aria-label={t('review.filterSoftware')} value={f.software} onChange={(e) => set('software', e.target.value)}>
+            <Select className="w-full sm:w-auto" aria-label={t('review.filterSoftware')} value={f.software} onChange={(e) => set('software', e.target.value)}>
               <option value={ALL}>{t('review.anySoftware')}</option>
               {softwares.map((s) => <option key={s} value={s}>{s}</option>)}
             </Select>
-            <Select aria-label={t('review.filterConfidence')} value={f.confidence} onChange={(e) => set('confidence', e.target.value as Filters['confidence'])}>
+            <Select className="w-full sm:w-auto" aria-label={t('review.filterConfidence')} value={f.confidence} onChange={(e) => set('confidence', e.target.value as Filters['confidence'])}>
               <option value={ALL}>{t('review.anyConfidence')}</option>
               {CONFIDENCES.map((c) => <option key={c} value={c}>{t(`review.confidence_${c}`)}</option>)}
             </Select>
-            <Select aria-label={t('review.filterEvidence')} value={f.evidence} onChange={(e) => set('evidence', e.target.value as Filters['evidence'])}>
+            <Select className="w-full sm:w-auto" aria-label={t('review.filterEvidence')} value={f.evidence} onChange={(e) => set('evidence', e.target.value as Filters['evidence'])}>
               <option value={ALL}>{t('review.anyEvidence')}</option>
               <option value="checked">{t('review.evidenceChecked')}</option>
               <option value="unchecked">{t('review.evidenceUnchecked')}</option>

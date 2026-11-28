@@ -462,11 +462,29 @@ func (s *Service) ConfirmReview(ctx context.Context, ids, includeExploited []str
 			}
 		}
 	}
+	before := len(out.Skipped)
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		out.Confirmed = 0
+		out.Confirmed, out.Skipped = 0, out.Skipped[:before]
+		// the exploited lists are read again inside the write that answers: a CVE listed since the read above is confirmed only when
+		// named; a list that cannot be read confirms nothing
+		exploited, err := s.exploitedSet(ctx)
+		if err != nil {
+			return err
+		}
+		unnamed := map[string]bool{}
+		for c := range exploited {
+			if !slices.Contains(includeExploited, c) {
+				unnamed[c] = true
+			}
+		}
 		for _, id := range confirm {
-			if _, err := s.confirmOne(ctx, tx, id, user, now, emit, nil, false); err != nil {
-				if errors.Is(err, ErrNoProposal) {
+			if _, err := s.confirmOne(ctx, tx, id, user, now, emit, unnamed, false); err != nil {
+				switch {
+				case errors.Is(err, ErrNoProposal):
+					out.Skipped = append(out.Skipped, ReviewSkip{ID: id, CVE: byID[id].CVE, Reason: "not_waiting"})
+					continue
+				case errors.Is(err, ErrProposalPerRow):
+					out.Skipped = append(out.Skipped, ReviewSkip{ID: id, CVE: byID[id].CVE, Reason: "exploited"})
 					continue
 				}
 				return err

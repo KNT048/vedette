@@ -393,3 +393,33 @@ func TestResearch_ANewerAffectedAnswerDoesNotCloseTheAIFinding(t *testing.T) {
 		})
 	}
 }
+
+// Bulk confirmation reads the exploited lists inside the transaction that answers: a CVE that becomes exploited between the queue's read
+// and the confirmation is not confirmed without being named.
+func TestReview_ExploitedIsReadInsideTheConfirmation(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.12.0")
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.12.0": quillResearch(StatementNotAffected, QuoteTool, "the 115 line is fixed in Quillfeather Mail 115.12", quillSAText)}
+	runCheck(t, e)
+	rev, err := e.svc.Review(t.Context(), ReviewFilter{}, Page{Limit: PageMax})
+	if err != nil || rev.Total != 1 || rev.Exploited != 0 {
+		t.Fatalf("review %+v %v", rev, err)
+	}
+	reads := 0
+	e.feeds.vulnsErr = func() error { // the CVE joins an exploited list right after the first read of the confirmation
+		if reads++; reads > 1 {
+			delete(e.feeds.unlisted, cveQuill)
+		}
+		return nil
+	}
+	got, err := e.svc.ConfirmReview(t.Context(), []string{rev.Items[0].ID}, nil, "ana@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confirmed != 0 || len(got.Skipped) != 1 || got.Skipped[0].Reason != "exploited" {
+		t.Fatalf("a CVE exploited by the time of the write: %+v", got)
+	}
+	if got, err = e.svc.ConfirmReview(t.Context(), []string{rev.Items[0].ID}, []string{cveQuill}, "ana@example.com"); err != nil || got.Confirmed != 1 {
+		t.Fatalf("named: %+v %v", got, err)
+	}
+}

@@ -49,6 +49,8 @@ type AffectedRow struct {
 	// AffectedOnly and VendorList say how far a CVE record row read for matching speaks (Range.AffectedOnly, Range.VendorList); both
 	// false for NVD's rows.
 	AffectedOnly, VendorList bool
+	// Lost: a CVE record row of a product an entry of which the reader could not keep (Range.Lost): it only ever says "affected".
+	Lost bool
 	// VendorCNA: the CVE record's assigner is the row's vendor (Range.VendorCNA); false while the assigner is not known.
 	VendorCNA bool
 	// LineFix is the release a CVE record states fixed above the row's end, for the release line the row ends on (Range.LineFix); ""
@@ -62,7 +64,7 @@ type AffectedRow struct {
 // sameSpan says two rows name the same CPE and bounds and are read alike (every field but Platforms).
 func (r AffectedRow) sameSpan(o AffectedRow) bool {
 	return r.CPE == o.CPE && r.StartIncl == o.StartIncl && r.StartExcl == o.StartExcl && r.EndIncl == o.EndIncl && r.EndExcl == o.EndExcl &&
-		r.AffectedOnly == o.AffectedOnly && r.VendorList == o.VendorList && r.LineFix == o.LineFix
+		r.AffectedOnly == o.AffectedOnly && r.VendorList == o.VendorList && r.Lost == o.Lost && r.LineFix == o.LineFix
 }
 
 // NVDRecord is one CVE as NVD's record gives it, as the catalogue keeps it.

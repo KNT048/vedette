@@ -407,9 +407,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   Such a list (partial, or beside NVD's rows when no NVD row names the line) whose every row of the line is limited to systems the
   device's own agent does not report is not affected under both readings too, when the vendor's own CNA wrote the rows or NVD has rows
   of the line's own product, all limited to such systems as well (a third party's record names the system it tested on; NVD's rows of
-  another product say nothing; feeds lifts the system limit of a product an entry of which gave no row, `liftSystems`); both sides must read
+  another product, and a record row of a complete list, say nothing); both sides must read
   in the target_sw vocabulary and not meet (`systemReadings`; an iPhone or iPad app runs on macOS, `platformsMeet`, also for `judge`);
-  a row for every system, an unknown device system or one outside the vocabulary (ESXi, a network OS) keeps it a question. A
+  a row for every system, an unknown device system or one outside the vocabulary (ESXi, a network OS) keeps it a question. A row of a
+  product an entry of which the record reader could not keep (`Affected.Lost`, feeds `markLost`) only ever says "affected": while
+  such a row names the line, no verdict "not affected" stands (`lostRow`, after every reading and the vendor's scheme rows), so the CVE
+  stays a question or, for a version inside a row, a finding. `TestPlatformRows_ALostEntryOnlyEverOpens`. A
   question left by a row that does not compare is `version_scheme_mismatch` only when the version does not read, a row is in another
   scheme, or a row is of the version's own train; else `ranges_do_not_decide`. `TestRecordShape_*`.
 - **INV-4b** The finding page's fixed version comes from the same rows as the match; a version is a fix only when it is outside

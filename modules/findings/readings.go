@@ -182,7 +182,7 @@ func systemReadings(in swInfo, v Vuln, key []identity, name string) (agreement, 
 		if n == "" {
 			return agreement{}, false
 		}
-		if v.RangesFrom == "" && !af.AffectedOnly { // NVD's own row of the line's product, limited to another system
+		if v.RangesFrom == "" && !af.AffectedOnly && !af.VendorList && !af.Lost { // NVD's own row of the line's product, limited to another system
 			nvdRows++
 			continue
 		}

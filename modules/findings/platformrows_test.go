@@ -145,3 +145,63 @@ func TestPlatformRows_AnotherSystemsFixProvesNothing(t *testing.T) {
 		}
 	}
 }
+
+// A row of a product an entry of which the record reader could not keep (feeds Range.Lost) only ever says "affected": a version inside
+// it is a finding; a version outside it, past its fix, past the fix of its train or on another system proves nothing.
+func TestPlatformRows_ALostEntryOnlyEverOpens(t *testing.T) {
+	t.Parallel()
+	line := Software{ID: "z", Display: "Example Meeting App", Vendor: "Example", Product: "Meeting App", Version: "7.1.9", Source: "agent"}
+	row := func(sys, start, end string) Affected {
+		return Affected{CPE: "cpe:2.3:*:example:meeting_app:*:*:*:*:*:" + sys + ":*:*", Range: VersionRange{StartIncl: start, EndExcl: end},
+			AffectedOnly: true, Lost: true, VendorCNA: true}
+	}
+	partial := func(af Affected) Vuln {
+		return Vuln{CVE: "CVE-2099-7307", NVDAnswered: true, Published: uncNew, RangesFrom: RangesCVEOrgPartial, Origin: RangeCNA, Affected: []Affected{af}}
+	}
+	beside := func(af Affected) Vuln {
+		nvd := Affected{CPE: "cpe:2.3:a:example:meeting_sdk:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "7.0.4"}}
+		return Vuln{CVE: "CVE-2099-7308", NVDAnswered: true, Published: uncNew, Affected: []Affected{nvd, af}}
+	}
+	const (
+		closed = "not affected"
+		found  = "finding"
+		asked  = "possible"
+	)
+	for _, tc := range []struct {
+		name string
+		v    Vuln
+		want string
+	}{
+		{"the vendor's row for a mobile system", partial(row("iphone_os", "", "7.0.0")), asked},
+		{"past the fix of a row of every version before it", partial(row("windows", "", "7.0.0")), asked},
+		{"past the fix of its own train, beside NVD", beside(row("windows", "7.1.0", "7.1.5")), asked},
+		{"inside the row", partial(row("windows", "7.0.0", "7.5.0")), found},
+	} {
+		a := Asset{ID: "pc", Name: "pc-01", OS: "Microsoft Windows 11 Pro", AgentOS: "Microsoft Windows 11 Pro", Software: []Software{line}}
+		res := MatchAsset(a, []Vuln{tc.v}, map[string]bool{tc.v.CVE: true}, uncNow)
+		got := asked
+		switch {
+		case len(res.NotAffected) == 1:
+			got = closed
+		case len(res.Existing) == 1 && res.Existing[0].Basis == BasisVersion: // the device has the finding: it stays
+			got = found
+		}
+		if got != tc.want {
+			t.Errorf("%s: %s, want %s (not affected %+v, existing %+v)", tc.name, got, tc.want, res.NotAffected, res.Existing)
+		}
+	}
+}
+
+// NVD's rows agree with a third party's system-limited record only when they are NVD's: a CVE record row of a complete list
+// (VendorList) is the record's, not NVD's.
+func TestPlatformRows_OnlyNVDsRowsAgreeForAThirdParty(t *testing.T) {
+	t.Parallel()
+	s := Software{ID: "z", Display: "Example Meeting App", Vendor: "Example", Product: "Meeting App", Version: "7.1.9", Source: "agent"}
+	a := Asset{ID: "pc", Name: "pc-01", OS: "Microsoft Windows 11 Pro", AgentOS: "Microsoft Windows 11 Pro", Software: []Software{s}}
+	third := Affected{CPE: "cpe:2.3:*:example:meeting_app:*:*:*:*:*:android:*:*", Range: VersionRange{EndExcl: "7.0.4"}, AffectedOnly: true}
+	listed := Affected{CPE: "cpe:2.3:*:example:meeting_app:*:*:*:*:*:iphone_os:*:*", Range: VersionRange{EndExcl: "7.0.3"}, VendorList: true}
+	v := Vuln{CVE: "CVE-2099-7309", NVDAnswered: true, Published: uncNew, Affected: []Affected{listed, third}}
+	if ag, ok := systemReadings(swInfoOn(s, a), v, nil, s.Display); ok {
+		t.Fatalf("a record row of a complete list counted as NVD's: %+v", ag)
+	}
+}

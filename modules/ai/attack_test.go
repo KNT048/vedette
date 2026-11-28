@@ -354,11 +354,14 @@ func TestAttackMatrix(t *testing.T) {
 	for _, j := range attackJobs() {
 		t.Run(j.job+" × "+j.source, func(t *testing.T) {
 			t.Parallel()
+			// one box per job and source, put back before each case (resetAttack): building a box is most of a case's time, and the
+			// cases of one job and source run one after another
+			a := newAttackAPI(t)
 			for _, p := range payloads {
 				for _, g := range goals {
 					planted := p.wrap(g)
 					t.Run(p.name+" → "+g[:strings.Index(g+" ", " ")], func(t *testing.T) {
-						a := newAttackAPI(t)
+						resetAttack(t, a)
 						j.setup(a, planted)
 						before := stateOf(t, a)
 						m := &adversary{base: j.base, evil: j.evil, exfil: j.exfil, probe: j.probe}
@@ -402,6 +405,46 @@ func TestAttackMatrix(t *testing.T) {
 	}
 }
 
+// resetAttack puts the box of a job and source back as newAttackAPI left it, so no case sees what an earlier one planted or what it
+// left behind: the fakes as built, no memory, suggestion, cached result or read record, no recorded connection call or request, and a
+// clock 31 minutes on (the runaway fuse counts calls per minute, and the fetchers of cve-news keep a page 30 minutes). The case's own
+// test runs the requests, so a failure stops that case. A case that a leftover answer would skip fails anyway: the fake model must
+// have read its goal.
+func resetAttack(t *testing.T, a *api) {
+	t.Helper()
+	a.env.t = t
+	a.clock.Add(31 * time.Minute)
+	d, f := newFakeData(), newFacts()
+	a.data.mu.Lock()
+	a.data.assets = d.assets
+	a.data.mu.Unlock()
+	a.facts.mu.Lock()
+	a.facts.cves, a.facts.assets = f.cves, f.assets
+	a.facts.mu.Unlock()
+	a.conns.mu.Lock()
+	a.conns.calls = nil
+	a.conns.out = map[string]string{"cn-in/status": "status ok", "cn-out/search": "results"}
+	a.conns.mu.Unlock()
+	a.net.mu.Lock()
+	a.net.reqs, a.net.dials = nil, nil
+	a.net.mu.Unlock()
+	a.logs.mu.Lock()
+	a.logs.data, a.logs.around, a.logs.asked = ai.LogDigestData{}, ai.LogAroundData{}, nil
+	a.logs.mu.Unlock()
+	a.identity = nil
+	err := a.db.Write(a.ctx(), func(tx *sql.Tx) error {
+		for _, table := range []string{"ai_memory", "ai_memory_suggestion", "ai_result", "ai_read"} {
+			if _, err := tx.ExecContext(a.ctx(), "DELETE FROM "+table); err != nil { //nolint:gosec // a constant table name
+				return fmt.Errorf("%s: %w", table, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // newAttackAPI is an API with one cloud profile for every job, a connection inside the network and one outside it that nobody allowed,
 // and the box's page fetchers pointed at a fake network that records every request.
 func newAttackAPI(t *testing.T) *api {
@@ -421,6 +464,5 @@ func newAttackAPI(t *testing.T) *api {
 		{ConnectionID: "cn-out", ConnectionName: "Cloud search", Kind: "mcp-http", Name: "search", Schema: schema},
 	}
 	a.conns.addrs = map[string]string{"cn-in": "https://192.168.1.1", "cn-out": "https://search.example.com/mcp"}
-	a.conns.out = map[string]string{"cn-in/status": "status ok", "cn-out/search": "results"}
 	return a
 }

@@ -49,9 +49,9 @@ func TestLiveProposePossible_ReadsLikeACarefulPerson(t *testing.T) {
 	const fixed = "This vulnerability was fixed in Quillfeather Browser 157, Quillfeather Browser ESR 115.42, Quillfeather Mail 157 and Quillfeather Mail 140.17."
 	ans, err := svc.ProposePossible(ctx, "test", ai.PossibleRequest{CVE: "CVE-2099-99101", Description: "Use-after-free in the layout engine. " + fixed,
 		Rows: []string{
-			"quillfeather mail: affected before 157.0 [nvd]",
+			"quillfeather mail (edition not esr): affected before 157.0 [nvd]",
 			"quillfeather mail (edition esr): affected from 140.0 before 140.17.0 [nvd]",
-			"quillfeather browser: affected before 157.0 [nvd]",
+			"quillfeather browser (edition not esr): affected before 157.0 [nvd]",
 			"quillfeather browser (edition esr): affected from 115.1.0 before 115.42.0 [nvd]",
 			"quillfeather browser (edition esr): affected from 140.0 before 140.17.0 [nvd]",
 		},

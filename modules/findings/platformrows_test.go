@@ -173,18 +173,22 @@ func TestPlatformRows_ALostEntryOnlyEverOpens(t *testing.T) {
 		want string
 	}{
 		{"the vendor's row for a mobile system", partial(row("iphone_os", "", "7.0.0")), asked},
+		{"the vendor's row for a mobile system, beside NVD", beside(row("iphone_os", "", "7.0.0")), asked},
+		{"the vendor's row for a mobile system of a later train", partial(row("iphone_os", "8.0", "8.5")), asked},
 		{"past the fix of a row of every version before it", partial(row("windows", "", "7.0.0")), asked},
 		{"past the fix of its own train, beside NVD", beside(row("windows", "7.1.0", "7.1.5")), asked},
 		{"inside the row", partial(row("windows", "7.0.0", "7.5.0")), found},
 	} {
 		a := Asset{ID: "pc", Name: "pc-01", OS: "Microsoft Windows 11 Pro", AgentOS: "Microsoft Windows 11 Pro", Software: []Software{line}}
 		res := MatchAsset(a, []Vuln{tc.v}, map[string]bool{tc.v.CVE: true}, uncNow)
-		got := asked
+		got := "absent" // neither decided nor shown: a lost statement must never leave the CVE silent
 		switch {
 		case len(res.NotAffected) == 1:
 			got = closed
 		case len(res.Existing) == 1 && res.Existing[0].Basis == BasisVersion: // the device has the finding: it stays
 			got = found
+		case len(res.Unchecked) == 1 && res.Unchecked[0].Reason != "": // a question with its cause
+			got = asked
 		}
 		if got != tc.want {
 			t.Errorf("%s: %s, want %s (not affected %+v, existing %+v)", tc.name, got, tc.want, res.NotAffected, res.Existing)

@@ -77,6 +77,12 @@ func (it PossibleItem) Bulk() bool {
 // possibleItems reads the possible CVEs of devices nobody ignored (of one device when device is set): every unanswered question about a
 // CVE (each CVE of a version_needed question of a line), less those a finding of the same (device, CVE, line) has.
 func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleItem, error) {
+	return s.possibleItemsOf(ctx, device, false)
+}
+
+// possibleItemsOf is possibleItems; review adds the questions that wait beside the open finding of an older AI reading (Detail.Review,
+// P-12), which only Review AI answers lists.
+func (s *Service) possibleItemsOf(ctx context.Context, device string, review bool) ([]PossibleItem, error) {
 	qs, err := s.openQuestions(ctx, device)
 	if err != nil {
 		return nil, err
@@ -100,7 +106,7 @@ func (s *Service) possibleItems(ctx context.Context, device string) ([]PossibleI
 	in := causeInputs{checks: checks, readings: readings, exploited: exploited, unread: s.unreadKeys(), held: s.heldKeys(s.now()), now: s.now()}
 	var out []PossibleItem
 	add := func(q Question, cve string) {
-		if cve == "" || had[lineKey(cve, q.SoftwareID)] {
+		if cve == "" || had[lineKey(cve, q.SoftwareID)] && (!review || !q.Detail.Review) {
 			return
 		}
 		out = append(out, possibleItemOf(q, cve, in))
@@ -308,6 +314,9 @@ type PossibleRowJS struct {
 	Held      *HeldJS        `json:"held"`  // the automatic reading leaves it until a time; null when not held, settled, or that reading cannot run now
 	// OlderBuild: reported only for an older build, listed apart (markOlderBuilds); null otherwise
 	OlderBuild *OlderBuild `json:"older_build"`
+	// Finding is the open finding an older AI reading of the line opened, which this newer "not affected" answer would close once a
+	// person confirms it (Review AI answers only); absent otherwise.
+	Finding *string `json:"finding,omitempty"`
 }
 
 // HeldJS is contract.ts PossibleHeld.

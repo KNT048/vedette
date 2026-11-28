@@ -121405,6 +121405,10 @@ type FindingsGetFindingsPossibleOKItemsItem struct {
 	Device    FindingsGetFindingsPossibleOKItemsItemDevice `json:"device"`
 	// The CVE is on an exploited list.
 	Exploited bool `json:"exploited"`
+	// Review AI answers only: the open finding an older AI reading of the line opened, which this newer
+	// "not affected" answer would close. The AI never closes it; a person's confirmation does (an
+	// exploited CVE only when named). Absent otherwise.
+	Finding OptString `json:"finding"`
 	// Older_line: the newest fixed release of each newer line.
 	Fixes []string `json:"fixes"`
 	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not
@@ -121469,6 +121473,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) GetDevice() FindingsGetFindings
 // GetExploited returns the value of Exploited.
 func (s *FindingsGetFindingsPossibleOKItemsItem) GetExploited() bool {
 	return s.Exploited
+}
+
+// GetFinding returns the value of Finding.
+func (s *FindingsGetFindingsPossibleOKItemsItem) GetFinding() OptString {
+	return s.Finding
 }
 
 // GetFixes returns the value of Fixes.
@@ -121554,6 +121563,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetDevice(val FindingsGetFindin
 // SetExploited sets the value of Exploited.
 func (s *FindingsGetFindingsPossibleOKItemsItem) SetExploited(val bool) {
 	s.Exploited = val
+}
+
+// SetFinding sets the value of Finding.
+func (s *FindingsGetFindingsPossibleOKItemsItem) SetFinding(val OptString) {
+	s.Finding = val
 }
 
 // SetFixes sets the value of Fixes.
@@ -124402,6 +124416,10 @@ type FindingsGetFindingsReviewOKItemsItem struct {
 	Device    FindingsGetFindingsReviewOKItemsItemDevice `json:"device"`
 	// The CVE is on an exploited list.
 	Exploited bool `json:"exploited"`
+	// Review AI answers only: the open finding an older AI reading of the line opened, which this newer
+	// "not affected" answer would close. The AI never closes it; a person's confirmation does (an
+	// exploited CVE only when named). Absent otherwise.
+	Finding OptString `json:"finding"`
 	// Older_line: the newest fixed release of each newer line.
 	Fixes []string `json:"fixes"`
 	// The automatic AI reading leaves it for now (its last call was refused or failed); null when not
@@ -124466,6 +124484,11 @@ func (s *FindingsGetFindingsReviewOKItemsItem) GetDevice() FindingsGetFindingsRe
 // GetExploited returns the value of Exploited.
 func (s *FindingsGetFindingsReviewOKItemsItem) GetExploited() bool {
 	return s.Exploited
+}
+
+// GetFinding returns the value of Finding.
+func (s *FindingsGetFindingsReviewOKItemsItem) GetFinding() OptString {
+	return s.Finding
 }
 
 // GetFixes returns the value of Fixes.
@@ -124551,6 +124574,11 @@ func (s *FindingsGetFindingsReviewOKItemsItem) SetDevice(val FindingsGetFindings
 // SetExploited sets the value of Exploited.
 func (s *FindingsGetFindingsReviewOKItemsItem) SetExploited(val bool) {
 	s.Exploited = val
+}
+
+// SetFinding sets the value of Finding.
+func (s *FindingsGetFindingsReviewOKItemsItem) SetFinding(val OptString) {
+	s.Finding = val
 }
 
 // SetFixes sets the value of Fixes.

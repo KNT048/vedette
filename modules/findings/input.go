@@ -192,6 +192,7 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	if err != nil {
 		return nil, err
 	}
+	qs = slices.DeleteFunc(qs, func(q Question) bool { return q.Detail.Review }) // the AI's answer beside its open finding: Review AI answers only
 	assets, lines := map[string]bool{}, map[string]bool{}
 	for id := range counts {
 		assets[id] = true

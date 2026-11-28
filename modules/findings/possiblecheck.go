@@ -712,8 +712,8 @@ func checkUnits(items []PossibleItem, scores map[string]CVSS) []checkUnit {
 	var out []checkUnit
 	exploited := map[string]bool{}
 	for _, it := range items {
-		if !it.Checkable() || it.Question.Detail.Check == nil {
-			continue
+		if !it.Checkable() || it.Question.Detail.Check == nil || !checkable(it.Question) {
+			continue // a question the distribution's data or the device's own version decides is never sent to the AI, whatever key it kept
 		}
 		exploited[it.CVE] = exploited[it.CVE] || it.Exploited
 		if i, ok := by[it.Question.CheckKey]; ok {

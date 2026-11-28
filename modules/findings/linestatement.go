@@ -148,8 +148,14 @@ func storeStatement(ctx context.Context, tx *sql.Tx, st LineStatement) error {
 	if st.Basis != "" && st.Basis != BasisStated && st.Basis != BasisUnpaired && st.Basis != BasisInferred {
 		return fmt.Errorf("findings: bad reading basis %q", st.Basis)
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL AND statement_key <> ?`,
-		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key); err != nil {
+	// a newer reading that may not call the line affected keeps the older ones that did: the finding they opened stays until a person
+	// confirms the newer answer (lineReading.held, P-12); a newer "affected" replaces them all, and so does a newer one stating the same
+	keepAffected := st.Status != StatementAffected
+	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_line_statement WHERE cve = ? AND product_key = ? AND line = ? AND rejected_by IS NULL AND statement_key <> ?
+		AND NOT (? AND status IN ('affected', 'fixed') AND quote_found = 1
+			AND NOT (status = ? AND ifnull(fixed_in, '') = ? AND ifnull(last_affected, '') = ? AND ifnull(introduced, '') = ?))`,
+		st.CVE, clipBytes(st.Product, 300), clipBytes(st.Line, 200), st.Key, keepAffected, st.Status, clipBytes(st.FixedIn, 100), clipBytes(st.Last, 100),
+		clipBytes(st.Introduced, 100)); err != nil {
 		return fmt.Errorf("findings: replacing a reading: %w", err)
 	}
 	at := store.FormatTS(st.AskedAt)
@@ -185,6 +191,9 @@ func touchStatement(ctx context.Context, tx *sql.Tx, key string, now time.Time) 
 type lineReading struct {
 	applied  *LineStatement
 	rejected *LineStatement
+	// held is an older reading of the line that called the version affected while the newer applied one does not: the AI never closes
+	// its own finding, so the finding stands on it until a person confirms the newer answer (P-12).
+	held *LineStatement
 }
 
 // newest is the newest of the two.
@@ -222,6 +231,20 @@ func readingFor(sts []LineStatement, cve string, id CheckID) lineReading {
 	}
 	if a := r.applied; a != nil && r.rejected != nil && a.Line != id.Line && !a.AskedAt.After(r.rejected.AskedAt) {
 		r.applied = nil // a person rejected the reading of this very line since: another line's older reading does not stand in for it
+	}
+	if a := r.applied; a != nil && a.Line == id.Line && a.verdictFor(id) != VerdictAffected {
+		older := false // sts is newest first: only a reading stored before the applied one
+		for i := range sts {
+			st := &sts[i]
+			if st == a {
+				older = true
+				continue
+			}
+			if older && st.CVE == cve && st.Product == id.Product && st.Line == id.Line && st.RejectedBy == "" && st.verdictFor(id) == VerdictAffected {
+				r.held = st
+				break
+			}
+		}
 	}
 	return r
 }

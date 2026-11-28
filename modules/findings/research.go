@@ -354,7 +354,7 @@ func aiConfidence(c *Check) string {
 func (s *Service) Review(ctx context.Context, f ReviewFilter, p Page) (ReviewList, error) {
 	out := ReviewList{Items: []PossibleRowJS{}}
 	err := s.readTx(ctx, func(ctx context.Context) error {
-		items, err := s.possibleItems(ctx, f.Device)
+		items, err := s.possibleItemsOf(ctx, f.Device, true)
 		if err != nil {
 			return err
 		}
@@ -386,6 +386,13 @@ func (s *Service) Review(ctx context.Context, f ReviewFilter, p Page) (ReviewLis
 			r := possibleRow(it, ref, rs)
 			if q != "" && !possibleMatches(r, q) {
 				continue
+			}
+			if it.Question.Detail.Review {
+				if id, err := s.openAIFinding(ctx, it.Question, it.CVE); err != nil {
+					return err
+				} else if id != "" {
+					r.Finding = &id
+				}
 			}
 			if it.Exploited {
 				out.Exploited++
@@ -429,7 +436,7 @@ func (s *Service) ConfirmReview(ctx context.Context, ids, includeExploited []str
 	if len(ids) == 0 || len(ids) > MaxBulk {
 		return out, ErrReviewIDs
 	}
-	items, err := s.possibleItems(ctx, "") // fails closed when the exploited lists cannot be read
+	items, err := s.possibleItemsOf(ctx, "", true) // fails closed when the exploited lists cannot be read
 	if err != nil {
 		return out, err
 	}
@@ -440,6 +447,7 @@ func (s *Service) ConfirmReview(ctx context.Context, ids, includeExploited []str
 		}
 	}
 	var confirm []string
+	rematch := map[string]bool{} // devices whose AI finding a confirmation closes: matched again at once
 	for _, id := range ids {
 		it, ok := byID[id]
 		switch {
@@ -449,6 +457,9 @@ func (s *Service) ConfirmReview(ctx context.Context, ids, includeExploited []str
 			out.Skipped = append(out.Skipped, ReviewSkip{ID: id, CVE: it.CVE, Reason: "exploited"})
 		default:
 			confirm = append(confirm, id)
+			if it.Question.Detail.Review {
+				rematch[it.Question.AssetID] = true
+			}
 		}
 	}
 	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
@@ -464,7 +475,28 @@ func (s *Service) ConfirmReview(ctx context.Context, ids, includeExploited []str
 		}
 		return nil
 	})
-	return out, err
+	if err != nil {
+		return out, err
+	}
+	// the person's "not affected" ends the finding the older AI reading kept open: the match applies the answer now
+	for _, d := range slices.Sorted(mapsKeys(rematch)) {
+		s.stamps.drop(d)
+		if _, err := s.OnMatchChanged(ctx, d); err != nil && !errors.Is(err, ErrUnknownAsset) {
+			s.cfg.Log.WarnContext(ctx, "findings: matching a device after a confirmation failed", "device", d, "error", err)
+		}
+	}
+	return out, nil
+}
+
+// openAIFinding is the open finding of the question's device, CVE and line ("" when none).
+func (s *Service) openAIFinding(ctx context.Context, q Question, cve string) (string, error) {
+	var id string
+	err := s.rd(ctx).QueryRowContext(ctx, `SELECT id FROM fnd_finding WHERE asset_id = ? AND cve = ? AND ifnull(software_id, '') = ? AND state = 'open' LIMIT 1`,
+		q.AssetID, cve, q.SoftwareID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }
 
 // ErrNotResearchable is "Research deeper" on a possible CVE the box cannot research (no check identity, or not possible any more).
@@ -507,7 +539,7 @@ func (s *Service) deeperUnit(ctx context.Context, questionID string) (*checkUnit
 		return nil, err
 	}
 	for _, it := range items {
-		if it.Question.ID == questionID && it.Question.CVE == it.CVE && it.Question.CheckKey != "" && it.Question.Detail.Check != nil {
+		if it.Question.ID == questionID && it.Question.CVE == it.CVE && it.Question.CheckKey != "" && it.Question.Detail.Check != nil && checkable(it.Question) {
 			return &checkUnit{key: it.Question.CheckKey, cve: it.CVE, id: *it.Question.Detail.Check, q: it.Question, devs: []string{it.Question.AssetID}, deeper: true}, nil
 		}
 	}

@@ -1,6 +1,8 @@
 package findings
 
 import (
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -52,6 +54,19 @@ func TestResearch_NotAffectedNeverClosesARow(t *testing.T) {
 	r := rev.Items[0].Check.Reading.Research
 	if r.QuoteCheck != QuoteTool || r.Tokens != 30900 || r.Layer != "quick" || len(r.Detail.Steps) != 1 || r.Detail.Steps[0].Searches != 2 {
 		t.Errorf("research %+v", r)
+	}
+	// the other way: a newer "affected" with a checked quote opens at once
+	aff := quillResearch(StatementAffected, QuoteTool, "Quillfeather Mail 115.12.0 is affected", quillSAText+" Quillfeather Mail 115.12.0 is affected.")
+	aff.Verdict.FixedIn, aff.Verdict.Introduced = "", ""
+	fc.answers[cveQuill+"|115.12.0"] = aff
+	u, err := e.svc.deeperUnit(t.Context(), it.Question.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.check.run = &CheckRun{Running: true}
+	e.svc.runPossibleCheck(t.Context(), []checkUnit{*u}, "ana@example.com")
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE cve = '` + cveQuill + `' AND range_origin = 'ai_read' AND state = 'open'`); n != 1 {
+		t.Errorf("a newer affected answer opened %d findings, want 1", n)
 	}
 }
 
@@ -244,4 +259,98 @@ func TestResearch_DeeperResearchesTheLineAgain(t *testing.T) {
 	if _, err := e.svc.StartResearchDeeper(t.Context(), "q-none", "ana@example.com"); !errors.Is(err, ErrNotResearchable) {
 		t.Errorf("an unknown row: %v", err)
 	}
+}
+
+// The AI never closes anything, its own findings included: a newer research that says "not affected" for a line whose older reading
+// opened a finding leaves the finding open and waits in Review AI answers; only a person's confirmation closes it. The other way, a
+// newer "affected" with a checked quote opens at once.
+func TestResearch_AnAIFindingStaysOpenWhenTheAINowSaysNotAffected(t *testing.T) {
+	t.Parallel()
+	e, fc := quillWorld(t, "115.9.0")
+	fc.answers = map[string]ResearchAnswer{cveQuill + "|115.9.0": quillResearch(StatementAffected, QuoteTool, quillAffected, quillSAText)}
+	fc.pages["elsewhere"] = []FetchedPage{{URL: quillSA, Status: "ok", Text: quillSAText}}
+	runCheck(t, e)
+	if quillFindings(t, e) != 1 {
+		t.Fatal("the affected research opened no finding")
+	}
+	// the record is read again and the quote has left the page: researched again, and the AI now says not affected
+	notAffected := quillResearch(StatementNotAffected, QuoteTool, "Quillfeather Mail 115.9.0 is not affected by this issue", "QSA-2026-17 (CVE-2026-991001): Quillfeather Mail 115.9.0 is not affected by this issue.")
+	notAffected.Verdict.Introduced, notAffected.Verdict.FixedIn = "", ""
+	fc.answers[cveQuill+"|115.9.0"] = notAffected
+	fc.pages["elsewhere"][0].Text = "QSA-2026-17 was revised."
+	e.feeds.vulns[0].Stamp = "revised"
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	runCheck(t, e)
+	if len(fc.research) != 2 {
+		t.Fatalf("%d researches, want the line researched again", len(fc.research))
+	}
+	if quillFindings(t, e) != 1 {
+		t.Fatal("the AI's newer not-affected answer closed the finding its older reading opened")
+	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if quillFindings(t, e) != 1 {
+		t.Fatal("the next match closed the AI's finding")
+	}
+	if in, err := e.svc.Input(t.Context(), "", "", Page{Limit: PageMax}); err != nil || strings.Contains(fmtJSON(t, in), cveQuill) {
+		t.Errorf("the review item is in Needs your input too (%v)", err)
+	}
+	rev, err := e.svc.Review(t.Context(), ReviewFilter{}, Page{Limit: PageMax})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rev.Total != 1 || rev.Items[0].CVE != cveQuill || rev.Items[0].Finding == nil || rev.Items[0].Check == nil || rev.Items[0].Check.Verdict != VerdictNotAffected {
+		t.Fatalf("review %+v: want the not-affected answer beside the open finding", rev)
+	}
+	got, err := e.svc.ConfirmReview(t.Context(), []string{rev.Items[0].ID}, nil, "ana@example.com")
+	if err != nil || got.Confirmed != 1 {
+		t.Fatalf("confirm %+v %v", got, err)
+	}
+	if quillFindings(t, e) != 0 {
+		t.Error("a person's confirmation did not close the finding")
+	}
+	if rev, _ = e.svc.Review(t.Context(), ReviewFilter{}, Page{Limit: PageMax}); rev.Total != 0 {
+		t.Errorf("review after confirming: %d rows", rev.Total)
+	}
+}
+
+// Questions that the distribution's data or the device's own version decides are never sent to the AI, even with a check key kept
+// from before.
+func TestResearch_DistroPendingQuestionsAreNeverResearched(t *testing.T) {
+	t.Parallel()
+	for _, reason := range []string{DistroNotListed, DistroOtherPackages, UndecidedNetworkVersion, UndecidedPackage} {
+		t.Run(reason, func(t *testing.T) {
+			t.Parallel()
+			e, fc := quillWorld(t, "115.9.0")
+			if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(t.Context(), `UPDATE fnd_question SET detail = json_set(detail, '$.undecided', json_object('reason', ?)) WHERE cve = ?`, reason, cveQuill)
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+			it := quillItem(t, e)
+			if it.Question.CheckKey == "" {
+				t.Fatal("the fixture's question has no check key")
+			}
+			runCheck(t, e)
+			if len(fc.research) != 0 {
+				t.Errorf("%d researches of a %s question", len(fc.research), reason)
+			}
+			if _, err := e.svc.deeperUnit(t.Context(), it.Question.ID); !errors.Is(err, ErrNotResearchable) {
+				t.Errorf("Research deeper of a %s question: %v", reason, err)
+			}
+		})
+	}
+}
+
+func fmtJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }

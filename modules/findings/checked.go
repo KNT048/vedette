@@ -333,6 +333,17 @@ func (s *Service) checkedDetections(ctx context.Context, tx *sql.Tx, a Asset, li
 				continue
 			}
 		}
+		// the AI's newer reading no longer calls it affected, its older one did: the AI never closes its own finding, which stands on the
+		// older reading while the question waits for a person in Review AI answers (P-12)
+		if r, ok := readings[q.CheckKey]; ok && r.held != nil && q.Detail.Check != nil && (!c.Settled() || c.Stale) {
+			if d, ok := lineDetection(a, lines, q.SoftwareID, v, RangeAIRead, Evidence{Summary: aiReadNote(q, *r.held), CheckedAt: now}); ok {
+				d.Fix = r.held.fix(*q.Detail.Check)
+				dets[k] = d
+				q.Detail.Review = true
+				keep = append(keep, q)
+				continue
+			}
+		}
 		keep = append(keep, q)
 	}
 	return dets, keep, nil

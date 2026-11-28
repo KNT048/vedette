@@ -297,7 +297,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   keeps no bound and stands only
   as `affected`, with a quote naming that release, and only while no row of this product names a release of line N
   (`ownRowOnLine`), or as `not_affected` (a proposal for a person like every AI "not affected"), never as `fixed`; a cited page that names neither the CVE nor an advisory
-  the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept;
+  the CVE record references (the id in a reference's address, `aboutCVE`) makes the reading `unsure`, so it decides nothing either way. Only the newest reading of a (CVE, product, line) is kept, and an older one that opened a finding while the newer one does not (P-12);
   one a person rejected stays, so the same page is never applied again. The match applies it to every device and version on the line, and
   to another line of the product when the quote names a line containing the version (`readingFor`, `coversLine`), by the product's
   scheme or the generic order (`verdictFor`). An inferred reading is decided from its basis, not its quote: it never gives a fix, and when its quote names its stated line only through releases of it ("115.42" for line 115) it speaks for a
@@ -420,7 +420,16 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`fnd_line_research`: layer, quote check, tokens, the steps), deleted with it, and served with the reading
   (`AiReading.research`). Outcomes: "affected" with a checked quote opens a finding (range origin `ai_read`), with no checked quote it
   decides nothing (`TestResearch_AffectedOpensOnlyWithACheckedQuote`); "not affected" never closes anything: the question stays open
-  as a proposal for a person (`TestResearch_NotAffectedNeverClosesARow`); "unsure" stays possible with the AI's reason. A reading
+  as a proposal for a person (`TestResearch_NotAffectedNeverClosesARow`); "unsure" stays possible with the AI's reason. **The AI never
+  closes its own finding either:** a newer reading that no longer calls the version affected (not affected, unsure, past a fix) keeps
+  the older readings that did (`storeStatement`: an older affected or fixed reading whose quote was found stays unless the newer one
+  is "affected" or states the same bounds), and the match keeps the finding detected on the newest of them (`lineReading.held`) while
+  its question is stored with `Detail.Review` (never in Needs your input or the possible list): it waits in Review AI answers with
+  `PossibleRow.finding` naming the open finding, and only a person's confirmation closes it (`ConfirmReview` answers the question not
+  affected and matches the device again; an exploited CVE only when named; rejecting the older reading does too). A newer "affected"
+  with a checked quote opens at once (`TestResearch_AnAIFindingStaysOpenWhenTheAINowSaysNotAffected`). Questions the distribution's
+  data or the device's own version decides (`distro_silent` reasons, `version_from_network`, `package_unknown`) are never researched,
+  whatever key they kept (`checkable` in `checkUnits` and Research deeper; `TestResearch_DistroPendingQuestionsAreNeverResearched`). A reading
   survives a re-read of the CVE record (a new stamp) while its quote is still in the new record text or on its cited page as the box
   fetches it then: only its record identity moves on (`rehashStatement`), no tokens (`TestResearch_SurvivesARecordReReadOnlyWithItsQuote`,
   `TestLineReading_ReadAgainWhenTheRecordOrThePageChanges`); a page only the AI's tools read is fetched by the box after 30 days and the

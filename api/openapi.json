@@ -62110,6 +62110,10 @@
                               }
                             ],
                             "description": "Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise"
+                          },
+                          "finding": {
+                            "description": "Review AI answers only: the open finding an older AI reading of the line opened, which this newer \"not affected\" answer would close. The AI never closes it; a person's confirmation does (an exploited CVE only when named). Absent otherwise",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -64230,6 +64234,10 @@
                               }
                             ],
                             "description": "Reported only for an older build: listed apart, counted in counts.older_build, not in counts.possible; null otherwise"
+                          },
+                          "finding": {
+                            "description": "Review AI answers only: the open finding an older AI reading of the line opened, which this newer \"not affected\" answer would close. The AI never closes it; a person's confirmation does (an exploited CVE only when named). Absent otherwise",
+                            "type": "string"
                           }
                         },
                         "required": [

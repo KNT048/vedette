@@ -24,6 +24,11 @@ const (
 	UncheckedPlatformUnknown UncheckedReason = "platform_unknown"
 	// UncheckedPackageUnknown: the platform is the one of the distribution's fixed list, and the package release is not known.
 	UncheckedPackageUnknown UncheckedReason = "package_unknown"
+	// The rows matchOne leaves with nothing that the reasons above do not list (askRow): without a question the pair would be
+	// undecided and shown nowhere.
+	UncheckedNoVersion      UncheckedReason = "no_version"      // the row has no version, and no "add the version" item lists the CVE
+	UncheckedNetworkVersion UncheckedReason = "network_version" // only a version read from the network, for a CVE on no exploited list
+	UncheckedDistroSilent   UncheckedReason = "distro_silent"   // a distribution's package its distribution's data has no word on
 )
 
 // Unchecked is one exploited CVE of one software row of the device that gave no finding, no "add the version" item and no
@@ -58,6 +63,8 @@ type Unchecked struct {
 	// aiNumbering: not_comparable of a line the AI identified, whose version is inside the chosen product's range but not of its
 	// numbering (devMatch.aiGuard): undecided for the version's numbering, with the chosen product's rows.
 	aiNumbering bool
+	// silence: distro_silent only, why the distribution's data has no word on the package (distroSilence: one of DistroSilences).
+	silence string
 }
 
 // explainUnchecked adds to each unchecked row with no version data its question needs (no_nvd_data, no_nvd_versions) what the reason
@@ -164,6 +171,14 @@ func platformOnly(in swInfo, v Vuln) []Affected {
 func undecidedOf(u Unchecked, own []Affected) *Undecided {
 	out := &Undecided{}
 	switch {
+	case u.Reason == UncheckedDistroSilent && u.silence == CauseVersionNeeded: // an agent's package row without its release or source
+		out.Reason = UndecidedPackage
+	case u.Reason == UncheckedDistroSilent:
+		out.Reason = u.silence
+	case u.Reason == UncheckedNoVersion:
+		out.Reason = UndecidedNoVersion
+	case u.Reason == UncheckedNetworkVersion:
+		out.Reason = UndecidedNetworkVersion
 	case u.Reason == UncheckedPlatformUnknown:
 		out.Reason = UndecidedPlatform
 	case u.Reason == UncheckedPackageUnknown:
@@ -357,7 +372,8 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 		if !v.listed() && !offListReading(s, in, v) { // matchOne never compares this row with a CVE on no list: no answer changes that
 			return "", false
 		}
-		if edgeLegacyRow(s, in) || distroBuilt(in) || keyedTo(s, v) { // a keyed row with no outcome: its distribution decided
+		// a keyed row with no outcome, or a distribution's build whose distribution's word alone judges it (askRow asks about it)
+		if edgeLegacyRow(s, in) || distroBuilt(in) && !upstreamJudges(in, v) || keyedTo(s, v) {
 			return "", false
 		}
 		if _, ok := distroVerdict(in, v); ok {
@@ -373,6 +389,47 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 		return "", false
 	}
 	return uncheckedReason(s, in, v, false)
+}
+
+// askRow says whether row s, which entry v reaches by its key or by NVD's list (keyed, named) and which matchOne left with no outcome that
+// uncheckedRow lists, is one the device runs that Vedette did not decide, and why: without it the pair would be undecided and shown
+// nowhere. It only asks; it never decides.
+//   - distro_silent: a distribution's package (pkgBuilt) whose distribution's word alone judges it (not upstreamJudges) and whose
+//     distribution's data the box keeps has no word on it for v; silence says why (distroSilence: another package, other releases,
+//     another build, no row of the CVE, no data of the distribution, or no package release: CauseVersionNeeded). The vendor's advisory
+//     does not speak for the distribution's build, so no check reads it (checkable).
+//   - no_version: a row with no version that v's NVD list names, and that no "add the version" item lists (v is not keyed to it);
+//   - network_version: a version read from the network (not trustedReading) for a CVE on no exploited list, which matchOne never
+//     compares (a guess, a distribution's backported build answering with its upstream version): the device's agent or a person
+//     states the version that decides it.
+//
+// Not when NVD's list names the row only in entries rowEntries sets apart (an Edge Legacy entry on a Chromium Edge, a row about
+// no version beside versioned rows of the product): such a record is about another product line, and the pair is not related.
+func askRow(a Asset, s Software, in swInfo, v Vuln, keyed, named bool) (UncheckedReason, string, bool) {
+	if s.Guess {
+		return "", "", false
+	}
+	if in.pkgBuilt() && !upstreamJudges(in, v) {
+		if _, ok := distroVerdict(in, v); ok || !keyed && len(rowEntries(s, in, v)) == 0 {
+			return "", "", false
+		}
+		switch c := distroSilence(in, v); c {
+		case "", DistroNoFixYet: // a release a person gave, or the distribution decided "affected, no fix yet"
+			return "", "", false
+		default:
+			return UncheckedDistroSilent, c, true
+		}
+	}
+	if !named || keyed || edgeLegacyRow(s, in) || in.given && (v.listed() || trustedReading(s)) {
+		return "", "", false
+	}
+	if _, o := otherSeries(a.Model, v); o || len(rowEntries(s, in, v)) == 0 {
+		return "", "", false
+	}
+	if !in.given {
+		return UncheckedNoVersion, "", true
+	}
+	return UncheckedNetworkVersion, "", true
 }
 
 // newerThanListed says every entry of own (the entries of NVD's list that name the row, rowEntries) is one exact version, with no

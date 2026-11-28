@@ -399,7 +399,7 @@ func pairStates(dm *devMatch, rows deviceRows, in causeInputs) (map[string]pairS
 		}
 		for _, i := range cand {
 			s := dm.sws[i]
-			if reached[i] || s.Guess || !keyedBy(dm.keys[i], ek) && (!dm.named[i][vi] || !recordNames(dm.infos[i], v)) {
+			if reached[i] || s.Guess || !keyedBy(dm.keys[i], ek) && (!dm.named[i][vi] || !recordNames(s, dm.infos[i], v)) {
 				continue
 			}
 			line, class := storedLine(s.ID), CoverageOtherRecordUnread
@@ -478,18 +478,11 @@ func coverDetail(q Question) string {
 	return string(q.Kind)
 }
 
-// recordNames says a row of v names the product of the line read as in (its CPE, its name or an alias), whatever versions it gives.
-func recordNames(in swInfo, v Vuln) bool {
-	for _, af := range v.Affected {
-		c, err := af.cpe()
-		if err != nil {
-			continue
-		}
-		if own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); own {
-			return true
-		}
-	}
-	return false
+// recordNames says a row of v names the product of the line read as in (its CPE, its name or an alias), whatever versions it gives,
+// as the matcher reads the rows that name a line (rowEntries): an entry about another line of the product (Edge Legacy's on a
+// Chromium Edge, a row about no version beside versioned rows of the product) does not concern the line, so the pair is not related.
+func recordNames(s Software, in swInfo, v Vuln) bool {
+	return len(rowEntries(s, in, v)) > 0
 }
 
 // identityOf is how the box knows what product line s is: its source states it, the catalogue names it, the customer's AI chose it,

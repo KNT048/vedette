@@ -5,7 +5,7 @@ import "slices"
 // The cause of a possible CVE: why it is still undecided now and what would decide it, one of a closed list. Where Undecided says
 // what in the data blocked the match (the rows, the advisory text), the cause says which step of deciding is missing: data that has
 // not come yet, an input only the device or a person has, a page nobody can read, the AI's reading (not set up, out of budget, unsure),
-// or a person's word. Every possible CVE has exactly one (PossibleCause); TestPossibleCause_EveryPossibleRowHasOne checks it.
+// a person's word, or the distribution's word on its own build. Every possible CVE has exactly one (PossibleCause); TestPossibleCause_EveryPossibleRowHasOne checks it.
 const (
 	CauseVendorSilent     = "vendor_silent"     // no vendor page states more than the record (a third party's word, or no page at all)
 	CausePageUnreadable   = "page_unreadable"   // the vendor's page could not be read (a script-rendered portal, a refusal)
@@ -16,11 +16,14 @@ const (
 	CauseVersionNeeded    = "version_needed"    // the version, build, edition, system or package release only the device or a person states
 	CausePendingNVD       = "pending_nvd"       // NVD has not listed the affected versions yet
 	CauseNeedsPerson      = "needs_person"      // a person decides: an exploited CVE read not affected, or a reading a person rejected
+	// CauseDistroSilent: a distribution's package is judged by its distribution's word alone (NVD's upstream ranges do not see the
+	// fixes it backports), and the distribution's data the box keeps has no word on it for the CVE (distroSilence; the reason says which)
+	CauseDistroSilent = "distro_silent"
 )
 
 // PossibleCauses is the closed list of causes.
 var PossibleCauses = []string{CauseVendorSilent, CausePageUnreadable, CauseNeedsReading, CauseAIUnsure, CauseAIBudget, CauseIdentityUnproven,
-	CauseVersionNeeded, CausePendingNVD, CauseNeedsPerson}
+	CauseVersionNeeded, CausePendingNVD, CauseNeedsPerson, CauseDistroSilent}
 
 // ReadState is how the AI's reading of advisories stands on this box, as a cause reads it.
 type ReadState struct {
@@ -44,8 +47,10 @@ func PossibleCause(it PossibleItem, rs ReadState) string {
 		return CauseNeedsPerson
 	case q.Detail.NVDPending || reason == UndecidedNVDPending:
 		return CausePendingNVD
+	case slices.Contains(distroSilentReasons, reason):
+		return CauseDistroSilent
 	case q.Kind == QuestionVersionNeeded || q.Kind == QuestionPlatform || q.Kind == QuestionPackageRelease,
-		slices.Contains([]string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage}, reason),
+		slices.Contains([]string{UndecidedNoVersion, UndecidedNetworkVersion, UndecidedPlatform, UndecidedPackage}, reason),
 		reason == UndecidedAttribute && q.CheckKey == "": // an unlisted release line the reading can decide is the reading's (checkable)
 		return CauseVersionNeeded
 	case reason == UndecidedPlatformOnly:

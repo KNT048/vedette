@@ -96234,8 +96234,8 @@ func (s *FindingsGetFindingsCoverageOKIdentityItemMethod) UnmarshalText(data []b
 
 type FindingsGetFindingsCoverageOKPossibleItem struct {
 	// The cause of a possible CVE (PossibleCause: vendor_silent, page_unreadable, needs_reading,
-	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person), why a
-	// distribution's package its distribution's data has no word on stays undecided with no question
+	// ai_unsure, ai_budget, identity_unproven, version_needed, pending_nvd, needs_person, distro_silent),
+	// why a distribution's package its distribution's data has no word on stays undecided with no question
 	// (distro_other_packages, distro_other_releases: the distribution lists the CVE for other packages or
 	// releases only; distro_other_build: its row is about another build; distro_not_listed: no row of the
 	// CVE; distro_no_data: no data of that distribution; version_needed: the agent gave no package
@@ -119099,6 +119099,7 @@ func (s *FindingsGetFindingsOverviewOKPossible) SetUnchecked(val int) {
 type FindingsGetFindingsOverviewOKPossibleCauses struct {
 	AiBudget         int `json:"ai_budget"`
 	AiUnsure         int `json:"ai_unsure"`
+	DistroSilent     int `json:"distro_silent"`
 	IdentityUnproven int `json:"identity_unproven"`
 	NeedsPerson      int `json:"needs_person"`
 	NeedsReading     int `json:"needs_reading"`
@@ -119116,6 +119117,11 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetAiBudget() int {
 // GetAiUnsure returns the value of AiUnsure.
 func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetAiUnsure() int {
 	return s.AiUnsure
+}
+
+// GetDistroSilent returns the value of DistroSilent.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) GetDistroSilent() int {
+	return s.DistroSilent
 }
 
 // GetIdentityUnproven returns the value of IdentityUnproven.
@@ -119161,6 +119167,11 @@ func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetAiBudget(val int) {
 // SetAiUnsure sets the value of AiUnsure.
 func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetAiUnsure(val int) {
 	s.AiUnsure = val
+}
+
+// SetDistroSilent sets the value of DistroSilent.
+func (s *FindingsGetFindingsOverviewOKPossibleCauses) SetDistroSilent(val int) {
+	s.DistroSilent = val
 }
 
 // SetIdentityUnproven sets the value of IdentityUnproven.
@@ -119217,6 +119228,11 @@ type FindingsGetFindingsPossibleAuditOKGroupsItem struct {
 	// Distinct blocking rows or advisory snippets (with their address), at most 20.
 	Examples []string `json:"examples"`
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+	// compared with. The distribution's silence on its own package (cause distro_silent):
+	// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+	// build), distro_no_data (no security data of that distribution).
 	Reason FindingsGetFindingsPossibleAuditOKGroupsItemReason `json:"reason"`
 }
 
@@ -119251,6 +119267,11 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItem) SetReason(val FindingsGet
 }
 
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+// compared with. The distribution's silence on its own package (cause distro_silent):
+// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+// build), distro_no_data (no security data of that distribution).
 type FindingsGetFindingsPossibleAuditOKGroupsItemReason string
 
 const (
@@ -119272,6 +119293,12 @@ const (
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed             FindingsGetFindingsPossibleAuditOKGroupsItemReason = "fetch_failed"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText      FindingsGetFindingsPossibleAuditOKGroupsItemReason = "unparsed_vendor_text"
 	FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure                FindingsGetFindingsPossibleAuditOKGroupsItemReason = "ai_unsure"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork      FindingsGetFindingsPossibleAuditOKGroupsItemReason = "version_from_network"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed         FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_not_listed"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages     FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_other_packages"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases     FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_other_releases"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild        FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_other_build"
+	FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData            FindingsGetFindingsPossibleAuditOKGroupsItemReason = "distro_no_data"
 )
 
 // AllValues returns all FindingsGetFindingsPossibleAuditOKGroupsItemReason values.
@@ -119295,6 +119322,12 @@ func (FindingsGetFindingsPossibleAuditOKGroupsItemReason) AllValues() []Findings
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonFetchFailed,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText,
 		FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild,
+		FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData,
 	}
 }
 
@@ -119336,6 +119369,18 @@ func (s FindingsGetFindingsPossibleAuditOKGroupsItemReason) MarshalText() ([]byt
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonUnparsedVendorText:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -119398,6 +119443,24 @@ func (s *FindingsGetFindingsPossibleAuditOKGroupsItemReason) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure:
 		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonAiUnsure
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonVersionFromNetwork
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNotListed
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherPackages
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherReleases
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroOtherBuild
+		return nil
+	case FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData:
+		*s = FindingsGetFindingsPossibleAuditOKGroupsItemReasonDistroNoData
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -119705,6 +119768,7 @@ func (s *FindingsGetFindingsPossibleOKCounts) SetUnchecked(val int) {
 type FindingsGetFindingsPossibleOKCountsCauses struct {
 	AiBudget         int `json:"ai_budget"`
 	AiUnsure         int `json:"ai_unsure"`
+	DistroSilent     int `json:"distro_silent"`
 	IdentityUnproven int `json:"identity_unproven"`
 	NeedsPerson      int `json:"needs_person"`
 	NeedsReading     int `json:"needs_reading"`
@@ -119722,6 +119786,11 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) GetAiBudget() int {
 // GetAiUnsure returns the value of AiUnsure.
 func (s *FindingsGetFindingsPossibleOKCountsCauses) GetAiUnsure() int {
 	return s.AiUnsure
+}
+
+// GetDistroSilent returns the value of DistroSilent.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) GetDistroSilent() int {
+	return s.DistroSilent
 }
 
 // GetIdentityUnproven returns the value of IdentityUnproven.
@@ -119767,6 +119836,11 @@ func (s *FindingsGetFindingsPossibleOKCountsCauses) SetAiBudget(val int) {
 // SetAiUnsure sets the value of AiUnsure.
 func (s *FindingsGetFindingsPossibleOKCountsCauses) SetAiUnsure(val int) {
 	s.AiUnsure = val
+}
+
+// SetDistroSilent sets the value of DistroSilent.
+func (s *FindingsGetFindingsPossibleOKCountsCauses) SetDistroSilent(val int) {
+	s.DistroSilent = val
 }
 
 // SetIdentityUnproven sets the value of IdentityUnproven.
@@ -120026,7 +120100,8 @@ func (s *FindingsGetFindingsPossibleOKItemsItem) SetUndecided(val FindingsGetFin
 // identity_unproven (the software is not tied to a product the records name), version_needed (the
 // version, build, edition, system or package release is needed), pending_nvd (NVD has not listed the
 // affected versions yet), needs_person (a person decides: an exploited CVE read not affected, or a
-// rejected reading).
+// rejected reading), distro_silent (a distribution's package is judged by the distribution's word
+// alone, and its security data has no word on the package for the CVE; the undecided reason says why).
 type FindingsGetFindingsPossibleOKItemsItemCause string
 
 const (
@@ -120039,6 +120114,7 @@ const (
 	FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded    FindingsGetFindingsPossibleOKItemsItemCause = "version_needed"
 	FindingsGetFindingsPossibleOKItemsItemCausePendingNvd       FindingsGetFindingsPossibleOKItemsItemCause = "pending_nvd"
 	FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson      FindingsGetFindingsPossibleOKItemsItemCause = "needs_person"
+	FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent     FindingsGetFindingsPossibleOKItemsItemCause = "distro_silent"
 )
 
 // AllValues returns all FindingsGetFindingsPossibleOKItemsItemCause values.
@@ -120053,6 +120129,7 @@ func (FindingsGetFindingsPossibleOKItemsItemCause) AllValues() []FindingsGetFind
 		FindingsGetFindingsPossibleOKItemsItemCauseVersionNeeded,
 		FindingsGetFindingsPossibleOKItemsItemCausePendingNvd,
 		FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson,
+		FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent,
 	}
 }
 
@@ -120076,6 +120153,8 @@ func (s FindingsGetFindingsPossibleOKItemsItemCause) MarshalText() ([]byte, erro
 	case FindingsGetFindingsPossibleOKItemsItemCausePendingNvd:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -120111,6 +120190,9 @@ func (s *FindingsGetFindingsPossibleOKItemsItemCause) UnmarshalText(data []byte)
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson:
 		*s = FindingsGetFindingsPossibleOKItemsItemCauseNeedsPerson
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent:
+		*s = FindingsGetFindingsPossibleOKItemsItemCauseDistroSilent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -121858,6 +121940,11 @@ type FindingsGetFindingsPossibleOKItemsItemUndecided struct {
 	// The range rows that were read and did not decide it (" [start, end)"), at most 20.
 	Ranges []string `json:"ranges"`
 	// Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+	// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+	// compared with. The distribution's silence on its own package (cause distro_silent):
+	// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+	// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+	// build), distro_no_data (no security data of that distribution).
 	Reason FindingsGetFindingsPossibleOKItemsItemUndecidedReason `json:"reason"`
 	// Up to 500 characters of advisory text the box could not read as ranges.
 	Text OptString `json:"text"`
@@ -121906,6 +121993,11 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecided) SetURL(val OptString) 
 }
 
 // Why Vedette could not decide the CVE, machine-readable: an audit groups the undecided cases by it.
+// version_from_network: only a version read from the network, which a CVE on no exploited list is not
+// compared with. The distribution's silence on its own package (cause distro_silent):
+// distro_not_listed (no row of the CVE), distro_other_packages (rows for other packages only),
+// distro_other_releases (rows for other releases only), distro_other_build (its row is about another
+// build), distro_no_data (no security data of that distribution).
 type FindingsGetFindingsPossibleOKItemsItemUndecidedReason string
 
 const (
@@ -121927,6 +122019,12 @@ const (
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed             FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "fetch_failed"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText      FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "unparsed_vendor_text"
 	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure                FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "ai_unsure"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork      FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "version_from_network"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed         FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_not_listed"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages     FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_other_packages"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases     FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_other_releases"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild        FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_other_build"
+	FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData            FindingsGetFindingsPossibleOKItemsItemUndecidedReason = "distro_no_data"
 )
 
 // AllValues returns all FindingsGetFindingsPossibleOKItemsItemUndecidedReason values.
@@ -121950,6 +122048,12 @@ func (FindingsGetFindingsPossibleOKItemsItemUndecidedReason) AllValues() []Findi
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonFetchFailed,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText,
 		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild,
+		FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData,
 	}
 }
 
@@ -121991,6 +122095,18 @@ func (s FindingsGetFindingsPossibleOKItemsItemUndecidedReason) MarshalText() ([]
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonUnparsedVendorText:
 		return []byte(s), nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild:
+		return []byte(s), nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -122053,6 +122169,24 @@ func (s *FindingsGetFindingsPossibleOKItemsItemUndecidedReason) UnmarshalText(da
 		return nil
 	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure:
 		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonAiUnsure
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonVersionFromNetwork
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNotListed
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherPackages
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherReleases
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroOtherBuild
+		return nil
+	case FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData:
+		*s = FindingsGetFindingsPossibleOKItemsItemUndecidedReasonDistroNoData
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

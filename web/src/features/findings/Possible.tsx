@@ -442,7 +442,7 @@ type LineInput = 'version' | 'change_version' | 'system' | 'package' | null
 function inputOf(l: PossibleLine): LineInput {
   if (!l.software) return null
   const r = l.rows[0]!
-  if (r.kind === 'version_needed' || r.undecided.reason === 'no_version') return 'version'
+  if (r.kind === 'version_needed' || r.undecided.reason === 'no_version' || r.undecided.reason === 'version_from_network') return 'version'
   if (r.undecided.reason === 'version_scheme_mismatch') return 'change_version'
   if (r.kind === 'platform' || r.undecided.reason === 'platform_unknown') return 'system'
   if (r.kind === 'package_release' || r.undecided.reason === 'package_unknown') return 'package'

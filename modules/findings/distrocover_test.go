@@ -16,13 +16,15 @@ type distroCase struct {
 	by     string // the source that decides it ("" when it stays undecided)
 	affect bool
 	cause  string // undecided: the named cause
+	detail string // undecided with a question: its reason
 	// outside: the CVE is outside the reporting window (feeds marks it): the pass sets it aside, so the pair is not related at all and
 	// the coverage counts it apart
 	outside bool
 }
 
 // Every pair of a distribution's package is decided by the distribution's data, by the upstream ranges where the distribution's data
-// lists fixes only (Alpine), or stays undecided with a cause the coverage names: none is left to an unnamed class.
+// lists fixes only (Alpine), or is a possible question with a named cause (distro_silent and why, or the package release it needs):
+// none is left to an unnamed class or without a question.
 func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -57,22 +59,23 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 		{name: "Ubuntu's not affected decides its signed kernel", device: "u-1", sw: "s-kernel",
 			vuln: nvd("CVE-2026-60001", kernel, "7.1", row("ubuntu", "26.04", "linux", "not_affected", "")), by: RangeDistro},
 		{name: "a fix of another kernel flavour only", device: "u-1", sw: "s-kernel",
-			vuln: nvd("CVE-2026-60002", kernel, "7.1", row("ubuntu", "26.04", "linux-aws", "fixed", "7.0.0-1010.10")), cause: DistroOtherPackages},
+			vuln: nvd("CVE-2026-60002", kernel, "7.1", row("ubuntu", "26.04", "linux-aws", "fixed", "7.0.0-1010.10")), cause: CauseDistroSilent, detail: DistroOtherPackages},
 		{name: "older than the window and on no list", device: "u-1", sw: "s-kernel", vuln: old, outside: true},
 		{name: "affected with no fix yet, on no list", device: "u-1", sw: "s-ssl",
 			vuln: nvd("CVE-2026-60004", ssl, "3.6", row("ubuntu", "26.04", "openssl", "open", "")), by: CoverageDistroNoFix, affect: true},
-		{name: "an exploited CVE the distribution lists for an older release only", device: "u-1", sw: "s-ssl", vuln: listed, cause: DistroOtherReleases},
+		{name: "an exploited CVE the distribution lists for an older release only", device: "u-1", sw: "s-ssl", vuln: listed, cause: CauseDistroSilent, detail: DistroOtherReleases},
 		{name: "the distribution's own build of a later upstream than its fix", device: "u-1", sw: "s-glibc",
 			vuln: nvd("CVE-2026-60006", glibc, "2.44", row("ubuntu", "26.04", "glibc", "fixed", "2.42-2ubuntu5")), by: RangeDistro},
 		{name: "a PPA build of the package", device: "u-1", sw: "s-apache",
-			vuln: nvd("CVE-2026-60007", apache, "2.4.66", row("ubuntu", "26.04", "apache2", "fixed", "2.4.62-1ubuntu1.1")), cause: DistroOtherBuild},
-		{name: "the distribution has no row of the CVE", device: "u-1", sw: "s-ssl", vuln: nvd("CVE-2026-60008", ssl, "3.6"), cause: DistroNotListed},
-		{name: "a package row with no release", device: "u-1", sw: "s-ssh", vuln: nvd("CVE-2026-60009", ssh, "10.6"), cause: CauseVersionNeeded},
+			vuln: nvd("CVE-2026-60007", apache, "2.4.66", row("ubuntu", "26.04", "apache2", "fixed", "2.4.62-1ubuntu1.1")), cause: CauseDistroSilent, detail: DistroOtherBuild},
+		{name: "the distribution has no row of the CVE", device: "u-1", sw: "s-ssl", vuln: nvd("CVE-2026-60008", ssl, "3.6"), cause: CauseDistroSilent, detail: DistroNotListed},
+		{name: "a package row with no release", device: "u-1", sw: "s-ssh", vuln: nvd("CVE-2026-60009", ssh, "10.6"), cause: CauseVersionNeeded,
+			detail: UndecidedPackage},
 		{name: "Alpine's fixed release of the device's branch decides", device: "a-2", sw: "s-assl",
 			vuln: nvd("CVE-2026-60010", ssl, "3.6", row("alpine", "3.23", "openssl", "fixed", "3.5.9-r2")), by: RangeDistro, affect: true},
 		{name: "Alpine names no fix: the upstream ranges decide", device: "a-2", sw: "s-assl", vuln: nvd("CVE-2026-60011", ssl, "3.5.10"), by: RangeNVD, affect: true},
 		{name: "Alpine names no fix and the upstream release is outside", device: "a-2", sw: "s-assl", vuln: nvd("CVE-2026-60012", ssl, "3.5.2"), by: RangeNVD},
-		{name: "no data of the distribution", device: "r-3", sw: "s-rssl", vuln: nvd("CVE-2026-60013", ssl, "3.6"), cause: DistroNoData},
+		{name: "no data of the distribution", device: "r-3", sw: "s-rssl", vuln: nvd("CVE-2026-60013", ssl, "3.6"), cause: CauseDistroSilent, detail: DistroNoData},
 	}
 	var vulns []Vuln
 	for _, c := range cases {
@@ -116,8 +119,8 @@ func TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed(t *testing.T) {
 			if !ok {
 				t.Fatalf("the pair is not related")
 			}
-			if st.by != c.by || st.affected != c.affect || st.cause != c.cause {
-				t.Errorf("state %+v, want by %q affected %v cause %q", st, c.by, c.affect, c.cause)
+			if st.by != c.by || st.affected != c.affect || st.cause != c.cause || st.detail != c.detail {
+				t.Errorf("state %+v, want by %q affected %v cause %q detail %q", st, c.by, c.affect, c.cause, c.detail)
 			}
 		})
 	}

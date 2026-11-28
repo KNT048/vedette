@@ -309,13 +309,8 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
-      <DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} />
-      {selecting ? (
-        <div className="flex flex-wrap items-start gap-2">
-          {admin ? <MergeSelected rows={rows} sel={sel} onMerge={setMerging} /> : null}
-          <Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} />
-        </div>
-      ) : null}
+      <DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} shown={shown.length}
+        bar={{ ...bar, actions: <>{selecting ? <>{admin ? <MergeSelected rows={rows} sel={sel} onMerge={setMerging} /> : null}<Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></> : null}{bar.actions}</> }} />
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
         search={false} urlKey="devices" resetPageOn={deferred}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}

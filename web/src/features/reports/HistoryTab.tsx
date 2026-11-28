@@ -21,7 +21,7 @@ export default function HistoryTab() {
   return (
     <QueryState query={list}>
       {(h) => h.items.length === 0 ? <EmptyState title={t('history.empty')}>{t('history.emptyBody')}</EmptyState> : (
-        <DataTable<Row> urlKey="report-history" caption={t('history.caption')} data={h.items} initialSort={[{ id: 'sent', desc: true }]}
+        <DataTable<Row> urlKey="report-history" caption={t('history.caption')} data={h.items} summary={t('history.summary', { count: h.items.length })} initialSort={[{ id: 'sent', desc: true }]}
           onRowClick={(r) => void navigate(sentPath(r.id))}
           rowTone={(r) => (r.status === 'failed' ? 'warn' : undefined)}
           columns={[

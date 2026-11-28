@@ -71,6 +71,18 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   its JSON form does not end with exactly one metadata record whose `records` equals the rows read. `TestParseSpamhausDROP`,
   `FuzzParseSpamhausDROP`.
 
+- **INV-41** The CVE Program's list of CNAs (`cve-cna-list`, `CNAsList.json` from `CVEProject/cve-website`, the list cve.org shows) is
+  pulled once a week, at most 2,000,000 bytes, conditional on its ETag, and replaces `feeds_cna` whole: per CNA its short name (lower
+  case; a short name two CNAs share is left out), organization name and whether it may be a vendor (`cnaMayBeVendor`: typed Vendor or
+  Open Source, and a scope that does not define itself against another CNA's scope); no contact data. A list that is not one JSON array,
+  holds no usable entry, or holds fewer than half the CNAs stored is refused and the stored list kept. A record's CNA is the vendor's
+  own by the list when one form of its organization name (`cnaOrgForms`: case, punctuation, a leading "The", parts in parentheses and
+  trailing legal-form words set aside) is the row's vendor; no name of a vendor or CNA is written in code or data. The list is read only
+  while its feed is on and its last good pull is under 30 days before the box's newest pull of any feed; else the rules of INV-35
+  stand alone. A list that changes what is read emits `RangesUpdatedEvent` (`Catalogue`), and the feed's pulls move `MatchStamp`, so
+  findings matches again without the records being read again. `TestOwnCNA_TheCNAListNamesTheOrganization`, `TestParseCNAList_RefusesWhatIsNotTheList`,
+  `TestCNAList_PullDecidesWhoseUnaffectedCounts`, `TestCNAList_ArrivingLaterDecidesOnlyTheVendorsOwnRecord` (cmd/vedette).
+
 **Feeds and pulls**
 - **INV-4** A built-in feed cannot be deleted, only switched off or pointed at a mirror. Deleting a custom feed deletes what it
   loaded and its schedule. A built-in feed the code no longer lists is deleted at start with its rows (INV-16).
@@ -118,8 +130,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   entry that names it, else the entry's `defaultStatus`, else unknown; cve-schema `versions.md`): a version either calls affected is
   affected. A CNA row whose product's list is complete (every row says what an unlisted version is) also decides "not affected"
   (`VendorList`); any other CNA row beside NVD's only says "affected" (`AffectedOnly`), and only for a version it states. An ADP row is
-  read only when NVD gives none. `defaultStatus: unaffected` is kept only from the vendor's own CNA (`ownCNA`: assigner and vendor name
-  the same company, or the assigner is the name of a catalogue product only that vendor ships, `productVendors`; an entry that names no vendor is no one's own); a third-party CNA's is stored `unknown` on the generic rows. The
+  read only when NVD gives none. `defaultStatus: unaffected` counts only from the vendor's own CNA (`ownCNA`: assigner and vendor name
+  the same company, or the assigner is the name of a catalogue product only that vendor ships, `productVendors`, or the CVE Program's
+  CNA list (INV-41) gives the assigner an organization whose name is the vendor's; an entry that names no vendor is no one's own). A
+  CNA row stores the record's word (an ADP's and a no-vendor entry's `unaffected` is stored `unknown`), and every reader of stored ranges
+  reads a third-party CNA's `unaffected` on a generic or model-limited row as `unknown` (`trustRow`: `readRanges`, `Catalogue`'s
+  `RangesComplete`, `RecordStamps`; reader `ranges-15`). The
   rows an older reader stored carry no assigner: migration `0003_feeds_record_trust` stores their generic `unaffected` as `unknown`
   until the whole list is read again with reader `ranges-6`, so no stale third-party list decides "not affected" in between
   (`TestCVE5Status_StoredBeforeTheReRead`). An entry whose
@@ -189,8 +205,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   the product's affected rows, never when an entry of the product is kept in no form, and from an entry limited to some models only
   when every entry of the product names the same models (`TestParseCVERecord_UnaffectedOnlyBesideEveryEntry`); and the rows of
   an entry limited to some models (Juniper's "EX4000-48T", "EX Series"), stored with the models in `platforms` (`Range.ModelLimited`;
-  at most 64 names of 100 bytes, else the entry is kept in no form). Such a row keeps the entry's `defaultStatus: unaffected` only from
-  the vendor's own CNA (`ownCNA`); a third party lists the hardware it tested, so its rows are stored `unknown`: only the vendor's word says
+  at most 64 names of 100 bytes, else the entry is kept in no form). Such a row's `defaultStatus: unaffected` counts only from
+  the vendor's own CNA (`ownCNA`); a third party lists the hardware it tested, so its rows are read `unknown` (`trustRow`): only the vendor's word says
   the product is affected on the named hardware alone (findings `otherHardware`). The brief does not list unaffected rows as affected versions.
   `TestParseCVERecord_VendorUnaffectedAndModelRows`, `TestStoreCVERecord_ModelsKept`, `TestParseCVERecord_ModelRowsKeepTheDefaultOnlyFromTheVendor`.
   A record's open-ended row ("from 1.25.0, every later version") of a product whose bounded rows above its start name fixed

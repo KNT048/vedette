@@ -14,6 +14,8 @@
     "privacy": "Alert content leaves the box only through channels you turn on.",
     "privacyInfo": "Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.",
     "caption": "Alert channels",
+    "summary_one": "{{count}} channel, {{on}} on",
+    "summary_other": "{{count}} channels, {{on}} on",
     "col": {
       "channel": "Channel",
       "dest": "Sent to",
@@ -524,6 +526,10 @@
     "meta": "Something happening on your network now. Vulnerabilities to patch are in Findings.",
     "retention": "History and resolved incidents are kept for 1 year.",
     "caption": "Incidents",
+    "summaryOpen_one": "{{count}} open incident",
+    "summaryOpen_other": "{{count}} open incidents",
+    "summaryResolved_one": "{{count}} resolved incident",
+    "summaryResolved_other": "{{count}} resolved incidents",
     "col": {
       "incident": "Incident",
       "severity": "Severity",
@@ -632,7 +638,12 @@
     },
     "ok": "Sent",
     "failed": "Failed",
-    "handleTitle": "Handle the incident",
+    "handled": "Handled",
+    "dialog": {
+      "acknowledged": "Acknowledge this incident",
+      "resolved": "Resolve this incident",
+      "description": "The note is saved with the incident; the change is written to the audit log."
+    },
     "note": "Note (optional)",
     "notePlaceholder": "Example: asked the user, machine is clean",
     "acknowledge": "Acknowledge",
@@ -667,6 +678,8 @@
     "metaNone": "In the last {{days}} days, no new vulnerability was left out for matching none of your devices.",
     "metaInfo": "Vedette only alerts for products you own: a new vulnerability that matches none of your devices is not sent. The first download of the vulnerability lists is not counted.",
     "caption": "Sent messages",
+    "summary_one": "{{count}} message sent",
+    "summary_other": "{{count}} messages sent",
     "col": {
       "time": "Time",
       "channel": "Channel",
@@ -694,6 +707,8 @@
       "title": "Not sent",
       "description": "Vulnerability alerts of the last {{days}} days that no channel delivered, and why. Waiting ones go out by themselves.",
       "caption": "Vulnerability alerts not sent",
+      "summary_one": "{{count}} vulnerability alert not sent",
+      "summary_other": "{{count}} vulnerability alerts not sent",
       "none": "Every vulnerability alert of the last {{days}} days was delivered.",
       "waiting": "Waiting",
       "notSent": "Not sent",

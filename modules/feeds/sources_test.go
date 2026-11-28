@@ -51,6 +51,9 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		if vendorClaimFeed(s.ID) { // a vendor's word on exploitation: small lists, read every 6 hours so a claim is not a day late
 			want = 6
 		}
+		if s.ID == cnaFeedID { // the CVE Program's CNA list changes a few times a month: weekly, conditional on its ETag
+			want = 168
+		}
 		if s.ID == oracleLineFeedID { // Oracle's documents: an RSS and a conditional GET per document (304 when unchanged) every 6 hours
 			want = 6
 		}
@@ -75,8 +78,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 31 {
-		t.Fatalf("expected the 31 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 32 {
+		t.Fatalf("expected the 32 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

@@ -609,14 +609,14 @@ export function PossibleLink({ count, older = 0 }: { count: number; older?: numb
 /** The words a list's search reads. */
 const searchText = (rows: PossibleRow[]) => [...new Set(rows.flatMap((r) => [r.cve, r.device.name, r.device.ip ?? '', r.software?.name ?? '', r.software?.version ?? '']))].join(' ')
 
-/** "16 possible CVEs on 3 devices" and why they are apart. */
+/** "16 possible CVEs on 3 devices · 5 reported only for an older build", with the reason they are apart in an ⓘ. */
 function useSummary() {
   const { t } = useTranslation('findings')
   return (counts: PossibleCounts, devices: number) => {
     const parts = [t('possible.summary', { count: counts.possible, devices: t('byDevice.devices', { count: devices }) })]
     if (counts.older_build) parts.push(t('possible.olderBuild.summary', { count: counts.older_build }))
     if (counts.proposals) parts.push(t('possible.summaryProposals', { count: counts.proposals }))
-    return parts.join(' · ')
+    return <>{parts.join(' · ')}<InfoTip topic={t('possible.notOpenTopic')}>{t('possible.notOpenInfo')}</InfoTip></>
   }
 }
 
@@ -653,12 +653,12 @@ export function PossibleSection({ by, device = '' }: { by: 'device' | 'product';
               <>
                 <CheckRunLine />
                 {!d.counts.possible ? <div className="flex justify-end"><CheckPossible counts={d.counts} device={device || undefined} /></div> : by === 'device' ? (
-                  <DataTable urlKey="possible" caption={t('possible.caption')} data={devices} pageSize={20}
+                  <DataTable urlKey="possible" filterPlaceholder={t('possible.search')} caption={t('possible.caption')} data={devices} pageSize={20}
                     columns={[{ id: 'text', header: t('byDevice.col'), accessorFn: (x: PossibleDevice) => searchText(x.rows) }] satisfies ColumnDef<PossibleDevice>[]}
                     list={(x) => <DeviceGroup d={x} />} resetPageOn={device}
                     summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} device={device || undefined} />} />
                 ) : (
-                  <DataTable urlKey="possible-fix" caption={t('possible.captionProduct')} data={products} pageSize={20}
+                  <DataTable urlKey="possible-fix" filterPlaceholder={t('possible.search')} caption={t('possible.captionProduct')} data={products} pageSize={20}
                     columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (x: PossibleProduct) => searchText(x.rows) }] satisfies ColumnDef<PossibleProduct>[]}
                     list={(x) => <ProductGroup p={x} />}
                     summary={summary(d.counts, devices.length)} actions={<CheckPossible counts={d.counts} />} />
@@ -687,6 +687,7 @@ export function DevicePossible({ assetId }: { assetId: string }) {
   if (!counts) return null
   const summary = [t('possible.summaryDevice', { count: counts.possible })]
   if (counts.older_build) summary.push(t('possible.olderBuild.summary', { count: counts.older_build }))
+  const notOpen = t('possible.notOpenInfo')
   return (
     <section id="possible" aria-label={t('possible.title')} className="grid gap-3">
       {counts.possible || counts.older_build ? (
@@ -694,10 +695,10 @@ export function DevicePossible({ assetId }: { assetId: string }) {
           <h2 className="flex items-center gap-2 text-base font-semibold"><CircleHelp aria-hidden className="size-4 text-accent" />{t('possible.title')}</h2>
           <CheckRunLine />
           {counts.possible ? (
-            <DataTable urlKey="device-possible" caption={t('possible.captionDevice')} data={lines} pageSize={20}
+            <DataTable urlKey="device-possible" filterPlaceholder={t('possible.search')} caption={t('possible.captionDevice')} data={lines} pageSize={20}
               columns={[{ id: 'text', header: t('possible.colProduct'), accessorFn: (l: PossibleLine) => searchText(l.rows) }] satisfies ColumnDef<PossibleLine>[]}
               list={(l) => <LineBlock l={l} />}
-              summary={summary.join(' · ')} actions={<CheckPossible counts={counts} device={assetId} />} />
+              summary={<>{summary.join(' · ')}<InfoTip topic={t('possible.notOpenTopic')}>{notOpen}</InfoTip></>} actions={<CheckPossible counts={counts} device={assetId} />} />
           ) : <div className="flex justify-end"><CheckPossible counts={counts} device={assetId} /></div>}
           <OlderBuilds rows={older} />
         </>

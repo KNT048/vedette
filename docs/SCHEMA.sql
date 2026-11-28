@@ -634,6 +634,13 @@ CREATE TABLE feeds_line_support (
     PRIMARY KEY (product, line, source_id)
 ) WITHOUT ROWID;
 
+CREATE TABLE feeds_cna (
+    short_name    TEXT    NOT NULL PRIMARY KEY CHECK (length(short_name) BETWEEN 1 AND 64 AND short_name = lower(short_name)),
+    source_id     TEXT    NOT NULL REFERENCES feeds_source (id) ON DELETE CASCADE,
+    organization  TEXT    NOT NULL CHECK (length(organization) BETWEEN 1 AND 200),
+    may_be_vendor INTEGER NOT NULL CHECK (may_be_vendor IN (0, 1))
+) WITHOUT ROWID;
+
 -- module inventory
 
 CREATE TABLE inv_observation (

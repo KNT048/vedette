@@ -331,6 +331,8 @@
   },
   "history": {
     "caption": "Reports sent",
+    "summary_one": "{{count}} report sent",
+    "summary_other": "{{count}} reports sent",
     "empty": "No report sent yet",
     "emptyBody": "A report appears here the moment it is sent, by hand or on schedule.",
     "col": {

@@ -162,7 +162,9 @@ func TestOwnBuild(t *testing.T) {
 		{"ubuntu", "8.3.14-1+ubuntu24.04.1+deb.sury.org+1", false, false},
 		{"ubuntu", "1.26.2-1~noble", false, false},
 		{"ubuntu", "2.4.52-1ubuntu4.fips.1~ppa1", false, false},
-		{"ubuntu", "8.4.6-1ubuntu24.04", false, false}, // a release number where Ubuntu counts uploads: a vendor's revision
+		{"ubuntu", "8.4.6-1ubuntu24.04", false, false},   // a release number where Ubuntu counts uploads: a vendor's revision
+		{"ubuntu", "8.4.6-1ubuntu24.04.1", false, false}, // the same with an upload number after it
+		{"ubuntu", "1.2-1ubuntu24.24.04.1", true, true},  // Ubuntu's upload 24, updated for 24.04
 		{"debian", "2.36-9+deb12u7", true, true},
 		{"debian", "1.2-3~deb12u1", true, true},
 		{"debian", "6.1.76-1+b1", true, true},

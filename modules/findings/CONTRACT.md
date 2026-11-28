@@ -527,7 +527,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`TestMatchAsset_UpstreamBuildIsJudgedAsTheUpstreamProduct`). A version with the distribution's mark outside its own revision form
   (`1ubuntu24.04`, `~ubuntu24.04.3`) has a builder Vedette cannot tell: the distribution's word never closes it and it stays
   undecided (`distro_other_build`). A Debian tilde orders before the release itself whatever word follows it (`10.1.61~us1`), so an
-  upstream range compares a repacked upstream release (`TestCompareVersions_DebianTilde`). A version move on a line with
+  upstream range compares a repacked upstream release; the word does not say whether it is that release repacked or a snapshot
+  before it, so against the release itself (a range bound or an exact release at 10.1.61) it is undecided
+  (`TestCompareVersions_DebianTilde`). Debian's `X+reallyY` (the release is Y) compares with nothing
+  (`TestMatchAsset_UpstreamBuildOfUnclearReleaseIsNotClosed`). A version move on a line with
   a package release is ordered by the package scheme alone ("1ubuntu2" to "1ubuntu2.1", "+esm3" or "+deb13u1" is `version_moved`).
 - **INV-14k** A distribution kernel is judged once per CVE, on its Kernel line (intake makes it of the running kernel's image alone).
   On Ubuntu and Debian an agent's package built from a kernel source package that is not the Kernel line (the ABI-named headers,

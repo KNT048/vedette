@@ -325,16 +325,19 @@ var (
 )
 
 // ubuntuOwn says a revision has Ubuntu's own form (ubuntuOwnRE). Ubuntu counts its uploads after its mark with plain numbers and
-// writes a release number only inside the counter ("0ubuntu0.24.04.1", "3ubuntu5.24.04.1": a further upload number follows it), so a
-// mark that ends in a number with a leading zero ("1ubuntu24.04", a vendor's package named after the release) is not Ubuntu's.
+// writes a release number only inside the counter, after an upload number and before a further one ("0ubuntu0.24.04.1",
+// "3ubuntu5.24.04.1"), so its month, the only number with a leading zero, is never the counter's first or last number. A mark
+// with such a number there ("1ubuntu24.04", "1ubuntu24.04.1": a vendor's package named after the release) is not Ubuntu's.
 func ubuntuOwn(rev string) bool {
 	if !ubuntuOwnRE.MatchString(rev) {
 		return false
 	}
 	for _, m := range ubuntuCountRE.FindAllStringSubmatch(rev, -1) {
 		parts := strings.Split(strings.TrimRight(m[1], "."), ".")
-		if last := parts[len(parts)-1]; len(last) > 1 && last[0] == '0' {
-			return false
+		for i, p := range parts {
+			if len(p) > 1 && p[0] == '0' && (i < 2 || i == len(parts)-1) {
+				return false
+			}
 		}
 	}
 	return true

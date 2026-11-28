@@ -258,8 +258,9 @@ func TestVersionRange_Contains_PlaceholderIsUnknown(t *testing.T) {
 }
 
 // Debian's tilde sorts before the release itself, whatever word follows it ("10.1.61~us1" is a repack of 10.1.61, "1.0~git" a
-// snapshot before 1.0): such a version orders against every other release, and only against another pre-release of the same
-// release is it undecidable.
+// snapshot before 1.0). The word does not tell which of the two it is, so such a version orders against every other release, and
+// against the release itself or another pre-release of it it is undecidable: a range that starts or ends at that release, or an
+// exact list naming it, never decides it.
 func TestCompareVersions_DebianTilde(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -269,11 +270,14 @@ func TestCompareVersions_DebianTilde(t *testing.T) {
 	}{
 		{"10.1.61~us1", "7.0.81", 1, true},
 		{"10.1.61~us1", "10.1.60", 1, true},
-		{"10.1.61~us1", "10.1.61", -1, true},
+		{"10.1.61~us1", "10.1.61", 0, false}, // a repack of 10.1.61 or a snapshot before it: no order against the release itself
+		{"1.7.24~ds1", "1.7.24", 0, false},
+		{"1.7.24~ds1", "1.7.24+b1", 0, false},
+		{"1.7.24~ds1", "1.7.24p1", -1, true},
 		{"10.1.61~us1", "10.1.61.1", -1, true},
 		{"10.1.61~us1", "10.1.62", -1, true},
 		{"1.7.24~ds1", "1.7.23", 1, true},
-		{"1.0~git", "1.0", -1, true},
+		{"1.0~git", "1.0", 0, false},
 		{"1.0~git", "0.9", 1, true},
 		{"10.1.61~us1", "10.1.61~us1", 0, true},
 		{"10.1.61~us1", "10.1.61-rc1", 0, false}, // two pre-releases of one release: no order is known
@@ -293,7 +297,11 @@ func TestCompareVersions_DebianTilde(t *testing.T) {
 		want Tri
 	}{
 		{VersionRange{StartIncl: "7.0.0", EndIncl: "7.0.79"}, "10.1.61~us1", No},
-		{VersionRange{EndExcl: "10.1.61"}, "10.1.61~us1", Yes},
+		{VersionRange{EndExcl: "10.1.62"}, "10.1.61~us1", Yes},
+		{VersionRange{EndExcl: "10.1.61"}, "10.1.61~us1", Unknown},
+		{VersionRange{StartIncl: "1.7.24", EndExcl: "1.7.30"}, "1.7.24~ds1", Unknown},
+		{VersionRange{StartIncl: "1.7.24", EndIncl: "1.7.24"}, "1.7.24~ds1", Unknown},
+		{VersionRange{StartExcl: "1.7.23", EndExcl: "1.7.24"}, "1.7.24~ds1", Unknown},
 		{VersionRange{StartIncl: "10.1.61-rc1"}, "10.1.61~us1", Unknown},
 	} {
 		if got := c.r.Contains(c.v); got != c.want {

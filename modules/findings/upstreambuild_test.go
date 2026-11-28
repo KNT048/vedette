@@ -29,6 +29,7 @@ func TestDebBuildOf(t *testing.T) {
 		{"debian", "exampled", "1.7.28-1", buildOwn}, // a plain revision is Debian's own form
 		// the distribution's mark outside its grammar: the builder is unknown
 		{"ubuntu", "exampled", "8.4.6-1ubuntu24.04", buildMarked}, // a release number where Ubuntu counts uploads
+		{"ubuntu", "exampled", "8.4.6-1ubuntu24.04.1", buildMarked},
 		{"ubuntu", "exampled", "3.2.5+dfsg-3~ubuntu24.04.3", buildMarked},
 		{"ubuntu", "exampled", "17.0.21.1+2-1~24.04.1", buildMarked},
 		{"ubuntu", "exampled", "1.1.39-0exp1ubuntu0.24.04.3", buildMarked},
@@ -204,5 +205,31 @@ func TestMatchAsset_RepackedUpstreamIsOutsideAnOldLine(t *testing.T) {
 	r := MatchAsset(Asset{ID: "a", Name: "web-01", OS: "Ubuntu 24.04.3 LTS", Software: []Software{s}}, []Vuln{v}, map[string]bool{v.CVE: true}, now)
 	if len(r.New)+len(r.Existing) != 0 {
 		t.Errorf("a far older line's range raised a finding: %+v", r)
+	}
+}
+
+// A vendor's build whose upstream part does not state the upstream release plainly is never closed by an upstream range at the
+// release it might be: a tilde word ("1.7.24~ds1", a repack of 1.7.24 or a snapshot before it) against a range that starts at
+// 1.7.24, and Debian's "X+reallyY" (the release is Y, the version sorts as X) against a fix between Y and X.
+func TestMatchAsset_UpstreamBuildOfUnclearReleaseIsNotClosed(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 28, 0, 0, 0, 0, time.UTC)
+	const cpe = "cpe:2.3:a:example:example_server:*:*:*:*:*:*:*:*"
+	for _, c := range []struct {
+		ver, full string
+		r         VersionRange
+	}{
+		{"1.7.24~ds1", "1.7.24~ds1-1~noble", VersionRange{StartIncl: "1.7.24", EndExcl: "1.7.30"}},
+		{"1.7.24~ds1", "1.7.24~ds1-1~noble", VersionRange{StartIncl: "1.7.24", EndIncl: "1.7.24"}},
+		{"2.5+really2.4", "2.5+really2.4-1~noble", VersionRange{EndExcl: "2.4.5"}},
+	} {
+		s := Software{ID: "s-ex", Display: "Example Server", Vendor: "Example", Product: "Example Server", Version: c.ver,
+			Source: "agent", Packaged: true, PkgVersion: c.full, PkgSource: "exampled"}
+		v := Vuln{CVE: "CVE-2026-71030", NVDAnswered: true, Origin: RangeNVD, Affected: []Affected{{CPE: cpe, Range: c.r}},
+			DistroOn: map[string]bool{"ubuntu": true}}
+		r := MatchAsset(Asset{ID: "a", Name: "web-01", OS: "Ubuntu 24.04.3 LTS", Software: []Software{s}}, []Vuln{v}, map[string]bool{v.CVE: true}, now)
+		if len(r.NotAffected) != 0 {
+			t.Errorf("%s against %s: closed: %+v", c.full, c.r, r.NotAffected[0].Evidence.Summary)
+		}
 	}
 }

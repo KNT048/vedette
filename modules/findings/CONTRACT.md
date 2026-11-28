@@ -203,14 +203,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   package is never read here. `TestLineJudge_EveryVerdict`, `TestLineJudge_EvidenceFixAndOrigin`, `TestLineJudge_OracleJava`,
   `TestLineJudge_OracleTexts`, `TestLineJudge_OracleOwnBuildPart`.
 - **M-14 Decision coverage.** Each match pass counts, for every (software line, CVE) the catalogue relates on the devices it matched
-  (a row of the line reached by the entry's key or rows, or a finding or question of the pair), what decided it: the source (the
+  (a row of the line reached by the entry's key or rows, as the matcher reads the rows that name a line: `rowEntries`, so an entry about
+  another line of the product, such as Edge Legacy's on a Chromium Edge, relates nothing; or a finding or question of the pair), what decided it: the source (the
   `range_origin` vocabulary, `platform_list` for the hand list of platform limits, `person` for an answered question, `advisory` for a
   check the box settled, `ai_read` for a finding the AI's reading opened; an AI "not affected" decides only once a person confirms it,
   `person`) as affected or not affected; else why it is undecided: its
   cause (`PossibleCause`, as the lists show it) with the matcher's own reason under it (`CoverageCause.details`: the question's
   `Undecided.reason`, else its kind, so the record shapes behind a cause stay visible; a row stored before details were kept reads with
   its undecided reason as the cause and no details), for a distribution's package its distribution's data has no word on and no
-  question asks about, why (`DistroSilences`:
+  question asks about (the matcher asks about each, `askRow`, so the target is none), why (`DistroSilences`:
   `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_not_listed`, `distro_no_data`,
   `version_needed` for an agent's package row without its release; `TestCoverage_EveryDistributionPackagePairIsDecidedOrNamed`), or an
   unnamed class (`other_distro_silent`, `other_record_unread`, `other_dropped`: the matcher reached the pair and neither decided nor
@@ -345,7 +346,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestPossible_AHeldItemSaysUntilWhenAndWhy`.
 - **P-8 Every possible CVE names its cause.** `PossibleCause` (one exported function, also for the coverage of a match pass) gives each
   possible CVE one cause of the closed list `PossibleCauses`: `vendor_silent`, `page_unreadable`, `needs_reading` (no AI, or the reading to
-  come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`; `null` only for a settled row. The
+  come), `ai_unsure`, `ai_budget`, `identity_unproven`, `version_needed`, `pending_nvd`, `needs_person`, `distro_silent` (a distribution's package
+  its distribution's data has no word on, INV-14); `null` only for a settled row. The
   list row carries it (`PossibleRow.cause`) and the counts group by it (`PossibleCounts.causes`); an unlisted release line the reading can
   decide (checkable) has the reading's cause, not `version_needed` (`TestCheckable_AnUnlistedLineIsRead`).
   `TestPossibleCause_EveryPossibleRowHasOne`, `TestLineReading_CauseWithoutAIAndWithTheBudgetUsedUp`.
@@ -397,6 +399,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`markOlderBuilds`, run by the list, Home and the device counts only). `TestOlderBuild_AThirdPartysOldTestedBuildIsCountedApart`,
   `TestOlderBuild_NoRecordNoGroup`, `TestOlderBuild_RecordNotReadNoGroup`, `TestOlderBuild_VendorPageReadingKeepsMainList`,
   `TestOlderBuild_RecordSilent`, `TestOlderBuild_TestedBuilds`.
+- **P-11 Waiting for the distribution.** A possible CVE whose cause is `distro_silent` (a distribution's package its distribution's data
+  has no word on, INV-14; `PossibleItem.DistroPending`) is listed apart, closed until opened, like the older-build group: counted in
+  `PossibleCounts.distro_pending` (and `distro_pending_exploited`, so the header says how many are exploited and nothing is hidden), not
+  in `possible` or its `causes`; Home, the lists and the API carry both numbers. The device badge leaves it out (`possibleByDevice`: the
+  main list and the older-build group only). It never alerts (P-1) and is never read by the AI (`checkable`). Each row keeps the
+  distribution's reason. It changes no decision. `TestPossible_DistributionSilenceIsCountedApart`.
 
 ## Invariants
 
@@ -452,7 +460,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-4g** A question is asked only when an answer can change the verdict. A CVE on no exploited list is compared only with a
   version the device or a person gives (its agent, its SNMP answer, the network OS release it states over SNMP or LLDP, also when
   another source recorded that very release, the firmware it states on its management interface, a person's entry); against a
-  version read from the network (a banner, the passive sensor) it is neither compared nor asked. A line NVD names only at exact
+  version read from the network (a banner, the passive sensor) it is never compared: the pair asks for the version the device or a
+  person states (undecided `version_from_network`, cause `version_needed`), as a line NVD names that has no version at all does
+  (`no_version`; `askRow`, `TestQuestions_BannerAndACVEOnNoList`). Each line is its own pair: a finding or an "add the version" item
+  of a CVE on one line of a device does not keep another line the CVE names from being asked (`apart`). A line NVD names only at exact
   releases older than its own is not asked either: the release numbers each side starts with decide, whatever update or build
   follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). Nor is one NVD's exact list leaves out
   by its release line, in a notation whose lines are known (`lineOrder`: Junos 25.4R1 against 24.4 and 25.2 releases, Java 8
@@ -508,7 +519,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   another line says nothing; otherwise NVD's upstream ranges decide, on an exploited CVE as on any other (`alpineFixBranch`,
   `TestMatchAsset_AnotherAlpineBranchsFixNeverPatches`, `TestMatchAsset_AnotherAlpineBranchsFixOfAnotherLineOpensNothing`). Alpine's data
   lists fixed releases only (secdb), so a CVE it names no fix of leaves its package to NVD's upstream ranges (`upstreamJudges`, as
-  Grype's apk matcher); Ubuntu's and Debian's silence decides nothing. The distribution's "affected, no fix yet" of a CVE on no exploited
+  Grype's apk matcher; such a package whose upstream rows decide nothing is asked like any line). Ubuntu's and Debian's silence decides
+  nothing: the pair is a possible question with cause `distro_silent` and `distroSilence`'s reason (`distro_not_listed`,
+  `distro_other_packages`, `distro_other_releases`, `distro_other_build`, `distro_no_data`; an agent's package row without its release or
+  source asks for it, `package_unknown`), which no check of the vendor's advisory reads (`checkable`: the vendor does not speak for the
+  distribution's build); `TestCoverage_EveryRelatedPairIsDecidedOrAsked`. The distribution's "affected, no fix yet" of a CVE on no exploited
   list raises no finding (it would ask for an update that does not exist) until the fix or an exploited list comes; the coverage counts
   it decided affected (`distro_no_fix`).
   `TestMatchAsset_AlpineRowsDecideCatalogueCVEs`, `TestMatchAsset_UnfixedDistributionWordRaisesOnlyExploitedCVEs`. A package the

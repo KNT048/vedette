@@ -237,7 +237,19 @@ export function seedQuestions(): QuestionRecord[] {
     ...routerQuestions(),
     ...sqlQuestions(),
     ...olderBuildQuestions(),
+    ...distroQuestions(),
   ]
+}
+
+/** CVEs a distribution has no word on yet for its own packages on the web server (waiting for the distribution, listed apart): one
+ *  exploited CVE it lists for older releases only. */
+function distroQuestions(): QuestionRecord[] {
+  const curl = { id: 's-web01-curl', name: 'curl', version: '8.18.0' }
+  const q = (n: number, cve: string, reason: 'distro_not_listed' | 'distro_other_releases'): QuestionRecord => ({
+    id: `fq-web01-distro-${n}`, kind: 'no_range_data', asset_id: 'a-web01', software: curl, cve, cves: 1, asked_at: D(1), url: null, command: null, choices: [],
+    undecided: { reason, ranges: ['cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:* [, 8.19.0)'] },
+  })
+  return [q(1, 'CVE-2026-900201', 'distro_not_listed'), q(2, 'CVE-2026-900202', 'distro_not_listed'), q(3, 'CVE-2023-900203', 'distro_other_releases')]
 }
 
 /** CVEs a third party reported for an older build it tested, on two lines of the accounting server: three the vendor never spoke
@@ -263,7 +275,7 @@ function olderBuildQuestions(): QuestionRecord[] {
 
 /** CVEs of the possible findings that are on an exploited list. */
 export const POSSIBLE_EXPLOITED = new Set(['CVE-2026-240101', 'CVE-2026-240104', 'CVE-2026-240107', 'CVE-2026-240111', 'CVE-2026-240118', 'CVE-2026-240125', 'CVE-2026-240131',
-  'CVE-2026-240133', 'CVE-2026-118204', 'CVE-2026-245502'])
+  'CVE-2026-240133', 'CVE-2026-118204', 'CVE-2026-245502', 'CVE-2023-900203'])
 
 /** The reasons the router's 30 possible CVEs are undecided, in turn: what a real record of a network OS often looks like. */
 const ROUTER_REASONS: QuestionRecord['undecided'][] = [
@@ -304,6 +316,8 @@ export function checkKeyOf(q: Pick<QuestionRecord, 'id' | 'kind' | 'software' | 
   const reason = q.undecided?.reason
   // nothing a check can read decides these: the person's input does (the version, the system, the package release, the edition)
   if (q.kind === 'version_needed' || q.kind === 'platform' || q.kind === 'package_release' || reason === 'nvd_pending' || !q.software?.version) return ''
+  // the distribution's word or a version only the device states decides these, not the vendor's advisory
+  if (reason === 'version_from_network' || reason === 'package_unknown' || reason?.startsWith('distro_')) return ''
   let h = 2166136261
   let out = ''
   for (let round = 0; round < 8; round++) {

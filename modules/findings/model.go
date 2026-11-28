@@ -466,6 +466,7 @@ type Undecided struct {
 // The undecided reasons (Undecided.Reason). A closed list: a test checks every possible CVE carries one of them.
 const (
 	UndecidedNoVersion        = "no_version"                  // the line has no version the box can read
+	UndecidedNetworkVersion   = "version_from_network"        // only a version read from the network, which a CVE on no exploited list is not compared with
 	UndecidedPlatform         = "platform_unknown"            // the CVE affects some platforms only and nothing says which this device runs
 	UndecidedPackage          = "package_unknown"             // the distribution's package release decides and is not known
 	UndecidedAttribute        = "attribute_unknown"           // an edition, architecture or platform of the build decides it
@@ -483,12 +484,19 @@ const (
 	UndecidedFetchFailed      = "fetch_failed"                // no reference page could be read
 	UndecidedUnparsedVendor   = "unparsed_vendor_text"        // the advisory was read, its ranges were not
 	UndecidedAIUnsure         = "ai_unsure"                   // the AI read the pages and could not tell
+	// The distribution's package is judged by its distribution's word alone and its data has no word on it (distroSilence, cause
+	// distro_silent): DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData (distroSilentReasons).
 )
+
+// distroSilentReasons are the undecided reasons of a distribution's silence on its own package (DistroSilences less the version, which
+// an agent's package row without its release takes as UndecidedPackage).
+var distroSilentReasons = []string{DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild, DistroNoData}
 
 // UndecidedReasons lists every reason.
 var UndecidedReasons = []string{UndecidedNoVersion, UndecidedPlatform, UndecidedPackage, UndecidedAttribute, UndecidedSchemeMismatch, UndecidedNVDPending,
 	UndecidedNoRanges, UndecidedNotNamed, UndecidedPlatformOnly, UndecidedExactOnly, UndecidedRangesDoNotCover, UndecidedBranchOnly, UndecidedEOLUnlisted, UndecidedThirdPartyBuild, UndecidedNoReference, UndecidedFetchFailed,
-	UndecidedUnparsedVendor, UndecidedAIUnsure}
+	UndecidedUnparsedVendor, UndecidedAIUnsure, UndecidedNetworkVersion, DistroNotListed, DistroOtherPackages, DistroOtherReleases, DistroOtherBuild,
+	DistroNoData}
 
 // The most range rows and advisory bytes an Undecided keeps.
 const (

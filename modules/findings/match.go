@@ -494,9 +494,11 @@ type MatchResult struct {
 	// Unchecked like any row Vedette could not compare, and the service closes an open suspected product finding of that pair with
 	// Evidence.Summary (NameOnlyNote first) as its note. A later match that compares a version reopens it.
 	NameOnly []Match
-	// Unchecked lists, per software row, the exploited CVEs of software the device has that gave no finding, no NeedVersion
-	// item and no proof (#910 phase 1, uncheckedRow): a row CISA's key or NVD's list names that Vedette could not compare, a
-	// product match the age rule drops, and NotComparable. Independent of have.
+	// Unchecked lists, per software row, the CVEs of software the device has that gave no finding, no NeedVersion item and no proof
+	// on that row's line (#910 phase 1, uncheckedRow, askRow): a row CISA's key or NVD's list names that Vedette could not compare,
+	// a distribution's package its distribution's data has no word on, a version only the device or a person may state, a product
+	// match the age rule drops, and NotComparable. A finding or an item of the CVE on another line does not take a row's place
+	// (apart). Independent of have.
 	Unchecked []Unchecked
 	// Asked lists, whatever the device already has, the platform-limited CVEs no row decides until a person answers: the
 	// platform is not known, or it is the distribution of the fixed list and the package release is not. No finding; each is in
@@ -785,6 +787,7 @@ func (d *devMatch) read(vi int) *entryRead {
 	if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
 		rows = d.namedRows[vi]
 	}
+	var asks []Unchecked // askRow's rows, kept below only on a line no other row of it has a word on
 	for _, i := range rows {
 		s := sws[i]
 		keyed := keyedBy(d.keys[i], ek)
@@ -818,9 +821,13 @@ func (d *devMatch) read(vi int) *entryRead {
 			u := uncheckedOf(s, v, UncheckedNotComparable)
 			u.aiNumbering = true
 			e.unchecked = append(e.unchecked, u)
-		case out == outRuledOut || out == outNone && nm:
+		case out == outRuledOut || out == outNone && (nm || keyed):
 			if r, ok := uncheckedRow(a, s, info, v, nm, m, out); ok {
 				e.unchecked = append(e.unchecked, uncheckedOf(s, v, r))
+			} else if r, silence, ok := askRow(a, s, info, v, keyed, nm); ok && out == outNone {
+				u := uncheckedOf(s, v, r)
+				u.silence = silence
+				asks = append(asks, u)
 			}
 		}
 		if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
@@ -866,8 +873,40 @@ func (d *devMatch) read(vi int) *entryRead {
 			e.needRows = append(e.needRows, i)
 		}
 	}
+	if len(asks) > 0 {
+		e.unchecked = append(e.unchecked, d.unspoken(asks, e, v)...)
+	}
 	d.reads[vi] = e
 	return e
+}
+
+// unspoken is the rows of asks (askRow's) on a line no other row of it has a word on for v: an outcome (a finding, a proof, a version
+// or a person's answer it needs, a question), a row already listed as unchecked, or its distribution's "affected, no fix yet". A line
+// holds several rows (its readings); one that is decided or asked about is not asked about again for another of its rows.
+func (d *devMatch) unspoken(asks []Unchecked, e *entryRead, v Vuln) []Unchecked {
+	spoken, asked := map[string]bool{}, map[string]bool{}
+	for _, u := range asks {
+		asked[storedLine(u.SoftwareID)] = true
+	}
+	for _, o := range e.outs {
+		spoken[storedLine(d.sws[o.row].ID)] = true
+	}
+	for _, u := range e.unchecked {
+		spoken[storedLine(u.SoftwareID)] = true
+	}
+	for i, s := range d.sws {
+		if in := d.infos[i]; asked[storedLine(s.ID)] && in.pkgBuilt() && distroSilence(in, v) == DistroNoFixYet {
+			spoken[storedLine(s.ID)] = true
+		}
+	}
+	var out []Unchecked
+	for _, u := range asks {
+		if line := storedLine(u.SoftwareID); !spoken[line] {
+			spoken[line] = true // one question per line
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // aiGuard is row i's reading of entry vi (and whether the AI's choice made it) when the AI chose the row's product (Software.AIProduct), from its reading m, out with that
@@ -948,8 +987,11 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 		if best == nil && asked != nil {
 			res.Asked = append(res.Asked, *asked)
 		}
-		if best == nil && !needs {
+		switch {
+		case best == nil && !needs:
 			res.Unchecked = append(res.Unchecked, unchecked...)
+		case best == nil: // the rows that need a version have their item; the product's other lines are still asked about
+			res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, false)...)
 		}
 		if best == nil {
 			decided[v.CVE] = needs
@@ -989,6 +1031,8 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 					unchecked = append(unchecked, uncheckedOf(sws[bestRow], v, r))
 				}
 				res.Unchecked = append(res.Unchecked, unchecked...)
+			} else {
+				res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, false)...)
 			}
 			decided[v.CVE] = needs
 			continue
@@ -1007,11 +1051,14 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 					unchecked = append(unchecked, uncheckedOf(sws[bestRow], v, reason))
 				}
 				res.Unchecked = append(res.Unchecked, unchecked...)
+			} else {
+				res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, false)...)
 			}
 			decided[v.CVE] = needs
 			continue
 		}
 		decided[v.CVE] = true
+		res.Unchecked = append(res.Unchecked, d.apart(unchecked, e, true)...) // a line beside another line's finding is not decided by it
 		b := *best
 		b.Lines = otherLines(b, e.matched, v, now)
 		if have[v.CVE] {
@@ -1041,6 +1088,27 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 	}
 	d.explainUnchecked(res.Unchecked, vulns)
 	return res
+}
+
+// apart is the unchecked rows of us on no line that has its own word on the entry: a row that needs a version (its "add the version"
+// item lists the entry) and, with matched, a row the entry matches (its finding). Every other line of the product is still asked about.
+func (d *devMatch) apart(us []Unchecked, e *entryRead, matched bool) []Unchecked {
+	taken := map[string]bool{}
+	for _, i := range e.needRows {
+		taken[storedLine(d.sws[i].ID)] = true
+	}
+	if matched {
+		for _, m := range e.matched {
+			taken[storedLine(m.SoftwareID)] = true
+		}
+	}
+	var out []Unchecked
+	for _, u := range us {
+		if !taken[storedLine(u.SoftwareID)] {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // settled reports whether CISA added v to KEV at least SettledKEV before now; an unknown date is never settled.

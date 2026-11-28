@@ -27,6 +27,14 @@ func TestInstallations_EachDecidedOnItsOwnEvidence(t *testing.T) {
 		s.PkgSource = "example-gateway-extras"
 		return s
 	}
+	trainOnly := func(ver string, packaged bool) Software { // a reading that names only the release train (a package that pulls in the real one)
+		s := upstream(ver)
+		s.Packaged = packaged
+		if !packaged {
+			s.Source = "nmap"
+		}
+		return s
+	}
 	notAffected := []DistroFix{{Distro: "ubuntu", Release: "24.04", Package: "example-gateway", Status: "not_affected"}}
 	const (
 		closed    = "closed"
@@ -46,6 +54,10 @@ func TestInstallations_EachDecidedOnItsOwnEvidence(t *testing.T) {
 		{"each installation cleared by evidence of its own", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), upstream("3.2.15")}, notAffected, false, closed},
 		{"two readings of one installation share the distribution's word", []Software{distroPkg("3.0.5", "3.0.5-1ubuntu1"), upstream("3.0.5")}, notAffected, false, closed},
 		{"two packages one upload of the release builds share the distribution's word", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), extras("2.8.5", "2.8.5-1ubuntu3")}, notAffected, false, closed},
+		{"a package naming only the release train beside the package that installs it", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), trainOnly("2.8+12ubuntu1", true)}, notAffected, false, closed},
+		{"the same, the train-only package read first", []Software{trainOnly("2.8+12ubuntu1", true), distroPkg("2.8.5", "2.8.5-1ubuntu3")}, notAffected, false, closed},
+		{"a less precise reading outside the package database", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), trainOnly("2.8", false)}, notAffected, false, undecided},
+		{"a train-only package of another train", []Software{distroPkg("2.8.5", "2.8.5-1ubuntu3"), trainOnly("2.9+12ubuntu1", true)}, notAffected, false, undecided},
 		{"affected evidence about one installation opens the line", []Software{upstream("3.2.15"), upstream("3.2.5")}, nil, false, affected},
 		{"affected beside an undecided installation still opens", []Software{upstream("3.0.5"), upstream("3.2.5")}, nil, false, affected},
 		{"the vendor's statement covers every installation of its product", []Software{upstream("3.2.15"), upstream("3.0.5")}, nil, true, closed},

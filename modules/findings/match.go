@@ -944,9 +944,19 @@ func (d *devMatch) unspoken(asks []Unchecked, e *entryRead, v Vuln) []Unchecked 
 	return out
 }
 
+// vagueOf says version vague names fewer release numbers than precise and every one of them is precise's ("8.3" of "8.3.6", whatever
+// follows the numbers: "8.3+93ubuntu2"): it names the train precise is a release of, not another release.
+func vagueOf(vague, precise string) bool {
+	v, okV := parseVersion(vague)
+	p, okP := parseVersion(precise)
+	return okV && okP && len(v.rel) > 0 && len(v.rel) < len(p.rel) && slices.Equal(v.rel, p.rel[:len(v.rel)])
+}
+
 // sameInstallation says rows i and j of the device's readings are one installation of their line: the same upstream version (or one of
 // them reads none) and, when both name a source package, the same one or the same package release (two packages one upload of the
-// release builds: "5.1-2ubuntu0.4" of the product and of its extras). Two releases of a product installed side by side, or the
+// release builds: "5.1-2ubuntu0.4" of the product and of its extras). Two readings of the device's package database where one version
+// is a less precise prefix of the other ("8.3" of a package that names only the release train, "8.3.6" of the package that installs it)
+// are one installation too: the precise reading's evidence decides it. Two releases of a product installed side by side, or the
 // distribution's package beside a build of another release, are two installations, each decided on its own evidence.
 func (d *devMatch) sameInstallation(i, j int) bool {
 	if i == j {
@@ -957,7 +967,7 @@ func (d *devMatch) sameInstallation(i, j int) bool {
 		return true
 	}
 	if c, ok := compareBound(a.ver, b.ver); !ok || c != 0 {
-		return false
+		return d.sws[i].Packaged && d.sws[j].Packaged && (vagueOf(a.ver, b.ver) || vagueOf(b.ver, a.ver))
 	}
 	pa, pb := strings.TrimSpace(d.sws[i].PkgSource), strings.TrimSpace(d.sws[j].PkgSource)
 	ra, rb := strings.TrimSpace(d.sws[i].PkgVersion), strings.TrimSpace(d.sws[j].PkgVersion)

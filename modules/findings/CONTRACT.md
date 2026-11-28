@@ -426,7 +426,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   after `z` and compare like any other (`TestDecide_OpenSSLLetterBranches`).
 - **INV-4g** Evidence per installation. A software line can hold several readings. Readings with the same upstream version (or one
   without a version) and the same source package or the same package release (one upload builds the product and its extras) are one
-  installation and share their evidence. Other readings (a distribution's package beside a third-party build of another release, two
+  installation and share their evidence, and so are two readings of the device's package database where one version is a less precise
+  prefix of the other ("8.3" of a package naming only the train beside "8.3.6" of the package installing it). Other readings (a distribution's package beside a third-party build of another release, two
   releases installed side by side) are other installations. Each is decided on its own evidence: a distribution's word, a range or a
   vendor statement decides only the installation it is about. An installation with no evidence of its own is asked about (one question
   per line) and blocks the line's proof from closing a finding (`unspoken`, `sameInstallation`). Affected evidence on any installation
